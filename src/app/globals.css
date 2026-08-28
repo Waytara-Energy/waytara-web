@@ -1,0 +1,183 @@
+@import "tailwindcss";
+
+@theme {
+  --color-theme-bg: var(--background);
+  --color-theme-surface: var(--surface);
+  --color-theme-surface-hover: var(--surface-hover);
+  --color-theme-surface-muted: var(--surface-muted);
+  --color-theme-border: var(--border);
+  --color-theme-border-active: var(--border-active);
+  --color-theme-primary: var(--text-primary);
+  --color-theme-secondary: var(--text-secondary);
+  --color-theme-muted: var(--text-muted);
+  --color-theme-highlight: var(--highlight);
+  --color-theme-alert: var(--alert);
+}
+
+@layer base {
+  :root {
+    --background: #FFFFFF;
+    --foreground: #0F172A;
+    --surface: #F8FAFC;
+    --surface-hover: #F1F5F9;
+    --surface-muted: #F8FAFC;
+    --border: #E2E8F0;
+    --border-active: #16A34A;
+    
+    --text-primary: #0F172A;
+    --text-secondary: #475569;
+    --text-muted: #64748B;
+    
+    --highlight: #16A34A;
+    --highlight-bg: rgba(22, 163, 74, 0.08);
+    --alert: #D97706;
+    --alert-bg: rgba(217, 119, 6, 0.08);
+
+    /* Dynamic Page Gutter (Continuous Fluid Scaling for All Screen Sizes) */
+    --page-gutter: clamp(1rem, 3.2vw, 3.25rem);
+
+    /* Primary gradient: 135deg diagonal */
+    --gradient-primary: linear-gradient(135deg, #34D399 0%, #16A34A 50%, #15803D 100%);
+    --gradient-glow: radial-gradient(circle, rgba(22, 163, 74, 0.12) 0%, rgba(22, 163, 74, 0) 70%);
+
+    /* Radix / shadcn variable bridges */
+    --card: #F8FAFC;
+    --card-foreground: #0F172A;
+    --popover: #FFFFFF;
+    --popover-foreground: #0F172A;
+    --primary: #16A34A;
+    --primary-foreground: #FFFFFF;
+    --secondary: #F1F5F9;
+    --secondary-foreground: #0F172A;
+    --muted: #F1F5F9;
+    --muted-foreground: #64748B;
+    --accent: #F1F5F9;
+    --accent-foreground: #0F172A;
+    --destructive: #EF4444;
+    --destructive-foreground: #FFFFFF;
+    --input: #E2E8F0;
+    --ring: #16A34A;
+    --radius: 0.625rem;
+  }
+
+  .dark {
+    --background: #0A0F0D;
+    --foreground: #F5F7F6;
+    --surface: #111815;
+    --surface-hover: #16201C;
+    --surface-muted: #0D1411;
+    --border: #1E2B25;
+    --border-active: #4ADE80;
+    
+    --text-primary: #F5F7F6;
+    --text-secondary: #94A3B8;
+    --text-muted: #64748B;
+    
+    --highlight: #4ADE80;
+    --highlight-bg: rgba(74, 222, 128, 0.1);
+    --alert: #F59E0B;
+    --alert-bg: rgba(245, 158, 11, 0.1);
+
+    /* Primary gradient: 135deg diagonal (dark mode) */
+    --gradient-primary: linear-gradient(135deg, #34D399 0%, #16A34A 50%, #0D9488 100%);
+    --gradient-glow: radial-gradient(circle, rgba(52, 211, 153, 0.12) 0%, rgba(52, 211, 153, 0) 70%);
+
+    /* Radix / shadcn variable bridges */
+    --card: #111815;
+    --card-foreground: #F5F7F6;
+    --popover: #111815;
+    --popover-foreground: #F5F7F6;
+    --primary: #4ADE80;
+    --primary-foreground: #0A0F0D;
+    --secondary: #16201C;
+    --secondary-foreground: #F5F7F6;
+    --muted: #16201C;
+    --muted-foreground: #94A3B8;
+    --accent: #16201C;
+    --accent-foreground: #F5F7F6;
+    --destructive: #7F1D1D;
+    --destructive-foreground: #F5F7F6;
+    --input: #1E2B25;
+    --ring: #4ADE80;
+  }
+}
+
+/* Custom Utility Classes */
+.bg-theme-bg { background-color: var(--background); }
+.bg-theme-surface { background-color: var(--surface); }
+.bg-theme-surface-hover:hover { background-color: var(--surface-hover); }
+.border-theme-border { border-color: var(--border); }
+.border-theme-active { border-color: var(--border-active); }
+.text-theme-primary { color: var(--text-primary); }
+.text-theme-secondary { color: var(--text-secondary); }
+.text-theme-muted { color: var(--text-muted); }
+.text-theme-highlight { color: var(--highlight); }
+.text-theme-alert { color: var(--alert); }
+.bg-theme-highlight-subtle { background-color: var(--highlight-bg); }
+.bg-theme-alert-subtle { background-color: var(--alert-bg); }
+
+/* Primary Gradient Utilities */
+.bg-primary-gradient {
+  background: var(--gradient-primary);
+}
+
+.text-primary-gradient {
+  background: var(--gradient-primary);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* Fluid Dynamic Root Scaling */
+html {
+  scroll-behavior: smooth;
+  font-size: clamp(13px, 0.28vw + 12px, 16.5px);
+}
+
+@media (min-width: 1920px) {
+  html {
+    font-size: 17.5px;
+  }
+}
+
+@media (min-width: 2560px) {
+  html {
+    font-size: 19px;
+  }
+}
+
+body {
+  background-color: var(--background);
+  color: var(--text-primary);
+  font-family: var(--font-brand), system-ui, -apple-system, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  overflow-x: hidden;
+  letter-spacing: -0.01em;
+}
+
+/* Fluid Section Spacing and Dynamic Responsive Side Gutters */
+.section-padding {
+  padding-top: clamp(2.5rem, 5vw, 5rem);
+  padding-bottom: clamp(2.5rem, 5vw, 5rem);
+}
+
+.fluid-container {
+  width: 100%;
+  max-width: 1536px;
+  margin-left: auto;
+  margin-right: auto;
+  padding-left: var(--page-gutter);
+  padding-right: var(--page-gutter);
+}
+
+/* Minimalist Eyebrow Label */
+.eyebrow-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--highlight);
+  margin-bottom: 0.5rem;
+}

@@ -1,0 +1,253 @@
+"use client";
+
+import * as React from "react";
+import Link from "next/link";
+import { usePathname } from "next/navigation";
+import {
+  Menu,
+  HelpCircle,
+  Phone,
+  ChevronRight,
+  Zap,
+} from "lucide-react";
+import { Logo } from "@/components/shared/logo";
+import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { Button } from "@/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+} from "@/components/ui/sheet";
+import { cn } from "@/lib/utils";
+
+const NAV_LINKS = [
+  { label: "Home", href: "/" },
+  { label: "About Us", href: "/#about-us" },
+  { label: "Our Services", href: "/#customer-segments" },
+  { label: "How It Works", href: "/#how-it-works" },
+  { label: "Why WayTara", href: "/#why-integrated" },
+];
+
+export function Navigation() {
+  const pathname = usePathname();
+  const [isScrolled, setIsScrolled] = React.useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+
+  const isHome = pathname === "/";
+
+  React.useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
+  const handleNavClick = (
+    e: React.MouseEvent<HTMLAnchorElement>,
+    href: string
+  ) => {
+    if (href.startsWith("/#")) {
+      const targetId = href.replace("/#", "");
+      if (pathname === "/") {
+        e.preventDefault();
+        const element = document.getElementById(targetId);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth" });
+          window.history.pushState(null, "", `#${targetId}`);
+        }
+      }
+    } else if (href === "/" && pathname === "/") {
+      e.preventDefault();
+      window.scrollTo({ top: 0, behavior: "smooth" });
+      window.history.pushState(null, "", "/");
+    }
+  };
+
+  const isThemeStyled = !isHome || isScrolled;
+
+  return (
+    <header
+      className={cn(
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-out h-[clamp(3.5rem,4.5vw,4.25rem)] flex items-center select-none border-0",
+        isThemeStyled
+          ? "bg-theme-bg/95 text-theme-primary shadow-md backdrop-blur-md"
+          : "bg-transparent text-white"
+      )}
+    >
+      <div className="fluid-container flex items-center justify-between h-full">
+        
+        {/* 1. Left: Minimal Fluid Logo */}
+        <div className="flex items-center">
+          <Logo variant={!isThemeStyled ? "white" : "default"} />
+        </div>
+
+        {/* 2. Center: Clean Direct Navigation Links (Fluid Sizing with Smooth In-Page Anchor Scrolling) */}
+        <nav className="hidden lg:flex items-center space-x-[clamp(0.25rem,0.6vw,0.75rem)]">
+          {NAV_LINKS.map((link) => (
+            <Link
+              key={link.label}
+              href={link.href}
+              onClick={(e) => handleNavClick(e, link.href)}
+              className={cn(
+                "px-[clamp(0.5rem,0.85vw,1rem)] py-1.5 rounded-lg text-[clamp(12px,0.88vw,13.5px)] font-semibold transition-all duration-200 cursor-pointer select-none",
+                isThemeStyled
+                  ? "text-theme-primary hover:text-theme-highlight hover:bg-theme-surface"
+                  : "text-white hover:text-white hover:bg-white/15 drop-shadow-sm"
+              )}
+            >
+              {link.label}
+            </Link>
+          ))}
+        </nav>
+
+        {/* 3. Right: Knowledge (?), Contact (Phone), and Theme Toggle */}
+        <div className="hidden sm:flex items-center space-x-[clamp(0.2rem,0.5vw,0.6rem)]">
+          {/* ? Icon -> Knowledge Centre */}
+          <Link
+            href="/knowledge-centre"
+            className={cn(
+              "p-2 rounded-lg transition-all duration-200 flex items-center justify-center",
+              isThemeStyled
+                ? "text-theme-primary hover:text-theme-highlight hover:bg-theme-surface"
+                : "text-white hover:text-white hover:bg-white/15 drop-shadow-sm"
+            )}
+            title="Knowledge Centre & Guides"
+            aria-label="Knowledge Centre"
+          >
+            <HelpCircle className="h-[clamp(17px,1.15vw,19.5px)] w-[clamp(17px,1.15vw,19.5px)]" />
+          </Link>
+
+          {/* Phone Icon -> Contact Us */}
+          <Link
+            href="/contact"
+            className={cn(
+              "p-2 rounded-lg transition-all duration-200 flex items-center justify-center",
+              isThemeStyled
+                ? "text-theme-primary hover:text-theme-highlight hover:bg-theme-surface"
+                : "text-white hover:text-white hover:bg-white/15 drop-shadow-sm"
+            )}
+            title="Contact & Engineering Support"
+            aria-label="Contact Us"
+          >
+            <Phone className="h-[clamp(17px,1.15vw,19.5px)] w-[clamp(17px,1.15vw,19.5px)]" />
+          </Link>
+
+          {/* Theme Toggle Icon */}
+          <ThemeToggle
+            className={cn(
+              "p-2 rounded-lg transition-all duration-200 flex items-center justify-center",
+              isThemeStyled
+                ? "text-theme-primary hover:text-theme-highlight hover:bg-theme-surface"
+                : "text-white hover:bg-white/15 drop-shadow-sm"
+            )}
+            iconClassName={isThemeStyled ? "text-theme-primary" : "text-white"}
+          />
+
+          {/* Get Started Button */}
+          <Button
+            asChild
+            size="sm"
+            variant={!isThemeStyled ? "secondary" : "gradient"}
+            className={cn(
+              "h-8 sm:h-8.5 px-3.5 sm:px-4 text-xs sm:text-[13px] font-semibold rounded-lg transition-all duration-200 ml-1.5 shadow-sm",
+              !isThemeStyled
+                ? "bg-white text-slate-950 hover:bg-slate-100 border-0 shadow-md font-bold"
+                : ""
+            )}
+          >
+            <Link
+              href="/#energy-planner"
+              onClick={(e) => handleNavClick(e, "/#energy-planner")}
+            >
+              <Zap
+                className={cn(
+                  "h-3.5 w-3.5 mr-1 transition-colors",
+                  isThemeStyled
+                    ? "text-white fill-white"
+                    : "text-emerald-500 fill-emerald-500"
+                )}
+              />
+              <span>Get Started</span>
+            </Link>
+          </Button>
+        </div>
+
+        {/* Mobile Hamburger Drawer */}
+        <div className="flex lg:hidden items-center gap-1">
+          <ThemeToggle
+            className={cn(
+              "p-2 rounded-lg",
+              !isThemeStyled ? "text-white" : "text-theme-primary"
+            )}
+            iconClassName={!isThemeStyled ? "text-white" : "text-theme-primary"}
+          />
+          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
+            <SheetTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={cn(
+                  "h-9 w-9 rounded-lg p-0",
+                  !isThemeStyled ? "text-white hover:bg-white/10" : "text-theme-primary"
+                )}
+                aria-label="Toggle Mobile Menu"
+              >
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-[85vw] max-w-sm p-6 flex flex-col justify-between">
+              <div>
+                <SheetHeader className="text-left pb-4 border-b border-theme-border">
+                  <SheetTitle>
+                    <Logo />
+                  </SheetTitle>
+                </SheetHeader>
+
+                <div className="flex flex-col gap-1 mt-6">
+                  {NAV_LINKS.map((link) => (
+                    <Link
+                      key={link.label}
+                      href={link.href}
+                      onClick={(e) => {
+                        setMobileMenuOpen(false);
+                        handleNavClick(e, link.href);
+                      }}
+                      className="py-2.5 px-2 text-sm font-semibold text-theme-primary hover:text-theme-highlight hover:bg-theme-surface rounded-lg flex items-center justify-between transition-colors"
+                    >
+                      <span>{link.label}</span>
+                      <ChevronRight className="h-4 w-4 opacity-40" />
+                    </Link>
+                  ))}
+                </div>
+              </div>
+
+              <div className="pt-4 border-t border-theme-border space-y-2">
+                <Button asChild variant="gradient" className="w-full justify-center text-xs h-10">
+                  <Link
+                    href="/#energy-planner"
+                    onClick={(e) => {
+                      setMobileMenuOpen(false);
+                      handleNavClick(e, "/#energy-planner");
+                    }}
+                  >
+                    <Zap className="h-3.5 w-3.5 mr-1.5" />
+                    Start Energy Assessment
+                  </Link>
+                </Button>
+                <p className="text-[10px] text-center text-theme-muted">
+                  1800-WAYTARA • Mon–Sat 8AM–8PM
+                </p>
+              </div>
+            </SheetContent>
+          </Sheet>
+        </div>
+
+      </div>
+    </header>
+  );
+}
