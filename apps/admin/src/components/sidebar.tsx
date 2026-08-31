@@ -5,6 +5,7 @@ import {
   UserCircle2,
   UsersRound,
   Layers,
+  Cpu,
   Zap,
 } from "lucide-react";
 import { cn } from "@waytara/ui/cn";
@@ -15,6 +16,7 @@ const NAV_ITEMS = [
   { label: "Customers", href: "/customers", icon: UserCircle2 },
   { label: "Employees", href: "/employees", icon: UsersRound },
   { label: "Plans", href: "/plans", icon: Layers },
+  { label: "Devices", href: "/devices", icon: Cpu },
 ] as const;
 
 export function Sidebar() {
@@ -47,7 +49,7 @@ export function Sidebar() {
       </nav>
 
       <div className="border-t border-border p-3 text-xs text-muted-foreground">
-        No real pages wired up yet — nav stub only.
+        Customers isn&apos;t built yet — nav stub only.
       </div>
     </aside>
   );
