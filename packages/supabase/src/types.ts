@@ -184,6 +184,7 @@ export type Database = {
           plan_id: string | null
           plan_started_at: string | null
           status: string
+          tariff_rate_per_kwh: number
         }
         Insert: {
           address?: Json | null
@@ -193,6 +194,7 @@ export type Database = {
           plan_id?: string | null
           plan_started_at?: string | null
           status?: string
+          tariff_rate_per_kwh?: number
         }
         Update: {
           address?: Json | null
@@ -202,6 +204,7 @@ export type Database = {
           plan_id?: string | null
           plan_started_at?: string | null
           status?: string
+          tariff_rate_per_kwh?: number
         }
         Relationships: [
           {

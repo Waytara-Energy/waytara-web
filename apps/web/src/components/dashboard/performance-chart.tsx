@@ -28,14 +28,20 @@ function monthKey(date: Date): string {
   return date.toISOString().slice(0, 7); // YYYY-MM
 }
 
-function aggregate(daily: DailyPoint[], granularity: Granularity): DailyPoint[] {
+function aggregate(daily: DailyPoint[], granularity: Granularity, mode: "sum" | "last"): DailyPoint[] {
   if (granularity === "daily") return daily;
 
   const buckets = new Map<string, number>();
   for (const point of daily) {
     const date = new Date(point.date + "T00:00:00Z");
     const key = granularity === "weekly" ? isoWeekKey(date) : monthKey(date);
-    buckets.set(key, (buckets.get(key) ?? 0) + point.value);
+    if (mode === "sum") {
+      buckets.set(key, (buckets.get(key) ?? 0) + point.value);
+    } else {
+      // "last" — for a running/cumulative series, a bucket's value is
+      // its most recent point, not a sum (points arrive date-ascending).
+      buckets.set(key, point.value);
+    }
   }
   return Array.from(buckets.entries())
     .map(([date, value]) => ({ date, value }))
@@ -57,16 +63,39 @@ const PADDING = { top: 16, right: 16, bottom: 28, left: 44 };
 export function PerformanceChart({
   daily,
   unit = "kWh",
+  aggregationMode = "sum",
+  valueFormat = "unit",
+  totalLabel = "Total this period",
 }: {
   daily: DailyPoint[];
   unit?: string;
+  /** "sum" buckets weekly/monthly by adding daily values (default — energy
+   *  yield). "last" takes the bucket's most recent value instead, for a
+   *  running/cumulative series (e.g. cumulative savings to date) where
+   *  summing would double-count. */
+  aggregationMode?: "sum" | "last";
+  /** "unit" -> `${value} ${unit}` (default). "inr" -> ₹-formatted, no
+   *  decimals. A named enum, not a formatter function, so this component
+   *  stays passable from a Server Component (functions can't cross the
+   *  RSC boundary as props). */
+  valueFormat?: "unit" | "inr";
+  /** Overrides the "Total this period" summary label — for a cumulative
+   *  series the period total isn't a sum, it's the latest value. */
+  totalLabel?: string;
 }) {
   const [granularity, setGranularity] = React.useState<Granularity>("daily");
   const [showTable, setShowTable] = React.useState(false);
   const [hoverIndex, setHoverIndex] = React.useState<number | null>(null);
   const svgRef = React.useRef<SVGSVGElement>(null);
 
-  const points = React.useMemo(() => aggregate(daily, granularity), [daily, granularity]);
+  const points = React.useMemo(
+    () => aggregate(daily, granularity, aggregationMode),
+    [daily, granularity, aggregationMode]
+  );
+  const fmt =
+    valueFormat === "inr"
+      ? (v: number) => `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`
+      : (v: number) => `${v.toFixed(1)} ${unit}`;
 
   const plotWidth = CHART_WIDTH - PADDING.left - PADDING.right;
   const plotHeight = CHART_HEIGHT - PADDING.top - PADDING.bottom;
@@ -101,7 +130,10 @@ export function PerformanceChart({
     setHoverIndex(closest);
   }
 
-  const total = points.reduce((sum, p) => sum + p.value, 0);
+  const total =
+    aggregationMode === "sum"
+      ? points.reduce((sum, p) => sum + p.value, 0)
+      : (points[points.length - 1]?.value ?? 0);
   const hovered = hoverIndex !== null ? points[hoverIndex] : null;
 
   return (
@@ -137,7 +169,7 @@ export function PerformanceChart({
       </div>
 
       <p className="text-sm text-theme-muted">
-        Total this period: <span className="font-medium text-theme-primary">{total.toFixed(1)} {unit}</span>
+        {totalLabel}: <span className="font-medium text-theme-primary">{fmt(total)}</span>
       </p>
 
       {points.length === 0 ? (
@@ -148,14 +180,14 @@ export function PerformanceChart({
             <thead className="bg-theme-surface text-left text-xs uppercase tracking-wide text-theme-muted">
               <tr>
                 <th className="px-3 py-2 font-medium">Period</th>
-                <th className="px-3 py-2 font-medium">{unit}</th>
+                <th className="px-3 py-2 font-medium">Value</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-theme-border">
               {points.map((p) => (
                 <tr key={p.date}>
                   <td className="px-3 py-2 text-theme-primary">{formatLabel(p.date, granularity)}</td>
-                  <td className="px-3 py-2 tabular-nums text-theme-secondary">{p.value.toFixed(1)}</td>
+                  <td className="px-3 py-2 tabular-nums text-theme-secondary">{fmt(p.value)}</td>
                 </tr>
               ))}
             </tbody>
@@ -246,9 +278,7 @@ export function PerformanceChart({
                 transform: "translateX(-50%)",
               }}
             >
-              <p className="font-semibold text-theme-primary">
-                {hovered.value.toFixed(1)} {unit}
-              </p>
+              <p className="font-semibold text-theme-primary">{fmt(hovered.value)}</p>
               <p className="text-theme-muted">{formatLabel(hovered.date, granularity)}</p>
             </div>
           )}
