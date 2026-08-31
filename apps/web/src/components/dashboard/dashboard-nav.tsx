@@ -9,6 +9,7 @@ import {
   CreditCard,
   Settings,
   Activity,
+  TrendingUp,
 } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 import { cn } from "@/lib/utils";
@@ -21,10 +22,11 @@ const BASE_NAV = [
   { href: "/dashboard/settings", label: "Application Settings", icon: Settings },
 ] as const;
 
-// Task 10: items gated by plans.features. Performance/Analytics/Reports
-// join this same list once those modules exist.
+// Task 10: items gated by plans.features. Analytics/Reports join this
+// same list once those modules exist.
 const GATED_NAV = [
   { href: "/dashboard/monitoring", label: "Monitoring", icon: Activity, featureKey: "monitoring" },
+  { href: "/dashboard/performance", label: "Performance", icon: TrendingUp, featureKey: "performance" },
 ] as const;
 
 export function DashboardNav({
