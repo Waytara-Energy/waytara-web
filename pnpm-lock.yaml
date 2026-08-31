@@ -96,6 +96,9 @@ importers:
       '@waytara/supabase':
         specifier: workspace:*
         version: link:../../packages/supabase
+      '@waytara/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       canvas-confetti:
         specifier: ^1.9.4
         version: 1.9.4
@@ -187,6 +190,9 @@ importers:
       '@radix-ui/react-slot':
         specifier: ^1.3.3
         version: 1.3.3(@types/react@19.2.18)(react@19.2.8)
+      '@waytara/supabase':
+        specifier: workspace:*
+        version: link:../supabase
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1
@@ -200,6 +206,9 @@ importers:
         specifier: ^3.6.0
         version: 3.6.0
     devDependencies:
+      '@types/node':
+        specifier: ^20
+        version: 20.19.43
       '@types/react':
         specifier: ^19
         version: 19.2.18

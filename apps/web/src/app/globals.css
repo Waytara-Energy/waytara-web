@@ -1,5 +1,11 @@
 @import "tailwindcss";
 
+/* Only for @waytara/ui/monitoring-panel (Task 10.1) — deliberately built
+   with plain Tailwind palette classes (no bg-primary/theme tokens), so this
+   is the only wiring needed; no shared theme-file import, no risk of
+   clashing with this file's own --color-theme-* system below. */
+@source "../../../../packages/ui/src";
+
 @theme {
   --color-theme-bg: var(--background);
   --color-theme-surface: var(--surface);

@@ -2,13 +2,17 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { LayoutDashboard, Sun, Wrench, CreditCard, Settings } from "lucide-react";
+import {
+  LayoutDashboard,
+  Sun,
+  Wrench,
+  CreditCard,
+  Settings,
+  Activity,
+} from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 import { cn } from "@/lib/utils";
 
-// Task 10 will extend this same array with feature-gated items
-// (Monitoring, Performance, Analytics, Reports) once those modules exist —
-// the `features` prop is already threaded through for that.
 const BASE_NAV = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/sites", label: "Sites & Devices", icon: Sun },
@@ -17,13 +21,24 @@ const BASE_NAV = [
   { href: "/dashboard/settings", label: "Application Settings", icon: Settings },
 ] as const;
 
+// Task 10: items gated by plans.features. Performance/Analytics/Reports
+// join this same list once those modules exist.
+const GATED_NAV = [
+  { href: "/dashboard/monitoring", label: "Monitoring", icon: Activity, featureKey: "monitoring" },
+] as const;
+
 export function DashboardNav({
   planName,
+  features = {},
 }: {
   planName?: string | null;
   features?: Record<string, boolean>;
 }) {
   const pathname = usePathname();
+  const navItems = [
+    ...BASE_NAV,
+    ...GATED_NAV.filter((item) => features[item.featureKey]),
+  ];
 
   return (
     <aside className="flex h-screen w-60 shrink-0 flex-col border-r border-theme-border bg-theme-surface">
@@ -34,7 +49,7 @@ export function DashboardNav({
       </div>
 
       <nav className="flex-1 space-y-1 p-3">
-        {BASE_NAV.map(({ href, label, icon: Icon }) => {
+        {navItems.map(({ href, label, icon: Icon }) => {
           const active = pathname === href;
           return (
             <Link
