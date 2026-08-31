@@ -20,6 +20,9 @@ node_modules
 # turborepo
 .turbo
 
+# supabase CLI local cache/link state (packages/supabase, created by `pnpm db:types`)
+**/supabase/.temp
+
 # production
 /build
 

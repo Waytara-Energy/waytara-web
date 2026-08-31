@@ -31,21 +31,16 @@ const outFile = path.resolve(
 
 console.log(`[db:types] Generating types for schema "waytara" from project ${projectId}...`);
 
-const result = spawnSync(
-  "npx",
-  [
-    "--yes",
-    "supabase",
-    "gen",
-    "types",
-    "typescript",
-    "--project-id",
-    projectId,
-    "--schema",
-    "waytara",
-  ],
-  { encoding: "utf8", shell: process.platform === "win32" }
-);
+// Built as a single pre-quoted string (rather than command + args array) so
+// running it through a shell on Windows doesn't hit Node's DEP0190 warning
+// about unescaped array args.
+const quotedProjectId = `"${projectId.replace(/"/g, '\\"')}"`;
+const command = `npx --yes supabase gen types typescript --project-id ${quotedProjectId} --schema waytara`;
+
+const result = spawnSync(command, {
+  encoding: "utf8",
+  shell: process.platform === "win32" ? true : "/bin/sh",
+});
 
 if (result.error) {
   console.error("[db:types] Failed to run the Supabase CLI:", result.error.message);
