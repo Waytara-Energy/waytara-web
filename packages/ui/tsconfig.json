@@ -1,0 +1,7 @@
+{
+  "extends": "@waytara/config/tsconfig-base.json",
+  "compilerOptions": {
+    "types": ["react", "react-dom"]
+  },
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
+}
