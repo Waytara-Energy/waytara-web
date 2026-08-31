@@ -59,21 +59,3 @@ export interface RecommendationResult {
   rationale: string[];
   co2OffsetTonnesPerYear: number;
 }
-
-export interface EnquiryRecord {
-  id: string;
-  createdAt: string;
-  status: "partial" | "completed";
-  source: "energy_planner" | "contact_page" | "package_card";
-  segment?: CustomerSegmentId;
-  packageId?: string;
-  formData: Partial<EnergyPlannerInput>;
-  recommendation?: Partial<RecommendationResult>;
-  contact?: {
-    name?: string;
-    email?: string;
-    phone?: string;
-    city?: string;
-    message?: string;
-  };
-}
