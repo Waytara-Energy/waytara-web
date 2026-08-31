@@ -9,7 +9,25 @@ import {
   recordFullPayment,
   recordSplitPayment,
   resendCustomerInviteEmail,
+  createSite,
+  addDevice,
+  completeSiteSetup,
 } from "./actions";
+
+const PROPERTY_TYPE_LABELS: Record<string, string> = {
+  residential_independent_villas: "Residential & Independent Villas",
+  gated_communities_rwas_high_rises: "Gated Communities, RWAs & High-Rises",
+  factories_heavy_engineering_processing_plants: "Factories, Heavy Engineering & Processing Plants",
+  corporate_offices_hospitals_hotels_retail: "Corporate Offices, Hospitals, Hotels & Retail",
+  logistics_delivery_hubs_bus_depots: "Logistics, Delivery Hubs & Bus Depots",
+  tech_parks_data_centers_rnd_hubs: "Tech Parks, Data Centers & R&D Hubs",
+};
+
+const POWER_SOURCE_LABELS: Record<string, string> = {
+  grid_tied: "Grid Tied",
+  off_grid: "Off Grid",
+  hybrid: "Hybrid",
+};
 
 export default async function OnboardingPipelinePage({
   params,
@@ -64,6 +82,50 @@ export default async function OnboardingPipelinePage({
   // The lead record already has the same name/email and is RLS-visible to
   // the employee regardless, so use that instead of adding another policy
   // just to duplicate a value that's already on hand.
+
+  // sites has no back-reference to customer_onboarding, so this takes the
+  // customer's most recently created site as "this onboarding's site" —
+  // fine for one system per onboarding (the common case); a customer with
+  // two separate purchases/onboardings would need a real link to
+  // disambiguate, which the schema doesn't have.
+  let site: {
+    id: string;
+    name: string;
+    property_type: string;
+    power_source_category: string;
+  } | null = null;
+  let devices: { id: string; device_uid: string; label: string | null; device_type: { name: string } | null }[] = [];
+  let deviceTypes: {
+    id: string;
+    name: string;
+    device_type_instruments: { instrument_name: string; unit: string | null; is_required: boolean }[];
+  }[] = [];
+
+  if (onboarding.current_stage === "site_setup" && onboarding.customer_id) {
+    const { data: siteRow } = await supabase
+      .from("sites")
+      .select("id, name, property_type, power_source_category")
+      .eq("customer_id", onboarding.customer_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    site = siteRow;
+
+    if (site) {
+      const { data: deviceRows } = await supabase
+        .from("devices")
+        .select("id, device_uid, label, device_type:device_types(name)")
+        .eq("site_id", site.id)
+        .order("created_at", { ascending: false });
+      devices = deviceRows ?? [];
+    }
+
+    const { data: deviceTypeRows } = await supabase
+      .from("device_types")
+      .select("id, name, device_type_instruments(instrument_name, unit, is_required)")
+      .order("name");
+    deviceTypes = deviceTypeRows ?? [];
+  }
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -162,6 +224,143 @@ export default async function OnboardingPipelinePage({
           <p className="text-xs text-muted-foreground">
             Site &amp; device setup (Task 8.4) isn&apos;t built yet.
           </p>
+        </div>
+      ) : onboarding.current_stage === "site_setup" ? (
+        <div className="rounded-lg border border-border bg-card p-5 space-y-5">
+          <h2 className="text-sm font-semibold">Site &amp; Device Setup</h2>
+
+          {!site ? (
+            <form action={createSite.bind(null, onboarding.id)} className="space-y-3">
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Site name</label>
+                <Input name="siteName" placeholder="e.g. Rajan Residence, Anna Nagar" required />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Property type</label>
+                <select
+                  name="propertyType"
+                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                  required
+                  defaultValue=""
+                >
+                  <option value="" disabled>
+                    Select property type…
+                  </option>
+                  {Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Power source</label>
+                <select
+                  name="powerSourceCategory"
+                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                  required
+                  defaultValue=""
+                >
+                  <option value="" disabled>
+                    Select power source…
+                  </option>
+                  {Object.entries(POWER_SOURCE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Button type="submit" size="sm">
+                Create Site
+              </Button>
+            </form>
+          ) : (
+            <>
+              <div className="rounded-md border border-border p-3 text-sm">
+                <p className="font-medium">{site.name}</p>
+                <p className="text-muted-foreground">
+                  {PROPERTY_TYPE_LABELS[site.property_type] ?? site.property_type} ·{" "}
+                  {POWER_SOURCE_LABELS[site.power_source_category] ?? site.power_source_category}
+                </p>
+              </div>
+
+              <div className="space-y-3 border-t border-border pt-4">
+                <h3 className="text-sm font-semibold">Devices ({devices.length})</h3>
+                {devices.length > 0 && (
+                  <ul className="space-y-2">
+                    {devices.map((d) => (
+                      <li key={d.id} className="rounded-md border border-border p-3 text-sm">
+                        <span className="font-medium">{d.device_type?.name ?? "Device"}</span>{" "}
+                        <span className="text-muted-foreground">
+                          — {d.label || d.device_uid} ({d.device_uid})
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+
+                <form
+                  action={addDevice.bind(null, onboarding.id, site.id)}
+                  className="flex flex-wrap items-end gap-2"
+                >
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium">Device type</label>
+                    <select
+                      name="deviceTypeId"
+                      className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+                      required
+                      defaultValue=""
+                    >
+                      <option value="" disabled>
+                        Select…
+                      </option>
+                      {deviceTypes.map((dt) => (
+                        <option key={dt.id} value={dt.id}>
+                          {dt.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium">Device ID</label>
+                    <Input name="deviceUid" placeholder="e.g. deye-8k-01" className="h-9 w-40" required />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium">Label (optional)</label>
+                    <Input name="label" placeholder="e.g. Rooftop Inverter" className="h-9 w-40" />
+                  </div>
+                  <Button type="submit" size="sm">
+                    Add Device
+                  </Button>
+                </form>
+
+                {deviceTypes.length > 0 && (
+                  <div className="mt-3 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">
+                      Instrument checklist by device type:
+                    </p>
+                    {deviceTypes.map((dt) => (
+                      <div key={dt.id} className="text-xs text-muted-foreground">
+                        <span className="font-medium text-foreground">{dt.name}:</span>{" "}
+                        {dt.device_type_instruments
+                          .map((i) => `${i.instrument_name}${i.unit ? ` (${i.unit})` : ""}${i.is_required ? "*" : ""}`)
+                          .join(", ")}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {devices.length > 0 && (
+                <form action={completeSiteSetup.bind(null, onboarding.id)} className="border-t border-border pt-4">
+                  <Button type="submit" size="sm">
+                    Site Setup Complete → Connection Test
+                  </Button>
+                </form>
+              )}
+            </>
+          )}
         </div>
       ) : onboarding.current_stage !== "quotation_sent" ? (
         <div className="rounded-lg border border-border bg-card p-5 text-sm text-muted-foreground">

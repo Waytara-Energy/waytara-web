@@ -300,6 +300,88 @@ export async function recordSplitPayment(
   redirect(`/onboarding/${onboardingId}`);
 }
 
+// Task 8.4: site & device setup.
+
+export async function createSite(onboardingId: string, formData: FormData) {
+  const propertyType = String(formData.get("propertyType") ?? "");
+  const powerSourceCategory = String(formData.get("powerSourceCategory") ?? "");
+  const siteName = String(formData.get("siteName") ?? "").trim();
+
+  if (!propertyType || !powerSourceCategory || !siteName) {
+    redirect(
+      `/onboarding/${onboardingId}?error=${encodeURIComponent("Fill in a site name, property type, and power source.")}`
+    );
+  }
+
+  const supabase = await createClient();
+  const { data: onboarding } = await supabase
+    .from("customer_onboarding")
+    .select("customer_id")
+    .eq("id", onboardingId)
+    .single();
+
+  if (!onboarding?.customer_id) {
+    redirect(
+      `/onboarding/${onboardingId}?error=${encodeURIComponent("No customer linked to this onboarding yet.")}`
+    );
+  }
+
+  const { error } = await supabase.from("sites").insert({
+    customer_id: onboarding.customer_id,
+    name: siteName,
+    // Both are checked non-empty above and only ever come from this page's
+    // own <select> options, so these casts are safe.
+    property_type: propertyType as never,
+    power_source_category: powerSourceCategory as never,
+  });
+
+  if (error) {
+    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/onboarding/${onboardingId}`);
+  redirect(`/onboarding/${onboardingId}`);
+}
+
+export async function addDevice(onboardingId: string, siteId: string, formData: FormData) {
+  const deviceTypeId = String(formData.get("deviceTypeId") ?? "");
+  const deviceUid = String(formData.get("deviceUid") ?? "").trim();
+  const label = String(formData.get("label") ?? "").trim() || null;
+
+  if (!deviceTypeId || !deviceUid) {
+    redirect(
+      `/onboarding/${onboardingId}?error=${encodeURIComponent("Pick a device type and enter a device ID.")}`
+    );
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("devices").insert({
+    site_id: siteId,
+    device_type_id: deviceTypeId,
+    device_uid: deviceUid,
+    label,
+    status: "test",
+  });
+
+  if (error) {
+    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/onboarding/${onboardingId}`);
+  redirect(`/onboarding/${onboardingId}`);
+}
+
+export async function completeSiteSetup(onboardingId: string) {
+  const supabase = await createClient();
+  await supabase
+    .from("customer_onboarding")
+    .update({ current_stage: "connection_test" })
+    .eq("id", onboardingId);
+
+  revalidatePath(`/onboarding/${onboardingId}`);
+  redirect(`/onboarding/${onboardingId}`);
+}
+
 // Task 8.3: the pipeline view distinguishes "waiting on customer" (no
 // customer_id yet) from "profile submitted" — this is the resend option for
 // the waiting case. Reuses the existing invite_token rather than minting a
