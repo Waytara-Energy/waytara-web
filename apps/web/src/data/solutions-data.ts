@@ -131,7 +131,7 @@ export const SEGMENT_SOLUTIONS_DATA: Record<string, SegmentSolutionData> = {
     tagline: "The Frontier of 24/7 Home Power Independence.",
     heroImage: "/images/segments/home.jpg",
     executiveSummary:
-      "Engineered specifically for Indian independent homes, duplexes, and villas. WayTara couples BloombergNEF Tier-1 N-Type TOPCon bifacial panels with safe smart Lithium Iron Phosphate (LFP) storage to deliver seamless sub-20ms blackout backup for 1.5/2.0-ton ACs and appliances while cutting grid DISCOM bills by up to 90%.",
+      "Engineered for villas and residences. WayTara couples Tier-1 TOPCon solar with smart LFP storage to deliver zero-flicker blackout backup for heavy ACs while cutting grid bills by up to 90%.",
     metrics: [
       {
         label: "Typical PV Capacity",
@@ -208,11 +208,11 @@ export const SEGMENT_SOLUTIONS_DATA: Record<string, SegmentSolutionData> = {
         icon: "Zap",
       },
       {
-        title: "Tara AI IoT Gateway",
-        tag: "Software Tier",
-        specs: ["Live Mobile Telemetry", "Appliance-Level Insights", "OTA Firmware Updates"],
+        title: "WayTara Cloud IoT & Remote Dashboard",
+        tag: "Cloud Platform",
+        specs: ["Live Mobile & Web Telemetry", "Historical Analytics", "Worldwide Inverter Management"],
         description:
-          "Autonomous cloud monitoring optimizing energy dispatch, predicting weather patterns, and automatically dispatching maintenance alerts before faults occur.",
+          "Real-time mobile and web dashboard to monitor daily solar generation, track historical energy metrics, and remotely manage inverter operating modes anytime, from anywhere in the world.",
         icon: "Smartphone",
       },
     ],
@@ -334,7 +334,7 @@ export const SEGMENT_SOLUTIONS_DATA: Record<string, SegmentSolutionData> = {
     tagline: "Clean Power & EV Ready Infrastructure for Modern Communities.",
     heroImage: "/images/segments/apartment.jpg",
     executiveSummary:
-      "Shared rooftop solar architectures and centralized battery storage engineered to power society common area utilities — water pumping stations, sewage treatment plants (STPs), elevators, and corridor lighting — while provisioning individualized EV charging bays with automated resident RFID sub-metering to slash RWA monthly maintenance charges.",
+      "Shared rooftop solar and central battery storage engineered to power common lifts, pumps, and STPs with automated EV sub-metering to slash monthly society maintenance fees.",
     metrics: [
       {
         label: "Typical PV Capacity",
@@ -532,7 +532,7 @@ export const SEGMENT_SOLUTIONS_DATA: Record<string, SegmentSolutionData> = {
     tagline: "High-Yield MW Solar & BESS for Uninterrupted Industrial Uptime.",
     heroImage: "/images/segments/factory.jpg",
     executiveSummary:
-      "High-capacity industrial rooftop arrays, ground-mount PV, and multi-megawatt Battery Energy Storage Systems (BESS). Engineered to eliminate contracted maximum demand (kVA) penalties, provide heavy motor surge power, replace expensive industrial diesel generators, and capture 40% Year-1 Accelerated Tax Depreciation.",
+      "High-capacity MW solar and industrial BESS engineered to eliminate peak demand penalties, replace expensive diesel generators, and capture 40% Year-1 tax depreciation.",
     metrics: [
       {
         label: "Typical PV Capacity",
@@ -730,7 +730,7 @@ export const SEGMENT_SOLUTIONS_DATA: Record<string, SegmentSolutionData> = {
     tagline: "Sustainable Energy for Modern Workspaces & Commercial Assets.",
     heroImage: "/images/segments/commercial.jpg",
     executiveSummary:
-      "Engineered for corporate headquarters, private hospitals, hospitality chains, and commercial retail malls. High-efficiency rooftop canopy arrays paired with modular commercial BESS eliminate expensive daytime peak tariffs, power central HVAC chillers and server rooms, and achieve high ESG / LEED green building ratings.",
+      "High-efficiency solar carports and rooftop PV engineered for hospitals, tech parks, and commercial hubs to stabilize daytime HVAC loads and optimize operational ESG metrics.",
     metrics: [
       {
         label: "Typical PV Capacity",
@@ -928,7 +928,7 @@ export const SEGMENT_SOLUTIONS_DATA: Record<string, SegmentSolutionData> = {
     tagline: "Solar-Powered High-Speed Fast Charging Infrastructure.",
     heroImage: "/images/segments/ev-fleet.jpg",
     executiveSummary:
-      "Dedicated high-power DC fast charging hubs and solar microgrids for commercial 2W/3W delivery fleets, electric bus depots, and logistics hubs. Dynamic solar-sync routing and battery buffering enable rapid vehicle turnarounds without triggering massive grid transformer upgrades or high peak tariff penalties.",
+      "High-power DC fast charging depots paired with on-site solar and containerized BESS to charge commercial fleets rapidly without overloading local utility grids.",
     metrics: [
       {
         label: "DC Fast Charging",
@@ -1104,7 +1104,7 @@ export const SEGMENT_SOLUTIONS_DATA: Record<string, SegmentSolutionData> = {
     tagline: "Mission-Critical 99.999% Power Availability for Tech Infrastructure.",
     heroImage: "/images/segments/it-park.jpg",
     executiveSummary:
-      "Enterprise microgrid architectures engineered for tech parks, Tier-III data centers, and advanced R&D campuses. Combines large-scale rooftop arrays, solar parking canopies, and high-voltage containerized BESS to provide 99.999% clean sine wave uptime, Time-of-Day (ToD) tariff arbitrage, and ESG reporting.",
+      "Zero-downtime microgrids engineered for data centers and IT campuses, combining high-yield solar with millisecond UPS transfer and intelligent peak-load shaving.",
     metrics: [
       {
         label: "Typical PV Capacity",
@@ -1289,3 +1289,387 @@ export function normalizeSegmentSlug(slug?: string | null): string {
   if (SEGMENT_SOLUTIONS_DATA[clean]) return clean;
   return "home";
 }
+
+export interface TopologyFlowStep {
+  step: number;
+  title: string;
+  desc: string;
+  icon: string;
+}
+
+export interface TopologyComponent {
+  name: string;
+  role: string;
+  specs: string;
+}
+
+export interface SolarTopologyDetail {
+  id: "on_grid" | "hybrid" | "off_grid";
+  name: string;
+  badge: string;
+  tagline: string;
+  shortDesc: string;
+  howItWorksTitle: string;
+  howItWorksDesc: string;
+  flowSteps: TopologyFlowStep[];
+  components: TopologyComponent[];
+  pros: string[];
+  cons: string[];
+  subsidyAndPricing: {
+    subsidyText: string;
+    subsidyEligible: boolean;
+    priceRange: string;
+    payback: string;
+  };
+  idealFor: string[];
+}
+
+export interface TopologyComparisonRow {
+  parameter: string;
+  onGrid: string;
+  hybrid: string;
+  offGrid: string;
+}
+
+export const SOLAR_TOPOLOGIES_DATA: Record<string, SolarTopologyDetail> = {
+  on_grid: {
+    id: "on_grid",
+    name: "On-Grid Solar System",
+    badge: "Net-Metered • Up to ₹78,000 Subsidy",
+    tagline: "Direct DISCOM grid synchronization for maximum electricity bill reduction with zero battery overhead.",
+    shortDesc:
+      "An on-grid solar system works in direct synchronization with your local electricity board (DISCOM) grid. It generates clean solar energy during the day to run your home appliances and automatically exports any surplus units through a bi-directional Net Meter. At night or during overcast weather, you seamlessly draw banked power credits from the grid.",
+    howItWorksTitle: "How an On-Grid Solar System Works",
+    howItWorksDesc:
+      "A 5-step synchronized cycle connecting rooftop solar modules to the national utility grid via a smart bidirectional net-metering interface.",
+    flowSteps: [
+      {
+        step: 1,
+        title: "Daylight Solar Generation",
+        desc: "High-efficiency N-Type TOPCon bifacial panels capture sunlight and generate clean direct current (DC) electricity.",
+        icon: "Sun",
+      },
+      {
+        step: 2,
+        title: "High-Efficiency Inversion",
+        desc: "The on-grid string inverter converts DC power to 230V/415V AC electricity synchronized with the grid frequency and voltage.",
+        icon: "Zap",
+      },
+      {
+        step: 3,
+        title: "Instant Self-Consumption",
+        desc: "Your active household appliances (fans, lights, ACs, refrigerators) consume solar power first, reducing grid power consumption to zero.",
+        icon: "Home",
+      },
+      {
+        step: 4,
+        title: "Surplus Net-Meter Export",
+        desc: "Excess units not consumed by your home are automatically exported to the DISCOM grid through a Bi-Directional Net Meter, banking financial units.",
+        icon: "ArrowUpRight",
+      },
+      {
+        step: 5,
+        title: "Nighttime Grid Banking",
+        desc: "At night, power is imported from the grid. At the end of the billing cycle, DISCOM offsets your import against exported units for near-zero bills.",
+        icon: "Moon",
+      },
+    ],
+    components: [
+      {
+        name: "Tier-1 N-Type TOPCon Solar Modules",
+        role: "High-Yield Solar Generation",
+        specs: "550Wp+ glass-glass bifacial panels with 22.5%+ efficiency and 25-year performance warranty.",
+      },
+      {
+        name: "On-Grid String Inverter",
+        role: "DC to AC Synchronous Conversion",
+        specs: "98.4%+ efficiency, dual MPPT trackers, and built-in anti-islanding line safety protection.",
+      },
+      {
+        name: "Bi-Directional Net Meter",
+        role: "Two-Way Import/Export Billing",
+        specs: "DISCOM-calibrated smart meter recording units exported vs. units imported from the utility grid.",
+      },
+      {
+        name: "ACDB / DCDB Protective Switchgear",
+        role: "Surge & Overcurrent Protection",
+        specs: "Type-II surge protection devices (SPDs), IP65 rotary DC isolators, and heavy copper earthing.",
+      },
+    ],
+    pros: [
+      "Lowest initial capital cost (no battery bank required)",
+      "100% eligible for Central PM Surya Ghar Subsidies (up to ₹78,000 direct DBT)",
+      "Fastest payback period in the solar industry (2.8 – 3.5 years)",
+      "Zero battery replacement or recurring chemical maintenance costs",
+    ],
+    cons: [
+      "Shuts down automatically during power cuts to prevent line back-feeding (Anti-Islanding safety for linemen)",
+      "Requires active DISCOM net-metering approval and inspection",
+    ],
+    subsidyAndPricing: {
+      subsidyText: "Eligible for full Central PM Surya Ghar subsidies (₹30,000 for 1kW, ₹60,000 for 2kW, ₹78,000 for 3kW+).",
+      subsidyEligible: true,
+      priceRange: "₹1.95L – ₹3.6L (3 kW – 6 kWp)",
+      payback: "2.8 – 3.5 Years",
+    },
+    idealFor: [
+      "Urban homes, villas, and apartments with stable 24/7 grid electricity seeking maximum financial savings.",
+      "Commercial office buildings, factories, and retail establishments aiming for near-zero monthly electricity bills.",
+      "Property owners looking for the fastest return on investment (ROI) with minimal maintenance.",
+    ],
+  },
+  hybrid: {
+    id: "hybrid",
+    name: "Hybrid Solar System",
+    badge: "Solar + Smart LFP Storage + Grid Sync",
+    tagline: "The ultimate energy resilience: net-metered savings by day and sub-20ms seamless battery backup during blackouts.",
+    shortDesc:
+      "A hybrid solar system combines the financial benefits of an on-grid system with the energy security of an off-grid system. It powers active appliances on solar during the day, charges an intelligent Lithium Iron Phosphate (LFP) battery bank, exports surplus units to the DISCOM grid, and automatically switches to battery power in under 20 milliseconds during power cuts with zero flicker.",
+    howItWorksTitle: "How a Hybrid Solar System Works",
+    howItWorksDesc:
+      "An intelligent tripartite energy system coordinating solar yield, high-capacity lithium storage, and the DISCOM grid for 24/7 uninterrupted power.",
+    flowSteps: [
+      {
+        step: 1,
+        title: "Daylight Powering & Storage",
+        desc: "Solar generation directly powers daytime home loads while simultaneously charging the smart LFP battery bank to 100%.",
+        icon: "Sun",
+      },
+      {
+        step: 2,
+        title: "Grid Net-Meter Export",
+        desc: "Once battery storage is fully charged, surplus solar power is exported to the DISCOM grid via net metering for bill credits.",
+        icon: "Zap",
+      },
+      {
+        step: 3,
+        title: "Sub-20ms Blackout Switchover",
+        desc: "During grid failures or voltage sags, the hybrid inverter isolates in <20ms, running heavy AC loads without any equipment reboot.",
+        icon: "BatteryCharging",
+      },
+      {
+        step: 4,
+        title: "Evening Peak Battery Shaving",
+        desc: "Stored battery energy discharges during expensive evening hours, shielding you from peak DISCOM tariffs.",
+        icon: "TrendingDown",
+      },
+      {
+        step: 5,
+        title: "24/7 Cloud Remote Control",
+        desc: "WayTara Cloud IoT continuously monitors generation, battery health, and load draw with global remote inverter controls.",
+        icon: "Smartphone",
+      },
+    ],
+    components: [
+      {
+        name: "Bifacial TOPCon PV Array",
+        role: "High-Efficiency Solar Harvesting",
+        specs: "Dual-glass N-Type modules capturing both direct and ground-reflected albedo sunshine.",
+      },
+      {
+        name: "Bidirectional Hybrid Inverter",
+        role: "Smart Multi-Port Power Routing",
+        specs: "200% surge capacity for running 1.5/2.0 Ton ACs and inductive water pumps with sub-20ms UPS switchover.",
+      },
+      {
+        name: "Smart LiFePO4 Battery Storage",
+        role: "Modular 24/7 Energy Reserve",
+        specs: "6,000+ cycle Lithium Iron Phosphate storage with multi-point thermal BMS and 10-year warranty.",
+      },
+      {
+        name: "Bi-Directional Net Meter",
+        role: "Grid Export & Bill Offsetting",
+        specs: "Approved net-metering interface enabling up to 95% total electricity bill reduction.",
+      },
+    ],
+    pros: [
+      "100% immunity to grid power cuts with sub-20ms instant UPS switchover",
+      "Full DISCOM net-metering eligibility to achieve ₹0 monthly electricity bills",
+      "Eligible for PM Surya Ghar rooftop solar subsidies on the solar PV portion",
+      "Easily starts and runs heavy inductive loads like 1.5/2.0 Ton Inverter ACs and refrigerators during blackouts",
+    ],
+    cons: [
+      "Moderate initial capital investment due to lithium battery storage integration",
+      "Requires dedicated wall or floor space for the modular battery enclosure",
+    ],
+    subsidyAndPricing: {
+      subsidyText: "Solar PV portion eligible for PM Surya Ghar subsidy (up to ₹78,000). Battery bank is self-financed with high financial ROI.",
+      subsidyEligible: true,
+      priceRange: "₹4.5L – ₹7.2L (5 kW – 10 kWp with 10–15 kWh Storage)",
+      payback: "3.5 – 4.2 Years",
+    },
+    idealFor: [
+      "Homes and luxury villas experiencing frequent, unpredictable power cuts or voltage dips.",
+      "Properties running critical medical equipment, smart home automation, and work-from-home IT setups.",
+      "EV owners seeking overnight solar vehicle charging and complete blackout protection.",
+    ],
+  },
+  off_grid: {
+    id: "off_grid",
+    name: "Off-Grid Solar System",
+    badge: "100% Independent • Zero Grid Connection",
+    tagline: "Complete standalone micro-power plant engineered for remote sites, farmhouses, and zero-grid locations.",
+    shortDesc:
+      "An off-grid solar system operates completely disconnected from the electrical utility grid. It is an independent, self-contained microgrid that pairs an oversized solar PV array with high-capacity Lithium or deep-cycle battery storage and an MPPT charge controller to provide 24/7 reliable electricity anywhere in the world.",
+    howItWorksTitle: "How an Off-Grid Solar System Works",
+    howItWorksDesc:
+      "An autonomous standalone generation and deep storage system engineered for remote locations with zero dependency on DISCOM transmission lines.",
+    flowSteps: [
+      {
+        step: 1,
+        title: "Dedicated Solar Harvesting",
+        desc: "Solar modules capture all available sunlight and feed high-voltage DC power into integrated MPPT charge controllers.",
+        icon: "Sun",
+      },
+      {
+        step: 2,
+        title: "Direct Appliance Energization",
+        desc: "The off-grid inverter supplies continuous, regulated 230V/415V AC electricity directly to all active property appliances.",
+        icon: "Zap",
+      },
+      {
+        step: 3,
+        title: "Deep Battery Bank Charging",
+        desc: "100% of excess solar power is directed into high-capacity LiFePO4 batteries to store energy for nighttime and overcast days.",
+        icon: "BatteryCharging",
+      },
+      {
+        step: 4,
+        title: "Nighttime Autonomous Discharging",
+        desc: "At night, the battery bank discharges smoothly through pure sine wave inversion to power lighting, refrigeration, and cooling loads.",
+        icon: "Moon",
+      },
+      {
+        step: 5,
+        title: "Auxiliary Generator Integration",
+        desc: "Built-in dry contact relays can automatically trigger an auxiliary diesel/petrol generator during extended monsoon rain periods.",
+        icon: "Layers",
+      },
+    ],
+    components: [
+      {
+        name: "High-Density PV Modules",
+        role: "Oversized Daylight Generation",
+        specs: "Generously sized bifacial solar array guaranteeing adequate battery charging even on cloudy and monsoon days.",
+      },
+      {
+        name: "Off-Grid Pure Sine Wave Inverter",
+        role: "Standalone Inversion & MPPT Control",
+        specs: "Heavy-duty inverter with dual high-voltage MPPT controllers and generator auto-start signaling.",
+      },
+      {
+        name: "Deep-Cycle LiFePO4 Storage Bank",
+        role: "24/7 Autonomous Energy Reserve",
+        specs: "Sized for 1 to 2 days of weather autonomy with multi-cell balancing BMS and 6,000+ cycle lifespan.",
+      },
+      {
+        name: "Generator Auto-Start Controller",
+        role: "Emergency Weather Backup",
+        specs: "Seamless dry-contact integration for auxiliary generator synchronization during prolonged rainy spells.",
+      },
+    ],
+    pros: [
+      "100% energy sovereignty with zero dependence on DISCOM infrastructure or grid availability",
+      "No monthly electricity bills, no tariff escalation, and no meter fixed charges forever",
+      "Can be installed anywhere: remote farmhouses, agricultural lands, hills, and islands",
+      "Immune to grid voltage fluctuations, brownouts, and transmission line failures",
+    ],
+    cons: [
+      "Higher initial battery storage cost to ensure multi-day weather autonomy",
+      "Cannot export surplus power for DISCOM revenue (no net metering)",
+      "PM Surya Ghar residential DBT subsidy is not applicable for non-grid systems",
+    ],
+    subsidyAndPricing: {
+      subsidyText: "PM Surya Ghar residential subsidy requires grid connection. Off-grid systems qualify for 40% accelerated commercial tax depreciation.",
+      subsidyEligible: false,
+      priceRange: "₹3.8L – ₹8.5L (3 kW – 10 kW with 10–25 kWh LFP Storage)",
+      payback: "4.2 – 5.5 Years (Compared to diesel generator fuel costs)",
+    },
+    idealFor: [
+      "Remote farmhouses, agricultural estates, plantation bungalows, and eco-tourism resorts.",
+      "Locations where DISCOM grid connection costs (transformers and cabling) are prohibitively expensive.",
+      "Areas experiencing severe 6+ hour daily power outages or extreme voltage fluctuations.",
+    ],
+  },
+};
+
+export const TOPOLOGY_COMPARISON_MATRIX: TopologyComparisonRow[] = [
+  {
+    parameter: "Grid Connection",
+    onGrid: "100% Connected (Required)",
+    hybrid: "Connected (Flexible)",
+    offGrid: "Zero Connection (100% Standalone)",
+  },
+  {
+    parameter: "Battery Storage Bank",
+    onGrid: "Not Required",
+    hybrid: "Yes (Lithium LiFePO4)",
+    offGrid: "Yes (High-Capacity LiFePO4)",
+  },
+  {
+    parameter: "Power During Grid Outages",
+    onGrid: "Shuts Down (Anti-Islanding Safety)",
+    hybrid: "Seamless Sub-20ms Backup (Zero Flicker)",
+    offGrid: "100% Continuous 24/7 Power",
+  },
+  {
+    parameter: "Net-Metering Bill Export",
+    onGrid: "Yes (Up to 90% Bill Offset)",
+    hybrid: "Yes (Up to 95% Bill Offset)",
+    offGrid: "No (Self-Contained Microgrid)",
+  },
+  {
+    parameter: "PM Surya Ghar Subsidy",
+    onGrid: "Eligible (Up to ₹78,000 Direct DBT)",
+    hybrid: "Eligible (On Solar PV Portion)",
+    offGrid: "Not Eligible (Grid Connection Required)",
+  },
+  {
+    parameter: "Typical Payback Period",
+    onGrid: "2.8 – 3.5 Years",
+    hybrid: "3.5 – 4.2 Years",
+    offGrid: "4.2 – 5.5 Years (vs. Diesel Generator)",
+  },
+  {
+    parameter: "Best Suited Location",
+    onGrid: "Urban homes with stable grid",
+    hybrid: "Homes with power cuts & luxury villas",
+    offGrid: "Remote farmhouses, hills & zero-grid sites",
+  },
+];
+
+export const SOLAR_TOPOLOGY_CONSOLIDATED_FAQS = [
+  {
+    question: "What is the key difference between On-Grid, Hybrid, and Off-Grid solar systems?",
+    answer: "An On-Grid system works in direct synchronization with the DISCOM grid to export surplus power via a bi-directional Net Meter for bill credits, but shuts down during power cuts for lineman safety. A Hybrid system (WayTara Flagship) provides the best of both worlds: full DISCOM net-metering plus a smart Lithium (LFP) battery bank that switches on in sub-20ms during power cuts with zero flicker. An Off-Grid system is a 100% standalone microgrid with zero grid connection, relying entirely on high-capacity LiFePO4 batteries for 24/7 power in remote locations.",
+  },
+  {
+    question: "How much does an On-Grid vs. Hybrid vs. Off-Grid solar system cost in India (2026)?",
+    answer: "In 2026, On-Grid residential systems range between ₹55,000 to ₹65,000 per kW (a 1 kW turnkey system costs ~₹65,000–₹75,000, while a 3 kW system costs ~₹1.95L–₹2.15L before Central Subsidies). Hybrid solar systems with smart LFP storage typically cost ₹85,000 to ₹1,25,000 per kW depending on battery backup capacity (5 kWh to 15 kWh). Off-Grid solar systems range from ₹1,10,000 to ₹1,60,000 per kW due to heavy-duty MPPT charge controllers and large autonomous LiFePO4 battery banks.",
+  },
+  {
+    question: "Is there a government subsidy for On-Grid, Hybrid, and Off-Grid solar systems?",
+    answer: "Yes. Under the central PM Surya Ghar: Muft Bijli Yojana, residential On-Grid and Hybrid systems (solar PV component) receive direct bank transfer (DBT) subsidies of ₹30,000 for 1 kW, ₹60,000 for 2 kW, and up to ₹78,000 for 3 kW and above. Off-Grid systems do not qualify for residential PM Surya Ghar DBT subsidies because DISCOM grid synchronization is mandatory, but commercial/agricultural off-grid installations qualify for 40% accelerated tax depreciation under Section 32 of the Income Tax Act.",
+  },
+  {
+    question: "Does an On-Grid solar system need a battery, and do solar panels work at night?",
+    answer: "No, an on-grid solar system does not require a battery bank. Solar panels generate clean electricity exclusively during daylight hours. At night, your premises seamlessly draw power from the DISCOM grid, utilizing the banked energy credits generated during the day. If you need continuous power during night-time grid outages without drawing from DISCOM, a Hybrid or Off-Grid system with Lithium storage is required.",
+  },
+  {
+    question: "Can I run an Air Conditioner (AC), refrigerator, and heavy loads on an Off-Grid or Hybrid solar system?",
+    answer: "Yes, absolutely. WayTara Hybrid and Off-Grid systems are engineered with industrial pure sine-wave inverters capable of handling high inductive motor starting surges (up to 3x nominal rating). You can effortlessly power 1.5-Ton or 2.0-Ton Inverter ACs, submersible water pumps, refrigerators, and heavy kitchen appliances. A minimum 3 kW to 5 kW inverter capacity with a 5 kWh–10 kWh Lithium battery bank is recommended for multi-hour AC operation.",
+  },
+  {
+    question: "How many batteries are required for an Off-Grid vs. Hybrid solar system?",
+    answer: "Hybrid systems typically require 1 to 2 modular Lithium Iron Phosphate (LiFePO4) battery modules (5 kWh to 10 kWh) for 4 to 8 hours of critical evening peak shaving and blackout resilience. Off-Grid systems require 2 to 4 high-capacity LiFePO4 modules (10 kWh to 25 kWh) to ensure 24 to 48 hours of complete electrical autonomy across consecutive cloudy or monsoon days.",
+  },
+  {
+    question: "Which is better for my property: On-Grid, Hybrid, or Off-Grid solar?",
+    answer: "Choose On-Grid if you have stable 24/7 grid electricity with rare outages and want the fastest payback (2.8–3.5 years) and highest PM Surya Ghar subsidy. Choose Hybrid if you experience frequent power cuts, voltage dips, or run critical home-office / medical loads and desire zero-flicker backup alongside zero power bills. Choose Off-Grid if your property is a remote farmhouse, estate, resort, or agricultural land with no reliable grid connectivity.",
+  },
+  {
+    question: "What is the typical payback period and equipment lifespan?",
+    answer: "On-grid systems achieve full capital payback in 2.8 to 3.5 years; Hybrid systems break even in 3.5 to 4.2 years (offsetting power bills and diesel generator fuel); and Off-Grid systems break even in 4.2 to 5.5 years against diesel generator operating costs. All WayTara Tier-1 N-Type TOPCon bifacial modules carry a 25-year performance warranty (84.8%+ retained output), while Lithium LFP battery banks deliver over 6,000 charge cycles (15+ years lifespan).",
+  },
+];
+

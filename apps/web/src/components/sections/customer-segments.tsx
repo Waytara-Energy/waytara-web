@@ -3,7 +3,6 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import {
   ArrowDown,
   ArrowUpRight,
@@ -13,20 +12,9 @@ import {
   Building2,
   Truck,
   Cpu,
-  CheckCircle2,
-  Zap,
-  ShieldCheck,
 } from "lucide-react";
 import { CustomerSegmentId } from "@/types";
-import { Button } from "@/components/ui/button";
-import { Reveal, StaggerContainer } from "@/components/shared/reveal";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from "@/components/ui/dialog";
+import { Reveal } from "@/components/shared/reveal";
 import { cn } from "@/lib/utils";
 
 export interface JourneyItem {
@@ -223,29 +211,6 @@ export function CustomerSegments({
   selectedSegment,
   onSelectSegment,
 }: CustomerSegmentsProps) {
-  const router = useRouter();
-  const pathname = usePathname();
-  const searchParams = useSearchParams();
-
-  // Active Journey for the Dedicated Experience Modal
-  const [activeJourney, setActiveJourney] = React.useState<JourneyItem | null>(null);
-
-  const handleSelectSegment = (segmentMapping: CustomerSegmentId) => {
-    onSelectSegment(segmentMapping);
-    const params = new URLSearchParams(searchParams.toString());
-    params.set("for", segmentMapping);
-    router.replace(`${pathname}?${params.toString()}`, { scroll: false });
-  };
-
-  const handleStartAssessmentFromJourney = (journey: JourneyItem) => {
-    handleSelectSegment(journey.segmentMapping);
-    setActiveJourney(null);
-    const plannerEl = document.getElementById("energy-planner");
-    if (plannerEl) {
-      plannerEl.scrollIntoView({ behavior: "smooth" });
-    }
-  };
-
   return (
     <section
       id="customer-segments"
@@ -282,73 +247,71 @@ export function CustomerSegments({
 
         {/* 3. Six Frameless Journey Cards with Bottom Frosted Glass Blur */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 lg:gap-8 mb-14">
-          {JOURNEYS.map((journey, index) => (
-            <Reveal
-              key={journey.id}
-              direction="up"
-              delay={index * 90}
-              duration={650}
-              distance={28}
-            >
-              <div
-                onClick={() => setActiveJourney(journey)}
-                className={cn(
-                  "group relative rounded-3xl overflow-hidden aspect-[16/10] sm:aspect-[16/10.5]",
-                  "shadow-[0_10px_30px_-10px_rgba(0,0,0,0.15)] dark:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)]",
-                  "cursor-pointer select-none border-0 transition-all duration-300 hover:shadow-2xl"
-                )}
+          {JOURNEYS.map((journey, index) => {
+            const solutionPath = `/solutions/${journey.id.replace(/_/g, "-")}`;
+            return (
+              <Reveal
+                key={journey.id}
+                direction="up"
+                delay={index * 90}
+                duration={650}
+                distance={28}
               >
-                {/* Full-Bleed Background Image */}
-                <Image
-                  src={journey.image}
-                  alt={journey.title}
-                  fill
-                  priority={false}
-                  unoptimized
-                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                  className="object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
-                />
+                <Link
+                  href={solutionPath}
+                  className={cn(
+                    "group relative rounded-3xl overflow-hidden aspect-[16/10] sm:aspect-[16/10.5] block",
+                    "shadow-[0_10px_30px_-10px_rgba(0,0,0,0.15)] dark:shadow-[0_10px_30px_-10px_rgba(0,0,0,0.5)]",
+                    "cursor-pointer select-none border-0 transition-all duration-300 hover:shadow-2xl"
+                  )}
+                >
+                  {/* Full-Bleed Background Image */}
+                  <Image
+                    src={journey.image}
+                    alt={journey.title}
+                    fill
+                    priority={false}
+                    unoptimized
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                    className="object-cover object-center transition-transform duration-700 ease-out group-hover:scale-105"
+                  />
 
-                {/* 1. Progressive Masked Backdrop Blur (Zero Hard Edges) */}
-                <div
-                  className="absolute inset-x-0 bottom-0 h-[48%] pointer-events-none backdrop-blur-md z-0"
-                  style={{
-                    maskImage: "linear-gradient(to top, rgba(0,0,0,1) 30%, rgba(0,0,0,0) 100%)",
-                    WebkitMaskImage: "linear-gradient(to top, rgba(0,0,0,1) 30%, rgba(0,0,0,0) 100%)",
-                  }}
-                />
-
-                {/* 2. Smooth Dark Vignette Gradient */}
-                <div className="absolute inset-x-0 bottom-0 h-[52%] bg-gradient-to-t from-black/90 via-black/45 to-transparent pointer-events-none z-0" />
-
-                {/* 3. Bottom Content Area */}
-                <div className="absolute inset-x-0 bottom-0 pb-4 sm:pb-5 px-5 sm:px-6 flex items-end justify-between gap-3 z-10">
-                  {/* Left: Title & Tagline */}
-                  <div className="text-left pr-2">
-                    <h3 className="text-2xl sm:text-[26px] font-bold text-white tracking-tight drop-shadow-md leading-tight">
-                      {journey.title}
-                    </h3>
-                    <p className="text-xs sm:text-[13px] font-medium text-white/90 tracking-wide drop-shadow mt-1">
-                      {journey.tagline}
-                    </p>
-                  </div>
-
-                  {/* Right: Circular Top-Right Arrow Action Button */}
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setActiveJourney(journey);
+                  {/* 1. Progressive Masked Backdrop Blur (Zero Hard Edges) */}
+                  <div
+                    className="absolute inset-x-0 bottom-0 h-[48%] pointer-events-none backdrop-blur-md z-0"
+                    style={{
+                      maskImage: "linear-gradient(to top, rgba(0,0,0,1) 30%, rgba(0,0,0,0) 100%)",
+                      WebkitMaskImage: "linear-gradient(to top, rgba(0,0,0,1) 30%, rgba(0,0,0,0) 100%)",
                     }}
-                    aria-label={`Explore ${journey.title} Journey`}
-                    className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-black/70 text-white group-hover:bg-white group-hover:text-black group-hover:border-white flex items-center justify-center backdrop-blur-md border border-white/25 shadow-xl transition-all duration-300 group-hover:scale-110 active:scale-95 shrink-0 cursor-pointer"
-                  >
-                    <ArrowUpRight className="w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 stroke-[2.2]" />
-                  </button>
-                </div>
-              </div>
-            </Reveal>
-          ))}
+                  />
+
+                  {/* 2. Smooth Dark Vignette Gradient */}
+                  <div className="absolute inset-x-0 bottom-0 h-[52%] bg-gradient-to-t from-black/90 via-black/45 to-transparent pointer-events-none z-0" />
+
+                  {/* 3. Bottom Content Area */}
+                  <div className="absolute inset-x-0 bottom-0 pb-4 sm:pb-5 px-5 sm:px-6 flex items-end justify-between gap-3 z-10">
+                    {/* Left: Title & Tagline */}
+                    <div className="text-left pr-2">
+                      <h3 className="text-2xl sm:text-[26px] font-bold text-white tracking-tight drop-shadow-md leading-tight">
+                        {journey.title}
+                      </h3>
+                      <p className="text-xs sm:text-[13px] font-medium text-white/90 tracking-wide drop-shadow mt-1">
+                        {journey.tagline}
+                      </p>
+                    </div>
+
+                    {/* Right: Circular Top-Right Arrow Action Button */}
+                    <div
+                      aria-label={`Explore ${journey.title} Solution`}
+                      className="w-10 h-10 sm:w-11 sm:h-11 rounded-full bg-black/70 text-white group-hover:bg-white group-hover:text-black group-hover:border-white flex items-center justify-center backdrop-blur-md border border-white/25 shadow-xl transition-all duration-300 group-hover:scale-110 active:scale-95 shrink-0"
+                    >
+                      <ArrowUpRight className="w-4 h-4 sm:w-5 sm:h-5 transition-transform duration-300 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 stroke-[2.2]" />
+                    </div>
+                  </div>
+                </Link>
+              </Reveal>
+            );
+          })}
         </div>
 
         {/* 4. Bottom Action Link -> Navigates to Solutions & Packages Hub */}
@@ -365,109 +328,6 @@ export function CustomerSegments({
         </Reveal>
 
       </div>
-
-      {/* 5. Dedicated Journey Experience Modal */}
-      {activeJourney && (
-        <Dialog
-          open={!!activeJourney}
-          onOpenChange={(open) => {
-            if (!open) setActiveJourney(null);
-          }}
-        >
-          <DialogContent className="max-w-2xl p-6 sm:p-8 rounded-3xl max-h-[90vh] overflow-y-auto">
-            <DialogHeader className="text-left space-y-2 pb-4 border-b border-theme-border">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-                  {React.createElement(activeJourney.icon, { className: "w-5 h-5" })}
-                </div>
-                <div>
-                  <span className="text-xs font-semibold text-emerald-600 dark:text-emerald-400">
-                    {activeJourney.category}
-                  </span>
-                  <DialogTitle className="text-xl sm:text-2xl font-bold text-theme-primary">
-                    {activeJourney.title} Energy Journey
-                  </DialogTitle>
-                </div>
-              </div>
-              <DialogDescription className="text-xs sm:text-sm text-theme-secondary pt-1">
-                {activeJourney.deepDive}
-              </DialogDescription>
-            </DialogHeader>
-
-            {/* Quick Metrics Grid */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 py-4">
-              <div className="p-3 rounded-xl bg-theme-surface border border-theme-border text-left">
-                <span className="text-[10px] font-medium text-theme-muted block">System Capacity</span>
-                <span className="text-xs sm:text-sm font-bold text-theme-primary">{activeJourney.specs.typicalCapacity}</span>
-              </div>
-              <div className="p-3 rounded-xl bg-theme-surface border border-theme-border text-left">
-                <span className="text-[10px] font-medium text-theme-muted block">Battery Storage</span>
-                <span className="text-xs sm:text-sm font-bold text-theme-primary">{activeJourney.specs.batteryStorage}</span>
-              </div>
-              <div className="p-3 rounded-xl bg-theme-surface border border-theme-border text-left">
-                <span className="text-[10px] font-medium text-theme-muted block">Est. Bill Savings</span>
-                <span className="text-xs sm:text-sm font-bold text-emerald-600 dark:text-emerald-400">{activeJourney.specs.expectedSavings}</span>
-              </div>
-              <div className="p-3 rounded-xl bg-theme-surface border border-theme-border text-left">
-                <span className="text-[10px] font-medium text-theme-muted block">Est. Payback</span>
-                <span className="text-xs sm:text-sm font-bold text-theme-primary">{activeJourney.specs.roiPayback}</span>
-              </div>
-            </div>
-
-            {/* Key Engineering Highlights */}
-            <div className="space-y-2.5 py-2">
-              <h4 className="text-xs font-bold text-theme-primary uppercase tracking-wider">
-                Engineering Highlights &amp; Scope
-              </h4>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                {activeJourney.highlights.map((item, idx) => (
-                  <div key={idx} className="flex items-start gap-2 text-xs text-theme-secondary">
-                    <CheckCircle2 className="w-4 h-4 text-emerald-500 shrink-0 mt-0.5" />
-                    <span>{item}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Ideal For Note */}
-            <div className="p-3.5 rounded-xl bg-theme-highlight-subtle border border-emerald-500/20 text-xs text-theme-secondary flex items-start gap-2 mt-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0 mt-0.5" />
-              <div>
-                <strong className="text-theme-primary font-semibold">Ideal Fit: </strong>
-                <span>{activeJourney.idealFor}</span>
-              </div>
-            </div>
-
-            {/* Action Footer */}
-            <div className="pt-5 border-t border-theme-border flex flex-col sm:flex-row gap-3 items-center justify-end">
-              <Button
-                asChild
-                variant="outline"
-                size="sm"
-                className="w-full sm:w-auto text-xs font-semibold"
-              >
-                <Link
-                  href={`/solutions/${activeJourney.id.replace(/_/g, "-")}`}
-                  onClick={() => setActiveJourney(null)}
-                >
-                  <span>Explore Full Blueprint</span>
-                  <ArrowUpRight className="w-3.5 h-3.5 ml-1" />
-                </Link>
-              </Button>
-              <Button
-                variant="gradient"
-                size="sm"
-                className="w-full sm:w-auto text-xs font-semibold"
-                onClick={() => handleStartAssessmentFromJourney(activeJourney)}
-              >
-                <Zap className="w-3.5 h-3.5 mr-1" />
-                <span>Design for {activeJourney.title}</span>
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
-      )}
-
     </section>
   );
 }
