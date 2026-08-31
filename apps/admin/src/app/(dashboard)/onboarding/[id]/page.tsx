@@ -8,6 +8,7 @@ import {
   recordQuotationRejected,
   recordFullPayment,
   recordSplitPayment,
+  resendCustomerInviteEmail,
 } from "./actions";
 
 export default async function OnboardingPipelinePage({
@@ -56,6 +57,13 @@ export default async function OnboardingPipelinePage({
     .select("id, name, price_monthly")
     .eq("is_active", true)
     .order("price_monthly");
+
+  // Not a `profiles` lookup: profiles_self_or_admin RLS only allows self or
+  // admin, so an employee can't read an arbitrary customer's profile row
+  // (confirmed live — the query came back empty for an employee session).
+  // The lead record already has the same name/email and is RLS-visible to
+  // the employee regardless, so use that instead of adding another policy
+  // just to duplicate a value that's already on hand.
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -120,6 +128,40 @@ export default async function OnboardingPipelinePage({
               </form>
             </div>
           )}
+        </div>
+      ) : onboarding.current_stage === "account_created" ? (
+        <div className="rounded-lg border border-border bg-card p-5 space-y-3">
+          <h2 className="text-sm font-semibold">Account Creation</h2>
+          {onboarding.customer_id ? (
+            <div className="flex items-center gap-2 text-sm">
+              <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
+                Profile submitted
+              </span>
+              <span className="text-muted-foreground">
+                {lead?.full_name ?? lead?.email ?? "Customer"} finished
+                setting up their account.
+              </span>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex items-center gap-2 text-sm">
+                <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">
+                  Waiting on customer
+                </span>
+                <span className="text-muted-foreground">
+                  Invite email sent — they haven&apos;t finished setting up their account yet.
+                </span>
+              </div>
+              <form action={resendCustomerInviteEmail.bind(null, onboarding.id)}>
+                <Button type="submit" variant="outline" size="sm">
+                  Resend invite email
+                </Button>
+              </form>
+            </div>
+          )}
+          <p className="text-xs text-muted-foreground">
+            Site &amp; device setup (Task 8.4) isn&apos;t built yet.
+          </p>
         </div>
       ) : onboarding.current_stage !== "quotation_sent" ? (
         <div className="rounded-lg border border-border bg-card p-5 text-sm text-muted-foreground">

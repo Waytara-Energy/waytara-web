@@ -45,7 +45,7 @@ export async function notifyTeamOfNewLead(lead: Lead): Promise<void> {
       : null;
 
   try {
-    await resend.emails.send({
+    const { error } = await resend.emails.send({
       from,
       to,
       subject: `New lead: ${lead.full_name}`,
@@ -65,6 +65,13 @@ export async function notifyTeamOfNewLead(lead: Lead): Promise<void> {
         .filter((line) => line !== null)
         .join("\n"),
     });
+
+    // The Resend SDK resolves with { data, error } on API-level failures
+    // (e.g. an unverified sending domain) rather than throwing — a plain
+    // try/catch never sees those unless this is checked explicitly.
+    if (error) {
+      console.error("[notify-team] Resend rejected the send for lead", lead.id, error);
+    }
   } catch (error) {
     console.error("[notify-team] Resend send failed for lead", lead.id, error);
   }

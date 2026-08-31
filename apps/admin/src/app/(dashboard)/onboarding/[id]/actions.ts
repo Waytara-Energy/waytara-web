@@ -299,3 +299,40 @@ export async function recordSplitPayment(
   revalidatePath(`/onboarding/${onboardingId}`);
   redirect(`/onboarding/${onboardingId}`);
 }
+
+// Task 8.3: the pipeline view distinguishes "waiting on customer" (no
+// customer_id yet) from "profile submitted" — this is the resend option for
+// the waiting case. Reuses the existing invite_token rather than minting a
+// new one, so a link the customer may already have open keeps working.
+export async function resendCustomerInviteEmail(onboardingId: string) {
+  const supabase = await createClient();
+
+  const { data: onboarding } = await supabase
+    .from("customer_onboarding")
+    .select("lead_id, invite_token, customer_id")
+    .eq("id", onboardingId)
+    .single();
+
+  if (!onboarding || onboarding.customer_id || !onboarding.invite_token) {
+    redirect(
+      `/onboarding/${onboardingId}?error=${encodeURIComponent("Nothing to resend — the account may already be set up.")}`
+    );
+  }
+
+  const { data: lead } = await supabase
+    .from("leads")
+    .select("full_name, email")
+    .eq("id", onboarding.lead_id)
+    .single();
+
+  if (lead?.email) {
+    await sendCustomerInviteEmail({
+      to: lead.email,
+      name: lead.full_name,
+      inviteToken: onboarding.invite_token,
+    });
+  }
+
+  revalidatePath(`/onboarding/${onboardingId}`);
+  redirect(`/onboarding/${onboardingId}`);
+}

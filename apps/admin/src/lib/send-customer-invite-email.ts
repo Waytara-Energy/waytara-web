@@ -27,7 +27,7 @@ export async function sendCustomerInviteEmail(input: CustomerInviteEmailInput): 
   const resend = new Resend(apiKey);
 
   try {
-    await resend.emails.send({
+    const { error } = await resend.emails.send({
       from,
       to: input.to,
       subject: "Set up your WayTara account",
@@ -40,6 +40,13 @@ export async function sendCustomerInviteEmail(input: CustomerInviteEmailInput): 
         `— The WayTara Team`,
       ].join("\n"),
     });
+
+    // The Resend SDK resolves with { data, error } on API-level failures
+    // (e.g. an unverified sending domain) rather than throwing — a plain
+    // try/catch never sees those unless this is checked explicitly.
+    if (error) {
+      console.error("[send-customer-invite-email] Resend rejected the send:", error);
+    }
   } catch (error) {
     console.error("[send-customer-invite-email] Resend send failed:", error);
   }

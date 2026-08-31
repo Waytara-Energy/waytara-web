@@ -33,7 +33,7 @@ export async function sendQuotationEmail(input: QuotationEmailInput): Promise<vo
   })}`;
 
   try {
-    await resend.emails.send({
+    const { error } = await resend.emails.send({
       from,
       to: input.to,
       subject: `Your WayTara quotation — ${formattedTotal}`,
@@ -57,6 +57,13 @@ export async function sendQuotationEmail(input: QuotationEmailInput): Promise<vo
         },
       ],
     });
+
+    // The Resend SDK resolves with { data, error } on API-level failures
+    // (e.g. an unverified sending domain) rather than throwing — a plain
+    // try/catch never sees those unless this is checked explicitly.
+    if (error) {
+      console.error("[send-quotation-email] Resend rejected the send:", error);
+    }
   } catch (error) {
     console.error("[send-quotation-email] Resend send failed:", error);
   }
