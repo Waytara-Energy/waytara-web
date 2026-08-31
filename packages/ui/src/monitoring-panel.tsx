@@ -66,16 +66,16 @@ export function MonitoringPanel({
     const supabase = createClient();
 
     async function fetchReadings() {
-      let query = supabase
+      // Always filter one way or the other — the customer's real Monitoring
+      // module (isTestOnly=false) must never show a technician's connection-
+      // test readings mixed in with real telemetry, not just "no filter".
+      const query = supabase
         .from("device_readings")
         .select("device_id, instrument_key, value, unit, ts")
         .in("device_id", deviceIds)
+        .eq("is_test", isTestOnly)
         .order("ts", { ascending: false })
         .limit(200);
-
-      if (isTestOnly) {
-        query = query.eq("is_test", true);
-      }
 
       const { data } = await query;
       if (!cancelled) {

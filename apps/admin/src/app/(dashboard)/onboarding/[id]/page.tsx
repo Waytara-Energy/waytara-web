@@ -2,6 +2,7 @@ import Link from "next/link";
 import { createClient } from "@waytara/supabase/server";
 import { Button } from "@waytara/ui/button";
 import { Input } from "@waytara/ui/input";
+import { MonitoringPanel } from "@waytara/ui/monitoring-panel";
 import { QuotationForm } from "./quotation-form";
 import {
   recordQuotationAccepted,
@@ -12,6 +13,11 @@ import {
   createSite,
   addDevice,
   completeSiteSetup,
+  startTestSession,
+  sendTestSignal,
+  markDeviceVerified,
+  completeConnectionTest,
+  failTestSession,
 } from "./actions";
 
 const PROPERTY_TYPE_LABELS: Record<string, string> = {
@@ -94,14 +100,32 @@ export default async function OnboardingPipelinePage({
     property_type: string;
     power_source_category: string;
   } | null = null;
-  let devices: { id: string; device_uid: string; label: string | null; device_type: { name: string } | null }[] = [];
+  let devices: {
+    id: string;
+    device_uid: string;
+    label: string | null;
+    status: string;
+    device_type: {
+      name: string;
+      device_type_instruments: { instrument_key: string; unit: string | null; is_required: boolean }[];
+    } | null;
+  }[] = [];
   let deviceTypes: {
     id: string;
     name: string;
     device_type_instruments: { instrument_name: string; unit: string | null; is_required: boolean }[];
   }[] = [];
+  let testSession: {
+    id: string;
+    status: string;
+    started_at: string;
+    notes: string | null;
+  } | null = null;
 
-  if (onboarding.current_stage === "site_setup" && onboarding.customer_id) {
+  if (
+    (onboarding.current_stage === "site_setup" || onboarding.current_stage === "connection_test") &&
+    onboarding.customer_id
+  ) {
     const { data: siteRow } = await supabase
       .from("sites")
       .select("id, name, property_type, power_source_category")
@@ -114,17 +138,32 @@ export default async function OnboardingPipelinePage({
     if (site) {
       const { data: deviceRows } = await supabase
         .from("devices")
-        .select("id, device_uid, label, device_type:device_types(name)")
+        .select(
+          "id, device_uid, label, status, device_type:device_types(name, device_type_instruments(instrument_key, unit, is_required))"
+        )
         .eq("site_id", site.id)
         .order("created_at", { ascending: false });
       devices = deviceRows ?? [];
     }
 
-    const { data: deviceTypeRows } = await supabase
-      .from("device_types")
-      .select("id, name, device_type_instruments(instrument_name, unit, is_required)")
-      .order("name");
-    deviceTypes = deviceTypeRows ?? [];
+    if (onboarding.current_stage === "site_setup") {
+      const { data: deviceTypeRows } = await supabase
+        .from("device_types")
+        .select("id, name, device_type_instruments(instrument_name, unit, is_required)")
+        .order("name");
+      deviceTypes = deviceTypeRows ?? [];
+    }
+
+    if (onboarding.current_stage === "connection_test" && site) {
+      const { data: sessionRow } = await supabase
+        .from("test_sessions")
+        .select("id, status, started_at, notes")
+        .eq("site_id", site.id)
+        .order("started_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      testSession = sessionRow;
+    }
   }
 
   return (
@@ -359,6 +398,111 @@ export default async function OnboardingPipelinePage({
                   </Button>
                 </form>
               )}
+            </>
+          )}
+        </div>
+      ) : onboarding.current_stage === "connection_test" ? (
+        <div className="rounded-lg border border-border bg-card p-5 space-y-5">
+          <h2 className="text-sm font-semibold">Connection Test</h2>
+
+          {!site || devices.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No site or devices found for this customer — go back to Site &amp; Device Setup first.
+            </p>
+          ) : !testSession || testSession.status !== "running" ? (
+            <div className="space-y-3">
+              {testSession && (
+                <p className="text-sm text-muted-foreground">
+                  Last session:{" "}
+                  <span className="capitalize font-medium text-foreground">{testSession.status}</span>
+                  {testSession.notes ? ` — ${testSession.notes}` : ""}
+                </p>
+              )}
+              <form action={startTestSession.bind(null, onboarding.id, site.id)}>
+                <Button type="submit" size="sm">
+                  Start Connection Test
+                </Button>
+              </form>
+            </div>
+          ) : (
+            <>
+              <p className="text-xs text-muted-foreground">
+                Simulated — no real device gateway is wired up yet. &quot;Send Test Signal&quot; writes
+                plausible sample readings so the wiring (RLS → live panel → verification) can be proven
+                end to end.
+              </p>
+
+              <MonitoringPanel
+                devices={devices.map((d) => ({
+                  id: d.id,
+                  label: d.label,
+                  deviceUid: d.device_uid,
+                  typeName: d.device_type?.name ?? null,
+                }))}
+                isTestOnly
+                pollIntervalMs={4000}
+                emptyMessage="No test signal received yet."
+              />
+
+              <div className="space-y-3 border-t border-border pt-4">
+                {devices.map((device) => {
+                  const requiredInstruments = (device.device_type?.device_type_instruments ?? []).filter(
+                    (i) => i.is_required
+                  );
+                  const payload = JSON.stringify(
+                    requiredInstruments.map((i) => ({ key: i.instrument_key, unit: i.unit }))
+                  );
+                  return (
+                    <div
+                      key={device.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-3"
+                    >
+                      <div className="text-sm">
+                        <span className="font-medium">{device.device_type?.name ?? "Device"}</span>{" "}
+                        <span className="text-muted-foreground">— {device.label || device.device_uid}</span>{" "}
+                        <span
+                          className={`ml-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+                            device.status === "active"
+                              ? "bg-primary/15 text-primary"
+                              : "bg-accent text-accent-foreground"
+                          }`}
+                        >
+                          {device.status}
+                        </span>
+                      </div>
+                      <div className="flex gap-2">
+                        <form action={sendTestSignal.bind(null, onboarding.id, device.id)}>
+                          <input type="hidden" name="instrumentKeys" value={payload} />
+                          <Button type="submit" variant="outline" size="sm" disabled={requiredInstruments.length === 0}>
+                            Send Test Signal
+                          </Button>
+                        </form>
+                        {device.status !== "active" && (
+                          <form action={markDeviceVerified.bind(null, onboarding.id, device.id)}>
+                            <Button type="submit" size="sm">
+                              Mark Verified
+                            </Button>
+                          </form>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <div className="flex flex-wrap gap-2 border-t border-border pt-4">
+                <form action={completeConnectionTest.bind(null, onboarding.id, testSession.id, site.id)}>
+                  <Button type="submit" size="sm" disabled={devices.some((d) => d.status !== "active")}>
+                    Connection Verified → Schedule Install
+                  </Button>
+                </form>
+                <form action={failTestSession.bind(null, onboarding.id, testSession.id)} className="flex gap-2">
+                  <Input name="notes" placeholder="Reason (optional)" className="h-9 w-56" />
+                  <Button type="submit" variant="destructive" size="sm">
+                    Mark Failed
+                  </Button>
+                </form>
+              </div>
             </>
           )}
         </div>

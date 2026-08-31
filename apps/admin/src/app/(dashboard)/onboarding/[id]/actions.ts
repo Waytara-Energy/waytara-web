@@ -418,3 +418,149 @@ export async function resendCustomerInviteEmail(onboardingId: string) {
   revalidatePath(`/onboarding/${onboardingId}`);
   redirect(`/onboarding/${onboardingId}`);
 }
+
+// Task 8.5: connection test. test_sessions already existed in the schema
+// (employee_id, site_id, status, data_purged) with a matching device_readings
+// SELECT policy scoping is_test reads to a running session the employee
+// owns — it just had no write path until this task's migration added one.
+
+export async function startTestSession(onboardingId: string, siteId: string) {
+  const profile = await getCurrentProfile();
+  if (!profile) redirect("/login");
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("test_sessions").insert({
+    site_id: siteId,
+    employee_id: profile.id,
+    status: "running",
+  });
+
+  if (error) {
+    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/onboarding/${onboardingId}`);
+  redirect(`/onboarding/${onboardingId}`);
+}
+
+// No real hardware/gateway integration exists yet — same "simulate the
+// hardware-dependent step" approach the customer's payment stage already
+// uses (Task 8.2). Plausible-looking values by unit, not real telemetry;
+// the point is to prove the wiring (RLS-scoped insert -> MonitoringPanel
+// poll -> "mark verified"), not to model real inverter physics.
+function simulatedValueFor(unit: string | null): number {
+  switch (unit) {
+    case "V":
+      return Math.round((225 + Math.random() * 15) * 10) / 10;
+    case "A":
+      return Math.round(Math.random() * 20 * 10) / 10;
+    case "W":
+      return Math.round(Math.random() * 3000);
+    case "kWh":
+      return Math.round(Math.random() * 8 * 10) / 10;
+    case "%":
+      return Math.round(40 + Math.random() * 60);
+    case "Hz":
+      return Math.round((49.8 + Math.random() * 0.4) * 10) / 10;
+    case "°C":
+      return Math.round(25 + Math.random() * 10);
+    default:
+      return 1;
+  }
+}
+
+export async function sendTestSignal(onboardingId: string, deviceId: string, formData: FormData) {
+  const instrumentKeysRaw = String(formData.get("instrumentKeys") ?? "[]");
+  let instruments: { key: string; unit: string | null }[] = [];
+  try {
+    instruments = JSON.parse(instrumentKeysRaw);
+  } catch {
+    instruments = [];
+  }
+
+  if (instruments.length === 0) {
+    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent("No instruments to send a signal for.")}`);
+  }
+
+  const supabase = await createClient();
+  const now = new Date().toISOString();
+  const { error } = await supabase.from("device_readings").insert(
+    instruments.map((i) => ({
+      device_id: deviceId,
+      instrument_key: i.key,
+      value: simulatedValueFor(i.unit),
+      unit: i.unit,
+      ts: now,
+      is_test: true,
+    }))
+  );
+
+  if (error) {
+    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/onboarding/${onboardingId}`);
+  redirect(`/onboarding/${onboardingId}`);
+}
+
+export async function markDeviceVerified(onboardingId: string, deviceId: string) {
+  const supabase = await createClient();
+  const { error } = await supabase.from("devices").update({ status: "active" }).eq("id", deviceId);
+
+  if (error) {
+    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/onboarding/${onboardingId}`);
+  redirect(`/onboarding/${onboardingId}`);
+}
+
+export async function completeConnectionTest(onboardingId: string, sessionId: string, siteId: string) {
+  const supabase = await createClient();
+
+  const { data: devices } = await supabase.from("devices").select("id, status").eq("site_id", siteId);
+  if (!devices || devices.length === 0 || devices.some((d) => d.status !== "active")) {
+    redirect(
+      `/onboarding/${onboardingId}?error=${encodeURIComponent("Every device needs to be verified before completing the test.")}`
+    );
+  }
+
+  // Purge the simulated test readings — test_sessions.data_purged is the
+  // schema's own signal that this data is meant to be temporary, not kept
+  // around once the session's done its job. RLS (readings_employee_delete_
+  // own_test) only allows this while the session is still 'running', so
+  // purge before flipping status.
+  const deviceIds = devices.map((d) => d.id);
+  await supabase.from("device_readings").delete().in("device_id", deviceIds).eq("is_test", true);
+
+  const { error: sessionError } = await supabase
+    .from("test_sessions")
+    .update({ status: "verified", ended_at: new Date().toISOString(), data_purged: true })
+    .eq("id", sessionId);
+
+  if (sessionError) {
+    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(sessionError.message)}`);
+  }
+
+  await supabase.from("customer_onboarding").update({ current_stage: "install_scheduled" }).eq("id", onboardingId);
+
+  revalidatePath(`/onboarding/${onboardingId}`);
+  redirect(`/onboarding/${onboardingId}`);
+}
+
+export async function failTestSession(onboardingId: string, sessionId: string, formData: FormData) {
+  const notes = String(formData.get("notes") ?? "").trim() || null;
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("test_sessions")
+    .update({ status: "failed", ended_at: new Date().toISOString(), notes })
+    .eq("id", sessionId);
+
+  if (error) {
+    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/onboarding/${onboardingId}`);
+  redirect(`/onboarding/${onboardingId}`);
+}
