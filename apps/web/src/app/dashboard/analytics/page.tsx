@@ -3,6 +3,7 @@ import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 import { PerformanceChart, type DailyPoint } from "@/components/dashboard/performance-chart";
 import { SiteComparisonChart, type SitePoint } from "@/components/dashboard/site-comparison-chart";
+import { maxByDeviceDay, sumByDay } from "@/lib/energy-aggregation";
 
 const HISTORY_DAYS = 365;
 const COMPARISON_WINDOW_DAYS = 30;
@@ -59,24 +60,8 @@ export default async function AnalyticsPage() {
 
   // Same running-total-per-day semantics as Performance: the max value seen
   // per device per calendar day is that day's total, summed across devices.
-  const maxByDeviceDay = new Map<string, number>();
-  for (const r of readings) {
-    if (r.value == null) continue;
-    const day = r.ts.slice(0, 10);
-    const key = `${r.device_id}:${day}`;
-    const current = maxByDeviceDay.get(key);
-    if (current === undefined || r.value > current) maxByDeviceDay.set(key, r.value);
-  }
-
-  const dailyTotals = new Map<string, number>();
-  for (const [key, value] of maxByDeviceDay) {
-    const day = key.split(":")[1];
-    dailyTotals.set(day, (dailyTotals.get(day) ?? 0) + value);
-  }
-
-  const dailyKwh = Array.from(dailyTotals.entries())
-    .map(([date, value]) => ({ date, value }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const perDeviceDay = maxByDeviceDay(readings);
+  const dailyKwh = sumByDay(perDeviceDay);
 
   let running = 0;
   const cumulativeSavings: DailyPoint[] = dailyKwh.map((p) => {
@@ -96,7 +81,7 @@ export default async function AnalyticsPage() {
   const comparisonSince = new Date();
   comparisonSince.setUTCDate(comparisonSince.getUTCDate() - COMPARISON_WINDOW_DAYS);
   const siteTotals = new Map<string, number>();
-  for (const [key, value] of maxByDeviceDay) {
+  for (const [key, value] of perDeviceDay) {
     const [deviceId, day] = key.split(":");
     if (day < comparisonSince.toISOString().slice(0, 10)) continue;
     const siteId = siteIdByDevice.get(deviceId);

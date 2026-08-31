@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.9.1",
+    "@react-pdf/renderer": "^4.9.0",
     "@waytara/supabase": "workspace:*",
     "@waytara/ui": "workspace:*",
     "@radix-ui/react-accordion": "^1.2.20",

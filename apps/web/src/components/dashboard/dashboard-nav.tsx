@@ -11,6 +11,7 @@ import {
   Activity,
   TrendingUp,
   BarChart3,
+  FileDown,
 } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 import { cn } from "@/lib/utils";
@@ -23,12 +24,12 @@ const BASE_NAV = [
   { href: "/dashboard/settings", label: "Application Settings", icon: Settings },
 ] as const;
 
-// Task 10: items gated by plans.features. Reports joins this same list
-// once that module exists.
+// Task 10: items gated by plans.features.
 const GATED_NAV = [
   { href: "/dashboard/monitoring", label: "Monitoring", icon: Activity, featureKey: "monitoring" },
   { href: "/dashboard/performance", label: "Performance", icon: TrendingUp, featureKey: "performance" },
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3, featureKey: "analytics" },
+  { href: "/dashboard/reports", label: "Reports", icon: FileDown, featureKey: "reports" },
 ] as const;
 
 export function DashboardNav({

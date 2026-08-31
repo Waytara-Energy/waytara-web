@@ -1,7 +1,8 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
-import { PerformanceChart, type DailyPoint } from "@/components/dashboard/performance-chart";
+import { PerformanceChart } from "@/components/dashboard/performance-chart";
+import { aggregateDailyYield } from "@/lib/energy-aggregation";
 
 const HISTORY_DAYS = 180;
 const YIELD_INSTRUMENT_KEY = "daily_yield_kwh";
@@ -40,30 +41,7 @@ export default async function PerformancePage() {
     readings = data ?? [];
   }
 
-  // daily_yield_kwh is a running total for the calendar day (resets each
-  // morning, climbs as the inverter reports through the day) — so the
-  // highest value seen per device per day is that day's total, and the
-  // household figure is the sum of those totals across every device.
-  const maxByDeviceDay = new Map<string, number>(); // `${deviceId}:${date}` -> max value
-  for (const r of readings) {
-    if (r.value == null) continue;
-    const day = r.ts.slice(0, 10);
-    const key = `${r.device_id}:${day}`;
-    const current = maxByDeviceDay.get(key);
-    if (current === undefined || r.value > current) {
-      maxByDeviceDay.set(key, r.value);
-    }
-  }
-
-  const dailyTotals = new Map<string, number>(); // date -> household total
-  for (const [key, value] of maxByDeviceDay) {
-    const day = key.split(":")[1];
-    dailyTotals.set(day, (dailyTotals.get(day) ?? 0) + value);
-  }
-
-  const daily: DailyPoint[] = Array.from(dailyTotals.entries())
-    .map(([date, value]) => ({ date, value }))
-    .sort((a, b) => a.date.localeCompare(b.date));
+  const daily = aggregateDailyYield(readings);
 
   return (
     <div className="max-w-3xl space-y-6">
