@@ -6,6 +6,7 @@ import {
   UsersRound,
   Layers,
   Cpu,
+  ScrollText,
   Zap,
 } from "lucide-react";
 import { cn } from "@waytara/ui/cn";
@@ -17,6 +18,7 @@ const NAV_ITEMS = [
   { label: "Employees", href: "/employees", icon: UsersRound },
   { label: "Plans", href: "/plans", icon: Layers },
   { label: "Devices", href: "/devices", icon: Cpu },
+  { label: "Audit Log", href: "/audit", icon: ScrollText },
 ] as const;
 
 export function Sidebar() {

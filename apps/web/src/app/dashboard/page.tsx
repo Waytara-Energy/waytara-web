@@ -1,5 +1,6 @@
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
+import { acknowledgeAlert } from "./actions";
 
 // Same query shape Task 8.5's employee test panel is meant to reuse
 // (device_readings/alerts scoped by RLS, not a manual customer_id filter).
@@ -25,6 +26,7 @@ export default async function DashboardOverviewPage() {
   const { data: recentAlerts } = await supabase
     .from("alerts")
     .select("id, severity, message, ts")
+    .is("acknowledged_at", null)
     .order("ts", { ascending: false })
     .limit(5);
 
@@ -72,12 +74,22 @@ export default async function DashboardOverviewPage() {
         {recentAlerts && recentAlerts.length > 0 ? (
           <ul className="space-y-2 text-sm">
             {recentAlerts.map((a) => (
-              <li key={a.id} className="flex items-center justify-between text-theme-secondary">
+              <li key={a.id} className="flex items-center justify-between gap-3 text-theme-secondary">
                 <span className="capitalize">
                   {a.severity}: {a.message}
                 </span>
-                <span className="text-xs text-theme-muted">
-                  {new Date(a.ts).toLocaleDateString("en-IN")}
+                <span className="flex shrink-0 items-center gap-2">
+                  <span className="text-xs text-theme-muted">
+                    {new Date(a.ts).toLocaleDateString("en-IN")}
+                  </span>
+                  <form action={acknowledgeAlert.bind(null, a.id)}>
+                    <button
+                      type="submit"
+                      className="rounded-md border border-theme-border px-2 py-1 text-xs font-medium text-theme-primary hover:bg-theme-surface-hover"
+                    >
+                      Acknowledge
+                    </button>
+                  </form>
                 </span>
               </li>
             ))}
