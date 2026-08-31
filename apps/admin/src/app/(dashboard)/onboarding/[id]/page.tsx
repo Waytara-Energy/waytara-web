@@ -1,8 +1,14 @@
 import Link from "next/link";
 import { createClient } from "@waytara/supabase/server";
 import { Button } from "@waytara/ui/button";
+import { Input } from "@waytara/ui/input";
 import { QuotationForm } from "./quotation-form";
-import { recordQuotationAccepted, recordQuotationRejected } from "./actions";
+import {
+  recordQuotationAccepted,
+  recordQuotationRejected,
+  recordFullPayment,
+  recordSplitPayment,
+} from "./actions";
 
 export default async function OnboardingPipelinePage({
   params,
@@ -42,6 +48,7 @@ export default async function OnboardingPipelinePage({
     .order("created_at", { ascending: false });
 
   const activeQuotation = quotations?.find((q) => q.status === "draft" || q.status === "sent");
+  const acceptedQuotation = quotations?.find((q) => q.status === "accepted");
   const pastQuotations = quotations?.filter((q) => q !== activeQuotation) ?? [];
 
   const { data: plans } = await supabase
@@ -70,7 +77,51 @@ export default async function OnboardingPipelinePage({
         </div>
       )}
 
-      {onboarding.current_stage !== "quotation_sent" ? (
+      {onboarding.current_stage === "payment_pending" ? (
+        <div className="rounded-lg border border-border bg-card p-5 space-y-4">
+          <div>
+            <h2 className="text-sm font-semibold">Payment</h2>
+            <p className="text-sm text-muted-foreground">
+              {acceptedQuotation
+                ? `Accepted quotation: ₹${Number(acceptedQuotation.total_amount).toLocaleString("en-IN")}`
+                : "No accepted quotation found for this lead."}
+            </p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Simulated — clicking Pay records the payment directly and moves
+              straight to account creation. Real Razorpay checkout isn&apos;t
+              wired up yet.
+            </p>
+          </div>
+
+          {acceptedQuotation && (
+            <div className="flex flex-col gap-4 border-t border-border pt-4 sm:flex-row">
+              <form action={recordFullPayment.bind(null, onboarding.id, acceptedQuotation.id)}>
+                <Button type="submit" size="sm">
+                  Pay Full — ₹{Number(acceptedQuotation.total_amount).toLocaleString("en-IN")}
+                </Button>
+              </form>
+
+              <form
+                action={recordSplitPayment.bind(null, onboarding.id, acceptedQuotation.id)}
+                className="flex items-center gap-2"
+              >
+                <Input
+                  type="number"
+                  name="advanceAmount"
+                  placeholder="Advance amount"
+                  min={1}
+                  max={Number(acceptedQuotation.total_amount) - 1}
+                  className="h-9 w-40"
+                  required
+                />
+                <Button type="submit" variant="outline" size="sm">
+                  Pay Advance (Split)
+                </Button>
+              </form>
+            </div>
+          )}
+        </div>
+      ) : onboarding.current_stage !== "quotation_sent" ? (
         <div className="rounded-lg border border-border bg-card p-5 text-sm text-muted-foreground">
           This onboarding has moved past the quotation stage (now at{" "}
           <span className="font-medium capitalize">

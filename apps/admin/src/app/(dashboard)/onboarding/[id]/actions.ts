@@ -7,6 +7,7 @@ import { getCurrentProfile } from "@waytara/supabase/auth";
 import type { Json } from "@waytara/supabase";
 import { generateQuotationPdf, type PricingLineItem } from "@/lib/quotation-pdf";
 import { sendQuotationEmail } from "@/lib/send-quotation-email";
+import { sendCustomerInviteEmail } from "@/lib/send-customer-invite-email";
 
 export async function createAndSendQuotation(onboardingId: string, formData: FormData) {
   const profile = await getCurrentProfile();
@@ -168,6 +169,132 @@ export async function recordQuotationRejected(
   }
   // action === "re-quote": nothing further — the pipeline page shows the
   // create-quotation form again once no active (draft/sent) quotation remains.
+
+  revalidatePath(`/onboarding/${onboardingId}`);
+  redirect(`/onboarding/${onboardingId}`);
+}
+
+// Advances the onboarding stage to account_created and fires the customer's
+// invite email, pointing at apps/web's existing /invite/[token] flow
+// (Task 5) — the same step both payment paths below end with.
+async function advanceToAccountCreatedAndInvite(onboardingId: string) {
+  const supabase = await createClient();
+  const inviteToken = crypto.randomUUID();
+
+  const { data: onboarding } = await supabase
+    .from("customer_onboarding")
+    .update({ current_stage: "account_created", invite_token: inviteToken, invite_status: "pending" })
+    .eq("id", onboardingId)
+    .select("lead_id")
+    .single();
+
+  if (onboarding?.lead_id) {
+    const { data: lead } = await supabase
+      .from("leads")
+      .select("full_name, email")
+      .eq("id", onboarding.lead_id)
+      .single();
+
+    if (lead?.email) {
+      await sendCustomerInviteEmail({ to: lead.email, name: lead.full_name, inviteToken });
+    }
+  }
+}
+
+// Payment collection is SIMULATED — no Razorpay integration yet (that's a
+// follow-up). Clicking "Pay" here immediately records a paid `payments` row
+// rather than redirecting to a real checkout. Swap the guts of these two
+// functions for real Razorpay order creation + webhook-verified capture
+// when that's wired up; the RLS policies, stage advancement, and invite
+// email are already the real thing.
+
+export async function recordFullPayment(onboardingId: string, quotationId: string) {
+  const supabase = await createClient();
+
+  const { data: quotation } = await supabase
+    .from("quotations")
+    .select("total_amount")
+    .eq("id", quotationId)
+    .single();
+
+  if (!quotation) {
+    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent("Couldn't load this quotation.")}`);
+  }
+
+  await supabase.from("payments").insert({
+    quotation_id: quotationId,
+    payment_type: "full",
+    amount: quotation.total_amount,
+    status: "paid",
+    gateway: "simulated",
+    paid_at: new Date().toISOString(),
+  });
+
+  await supabase.from("quotations").update({ payment_option: "full" }).eq("id", quotationId);
+
+  await advanceToAccountCreatedAndInvite(onboardingId);
+
+  revalidatePath(`/onboarding/${onboardingId}`);
+  redirect(`/onboarding/${onboardingId}`);
+}
+
+export async function recordSplitPayment(
+  onboardingId: string,
+  quotationId: string,
+  formData: FormData
+) {
+  const advanceAmount = Number(formData.get("advanceAmount") ?? 0);
+  const supabase = await createClient();
+
+  const { data: quotation } = await supabase
+    .from("quotations")
+    .select("total_amount")
+    .eq("id", quotationId)
+    .single();
+
+  const totalAmount = quotation ? Number(quotation.total_amount) : 0;
+
+  if (!quotation || advanceAmount <= 0 || advanceAmount >= totalAmount) {
+    redirect(
+      `/onboarding/${onboardingId}?error=${encodeURIComponent("Enter an advance amount greater than 0 and less than the total.")}`
+    );
+  }
+
+  const balanceAmount = totalAmount - advanceAmount;
+
+  await supabase.from("payments").insert([
+    {
+      quotation_id: quotationId,
+      payment_type: "advance",
+      amount: advanceAmount,
+      status: "paid",
+      gateway: "simulated",
+      paid_at: new Date().toISOString(),
+    },
+    {
+      quotation_id: quotationId,
+      payment_type: "balance",
+      amount: balanceAmount,
+      status: "pending",
+      gateway: "simulated",
+    },
+  ]);
+
+  await supabase
+    .from("quotations")
+    .update({
+      payment_option: "split",
+      advance_amount: advanceAmount,
+      balance_amount: balanceAmount,
+    })
+    .eq("id", quotationId);
+
+  await supabase
+    .from("customer_onboarding")
+    .update({ balance_payment_status: "pending" })
+    .eq("id", onboardingId);
+
+  await advanceToAccountCreatedAndInvite(onboardingId);
 
   revalidatePath(`/onboarding/${onboardingId}`);
   redirect(`/onboarding/${onboardingId}`);
