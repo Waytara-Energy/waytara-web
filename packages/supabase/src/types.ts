@@ -738,6 +738,7 @@ export type Database = {
           email: string
           full_name: string | null
           id: string
+          notification_preferences: Json
           phone: string | null
           role: Database["waytara"]["Enums"]["user_role"]
         }
@@ -747,6 +748,7 @@ export type Database = {
           email: string
           full_name?: string | null
           id: string
+          notification_preferences?: Json
           phone?: string | null
           role?: Database["waytara"]["Enums"]["user_role"]
         }
@@ -756,6 +758,7 @@ export type Database = {
           email?: string
           full_name?: string | null
           id?: string
+          notification_preferences?: Json
           phone?: string | null
           role?: Database["waytara"]["Enums"]["user_role"]
         }
