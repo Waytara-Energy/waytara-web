@@ -278,10 +278,12 @@ export function EnergyPlanner({ selectedSegment }: EnergyPlannerProps) {
   const [assessmentModalOpen, setAssessmentModalOpen] = React.useState(false);
   const [isSubmittingLead, setIsSubmittingLead] = React.useState(false);
   const [leadSubmitted, setLeadSubmitted] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [contactName, setContactName] = React.useState("");
   const [contactEmail, setContactEmail] = React.useState("");
   const [contactPhone, setContactPhone] = React.useState("");
   const [contactPincode, setContactPincode] = React.useState("");
+  const [website, setWebsite] = React.useState(""); // honeypot
 
   // Accumulated Planner Form State
   const [plannerData, setPlannerData] = React.useState<EnergyPlannerInput>({
@@ -369,8 +371,9 @@ export function EnergyPlanner({ selectedSegment }: EnergyPlannerProps) {
     if (!contactName || !contactPhone) return;
 
     setIsSubmittingLead(true);
+    setSubmitError(null);
     try {
-      await fetch("/api/enquiries", {
+      const res = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -378,7 +381,6 @@ export function EnergyPlanner({ selectedSegment }: EnergyPlannerProps) {
           email: contactEmail,
           phone: contactPhone,
           pincode: contactPincode,
-          state: plannerData.state,
           propertyType: plannerData.propertyType,
           monthlyBill: plannerData.monthlyBill,
           backupNeeds: plannerData.backupNeeds,
@@ -387,9 +389,15 @@ export function EnergyPlanner({ selectedSegment }: EnergyPlannerProps) {
           recommendedPackage: recommendation?.packageName,
           estimatedSolarKw: recommendation?.solarSizeKw,
           estimatedBatteryKwh: recommendation?.batterySizeKwh,
-          status: "completed",
+          source: "energy_planner",
+          website,
         }),
       });
+      const result = await res.json();
+
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || "Something went wrong. Please try again.");
+      }
 
       setLeadSubmitted(true);
       try {
@@ -399,8 +407,10 @@ export function EnergyPlanner({ selectedSegment }: EnergyPlannerProps) {
           origin: { y: 0.6 },
         });
       } catch (_) {}
-    } catch (_) {
-      setLeadSubmitted(true);
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error ? err.message : "Something went wrong. Please try again."
+      );
     } finally {
       setIsSubmittingLead(false);
     }
@@ -742,6 +752,25 @@ export function EnergyPlanner({ selectedSegment }: EnergyPlannerProps) {
 
           {!leadSubmitted ? (
             <form onSubmit={handleLeadSubmit} className="space-y-4 pt-2">
+              {/* Honeypot — off-screen, never focusable/visible to real visitors */}
+              <div className="absolute -left-[9999px]" aria-hidden="true">
+                <label htmlFor="epWebsite">Website</label>
+                <input
+                  id="epWebsite"
+                  type="text"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={website}
+                  onChange={(e) => setWebsite(e.target.value)}
+                />
+              </div>
+
+              {submitError && (
+                <div className="rounded-xl border border-theme-border bg-red-500/10 px-3 py-2.5 text-xs text-red-500">
+                  {submitError}
+                </div>
+              )}
+
               <div>
                 <Label htmlFor="cName" className="text-xs font-semibold text-theme-secondary">
                   Full Name *

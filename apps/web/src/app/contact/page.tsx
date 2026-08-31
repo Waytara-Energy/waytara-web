@@ -32,6 +32,9 @@ const contactFormSchema = z.object({
   segment: z.enum(["home", "commercial", "ev_fleet"]),
   city: z.string().min(2, "City / Pincode is required"),
   message: z.string().min(5, "Please tell us about your property requirements"),
+  // Honeypot — left blank and visually hidden for real visitors; bots that
+  // blanket-fill every field trip it. See the `website` input below.
+  website: z.string().optional(),
 });
 
 type ContactFormData = z.infer<typeof contactFormSchema>;
@@ -39,6 +42,7 @@ type ContactFormData = z.infer<typeof contactFormSchema>;
 export default function ContactPage() {
   const [isSubmitted, setIsSubmitted] = React.useState(false);
   const [isSubmitting, setIsSubmitting] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
   const [leadId, setLeadId] = React.useState("");
 
   const {
@@ -55,33 +59,30 @@ export default function ContactPage() {
 
   const onSubmit = async (data: ContactFormData) => {
     setIsSubmitting(true);
-    const id = `contact_${Date.now()}`;
-    setLeadId(id);
+    setSubmitError(null);
 
     try {
-      await fetch("/api/enquiries", {
+      const res = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          id,
-          status: "completed",
-          source: "contact_page",
+          fullName: data.fullName,
+          email: data.email,
+          phone: data.phone,
+          city: data.city,
+          message: data.message,
           segment: data.segment,
-          formData: {
-            fullName: data.fullName,
-            email: data.email,
-            phone: data.phone,
-          },
-          contact: {
-            name: data.fullName,
-            email: data.email,
-            phone: data.phone,
-            city: data.city,
-            message: data.message,
-          },
+          source: "contact_page",
+          website: data.website,
         }),
       });
+      const result = await res.json();
 
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || "Something went wrong. Please try again.");
+      }
+
+      setLeadId(result.data.id);
       setIsSubmitted(true);
       confetti({
         particleCount: 100,
@@ -91,6 +92,9 @@ export default function ContactPage() {
       });
     } catch (err) {
       console.error("Contact submission error:", err);
+      setSubmitError(
+        err instanceof Error ? err.message : "Something went wrong. Please try again."
+      );
     } finally {
       setIsSubmitting(false);
     }
@@ -124,6 +128,24 @@ export default function ContactPage() {
               <Card className="rounded-3xl border-theme-border bg-theme-surface shadow-xl p-6 sm:p-10">
                 {!isSubmitted ? (
                   <form onSubmit={handleSubmit(onSubmit)} className="space-y-5">
+                    {/* Honeypot — off-screen, never focusable/visible to real visitors */}
+                    <div className="absolute -left-[9999px]" aria-hidden="true">
+                      <label htmlFor="website">Website</label>
+                      <input
+                        id="website"
+                        type="text"
+                        tabIndex={-1}
+                        autoComplete="off"
+                        {...register("website")}
+                      />
+                    </div>
+
+                    {submitError && (
+                      <div className="rounded-lg border border-theme-border bg-red-500/10 px-4 py-3 text-sm text-red-500">
+                        {submitError}
+                      </div>
+                    )}
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div>
                         <Label htmlFor="fullName" className="text-xs font-semibold text-theme-secondary">

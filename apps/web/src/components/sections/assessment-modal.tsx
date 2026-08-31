@@ -34,15 +34,18 @@ export function AssessmentModal({
   const [contactPhone, setContactPhone] = React.useState("");
   const [contactEmail, setContactEmail] = React.useState("");
   const [contactPincode, setContactPincode] = React.useState("");
+  const [website, setWebsite] = React.useState(""); // honeypot
   const [isSubmittingLead, setIsSubmittingLead] = React.useState(false);
   const [leadSubmitted, setLeadSubmitted] = React.useState(false);
+  const [submitError, setSubmitError] = React.useState<string | null>(null);
 
   const handleLeadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsSubmittingLead(true);
+    setSubmitError(null);
 
     try {
-      await fetch("/api/enquiries", {
+      const res = await fetch("/api/leads", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -52,21 +55,31 @@ export function AssessmentModal({
           pincode: contactPincode,
           source: "solutions_page",
           segment: preselectedSegment,
-          package: packageDetails?.name,
+          packageId: packageDetails?.name,
+          website,
         }),
       });
-    } catch {
-      // Graceful fallback
-    }
+      const result = await res.json();
 
-    setIsSubmittingLead(false);
-    setLeadSubmitted(true);
+      if (!res.ok || !result.success) {
+        throw new Error(result.error || "Something went wrong. Please try again.");
+      }
+
+      setLeadSubmitted(true);
+    } catch (err) {
+      setSubmitError(
+        err instanceof Error ? err.message : "Something went wrong. Please try again."
+      );
+    } finally {
+      setIsSubmittingLead(false);
+    }
   };
 
   const handleClose = () => {
     onOpenChange(false);
     setTimeout(() => {
       setLeadSubmitted(false);
+      setSubmitError(null);
     }, 300);
   };
 
@@ -96,6 +109,25 @@ export function AssessmentModal({
 
         {!leadSubmitted ? (
           <form onSubmit={handleLeadSubmit} className="space-y-4 pt-2">
+            {/* Honeypot — off-screen, never focusable/visible to real visitors */}
+            <div className="absolute -left-[9999px]" aria-hidden="true">
+              <label htmlFor="solWebsite">Website</label>
+              <input
+                id="solWebsite"
+                type="text"
+                tabIndex={-1}
+                autoComplete="off"
+                value={website}
+                onChange={(e) => setWebsite(e.target.value)}
+              />
+            </div>
+
+            {submitError && (
+              <div className="rounded-xl border border-theme-border bg-red-500/10 px-3 py-2.5 text-xs text-red-500">
+                {submitError}
+              </div>
+            )}
+
             <div>
               <Label
                 htmlFor="solName"
