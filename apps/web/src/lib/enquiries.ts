@@ -1,7 +1,8 @@
 import { EnquiryRecord } from "@/types";
 
 // In-memory persistent enquiry store for server session
-// Real database adapter (e.g. Supabase, PostgreSQL, Prisma, HubSpot/Salesforce CRM) can drop in here
+// Real persistence drops in here via `createClient` from "@waytara/supabase/server"
+// (see packages/supabase) — not wired up yet, this is still in-memory only.
 const enquiryMemoryStore = new Map<string, EnquiryRecord>();
 
 /**
