@@ -12,6 +12,7 @@ import {
   TrendingUp,
   BarChart3,
   FileDown,
+  SlidersHorizontal,
 } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 import { cn } from "@/lib/utils";
@@ -30,6 +31,12 @@ const GATED_NAV = [
   { href: "/dashboard/performance", label: "Performance", icon: TrendingUp, featureKey: "performance" },
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3, featureKey: "analytics" },
   { href: "/dashboard/reports", label: "Reports", icon: FileDown, featureKey: "reports" },
+  {
+    href: "/dashboard/settings/instruments",
+    label: "Instrument Settings",
+    icon: SlidersHorizontal,
+    featureKey: "instrument_settings",
+  },
 ] as const;
 
 export function DashboardNav({
