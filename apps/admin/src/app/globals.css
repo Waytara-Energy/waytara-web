@@ -1,4 +1,11 @@
 @import "tailwindcss";
+
+/* Tailwind v4's automatic content scanning doesn't cross the workspace
+   package boundary into node_modules — @waytara/ui's component source
+   lives in packages/ui/src, so without this its classes never generate
+   any actual CSS here (they'd render as bare unstyled browser defaults). */
+@source "../../../../packages/ui/src";
+
 @import "@waytara/config/tailwind-theme.css";
 
 html {
