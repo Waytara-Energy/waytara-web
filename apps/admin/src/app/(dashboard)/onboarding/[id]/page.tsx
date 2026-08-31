@@ -18,6 +18,8 @@ import {
   markDeviceVerified,
   completeConnectionTest,
   failTestSession,
+  scheduleInstall,
+  completeInstallation,
 } from "./actions";
 
 const PROPERTY_TYPE_LABELS: Record<string, string> = {
@@ -105,6 +107,7 @@ export default async function OnboardingPipelinePage({
     device_uid: string;
     label: string | null;
     status: string;
+    installed_at: string | null;
     device_type: {
       name: string;
       device_type_instruments: { instrument_key: string; unit: string | null; is_required: boolean }[];
@@ -122,10 +125,9 @@ export default async function OnboardingPipelinePage({
     notes: string | null;
   } | null = null;
 
-  if (
-    (onboarding.current_stage === "site_setup" || onboarding.current_stage === "connection_test") &&
-    onboarding.customer_id
-  ) {
+  const STAGES_NEEDING_SITE = ["site_setup", "connection_test", "install_scheduled", "install_completed"];
+
+  if (STAGES_NEEDING_SITE.includes(onboarding.current_stage) && onboarding.customer_id) {
     const { data: siteRow } = await supabase
       .from("sites")
       .select("id, name, property_type, power_source_category")
@@ -139,7 +141,7 @@ export default async function OnboardingPipelinePage({
       const { data: deviceRows } = await supabase
         .from("devices")
         .select(
-          "id, device_uid, label, status, device_type:device_types(name, device_type_instruments(instrument_key, unit, is_required))"
+          "id, device_uid, label, status, installed_at, device_type:device_types(name, device_type_instruments(instrument_key, unit, is_required))"
         )
         .eq("site_id", site.id)
         .order("created_at", { ascending: false });
@@ -504,6 +506,106 @@ export default async function OnboardingPipelinePage({
                 </form>
               </div>
             </>
+          )}
+        </div>
+      ) : onboarding.current_stage === "install_scheduled" ? (
+        <div className="rounded-lg border border-border bg-card p-5 space-y-4">
+          <h2 className="text-sm font-semibold">Schedule Install</h2>
+
+          {!site || devices.length === 0 ? (
+            <p className="text-sm text-muted-foreground">
+              No site or devices found for this customer.
+            </p>
+          ) : (
+            <>
+              <div className="space-y-2">
+                <h3 className="text-xs font-medium text-muted-foreground">
+                  Devices ({devices.length}) — connection verified
+                </h3>
+                <ul className="space-y-1.5">
+                  {devices.map((d) => (
+                    <li key={d.id} className="text-sm">
+                      <span className="font-medium">{d.device_type?.name ?? "Device"}</span>{" "}
+                      <span className="text-muted-foreground">— {d.label || d.device_uid}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              <div className="border-t border-border pt-4">
+                {onboarding.install_scheduled_at ? (
+                  <p className="text-sm">
+                    Scheduled for{" "}
+                    <span className="font-medium">
+                      {new Date(onboarding.install_scheduled_at).toLocaleDateString("en-IN", {
+                        weekday: "long",
+                        day: "numeric",
+                        month: "long",
+                        year: "numeric",
+                      })}
+                    </span>
+                  </p>
+                ) : (
+                  <p className="text-sm text-muted-foreground">No install date set yet.</p>
+                )}
+
+                <form action={scheduleInstall.bind(null, onboarding.id)} className="mt-3 flex items-end gap-2">
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium">Install date</label>
+                    <Input
+                      type="date"
+                      name="scheduledDate"
+                      defaultValue={onboarding.install_scheduled_at?.slice(0, 10) ?? ""}
+                      className="h-9 w-44"
+                      required
+                    />
+                  </div>
+                  <Button type="submit" variant="outline" size="sm">
+                    {onboarding.install_scheduled_at ? "Reschedule" : "Schedule"}
+                  </Button>
+                </form>
+              </div>
+
+              {onboarding.install_scheduled_at && (
+                <form action={completeInstallation.bind(null, onboarding.id, site.id)} className="border-t border-border pt-4">
+                  <Button type="submit" size="sm">
+                    Installation Complete
+                  </Button>
+                </form>
+              )}
+            </>
+          )}
+        </div>
+      ) : onboarding.current_stage === "install_completed" ? (
+        <div className="rounded-lg border border-border bg-card p-5 space-y-4">
+          <div className="flex items-center gap-2">
+            <span className="rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary">
+              Complete
+            </span>
+            <h2 className="text-sm font-semibold">Onboarding Complete</h2>
+          </div>
+          <p className="text-sm text-muted-foreground">
+            {lead?.full_name ?? "This customer"} is fully onboarded — their system is live and the
+            dashboard is available to them.
+          </p>
+
+          {site && devices.length > 0 && (
+            <div className="space-y-1.5 border-t border-border pt-4">
+              <h3 className="text-xs font-medium text-muted-foreground">Installed devices</h3>
+              <ul className="space-y-1.5 text-sm">
+                {devices.map((d) => (
+                  <li key={d.id} className="flex items-center justify-between">
+                    <span>
+                      <span className="font-medium">{d.device_type?.name ?? "Device"}</span>{" "}
+                      <span className="text-muted-foreground">— {d.label || d.device_uid}</span>
+                    </span>
+                    <span className="text-xs text-muted-foreground">
+                      {d.installed_at ? new Date(d.installed_at).toLocaleDateString("en-IN") : "—"}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
           )}
         </div>
       ) : onboarding.current_stage !== "quotation_sent" ? (

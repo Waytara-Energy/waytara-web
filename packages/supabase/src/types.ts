@@ -112,6 +112,7 @@ export type Database = {
           customer_id: string | null
           employee_id: string
           id: string
+          install_scheduled_at: string | null
           invite_status: Database["waytara"]["Enums"]["invite_status"] | null
           invite_token: string | null
           lead_id: string
@@ -125,6 +126,7 @@ export type Database = {
           customer_id?: string | null
           employee_id: string
           id?: string
+          install_scheduled_at?: string | null
           invite_status?: Database["waytara"]["Enums"]["invite_status"] | null
           invite_token?: string | null
           lead_id: string
@@ -138,6 +140,7 @@ export type Database = {
           customer_id?: string | null
           employee_id?: string
           id?: string
+          install_scheduled_at?: string | null
           invite_status?: Database["waytara"]["Enums"]["invite_status"] | null
           invite_token?: string | null
           lead_id?: string

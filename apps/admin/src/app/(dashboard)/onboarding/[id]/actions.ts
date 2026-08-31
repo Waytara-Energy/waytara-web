@@ -8,6 +8,7 @@ import type { Json } from "@waytara/supabase";
 import { generateQuotationPdf, type PricingLineItem } from "@/lib/quotation-pdf";
 import { sendQuotationEmail } from "@/lib/send-quotation-email";
 import { sendCustomerInviteEmail } from "@/lib/send-customer-invite-email";
+import { sendInstallCompleteEmail } from "@/lib/send-install-complete-email";
 
 export async function createAndSendQuotation(onboardingId: string, formData: FormData) {
   const profile = await getCurrentProfile();
@@ -559,6 +560,76 @@ export async function failTestSession(onboardingId: string, sessionId: string, f
 
   if (error) {
     redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/onboarding/${onboardingId}`);
+  redirect(`/onboarding/${onboardingId}`);
+}
+
+// Task 8.6: install completion — the pipeline's last two stages.
+// install_scheduled_at has no dedicated write policy: onboarding_employee_
+// update_own already covers any column on a row the employee owns.
+
+export async function scheduleInstall(onboardingId: string, formData: FormData) {
+  const scheduledDate = String(formData.get("scheduledDate") ?? "").trim();
+  if (!scheduledDate) {
+    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent("Pick a date first.")}`);
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("customer_onboarding")
+    .update({ install_scheduled_at: new Date(scheduledDate).toISOString() })
+    .eq("id", onboardingId);
+
+  if (error) {
+    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/onboarding/${onboardingId}`);
+  redirect(`/onboarding/${onboardingId}`);
+}
+
+export async function completeInstallation(onboardingId: string, siteId: string) {
+  const supabase = await createClient();
+
+  const { data: onboarding } = await supabase
+    .from("customer_onboarding")
+    .select("lead_id")
+    .eq("id", onboardingId)
+    .single();
+
+  const { error: deviceError } = await supabase
+    .from("devices")
+    .update({ installed_at: new Date().toISOString() })
+    .eq("site_id", siteId);
+
+  if (deviceError) {
+    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(deviceError.message)}`);
+  }
+
+  const { error: stageError } = await supabase
+    .from("customer_onboarding")
+    .update({ current_stage: "install_completed" })
+    .eq("id", onboardingId);
+
+  if (stageError) {
+    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(stageError.message)}`);
+  }
+
+  // Same profiles-RLS workaround as resendCustomerInviteEmail: an employee
+  // can't read an arbitrary customer's profile row, but the lead record
+  // (already RLS-visible) carries the same name/email.
+  if (onboarding?.lead_id) {
+    const { data: lead } = await supabase
+      .from("leads")
+      .select("full_name, email")
+      .eq("id", onboarding.lead_id)
+      .single();
+
+    if (lead?.email) {
+      await sendInstallCompleteEmail({ to: lead.email, name: lead.full_name });
+    }
   }
 
   revalidatePath(`/onboarding/${onboardingId}`);
