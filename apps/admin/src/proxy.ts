@@ -6,9 +6,14 @@ import { isStaffRole } from "@waytara/supabase/roles";
 // Route prefixes only an `admin` profile may reach — an `employee` hitting
 // one of these gets redirected to /unauthorized, not just a hidden nav item.
 // Adjust this list as real pages land under each nav section.
-const ADMIN_ONLY_PREFIXES = ["/employees"];
+const ADMIN_ONLY_PREFIXES = ["/employees", "/plans", "/devices"];
 
-export async function middleware(request: NextRequest) {
+// Next.js 16 deprecated middleware.ts in favor of proxy.ts (same behavior,
+// renamed file/export) — confirmed live: middleware.ts was silently never
+// invoked at all in this version (an unauthenticated `fetch('/devices',
+// {credentials:'omit'})` returned 200, not a redirect), so every route in
+// this app was actually unprotected regardless of what this file said.
+export async function proxy(request: NextRequest) {
   const { supabase, response } = createMiddlewareClient(request);
   const { pathname } = request.nextUrl;
   const profile = await getCurrentProfile(supabase);
@@ -45,5 +50,6 @@ export const config = {
     "/customers/:path*",
     "/employees/:path*",
     "/plans/:path*",
+    "/devices/:path*",
   ],
 };
