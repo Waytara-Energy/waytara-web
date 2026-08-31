@@ -175,7 +175,10 @@ export default async function LeadDetailPage({
             <span className="font-medium capitalize">
               {onboarding.current_stage.replace(/_/g, " ")}
             </span>
-            . (Pipeline UI isn&apos;t built yet — Task 8.)
+            .{" "}
+            <Link href={`/onboarding/${onboarding.id}`} className="text-primary hover:underline">
+              Open pipeline →
+            </Link>
           </p>
         ) : canStartOnboarding ? (
           <form action={startOnboarding.bind(null, lead.id)} className="mt-2">
