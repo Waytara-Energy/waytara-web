@@ -1,18 +1,24 @@
-import type { Profile } from "@waytara/supabase";
+import { getCurrentProfile } from "@waytara/supabase/auth";
+import { Button } from "@waytara/ui/button";
+import { logout } from "@/app/(dashboard)/actions";
 
-// Placeholder until real auth is wired up: `getCurrentProfile()` from
-// `@waytara/supabase/auth` will replace this null once there's a login
-// flow and `apps/admin/.env.local` has real Supabase values.
-const currentProfile: Profile | null = null;
+// Reachable only for admin/employee profiles — middleware.ts enforces that,
+// so this can assume a profile exists.
+export async function Header() {
+  const profile = await getCurrentProfile();
 
-export function Header() {
   return (
     <header className="flex h-16 items-center justify-between border-b border-border bg-background px-6">
       <div />
-      <div className="text-sm text-muted-foreground">
-        {currentProfile
-          ? `Signed in as ${currentProfile.full_name ?? currentProfile.email} (${currentProfile.role})`
-          : "Not signed in — auth not wired up yet"}
+      <div className="flex items-center gap-3">
+        <span className="text-sm text-muted-foreground">
+          {profile ? `${profile.full_name ?? profile.email} · ${profile.role}` : "—"}
+        </span>
+        <form action={logout}>
+          <Button type="submit" variant="ghost" size="sm">
+            Sign out
+          </Button>
+        </form>
       </div>
     </header>
   );

@@ -4,9 +4,10 @@ import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient as createServerSupabaseClient } from "./client-server";
 import type { Database } from "./types";
+import type { Role } from "./roles";
 
 export type Profile = Database["waytara"]["Tables"]["profiles"]["Row"];
-export type Role = Profile["role"];
+export type { Role };
 
 export type TypedSupabaseClient = SupabaseClient<Database, "waytara">;
 

@@ -20,12 +20,15 @@ const NAV_ITEMS = [
 export function Sidebar() {
   return (
     <aside className="flex h-screen w-64 shrink-0 flex-col border-r border-border bg-card">
-      <div className="flex h-16 items-center gap-2 border-b border-border px-5">
+      <Link
+        href="/dashboard"
+        className="flex h-16 items-center gap-2 border-b border-border px-5"
+      >
         <Zap className="h-5 w-5 text-primary" />
         <span className="text-sm font-semibold tracking-tight">
           WayTara Admin
         </span>
-      </div>
+      </Link>
 
       <nav className="flex-1 space-y-1 p-3">
         {NAV_ITEMS.map(({ label, href, icon: Icon }) => (

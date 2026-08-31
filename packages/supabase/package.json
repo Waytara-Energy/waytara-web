@@ -9,6 +9,8 @@
     "./server": "./src/client-server.ts",
     "./middleware": "./src/middleware.ts",
     "./auth": "./src/auth.ts",
+    "./roles": "./src/roles.ts",
+    "./service-role": "./src/service-role.ts",
     "./types": "./src/types.ts"
   },
   "scripts": {

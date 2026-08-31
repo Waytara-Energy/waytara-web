@@ -1,10 +1,9 @@
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/header";
 
-// Placeholder authenticated shell. Not actually gated yet — there's no
-// login page or middleware redirect wired up. Once those exist, this is
-// where a `requireRole([...])` guard (from `@waytara/supabase/auth`) or a
-// middleware-based check drops in.
+// Every route under this group is gated by middleware.ts (session +
+// admin/employee role, with /employees further restricted to admin only) —
+// this layout can assume a valid staff profile by the time it renders.
 export default function DashboardLayout({
   children,
 }: Readonly<{

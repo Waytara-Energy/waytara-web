@@ -8,7 +8,7 @@ function requireEnv(name: string): string {
   const value = process.env[name];
   if (!value) {
     throw new Error(
-      `[@waytara/supabase] Missing ${name}. Set it in apps/web/.env.local (see .env.example).`
+      `[@waytara/supabase] Missing ${name}. Set it in this app's .env.local (see .env.example).`
     );
   }
   return value;
@@ -25,9 +25,13 @@ function requireEnv(name: string): string {
  * Use `createMiddlewareClient` from `@waytara/supabase/middleware` instead.
  */
 export async function createClient() {
+  // `cookies()` must run before anything that could throw (like the env
+  // checks below) — it's what tells Next this route needs request-time
+  // rendering. Throw first and Next never gets that signal: it fails the
+  // static prerender pass outright instead of deferring to a real request.
+  const cookieStore = await cookies();
   const supabaseUrl = requireEnv("NEXT_PUBLIC_SUPABASE_URL");
   const supabaseAnonKey = requireEnv("NEXT_PUBLIC_SUPABASE_ANON_KEY");
-  const cookieStore = await cookies();
 
   return createServerClient<Database, "waytara">(supabaseUrl, supabaseAnonKey, {
     db: { schema: "waytara" },
