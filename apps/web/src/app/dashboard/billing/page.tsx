@@ -39,7 +39,7 @@ export default async function BillingPage() {
         {customer?.plan ? (
           <div className="mt-2 text-sm">
             <p className="text-theme-primary">
-              {customer.plan.name} — ₹{customer.plan.price_monthly}/mo
+              {customer.plan.name} — ₹{Number(customer.plan.price_monthly).toLocaleString("en-IN")} one-time
             </p>
             <p className="text-theme-muted">
               Active since{" "}

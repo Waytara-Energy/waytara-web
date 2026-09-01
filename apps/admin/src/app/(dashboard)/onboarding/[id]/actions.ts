@@ -98,30 +98,42 @@ export async function createAndSendQuotation(onboardingId: string, formData: For
   redirect(`/onboarding/${onboardingId}`);
 }
 
-export async function recordQuotationAccepted(quotationId: string, onboardingId: string) {
+// Onboarding pipeline redesign, Phase 4 retired recordQuotationAccepted —
+// the customer accepts (and picks a payment option) themselves on the
+// public /quote/[token] page now, not the employee on their behalf.
+
+export async function resendQuoteLinkEmail(onboardingId: string, quotationId: string) {
   const supabase = await createClient();
 
-  const { data: onboarding } = await supabase
-    .from("customer_onboarding")
-    .select("lead_id")
-    .eq("id", onboardingId)
+  const { data: quotation } = await supabase
+    .from("quotations")
+    .select("lead_id, total_amount, access_token, status")
+    .eq("id", quotationId)
     .single();
 
-  await supabase
-    .from("quotations")
-    .update({ status: "accepted", accepted_at: new Date().toISOString() })
-    .eq("id", quotationId);
+  if (!quotation || quotation.status !== "sent") {
+    redirect(
+      `/onboarding/${onboardingId}?error=${encodeURIComponent("Nothing to resend — this quote is no longer awaiting a response.")}`
+    );
+  }
 
-  await supabase
-    .from("customer_onboarding")
-    .update({ current_stage: "payment_pending" })
-    .eq("id", onboardingId);
+  const { data: lead } = await supabase
+    .from("leads")
+    .select("full_name, email")
+    .eq("id", quotation.lead_id)
+    .single();
 
-  if (onboarding?.lead_id) {
-    await supabase.from("leads").update({ status: "converted" }).eq("id", onboarding.lead_id);
+  if (lead?.email) {
+    await sendQuoteLinkEmail({
+      to: lead.email,
+      leadName: lead.full_name ?? "Customer",
+      totalAmount: Number(quotation.total_amount),
+      accessToken: quotation.access_token,
+    });
   }
 
   revalidatePath(`/onboarding/${onboardingId}`);
+  redirect(`/onboarding/${onboardingId}`);
 }
 
 export async function recordQuotationRejected(
@@ -155,42 +167,28 @@ export async function recordQuotationRejected(
   redirect(`/onboarding/${onboardingId}`);
 }
 
-// Advances the onboarding stage to account_created and fires the customer's
-// invite email, pointing at apps/web's existing /invite/[token] flow
-// (Task 5) — the same step both payment paths below end with.
-async function advanceToAccountCreatedAndInvite(onboardingId: string) {
-  const supabase = await createClient();
-  const inviteToken = crypto.randomUUID();
-
-  const { data: onboarding } = await supabase
-    .from("customer_onboarding")
-    .update({ current_stage: "account_created", invite_token: inviteToken, invite_status: "pending" })
-    .eq("id", onboardingId)
-    .select("lead_id")
-    .single();
-
-  if (onboarding?.lead_id) {
-    const { data: lead } = await supabase
-      .from("leads")
-      .select("full_name, email")
-      .eq("id", onboarding.lead_id)
-      .single();
-
-    if (lead?.email) {
-      await sendCustomerInviteEmail({ to: lead.email, name: lead.full_name, inviteToken });
-    }
-  }
-}
-
-// Payment collection is SIMULATED — no Razorpay integration yet (that's a
-// follow-up). Clicking "Pay" here immediately records a paid `payments` row
-// rather than redirecting to a real checkout. Swap the guts of these two
-// functions for real Razorpay order creation + webhook-verified capture
-// when that's wired up; the RLS policies, stage advancement, and invite
-// email are already the real thing.
+// Onboarding pipeline redesign, Phase 5: payment now happens after the
+// customer already has an account (they self-serve it from their own
+// dashboard's onboarding-status page — apps/web's payFullAmount /
+// payAdvanceAmount). These two stay only as an employee-side fallback for
+// when payment arrives some other way (bank transfer, cash, a customer
+// who calls in instead of using their dashboard) — same simulated
+// gateway, but recording it here no longer creates an account/invite
+// (that already happened; this stage's UI only ever shows once it has).
+//
+// Payment collection is SIMULATED — no Razorpay integration yet. Swap the
+// guts of these for real Razorpay order creation + webhook-verified
+// capture when that's wired up; the RLS policies and stage advancement
+// are already the real thing.
 
 export async function recordFullPayment(onboardingId: string, quotationId: string) {
   const supabase = await createClient();
+
+  const { data: onboarding } = await supabase
+    .from("customer_onboarding")
+    .select("customer_id")
+    .eq("id", onboardingId)
+    .single();
 
   const { data: quotation } = await supabase
     .from("quotations")
@@ -198,12 +196,13 @@ export async function recordFullPayment(onboardingId: string, quotationId: strin
     .eq("id", quotationId)
     .single();
 
-  if (!quotation) {
+  if (!quotation || !onboarding?.customer_id) {
     redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent("Couldn't load this quotation.")}`);
   }
 
   await supabase.from("payments").insert({
     quotation_id: quotationId,
+    customer_id: onboarding.customer_id,
     payment_type: "full",
     amount: quotation.total_amount,
     status: "paid",
@@ -211,9 +210,7 @@ export async function recordFullPayment(onboardingId: string, quotationId: strin
     paid_at: new Date().toISOString(),
   });
 
-  await supabase.from("quotations").update({ payment_option: "full" }).eq("id", quotationId);
-
-  await advanceToAccountCreatedAndInvite(onboardingId);
+  await supabase.from("customer_onboarding").update({ current_stage: "site_setup" }).eq("id", onboardingId);
 
   revalidatePath(`/onboarding/${onboardingId}`);
   redirect(`/onboarding/${onboardingId}`);
@@ -227,6 +224,12 @@ export async function recordSplitPayment(
   const advanceAmount = Number(formData.get("advanceAmount") ?? 0);
   const supabase = await createClient();
 
+  const { data: onboarding } = await supabase
+    .from("customer_onboarding")
+    .select("customer_id")
+    .eq("id", onboardingId)
+    .single();
+
   const { data: quotation } = await supabase
     .from("quotations")
     .select("total_amount")
@@ -235,7 +238,7 @@ export async function recordSplitPayment(
 
   const totalAmount = quotation ? Number(quotation.total_amount) : 0;
 
-  if (!quotation || advanceAmount <= 0 || advanceAmount >= totalAmount) {
+  if (!quotation || !onboarding?.customer_id || advanceAmount <= 0 || advanceAmount >= totalAmount) {
     redirect(
       `/onboarding/${onboardingId}?error=${encodeURIComponent("Enter an advance amount greater than 0 and less than the total.")}`
     );
@@ -246,6 +249,7 @@ export async function recordSplitPayment(
   await supabase.from("payments").insert([
     {
       quotation_id: quotationId,
+      customer_id: onboarding.customer_id,
       payment_type: "advance",
       amount: advanceAmount,
       status: "paid",
@@ -254,6 +258,7 @@ export async function recordSplitPayment(
     },
     {
       quotation_id: quotationId,
+      customer_id: onboarding.customer_id,
       payment_type: "balance",
       amount: balanceAmount,
       status: "pending",
@@ -272,10 +277,8 @@ export async function recordSplitPayment(
 
   await supabase
     .from("customer_onboarding")
-    .update({ balance_payment_status: "pending" })
+    .update({ balance_payment_status: "pending", current_stage: "site_setup" })
     .eq("id", onboardingId);
-
-  await advanceToAccountCreatedAndInvite(onboardingId);
 
   revalidatePath(`/onboarding/${onboardingId}`);
   redirect(`/onboarding/${onboardingId}`);

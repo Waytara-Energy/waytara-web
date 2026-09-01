@@ -178,11 +178,19 @@ export async function submitQuoteAccept(token: string, formData: FormData) {
   // Mint the account-creation invite now, same shape as admin's retired
   // advanceToAccountCreatedAndInvite — the customer_onboarding row already
   // exists (created when the employee started this lead's onboarding), so
-  // this only ever updates it, never inserts.
+  // this only ever updates it, never inserts. Recording quotation_id here
+  // matters beyond bookkeeping: Phase 5's customer-facing payment RLS
+  // policy (payments_customer_insert_own) joins back to this exact column
+  // to confirm the paying customer owns the onboarding for that quotation.
   const inviteToken = crypto.randomUUID();
   const { data: onboarding } = await service
     .from("customer_onboarding")
-    .update({ current_stage: "account_created", invite_token: inviteToken, invite_status: "pending" })
+    .update({
+      current_stage: "account_created",
+      invite_token: inviteToken,
+      invite_status: "pending",
+      quotation_id: quotation.id,
+    })
     .eq("lead_id", quotation.lead_id)
     .select("id")
     .maybeSingle();

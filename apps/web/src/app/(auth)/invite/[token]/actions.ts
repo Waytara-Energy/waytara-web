@@ -86,26 +86,22 @@ export async function acceptCustomerInvite(token: string, formData: FormData) {
     );
   }
 
+  // Onboarding pipeline redesign, Phase 5: payment now happens AFTER
+  // account creation, not before (the old flow's assumption) — so the
+  // next stage is payment_pending, not account_created, and there's no
+  // payments row yet at this point to backfill customer_id onto (that
+  // backfill used to matter here; now every payments row is inserted with
+  // customer_id already set, since the customer already has an account
+  // by the time either they or an admin fallback records one).
   await service
     .from("customer_onboarding")
     .update({
       customer_id: userId,
       invite_status: "accepted",
-      current_stage: "account_created",
+      current_stage: "payment_pending",
       updated_at: new Date().toISOString(),
     })
     .eq("id", onboarding.id);
-
-  // Task 9.5's billing history reads payments.customer_id — Task 8.2 never
-  // sets it (the account doesn't exist yet at payment time, exactly as the
-  // schema's own comment on the column anticipates). Backfill it now that
-  // it does.
-  if (acceptedQuotation?.id) {
-    await service
-      .from("payments")
-      .update({ customer_id: userId })
-      .eq("quotation_id", acceptedQuotation.id);
-  }
 
   const supabase = await createClient();
   const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });

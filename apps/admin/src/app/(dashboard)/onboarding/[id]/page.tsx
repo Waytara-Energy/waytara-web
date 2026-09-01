@@ -5,7 +5,7 @@ import { Input } from "@waytara/ui/input";
 import { MonitoringPanel } from "@waytara/ui/monitoring-panel";
 import { QuotationForm } from "./quotation-form";
 import {
-  recordQuotationAccepted,
+  resendQuoteLinkEmail,
   recordQuotationRejected,
   recordFullPayment,
   recordSplitPayment,
@@ -198,9 +198,11 @@ export default async function OnboardingPipelinePage({
                 : "No accepted quotation found for this lead."}
             </p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Simulated — clicking Pay records the payment directly and moves
-              straight to account creation. Real Razorpay checkout isn&apos;t
-              wired up yet.
+              The customer normally pays this themselves from their own
+              dashboard, using the payment option they picked when accepting
+              the quote. Use this only as a fallback — payment arrived some
+              other way (bank transfer, cash) and needs recording manually.
+              Simulated — no real Razorpay checkout is wired up yet.
             </p>
           </div>
 
@@ -208,7 +210,7 @@ export default async function OnboardingPipelinePage({
             <div className="flex flex-col gap-4 border-t border-border pt-4 sm:flex-row">
               <form action={recordFullPayment.bind(null, onboarding.id, acceptedQuotation.id)}>
                 <Button type="submit" size="sm">
-                  Pay Full — ₹{Number(acceptedQuotation.total_amount).toLocaleString("en-IN")}
+                  Record Full Payment — ₹{Number(acceptedQuotation.total_amount).toLocaleString("en-IN")}
                 </Button>
               </form>
 
@@ -221,12 +223,13 @@ export default async function OnboardingPipelinePage({
                   name="advanceAmount"
                   placeholder="Advance amount"
                   min={1}
+                  defaultValue={acceptedQuotation.advance_amount ?? undefined}
                   max={Number(acceptedQuotation.total_amount) - 1}
                   className="h-9 w-40"
                   required
                 />
                 <Button type="submit" variant="outline" size="sm">
-                  Pay Advance (Split)
+                  Record Advance (Split)
                 </Button>
               </form>
             </div>
@@ -646,12 +649,19 @@ export default async function OnboardingPipelinePage({
             )}
           </div>
 
-          <div className="flex flex-wrap gap-2 border-t border-border pt-4">
-            <form
-              action={recordQuotationAccepted.bind(null, activeQuotation.id, onboarding.id)}
-            >
-              <Button type="submit" size="sm">
-                Customer Accepted
+          <div className="flex items-center gap-2 border-t border-border pt-4 text-sm">
+            <span className="rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground">
+              Awaiting customer response
+            </span>
+            <span className="text-muted-foreground">
+              They can accept, reject, or request changes from the link in their email.
+            </span>
+          </div>
+
+          <div className="flex flex-wrap gap-2">
+            <form action={resendQuoteLinkEmail.bind(null, onboarding.id, activeQuotation.id)}>
+              <Button type="submit" variant="outline" size="sm">
+                Resend quote link email
               </Button>
             </form>
             <form
@@ -659,7 +669,7 @@ export default async function OnboardingPipelinePage({
             >
               <input type="hidden" name="action" value="re-quote" />
               <Button type="submit" variant="outline" size="sm">
-                Rejected — Re-quote
+                Mark Rejected — Re-quote
               </Button>
             </form>
             <form
@@ -667,7 +677,7 @@ export default async function OnboardingPipelinePage({
             >
               <input type="hidden" name="action" value="close" />
               <Button type="submit" variant="destructive" size="sm">
-                Rejected — Close Lead
+                Mark Rejected — Close Lead
               </Button>
             </form>
           </div>
@@ -690,13 +700,18 @@ export default async function OnboardingPipelinePage({
       {pastQuotations.length > 0 && (
         <div className="rounded-lg border border-border bg-card p-5">
           <h2 className="text-sm font-semibold">Previous quotations</h2>
-          <ul className="mt-2 space-y-1.5 text-sm text-muted-foreground">
+          <ul className="mt-2 space-y-2 text-sm text-muted-foreground">
             {pastQuotations.map((q) => (
-              <li key={q.id} className="flex items-center justify-between">
-                <span>
-                  {q.plan?.name ?? "Plan"} — ₹{Number(q.total_amount).toLocaleString("en-IN")}
-                </span>
-                <span className="capitalize">{q.status}</span>
+              <li key={q.id}>
+                <div className="flex items-center justify-between">
+                  <span>
+                    {q.plan?.name ?? "Plan"} — ₹{Number(q.total_amount).toLocaleString("en-IN")}
+                  </span>
+                  <span className="capitalize">{q.status.replace(/_/g, " ")}</span>
+                </div>
+                {q.customer_message && (
+                  <p className="mt-0.5 text-xs italic">&ldquo;{q.customer_message}&rdquo;</p>
+                )}
               </li>
             ))}
           </ul>
