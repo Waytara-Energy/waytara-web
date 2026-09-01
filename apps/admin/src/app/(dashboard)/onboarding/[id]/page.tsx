@@ -627,6 +627,12 @@ export default async function OnboardingPipelinePage({
                   ? new Date(activeQuotation.sent_at).toLocaleDateString("en-IN")
                   : "—"}
               </p>
+              {activeQuotation.subtotal_amount != null && (
+                <p className="mt-1 text-xs text-muted-foreground">
+                  Subtotal ₹{Number(activeQuotation.subtotal_amount).toLocaleString("en-IN")} + GST (
+                  {activeQuotation.gst_rate}%) ₹{Number(activeQuotation.gst_amount ?? 0).toLocaleString("en-IN")}
+                </p>
+              )}
             </div>
             {activeQuotation.pdf_url && (
               <a

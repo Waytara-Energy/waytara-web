@@ -17,13 +17,25 @@ interface LineItem {
   unit_price: number;
 }
 
+const DEFAULT_GST_RATE = 18;
+
 export function QuotationForm({ onboardingId, plans }: { onboardingId: string; plans: Plan[] }) {
   const [planId, setPlanId] = React.useState(plans[0]?.id ?? "");
+  const [gstRate, setGstRate] = React.useState(DEFAULT_GST_RATE);
   const [items, setItems] = React.useState<LineItem[]>([
     { description: "", qty: 1, unit_price: 0 },
   ]);
 
-  const total = items.reduce((sum, item) => sum + item.qty * item.unit_price, 0);
+  const selectedPlan = plans.find((p) => p.id === planId);
+  // The plan is a one-time purchase (see Billing & Plan) — its price is a
+  // fixed, non-editable line alongside the employee's own itemized
+  // hardware lines, not something an employee can adjust per quote.
+  const planPrice = selectedPlan?.price_monthly ?? 0;
+
+  const hardwareTotal = items.reduce((sum, item) => sum + item.qty * item.unit_price, 0);
+  const subtotal = hardwareTotal + planPrice;
+  const gstAmount = Math.round(subtotal * (gstRate / 100) * 100) / 100;
+  const grandTotal = subtotal + gstAmount;
 
   function updateItem(index: number, patch: Partial<LineItem>) {
     setItems((prev) => prev.map((item, i) => (i === index ? { ...item, ...patch } : item)));
@@ -46,7 +58,7 @@ export function QuotationForm({ onboardingId, plans }: { onboardingId: string; p
   return (
     <form action={createAndSendQuotation.bind(null, onboardingId)} className="space-y-4">
       <div className="space-y-1.5">
-        <label className="text-sm font-medium">Monitoring plan</label>
+        <label className="text-sm font-medium">Monitoring plan (one-time)</label>
         <select
           name="planId"
           value={planId}
@@ -56,14 +68,14 @@ export function QuotationForm({ onboardingId, plans }: { onboardingId: string; p
         >
           {plans.map((plan) => (
             <option key={plan.id} value={plan.id}>
-              {plan.name} — ₹{plan.price_monthly}/mo
+              {plan.name} — ₹{plan.price_monthly.toLocaleString("en-IN")}
             </option>
           ))}
         </select>
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm font-medium">Pricing breakdown</label>
+        <label className="text-sm font-medium">Hardware &amp; installation</label>
         <div className="space-y-2">
           {items.map((item, i) => (
             <div key={i} className="flex items-center gap-2">
@@ -108,13 +120,44 @@ export function QuotationForm({ onboardingId, plans }: { onboardingId: string; p
         </Button>
       </div>
 
-      <div className="flex items-center justify-between border-t border-border pt-3">
-        <span className="text-sm font-semibold">Total</span>
-        <span className="text-lg font-semibold">₹{total.toLocaleString("en-IN")}</span>
+      <div className="space-y-3 border-t border-border pt-4">
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">Software plan ({selectedPlan?.name ?? "—"})</span>
+          <span>₹{planPrice.toLocaleString("en-IN")}</span>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="text-muted-foreground">Hardware &amp; installation</span>
+          <span>₹{hardwareTotal.toLocaleString("en-IN")}</span>
+        </div>
+        <div className="flex items-center justify-between text-sm font-medium">
+          <span>Subtotal</span>
+          <span>₹{subtotal.toLocaleString("en-IN")}</span>
+        </div>
+        <div className="flex items-center justify-between text-sm">
+          <span className="flex items-center gap-2 text-muted-foreground">
+            GST
+            <Input
+              type="number"
+              min={0}
+              max={100}
+              step={0.5}
+              value={gstRate}
+              onChange={(e) => setGstRate(Number(e.target.value) || 0)}
+              className="h-7 w-16 text-xs"
+            />
+            %
+          </span>
+          <span>₹{gstAmount.toLocaleString("en-IN")}</span>
+        </div>
+        <div className="flex items-center justify-between border-t border-border pt-3">
+          <span className="text-sm font-semibold">Grand total</span>
+          <span className="text-lg font-semibold">₹{grandTotal.toLocaleString("en-IN")}</span>
+        </div>
       </div>
 
       <input type="hidden" name="pricingBreakdown" value={pricingBreakdown} />
-      <Button type="submit" disabled={!planId || total <= 0}>
+      <input type="hidden" name="gstRate" value={gstRate} />
+      <Button type="submit" disabled={!planId || hardwareTotal <= 0}>
         Generate &amp; Send Quotation
       </Button>
     </form>

@@ -10,7 +10,7 @@ export interface InstallCompleteEmailInput {
  * complete (Task 8.6) — the close of the onboarding pipeline. Same
  * non-fatal-if-unconfigured / explicit-error-check pattern as the other
  * Resend senders in this codebase (send-customer-invite-email.ts,
- * send-quotation-email.ts).
+ * send-quote-link-email.ts).
  */
 export async function sendInstallCompleteEmail(input: InstallCompleteEmailInput): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;

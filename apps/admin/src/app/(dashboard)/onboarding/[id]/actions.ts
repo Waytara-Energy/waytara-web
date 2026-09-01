@@ -5,16 +5,21 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@waytara/supabase/server";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import type { Json } from "@waytara/supabase";
-import { generateQuotationPdf, type PricingLineItem } from "@/lib/quotation-pdf";
-import { sendQuotationEmail } from "@/lib/send-quotation-email";
+import type { PricingLineItem } from "@/lib/quotation-pdf";
+import { sendQuoteLinkEmail } from "@/lib/send-quote-link-email";
 import { sendCustomerInviteEmail } from "@/lib/send-customer-invite-email";
 import { sendInstallCompleteEmail } from "@/lib/send-install-complete-email";
 
+// Onboarding pipeline redesign, Phase 3: generating a quotation no longer
+// creates a PDF or emails one — it creates a public, token-addressable
+// quote the customer can view and respond to themselves (Phase 4). The
+// PDF only gets generated once they actually accept it.
 export async function createAndSendQuotation(onboardingId: string, formData: FormData) {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
   const planId = String(formData.get("planId") ?? "");
+  const gstRate = Number(formData.get("gstRate") ?? "18");
   let pricingBreakdown: PricingLineItem[] = [];
   try {
     pricingBreakdown = JSON.parse(String(formData.get("pricingBreakdown") ?? "[]"));
@@ -22,13 +27,12 @@ export async function createAndSendQuotation(onboardingId: string, formData: For
     // leave empty — caught by the validation below
   }
 
-  if (!planId || pricingBreakdown.length === 0) {
+  if (!planId || pricingBreakdown.length === 0 || !Number.isFinite(gstRate) || gstRate < 0) {
     redirect(
-      `/onboarding/${onboardingId}?error=${encodeURIComponent("Pick a plan and add at least one pricing line.")}`
+      `/onboarding/${onboardingId}?error=${encodeURIComponent("Pick a plan, add at least one pricing line, and set a valid GST rate.")}`
     );
   }
 
-  const totalAmount = pricingBreakdown.reduce((sum, item) => sum + item.amount, 0);
   const supabase = await createClient();
 
   const { data: onboarding, error: onboardingError } = await supabase
@@ -45,8 +49,16 @@ export async function createAndSendQuotation(onboardingId: string, formData: For
 
   const [{ data: lead }, { data: plan }] = await Promise.all([
     supabase.from("leads").select("full_name, email, phone").eq("id", onboarding.lead_id).single(),
-    supabase.from("plans").select("name").eq("id", planId).single(),
+    // price_monthly is the plan's one-time price (see Billing & Plan) —
+    // never trust the client's displayed number, re-read it here.
+    supabase.from("plans").select("name, price_monthly").eq("id", planId).single(),
   ]);
+
+  const hardwareTotal = pricingBreakdown.reduce((sum, item) => sum + item.amount, 0);
+  const planPrice = plan?.price_monthly ?? 0;
+  const subtotalAmount = hardwareTotal + planPrice;
+  const gstAmount = Math.round(subtotalAmount * (gstRate / 100) * 100) / 100;
+  const totalAmount = subtotalAmount + gstAmount;
 
   const { data: quotation, error: insertError } = await supabase
     .from("quotations")
@@ -55,10 +67,14 @@ export async function createAndSendQuotation(onboardingId: string, formData: For
       employee_id: profile.id,
       plan_id: planId,
       pricing_breakdown: pricingBreakdown as unknown as Json,
+      subtotal_amount: subtotalAmount,
+      gst_rate: gstRate,
+      gst_amount: gstAmount,
       total_amount: totalAmount,
-      status: "draft",
+      status: "sent",
+      sent_at: new Date().toISOString(),
     })
-    .select()
+    .select("id, access_token")
     .single();
 
   if (insertError || !quotation) {
@@ -67,48 +83,12 @@ export async function createAndSendQuotation(onboardingId: string, formData: For
     );
   }
 
-  const pdfBuffer = await generateQuotationPdf({
-    quotationId: quotation.id,
-    createdAt: quotation.created_at,
-    leadName: lead?.full_name ?? "Customer",
-    leadEmail: lead?.email ?? "",
-    leadPhone: lead?.phone ?? null,
-    planName: plan?.name ?? "—",
-    pricingBreakdown,
-    totalAmount,
-    currency: quotation.currency,
-    validUntil: quotation.valid_until,
-  });
-
-  const filePath = `${quotation.id}.pdf`;
-  const { error: uploadError } = await supabase.storage
-    .from("quotation-pdfs")
-    .upload(filePath, pdfBuffer, { contentType: "application/pdf", upsert: true });
-
-  if (uploadError) {
-    redirect(
-      `/onboarding/${onboardingId}?error=${encodeURIComponent("Quotation saved but PDF upload failed: " + uploadError.message)}`
-    );
-  }
-
-  const {
-    data: { publicUrl: pdfUrl },
-  } = supabase.storage.from("quotation-pdfs").getPublicUrl(filePath);
-
-  await supabase
-    .from("quotations")
-    .update({ status: "sent", sent_at: new Date().toISOString(), pdf_url: pdfUrl })
-    .eq("id", quotation.id);
-
   if (lead?.email) {
-    await sendQuotationEmail({
+    await sendQuoteLinkEmail({
       to: lead.email,
       leadName: lead.full_name ?? "Customer",
       totalAmount,
-      currency: quotation.currency,
-      planName: plan?.name ?? "—",
-      pdfUrl,
-      pdfBuffer,
+      accessToken: quotation.access_token,
     });
   }
 
