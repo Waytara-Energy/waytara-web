@@ -110,7 +110,7 @@ export type Database = {
           created_at: string
           current_stage: Database["waytara"]["Enums"]["onboarding_stage"]
           customer_id: string | null
-          employee_id: string
+          employee_id: string | null
           id: string
           install_scheduled_at: string | null
           invite_status: Database["waytara"]["Enums"]["invite_status"] | null
@@ -124,7 +124,7 @@ export type Database = {
           created_at?: string
           current_stage?: Database["waytara"]["Enums"]["onboarding_stage"]
           customer_id?: string | null
-          employee_id: string
+          employee_id?: string | null
           id?: string
           install_scheduled_at?: string | null
           invite_status?: Database["waytara"]["Enums"]["invite_status"] | null
@@ -138,7 +138,7 @@ export type Database = {
           created_at?: string
           current_stage?: Database["waytara"]["Enums"]["onboarding_stage"]
           customer_id?: string | null
-          employee_id?: string
+          employee_id?: string | null
           id?: string
           install_scheduled_at?: string | null
           invite_status?: Database["waytara"]["Enums"]["invite_status"] | null
@@ -444,7 +444,7 @@ export type Database = {
           email: string
           expires_at: string
           id: string
-          invited_by: string
+          invited_by: string | null
           role: Database["waytara"]["Enums"]["user_role"]
           status: Database["waytara"]["Enums"]["invite_status"]
           token: string
@@ -455,7 +455,7 @@ export type Database = {
           email: string
           expires_at: string
           id?: string
-          invited_by: string
+          invited_by?: string | null
           role?: Database["waytara"]["Enums"]["user_role"]
           status?: Database["waytara"]["Enums"]["invite_status"]
           token: string
@@ -466,7 +466,7 @@ export type Database = {
           email?: string
           expires_at?: string
           id?: string
-          invited_by?: string
+          invited_by?: string | null
           role?: Database["waytara"]["Enums"]["user_role"]
           status?: Database["waytara"]["Enums"]["invite_status"]
           token?: string
@@ -484,7 +484,7 @@ export type Database = {
       installations: {
         Row: {
           completed_at: string | null
-          employee_id: string
+          employee_id: string | null
           id: string
           notes: string | null
           scheduled_date: string | null
@@ -493,7 +493,7 @@ export type Database = {
         }
         Insert: {
           completed_at?: string | null
-          employee_id: string
+          employee_id?: string | null
           id?: string
           notes?: string | null
           scheduled_date?: string | null
@@ -502,7 +502,7 @@ export type Database = {
         }
         Update: {
           completed_at?: string | null
-          employee_id?: string
+          employee_id?: string | null
           id?: string
           notes?: string | null
           scheduled_date?: string | null
@@ -777,7 +777,7 @@ export type Database = {
           balance_amount: number | null
           created_at: string
           currency: string
-          employee_id: string
+          employee_id: string | null
           id: string
           lead_id: string
           payment_option: Database["waytara"]["Enums"]["payment_option"] | null
@@ -796,7 +796,7 @@ export type Database = {
           balance_amount?: number | null
           created_at?: string
           currency?: string
-          employee_id: string
+          employee_id?: string | null
           id?: string
           lead_id: string
           payment_option?: Database["waytara"]["Enums"]["payment_option"] | null
@@ -815,7 +815,7 @@ export type Database = {
           balance_amount?: number | null
           created_at?: string
           currency?: string
-          employee_id?: string
+          employee_id?: string | null
           id?: string
           lead_id?: string
           payment_option?: Database["waytara"]["Enums"]["payment_option"] | null
@@ -941,7 +941,7 @@ export type Database = {
       test_sessions: {
         Row: {
           data_purged: boolean
-          employee_id: string
+          employee_id: string | null
           ended_at: string | null
           id: string
           notes: string | null
@@ -951,7 +951,7 @@ export type Database = {
         }
         Insert: {
           data_purged?: boolean
-          employee_id: string
+          employee_id?: string | null
           ended_at?: string | null
           id?: string
           notes?: string | null
@@ -961,7 +961,7 @@ export type Database = {
         }
         Update: {
           data_purged?: boolean
-          employee_id?: string
+          employee_id?: string | null
           ended_at?: string | null
           id?: string
           notes?: string | null
