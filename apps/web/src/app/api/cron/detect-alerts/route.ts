@@ -1,12 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
 
-// Task 12.1: device-offline detection. Runs on a Vercel Cron schedule
-// (see vercel.json) hitting this Route Handler — a Vercel Function, not a
-// Supabase Edge Function, matching this codebase's established backend
-// convention. No signed-in user exists for a scheduled job, so this is one
-// of the legitimate service_role cases (see service-role.ts's own doc
-// comment).
+// Task 12.1: device-offline detection. Meant to run on a schedule hitting
+// this Route Handler — a Vercel Function, not a Supabase Edge Function,
+// matching this codebase's established backend convention. No signed-in
+// user exists for a scheduled job, so this is one of the legitimate
+// service_role cases (see service-role.ts's own doc comment).
+//
+// Not currently wired to any scheduler: Vercel Cron's every-15-minutes
+// schedule doesn't deploy on the Hobby plan (capped at once/day), and a
+// once-daily cadence would be a real regression against a 6-hour
+// threshold, so it was removed rather than degraded. Not urgent enough
+// right now to stand up an external trigger for — plan is to schedule
+// this via Supabase's pg_cron (calling out to this route, or reimplementing
+// the check as a Postgres function) once that's worth doing. Until then,
+// this only runs if hit manually or from a local/CI trigger.
 const OFFLINE_THRESHOLD_HOURS = 6;
 const OFFLINE_MESSAGE_PREFIX = "Device offline";
 
