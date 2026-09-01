@@ -499,6 +499,37 @@ export async function markDeviceVerified(onboardingId: string, deviceId: string)
   redirect(`/onboarding/${onboardingId}`);
 }
 
+// Onboarding pipeline redesign, Phase 7: per-device physical readiness —
+// Availability, Quality, Power Connect — recorded separately from the
+// existing Data Testing flow (sendTestSignal/markDeviceVerified, which
+// already proves the device reports real values; no new mechanism
+// needed there). One row per device, upserted on every save so the
+// employee can revisit and adjust before scheduling install.
+export async function updateEquipmentCheck(onboardingId: string, deviceId: string, formData: FormData) {
+  const profile = await getCurrentProfile();
+  if (!profile) redirect("/login");
+
+  const supabase = await createClient();
+  const { error } = await supabase.from("equipment_checks").upsert(
+    {
+      device_id: deviceId,
+      availability: formData.get("availability") === "on",
+      quality: formData.get("quality") === "on",
+      power_connect: formData.get("power_connect") === "on",
+      checked_by: profile.id,
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "device_id" }
+  );
+
+  if (error) {
+    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/onboarding/${onboardingId}`);
+  redirect(`/onboarding/${onboardingId}`);
+}
+
 export async function completeConnectionTest(onboardingId: string, sessionId: string, siteId: string) {
   const supabase = await createClient();
 
@@ -506,6 +537,27 @@ export async function completeConnectionTest(onboardingId: string, sessionId: st
   if (!devices || devices.length === 0 || devices.some((d) => d.status !== "active")) {
     redirect(
       `/onboarding/${onboardingId}?error=${encodeURIComponent("Every device needs to be verified before completing the test.")}`
+    );
+  }
+
+  // Server-side guard, not just a disabled button — Phase 7's readiness
+  // checklist has to actually be complete for every device, same
+  // discipline as the status check just above.
+  const { data: checks } = await supabase
+    .from("equipment_checks")
+    .select("device_id, availability, quality, power_connect")
+    .in(
+      "device_id",
+      devices.map((d) => d.id)
+    );
+  const checkByDevice = new Map((checks ?? []).map((c) => [c.device_id, c]));
+  const allChecksComplete = devices.every((d) => {
+    const c = checkByDevice.get(d.id);
+    return c?.availability && c?.quality && c?.power_connect;
+  });
+  if (!allChecksComplete) {
+    redirect(
+      `/onboarding/${onboardingId}?error=${encodeURIComponent("Every device needs Availability, Quality, and Power Connect checked before completing the test.")}`
     );
   }
 

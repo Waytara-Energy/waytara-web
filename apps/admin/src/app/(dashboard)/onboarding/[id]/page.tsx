@@ -16,6 +16,7 @@ import {
   startTestSession,
   sendTestSignal,
   markDeviceVerified,
+  updateEquipmentCheck,
   completeConnectionTest,
   failTestSession,
   scheduleInstall,
@@ -124,6 +125,10 @@ export default async function OnboardingPipelinePage({
     started_at: string;
     notes: string | null;
   } | null = null;
+  let equipmentChecks: Record<
+    string,
+    { availability: boolean; quality: boolean; power_connect: boolean }
+  > = {};
 
   const STAGES_NEEDING_SITE = ["site_setup", "connection_test", "install_scheduled", "install_completed"];
 
@@ -165,6 +170,17 @@ export default async function OnboardingPipelinePage({
         .limit(1)
         .maybeSingle();
       testSession = sessionRow;
+
+      if (devices.length > 0) {
+        const { data: checkRows } = await supabase
+          .from("equipment_checks")
+          .select("device_id, availability, quality, power_connect")
+          .in(
+            "device_id",
+            devices.map((d) => d.id)
+          );
+        equipmentChecks = Object.fromEntries((checkRows ?? []).map((c) => [c.device_id, c]));
+      }
     }
   }
 
@@ -446,7 +462,7 @@ export default async function OnboardingPipelinePage({
                 emptyMessage="No test signal received yet."
               />
 
-              <div className="space-y-3 border-t border-border pt-4">
+              <div className="space-y-4 border-t border-border pt-4">
                 {devices.map((device) => {
                   const requiredInstruments = (device.device_type?.device_type_instruments ?? []).filter(
                     (i) => i.is_required
@@ -454,35 +470,68 @@ export default async function OnboardingPipelinePage({
                   const payload = JSON.stringify(
                     requiredInstruments.map((i) => ({ key: i.instrument_key, unit: i.unit }))
                   );
+                  const check = equipmentChecks[device.id];
                   return (
-                    <div
-                      key={device.id}
-                      className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-3"
-                    >
-                      <div className="text-sm">
-                        <span className="font-medium">{device.device_type?.name ?? "Device"}</span>{" "}
-                        <span className="text-muted-foreground">— {device.label || device.device_uid}</span>{" "}
+                    <div key={device.id} className="space-y-3 rounded-md border border-border p-3">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="text-sm">
+                          <span className="font-medium">{device.device_type?.name ?? "Device"}</span>{" "}
+                          <span className="text-muted-foreground">— {device.label || device.device_uid}</span>
+                        </div>
                         <span
-                          className={`ml-1 rounded-full px-2 py-0.5 text-xs font-medium ${
+                          className={`rounded-full px-2 py-0.5 text-xs font-medium ${
                             device.status === "active"
                               ? "bg-primary/15 text-primary"
                               : "bg-accent text-accent-foreground"
                           }`}
                         >
-                          {device.status}
+                          Data Testing: {device.status === "active" ? "passed" : device.status}
                         </span>
                       </div>
-                      <div className="flex gap-2">
+
+                      <form
+                        action={updateEquipmentCheck.bind(null, onboarding.id, device.id)}
+                        className="flex flex-wrap items-center gap-4 border-t border-border pt-3"
+                      >
+                        <span className="text-xs font-medium text-muted-foreground">Physical readiness:</span>
+                        <label className="flex items-center gap-1.5 text-sm">
+                          <input type="checkbox" name="availability" defaultChecked={check?.availability ?? false} />
+                          Availability
+                        </label>
+                        <label className="flex items-center gap-1.5 text-sm">
+                          <input type="checkbox" name="quality" defaultChecked={check?.quality ?? false} />
+                          Quality
+                        </label>
+                        <label className="flex items-center gap-1.5 text-sm">
+                          <input
+                            type="checkbox"
+                            name="power_connect"
+                            defaultChecked={check?.power_connect ?? false}
+                          />
+                          Power Connect
+                        </label>
+                        <Button type="submit" variant="outline" size="sm">
+                          Save
+                        </Button>
+                      </form>
+
+                      <div className="flex items-center gap-2 border-t border-border pt-3">
+                        <span className="text-xs font-medium text-muted-foreground">Data testing:</span>
                         <form action={sendTestSignal.bind(null, onboarding.id, device.id)}>
                           <input type="hidden" name="instrumentKeys" value={payload} />
-                          <Button type="submit" variant="outline" size="sm" disabled={requiredInstruments.length === 0}>
+                          <Button
+                            type="submit"
+                            variant="outline"
+                            size="sm"
+                            disabled={requiredInstruments.length === 0}
+                          >
                             Send Test Signal
                           </Button>
                         </form>
                         {device.status !== "active" && (
                           <form action={markDeviceVerified.bind(null, onboarding.id, device.id)}>
                             <Button type="submit" size="sm">
-                              Mark Verified
+                              Mark Data Test Passed
                             </Button>
                           </form>
                         )}
@@ -492,18 +541,31 @@ export default async function OnboardingPipelinePage({
                 })}
               </div>
 
-              <div className="flex flex-wrap gap-2 border-t border-border pt-4">
-                <form action={completeConnectionTest.bind(null, onboarding.id, testSession.id, site.id)}>
-                  <Button type="submit" size="sm" disabled={devices.some((d) => d.status !== "active")}>
-                    Connection Verified → Schedule Install
-                  </Button>
-                </form>
-                <form action={failTestSession.bind(null, onboarding.id, testSession.id)} className="flex gap-2">
-                  <Input name="notes" placeholder="Reason (optional)" className="h-9 w-56" />
-                  <Button type="submit" variant="destructive" size="sm">
-                    Mark Failed
-                  </Button>
-                </form>
+              <div className="space-y-2 border-t border-border pt-4">
+                <p className="text-xs text-muted-foreground">
+                  Confirms the customer&apos;s dashboard is showing live data correctly, once every
+                  device&apos;s readiness checklist and data test have passed.
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  <form action={completeConnectionTest.bind(null, onboarding.id, testSession.id, site.id)}>
+                    <Button
+                      type="submit"
+                      size="sm"
+                      disabled={devices.some((d) => {
+                        const c = equipmentChecks[d.id];
+                        return d.status !== "active" || !c?.availability || !c?.quality || !c?.power_connect;
+                      })}
+                    >
+                      Confirm Software Test Passed → Schedule Install
+                    </Button>
+                  </form>
+                  <form action={failTestSession.bind(null, onboarding.id, testSession.id)} className="flex gap-2">
+                    <Input name="notes" placeholder="Reason (optional)" className="h-9 w-56" />
+                    <Button type="submit" variant="destructive" size="sm">
+                      Mark Failed
+                    </Button>
+                  </form>
+                </div>
               </div>
             </>
           )}
