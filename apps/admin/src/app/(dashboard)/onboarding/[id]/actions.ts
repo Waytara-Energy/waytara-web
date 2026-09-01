@@ -661,6 +661,34 @@ export async function scheduleInstall(onboardingId: string, formData: FormData) 
   redirect(`/onboarding/${onboardingId}`);
 }
 
+// Onboarding pipeline redesign, Phase 9: the balance owed on a split
+// payment gets collected in person at installation — UPI is SIMULATED
+// (a placeholder QR + a "Simulate UPI success" button, no real Razorpay
+// integration yet, same as every other payment step in this app), cash
+// is just marked received. Either way this is the one `payments` row
+// insert Phase 4/5 deliberately left for later: the balance row itself
+// was already created (status='pending') back when the customer paid
+// their advance (apps/web's payAdvanceAmount) — this only ever updates
+// it, never inserts.
+export async function recordBalancePayment(
+  onboardingId: string,
+  paymentId: string,
+  method: "upi" | "cash"
+) {
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("payments")
+    .update({ status: "paid", method, paid_at: new Date().toISOString() })
+    .eq("id", paymentId);
+
+  if (error) {
+    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/onboarding/${onboardingId}`);
+  redirect(`/onboarding/${onboardingId}`);
+}
+
 export async function completeInstallation(onboardingId: string, siteId: string) {
   const supabase = await createClient();
 
@@ -669,6 +697,36 @@ export async function completeInstallation(onboardingId: string, siteId: string)
     .select("lead_id")
     .eq("id", onboardingId)
     .single();
+
+  // Server-side guard, not just a hidden/disabled button — same
+  // discipline as completeConnectionTest's checks. Only a split-payment
+  // quotation has a balance row at all; a full-payment one has nothing
+  // to check here.
+  if (onboarding?.lead_id) {
+    const { data: acceptedQuotation } = await supabase
+      .from("quotations")
+      .select("id, payment_option")
+      .eq("lead_id", onboarding.lead_id)
+      .eq("status", "accepted")
+      .order("accepted_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (acceptedQuotation?.payment_option === "split") {
+      const { data: balancePayment } = await supabase
+        .from("payments")
+        .select("status")
+        .eq("quotation_id", acceptedQuotation.id)
+        .eq("payment_type", "balance")
+        .maybeSingle();
+
+      if (balancePayment && balancePayment.status !== "paid") {
+        redirect(
+          `/onboarding/${onboardingId}?error=${encodeURIComponent("The balance payment is still pending — collect it before completing installation.")}`
+        );
+      }
+    }
+  }
 
   const { error: deviceError } = await supabase
     .from("devices")

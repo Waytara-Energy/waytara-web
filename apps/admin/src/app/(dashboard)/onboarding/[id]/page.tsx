@@ -20,6 +20,7 @@ import {
   completeConnectionTest,
   failTestSession,
   scheduleInstall,
+  recordBalancePayment,
   completeInstallation,
 } from "./actions";
 
@@ -135,6 +136,7 @@ export default async function OnboardingPipelinePage({
     string,
     { availability: boolean; quality: boolean; power_connect: boolean }
   > = {};
+  let balancePayment: { id: string; amount: number; status: string; method: string | null } | null = null;
 
   const STAGES_NEEDING_SITE = ["site_setup", "connection_test", "install_scheduled", "install_completed"];
 
@@ -186,6 +188,19 @@ export default async function OnboardingPipelinePage({
             devices.map((d) => d.id)
           );
         equipmentChecks = Object.fromEntries((checkRows ?? []).map((c) => [c.device_id, c]));
+      }
+    }
+
+    if (onboarding.current_stage === "install_scheduled") {
+      const accepted = quotations?.find((q) => q.status === "accepted");
+      if (accepted?.payment_option === "split") {
+        const { data: balanceRow } = await supabase
+          .from("payments")
+          .select("id, amount, status, method")
+          .eq("quotation_id", accepted.id)
+          .eq("payment_type", "balance")
+          .maybeSingle();
+        balancePayment = balanceRow;
       }
     }
   }
@@ -658,9 +673,40 @@ export default async function OnboardingPipelinePage({
                 </form>
               </div>
 
+              {balancePayment && balancePayment.status !== "paid" && (
+                <div className="space-y-3 rounded-md border border-destructive/40 bg-destructive/5 p-3">
+                  <p className="text-sm text-destructive">
+                    Balance payment of ₹{Number(balancePayment.amount).toLocaleString("en-IN")} is still
+                    pending — collect it on site before installation can be marked complete.
+                  </p>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex items-center gap-2 rounded-md border border-border p-2 text-xs text-muted-foreground">
+                      <div className="flex h-16 w-16 items-center justify-center rounded bg-muted text-[10px]">
+                        QR code
+                      </div>
+                      <span>Scan to pay via UPI</span>
+                    </div>
+                    <form action={recordBalancePayment.bind(null, onboarding.id, balancePayment.id, "upi")}>
+                      <Button type="submit" size="sm">
+                        Simulate UPI success
+                      </Button>
+                    </form>
+                    <form action={recordBalancePayment.bind(null, onboarding.id, balancePayment.id, "cash")}>
+                      <Button type="submit" variant="outline" size="sm">
+                        Mark cash received
+                      </Button>
+                    </form>
+                  </div>
+                </div>
+              )}
+
               {onboarding.install_scheduled_at && (
                 <form action={completeInstallation.bind(null, onboarding.id, site.id)} className="border-t border-border pt-4">
-                  <Button type="submit" size="sm">
+                  <Button
+                    type="submit"
+                    size="sm"
+                    disabled={!!balancePayment && balancePayment.status !== "paid"}
+                  >
                     Installation Complete
                   </Button>
                 </form>
