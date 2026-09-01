@@ -6,7 +6,7 @@ import { isStaffRole } from "@waytara/supabase/roles";
 // Route prefixes only an `admin` profile may reach — an `employee` hitting
 // one of these gets redirected to /unauthorized, not just a hidden nav item.
 // Adjust this list as real pages land under each nav section.
-const ADMIN_ONLY_PREFIXES = ["/employees", "/plans", "/devices", "/audit"];
+const ADMIN_ONLY_PREFIXES = ["/employees", "/plans", "/devices", "/audit", "/customers"];
 
 // Next.js 16 deprecated middleware.ts in favor of proxy.ts (same behavior,
 // renamed file/export) — confirmed live: middleware.ts was silently never

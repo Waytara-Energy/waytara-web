@@ -49,10 +49,6 @@ export function Sidebar() {
           </Link>
         ))}
       </nav>
-
-      <div className="border-t border-border p-3 text-xs text-muted-foreground">
-        Customers isn&apos;t built yet — nav stub only.
-      </div>
     </aside>
   );
 }
