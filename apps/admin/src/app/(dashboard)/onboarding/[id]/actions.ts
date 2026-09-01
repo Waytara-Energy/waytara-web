@@ -9,6 +9,7 @@ import type { PricingLineItem } from "@waytara/ui/quotation-pdf";
 import { sendQuoteLinkEmail } from "@/lib/send-quote-link-email";
 import { sendCustomerInviteEmail } from "@/lib/send-customer-invite-email";
 import { sendInstallCompleteEmail } from "@/lib/send-install-complete-email";
+import { sendInstallScheduledEmail } from "@/lib/send-install-scheduled-email";
 
 // Onboarding pipeline redesign, Phase 3: generating a quotation no longer
 // creates a PDF or emails one — it creates a public, token-addressable
@@ -605,20 +606,55 @@ export async function failTestSession(onboardingId: string, sessionId: string, f
 // install_scheduled_at has no dedicated write policy: onboarding_employee_
 // update_own already covers any column on a row the employee owns.
 
+// Onboarding pipeline redesign, Phase 8: a fixed Morning/Afternoon/Evening
+// slot list, not free-form times — matches the confirmed decision to keep
+// scheduling low-friction rather than a full calendar picker. Scheduling
+// used to silently update a timestamp with no customer notification at
+// all; it now emails them the date and slot every time (including a
+// reschedule — the message reads correctly either way).
+const VALID_TIME_SLOTS = ["morning", "afternoon", "evening"] as const;
+
 export async function scheduleInstall(onboardingId: string, formData: FormData) {
   const scheduledDate = String(formData.get("scheduledDate") ?? "").trim();
-  if (!scheduledDate) {
-    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent("Pick a date first.")}`);
+  const timeSlot = String(formData.get("timeSlot") ?? "");
+
+  if (!scheduledDate || !VALID_TIME_SLOTS.includes(timeSlot as (typeof VALID_TIME_SLOTS)[number])) {
+    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent("Pick a date and a time slot first.")}`);
   }
 
   const supabase = await createClient();
-  const { error } = await supabase
+  const { data: onboarding, error } = await supabase
     .from("customer_onboarding")
-    .update({ install_scheduled_at: new Date(scheduledDate).toISOString() })
-    .eq("id", onboardingId);
+    .update({
+      install_scheduled_at: new Date(scheduledDate).toISOString(),
+      install_time_slot: timeSlot,
+    })
+    .eq("id", onboardingId)
+    .select("lead_id")
+    .single();
 
   if (error) {
     redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  // Same profiles-RLS workaround as resendCustomerInviteEmail/
+  // completeInstallation: the lead record carries the same name/email and
+  // is RLS-visible to the employee regardless of whether an account exists.
+  if (onboarding?.lead_id) {
+    const { data: lead } = await supabase
+      .from("leads")
+      .select("full_name, email")
+      .eq("id", onboarding.lead_id)
+      .single();
+
+    if (lead?.email) {
+      await sendInstallScheduledEmail({
+        to: lead.email,
+        name: lead.full_name,
+        scheduledDate,
+        timeSlot: timeSlot as "morning" | "afternoon" | "evening",
+      });
+    }
   }
 
   revalidatePath(`/onboarding/${onboardingId}`);

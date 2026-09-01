@@ -38,6 +38,12 @@ const POWER_SOURCE_LABELS: Record<string, string> = {
   hybrid: "Hybrid",
 };
 
+const TIME_SLOT_LABELS: Record<string, string> = {
+  morning: "Morning",
+  afternoon: "Afternoon",
+  evening: "Evening",
+};
+
 export default async function OnboardingPipelinePage({
   params,
   searchParams,
@@ -606,6 +612,12 @@ export default async function OnboardingPipelinePage({
                         year: "numeric",
                       })}
                     </span>
+                    {onboarding.install_time_slot && (
+                      <>
+                        {" "}
+                        · <span className="font-medium">{TIME_SLOT_LABELS[onboarding.install_time_slot] ?? onboarding.install_time_slot}</span>
+                      </>
+                    )}
                   </p>
                 ) : (
                   <p className="text-sm text-muted-foreground">No install date set yet.</p>
@@ -621,6 +633,24 @@ export default async function OnboardingPipelinePage({
                       className="h-9 w-44"
                       required
                     />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-medium">Time slot</label>
+                    <select
+                      name="timeSlot"
+                      className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+                      defaultValue={onboarding.install_time_slot ?? ""}
+                      required
+                    >
+                      <option value="" disabled>
+                        Select…
+                      </option>
+                      {Object.entries(TIME_SLOT_LABELS).map(([value, label]) => (
+                        <option key={value} value={value}>
+                          {label}
+                        </option>
+                      ))}
+                    </select>
                   </div>
                   <Button type="submit" variant="outline" size="sm">
                     {onboarding.install_scheduled_at ? "Reschedule" : "Schedule"}
