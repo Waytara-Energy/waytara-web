@@ -262,9 +262,6 @@ export default async function OnboardingPipelinePage({
               </form>
             </div>
           )}
-          <p className="text-xs text-muted-foreground">
-            Site &amp; device setup (Task 8.4) isn&apos;t built yet.
-          </p>
         </div>
       ) : onboarding.current_stage === "site_setup" ? (
         <div className="rounded-lg border border-border bg-card p-5 space-y-5">
@@ -610,11 +607,12 @@ export default async function OnboardingPipelinePage({
         </div>
       ) : onboarding.current_stage !== "quotation_sent" ? (
         <div className="rounded-lg border border-border bg-card p-5 text-sm text-muted-foreground">
-          This onboarding has moved past the quotation stage (now at{" "}
+          Unrecognized stage:{" "}
           <span className="font-medium capitalize">
             {onboarding.current_stage.replace(/_/g, " ")}
           </span>
-          ). The rest of the pipeline UI for later stages isn&apos;t built yet.
+          . Every real onboarding_stage value has its own view above this — if you&apos;re seeing this,
+          something set current_stage to a value outside that enum.
         </div>
       ) : activeQuotation ? (
         <div className="rounded-lg border border-border bg-card p-5 space-y-4">
