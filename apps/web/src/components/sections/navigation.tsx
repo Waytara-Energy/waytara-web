@@ -160,10 +160,7 @@ export function Navigation() {
                 : ""
             )}
           >
-            <Link
-              href="/#energy-planner"
-              onClick={(e) => handleNavClick(e, "/#energy-planner")}
-            >
+            <Link href="/login">
               <Zap
                 className={cn(
                   "h-3.5 w-3.5 mr-1 transition-colors",
