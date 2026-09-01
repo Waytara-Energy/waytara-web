@@ -14,10 +14,17 @@ export interface QuotationPdfData {
   leadEmail: string;
   leadPhone: string | null;
   planName: string;
+  planPrice: number;
   pricingBreakdown: PricingLineItem[];
+  subtotalAmount: number;
+  gstRate: number;
+  gstAmount: number;
   totalAmount: number;
   currency: string;
   validUntil: string | null;
+  paymentOption: "full" | "split" | null;
+  advanceAmount: number | null;
+  balanceAmount: number | null;
 }
 
 const styles = StyleSheet.create({
@@ -42,9 +49,19 @@ const styles = StyleSheet.create({
   colQty: { flex: 1, textAlign: "right" },
   colUnit: { flex: 1.5, textAlign: "right" },
   colAmount: { flex: 1.5, textAlign: "right" },
-  totalRow: { flexDirection: "row", justifyContent: "flex-end", marginTop: 10 },
-  totalLabel: { fontWeight: 700, marginRight: 12 },
-  totalValue: { fontWeight: 700 },
+  summaryBlock: { marginTop: 10, alignSelf: "flex-end", width: 220 },
+  summaryRow: { flexDirection: "row", justifyContent: "space-between", paddingVertical: 2 },
+  summaryLabel: { color: "#64748B" },
+  summaryValue: { color: "#0F172A" },
+  grandTotalRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    borderTop: "1 solid #E2E8F0",
+    marginTop: 4,
+    paddingTop: 6,
+  },
+  grandTotalLabel: { fontWeight: 700 },
+  grandTotalValue: { fontWeight: 700 },
   footer: { position: "absolute", bottom: 30, left: 40, right: 40, fontSize: 8, color: "#94A3B8" },
 });
 
@@ -92,6 +109,16 @@ function QuotationDocument({ data }: { data: QuotationPdfData }) {
               </Text>
             </View>
           )}
+          {data.paymentOption && (
+            <View style={styles.row}>
+              <Text style={styles.label}>Payment plan</Text>
+              <Text style={styles.value}>
+                {data.paymentOption === "full"
+                  ? "Full payment"
+                  : `30% advance (${formatCurrency(data.advanceAmount ?? 0, data.currency)}), balance at installation (${formatCurrency(data.balanceAmount ?? 0, data.currency)})`}
+              </Text>
+            </View>
+          )}
         </View>
 
         <View style={styles.section}>
@@ -111,10 +138,27 @@ function QuotationDocument({ data }: { data: QuotationPdfData }) {
                 <Text style={styles.colAmount}>{formatCurrency(item.amount, data.currency)}</Text>
               </View>
             ))}
+            <View style={styles.tableRow}>
+              <Text style={styles.colDesc}>Software plan — {data.planName} (one-time)</Text>
+              <Text style={styles.colQty}>1</Text>
+              <Text style={styles.colUnit}>{formatCurrency(data.planPrice, data.currency)}</Text>
+              <Text style={styles.colAmount}>{formatCurrency(data.planPrice, data.currency)}</Text>
+            </View>
           </View>
-          <View style={styles.totalRow}>
-            <Text style={styles.totalLabel}>Total</Text>
-            <Text style={styles.totalValue}>{formatCurrency(data.totalAmount, data.currency)}</Text>
+
+          <View style={styles.summaryBlock}>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Subtotal</Text>
+              <Text style={styles.summaryValue}>{formatCurrency(data.subtotalAmount, data.currency)}</Text>
+            </View>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>GST ({data.gstRate}%)</Text>
+              <Text style={styles.summaryValue}>{formatCurrency(data.gstAmount, data.currency)}</Text>
+            </View>
+            <View style={styles.grandTotalRow}>
+              <Text style={styles.grandTotalLabel}>Grand Total</Text>
+              <Text style={styles.grandTotalValue}>{formatCurrency(data.totalAmount, data.currency)}</Text>
+            </View>
           </View>
         </View>
 

@@ -7,7 +7,8 @@
     "./button": "./src/button.tsx",
     "./input": "./src/input.tsx",
     "./theme-provider": "./src/theme-provider.tsx",
-    "./monitoring-panel": "./src/monitoring-panel.tsx"
+    "./monitoring-panel": "./src/monitoring-panel.tsx",
+    "./quotation-pdf": "./src/quotation-pdf.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
@@ -17,6 +18,7 @@
     "react-dom": "^19.0.0"
   },
   "dependencies": {
+    "@react-pdf/renderer": "^4.9.0",
     "@radix-ui/react-slot": "^1.3.3",
     "@waytara/supabase": "workspace:*",
     "class-variance-authority": "^0.7.1",

@@ -5,7 +5,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@waytara/supabase/server";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import type { Json } from "@waytara/supabase";
-import type { PricingLineItem } from "@/lib/quotation-pdf";
+import type { PricingLineItem } from "@waytara/ui/quotation-pdf";
 import { sendQuoteLinkEmail } from "@/lib/send-quote-link-email";
 import { sendCustomerInviteEmail } from "@/lib/send-customer-invite-email";
 import { sendInstallCompleteEmail } from "@/lib/send-install-complete-email";
