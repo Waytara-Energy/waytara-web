@@ -1,3 +1,4 @@
+import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 import { Button } from "@/components/ui/button";
@@ -20,9 +21,11 @@ const STAGE_COPY: Record<string, { title: string; body: string }> = {
 
 // Onboarding pipeline redesign, Phase 5: the customer's own self-service
 // payment step, reached right after they create their account. Phase 6
-// will gate the dashboard layout so this is the ONLY thing a customer
-// sees until current_stage reaches install_completed — for now this page
-// is reachable directly and stands on its own regardless of stage.
+// made proxy.ts redirect every other /dashboard/* route here until
+// current_stage reaches install_completed — this is now the ONLY thing a
+// not-yet-onboarded customer can see. Reaching this page already
+// onboarded (a stale bookmark, browser back button) sends them on to the
+// real dashboard instead of showing a confusing "in progress" message.
 export default async function OnboardingStatusPage({
   searchParams,
 }: {
@@ -39,6 +42,10 @@ export default async function OnboardingStatusPage({
         .eq("customer_id", profile.id)
         .maybeSingle()
     : { data: null };
+
+  if (onboarding?.current_stage === "install_completed") {
+    redirect("/dashboard");
+  }
 
   const { data: quotation } = onboarding?.quotation_id
     ? await supabase
