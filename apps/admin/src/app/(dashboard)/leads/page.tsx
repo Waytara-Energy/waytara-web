@@ -27,7 +27,7 @@ export default async function LeadsPage({
 
   let query = supabase
     .from("leads")
-    .select("id, full_name, email, phone, status, source, created_at, assigned_to, assignee:profiles!leads_assigned_to_fkey(full_name)")
+    .select("id, full_name, email, phone, status, source, created_at, assigned_to, accepted_at, assignee:profiles!leads_assigned_to_fkey(full_name)")
     .order("created_at", { ascending: false });
 
   if (status && (STATUSES as readonly string[]).includes(status)) {
@@ -120,6 +120,16 @@ export default async function LeadsPage({
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {lead.assignee?.full_name ?? "—"}
+                    {lead.assigned_to && (
+                      <span
+                        className={cn(
+                          "ml-1.5 rounded-full px-1.5 py-0.5 text-[10px] font-medium",
+                          lead.accepted_at ? "bg-primary/15 text-primary" : "bg-accent text-accent-foreground"
+                        )}
+                      >
+                        {lead.accepted_at ? "in progress" : "action needed"}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-3 text-muted-foreground">{lead.source}</td>
                   <td className="px-4 py-3 text-muted-foreground">

@@ -2,7 +2,7 @@ import Link from "next/link";
 import { createClient } from "@waytara/supabase/server";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { Button } from "@waytara/ui/button";
-import { assignLead, startOnboarding } from "./actions";
+import { assignLead, startOnboarding, acceptLeadAssignment } from "./actions";
 
 export default async function LeadDetailPage({
   params,
@@ -65,7 +65,7 @@ export default async function LeadDetailPage({
     employees = data ?? [];
   }
 
-  const canStartOnboarding = (isAdmin || isAssignedEmployee) && !onboarding;
+  const canStartOnboarding = (isAdmin || (isAssignedEmployee && !!lead.accepted_at)) && !onboarding;
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -117,9 +117,28 @@ export default async function LeadDetailPage({
 
       <div className="rounded-lg border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Assignment</h2>
-        <p className="mt-1 text-sm text-muted-foreground">
+        <p className="mt-1 flex items-center gap-2 text-sm text-muted-foreground">
           Currently assigned to: {lead.assignee?.full_name ?? "Unassigned"}
+          {lead.assigned_to && (
+            <span
+              className={
+                lead.accepted_at
+                  ? "rounded-full bg-primary/15 px-2 py-0.5 text-xs font-medium text-primary"
+                  : "rounded-full bg-accent px-2 py-0.5 text-xs font-medium text-accent-foreground"
+              }
+            >
+              {lead.accepted_at ? "In progress" : "Action needed"}
+            </span>
+          )}
         </p>
+
+        {isAssignedEmployee && !lead.accepted_at && (
+          <form action={acceptLeadAssignment.bind(null, lead.id)} className="mt-3">
+            <Button type="submit" size="sm">
+              Accept this lead
+            </Button>
+          </form>
+        )}
 
         {isAdmin && (
           <form action={assignLead.bind(null, lead.id)} className="mt-3 flex items-center gap-2">
@@ -188,9 +207,11 @@ export default async function LeadDetailPage({
           </form>
         ) : (
           <p className="mt-1 text-sm text-muted-foreground">
-            {isAdmin || isAssignedEmployee
-              ? "Not started."
-              : "Only the assigned employee or an admin can start onboarding."}
+            {isAssignedEmployee && !lead.accepted_at
+              ? "Accept the lead above before starting onboarding."
+              : isAdmin || isAssignedEmployee
+                ? "Not started."
+                : "Only the assigned employee or an admin can start onboarding."}
           </p>
         )}
       </div>

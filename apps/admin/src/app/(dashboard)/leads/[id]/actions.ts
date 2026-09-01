@@ -30,6 +30,30 @@ export async function assignLead(leadId: string, formData: FormData) {
   revalidatePath("/leads");
 }
 
+// Phase 2 of the onboarding pipeline redesign: an explicit "I'm working
+// this" marker from the employee, distinct from merely being assigned
+// (an admin action the employee didn't necessarily see yet). Gates
+// startOnboarding below — see canStartOnboarding on the detail page.
+export async function acceptLeadAssignment(leadId: string) {
+  const profile = await getCurrentProfile();
+  if (!profile) redirect("/login");
+
+  const supabase = await createClient();
+  const { data: lead } = await supabase.from("leads").select("assigned_to").eq("id", leadId).single();
+  if (lead?.assigned_to !== profile.id) {
+    redirect(`/leads/${leadId}?error=${encodeURIComponent("Only the assigned employee can accept this lead.")}`);
+  }
+
+  const { error } = await supabase.from("leads").update({ accepted_at: new Date().toISOString() }).eq("id", leadId);
+
+  if (error) {
+    redirect(`/leads/${leadId}?error=${encodeURIComponent(error.message)}`);
+  }
+
+  revalidatePath(`/leads/${leadId}`);
+  revalidatePath("/leads");
+}
+
 export async function startOnboarding(leadId: string) {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
