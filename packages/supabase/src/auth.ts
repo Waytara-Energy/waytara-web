@@ -13,7 +13,16 @@ export type TypedSupabaseClient = SupabaseClient<Database, "waytara">;
 
 /**
  * Returns the `profiles` row (including `role`) for the currently signed-in
- * user, or `null` if there's no session.
+ * user, or `null` if there's no session — including a revoked/deleted one.
+ *
+ * `deactivated_at` (set by revoking access or permanently deleting a staff
+ * account, see apps/admin's Employees page) is checked here rather than at
+ * every call site: the real block is the Supabase Auth ban on the account
+ * (prevents a new sign-in/session-refresh at the identity-provider level),
+ * but an already-issued access token stays technically valid until it
+ * expires. Treating a deactivated profile as "no session" here closes that
+ * window immediately, everywhere `getCurrentProfile`/`requireRole` is
+ * already used — no per-page or per-proxy special-casing needed.
  *
  * Pass an existing client (e.g. from `createMiddlewareClient`) to reuse it;
  * otherwise a Server Component client is created via `next/headers` cookies —
@@ -41,6 +50,11 @@ export async function getCurrentProfile(
 
   if (error) {
     console.error("[@waytara/supabase] getCurrentProfile: profile lookup failed:", error.message);
+    return null;
+  }
+
+  if (data.deactivated_at) {
+    await supabase.auth.signOut();
     return null;
   }
 

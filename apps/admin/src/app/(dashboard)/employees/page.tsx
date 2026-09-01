@@ -3,12 +3,16 @@ import { getCurrentProfile } from "@waytara/supabase/auth";
 import { Input } from "@waytara/ui/input";
 import { Button } from "@waytara/ui/button";
 import { cn } from "@waytara/ui/cn";
-import { sendEmployeeInvite, revokeInvite, changeEmployeeRole } from "./actions";
+import { sendEmployeeInvite, revokeInvite, changeEmployeeRole, revokeEmployeeAccess, restoreEmployeeAccess } from "./actions";
+import { DeleteEmployeeButton } from "./delete-employee-button";
 
 const SUCCESS_MESSAGES: Record<string, string> = {
   invited: "Invite sent.",
   revoked: "Invite revoked.",
   "role-updated": "Role updated.",
+  "revoked-access": "Access revoked — they can no longer sign in.",
+  "restored-access": "Access restored.",
+  deleted: "Account permanently deleted.",
 };
 
 // Admin-only route (enforced in middleware.ts) — staff account management
@@ -24,7 +28,7 @@ export default async function EmployeesPage({
 
   const { data: staff } = await supabase
     .from("profiles")
-    .select("id, full_name, email, role, created_at")
+    .select("id, full_name, email, role, created_at, deactivated_at, deleted_at")
     .in("role", ["admin", "employee"])
     .order("created_at", { ascending: true });
 
@@ -130,6 +134,7 @@ export default async function EmployeesPage({
               <th className="px-4 py-3 font-medium">Name</th>
               <th className="px-4 py-3 font-medium">Email</th>
               <th className="px-4 py-3 font-medium">Role</th>
+              <th className="px-4 py-3 font-medium">Status</th>
               <th className="px-4 py-3 font-medium">Joined</th>
               <th className="px-4 py-3 font-medium" />
             </tr>
@@ -137,8 +142,10 @@ export default async function EmployeesPage({
           <tbody className="divide-y divide-border">
             {(staff ?? []).map((person) => {
               const isSelf = person.id === currentProfile?.id;
+              const isGhost = !!person.deleted_at;
+              const isRevoked = !!person.deactivated_at && !isGhost;
               return (
-                <tr key={person.id} className="hover:bg-accent/50">
+                <tr key={person.id} className="hover:bg-accent/50 align-top">
                   <td className="px-4 py-3 font-medium">{person.full_name ?? "—"}</td>
                   <td className="px-4 py-3 text-muted-foreground">{person.email}</td>
                   <td className="px-4 py-3">
@@ -151,26 +158,60 @@ export default async function EmployeesPage({
                       {person.role}
                     </span>
                   </td>
+                  <td className="px-4 py-3">
+                    <span
+                      className={cn(
+                        "rounded-full px-2 py-0.5 text-xs font-medium",
+                        isGhost
+                          ? "bg-destructive/15 text-destructive"
+                          : isRevoked
+                            ? "bg-accent text-accent-foreground"
+                            : "bg-primary/15 text-primary"
+                      )}
+                    >
+                      {isGhost ? "Deleted" : isRevoked ? "Revoked" : "Active"}
+                    </span>
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {new Date(person.created_at).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })}
                   </td>
-                  <td className="px-4 py-3 text-right">
+                  <td className="px-4 py-3">
                     {isSelf ? (
                       <span className="text-xs text-muted-foreground">You</span>
+                    ) : isGhost ? (
+                      <span className="text-xs text-muted-foreground">No actions — permanently deleted</span>
                     ) : (
-                      <form action={changeEmployeeRole.bind(null, person.id)} className="inline-flex items-center gap-2">
-                        <select
-                          name="role"
-                          defaultValue={person.role}
-                          className="h-8 rounded-md border border-border bg-background px-2 text-xs"
-                        >
-                          <option value="employee">Employee</option>
-                          <option value="admin">Admin</option>
-                        </select>
-                        <Button type="submit" variant="outline" size="sm">
-                          Update
-                        </Button>
-                      </form>
+                      <div className="flex min-w-[320px] flex-col items-end gap-2">
+                        <div className="flex items-center gap-2">
+                          <form action={changeEmployeeRole.bind(null, person.id)} className="flex items-center gap-2">
+                            <select
+                              name="role"
+                              defaultValue={person.role}
+                              className="h-8 rounded-md border border-border bg-background px-2 text-xs"
+                            >
+                              <option value="employee">Employee</option>
+                              <option value="admin">Admin</option>
+                            </select>
+                            <Button type="submit" variant="outline" size="sm">
+                              Update role
+                            </Button>
+                          </form>
+                          {isRevoked ? (
+                            <form action={restoreEmployeeAccess.bind(null, person.id)}>
+                              <Button type="submit" size="sm">
+                                Restore access
+                              </Button>
+                            </form>
+                          ) : (
+                            <form action={revokeEmployeeAccess.bind(null, person.id)}>
+                              <Button type="submit" variant="outline" size="sm">
+                                Revoke access
+                              </Button>
+                            </form>
+                          )}
+                        </div>
+                        <DeleteEmployeeButton profileId={person.id} currentName={person.full_name ?? person.email} />
+                      </div>
                     )}
                   </td>
                 </tr>
