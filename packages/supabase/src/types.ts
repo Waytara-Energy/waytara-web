@@ -113,6 +113,7 @@ export type Database = {
           employee_id: string | null
           id: string
           install_scheduled_at: string | null
+          install_time_slot: string | null
           invite_status: Database["waytara"]["Enums"]["invite_status"] | null
           invite_token: string | null
           lead_id: string
@@ -127,6 +128,7 @@ export type Database = {
           employee_id?: string | null
           id?: string
           install_scheduled_at?: string | null
+          install_time_slot?: string | null
           invite_status?: Database["waytara"]["Enums"]["invite_status"] | null
           invite_token?: string | null
           lead_id: string
@@ -141,6 +143,7 @@ export type Database = {
           employee_id?: string | null
           id?: string
           install_scheduled_at?: string | null
+          install_time_slot?: string | null
           invite_status?: Database["waytara"]["Enums"]["invite_status"] | null
           invite_token?: string | null
           lead_id?: string
@@ -481,6 +484,51 @@ export type Database = {
           },
         ]
       }
+      equipment_checks: {
+        Row: {
+          availability: boolean
+          checked_by: string | null
+          device_id: string
+          id: string
+          power_connect: boolean
+          quality: boolean
+          updated_at: string
+        }
+        Insert: {
+          availability?: boolean
+          checked_by?: string | null
+          device_id: string
+          id?: string
+          power_connect?: boolean
+          quality?: boolean
+          updated_at?: string
+        }
+        Update: {
+          availability?: boolean
+          checked_by?: string | null
+          device_id?: string
+          id?: string
+          power_connect?: boolean
+          quality?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_checks_checked_by_fkey"
+            columns: ["checked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_checks_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: true
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       installations: {
         Row: {
           completed_at: string | null
@@ -528,6 +576,7 @@ export type Database = {
       }
       leads: {
         Row: {
+          accepted_at: string | null
           address: Json | null
           assigned_to: string | null
           created_at: string
@@ -541,6 +590,7 @@ export type Database = {
           updated_at: string
         }
         Insert: {
+          accepted_at?: string | null
           address?: Json | null
           assigned_to?: string | null
           created_at?: string
@@ -554,6 +604,7 @@ export type Database = {
           updated_at?: string
         }
         Update: {
+          accepted_at?: string | null
           address?: Json | null
           assigned_to?: string | null
           created_at?: string
@@ -655,6 +706,7 @@ export type Database = {
           gateway: string | null
           gateway_ref: string | null
           id: string
+          method: string | null
           paid_at: string | null
           payment_type: Database["waytara"]["Enums"]["payment_type"]
           quotation_id: string
@@ -667,6 +719,7 @@ export type Database = {
           gateway?: string | null
           gateway_ref?: string | null
           id?: string
+          method?: string | null
           paid_at?: string | null
           payment_type: Database["waytara"]["Enums"]["payment_type"]
           quotation_id: string
@@ -679,6 +732,7 @@ export type Database = {
           gateway?: string | null
           gateway_ref?: string | null
           id?: string
+          method?: string | null
           paid_at?: string | null
           payment_type?: Database["waytara"]["Enums"]["payment_type"]
           quotation_id?: string
@@ -779,11 +833,15 @@ export type Database = {
       quotations: {
         Row: {
           accepted_at: string | null
+          access_token: string
           advance_amount: number | null
           balance_amount: number | null
           created_at: string
           currency: string
+          customer_message: string | null
           employee_id: string | null
+          gst_amount: number | null
+          gst_rate: number
           id: string
           lead_id: string
           payment_option: Database["waytara"]["Enums"]["payment_option"] | null
@@ -793,16 +851,21 @@ export type Database = {
           rejected_at: string | null
           sent_at: string | null
           status: Database["waytara"]["Enums"]["quotation_status"]
+          subtotal_amount: number | null
           total_amount: number
           valid_until: string | null
         }
         Insert: {
           accepted_at?: string | null
+          access_token?: string
           advance_amount?: number | null
           balance_amount?: number | null
           created_at?: string
           currency?: string
+          customer_message?: string | null
           employee_id?: string | null
+          gst_amount?: number | null
+          gst_rate?: number
           id?: string
           lead_id: string
           payment_option?: Database["waytara"]["Enums"]["payment_option"] | null
@@ -812,16 +875,21 @@ export type Database = {
           rejected_at?: string | null
           sent_at?: string | null
           status?: Database["waytara"]["Enums"]["quotation_status"]
+          subtotal_amount?: number | null
           total_amount: number
           valid_until?: string | null
         }
         Update: {
           accepted_at?: string | null
+          access_token?: string
           advance_amount?: number | null
           balance_amount?: number | null
           created_at?: string
           currency?: string
+          customer_message?: string | null
           employee_id?: string | null
+          gst_amount?: number | null
+          gst_rate?: number
           id?: string
           lead_id?: string
           payment_option?: Database["waytara"]["Enums"]["payment_option"] | null
@@ -831,6 +899,7 @@ export type Database = {
           rejected_at?: string | null
           sent_at?: string | null
           status?: Database["waytara"]["Enums"]["quotation_status"]
+          subtotal_amount?: number | null
           total_amount?: number
           valid_until?: string | null
         }
@@ -1025,7 +1094,13 @@ export type Database = {
         | "corporate_offices_hospitals_hotels_retail"
         | "logistics_delivery_hubs_bus_depots"
         | "tech_parks_data_centers_rnd_hubs"
-      quotation_status: "draft" | "sent" | "accepted" | "rejected" | "expired"
+      quotation_status:
+        | "draft"
+        | "sent"
+        | "accepted"
+        | "rejected"
+        | "expired"
+        | "revision_requested"
       subscription_status: "trialing" | "active" | "past_due" | "cancelled"
       test_session_status: "running" | "verified" | "failed"
       user_role: "admin" | "employee" | "customer"
@@ -1182,7 +1257,14 @@ export const Constants = {
         "logistics_delivery_hubs_bus_depots",
         "tech_parks_data_centers_rnd_hubs",
       ],
-      quotation_status: ["draft", "sent", "accepted", "rejected", "expired"],
+      quotation_status: [
+        "draft",
+        "sent",
+        "accepted",
+        "rejected",
+        "expired",
+        "revision_requested",
+      ],
       subscription_status: ["trialing", "active", "past_due", "cancelled"],
       test_session_status: ["running", "verified", "failed"],
       user_role: ["admin", "employee", "customer"],
