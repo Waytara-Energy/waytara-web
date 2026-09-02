@@ -9,10 +9,10 @@ import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { login } from "./actions";
 
 const LEGAL_LINKS = [
-  { label: "Terms of Service", href: "/knowledge-centre" },
-  { label: "Privacy Policy", href: "/knowledge-centre" },
-  { label: "Cookie Policy", href: "/knowledge-centre" },
-  { label: "Warranty Policy", href: "/knowledge-centre" },
+  { label: "Terms of Service", href: "/terms" },
+  { label: "Privacy Policy", href: "/privacy" },
+  { label: "Cookie Policy", href: "/cookies" },
+  { label: "Warranty Policy", href: "/warranty" },
 ];
 
 const HEADER_ICON_CLASS =

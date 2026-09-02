@@ -173,22 +173,22 @@ export function Footer() {
               </h4>
               <ul className="space-y-2.5 text-xs text-theme-secondary">
                 <li>
-                  <Link href="/knowledge-centre" className="hover:text-theme-primary transition-colors">
+                  <Link href="/terms" className="hover:text-theme-primary transition-colors">
                     Terms of Service
                   </Link>
                 </li>
                 <li>
-                  <Link href="/knowledge-centre" className="hover:text-theme-primary transition-colors">
+                  <Link href="/privacy" className="hover:text-theme-primary transition-colors">
                     Privacy Policy
                   </Link>
                 </li>
                 <li>
-                  <Link href="/knowledge-centre" className="hover:text-theme-primary transition-colors">
+                  <Link href="/cookies" className="hover:text-theme-primary transition-colors">
                     Cookie Policy
                   </Link>
                 </li>
                 <li>
-                  <Link href="/knowledge-centre" className="hover:text-theme-primary transition-colors">
+                  <Link href="/warranty" className="hover:text-theme-primary transition-colors">
                     Warranty Policy
                   </Link>
                 </li>
