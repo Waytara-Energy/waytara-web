@@ -12,6 +12,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  useSidebar,
 } from "@/components/ui/sidebar";
 import { Logo, LogoMark } from "@/components/shared/logo";
 import { visibleNavItems } from "./nav-config";
@@ -35,11 +36,21 @@ export function DashboardSidebar({
 }) {
   const pathname = usePathname();
   const navItems = visibleNavItems(features);
+  const { isMobile, setOpenMobile } = useSidebar();
+
+  // On mobile the sidebar is a Sheet overlay covering the page (see
+  // sidebar.tsx's own mobile branch) — picking a module should close it
+  // immediately rather than leaving it open over the page it just
+  // navigated to. Desktop's collapsible rail is unaffected: only the
+  // mobile Sheet's own open state gets touched here.
+  function handleNavClick() {
+    if (isMobile) setOpenMobile(false);
+  }
 
   return (
     <Sidebar collapsible="icon">
       <SidebarHeader className="h-16 flex-row items-center justify-center border-b border-sidebar-border px-3 group-data-[collapsible=icon]:px-0">
-        <Link href="/dashboard" aria-label="Dashboard home" className="flex items-center justify-center">
+        <Link href="/dashboard" aria-label="Dashboard home" className="flex items-center justify-center" onClick={handleNavClick}>
           <Logo isLink={false} className="h-[clamp(19px,1.3vw,22px)] group-data-[collapsible=icon]:hidden" />
           <LogoMark className="hidden h-[clamp(22px,1.5vw,25px)] w-[clamp(22px,1.5vw,25px)] group-data-[collapsible=icon]:block" />
         </Link>
@@ -54,7 +65,7 @@ export function DashboardSidebar({
                 return (
                   <SidebarMenuItem key={href}>
                     <SidebarMenuButton asChild isActive={active} tooltip={label}>
-                      <Link href={href}>
+                      <Link href={href} onClick={handleNavClick}>
                         <Icon className="h-[clamp(15px,1vw,17px)] w-[clamp(15px,1vw,17px)]" />
                         <span className="text-[clamp(12.5px,0.85vw,13.5px)]">{label}</span>
                       </Link>
