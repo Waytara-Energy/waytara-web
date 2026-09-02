@@ -13,6 +13,7 @@ import {
 import { Logo } from "@/components/shared/logo";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   Sheet,
   SheetContent,
@@ -21,6 +22,21 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
+import { createClient } from "@waytara/supabase/client";
+
+interface Account {
+  fullName: string | null;
+  email: string | null;
+  avatarUrl: string | null;
+}
+
+function initials(name: string | null, email: string | null): string {
+  if (name?.trim()) {
+    const parts = name.trim().split(/\s+/);
+    return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
+  }
+  return (email?.[0] ?? "?").toUpperCase();
+}
 
 const NAV_LINKS = [
   { label: "Home", href: "/" },
@@ -34,8 +50,39 @@ export function Navigation() {
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = React.useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [account, setAccount] = React.useState<Account | null>(null);
 
   const isHome = pathname === "/";
+
+  // Signed-in customer browsing the public site (e.g. via the dashboard's
+  // own "Home" link) — swap "Get Started" for their avatar rather than
+  // sending them through the sign-in form again. Client-side check (not a
+  // server-fetched prop) since Navigation is rendered directly by each
+  // marketing page, not a shared server layout — a brief flash before this
+  // resolves is an acceptable tradeoff for not restructuring every page
+  // that renders this component. Scoped to `role === "customer"` — this
+  // page's dashboard link is the customer dashboard specifically.
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const supabase = createClient();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user || cancelled) return;
+      const { data: profile } = await supabase
+        .from("profiles")
+        .select("full_name, email, avatar_url, role")
+        .eq("id", user.id)
+        .maybeSingle();
+      if (!cancelled && profile?.role === "customer") {
+        setAccount({ fullName: profile.full_name, email: profile.email, avatarUrl: profile.avatar_url });
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   React.useEffect(() => {
     const handleScroll = () => {
@@ -148,30 +195,45 @@ export function Navigation() {
             iconClassName={isThemeStyled ? "text-theme-primary" : "text-white"}
           />
 
-          {/* Get Started Button */}
-          <Button
-            asChild
-            size="sm"
-            variant={!isThemeStyled ? "secondary" : "gradient"}
-            className={cn(
-              "h-8 sm:h-8.5 px-3.5 sm:px-4 text-xs sm:text-[13px] font-semibold rounded-lg transition-all duration-200 ml-1.5 shadow-sm",
-              !isThemeStyled
-                ? "bg-white text-slate-950 hover:bg-slate-100 border-0 shadow-md font-bold"
-                : ""
-            )}
-          >
-            <Link href="/login">
-              <Zap
-                className={cn(
-                  "h-3.5 w-3.5 mr-1 transition-colors",
-                  isThemeStyled
-                    ? "text-white fill-white"
-                    : "text-emerald-500 fill-emerald-500"
-                )}
-              />
-              <span>Get Started</span>
+          {/* Get Started Button — or, signed in, the account avatar */}
+          {account ? (
+            <Link
+              href="/dashboard"
+              aria-label="Go to your dashboard"
+              className="ml-1.5 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            >
+              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-border p-[3px]">
+                <Avatar className="h-full w-full border-0">
+                  {account.avatarUrl && <AvatarImage src={account.avatarUrl} alt={account.fullName ?? "Account"} />}
+                  <AvatarFallback className="text-xs">{initials(account.fullName, account.email)}</AvatarFallback>
+                </Avatar>
+              </span>
             </Link>
-          </Button>
+          ) : (
+            <Button
+              asChild
+              size="sm"
+              variant={!isThemeStyled ? "secondary" : "gradient"}
+              className={cn(
+                "h-8 sm:h-8.5 px-3.5 sm:px-4 text-xs sm:text-[13px] font-semibold rounded-lg transition-all duration-200 ml-1.5 shadow-sm",
+                !isThemeStyled
+                  ? "bg-white text-slate-950 hover:bg-slate-100 border-0 shadow-md font-bold"
+                  : ""
+              )}
+            >
+              <Link href="/login">
+                <Zap
+                  className={cn(
+                    "h-3.5 w-3.5 mr-1 transition-colors",
+                    isThemeStyled
+                      ? "text-white fill-white"
+                      : "text-emerald-500 fill-emerald-500"
+                  )}
+                />
+                <span>Get Started</span>
+              </Link>
+            </Button>
+          )}
         </div>
 
         {/* Mobile Hamburger Drawer */}

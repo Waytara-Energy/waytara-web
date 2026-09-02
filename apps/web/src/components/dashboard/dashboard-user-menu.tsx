@@ -54,8 +54,14 @@ export function DashboardUserMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <span className={cn("inline-flex h-9 w-9 items-center justify-center rounded-full p-[2px]", ringClass)}>
-          <Avatar className="h-full w-full ring-2 ring-background">
+        {/* The ring is this span's own background showing through its
+            padding gap — not a box-shadow `ring-*` on the Avatar itself,
+            which would paint right over that gap and hide it (confirmed
+            live: that's exactly what made the ring invisible before).
+            `border-0` also strips Avatar's own default border, which would
+            otherwise draw a second, dimmer ring just inside this one. */}
+        <span className={cn("inline-flex h-9 w-9 items-center justify-center rounded-full p-[3px]", ringClass)}>
+          <Avatar className="h-full w-full border-0">
             {avatarUrl && <AvatarImage src={avatarUrl} alt={fullName ?? "Account"} />}
             <AvatarFallback className="text-xs">{initials(fullName, email)}</AvatarFallback>
           </Avatar>
@@ -63,14 +69,17 @@ export function DashboardUserMenu({
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-64">
         <DropdownMenuLabel className="font-normal">
-          <p className="truncate text-sm font-medium text-foreground">{fullName ?? "Your account"}</p>
+          <p className="flex items-center gap-1.5 truncate text-sm font-medium text-foreground">
+            <span className="truncate">{fullName ?? "Your account"}</span>
+            {planName && (
+              <span className="inline-flex shrink-0 items-center gap-1 text-xs font-normal text-muted-foreground">
+                <span aria-hidden>·</span>
+                <span className={cn("h-1.5 w-1.5 rounded-full", dotClass)} />
+                {planName}
+              </span>
+            )}
+          </p>
           <p className="truncate text-xs text-muted-foreground">{email}</p>
-          {planName && (
-            <p className="mt-1.5 flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className={cn("h-1.5 w-1.5 shrink-0 rounded-full", dotClass)} />
-              {planName} Plan
-            </p>
-          )}
         </DropdownMenuLabel>
         <DropdownMenuSeparator />
         {SECONDARY_NAV_ITEMS.map(({ href, label, icon: Icon }) => (
