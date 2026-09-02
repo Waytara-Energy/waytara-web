@@ -5,6 +5,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { Button } from "@/components/ui/button";
+import { getCustomerDevices, resolveSelectedDevice, SELECTED_DEVICE_COOKIE } from "@/lib/selected-device";
 import { logout } from "./actions";
 
 // Reachable only as a `customer` profile — middleware.ts enforces that.
@@ -66,6 +67,14 @@ export default async function DashboardLayout({
   const cookieStore = await cookies();
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
+  // Device is the dashboard's navigation root now — every device-scoped
+  // page resolves its own selection via getSelectedDevice() (same cookie,
+  // re-fetched independently), matching this app's existing convention of
+  // each page fetching its own gate/data rather than threading it down
+  // from the layout. This fetch is purely for the header switcher's list.
+  const devices = await getCustomerDevices();
+  const selectedDevice = resolveSelectedDevice(devices, cookieStore.get(SELECTED_DEVICE_COOKIE)?.value);
+
   return (
     <SidebarProvider defaultOpen={sidebarOpen}>
       <DashboardSidebar features={features} />
@@ -76,6 +85,8 @@ export default async function DashboardLayout({
           avatarUrl={profile?.avatar_url ?? null}
           planName={customer?.plan?.name ?? null}
           features={features}
+          devices={devices.map((d) => ({ id: d.id, label: d.label, deviceUid: d.deviceUid, siteName: d.site?.name ?? null }))}
+          selectedDeviceId={selectedDevice?.id ?? null}
         />
         <main className="flex-1 p-6">{children}</main>
       </SidebarInset>

@@ -13,14 +13,17 @@ import {
 } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
-import { visibleNavItems, SECONDARY_NAV_ITEMS } from "./nav-config";
+import { visibleNavItems, SECONDARY_NAV_ITEMS, SITES_NAV_ITEM } from "./nav-config";
+
+const ACCOUNT_GROUP_ITEMS = [...SECONDARY_NAV_ITEMS, SITES_NAV_ITEM];
 
 // ⌘K / Ctrl+K quick-nav across whatever dashboard pages this customer's
 // plan actually unlocks (same visibleNavItems feature-gate the sidebar
 // itself uses, so the palette never offers a destination the plan can't
-// reach). Also surfaces the account-menu pages (Sites & Devices, Support,
-// Billing, Settings) — they lost their sidebar row, not their reachability,
-// so power-users can still jump straight there.
+// reach). Also surfaces the account-menu pages (Support, Billing, Settings)
+// plus Sites & Devices — none of them have a sidebar row (Sites & Devices
+// lives in the header's DeviceSwitcher instead), but they're still
+// reachable, so power-users can still jump straight there.
 export function DashboardCommandMenu({ features = {} }: { features?: Record<string, boolean> }) {
   const [open, setOpen] = React.useState(false);
   const router = useRouter();
@@ -68,7 +71,7 @@ export function DashboardCommandMenu({ features = {} }: { features?: Record<stri
             ))}
           </CommandGroup>
           <CommandGroup heading="Account">
-            {SECONDARY_NAV_ITEMS.map(({ href, label, icon: Icon }) => (
+            {ACCOUNT_GROUP_ITEMS.map(({ href, label, icon: Icon }) => (
               <CommandItem key={href} value={label} onSelect={() => go(href)}>
                 <Icon />
                 {label}

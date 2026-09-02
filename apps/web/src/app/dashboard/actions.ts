@@ -1,9 +1,27 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@waytara/supabase/server";
 import { getCurrentProfile } from "@waytara/supabase/auth";
+import { SELECTED_DEVICE_COOKIE } from "@/lib/selected-device";
+
+// Called directly from the header's DeviceSwitcher (a client component),
+// not via a <form action>. No ownership check on `deviceId` here — the
+// cookie is a UI preference, not an authorization boundary; every
+// device-scoped query still goes through RLS regardless of what this
+// cookie says, so a tampered/foreign id just fails to resolve to anything
+// in resolveSelectedDevice() rather than granting access.
+export async function selectDevice(deviceId: string) {
+  const cookieStore = await cookies();
+  cookieStore.set(SELECTED_DEVICE_COOKIE, deviceId, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
+  revalidatePath("/dashboard", "layout");
+}
 
 export async function logout() {
   const supabase = await createClient();

@@ -41,25 +41,33 @@ export const NAV_ITEMS: NavItem[] = [
   },
 ];
 
-// Moved out of the sidebar and into the account (avatar) menu — still real
-// pages with their own URLs, so the breadcrumb and command palette both
-// still need to know about them; they just don't get a sidebar row.
+// Rendered by the avatar popup — still real pages with their own URLs, so
+// the breadcrumb and command palette both still need to know about them
+// (see ALL_NAV / allReachableNavItems below); they just don't get a
+// sidebar row.
 export const SECONDARY_NAV_ITEMS: NavItem[] = [
-  { href: "/dashboard/sites", label: "Sites & Devices", icon: Sun },
   { href: "/dashboard/support", label: "Support", icon: LifeBuoy },
   { href: "/dashboard/billing", label: "Billing & Plan", icon: CreditCard },
   { href: "/dashboard/settings", label: "Application Settings", icon: Settings },
 ];
 
-export const ALL_NAV: NavItem[] = [...NAV_ITEMS, ...SECONDARY_NAV_ITEMS];
+// Sites & Devices lives in the header's DeviceSwitcher now ("Manage Sites &
+// Devices" footer link) — not in the avatar popup — but the page itself is
+// unchanged, so it still needs a breadcrumb label and a command-palette
+// entry. Kept separate from SECONDARY_NAV_ITEMS specifically so it does
+// *not* render in the avatar popup.
+export const SITES_NAV_ITEM: NavItem = { href: "/dashboard/sites", label: "Sites & Devices", icon: Sun };
+
+export const ALL_NAV: NavItem[] = [...NAV_ITEMS, ...SECONDARY_NAV_ITEMS, SITES_NAV_ITEM];
 
 /** Sidebar + command palette's primary list. */
 export function visibleNavItems(features: Record<string, boolean>): NavItem[] {
   return NAV_ITEMS.filter((item) => !item.featureKey || features[item.featureKey]);
 }
 
-/** Command palette's full reach — primary items plus the account-menu
- *  pages, none of which are feature-gated, so nothing extra to filter. */
+/** Command palette's full reach — primary items plus every account-menu
+ *  page (including Sites & Devices, even though it isn't in the avatar
+ *  popup) — none of which are feature-gated, so nothing extra to filter. */
 export function allReachableNavItems(features: Record<string, boolean>): NavItem[] {
-  return [...visibleNavItems(features), ...SECONDARY_NAV_ITEMS];
+  return [...visibleNavItems(features), ...SECONDARY_NAV_ITEMS, SITES_NAV_ITEM];
 }
