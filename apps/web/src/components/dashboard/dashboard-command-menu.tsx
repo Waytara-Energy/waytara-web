@@ -55,8 +55,8 @@ export function DashboardCommandMenu({ features = {} }: { features?: Record<stri
         onClick={() => setOpen(true)}
       >
         <Search className="h-3.5 w-3.5" />
-        <span className="hidden sm:inline">Quick nav…</span>
-        <Kbd className="hidden sm:inline-flex">⌘K</Kbd>
+        <span className="hidden lg:inline">Quick nav…</span>
+        <Kbd className="hidden lg:inline-flex">⌘K</Kbd>
       </Button>
       <CommandDialog open={open} onOpenChange={setOpen} title="Quick navigation" description="Jump to a dashboard page">
         <CommandInput placeholder="Where do you want to go?" />

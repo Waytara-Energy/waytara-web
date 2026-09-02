@@ -33,12 +33,12 @@ export function DashboardHeader({
 }) {
   return (
     <header className="grid h-16 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 border-b border-border px-4">
-      <div className="col-start-1 flex items-center gap-2">
+      <div className="col-start-1 flex min-w-0 items-center gap-2">
         <SidebarTrigger />
-        <Separator orientation="vertical" className="h-5" />
+        <Separator orientation="vertical" className="h-5 shrink-0" />
         <DeviceSwitcher devices={devices} selectedId={selectedDeviceId} />
       </div>
-      <div className="col-start-2">
+      <div className="col-start-2 min-w-0">
         <DashboardBreadcrumb />
       </div>
       <div className="col-start-3 flex items-center justify-end gap-2">

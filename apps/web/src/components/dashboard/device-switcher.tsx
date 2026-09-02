@@ -63,7 +63,7 @@ export function DeviceSwitcher({
           role="combobox"
           aria-expanded={open}
           disabled={pending}
-          className="h-8 max-w-[220px] justify-between gap-1.5 px-2 text-sm font-medium text-foreground hover:bg-accent"
+          className="h-8 min-w-0 max-w-[140px] justify-between gap-1.5 px-2 text-sm font-medium text-foreground hover:bg-accent lg:max-w-[220px]"
         >
           <span className="flex min-w-0 items-center gap-1.5">
             <Zap className="size-3.5 shrink-0 text-muted-foreground" />
