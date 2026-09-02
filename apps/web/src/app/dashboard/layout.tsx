@@ -1,6 +1,9 @@
+import { cookies } from "next/headers";
 import { createClient } from "@waytara/supabase/server";
 import { getCurrentProfile } from "@waytara/supabase/auth";
-import { DashboardNav } from "@/components/dashboard/dashboard-nav";
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
+import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { Button } from "@/components/ui/button";
 import { logout } from "./actions";
 
@@ -53,25 +56,28 @@ export default async function DashboardLayout({
     );
   }
 
+  const features = (customer?.plan?.features as Record<string, boolean>) ?? {};
+
+  // Dashboard redesign Phase 1: SidebarProvider's own state defaults to
+  // open every load unless told otherwise — reading its cookie here (the
+  // exact cookie it writes on toggle, see sidebar.tsx's SIDEBAR_COOKIE_NAME)
+  // is what makes a collapsed sidebar stay collapsed across a reload
+  // instead of springing back open.
+  const cookieStore = await cookies();
+  const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
+
   return (
-    <div className="flex min-h-screen bg-theme-bg text-theme-primary">
-      <DashboardNav
-        planName={customer?.plan?.name}
-        features={(customer?.plan?.features as Record<string, boolean>) ?? {}}
-      />
-      <div className="flex flex-1 flex-col">
-        <header className="flex h-16 items-center justify-between border-b border-theme-border px-6">
-          <span className="text-sm text-theme-muted">
-            {profile?.full_name ?? profile?.email}
-          </span>
-          <form action={logout}>
-            <Button type="submit" variant="outline" size="sm">
-              Sign out
-            </Button>
-          </form>
-        </header>
+    <SidebarProvider defaultOpen={sidebarOpen}>
+      <DashboardSidebar planName={customer?.plan?.name} features={features} />
+      <SidebarInset>
+        <DashboardHeader
+          fullName={profile?.full_name ?? null}
+          email={profile?.email ?? null}
+          avatarUrl={profile?.avatar_url ?? null}
+          features={features}
+        />
         <main className="flex-1 p-6">{children}</main>
-      </div>
-    </div>
+      </SidebarInset>
+    </SidebarProvider>
   );
 }
