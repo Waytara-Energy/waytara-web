@@ -6,21 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { HoverCard, HoverCardContent, HoverCardTrigger } from "@/components/ui/hover-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-
-const PROPERTY_TYPE_LABELS: Record<string, string> = {
-  residential_independent_villas: "Residential & Independent Villas",
-  gated_communities_rwas_high_rises: "Gated Communities, RWAs & High-Rises",
-  factories_heavy_engineering_processing_plants: "Factories, Heavy Engineering & Processing Plants",
-  corporate_offices_hospitals_hotels_retail: "Corporate Offices, Hospitals, Hotels & Retail",
-  logistics_delivery_hubs_bus_depots: "Logistics, Delivery Hubs & Bus Depots",
-  tech_parks_data_centers_rnd_hubs: "Tech Parks, Data Centers & R&D Hubs",
-};
-
-const POWER_SOURCE_LABELS: Record<string, string> = {
-  grid_tied: "Grid Tied",
-  off_grid: "Off Grid",
-  hybrid: "Hybrid",
-};
+import { PROPERTY_TYPE_LABELS, POWER_SOURCE_LABELS } from "@/lib/site-catalog";
 
 export default async function SitesPage() {
   const profile = await getCurrentProfile();
