@@ -114,10 +114,10 @@
     --ring: #16A34A;
     --radius: 0.625rem;
 
-    /* shadcn Sidebar tokens — reuse the same surface/hover/highlight the
-       hand-rolled dashboard-nav.tsx already used, so swapping to the real
-       Sidebar component doesn't change how it looks. */
-    --sidebar: #F8FAFC;
+    /* shadcn Sidebar tokens. --sidebar deliberately equals --background
+       (not a slightly-different off-white) — the sidebar and main content
+       read as one continuous surface, not two panels. */
+    --sidebar: #FFFFFF;
     --sidebar-foreground: #0F172A;
     --sidebar-primary: #16A34A;
     --sidebar-primary-foreground: #FFFFFF;
@@ -176,8 +176,9 @@
     --input: #1E2B25;
     --ring: #4ADE80;
 
-    /* shadcn Sidebar tokens (dark) */
-    --sidebar: #111815;
+    /* shadcn Sidebar tokens (dark) — same "equals --background" reasoning
+       as the light-mode block above. */
+    --sidebar: #0A0F0D;
     --sidebar-foreground: #F5F7F6;
     --sidebar-primary: #4ADE80;
     --sidebar-primary-foreground: #0A0F0D;
@@ -193,6 +194,25 @@
     --chart-3: #FBBF24;
     --chart-4: #A78BFA;
     --chart-5: #2DD4BF;
+  }
+
+  /* Every shadcn primitive assumes Tailwind's classic preflight, where a
+     bare `border`/`border-r`/`border-b` (no explicit border-{color}
+     utility) resolves through a project-wide border-color default —
+     that reset was never added here. Without it, `currentColor` is what
+     those bare border utilities actually paint with, landing on whatever
+     dark text color happens to be ambient (confirmed live: the sidebar's
+     own `border-r` rendered as `rgb(63,63,70)`, DropdownMenuContent's
+     `border` as `rgb(15,23,42)` — both read as "black lines", nowhere
+     near the intended --border grey). apps/admin's shared tailwind-theme
+     already carries this exact reset; this app just never had it because
+     its theme was hand-built before any shadcn component needed it. A
+     single `var(--border)` here (not separate light/dark values) is
+     enough — the variable itself already flips with the `.dark` class,
+     and any element with its own explicit border-color utility (e.g.
+     `border-sidebar-border`) still wins on selector specificity. */
+  * {
+    border-color: var(--border);
   }
 }
 
@@ -293,35 +313,3 @@ body {
   margin-bottom: 0.5rem;
 }
 
-:root {
-  --sidebar: hsl(0 0% 98%);
-  --sidebar-foreground: hsl(240 5.3% 26.1%);
-  --sidebar-primary: hsl(240 5.9% 10%);
-  --sidebar-primary-foreground: hsl(0 0% 98%);
-  --sidebar-accent: hsl(240 4.8% 95.9%);
-  --sidebar-accent-foreground: hsl(240 5.9% 10%);
-  --sidebar-border: hsl(220 13% 91%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
-}
-
-.dark {
-  --sidebar: hsl(240 5.9% 10%);
-  --sidebar-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-primary: hsl(224.3 76.3% 48%);
-  --sidebar-primary-foreground: hsl(0 0% 100%);
-  --sidebar-accent: hsl(240 3.7% 15.9%);
-  --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-  --sidebar-border: hsl(240 3.7% 15.9%);
-  --sidebar-ring: hsl(217.2 91.2% 59.8%);
-}
-
-@theme inline {
-  --color-sidebar: var(--sidebar);
-  --color-sidebar-foreground: var(--sidebar-foreground);
-  --color-sidebar-primary: var(--sidebar-primary);
-  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
-  --color-sidebar-accent: var(--sidebar-accent);
-  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
-  --color-sidebar-border: var(--sidebar-border);
-  --color-sidebar-ring: var(--sidebar-ring);
-}

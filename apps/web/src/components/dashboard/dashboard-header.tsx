@@ -7,20 +7,17 @@ import { DashboardUserMenu } from "./dashboard-user-menu";
 // `minmax(0,1fr) auto minmax(0,1fr)` centers the breadcrumb on the
 // header's true midpoint regardless of how wide the right-hand cluster is
 // — a bare `1fr` track still gets an implicit content-based minimum
-// width, so the (much wider) right cluster would out-grow the near-empty
-// left one and drag the "centered" column off-center; `minmax(0, 1fr)`
-// forces both flanking tracks to actually split the remaining space
-// evenly. Each child also gets an explicit `col-start-*` — the mobile-only
-// trigger below is `display:none` on desktop (`md:hidden`), and a
-// `display:none` grid item is dropped from auto-placement entirely, which
-// without explicit placement shifts the breadcrumb and right cluster one
-// column to the left the moment that trigger disappears.
+// width, so the (much wider) right cluster would out-grow the empty left
+// one and drag the "centered" column off-center; `minmax(0, 1fr)` forces
+// both flanking tracks to actually split the remaining space evenly. The
+// breadcrumb and right cluster both get an explicit `col-start-*` too —
+// column 1 has no element in it at all (nothing needs it), and without
+// explicit placement the breadcrumb would still auto-place into that
+// first cell rather than the center one.
 //
-// The sidebar collapse toggle itself lives in the sidebar's own header
-// (see dashboard-sidebar.tsx) instead of here — except on mobile, where
-// the sidebar renders as a closed Sheet and that embedded toggle is
-// unreachable until the Sheet is already open. The left slot's trigger is
-// just for that case.
+// SidebarTrigger sits as the last item on the right — it also covers
+// mobile, where the sidebar renders as a closed Sheet with no other way
+// in, same click handler either way.
 export function DashboardHeader({
   fullName,
   email,
@@ -38,7 +35,6 @@ export function DashboardHeader({
 }) {
   return (
     <header className="grid h-16 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 border-b border-border px-4">
-      <SidebarTrigger className="col-start-1 md:hidden" />
       <div className="col-start-2">
         <DashboardBreadcrumb />
       </div>
@@ -46,6 +42,7 @@ export function DashboardHeader({
         <DashboardCommandMenu features={features} />
         <ThemeToggle className="text-foreground hover:bg-accent hover:text-accent-foreground" />
         <DashboardUserMenu fullName={fullName} email={email} avatarUrl={avatarUrl} planName={planName} planCode={planCode} />
+        <SidebarTrigger />
       </div>
     </header>
   );
