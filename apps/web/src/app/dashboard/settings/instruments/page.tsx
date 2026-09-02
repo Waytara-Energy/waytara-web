@@ -1,9 +1,13 @@
 import { redirect } from "next/navigation";
+import { CheckCircle2, TriangleAlert } from "lucide-react";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { getSettingFields } from "@/lib/instrument-settings-catalog";
 import { updateDeviceSetting } from "./actions";
 
@@ -63,27 +67,33 @@ export default async function InstrumentSettingsPage({
       </div>
 
       {error && (
-        <div className="rounded-lg border border-theme-border bg-theme-alert-subtle px-4 py-3 text-sm text-theme-alert">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <TriangleAlert />
+          <AlertTitle>Couldn&apos;t save</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
       {success && (
-        <div className="rounded-lg border border-theme-border bg-theme-highlight-subtle px-4 py-3 text-sm text-theme-highlight">
-          Saved.
-        </div>
+        <Alert>
+          <CheckCircle2 />
+          <AlertTitle>Saved</AlertTitle>
+        </Alert>
       )}
 
       {devicesWithFields.length === 0 ? (
         <p className="text-sm text-theme-muted">No devices with configurable settings yet.</p>
       ) : (
         devicesWithFields.map((device) => (
-          <div key={device.id} className="rounded-xl border border-theme-border bg-theme-surface p-5">
-            <p className="text-sm font-semibold text-theme-primary">
-              {device.device_type?.name ?? "Device"}
-              <span className="ml-1.5 font-normal text-theme-muted">— {device.label || device.device_uid}</span>
-            </p>
-
-            <div className="mt-4 space-y-4">
+          <Card key={device.id}>
+            <CardHeader>
+              <CardTitle>
+                {device.device_type?.name ?? "Device"}
+                <span className="ml-1.5 font-normal text-muted-foreground">
+                  — {device.label || device.device_uid}
+                </span>
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
               {device.fields.map((field) => {
                 const currentValue = currentSettings.get(`${device.id}:${field.key}`) ?? "";
                 const fieldId = `${device.id}-${field.key}`;
@@ -92,54 +102,55 @@ export default async function InstrumentSettingsPage({
                     <input type="hidden" name="deviceId" value={device.id} />
                     <input type="hidden" name="deviceTypeCode" value={device.device_type?.code ?? ""} />
                     <input type="hidden" name="settingKey" value={field.key} />
-                    <div className="flex-1 space-y-1.5">
-                      <Label htmlFor={fieldId}>
-                        {field.label}
-                        {field.unit ? ` (${field.unit})` : ""}
-                      </Label>
-                      {field.type === "select" ? (
-                        <select
-                          id={fieldId}
-                          name="settingValue"
-                          defaultValue={currentValue}
-                          className="h-10 w-full rounded-lg border border-theme-border bg-theme-bg px-3 text-sm text-theme-primary"
-                        >
-                          <option value="" disabled>
-                            Select…
-                          </option>
-                          {field.options?.map((o) => (
-                            <option key={o.value} value={o.value}>
-                              {o.label}
-                            </option>
-                          ))}
-                        </select>
-                      ) : (
-                        <Input
-                          id={fieldId}
-                          name="settingValue"
-                          type="number"
-                          min={field.min}
-                          max={field.max}
-                          step={field.step}
-                          defaultValue={currentValue}
-                        />
-                      )}
-                      {field.helpText && <p className="text-xs text-theme-muted">{field.helpText}</p>}
-                      {currentValue && (
-                        <p className="text-xs text-theme-muted">
-                          Current: {currentValue}
-                          {field.unit ? ` ${field.unit}` : ""}
-                        </p>
-                      )}
-                    </div>
+                    <FieldGroup className="flex-1">
+                      <Field>
+                        <FieldLabel htmlFor={fieldId}>
+                          {field.label}
+                          {field.unit ? ` (${field.unit})` : ""}
+                        </FieldLabel>
+                        <FieldContent>
+                          {field.type === "select" ? (
+                            <Select name="settingValue" defaultValue={currentValue || undefined} required>
+                              <SelectTrigger id={fieldId} className="w-full">
+                                <SelectValue placeholder="Select…" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                {field.options?.map((o) => (
+                                  <SelectItem key={o.value} value={o.value}>
+                                    {o.label}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          ) : (
+                            <Input
+                              id={fieldId}
+                              name="settingValue"
+                              type="number"
+                              min={field.min}
+                              max={field.max}
+                              step={field.step}
+                              defaultValue={currentValue}
+                            />
+                          )}
+                          {field.helpText && <FieldDescription>{field.helpText}</FieldDescription>}
+                          {currentValue && (
+                            <FieldDescription>
+                              Current: {currentValue}
+                              {field.unit ? ` ${field.unit}` : ""}
+                            </FieldDescription>
+                          )}
+                        </FieldContent>
+                      </Field>
+                    </FieldGroup>
                     <Button type="submit" size="sm" variant="outline">
                       Save
                     </Button>
                   </form>
                 );
               })}
-            </div>
-          </div>
+            </CardContent>
+          </Card>
         ))
       )}
     </div>

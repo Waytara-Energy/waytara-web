@@ -1,6 +1,16 @@
+import { Wrench } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { Button } from "@/components/ui/button";
-import { createMaintenanceTicket } from "./actions";
+import { Badge } from "@/components/ui/badge";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { NewMaintenanceTicketDialog } from "@/components/dashboard/new-maintenance-ticket-dialog";
+
+const STATUS_BADGE_VARIANT: Record<string, "alert" | "default" | "secondary"> = {
+  open: "alert",
+  in_progress: "default",
+  resolved: "secondary",
+  closed: "secondary",
+};
 
 export default async function MaintenancePage({
   searchParams,
@@ -18,69 +28,59 @@ export default async function MaintenancePage({
 
   return (
     <div className="max-w-2xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-theme-primary">Maintenance</h1>
-        <p className="mt-1 text-sm text-theme-muted">Report an issue or request a scheduled visit.</p>
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-2xl font-semibold text-theme-primary">Maintenance</h1>
+          <p className="mt-1 text-sm text-theme-muted">Report an issue or request a scheduled visit.</p>
+        </div>
+        {sites && sites.length > 0 && <NewMaintenanceTicketDialog sites={sites} error={error} />}
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-theme-border bg-theme-alert-subtle px-4 py-3 text-sm text-theme-alert">
-          {error}
-        </div>
-      )}
-
-      {sites && sites.length > 0 ? (
-        <form action={createMaintenanceTicket} className="space-y-3 rounded-xl border border-theme-border bg-theme-surface p-5">
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-theme-primary">Site</label>
-            <select
-              name="siteId"
-              required
-              className="h-10 w-full rounded-lg border border-theme-border bg-theme-bg px-3 text-sm text-theme-primary"
-            >
-              {sites.map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="space-y-1.5">
-            <label className="text-sm font-medium text-theme-primary">Describe the issue</label>
-            <textarea
-              name="description"
-              rows={3}
-              required
-              className="w-full rounded-lg border border-theme-border bg-theme-bg px-3 py-2 text-sm text-theme-primary"
-              placeholder="e.g. Inverter display shows an error code."
-            />
-          </div>
-          <Button type="submit" size="sm">
-            Submit Request
-          </Button>
-        </form>
-      ) : (
-        <div className="rounded-xl border border-theme-border bg-theme-surface p-5 text-sm text-theme-muted">
+      {(!sites || sites.length === 0) && (
+        <p className="rounded-xl border border-theme-border bg-theme-surface p-5 text-sm text-theme-muted">
           No sites set up yet — maintenance requests need a site to attach to.
-        </div>
+        </p>
       )}
 
       <div className="space-y-2">
         <h2 className="text-sm font-semibold text-theme-primary">Your requests</h2>
         {!tickets || tickets.length === 0 ? (
-          <p className="text-sm text-theme-muted">No maintenance requests yet.</p>
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Wrench />
+              </EmptyMedia>
+              <EmptyTitle>No maintenance requests yet</EmptyTitle>
+              <EmptyDescription>Anything you report shows up here, with its status.</EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         ) : (
-          tickets.map((t) => (
-            <div
-              key={t.id}
-              className="flex items-center justify-between rounded-lg border border-theme-border bg-theme-surface px-4 py-3 text-sm"
-            >
-              <span className="text-theme-primary">{t.description}</span>
-              <span className="rounded-full bg-theme-highlight-subtle px-2 py-0.5 text-xs font-medium capitalize text-theme-highlight">
-                {t.status}
-              </span>
-            </div>
-          ))
+          <div className="overflow-x-auto rounded-lg border border-theme-border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Issue</TableHead>
+                  <TableHead>Reported</TableHead>
+                  <TableHead className="text-right">Status</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {tickets.map((t) => (
+                  <TableRow key={t.id}>
+                    <TableCell className="text-foreground">{t.description}</TableCell>
+                    <TableCell className="text-muted-foreground">
+                      {new Date(t.created_at).toLocaleDateString("en-IN")}
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <Badge variant={STATUS_BADGE_VARIANT[t.status] ?? "secondary"} className="capitalize">
+                        {t.status.replace(/_/g, " ")}
+                      </Badge>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
         )}
       </div>
     </div>

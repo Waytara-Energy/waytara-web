@@ -1,5 +1,17 @@
+import { Receipt } from "lucide-react";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
+import { Badge } from "@/components/ui/badge";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+const PAYMENT_STATUS_BADGE_VARIANT: Record<string, "default" | "alert" | "secondary"> = {
+  paid: "default",
+  pending: "alert",
+  failed: "alert",
+  refunded: "secondary",
+};
 
 export default async function BillingPage() {
   const profile = await getCurrentProfile();
@@ -34,55 +46,98 @@ export default async function BillingPage() {
         <h1 className="text-2xl font-semibold text-theme-primary">Billing &amp; Plan</h1>
       </div>
 
-      <div className="rounded-xl border border-theme-border bg-theme-surface p-5">
-        <h2 className="text-sm font-semibold text-theme-primary">Current Plan</h2>
-        {customer?.plan ? (
-          <div className="mt-2 text-sm">
-            <p className="text-theme-primary">
-              {customer.plan.name} — ₹{Number(customer.plan.price_monthly).toLocaleString("en-IN")} one-time
-            </p>
-            <p className="text-theme-muted">
-              Active since{" "}
-              {customer.plan_started_at
-                ? new Date(customer.plan_started_at).toLocaleDateString("en-IN")
-                : "—"}
-            </p>
-          </div>
-        ) : (
-          <p className="mt-2 text-sm text-theme-muted">No plan assigned yet.</p>
-        )}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle>Current Plan</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {customer?.plan ? (
+              <div className="text-sm">
+                <p className="text-foreground">
+                  {customer.plan.name} — ₹{Number(customer.plan.price_monthly).toLocaleString("en-IN")} one-time
+                </p>
+                <p className="mt-1 text-muted-foreground">
+                  Active since{" "}
+                  {customer.plan_started_at
+                    ? new Date(customer.plan_started_at).toLocaleDateString("en-IN")
+                    : "—"}
+                </p>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground">No plan assigned yet.</p>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Subscription</CardTitle>
+            <CardDescription>Ongoing monitoring &amp; dashboard access</CardDescription>
+          </CardHeader>
+          <CardContent>
+            {subscription ? (
+              <Badge variant={subscription.status === "active" ? "default" : "secondary"} className="capitalize">
+                {subscription.status}
+              </Badge>
+            ) : (
+              <p className="text-sm text-muted-foreground">No subscription record yet.</p>
+            )}
+          </CardContent>
+        </Card>
       </div>
 
-      <div className="rounded-xl border border-theme-border bg-theme-surface p-5">
-        <h2 className="text-sm font-semibold text-theme-primary">Subscription</h2>
-        <p className="mt-2 text-sm text-theme-muted">
-          {subscription ? (
-            <span className="capitalize">{subscription.status}</span>
+      <Card>
+        <CardHeader>
+          <CardTitle>Payment History</CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!payments || payments.length === 0 ? (
+            <Empty>
+              <EmptyHeader>
+                <EmptyMedia variant="icon">
+                  <Receipt />
+                </EmptyMedia>
+                <EmptyTitle>No payments yet</EmptyTitle>
+                <EmptyDescription>Payments you make will show up here.</EmptyDescription>
+              </EmptyHeader>
+            </Empty>
           ) : (
-            "No subscription record yet."
+            <div className="overflow-x-auto rounded-lg border border-border">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Type</TableHead>
+                    <TableHead>Amount</TableHead>
+                    <TableHead>Date</TableHead>
+                    <TableHead className="text-right">Status</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {payments.map((p) => (
+                    <TableRow key={p.id}>
+                      <TableCell className="capitalize text-foreground">
+                        {p.payment_type.replace(/_/g, " ")}
+                      </TableCell>
+                      <TableCell className="tabular-nums text-foreground">
+                        ₹{Number(p.amount).toLocaleString("en-IN")}
+                      </TableCell>
+                      <TableCell className="text-muted-foreground">
+                        {new Date(p.paid_at ?? p.created_at).toLocaleDateString("en-IN")}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant={PAYMENT_STATUS_BADGE_VARIANT[p.status] ?? "secondary"} className="capitalize">
+                          {p.status}
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
           )}
-        </p>
-      </div>
-
-      <div className="rounded-xl border border-theme-border bg-theme-surface p-5">
-        <h2 className="text-sm font-semibold text-theme-primary">Payment History</h2>
-        {!payments || payments.length === 0 ? (
-          <p className="mt-2 text-sm text-theme-muted">No payments yet.</p>
-        ) : (
-          <ul className="mt-2 space-y-2">
-            {payments.map((p) => (
-              <li key={p.id} className="flex items-center justify-between text-sm">
-                <span className="capitalize text-theme-primary">
-                  {p.payment_type} — ₹{Number(p.amount).toLocaleString("en-IN")}
-                </span>
-                <span className="rounded-full bg-theme-highlight-subtle px-2 py-0.5 text-xs font-medium capitalize text-theme-highlight">
-                  {p.status}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

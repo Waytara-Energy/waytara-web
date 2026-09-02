@@ -1,8 +1,7 @@
+import { CheckCircle2, TriangleAlert } from "lucide-react";
 import { getCurrentProfile } from "@waytara/supabase/auth";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
-import { updateProfile } from "./actions";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { SettingsForm } from "@/components/dashboard/settings-form";
 
 export default async function SettingsPage({
   searchParams,
@@ -24,56 +23,26 @@ export default async function SettingsPage({
       </div>
 
       {error && (
-        <div className="rounded-lg border border-theme-border bg-theme-alert-subtle px-4 py-3 text-sm text-theme-alert">
-          {error}
-        </div>
+        <Alert variant="destructive">
+          <TriangleAlert />
+          <AlertTitle>Couldn&apos;t save</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
       )}
       {success && (
-        <div className="rounded-lg border border-theme-border bg-theme-highlight-subtle px-4 py-3 text-sm text-theme-highlight">
-          Saved.
-        </div>
+        <Alert>
+          <CheckCircle2 />
+          <AlertTitle>Saved</AlertTitle>
+        </Alert>
       )}
 
-      <form action={updateProfile} className="space-y-4 rounded-xl border border-theme-border bg-theme-surface p-5">
-        <div className="space-y-1.5">
-          <Label htmlFor="fullName">Full name</Label>
-          <Input id="fullName" name="fullName" defaultValue={profile?.full_name ?? ""} required />
-        </div>
-        <div className="space-y-1.5">
-          <Label htmlFor="phone">Phone</Label>
-          <Input id="phone" name="phone" defaultValue={profile?.phone ?? ""} />
-        </div>
-        <div className="space-y-1.5">
-          <Label>Email</Label>
-          <p className="text-sm text-theme-muted">{profile?.email} (contact support to change)</p>
-        </div>
-
-        <div className="space-y-2 border-t border-theme-border pt-4">
-          <p className="text-sm font-medium text-theme-primary">Notification preferences</p>
-          <label className="flex items-center gap-2 text-sm text-theme-secondary">
-            <input
-              type="checkbox"
-              name="emailAlerts"
-              defaultChecked={prefs.email_alerts ?? true}
-              className="h-4 w-4"
-            />
-            Email me about device alerts
-          </label>
-          <label className="flex items-center gap-2 text-sm text-theme-secondary">
-            <input
-              type="checkbox"
-              name="emailMaintenanceUpdates"
-              defaultChecked={prefs.email_maintenance_updates ?? true}
-              className="h-4 w-4"
-            />
-            Email me about maintenance request updates
-          </label>
-        </div>
-
-        <Button type="submit" size="sm">
-          Save Changes
-        </Button>
-      </form>
+      <SettingsForm
+        fullName={profile?.full_name ?? ""}
+        phone={profile?.phone ?? ""}
+        email={profile?.email ?? ""}
+        emailAlerts={prefs.email_alerts ?? true}
+        emailMaintenanceUpdates={prefs.email_maintenance_updates ?? true}
+      />
     </div>
   );
 }
