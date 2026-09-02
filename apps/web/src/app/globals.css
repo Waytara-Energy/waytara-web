@@ -122,6 +122,16 @@
 .bg-theme-highlight-subtle { background-color: var(--highlight-bg); }
 .bg-theme-alert-subtle { background-color: var(--alert-bg); }
 
+/* Theme-swapped media (e.g. the login page's hero photo) — a plain
+   selector off the same `.dark` class next-themes toggles, not Tailwind's
+   `dark:` variant, which (no @custom-variant override in this file)
+   defaults to prefers-color-scheme and so never reacts to the in-app
+   toggle the rest of this theme system is built around. */
+.theme-media-light { display: block; }
+.theme-media-dark { display: none; }
+.dark .theme-media-light { display: none; }
+.dark .theme-media-dark { display: block; }
+
 /* Primary Gradient Utilities */
 .bg-primary-gradient {
   background: var(--gradient-primary);
