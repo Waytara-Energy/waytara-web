@@ -45,3 +45,22 @@ export function sumByDay(perDeviceDay: Map<string, number>): DailyPoint[] {
 export function aggregateDailyYield(readings: RawReading[]): DailyPoint[] {
   return sumByDay(maxByDeviceDay(readings));
 }
+
+export interface DivergingDailyPoint {
+  date: string;
+  positive: number;
+  negative: number;
+}
+
+/** Zips two independently-aggregated daily series (e.g.
+ *  day_battery_charge_kwh and day_battery_discharge_kwh) into one series
+ *  for DivergingBarChart — union of both series' dates, missing days on
+ *  either side default to 0 rather than being dropped. */
+export function zipDailySeries(positive: DailyPoint[], negative: DailyPoint[]): DivergingDailyPoint[] {
+  const positiveByDate = new Map(positive.map((p) => [p.date, p.value]));
+  const negativeByDate = new Map(negative.map((p) => [p.date, p.value]));
+  const dates = new Set([...positiveByDate.keys(), ...negativeByDate.keys()]);
+  return Array.from(dates)
+    .sort()
+    .map((date) => ({ date, positive: positiveByDate.get(date) ?? 0, negative: negativeByDate.get(date) ?? 0 }));
+}
