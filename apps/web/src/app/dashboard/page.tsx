@@ -1,6 +1,7 @@
-import { AlertTriangle, Bell } from "lucide-react";
+import { AlertTriangle, Bell, Zap } from "lucide-react";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
+import { getSelectedDevice } from "@/lib/selected-device";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -9,30 +10,51 @@ import { Separator } from "@/components/ui/separator";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { acknowledgeAlert } from "./actions";
 
-// Same query shape Task 8.5's employee test panel is meant to reuse
-// (device_readings/alerts scoped by RLS, not a manual customer_id filter).
+// Device-centric redesign: Overview is now the selected device's overview,
+// not an account-wide rollup — same RLS-scoped query shape as before, just
+// filtered to one device_id instead of every device this customer owns.
 export default async function DashboardOverviewPage() {
   const profile = await getCurrentProfile();
   const supabase = await createClient();
+  const device = await getSelectedDevice();
 
-  const { data: devices } = await supabase
-    .from("devices")
-    .select("id, status, device_type:device_types(name)");
+  if (!device) {
+    return (
+      <div className="space-y-6">
+        <div>
+          <h1 className="text-2xl font-semibold text-foreground">
+            Welcome{profile?.full_name ? `, ${profile.full_name}` : ""}
+          </h1>
+          <p className="mt-1 text-sm text-muted-foreground">{profile?.email}</p>
+        </div>
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Zap />
+            </EmptyMedia>
+            <EmptyTitle>No devices yet</EmptyTitle>
+            <EmptyDescription>Your WayTara advisor sets this up during installation.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      </div>
+    );
+  }
 
   // Simplification: takes the most recent readings within a bounded window
-  // rather than a true "latest value per device+instrument" query (which
-  // needs a DISTINCT ON not easily expressed through the query builder).
-  // Fine for an overview snapshot; expected to come back empty until
-  // Task 8.5's connection test actually produces readings.
+  // rather than a true "latest value per instrument" query (needs a
+  // DISTINCT ON not easily expressed through the query builder). Fine for
+  // an overview snapshot.
   const { data: recentReadings } = await supabase
     .from("device_readings")
     .select("instrument_key, value, unit, ts")
+    .eq("device_id", device.id)
     .order("ts", { ascending: false })
     .limit(50);
 
   const { data: recentAlerts } = await supabase
     .from("alerts")
     .select("id, severity, message, ts")
+    .eq("device_id", device.id)
     .is("acknowledged_at", null)
     .order("ts", { ascending: false })
     .limit(5);
@@ -40,18 +62,17 @@ export default async function DashboardOverviewPage() {
   const currentOutput = recentReadings?.find((r) => r.instrument_key === "ac_output_power_w");
   const todaysYield = recentReadings?.find((r) => r.instrument_key === "daily_yield_kwh");
 
-  const deviceCounts = (devices ?? []).reduce<Record<string, number>>((acc, d) => {
-    acc[d.status] = (acc[d.status] ?? 0) + 1;
-    return acc;
-  }, {});
-
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-foreground">
           Welcome{profile?.full_name ? `, ${profile.full_name}` : ""}
         </h1>
-        <p className="mt-1 text-sm text-muted-foreground">{profile?.email}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {device.label || device.deviceUid}
+          {device.deviceType?.name ? ` · ${device.deviceType.name}` : ""}
+          {device.site ? ` · ${device.site.name}` : ""}
+        </p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -65,18 +86,12 @@ export default async function DashboardOverviewPage() {
         />
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Devices</p>
-            {devices && devices.length > 0 ? (
-              <div className="mt-1.5 flex flex-wrap gap-1.5">
-                {Object.entries(deviceCounts).map(([status, count]) => (
-                  <Badge key={status} variant={status === "active" ? "default" : "secondary"} className="capitalize">
-                    {count} {status}
-                  </Badge>
-                ))}
-              </div>
-            ) : (
-              <p className="mt-1 text-lg font-semibold text-foreground">None yet</p>
-            )}
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Device Status</p>
+            <div className="mt-1.5">
+              <Badge variant={device.status === "active" ? "default" : "secondary"} className="capitalize">
+                {device.status}
+              </Badge>
+            </div>
           </CardContent>
         </Card>
         <StatCard label="Recent Alerts" value={String(recentAlerts?.length ?? 0)} />
@@ -116,7 +131,7 @@ export default async function DashboardOverviewPage() {
               </EmptyMedia>
               <EmptyTitle>No alerts</EmptyTitle>
               <EmptyDescription>
-                Your system is running clean — we&apos;ll show anything that needs your attention here.
+                This device is running clean — we&apos;ll show anything that needs your attention here.
               </EmptyDescription>
             </EmptyHeader>
           </Empty>
