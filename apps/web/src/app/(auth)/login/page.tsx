@@ -31,7 +31,7 @@ export default async function LoginPage({
           full width on mobile rather than squeezing next to a cropped photo. */}
       <div className="relative hidden w-1/2 lg:block">
         <Image
-          src="/images/login-light.jpg"
+          src="/images/login-light.png"
           alt="A WayTara-equipped home with rooftop solar and an EV charger, in daylight"
           fill
           priority
