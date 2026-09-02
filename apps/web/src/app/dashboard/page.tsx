@@ -4,7 +4,7 @@ import { createClient } from "@waytara/supabase/server";
 import { getSelectedDevice } from "@/lib/selected-device";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Separator } from "@/components/ui/separator";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { DeviceStatusPill } from "@/components/dashboard/device-status-pill";
@@ -152,9 +152,9 @@ export default async function DashboardOverviewPage() {
                 <AlertDescription>
                   <p>{a.message}</p>
                   <form action={acknowledgeAlert.bind(null, a.id)}>
-                    <Button type="submit" variant="outline" size="sm" className="mt-1">
+                    <SubmitButton variant="outline" size="sm" className="mt-1" pendingText="Acknowledging…">
                       Acknowledge
-                    </Button>
+                    </SubmitButton>
                   </form>
                 </AlertDescription>
               </Alert>

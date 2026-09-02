@@ -14,6 +14,7 @@ import {
 import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/field";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { createMaintenanceTicket } from "@/app/dashboard/maintenance/actions";
 
 /** Standing in for a "new ticket" form — same `createMaintenanceTicket`
@@ -76,7 +77,7 @@ export function NewMaintenanceTicketDialog({
           </FieldGroup>
 
           <DialogFooter>
-            <Button type="submit">Submit Request</Button>
+            <SubmitButton pendingText="Submitting…">Submit Request</SubmitButton>
           </DialogFooter>
         </form>
       </DialogContent>

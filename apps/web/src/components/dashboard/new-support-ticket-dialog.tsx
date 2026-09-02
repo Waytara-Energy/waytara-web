@@ -15,6 +15,7 @@ import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/fie
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Attachment } from "@/components/ui/attachment";
 import { createSupportTicket } from "@/app/dashboard/support/actions";
 
@@ -98,7 +99,7 @@ export function NewSupportTicketDialog({ error }: { error?: string }) {
           </FieldGroup>
 
           <DialogFooter>
-            <Button type="submit">Open Ticket</Button>
+            <SubmitButton pendingText="Opening…">Open Ticket</SubmitButton>
           </DialogFooter>
         </form>
       </DialogContent>

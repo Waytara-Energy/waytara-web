@@ -3,6 +3,7 @@
 import * as React from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ButtonSpinner, Spinner } from "@/components/ui/spinner";
 import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -41,25 +42,31 @@ export function SettingFieldRow({ field, currentValue }: { field: SettingField; 
       </FieldLabel>
       <FieldContent>
         {field.type === "toggle" ? (
-          <Switch
-            id={fieldId}
-            checked={value === "true"}
-            disabled={pending}
-            onCheckedChange={(checked) => save(checked ? "true" : "false")}
-          />
+          <div className="flex items-center gap-2">
+            <Switch
+              id={fieldId}
+              checked={value === "true"}
+              disabled={pending}
+              onCheckedChange={(checked) => save(checked ? "true" : "false")}
+            />
+            {pending && <Spinner className="size-3.5 text-muted-foreground" />}
+          </div>
         ) : field.type === "select" ? (
-          <Select value={value || undefined} disabled={pending} onValueChange={save}>
-            <SelectTrigger id={fieldId} className="w-full max-w-xs">
-              <SelectValue placeholder="Select…" />
-            </SelectTrigger>
-            <SelectContent>
-              {field.options?.map((o) => (
-                <SelectItem key={o.value} value={o.value}>
-                  {o.label}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Select value={value || undefined} disabled={pending} onValueChange={save}>
+              <SelectTrigger id={fieldId} className="w-full max-w-xs">
+                <SelectValue placeholder="Select…" />
+              </SelectTrigger>
+              <SelectContent>
+                {field.options?.map((o) => (
+                  <SelectItem key={o.value} value={o.value}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            {pending && <Spinner className="size-3.5 shrink-0 text-muted-foreground" />}
+          </div>
         ) : (
           <div className="flex max-w-xs items-center gap-2">
             <Input
@@ -73,6 +80,7 @@ export function SettingFieldRow({ field, currentValue }: { field: SettingField; 
               onChange={(e) => setValue(e.target.value)}
             />
             <Button type="button" size="sm" variant="outline" disabled={pending} onClick={() => save(value)}>
+              <ButtonSpinner show={pending} />
               Save
             </Button>
           </div>

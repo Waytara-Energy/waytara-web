@@ -4,7 +4,7 @@ import { getCurrentProfile } from "@waytara/supabase/auth";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { getCustomerDevices, resolveSelectedDevice, SELECTED_DEVICE_COOKIE } from "@/lib/selected-device";
 import { logout } from "./actions";
 
@@ -47,9 +47,9 @@ export default async function DashboardLayout({
         <header className="flex h-16 items-center justify-between border-b border-theme-border px-6">
           <span className="text-sm font-semibold text-theme-primary">WayTara Energy</span>
           <form action={logout}>
-            <Button type="submit" variant="outline" size="sm">
+            <SubmitButton variant="outline" size="sm" pendingText="Signing out…">
               Sign out
-            </Button>
+            </SubmitButton>
           </form>
         </header>
         <main className="flex-1 p-6">{children}</main>

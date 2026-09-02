@@ -3,8 +3,8 @@ import Image from "next/image";
 import { HelpCircle, Phone } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { login } from "./actions";
 
@@ -98,9 +98,9 @@ export default async function LoginPage({
                 </div>
                 <PasswordInput id="password" name="password" autoComplete="current-password" required />
               </div>
-              <Button type="submit" className="w-full">
+              <SubmitButton className="w-full" pendingText="Signing in…">
                 Sign in
-              </Button>
+              </SubmitButton>
             </form>
 
             <p className="text-center text-xs text-theme-muted">

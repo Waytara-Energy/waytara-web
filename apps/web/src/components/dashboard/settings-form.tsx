@@ -16,6 +16,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
+import { ButtonSpinner } from "@/components/ui/spinner";
 import { updateProfile } from "@/app/dashboard/settings/actions";
 
 const settingsSchema = z.object({
@@ -117,6 +118,7 @@ export function SettingsForm({
       </FieldGroup>
 
       <Button type="submit" size="sm" disabled={isSubmitting}>
+        <ButtonSpinner show={isSubmitting} />
         {isSubmitting ? "Saving…" : "Save Changes"}
       </Button>
     </form>

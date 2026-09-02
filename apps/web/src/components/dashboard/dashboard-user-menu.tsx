@@ -14,6 +14,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { Spinner } from "@/components/ui/spinner";
 import { logout } from "@/app/dashboard/actions";
 import { SECONDARY_NAV_ITEMS } from "./nav-config";
 
@@ -50,6 +51,19 @@ export function DashboardUserMenu({
   // showing the wrong option selected.
   const [mounted, setMounted] = React.useState(false);
   React.useEffect(() => setMounted(true), []);
+
+  // logout() redirects on completion, so the menu unmounts on its own —
+  // this pending state is just so "Sign out" doesn't look unresponsive
+  // for however long that takes. preventDefault keeps Radix from closing
+  // the menu the instant the item is selected, so the spinner is actually
+  // visible rather than flashing behind the closing animation.
+  const [loggingOut, startLogoutTransition] = React.useTransition();
+  function handleLogout(event: Event) {
+    event.preventDefault();
+    startLogoutTransition(() => {
+      void logout();
+    });
+  }
 
   return (
     <DropdownMenu>
@@ -107,9 +121,9 @@ export function DashboardUserMenu({
           </Link>
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" onSelect={() => void logout()}>
-          <LogOut />
-          Sign out
+        <DropdownMenuItem variant="destructive" disabled={loggingOut} onSelect={handleLogout}>
+          {loggingOut ? <Spinner /> : <LogOut />}
+          {loggingOut ? "Signing out…" : "Sign out"}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

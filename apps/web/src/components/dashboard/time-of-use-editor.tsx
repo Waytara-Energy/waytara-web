@@ -3,6 +3,7 @@
 import * as React from "react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { ButtonSpinner } from "@/components/ui/spinner";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
@@ -116,6 +117,7 @@ export function TimeOfUseEditor({ initialSlots }: { initialSlots: TouSlot[] }) {
         </Table>
       </div>
       <Button type="button" size="sm" disabled={pending} onClick={save}>
+        <ButtonSpinner show={pending} />
         Save schedule
       </Button>
     </div>

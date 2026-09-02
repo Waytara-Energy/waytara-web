@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { payAdvanceAmount, payFullAmount } from "./actions";
 
 const STAGE_COPY: Record<string, { title: string; body: string }> = {
@@ -86,15 +86,15 @@ export default async function OnboardingStatusPage({
 
           {quotation?.payment_option === "full" ? (
             <form action={payFullAmount}>
-              <Button type="submit" className="w-full">
+              <SubmitButton className="w-full" pendingText="Processing payment…">
                 Pay ₹{Number(quotation.total_amount).toLocaleString("en-IN")} now
-              </Button>
+              </SubmitButton>
             </form>
           ) : quotation?.payment_option === "split" ? (
             <form action={payAdvanceAmount} className="space-y-2">
-              <Button type="submit" className="w-full">
+              <SubmitButton className="w-full" pendingText="Processing payment…">
                 Pay advance — ₹{Number(quotation.advance_amount ?? 0).toLocaleString("en-IN")} now
-              </Button>
+              </SubmitButton>
               <p className="text-center text-xs text-theme-muted">
                 Balance of ₹{Number(quotation.balance_amount ?? 0).toLocaleString("en-IN")} is due at
                 installation.

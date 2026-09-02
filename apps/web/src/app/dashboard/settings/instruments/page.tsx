@@ -3,7 +3,7 @@ import { CheckCircle2, Settings2, TriangleAlert } from "lucide-react";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Button } from "@/components/ui/button";
+import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Field, FieldContent, FieldDescription, FieldGroup, FieldLabel } from "@/components/ui/field";
@@ -218,7 +218,7 @@ export default async function InstrumentSettingsPage({
                     </Field>
                   </FieldGroup>
 
-                  <Button type="submit">Save site</Button>
+                  <SubmitButton pendingText="Saving…">Save site</SubmitButton>
                 </form>
               </CardContent>
             </Card>

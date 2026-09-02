@@ -7,6 +7,7 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Spinner } from "@/components/ui/spinner";
 import { selectDevice } from "@/app/dashboard/actions";
 
 export interface SwitcherDevice {
@@ -57,7 +58,11 @@ export function DeviceSwitcher({
           className="h-8 min-w-0 max-w-[140px] justify-between gap-1.5 px-2 text-sm font-medium text-foreground hover:bg-accent lg:max-w-[220px]"
         >
           <span className="min-w-0 truncate">{selected?.label || selected?.deviceUid}</span>
-          <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
+          {pending ? (
+            <Spinner className="size-3.5 shrink-0 text-muted-foreground" />
+          ) : (
+            <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
+          )}
         </Button>
       </PopoverTrigger>
       <PopoverContent className="w-64 p-0" align="start">

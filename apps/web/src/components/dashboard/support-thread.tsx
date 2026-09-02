@@ -6,6 +6,7 @@ import { CheckCircle2, ChevronLeft, Paperclip, Send } from "lucide-react";
 import { createClient } from "@waytara/supabase/client";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
 import {
   Menubar,
   MenubarContent,
@@ -231,7 +232,7 @@ export function SupportThread({
             }}
           />
           <Button type="submit" size="icon" disabled={sending || !body.trim()}>
-            <Send className="size-4" />
+            {sending ? <Spinner className="size-4" /> : <Send className="size-4" />}
           </Button>
         </div>
       </form>

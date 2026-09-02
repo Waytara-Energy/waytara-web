@@ -8,7 +8,28 @@ import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { ButtonSpinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+
+/** A plain `<a href>` download can't be awaited — the browser just starts
+ *  streaming the response, there's no JS promise that resolves when it's
+ *  done. This is a cosmetic-but-honest stand-in: show the spinner for a
+ *  couple of seconds after the click (these routes render server-side in
+ *  well under that), long enough to confirm "yes, that worked" without
+ *  claiming to know exactly when the file finished downloading. */
+function useDownloadPending(durationMs = 2200) {
+  const [pending, setPending] = React.useState(false);
+  const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const trigger = React.useCallback(() => {
+    setPending(true);
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => setPending(false), durationMs);
+  }, [durationMs]);
+  React.useEffect(() => () => {
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+  }, []);
+  return [pending, trigger] as const;
+}
 
 const PERIODS = [
   { days: 30, label: "30 days" },
@@ -21,6 +42,8 @@ const MAX_RANGE_DAYS = 365;
 export function ReportControls({ defaultDays = 90 }: { defaultDays?: number }) {
   const [days, setDays] = React.useState(defaultDays);
   const [range, setRange] = React.useState<DateRange | undefined>(undefined);
+  const [csvPending, triggerCsvPending] = useDownloadPending();
+  const [pdfPending, triggerPdfPending] = useDownloadPending();
 
   // The exports only support "N days back from now", not an arbitrary
   // from/to window — so a custom range picks how far back to start,
@@ -87,7 +110,10 @@ export function ReportControls({ defaultDays = 90 }: { defaultDays?: number }) {
         <Tooltip>
           <TooltipTrigger asChild>
             <Button asChild variant="outline" size="sm">
-              <a href={`/api/reports/energy.csv?days=${days}`}>Download CSV</a>
+              <a href={`/api/reports/energy.csv?days=${days}`} onClick={triggerCsvPending}>
+                <ButtonSpinner show={csvPending} />
+                Download CSV
+              </a>
             </Button>
           </TooltipTrigger>
           <TooltipContent>Raw daily yield, {days} days</TooltipContent>
@@ -95,7 +121,10 @@ export function ReportControls({ defaultDays = 90 }: { defaultDays?: number }) {
         <Tooltip>
           <TooltipTrigger asChild>
             <Button asChild size="sm">
-              <a href={`/api/reports/summary.pdf?days=${days}`}>Download PDF summary</a>
+              <a href={`/api/reports/summary.pdf?days=${days}`} onClick={triggerPdfPending}>
+                <ButtonSpinner show={pdfPending} />
+                Download PDF summary
+              </a>
             </Button>
           </TooltipTrigger>
           <TooltipContent>Formatted summary with totals &amp; savings</TooltipContent>
