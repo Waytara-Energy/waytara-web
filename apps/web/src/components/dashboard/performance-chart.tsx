@@ -1,7 +1,11 @@
 "use client";
 
 import * as React from "react";
-import { cn } from "@/lib/utils";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 
 export interface DailyPoint {
   date: string; // YYYY-MM-DD
@@ -56,9 +60,9 @@ function formatLabel(date: string, granularity: Granularity): string {
   return d.toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }
 
-const CHART_WIDTH = 640;
-const CHART_HEIGHT = 220;
-const PADDING = { top: 16, right: 16, bottom: 28, left: 44 };
+const chartConfig = {
+  value: { label: "Value", color: "var(--chart-1)" },
+} satisfies ChartConfig;
 
 export function PerformanceChart({
   daily,
@@ -84,9 +88,6 @@ export function PerformanceChart({
   totalLabel?: string;
 }) {
   const [granularity, setGranularity] = React.useState<Granularity>("daily");
-  const [showTable, setShowTable] = React.useState(false);
-  const [hoverIndex, setHoverIndex] = React.useState<number | null>(null);
-  const svgRef = React.useRef<SVGSVGElement>(null);
 
   const points = React.useMemo(
     () => aggregate(daily, granularity, aggregationMode),
@@ -97,192 +98,99 @@ export function PerformanceChart({
       ? (v: number) => `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`
       : (v: number) => `${v.toFixed(1)} ${unit}`;
 
-  const plotWidth = CHART_WIDTH - PADDING.left - PADDING.right;
-  const plotHeight = CHART_HEIGHT - PADDING.top - PADDING.bottom;
-  const maxValue = Math.max(1, ...points.map((p) => p.value));
-
-  const xFor = (i: number) =>
-    points.length <= 1 ? PADDING.left + plotWidth / 2 : PADDING.left + (i / (points.length - 1)) * plotWidth;
-  const yFor = (v: number) => PADDING.top + plotHeight - (v / maxValue) * plotHeight;
-
-  const linePath = points.map((p, i) => `${i === 0 ? "M" : "L"} ${xFor(i)} ${yFor(p.value)}`).join(" ");
-  const areaPath =
-    points.length > 0
-      ? `${linePath} L ${xFor(points.length - 1)} ${PADDING.top + plotHeight} L ${xFor(0)} ${PADDING.top + plotHeight} Z`
-      : "";
-
-  const yTicks = [0, 0.25, 0.5, 0.75, 1].map((f) => Math.round(maxValue * f));
-
-  function handlePointerMove(e: React.PointerEvent<SVGSVGElement>) {
-    if (points.length === 0 || !svgRef.current) return;
-    const rect = svgRef.current.getBoundingClientRect();
-    const scaleX = CHART_WIDTH / rect.width;
-    const x = (e.clientX - rect.left) * scaleX;
-    let closest = 0;
-    let closestDist = Infinity;
-    points.forEach((_, i) => {
-      const dist = Math.abs(xFor(i) - x);
-      if (dist < closestDist) {
-        closestDist = dist;
-        closest = i;
-      }
-    });
-    setHoverIndex(closest);
-  }
-
   const total =
     aggregationMode === "sum"
       ? points.reduce((sum, p) => sum + p.value, 0)
       : (points[points.length - 1]?.value ?? 0);
-  const hovered = hoverIndex !== null ? points[hoverIndex] : null;
+
+  const chartData = points.map((p) => ({ label: formatLabel(p.date, granularity), value: p.value }));
 
   return (
     <div className="space-y-3">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div className="flex gap-1 rounded-lg border border-theme-border p-1">
-          {(Object.keys(GRANULARITY_LABELS) as Granularity[]).map((g) => (
-            <button
-              key={g}
-              type="button"
-              onClick={() => {
-                setGranularity(g);
-                setHoverIndex(null);
-              }}
-              className={cn(
-                "rounded-md px-3 py-1 text-xs font-medium transition-colors",
-                granularity === g
-                  ? "bg-theme-surface-hover text-theme-highlight"
-                  : "text-theme-muted hover:text-theme-primary"
-              )}
-            >
-              {GRANULARITY_LABELS[g]}
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowTable((v) => !v)}
-          className="text-xs font-medium text-theme-muted hover:text-theme-primary hover:underline"
-        >
-          {showTable ? "Show chart" : "Show table"}
-        </button>
-      </div>
+      <ToggleGroup
+        type="single"
+        variant="outline"
+        size="sm"
+        value={granularity}
+        onValueChange={(v) => v && setGranularity(v as Granularity)}
+      >
+        {(Object.keys(GRANULARITY_LABELS) as Granularity[]).map((g) => (
+          <ToggleGroupItem key={g} value={g}>
+            {GRANULARITY_LABELS[g]}
+          </ToggleGroupItem>
+        ))}
+      </ToggleGroup>
 
-      <p className="text-sm text-theme-muted">
-        {totalLabel}: <span className="font-medium text-theme-primary">{fmt(total)}</span>
+      <p className="text-sm text-muted-foreground">
+        {totalLabel}: <span className="font-medium text-foreground">{fmt(total)}</span>
       </p>
 
       {points.length === 0 ? (
-        <p className="text-sm text-theme-muted">No readings yet.</p>
-      ) : showTable ? (
-        <div className="overflow-x-auto rounded-lg border border-theme-border">
-          <table className="w-full text-sm">
-            <thead className="bg-theme-surface text-left text-xs uppercase tracking-wide text-theme-muted">
-              <tr>
-                <th className="px-3 py-2 font-medium">Period</th>
-                <th className="px-3 py-2 font-medium">Value</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-theme-border">
-              {points.map((p) => (
-                <tr key={p.date}>
-                  <td className="px-3 py-2 text-theme-primary">{formatLabel(p.date, granularity)}</td>
-                  <td className="px-3 py-2 tabular-nums text-theme-secondary">{fmt(p.value)}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+        <p className="text-sm text-muted-foreground">No readings yet.</p>
       ) : (
-        <div className="relative rounded-lg border border-theme-border bg-theme-surface p-2">
-          <svg
-            ref={svgRef}
-            viewBox={`0 0 ${CHART_WIDTH} ${CHART_HEIGHT}`}
-            className="w-full"
-            onPointerMove={handlePointerMove}
-            onPointerLeave={() => setHoverIndex(null)}
-            role="img"
-            aria-label={`${GRANULARITY_LABELS[granularity]} energy yield trend`}
-          >
-            {/* gridlines — hairline, recessive */}
-            {yTicks.map((tick, i) => {
-              const y = yFor(tick);
-              return (
-                <g key={i}>
-                  <line
-                    x1={PADDING.left}
-                    x2={CHART_WIDTH - PADDING.right}
-                    y1={y}
-                    y2={y}
-                    stroke="var(--border)"
-                    strokeWidth={1}
-                  />
-                  <text x={PADDING.left - 8} y={y + 3} textAnchor="end" className="fill-theme-muted text-[9px]">
-                    {tick.toLocaleString("en-IN")}
-                  </text>
-                </g>
-              );
-            })}
+        <Tabs defaultValue="chart">
+          <TabsList className="h-8 p-0.5">
+            <TabsTrigger value="chart" className="px-3 py-1 text-xs">
+              Chart
+            </TabsTrigger>
+            <TabsTrigger value="table" className="px-3 py-1 text-xs">
+              Table
+            </TabsTrigger>
+          </TabsList>
 
-            {/* area fill — ~10% opacity wash */}
-            {areaPath && <path d={areaPath} fill="var(--highlight)" opacity={0.1} />}
-
-            {/* line — 2px, round join/cap */}
-            <path d={linePath} fill="none" stroke="var(--highlight)" strokeWidth={2} strokeLinejoin="round" strokeLinecap="round" />
-
-            {/* crosshair + hovered point */}
-            {hovered && hoverIndex !== null && (
-              <g>
-                <line
-                  x1={xFor(hoverIndex)}
-                  x2={xFor(hoverIndex)}
-                  y1={PADDING.top}
-                  y2={PADDING.top + plotHeight}
-                  stroke="var(--border-active)"
-                  strokeWidth={1}
-                  strokeDasharray="3 3"
+          <TabsContent value="chart">
+            <ChartContainer config={chartConfig} className="aspect-auto h-[220px] w-full">
+              <AreaChart data={chartData} margin={{ left: 4, right: 4, top: 8 }}>
+                <defs>
+                  <linearGradient id="performanceFill" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--color-value)" stopOpacity={0.3} />
+                    <stop offset="95%" stopColor="var(--color-value)" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid vertical={false} />
+                <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} />
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tickMargin={8}
+                  width={44}
+                  tickFormatter={(v: number) =>
+                    valueFormat === "inr" ? `₹${(v / 1000).toFixed(0)}k` : v.toLocaleString("en-IN")
+                  }
                 />
-                <circle
-                  cx={xFor(hoverIndex)}
-                  cy={yFor(hovered.value)}
-                  r={4}
-                  fill="var(--highlight)"
-                  stroke="var(--surface)"
+                <ChartTooltip
+                  content={<ChartTooltipContent indicator="line" formatter={(value) => fmt(Number(value))} />}
+                />
+                <Area
+                  dataKey="value"
+                  type="monotone"
+                  fill="url(#performanceFill)"
+                  stroke="var(--color-value)"
                   strokeWidth={2}
                 />
-              </g>
-            )}
+              </AreaChart>
+            </ChartContainer>
+          </TabsContent>
 
-            {/* x-axis labels: first, last, and hovered */}
-            <text x={xFor(0)} y={CHART_HEIGHT - 8} textAnchor="start" className="fill-theme-muted text-[9px]">
-              {formatLabel(points[0].date, granularity)}
-            </text>
-            {points.length > 1 && (
-              <text
-                x={xFor(points.length - 1)}
-                y={CHART_HEIGHT - 8}
-                textAnchor="end"
-                className="fill-theme-muted text-[9px]"
-              >
-                {formatLabel(points[points.length - 1].date, granularity)}
-              </text>
-            )}
-          </svg>
-
-          {hovered && hoverIndex !== null && (
-            <div
-              className="pointer-events-none absolute rounded-md border border-theme-border bg-theme-bg px-2.5 py-1.5 text-xs shadow-md"
-              style={{
-                left: `${(xFor(hoverIndex) / CHART_WIDTH) * 100}%`,
-                top: 8,
-                transform: "translateX(-50%)",
-              }}
-            >
-              <p className="font-semibold text-theme-primary">{fmt(hovered.value)}</p>
-              <p className="text-theme-muted">{formatLabel(hovered.date, granularity)}</p>
-            </div>
-          )}
-        </div>
+          <TabsContent value="table">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Period</TableHead>
+                  <TableHead className="text-right">Value</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {points.map((p) => (
+                  <TableRow key={p.date}>
+                    <TableCell className="text-foreground">{formatLabel(p.date, granularity)}</TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">{fmt(p.value)}</TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TabsContent>
+        </Tabs>
       )}
     </div>
   );

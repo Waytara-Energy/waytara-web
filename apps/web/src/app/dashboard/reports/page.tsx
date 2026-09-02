@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { gatherReportData, toWeeklyRows } from "@/lib/gather-report-data";
 import { ReportControls } from "@/components/dashboard/report-controls";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const DEFAULT_DAYS = 90;
 
@@ -32,22 +33,24 @@ export default async function ReportsPage() {
           <p className="text-sm text-theme-muted">No readings yet.</p>
         ) : (
           <div className="overflow-x-auto rounded-lg border border-theme-border">
-            <table className="w-full text-sm">
-              <thead className="bg-theme-surface text-left text-xs uppercase tracking-wide text-theme-muted">
-                <tr>
-                  <th className="px-3 py-2 font-medium">Week</th>
-                  <th className="px-3 py-2 font-medium">Yield</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-theme-border">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Week</TableHead>
+                  <TableHead className="text-right">Yield</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
                 {weeks.map((w) => (
-                  <tr key={w.label}>
-                    <td className="px-3 py-2 text-theme-primary">{w.label}</td>
-                    <td className="px-3 py-2 tabular-nums text-theme-secondary">{w.kwh.toFixed(1)} kWh</td>
-                  </tr>
+                  <TableRow key={w.label}>
+                    <TableCell className="text-foreground">{w.label}</TableCell>
+                    <TableCell className="text-right tabular-nums text-muted-foreground">
+                      {w.kwh.toFixed(1)} kWh
+                    </TableCell>
+                  </TableRow>
                 ))}
-              </tbody>
-            </table>
+              </TableBody>
+            </Table>
           </div>
         )}
       </div>

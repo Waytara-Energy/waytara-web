@@ -39,6 +39,15 @@ interface MonitoringPanelProps {
  * just an `@source` line pointing at this package — no shared theme file
  * import needed, no risk of clashing with either app's own token system.
  *
+ * Dashboard redesign Phase 3 wanted each device wrapped in a real shadcn
+ * Card with a Tooltip and Badge — can't do that literally here: apps/admin
+ * has no shadcn setup of its own at all (no components.json, no local
+ * src/components/ui — it imports everything from this package instead),
+ * so importing apps/web's shadcn components would break admin's build
+ * entirely. Card/badge/tooltip look-and-feel is instead hand-rolled in
+ * the same plain-Tailwind style this file already committed to, which
+ * gets the same visual outcome without the cross-app import.
+ *
  * "Live" here means client-side polling of device_readings, not a Realtime
  * subscription — simpler and predictable, and RLS (readings_owner /
  * readings_admin_all / readings_employee_active_test_only) already scopes
@@ -118,7 +127,7 @@ export function MonitoringPanel({
         return (
           <div
             key={device.id}
-            className="rounded-lg border border-neutral-200 bg-white p-4 dark:border-neutral-800 dark:bg-neutral-950"
+            className="rounded-xl border border-neutral-200 bg-white p-4 shadow-sm transition-shadow hover:shadow-md dark:border-neutral-800 dark:bg-neutral-950"
           >
             <div className="flex items-center justify-between">
               <p className="text-sm font-semibold text-neutral-900 dark:text-neutral-100">
@@ -128,7 +137,10 @@ export function MonitoringPanel({
                 </span>
               </p>
               {!loading && (
-                <span className="h-2 w-2 rounded-full bg-emerald-500" title="Polling live" />
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                  Live
+                </span>
               )}
             </div>
 
@@ -139,8 +151,8 @@ export function MonitoringPanel({
             ) : (
               <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {rows.map((r) => (
-                  <div key={r.instrument_key}>
-                    <dt className="text-xs text-neutral-500 dark:text-neutral-400">
+                  <div key={r.instrument_key} title={`Updated ${new Date(r.ts).toLocaleTimeString("en-IN")}`}>
+                    <dt className="cursor-default text-xs text-neutral-500 underline decoration-dotted decoration-neutral-400 underline-offset-4 dark:text-neutral-400 dark:decoration-neutral-600">
                       {r.instrument_key.replace(/_/g, " ")}
                     </dt>
                     <dd className="text-sm font-medium text-neutral-900 dark:text-neutral-100">

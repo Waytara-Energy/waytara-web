@@ -220,12 +220,19 @@
 .dark .theme-media-light { display: none; }
 .dark .theme-media-dark { display: block; }
 
-/* Primary Gradient Utilities */
-.bg-primary-gradient {
+/* Primary Gradient Utilities — declared via `@utility` (Tailwind v4), not
+   a plain CSS class, so variant-prefixed usages like
+   `data-[state=active]:bg-primary-gradient` (shadcn's tabs.tsx) actually
+   get generated. A plain `.bg-primary-gradient {}` rule only ever
+   satisfied the literal, unprefixed class name (e.g. button.tsx's
+   `gradient` variant) — Tailwind's JIT engine has no way to compose an
+   unregistered class with a variant, so any `<modifier>:bg-primary-gradient`
+   usage silently produced no CSS at all until this was `@utility`. */
+@utility bg-primary-gradient {
   background: var(--gradient-primary);
 }
 
-.text-primary-gradient {
+@utility text-primary-gradient {
   background: var(--gradient-primary);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;

@@ -2,16 +2,19 @@ import { NextRequest, NextResponse } from "next/server";
 import { gatherReportData, toWeeklyRows } from "@/lib/gather-report-data";
 import { generateReportPdf } from "@/lib/report-pdf";
 
-const ALLOWED_DAYS = [30, 90, 365];
+const MAX_DAYS = 365;
 const PERIOD_LABEL: Record<number, string> = {
   30: "Last 30 days",
   90: "Last 90 days",
   365: "Last 12 months",
 };
 
+// Accepts either a preset (30/90/365) or a custom day count from the
+// dashboard's Calendar range picker — see energy.csv/route.ts for why
+// this is a clamp, not a fixed allow-list.
 export async function GET(req: NextRequest) {
   const daysParam = Number(req.nextUrl.searchParams.get("days"));
-  const days = ALLOWED_DAYS.includes(daysParam) ? daysParam : 90;
+  const days = Number.isInteger(daysParam) && daysParam > 0 ? Math.min(daysParam, MAX_DAYS) : 90;
 
   const report = await gatherReportData(days);
   if (!report.authorized) {
@@ -22,7 +25,7 @@ export async function GET(req: NextRequest) {
     customerName: report.customerName,
     planName: report.planName,
     generatedAt: new Date().toISOString(),
-    periodLabel: PERIOD_LABEL[days],
+    periodLabel: PERIOD_LABEL[days] ?? `Last ${days} days`,
     totalKwh: report.totalKwh,
     totalSaved: report.totalSaved,
     totalInvested: report.totalInvested,

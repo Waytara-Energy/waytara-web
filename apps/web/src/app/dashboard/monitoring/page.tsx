@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 import { MonitoringPanel } from "@waytara/ui/monitoring-panel";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 
 // Server-side gate, not just a hidden nav link — a Basic-tier customer
 // hitting this URL directly gets redirected, matching the RLS-not-UI
@@ -38,7 +39,15 @@ export default async function MonitoringPage() {
         <p className="mt-1 text-sm text-theme-muted">Live per-device readings, refreshed every few seconds.</p>
       </div>
 
-      <MonitoringPanel devices={panelDevices} emptyMessage="No readings for this device yet." />
+      <Card>
+        <CardHeader>
+          <CardTitle>Devices</CardTitle>
+          <CardDescription>Hover an instrument label for its last-updated time.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <MonitoringPanel devices={panelDevices} emptyMessage="No readings for this device yet." />
+        </CardContent>
+      </Card>
     </div>
   );
 }
