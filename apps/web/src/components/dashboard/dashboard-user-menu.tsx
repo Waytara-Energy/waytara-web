@@ -1,7 +1,9 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
-import { Home, LogOut, MessageSquare } from "lucide-react";
+import { Home, LogOut, Monitor, MessageSquare, Moon, Sun } from "lucide-react";
+import { useTheme } from "next-themes";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
   DropdownMenu,
@@ -11,8 +13,15 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { logout } from "@/app/dashboard/actions";
 import { SECONDARY_NAV_ITEMS } from "./nav-config";
+
+const APPEARANCE_OPTIONS = [
+  { value: "light", label: "Light", icon: Sun },
+  { value: "dark", label: "Dark", icon: Moon },
+  { value: "system", label: "System", icon: Monitor },
+] as const;
 
 function initials(name: string | null, email: string | null): string {
   if (name?.trim()) {
@@ -33,6 +42,15 @@ export function DashboardUserMenu({
   avatarUrl: string | null;
   planName?: string | null;
 }) {
+  const { theme, setTheme } = useTheme();
+  // Same hydration-safety gate the old standalone ThemeToggle used —
+  // `theme` is unknown on the server (next-themes reads localStorage/
+  // matchMedia client-side only), so the toggle defaults to "system"
+  // (this app's own defaultTheme) until mounted rather than briefly
+  // showing the wrong option selected.
+  const [mounted, setMounted] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
@@ -49,6 +67,23 @@ export function DashboardUserMenu({
           </p>
           <p className="truncate text-xs text-muted-foreground">{email}</p>
         </DropdownMenuLabel>
+        <DropdownMenuSeparator />
+        <div className="flex items-center justify-between gap-2 px-2 py-1.5">
+          <span className="text-sm text-foreground">Appearance</span>
+          <ToggleGroup
+            type="single"
+            variant="outline"
+            size="sm"
+            value={mounted ? (theme ?? "system") : "system"}
+            onValueChange={(value) => value && setTheme(value)}
+          >
+            {APPEARANCE_OPTIONS.map(({ value, label, icon: Icon }) => (
+              <ToggleGroupItem key={value} value={value} aria-label={label} title={label} className="px-2">
+                <Icon className="size-3.5" />
+              </ToggleGroupItem>
+            ))}
+          </ToggleGroup>
+        </div>
         <DropdownMenuSeparator />
         {SECONDARY_NAV_ITEMS.map(({ href, label, icon: Icon }) => (
           <DropdownMenuItem key={href} asChild>

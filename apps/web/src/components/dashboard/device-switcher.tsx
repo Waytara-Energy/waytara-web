@@ -1,20 +1,11 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ChevronsUpDown, Plus, Zap } from "lucide-react";
+import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-  CommandSeparator,
-} from "@/components/ui/command";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { selectDevice } from "@/app/dashboard/actions";
 
@@ -65,10 +56,7 @@ export function DeviceSwitcher({
           disabled={pending}
           className="h-8 min-w-0 max-w-[140px] justify-between gap-1.5 px-2 text-sm font-medium text-foreground hover:bg-accent lg:max-w-[220px]"
         >
-          <span className="flex min-w-0 items-center gap-1.5">
-            <Zap className="size-3.5 shrink-0 text-muted-foreground" />
-            <span className="truncate">{selected?.label || selected?.deviceUid}</span>
-          </span>
+          <span className="min-w-0 truncate">{selected?.label || selected?.deviceUid}</span>
           <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
         </Button>
       </PopoverTrigger>
@@ -93,17 +81,6 @@ export function DeviceSwitcher({
               ))}
             </CommandGroup>
           </CommandList>
-          <CommandSeparator />
-          <div className="p-1">
-            <Link
-              href="/dashboard/sites"
-              onClick={() => setOpen(false)}
-              className="flex items-center gap-2 rounded-sm px-2 py-1.5 text-sm text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
-            >
-              <Plus className="size-4" />
-              Manage Sites &amp; Devices
-            </Link>
-          </div>
         </Command>
       </PopoverContent>
     </Popover>

@@ -1,6 +1,5 @@
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
-import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { DashboardBreadcrumb } from "./dashboard-breadcrumb";
 import { DashboardCommandMenu } from "./dashboard-command-menu";
 import { DashboardUserMenu } from "./dashboard-user-menu";
@@ -43,7 +42,6 @@ export function DashboardHeader({
       </div>
       <div className="col-start-3 flex items-center justify-end gap-2">
         <DashboardCommandMenu features={features} />
-        <ThemeToggle className="text-foreground hover:bg-accent hover:text-accent-foreground" />
         <DashboardUserMenu fullName={fullName} email={email} avatarUrl={avatarUrl} planName={planName} />
       </div>
     </header>
