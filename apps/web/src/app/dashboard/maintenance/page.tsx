@@ -7,10 +7,15 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { NewMaintenanceTicketDialog } from "@/components/dashboard/new-maintenance-ticket-dialog";
 import { FaultBanner } from "@/components/dashboard/fault-banner";
+import { FaultHistory } from "@/components/dashboard/fault-history";
 import { LastSyncIndicator } from "@/components/dashboard/last-sync-indicator";
+import { SdStatusIndicator } from "@/components/dashboard/sd-status-indicator";
 import { TemperatureGauge } from "@/components/dashboard/temperature-gauge";
 import { getLastSyncInfo } from "@/lib/device-sync";
+import { deriveFaultEvents } from "@/lib/deye-fault-codes";
 import { TEMPERATURE_FIELDS } from "@/lib/telemetry-catalog";
+
+const FAULT_HISTORY_DAYS = 90;
 
 const STATUS_BADGE_VARIANT: Record<string, "alert" | "default" | "secondary"> = {
   open: "alert",
@@ -47,9 +52,11 @@ export default async function MaintenancePage({
     : { data: null };
 
   let activeFaultCode: number | null = null;
+  let sdStatus: number | null = null;
   let currentTemps = new Map<string, number | null>();
   let previousTemps = new Map<string, number | null>();
   let lastSync = null as Awaited<ReturnType<typeof getLastSyncInfo>> | null;
+  let faultEvents: ReturnType<typeof deriveFaultEvents> = [];
 
   if (device) {
     const tempKeys = TEMPERATURE_FIELDS.map((f) => f.key);
@@ -58,15 +65,33 @@ export default async function MaintenancePage({
       .from("device_readings")
       .select("instrument_key, value, ts")
       .eq("device_id", device.id)
-      .in("instrument_key", ["active_fault_code", ...tempKeys])
+      .in("instrument_key", ["active_fault_code", "sd_status", ...tempKeys])
       .order("ts", { ascending: false })
-      .limit((tempKeys.length + 1) * 5);
+      .limit((tempKeys.length + 2) * 5);
     for (const r of latestRows ?? []) {
       if (r.instrument_key === "active_fault_code" && activeFaultCode === null) activeFaultCode = r.value;
+      else if (r.instrument_key === "sd_status" && sdStatus === null) sdStatus = r.value;
       else if (tempKeys.includes(r.instrument_key) && !currentTemps.has(r.instrument_key)) {
         currentTemps.set(r.instrument_key, r.value);
       }
     }
+
+    // Fault *history*, not just the current state above — every
+    // active_fault_code reading in the window, collapsed into discrete
+    // episodes (deriveFaultEvents) rather than shown as raw per-reading
+    // noise. Ascending order: the collapse walk needs to see faults in
+    // the order they actually happened.
+    const faultSince = new Date();
+    faultSince.setUTCDate(faultSince.getUTCDate() - FAULT_HISTORY_DAYS);
+    const { data: faultRows } = await supabase
+      .from("device_readings")
+      .select("value, ts")
+      .eq("device_id", device.id)
+      .eq("instrument_key", "active_fault_code")
+      .gte("ts", faultSince.toISOString())
+      .order("ts", { ascending: true })
+      .limit(2000);
+    faultEvents = deriveFaultEvents(faultRows ?? []);
 
     // A reading from roughly a day ago (±2h window) for each temperature
     // field, so the gauge can show whether it's trending up or easing off
@@ -125,7 +150,21 @@ export default async function MaintenancePage({
           <div className="space-y-3">
             <h2 className="text-sm font-semibold text-theme-primary">Device Health</h2>
             <FaultBanner faultCode={activeFaultCode} />
-            {lastSync && <LastSyncIndicator sync={lastSync} />}
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Fault History (last {FAULT_HISTORY_DAYS}d)</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <FaultHistory events={faultEvents} />
+              </CardContent>
+            </Card>
+
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+              {lastSync && <LastSyncIndicator sync={lastSync} />}
+              <SdStatusIndicator value={sdStatus} />
+            </div>
+
             <Card>
               <CardHeader>
                 <CardTitle className="text-sm">Temperature Trends</CardTitle>

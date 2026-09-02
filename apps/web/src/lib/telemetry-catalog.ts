@@ -33,6 +33,22 @@ export function getInverterStateLabel(value: number | null | undefined): { label
   return INVERTER_STATE_LABELS[value] ?? { label: `State ${value}`, tone: "neutral" };
 }
 
+/** [92] in the manual — whether the inverter's onboard SD-card logging is
+ *  working. A separate signal from the customer-facing "last sync"
+ *  indicator: SD status is the device's own self-report, last-sync is
+ *  this app inferring freshness from when a reading last arrived — the
+ *  two can disagree (e.g. SD healthy but the RS485 bridge is down). */
+export const SD_STATUS_LABELS: Record<number, { label: string; tone: "good" | "neutral" | "bad" }> = {
+  0: { label: "Healthy", tone: "good" },
+  1: { label: "Fault", tone: "bad" },
+  2: { label: "Not Present", tone: "neutral" },
+};
+
+export function getSdStatusLabel(value: number | null | undefined): { label: string; tone: "good" | "neutral" | "bad" } {
+  if (value === null || value === undefined) return { label: "Unknown", tone: "neutral" };
+  return SD_STATUS_LABELS[value] ?? { label: `Status ${value}`, tone: "neutral" };
+}
+
 /** Flow-diagram fields, one per node — Overview reads these for the live
  *  wattage labels and arrow directions. */
 export const FLOW_POWER_KEYS: Record<FlowNode, string> = {

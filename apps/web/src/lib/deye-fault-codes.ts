@@ -71,3 +71,41 @@ export function getFaultInfo(code: number): FaultInfo | null {
     }
   );
 }
+
+export interface FaultEvent {
+  code: number;
+  info: FaultInfo;
+  startedAt: string;
+  /** null = still active as of the most recent reading in the window. */
+  resolvedAt: string | null;
+}
+
+/**
+ * Collapses a raw, noisy `active_fault_code` reading series (the
+ * ingestion script may re-report the same active fault every poll) into
+ * discrete fault *episodes* — one row per continuous run of the same
+ * non-zero code, not one row per reading. Readings must be ascending by
+ * `ts`; a fault "resolves" whenever the code changes to anything else
+ * (0 or a different fault), timestamped at that next reading.
+ */
+export function deriveFaultEvents(readings: { value: number | null; ts: string }[]): FaultEvent[] {
+  const events: FaultEvent[] = [];
+  let open: FaultEvent | null = null;
+
+  for (const r of readings) {
+    const code = r.value ?? 0;
+    if (open && code !== open.code) {
+      open.resolvedAt = r.ts;
+      open = null;
+    }
+    if (!open && code !== 0) {
+      const info = getFaultInfo(code);
+      if (info) {
+        open = { code, info, startedAt: r.ts, resolvedAt: null };
+        events.push(open);
+      }
+    }
+  }
+
+  return events.reverse(); // most recent first
+}
