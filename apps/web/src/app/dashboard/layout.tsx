@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
+import { SessionWatcher } from "@/components/dashboard/session-watcher";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { getCustomerDevices, resolveSelectedDevice, SELECTED_DEVICE_COOKIE } from "@/lib/selected-device";
 import { getCustomerPlan } from "@/lib/customer-plan";
@@ -42,6 +43,7 @@ export default async function DashboardLayout({
   if (!isOnboarded) {
     return (
       <div className="flex min-h-screen flex-col bg-theme-bg text-theme-primary">
+        <SessionWatcher />
         <header className="flex h-16 items-center justify-between border-b border-theme-border px-6">
           <span className="text-sm font-semibold text-theme-primary">WayTara Energy</span>
           <form action={logout}>
@@ -75,6 +77,7 @@ export default async function DashboardLayout({
 
   return (
     <SidebarProvider defaultOpen={sidebarOpen}>
+      <SessionWatcher />
       <DashboardSidebar features={features} />
       <SidebarInset>
         <DashboardHeader

@@ -1,5 +1,6 @@
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/header";
+import { SessionWatcher } from "@/components/session-watcher";
 
 // Every route under this group is gated by middleware.ts (session +
 // admin/employee role, with /employees further restricted to admin only) —
@@ -11,6 +12,7 @@ export default function DashboardLayout({
 }>) {
   return (
     <div className="flex">
+      <SessionWatcher />
       <Sidebar />
       <div className="flex min-h-screen flex-1 flex-col">
         <Header />

@@ -8,7 +8,8 @@
     "./input": "./src/input.tsx",
     "./theme-provider": "./src/theme-provider.tsx",
     "./monitoring-panel": "./src/monitoring-panel.tsx",
-    "./quotation-pdf": "./src/quotation-pdf.tsx"
+    "./quotation-pdf": "./src/quotation-pdf.tsx",
+    "./use-session-signed-out": "./src/use-session-signed-out.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
