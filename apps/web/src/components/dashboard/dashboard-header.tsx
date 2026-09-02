@@ -21,14 +21,12 @@ export function DashboardHeader({
   email,
   avatarUrl,
   planName,
-  planCode,
   features,
 }: {
   fullName: string | null;
   email: string | null;
   avatarUrl: string | null;
   planName: string | null;
-  planCode: string | null;
   features: Record<string, boolean>;
 }) {
   return (
@@ -42,7 +40,7 @@ export function DashboardHeader({
       <div className="col-start-3 flex items-center justify-end gap-2">
         <DashboardCommandMenu features={features} />
         <ThemeToggle className="text-foreground hover:bg-accent hover:text-accent-foreground" />
-        <DashboardUserMenu fullName={fullName} email={email} avatarUrl={avatarUrl} planName={planName} planCode={planCode} />
+        <DashboardUserMenu fullName={fullName} email={email} avatarUrl={avatarUrl} planName={planName} />
       </div>
     </header>
   );

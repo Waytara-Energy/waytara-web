@@ -58,22 +58,28 @@ export function Navigation() {
   // own "Home" link) — swap "Get Started" for their avatar rather than
   // sending them through the sign-in form again. Client-side check (not a
   // server-fetched prop) since Navigation is rendered directly by each
-  // marketing page, not a shared server layout — a brief flash before this
-  // resolves is an acceptable tradeoff for not restructuring every page
-  // that renders this component. Scoped to `role === "customer"` — this
-  // page's dashboard link is the customer dashboard specifically.
+  // marketing page, not a shared server layout.
+  //
+  // getSession() (not getUser()) deliberately — getUser() always makes a
+  // network round trip to the Auth server to revalidate, which is what
+  // made the avatar visibly slow to appear; getSession() reads the
+  // already-persisted session from local storage first and is effectively
+  // instant for an existing session. Nothing here is security-sensitive
+  // (it only decides which UI to show — RLS still gates the profile read,
+  // and the dashboard itself re-verifies on its own), so the weaker
+  // unrevalidated check is the right tradeoff.
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
       const supabase = createClient();
       const {
-        data: { user },
-      } = await supabase.auth.getUser();
-      if (!user || cancelled) return;
+        data: { session },
+      } = await supabase.auth.getSession();
+      if (!session?.user || cancelled) return;
       const { data: profile } = await supabase
         .from("profiles")
         .select("full_name, email, avatar_url, role")
-        .eq("id", user.id)
+        .eq("id", session.user.id)
         .maybeSingle();
       if (!cancelled && profile?.role === "customer") {
         setAccount({ fullName: profile.full_name, email: profile.email, avatarUrl: profile.avatar_url });
@@ -202,12 +208,10 @@ export function Navigation() {
               aria-label="Go to your dashboard"
               className="ml-1.5 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
             >
-              <span className="inline-flex h-8 w-8 items-center justify-center rounded-full bg-border p-[3px]">
-                <Avatar className="h-full w-full border-0">
-                  {account.avatarUrl && <AvatarImage src={account.avatarUrl} alt={account.fullName ?? "Account"} />}
-                  <AvatarFallback className="text-xs">{initials(account.fullName, account.email)}</AvatarFallback>
-                </Avatar>
-              </span>
+              <Avatar className="h-8 w-8 border-0">
+                {account.avatarUrl && <AvatarImage src={account.avatarUrl} alt={account.fullName ?? "Account"} />}
+                <AvatarFallback className="text-xs">{initials(account.fullName, account.email)}</AvatarFallback>
+              </Avatar>
             </Link>
           ) : (
             <Button
