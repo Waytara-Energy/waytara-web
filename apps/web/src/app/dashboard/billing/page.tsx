@@ -1,6 +1,6 @@
 import { Receipt } from "lucide-react";
-import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
+import { getRequestProfile } from "@/lib/request-profile";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -14,7 +14,7 @@ const PAYMENT_STATUS_BADGE_VARIANT: Record<string, "default" | "alert" | "second
 };
 
 export default async function BillingPage() {
-  const profile = await getCurrentProfile();
+  const profile = await getRequestProfile();
   const supabase = await createClient();
 
   const { data: customer } = profile

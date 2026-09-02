@@ -1,6 +1,6 @@
 import { Sun } from "lucide-react";
-import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
+import { getRequestProfile } from "@/lib/request-profile";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -9,7 +9,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { PROPERTY_TYPE_LABELS, POWER_SOURCE_LABELS } from "@/lib/site-catalog";
 
 export default async function SitesPage() {
-  const profile = await getCurrentProfile();
+  const profile = await getRequestProfile();
   const supabase = await createClient();
 
   const { data: customer } = profile

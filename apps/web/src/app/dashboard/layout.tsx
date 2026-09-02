@@ -1,45 +1,43 @@
 import { cookies } from "next/headers";
-import { createClient } from "@waytara/supabase/server";
-import { getCurrentProfile } from "@waytara/supabase/auth";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { getCustomerDevices, resolveSelectedDevice, SELECTED_DEVICE_COOKIE } from "@/lib/selected-device";
+import { getCustomerPlan } from "@/lib/customer-plan";
+import { getRequestProfile, isRequestOnboarded } from "@/lib/request-profile";
 import { logout } from "./actions";
 
 // Reachable only as a `customer` profile — middleware.ts enforces that.
+//
+// This layout wraps every /dashboard/* page and reads cookies() (sidebar
+// state, selected device), which makes the whole segment dynamic — Next
+// re-executes it on the server for every navigation, not just the first
+// load. That means whatever this function awaits is a tax paid on every
+// single sidebar click, uniformly, regardless of which page is being
+// navigated to. It used to be 4 fully sequential round trips (profile,
+// customer+plan, onboarding stage, devices); the customer+plan one is now
+// getCustomerPlan() (cache()-deduped against every page's own feature-gate
+// check, see @/lib/customer-plan), the profile/onboarding ones read
+// proxy.ts's already-fetched headers instead of re-querying (see
+// @/lib/request-profile — this was the biggest remaining cost, since it's
+// a real network round trip to Supabase's Auth server), and the rest run
+// in two parallel batches instead of four sequential ones.
 export default async function DashboardLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const profile = await getCurrentProfile();
-  const supabase = await createClient();
-
-  const { data: customer } = profile
-    ? await supabase
-        .from("customers")
-        .select("plan_id, plan:plans(name, features)")
-        .eq("id", profile.id)
-        .maybeSingle()
-    : { data: null };
+  // profile and devices don't depend on each other at all.
+  const [profile, devices] = await Promise.all([getRequestProfile(), getCustomerDevices()]);
 
   // Onboarding pipeline redesign, Phase 6: proxy.ts already redirects any
   // not-yet-onboarded customer to /dashboard/onboarding-status for every
   // other /dashboard/* route, so by the time this renders, `children` is
   // guaranteed to be that page alone — this only decides whether the real
-  // dashboard's sidebar nav shows around it. Same "missing row = onboarded"
-  // default as proxy.ts, for the same reason.
-  const { data: onboarding } = profile
-    ? await supabase
-        .from("customer_onboarding")
-        .select("current_stage")
-        .eq("customer_id", profile.id)
-        .maybeSingle()
-    : { data: null };
-
-  const isOnboarded = !onboarding || onboarding.current_stage === "install_completed";
+  // dashboard's sidebar nav shows around it. Neither this nor the plan
+  // lookup below depends on the other, so they run together too.
+  const [customerPlan, isOnboarded] = await Promise.all([getCustomerPlan(), isRequestOnboarded()]);
 
   if (!isOnboarded) {
     return (
@@ -57,7 +55,7 @@ export default async function DashboardLayout({
     );
   }
 
-  const features = (customer?.plan?.features as Record<string, boolean>) ?? {};
+  const features = customerPlan?.features ?? {};
 
   // Dashboard redesign Phase 1: SidebarProvider's own state defaults to
   // open every load unless told otherwise — reading its cookie here (the
@@ -71,8 +69,8 @@ export default async function DashboardLayout({
   // page resolves its own selection via getSelectedDevice() (same cookie,
   // re-fetched independently), matching this app's existing convention of
   // each page fetching its own gate/data rather than threading it down
-  // from the layout. This fetch is purely for the header switcher's list.
-  const devices = await getCustomerDevices();
+  // from the layout. `devices` was already fetched above (in parallel
+  // with `profile`) purely for the header switcher's list.
   const selectedDevice = resolveSelectedDevice(devices, cookieStore.get(SELECTED_DEVICE_COOKIE)?.value);
 
   return (
@@ -83,7 +81,7 @@ export default async function DashboardLayout({
           fullName={profile?.full_name ?? null}
           email={profile?.email ?? null}
           avatarUrl={profile?.avatar_url ?? null}
-          planName={customer?.plan?.name ?? null}
+          planName={customerPlan?.planName ?? null}
           features={features}
           devices={devices.map((d) => ({ id: d.id, label: d.label, deviceUid: d.deviceUid, siteName: d.site?.name ?? null }))}
           selectedDeviceId={selectedDevice?.id ?? null}

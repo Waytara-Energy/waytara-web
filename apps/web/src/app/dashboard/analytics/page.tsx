@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { BarChart3 } from "lucide-react";
-import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 import { getSelectedDevice } from "@/lib/selected-device";
+import { getCustomerPlan } from "@/lib/customer-plan";
 import type { DailyPoint } from "@/components/dashboard/performance-chart";
 import { PerformanceChart } from "@/components/dashboard/lazy-charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -46,22 +46,17 @@ export default async function AnalyticsPage() {
   // own yield, not summed across every device — the cross-site comparison
   // chart this page used to carry is gone along with that, since a
   // single-device view has nothing left to compare against. Independent
-  // of the profile/plan check below, so it runs alongside it.
-  const [profile, device] = await Promise.all([getCurrentProfile(), getSelectedDevice()]);
+  // of the plan check below, so it runs alongside it. getCustomerPlan()
+  // is cache()-deduped against the layout's own call and carries the
+  // tariff rate too, so this replaces what used to be a separate
+  // `customers` query here.
+  const [customerPlan, device] = await Promise.all([getCustomerPlan(), getSelectedDevice()]);
 
-  const { data: customer } = profile
-    ? await supabase
-        .from("customers")
-        .select("tariff_rate_per_kwh, plan:plans(features)")
-        .eq("id", profile.id)
-        .maybeSingle()
-    : { data: null };
-
-  const features = (customer?.plan?.features as Record<string, boolean>) ?? {};
+  const features = customerPlan?.features ?? {};
   if (!features.analytics) {
     redirect("/dashboard");
   }
-  const tariffRate = Number(customer?.tariff_rate_per_kwh ?? 8);
+  const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
 
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - HISTORY_DAYS);

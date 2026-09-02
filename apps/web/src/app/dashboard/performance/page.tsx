@@ -1,8 +1,8 @@
 import { redirect } from "next/navigation";
 import { TrendingUp } from "lucide-react";
-import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 import { getSelectedDevice } from "@/lib/selected-device";
+import { getCustomerPlan } from "@/lib/customer-plan";
 import { PerformanceChart, DivergingBarChart } from "@/components/dashboard/lazy-charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -29,14 +29,12 @@ export default async function PerformancePage() {
   const supabase = await createClient();
   // Device-centric redesign: yield for the *selected* device only, not
   // summed across every device the customer owns. Independent of the
-  // profile/plan check below, so it runs alongside it.
-  const [profile, device] = await Promise.all([getCurrentProfile(), getSelectedDevice()]);
+  // plan check below, so it runs alongside it. getCustomerPlan() is
+  // cache()-deduped against the layout's own call, so this costs nothing
+  // extra.
+  const [customerPlan, device] = await Promise.all([getCustomerPlan(), getSelectedDevice()]);
 
-  const { data: customer } = profile
-    ? await supabase.from("customers").select("plan:plans(features)").eq("id", profile.id).maybeSingle()
-    : { data: null };
-
-  const features = (customer?.plan?.features as Record<string, boolean>) ?? {};
+  const features = customerPlan?.features ?? {};
   if (!features.performance) {
     redirect("/dashboard");
   }

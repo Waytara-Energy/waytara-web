@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { CheckCircle2, Settings2, TriangleAlert } from "lucide-react";
-import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
+import { getCustomerPlan } from "@/lib/customer-plan";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -53,18 +53,16 @@ export default async function InstrumentSettingsPage({
 }) {
   const supabase = await createClient();
   // Three independent reads up front — none depends on another's result —
-  // instead of a waterfall of sequential awaits.
-  const [{ error, success }, profile, device] = await Promise.all([
+  // instead of a waterfall of sequential awaits. getCustomerPlan() is
+  // cache()-deduped against the layout's own call, so this costs nothing
+  // extra beyond what the layout already paid for.
+  const [{ error, success }, customerPlan, device] = await Promise.all([
     searchParams,
-    getCurrentProfile(),
+    getCustomerPlan(),
     getSelectedDevice(),
   ]);
 
-  const { data: customer } = profile
-    ? await supabase.from("customers").select("plan:plans(features)").eq("id", profile.id).maybeSingle()
-    : { data: null };
-
-  const features = (customer?.plan?.features as Record<string, boolean>) ?? {};
+  const features = customerPlan?.features ?? {};
   if (!features.instrument_settings) {
     redirect("/dashboard");
   }

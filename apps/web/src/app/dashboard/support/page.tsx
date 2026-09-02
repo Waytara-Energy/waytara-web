@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { LifeBuoy } from "lucide-react";
-import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
+import { getRequestProfile } from "@/lib/request-profile";
 import { Badge } from "@/components/ui/badge";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
@@ -20,7 +20,7 @@ export default async function SupportPage({
   searchParams: Promise<{ error?: string }>;
 }) {
   const { error } = await searchParams;
-  const profile = await getCurrentProfile();
+  const profile = await getRequestProfile();
   const supabase = await createClient();
 
   const { data: tickets } = profile

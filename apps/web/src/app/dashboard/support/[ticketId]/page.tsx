@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
-import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
+import { getRequestProfile } from "@/lib/request-profile";
 import { SupportThread } from "@/components/dashboard/support-thread";
 
 export default async function SupportTicketPage({
@@ -9,7 +9,7 @@ export default async function SupportTicketPage({
   params: Promise<{ ticketId: string }>;
 }) {
   const { ticketId } = await params;
-  const profile = await getCurrentProfile();
+  const profile = await getRequestProfile();
   const supabase = await createClient();
 
   // RLS scopes this to a ticket the signed-in customer actually owns —

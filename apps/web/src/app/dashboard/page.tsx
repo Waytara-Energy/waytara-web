@@ -1,7 +1,7 @@
 import { AlertTriangle, Bell, Zap } from "lucide-react";
-import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 import { getSelectedDevice } from "@/lib/selected-device";
+import { getRequestProfile } from "@/lib/request-profile";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -39,11 +39,12 @@ const OVERVIEW_KEYS = [
 // a "today so far" totals row from the daily-reset energy counters.
 export default async function DashboardOverviewPage() {
   const supabase = await createClient();
-  // Independent of each other — getCurrentProfile is cache()-deduped
-  // against the layout's own call anyway, but running it alongside the
-  // device lookup rather than after it still saves a round trip's worth
-  // of latency on whichever one is slower.
-  const [profile, device] = await Promise.all([getCurrentProfile(), getSelectedDevice()]);
+  // Independent of each other — getRequestProfile is cache()-deduped
+  // against the layout's own call anyway (and free in the common case, see
+  // @/lib/request-profile), but running it alongside the device lookup
+  // rather than after it still saves a round trip's worth of latency on
+  // whichever one is slower.
+  const [profile, device] = await Promise.all([getRequestProfile(), getSelectedDevice()]);
 
   if (!device) {
     return (

@@ -57,7 +57,34 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return response;
+  // Navigation-latency fix: everything above just paid for a real network
+  // round trip to Supabase (auth.getUser() + a profiles row) plus a second
+  // one for customer_onboarding — and every /dashboard/* page independently
+  // re-fetches that exact same profile (getCurrentProfile()/
+  // getRequestProfile() is cache()-deduped, but only *within* the
+  // Server Component render pass; this middleware run is a separate request
+  // boundary React's cache() can't see across). Without this, that meant
+  // paying for auth.getUser()'s round trip TWICE on every single sidebar
+  // click. Forwarding what was already fetched here as request headers lets
+  // getRequestProfile() (apps/web/src/lib/request-profile.ts) skip the
+  // second network round trip entirely for the common case, falling back to
+  // a real fetch only if these headers are ever missing. encodeURIComponent
+  // guards against non-Latin1 characters in full_name — raw header values
+  // must stay ISO-8859-1.
+  const requestHeaders = new Headers(request.headers);
+  requestHeaders.set("x-waytara-profile-id", profile.id);
+  requestHeaders.set("x-waytara-profile-name", encodeURIComponent(profile.full_name ?? ""));
+  requestHeaders.set("x-waytara-profile-email", encodeURIComponent(profile.email ?? ""));
+  requestHeaders.set("x-waytara-profile-avatar", encodeURIComponent(profile.avatar_url ?? ""));
+  requestHeaders.set("x-waytara-profile-role", profile.role);
+  requestHeaders.set("x-waytara-onboarded", isOnboarded ? "1" : "0");
+
+  const finalResponse = NextResponse.next({ request: { headers: requestHeaders } });
+  // Carry forward any session-refresh cookies createMiddlewareClient's
+  // `response` already picked up — this rebuild is only to attach the
+  // extra request headers on top, not to replace that.
+  response.cookies.getAll().forEach((cookie) => finalResponse.cookies.set(cookie));
+  return finalResponse;
 }
 
 export const config = {

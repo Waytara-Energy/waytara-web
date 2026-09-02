@@ -1,6 +1,5 @@
 import { redirect } from "next/navigation";
 import { Activity } from "lucide-react";
-import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,6 +7,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { LiveMetricChart } from "@/components/dashboard/lazy-charts";
 import { PvStringComparison } from "@/components/dashboard/pv-string-comparison";
 import { TemperatureGauge } from "@/components/dashboard/temperature-gauge";
+import { getCustomerPlan } from "@/lib/customer-plan";
 import { getSelectedDevice } from "@/lib/selected-device";
 import { TEMPERATURE_FIELDS } from "@/lib/telemetry-catalog";
 
@@ -33,16 +33,14 @@ const SNAPSHOT_KEYS = [
 // indicator.
 export default async function MonitoringPage() {
   const supabase = await createClient();
-  // getSelectedDevice() doesn't depend on the profile/plan check below, so
-  // it runs alongside it instead of after — same reasoning throughout this
-  // pass: independent queries in one round trip, not a waterfall of them.
-  const [profile, device] = await Promise.all([getCurrentProfile(), getSelectedDevice()]);
+  // getSelectedDevice() doesn't depend on the plan check below, so it runs
+  // alongside it instead of after. getCustomerPlan() is cache()-deduped
+  // against the layout's own call (and every other page's), so this isn't
+  // a second real query — same reasoning throughout this pass: independent
+  // queries in one round trip, not a waterfall of them.
+  const [customerPlan, device] = await Promise.all([getCustomerPlan(), getSelectedDevice()]);
 
-  const { data: customer } = profile
-    ? await supabase.from("customers").select("plan:plans(features)").eq("id", profile.id).maybeSingle()
-    : { data: null };
-
-  const features = (customer?.plan?.features as Record<string, boolean>) ?? {};
+  const features = customerPlan?.features ?? {};
   if (!features.monitoring) {
     redirect("/dashboard");
   }
