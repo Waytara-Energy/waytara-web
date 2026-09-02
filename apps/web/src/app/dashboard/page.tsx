@@ -1,5 +1,12 @@
+import { AlertTriangle, Bell } from "lucide-react";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
+import { Card, CardContent } from "@/components/ui/card";
+import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Separator } from "@/components/ui/separator";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { acknowledgeAlert } from "./actions";
 
 // Same query shape Task 8.5's employee test panel is meant to reuse
@@ -41,72 +48,91 @@ export default async function DashboardOverviewPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-theme-primary">
+        <h1 className="text-2xl font-semibold text-foreground">
           Welcome{profile?.full_name ? `, ${profile.full_name}` : ""}
         </h1>
-        <p className="mt-1 text-sm text-theme-muted">{profile?.email}</p>
+        <p className="mt-1 text-sm text-muted-foreground">{profile?.email}</p>
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <SnapshotCard
+        <StatCard
           label="Current Output"
           value={currentOutput ? `${currentOutput.value} ${currentOutput.unit ?? "W"}` : "No data yet"}
         />
-        <SnapshotCard
+        <StatCard
           label="Today's Energy"
           value={todaysYield ? `${todaysYield.value} ${todaysYield.unit ?? "kWh"}` : "No data yet"}
         />
-        <SnapshotCard
-          label="Devices"
-          value={
-            devices && devices.length > 0
-              ? Object.entries(deviceCounts)
-                  .map(([status, count]) => `${count} ${status}`)
-                  .join(", ")
-              : "None yet"
-          }
-        />
-        <SnapshotCard label="Recent Alerts" value={String(recentAlerts?.length ?? 0)} />
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Devices</p>
+            {devices && devices.length > 0 ? (
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {Object.entries(deviceCounts).map(([status, count]) => (
+                  <Badge key={status} variant={status === "active" ? "default" : "secondary"} className="capitalize">
+                    {count} {status}
+                  </Badge>
+                ))}
+              </div>
+            ) : (
+              <p className="mt-1 text-lg font-semibold text-foreground">None yet</p>
+            )}
+          </CardContent>
+        </Card>
+        <StatCard label="Recent Alerts" value={String(recentAlerts?.length ?? 0)} />
       </div>
 
-      <div className="rounded-xl border border-theme-border bg-theme-surface p-6">
-        <h2 className="mb-3 text-sm font-semibold text-theme-primary">Recent Alerts</h2>
+      <Separator />
+
+      <div>
+        <h2 className="mb-3 text-sm font-semibold text-foreground">Recent Alerts</h2>
         {recentAlerts && recentAlerts.length > 0 ? (
-          <ul className="space-y-2 text-sm">
+          <div className="space-y-2">
             {recentAlerts.map((a) => (
-              <li key={a.id} className="flex items-center justify-between gap-3 text-theme-secondary">
-                <span className="capitalize">
-                  {a.severity}: {a.message}
-                </span>
-                <span className="flex shrink-0 items-center gap-2">
-                  <span className="text-xs text-theme-muted">
+              <Alert key={a.id} variant={a.severity === "critical" ? "destructive" : "default"}>
+                <AlertTriangle />
+                <AlertTitle className="flex items-center justify-between gap-3 capitalize">
+                  {a.severity}
+                  <span className="text-xs font-normal normal-case text-muted-foreground">
                     {new Date(a.ts).toLocaleDateString("en-IN")}
                   </span>
+                </AlertTitle>
+                <AlertDescription>
+                  <p>{a.message}</p>
                   <form action={acknowledgeAlert.bind(null, a.id)}>
-                    <button
-                      type="submit"
-                      className="rounded-md border border-theme-border px-2 py-1 text-xs font-medium text-theme-primary hover:bg-theme-surface-hover"
-                    >
+                    <Button type="submit" variant="outline" size="sm" className="mt-1">
                       Acknowledge
-                    </button>
+                    </Button>
                   </form>
-                </span>
-              </li>
+                </AlertDescription>
+              </Alert>
             ))}
-          </ul>
+          </div>
         ) : (
-          <p className="text-sm text-theme-muted">No alerts.</p>
+          <Empty className="border">
+            <EmptyHeader>
+              <EmptyMedia variant="icon">
+                <Bell />
+              </EmptyMedia>
+              <EmptyTitle>No alerts</EmptyTitle>
+              <EmptyDescription>
+                Your system is running clean — we&apos;ll show anything that needs your attention here.
+              </EmptyDescription>
+            </EmptyHeader>
+          </Empty>
         )}
       </div>
     </div>
   );
 }
 
-function SnapshotCard({ label, value }: { label: string; value: string }) {
+function StatCard({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-xl border border-theme-border bg-theme-surface p-4">
-      <p className="text-xs font-medium uppercase tracking-wide text-theme-muted">{label}</p>
-      <p className="mt-1 text-lg font-semibold text-theme-primary">{value}</p>
-    </div>
+    <Card>
+      <CardContent className="p-4">
+        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
+        <p className="mt-1 text-lg font-semibold text-foreground">{value}</p>
+      </CardContent>
+    </Card>
   );
 }
