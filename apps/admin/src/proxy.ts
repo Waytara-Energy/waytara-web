@@ -14,7 +14,7 @@ const ADMIN_ONLY_PREFIXES = ["/employees", "/plans", "/devices", "/audit", "/cus
 // {credentials:'omit'})` returned 200, not a redirect), so every route in
 // this app was actually unprotected regardless of what this file said.
 export async function proxy(request: NextRequest) {
-  const { supabase, response } = createMiddlewareClient(request);
+  const { supabase, getResponse } = createMiddlewareClient(request);
   const { pathname } = request.nextUrl;
   const profile = await getCurrentProfile(supabase);
 
@@ -39,7 +39,14 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
-  return response;
+  // getResponse() (not a plain `response` value) — see
+  // createMiddlewareClient's doc comment: it must be called after the
+  // getCurrentProfile() call above so it reflects a token refresh that
+  // call may have just triggered. Getting this wrong here silently drops
+  // refreshed session cookies, which combined with Supabase's
+  // refresh-token rotation could log a real user out on their next
+  // request.
+  return getResponse();
 }
 
 export const config = {

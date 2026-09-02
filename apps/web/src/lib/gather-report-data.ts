@@ -1,6 +1,7 @@
-import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 import { getSelectedDevice } from "@/lib/selected-device";
+import { getCustomerPlan } from "@/lib/customer-plan";
+import { getRequestProfile } from "@/lib/request-profile";
 import { maxByDeviceDay, sumByDay, type DailyPoint } from "@/lib/energy-aggregation";
 
 const YIELD_INSTRUMENT_KEY = "daily_yield_kwh";
@@ -45,30 +46,32 @@ const UNAUTHORIZED: ReportData = {
  * now about one device, not a multi-site rollup.
  */
 export async function gatherReportData(historyDays: number): Promise<ReportData> {
-  const profile = await getCurrentProfile();
+  // These two routes (energy.csv, summary.pdf) sit outside proxy.ts's
+  // /dashboard/:path* matcher, so getRequestProfile() always takes its
+  // fallback path here (a real getCurrentProfile() call) — still correct,
+  // just not free the way it is on a /dashboard/* page. getCustomerPlan()
+  // replaces what used to be this file's own customers/plan query — the
+  // 6th copy of that exact query found in this codebase, see
+  // @/lib/customer-plan for the other five. profile and device don't
+  // depend on each other, so they run together.
+  const [profile, device] = await Promise.all([getRequestProfile(), getSelectedDevice()]);
   if (!profile) return UNAUTHORIZED;
 
   const supabase = await createClient();
+  const customerPlan = await getCustomerPlan();
 
-  const { data: customer } = await supabase
-    .from("customers")
-    .select("tariff_rate_per_kwh, plan:plans(name, features)")
-    .eq("id", profile.id)
-    .maybeSingle();
-
-  const features = (customer?.plan?.features as Record<string, boolean>) ?? {};
+  const features = customerPlan?.features ?? {};
   if (!features.reports) {
-    return { ...UNAUTHORIZED, customerName: profile.full_name ?? "", planName: customer?.plan?.name ?? "" };
+    return { ...UNAUTHORIZED, customerName: profile.full_name ?? "", planName: customerPlan?.planName ?? "" };
   }
 
-  const tariffRate = Number(customer?.tariff_rate_per_kwh ?? 8);
-  const device = await getSelectedDevice();
+  const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
 
   if (!device) {
     return {
       authorized: true,
       customerName: profile.full_name ?? "Customer",
-      planName: customer?.plan?.name ?? "—",
+      planName: customerPlan?.planName ?? "—",
       deviceLabel: null,
       tariffRate,
       daily: [],
@@ -82,16 +85,18 @@ export async function gatherReportData(historyDays: number): Promise<ReportData>
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - historyDays);
 
-  const { data: readings } = await supabase
-    .from("device_readings")
-    .select("device_id, value, ts")
-    .eq("device_id", device.id)
-    .eq("instrument_key", YIELD_INSTRUMENT_KEY)
-    .eq("is_test", false)
-    .gte("ts", since.toISOString())
-    .order("ts", { ascending: true });
-
-  const { data: payments } = await supabase.from("payments").select("amount, status").eq("status", "paid");
+  // Independent of each other — one round trip instead of two.
+  const [{ data: readings }, { data: payments }] = await Promise.all([
+    supabase
+      .from("device_readings")
+      .select("device_id, value, ts")
+      .eq("device_id", device.id)
+      .eq("instrument_key", YIELD_INSTRUMENT_KEY)
+      .eq("is_test", false)
+      .gte("ts", since.toISOString())
+      .order("ts", { ascending: true }),
+    supabase.from("payments").select("amount, status").eq("status", "paid"),
+  ]);
   const totalInvested = (payments ?? []).reduce((sum, p) => sum + Number(p.amount), 0);
 
   const perDeviceDay = maxByDeviceDay(readings ?? []);
@@ -103,7 +108,7 @@ export async function gatherReportData(historyDays: number): Promise<ReportData>
   return {
     authorized: true,
     customerName: profile.full_name ?? "Customer",
-    planName: customer?.plan?.name ?? "—",
+    planName: customerPlan?.planName ?? "—",
     deviceLabel: device.label || device.deviceUid,
     tariffRate,
     daily,

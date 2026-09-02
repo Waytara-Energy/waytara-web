@@ -15,7 +15,7 @@ import { isCustomerRole } from "@waytara/supabase/roles";
 // getCurrentProfile() itself and redirects — this proxy is real
 // defense-in-depth, not the only gate.
 export async function proxy(request: NextRequest) {
-  const { supabase, response } = createMiddlewareClient(request);
+  const { supabase, getResponse } = createMiddlewareClient(request);
   const profile = await getCurrentProfile(supabase);
 
   if (!profile || !isCustomerRole(profile.role)) {
@@ -80,10 +80,17 @@ export async function proxy(request: NextRequest) {
   requestHeaders.set("x-waytara-onboarded", isOnboarded ? "1" : "0");
 
   const finalResponse = NextResponse.next({ request: { headers: requestHeaders } });
-  // Carry forward any session-refresh cookies createMiddlewareClient's
-  // `response` already picked up — this rebuild is only to attach the
-  // extra request headers on top, not to replace that.
-  response.cookies.getAll().forEach((cookie) => finalResponse.cookies.set(cookie));
+  // getResponse() — not a plain `response` value — because it has to be
+  // called *after* getCurrentProfile()/the onboarding query above, so it
+  // reflects a token refresh triggered by either of them (see
+  // createMiddlewareClient's own doc comment: a stale snapshot here used to
+  // silently drop refreshed session cookies, which combined with Supabase's
+  // refresh-token rotation could log a real user out on their very next
+  // request). This rebuild is only to attach the extra request headers on
+  // top of it, not to replace it.
+  getResponse()
+    .cookies.getAll()
+    .forEach((cookie) => finalResponse.cookies.set(cookie));
   return finalResponse;
 }
 
