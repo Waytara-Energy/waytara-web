@@ -4,19 +4,41 @@ import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 import { getSelectedDevice } from "@/lib/selected-device";
 import { PerformanceChart, type DailyPoint } from "@/components/dashboard/performance-chart";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { maxByDeviceDay, sumByDay } from "@/lib/energy-aggregation";
+import { aggregateDailyYield, maxByDeviceDay, sumByDay, type RawReading } from "@/lib/energy-aggregation";
 
 const HISTORY_DAYS = 365;
 const YIELD_INSTRUMENT_KEY = "daily_yield_kwh";
+const EXTRA_KEYS = ["day_grid_import_kwh", "day_grid_export_kwh"];
 
 function inr(value: number): string {
   return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 }
 
+function monthKey(date: string): string {
+  return date.slice(0, 7); // YYYY-MM
+}
+
+function monthsAgoKey(monthsBack: number): string {
+  const d = new Date();
+  d.setUTCMonth(d.getUTCMonth() - monthsBack, 1);
+  return d.toISOString().slice(0, 7);
+}
+
+function pctChange(current: number, previous: number): number | null {
+  if (previous === 0) return null;
+  return ((current - previous) / previous) * 100;
+}
+
 // Server-side gate, matching Monitoring/Performance — a Basic or Pro
 // customer without the Advance-tier "analytics" feature gets redirected,
 // not just hidden from the nav.
+//
+// Telemetry-driven redesign (Phase 11): the savings/ROI chart stays, joined
+// by a month-over-month / year-over-year PV comparison, grid import/export
+// cost estimation, battery cycle count, and the essential-vs-non-essential
+// load split.
 export default async function AnalyticsPage() {
   const profile = await getCurrentProfile();
   const supabase = await createClient();
@@ -45,6 +67,10 @@ export default async function AnalyticsPage() {
   since.setUTCDate(since.getUTCDate() - HISTORY_DAYS);
 
   let readings: { device_id: string; value: number | null; ts: string }[] = [];
+  let extraRows: { instrument_key: string; device_id: string; value: number | null; ts: string }[] = [];
+  let batteryCycleCount: number | null = null;
+  let essentialLoadPct: number | null = null;
+
   if (device) {
     const { data } = await supabase
       .from("device_readings")
@@ -55,6 +81,28 @@ export default async function AnalyticsPage() {
       .gte("ts", since.toISOString())
       .order("ts", { ascending: true });
     readings = data ?? [];
+
+    const { data: extra } = await supabase
+      .from("device_readings")
+      .select("instrument_key, device_id, value, ts")
+      .eq("device_id", device.id)
+      .in("instrument_key", EXTRA_KEYS)
+      .eq("is_test", false)
+      .gte("ts", since.toISOString())
+      .order("ts", { ascending: true });
+    extraRows = extra ?? [];
+
+    const { data: latestRows } = await supabase
+      .from("device_readings")
+      .select("instrument_key, value, ts")
+      .eq("device_id", device.id)
+      .in("instrument_key", ["battery_cycle_count", "essential_load_pct"])
+      .order("ts", { ascending: false })
+      .limit(20);
+    for (const r of latestRows ?? []) {
+      if (r.instrument_key === "battery_cycle_count" && batteryCycleCount === null) batteryCycleCount = r.value;
+      if (r.instrument_key === "essential_load_pct" && essentialLoadPct === null) essentialLoadPct = r.value;
+    }
   }
 
   // totalInvested stays account-wide (payments aren't tied to a device),
@@ -79,6 +127,28 @@ export default async function AnalyticsPage() {
   const remaining = Math.max(0, totalInvested - totalSavedToDate);
   const paybackMonths = avgDailySaving > 0 ? remaining / (avgDailySaving * 30) : null;
   const roiPct = totalInvested > 0 ? (totalSavedToDate / totalInvested) * 100 : null;
+
+  // Month-over-month / year-over-year: bucket the same 365-day daily-yield
+  // series by calendar month, then compare this month's total (so far)
+  // against last month's and the same month a year ago. With only up to
+  // HISTORY_DAYS of history, the year-ago bucket may not exist yet — shown
+  // as "—" rather than a misleading 0.
+  const byMonth = new Map<string, number>();
+  for (const p of dailyKwh) byMonth.set(monthKey(p.date), (byMonth.get(monthKey(p.date)) ?? 0) + p.value);
+  const thisMonth = byMonth.get(monthsAgoKey(0)) ?? 0;
+  const lastMonth = byMonth.get(monthsAgoKey(1)) ?? null;
+  const sameMonthLastYear = byMonth.get(monthsAgoKey(12)) ?? null;
+  const momPct = lastMonth !== null ? pctChange(thisMonth, lastMonth) : null;
+  const yoyPct = sameMonthLastYear !== null ? pctChange(thisMonth, sameMonthLastYear) : null;
+
+  // Grid cost estimation — same tariff rate the yield savings above use;
+  // a real feed-in tariff for exports often differs from the import rate,
+  // but the register only reports kWh, so this is the same simplification
+  // already made for "saved to date".
+  const gridImportKwh = extraRows.filter((r) => r.instrument_key === "day_grid_import_kwh") as RawReading[];
+  const gridExportKwh = extraRows.filter((r) => r.instrument_key === "day_grid_export_kwh") as RawReading[];
+  const totalImportKwh = aggregateDailyYield(gridImportKwh).reduce((s, p) => s + p.value, 0);
+  const totalExportKwh = aggregateDailyYield(gridExportKwh).reduce((s, p) => s + p.value, 0);
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -129,6 +199,49 @@ export default async function AnalyticsPage() {
               totalLabel="Saved to date"
             />
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Generation vs. Prior Periods</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-4">
+              <TrendTile label="Vs. last month" pct={momPct} />
+              <TrendTile label="Vs. same month last year" pct={yoyPct} />
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Grid Cost Estimate (last {HISTORY_DAYS}d)</CardTitle>
+            </CardHeader>
+            <CardContent className="grid grid-cols-2 gap-4">
+              <StatTile label="Grid import cost" value={inr(totalImportKwh * tariffRate)} />
+              <StatTile label="Grid export credit" value={inr(totalExportKwh * tariffRate)} />
+            </CardContent>
+          </Card>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Battery Health</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <p className="text-2xl font-semibold text-foreground">
+                  {batteryCycleCount !== null ? batteryCycleCount.toLocaleString("en-IN") : "—"}
+                </p>
+                <p className="text-xs text-muted-foreground">Charge cycles to date</p>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm">Load Split</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <LoadSplit essentialPct={essentialLoadPct} />
+              </CardContent>
+            </Card>
+          </div>
         </>
       )}
     </div>
@@ -140,6 +253,49 @@ function StatTile({ label, value }: { label: string; value: string }) {
     <div className="rounded-lg border border-theme-border bg-theme-surface p-3">
       <p className="text-xs text-theme-muted">{label}</p>
       <p className="mt-1 text-xl font-semibold text-theme-primary">{value}</p>
+    </div>
+  );
+}
+
+function TrendTile({ label, pct }: { label: string; pct: number | null }) {
+  const up = pct !== null && pct > 0;
+  const down = pct !== null && pct < 0;
+  return (
+    <div className="rounded-lg border border-theme-border bg-theme-surface p-3">
+      <p className="text-xs text-theme-muted">{label}</p>
+      <p
+        className={
+          "mt-1 text-xl font-semibold " +
+          (up ? "text-emerald-600 dark:text-emerald-400" : down ? "text-amber-600 dark:text-amber-400" : "text-theme-primary")
+        }
+      >
+        {pct === null ? "—" : `${pct > 0 ? "+" : ""}${pct.toFixed(0)}%`}
+      </p>
+    </div>
+  );
+}
+
+function LoadSplit({ essentialPct }: { essentialPct: number | null }) {
+  if (essentialPct === null) {
+    return <p className="text-sm text-muted-foreground">No data yet.</p>;
+  }
+  const pct = Math.max(0, Math.min(100, essentialPct));
+  return (
+    <div className="space-y-2">
+      <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
+        <div className="h-full bg-emerald-500" style={{ width: `${pct}%` }} />
+        <div className="h-full bg-amber-500" style={{ width: `${100 - pct}%` }} />
+      </div>
+      <div className="flex justify-between text-xs">
+        <span className="text-muted-foreground">
+          <span className="mr-1 inline-block size-2 rounded-full bg-emerald-500" />
+          Essential {pct.toFixed(0)}%
+        </span>
+        <span className="text-muted-foreground">
+          <span className="mr-1 inline-block size-2 rounded-full bg-amber-500" />
+          Non-essential {(100 - pct).toFixed(0)}%
+        </span>
+      </div>
     </div>
   );
 }
