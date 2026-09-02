@@ -51,9 +51,14 @@ export default async function InstrumentSettingsPage({
 }: {
   searchParams: Promise<{ error?: string; success?: string }>;
 }) {
-  const { error, success } = await searchParams;
-  const profile = await getCurrentProfile();
   const supabase = await createClient();
+  // Three independent reads up front — none depends on another's result —
+  // instead of a waterfall of sequential awaits.
+  const [{ error, success }, profile, device] = await Promise.all([
+    searchParams,
+    getCurrentProfile(),
+    getSelectedDevice(),
+  ]);
 
   const { data: customer } = profile
     ? await supabase.from("customers").select("plan:plans(features)").eq("id", profile.id).maybeSingle()
@@ -64,28 +69,28 @@ export default async function InstrumentSettingsPage({
     redirect("/dashboard");
   }
 
-  const device = await getSelectedDevice();
+  // Both scoped off `device`, neither depends on the other's result.
+  const [{ data: site }, { data: settingsRows }] = await Promise.all([
+    device?.site
+      ? supabase
+          .from("sites")
+          .select("id, name, property_type, power_source_category, address")
+          .eq("id", device.site.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    device
+      ? supabase
+          .from("device_settings")
+          .select("setting_category, setting_key, setting_value, ts")
+          .eq("device_id", device.id)
+          .order("ts", { ascending: true })
+      : Promise.resolve({ data: null }),
+  ]);
 
-  const { data: site } = device?.site
-    ? await supabase
-        .from("sites")
-        .select("id, name, property_type, power_source_category, address")
-        .eq("id", device.site.id)
-        .maybeSingle()
-    : { data: null };
-
+  // ts-ascending, so the last write per (category, key) wins.
   const settingsMap = new Map<string, string>(); // `${category}:${key}` -> latest value
-  if (device) {
-    const { data: settingsRows } = await supabase
-      .from("device_settings")
-      .select("setting_category, setting_key, setting_value, ts")
-      .eq("device_id", device.id)
-      .order("ts", { ascending: true });
-
-    // ts-ascending, so the last write per (category, key) wins.
-    for (const row of settingsRows ?? []) {
-      settingsMap.set(`${row.setting_category}:${row.setting_key}`, row.setting_value);
-    }
+  for (const row of settingsRows ?? []) {
+    settingsMap.set(`${row.setting_category}:${row.setting_key}`, row.setting_value);
   }
 
   const isSolarInverter = device?.deviceType?.code === "solar_inverter";

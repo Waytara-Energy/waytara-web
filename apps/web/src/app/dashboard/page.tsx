@@ -38,9 +38,12 @@ const OVERVIEW_KEYS = [
 // prominent fault banner when the device is actually reporting a fault, and
 // a "today so far" totals row from the daily-reset energy counters.
 export default async function DashboardOverviewPage() {
-  const profile = await getCurrentProfile();
   const supabase = await createClient();
-  const device = await getSelectedDevice();
+  // Independent of each other — getCurrentProfile is cache()-deduped
+  // against the layout's own call anyway, but running it alongside the
+  // device lookup rather than after it still saves a round trip's worth
+  // of latency on whichever one is slower.
+  const [profile, device] = await Promise.all([getCurrentProfile(), getSelectedDevice()]);
 
   if (!device) {
     return (
@@ -69,21 +72,22 @@ export default async function DashboardOverviewPage() {
   // true "latest value per instrument" query (needs a DISTINCT ON not
   // easily expressed through the query builder). Fine for an overview
   // snapshot.
-  const { data: recentReadings } = await supabase
-    .from("device_readings")
-    .select("instrument_key, value, unit, ts")
-    .eq("device_id", device.id)
-    .in("instrument_key", OVERVIEW_KEYS)
-    .order("ts", { ascending: false })
-    .limit(OVERVIEW_KEYS.length * 5);
-
-  const { data: recentAlerts } = await supabase
-    .from("alerts")
-    .select("id, severity, message, ts")
-    .eq("device_id", device.id)
-    .is("acknowledged_at", null)
-    .order("ts", { ascending: false })
-    .limit(5);
+  const [{ data: recentReadings }, { data: recentAlerts }] = await Promise.all([
+    supabase
+      .from("device_readings")
+      .select("instrument_key, value, unit, ts")
+      .eq("device_id", device.id)
+      .in("instrument_key", OVERVIEW_KEYS)
+      .order("ts", { ascending: false })
+      .limit(OVERVIEW_KEYS.length * 5),
+    supabase
+      .from("alerts")
+      .select("id, severity, message, ts")
+      .eq("device_id", device.id)
+      .is("acknowledged_at", null)
+      .order("ts", { ascending: false })
+      .limit(5),
+  ]);
 
   const latest = new Map<string, number | null>();
   for (const r of recentReadings ?? []) {

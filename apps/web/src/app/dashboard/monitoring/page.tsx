@@ -5,7 +5,7 @@ import { createClient } from "@waytara/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { LiveMetricChart } from "@/components/dashboard/live-metric-chart";
+import { LiveMetricChart } from "@/components/dashboard/lazy-charts";
 import { PvStringComparison } from "@/components/dashboard/pv-string-comparison";
 import { TemperatureGauge } from "@/components/dashboard/temperature-gauge";
 import { getSelectedDevice } from "@/lib/selected-device";
@@ -32,8 +32,11 @@ const SNAPSHOT_KEYS = [
 // a PV1-vs-PV2 comparison, temperature gauges, and a grid-connected
 // indicator.
 export default async function MonitoringPage() {
-  const profile = await getCurrentProfile();
   const supabase = await createClient();
+  // getSelectedDevice() doesn't depend on the profile/plan check below, so
+  // it runs alongside it instead of after — same reasoning throughout this
+  // pass: independent queries in one round trip, not a waterfall of them.
+  const [profile, device] = await Promise.all([getCurrentProfile(), getSelectedDevice()]);
 
   const { data: customer } = profile
     ? await supabase.from("customers").select("plan:plans(features)").eq("id", profile.id).maybeSingle()
@@ -43,8 +46,6 @@ export default async function MonitoringPage() {
   if (!features.monitoring) {
     redirect("/dashboard");
   }
-
-  const device = await getSelectedDevice();
 
   const { data: snapshotReadings } = device
     ? await supabase

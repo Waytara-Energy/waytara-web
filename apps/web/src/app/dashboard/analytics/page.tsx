@@ -3,7 +3,8 @@ import { BarChart3 } from "lucide-react";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 import { getSelectedDevice } from "@/lib/selected-device";
-import { PerformanceChart, type DailyPoint } from "@/components/dashboard/performance-chart";
+import type { DailyPoint } from "@/components/dashboard/performance-chart";
+import { PerformanceChart } from "@/components/dashboard/lazy-charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { aggregateDailyYield, maxByDeviceDay, sumByDay, type RawReading } from "@/lib/energy-aggregation";
@@ -40,8 +41,13 @@ function pctChange(current: number, previous: number): number | null {
 // cost estimation, battery cycle count, and the essential-vs-non-essential
 // load split.
 export default async function AnalyticsPage() {
-  const profile = await getCurrentProfile();
   const supabase = await createClient();
+  // Device-centric redesign: cost savings/ROI for the *selected* device's
+  // own yield, not summed across every device — the cross-site comparison
+  // chart this page used to carry is gone along with that, since a
+  // single-device view has nothing left to compare against. Independent
+  // of the profile/plan check below, so it runs alongside it.
+  const [profile, device] = await Promise.all([getCurrentProfile(), getSelectedDevice()]);
 
   const { data: customer } = profile
     ? await supabase
@@ -57,12 +63,6 @@ export default async function AnalyticsPage() {
   }
   const tariffRate = Number(customer?.tariff_rate_per_kwh ?? 8);
 
-  // Device-centric redesign: cost savings/ROI for the *selected* device's
-  // own yield, not summed across every device — the cross-site comparison
-  // chart this page used to carry is gone along with that, since a
-  // single-device view has nothing left to compare against.
-  const device = await getSelectedDevice();
-
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - HISTORY_DAYS);
 
@@ -71,45 +71,57 @@ export default async function AnalyticsPage() {
   let batteryCycleCount: number | null = null;
   let essentialLoadPct: number | null = null;
 
-  if (device) {
-    const { data } = await supabase
-      .from("device_readings")
-      .select("device_id, value, ts")
-      .eq("device_id", device.id)
-      .eq("instrument_key", YIELD_INSTRUMENT_KEY)
-      .eq("is_test", false)
-      .gte("ts", since.toISOString())
-      .order("ts", { ascending: true });
+  // totalInvested stays account-wide (payments aren't tied to a device),
+  // even though the yield/savings chart below is device-scoped — the two
+  // figures answer different questions (what you spent on the system vs.
+  // what this one device has generated). Doesn't depend on `device` at
+  // all, so it's fetched alongside the device-scoped queries below rather
+  // than after them.
+  const paymentsPromise = supabase.from("payments").select("amount, status").eq("status", "paid");
+
+  const [{ data: payments }, deviceQueries] = await Promise.all([
+    paymentsPromise,
+    device
+      ? // Three independent device-scoped reads, none depending on
+        // another's result — one round trip instead of three.
+        Promise.all([
+          supabase
+            .from("device_readings")
+            .select("device_id, value, ts")
+            .eq("device_id", device.id)
+            .eq("instrument_key", YIELD_INSTRUMENT_KEY)
+            .eq("is_test", false)
+            .gte("ts", since.toISOString())
+            .order("ts", { ascending: true }),
+          supabase
+            .from("device_readings")
+            .select("instrument_key, device_id, value, ts")
+            .eq("device_id", device.id)
+            .in("instrument_key", EXTRA_KEYS)
+            .eq("is_test", false)
+            .gte("ts", since.toISOString())
+            .order("ts", { ascending: true }),
+          supabase
+            .from("device_readings")
+            .select("instrument_key, value, ts")
+            .eq("device_id", device.id)
+            .in("instrument_key", ["battery_cycle_count", "essential_load_pct"])
+            .order("ts", { ascending: false })
+            .limit(20),
+        ])
+      : null,
+  ]);
+
+  if (deviceQueries) {
+    const [{ data }, { data: extra }, { data: latestRows }] = deviceQueries;
     readings = data ?? [];
-
-    const { data: extra } = await supabase
-      .from("device_readings")
-      .select("instrument_key, device_id, value, ts")
-      .eq("device_id", device.id)
-      .in("instrument_key", EXTRA_KEYS)
-      .eq("is_test", false)
-      .gte("ts", since.toISOString())
-      .order("ts", { ascending: true });
     extraRows = extra ?? [];
-
-    const { data: latestRows } = await supabase
-      .from("device_readings")
-      .select("instrument_key, value, ts")
-      .eq("device_id", device.id)
-      .in("instrument_key", ["battery_cycle_count", "essential_load_pct"])
-      .order("ts", { ascending: false })
-      .limit(20);
     for (const r of latestRows ?? []) {
       if (r.instrument_key === "battery_cycle_count" && batteryCycleCount === null) batteryCycleCount = r.value;
       if (r.instrument_key === "essential_load_pct" && essentialLoadPct === null) essentialLoadPct = r.value;
     }
   }
 
-  // totalInvested stays account-wide (payments aren't tied to a device),
-  // even though the yield/savings chart below is device-scoped — the two
-  // figures answer different questions (what you spent on the system vs.
-  // what this one device has generated).
-  const { data: payments } = await supabase.from("payments").select("amount, status").eq("status", "paid");
   const totalInvested = (payments ?? []).reduce((sum, p) => sum + Number(p.amount), 0);
 
   const perDeviceDay = maxByDeviceDay(readings);

@@ -39,18 +39,10 @@ export default async function MaintenancePage({
 }: {
   searchParams: Promise<{ error?: string }>;
 }) {
-  const { error } = await searchParams;
+  const [{ error }, device] = await Promise.all([searchParams, getSelectedDevice()]);
   const supabase = await createClient();
-  const device = await getSelectedDevice();
 
-  const { data: tickets } = device
-    ? await supabase
-        .from("maintenance_tickets")
-        .select("id, description, status, type, created_at")
-        .eq("device_id", device.id)
-        .order("created_at", { ascending: false })
-    : { data: null };
-
+  let tickets: { id: string; description: string | null; status: string; type: string; created_at: string }[] | null = null;
   let activeFaultCode: number | null = null;
   let sdStatus: number | null = null;
   let currentTemps = new Map<string, number | null>();
@@ -61,13 +53,65 @@ export default async function MaintenancePage({
   if (device) {
     const tempKeys = TEMPERATURE_FIELDS.map((f) => f.key);
 
-    const { data: latestRows } = await supabase
-      .from("device_readings")
-      .select("instrument_key, value, ts")
-      .eq("device_id", device.id)
-      .in("instrument_key", ["active_fault_code", "sd_status", ...tempKeys])
-      .order("ts", { ascending: false })
-      .limit((tempKeys.length + 2) * 5);
+    // A day ago (±2h window), for the temperature trend arrows.
+    const dayAgo = new Date(Date.now() - 24 * 3600 * 1000);
+    const windowStart = new Date(dayAgo.getTime() - 2 * 3600 * 1000).toISOString();
+    const windowEnd = new Date(dayAgo.getTime() + 2 * 3600 * 1000).toISOString();
+
+    const faultSince = new Date();
+    faultSince.setUTCDate(faultSince.getUTCDate() - FAULT_HISTORY_DAYS);
+
+    // Five reads, all scoped to this one device, none depending on
+    // another's result (or on `tickets`, which doesn't touch
+    // device_readings at all) — one round trip instead of five.
+    const [
+      { data: ticketRows },
+      { data: latestRows },
+      { data: faultRows },
+      { data: pastRows },
+      resolvedLastSync,
+    ] = await Promise.all([
+      supabase
+        .from("maintenance_tickets")
+        .select("id, description, status, type, created_at")
+        .eq("device_id", device.id)
+        .order("created_at", { ascending: false }),
+      supabase
+        .from("device_readings")
+        .select("instrument_key, value, ts")
+        .eq("device_id", device.id)
+        .in("instrument_key", ["active_fault_code", "sd_status", ...tempKeys])
+        .order("ts", { ascending: false })
+        .limit((tempKeys.length + 2) * 5),
+      // Fault *history*, not just the current state — every
+      // active_fault_code reading in the window, collapsed into discrete
+      // episodes (deriveFaultEvents) rather than shown as raw per-reading
+      // noise. Ascending order: the collapse walk needs to see faults in
+      // the order they actually happened.
+      supabase
+        .from("device_readings")
+        .select("value, ts")
+        .eq("device_id", device.id)
+        .eq("instrument_key", "active_fault_code")
+        .gte("ts", faultSince.toISOString())
+        .order("ts", { ascending: true })
+        .limit(2000),
+      supabase
+        .from("device_readings")
+        .select("instrument_key, value, ts")
+        .eq("device_id", device.id)
+        .in("instrument_key", tempKeys)
+        .gte("ts", windowStart)
+        .lte("ts", windowEnd)
+        .order("ts", { ascending: true })
+        .limit(50),
+      getLastSyncInfo(device.id),
+    ]);
+
+    tickets = ticketRows;
+    lastSync = resolvedLastSync;
+    faultEvents = deriveFaultEvents(faultRows ?? []);
+
     for (const r of latestRows ?? []) {
       if (r.instrument_key === "active_fault_code" && activeFaultCode === null) activeFaultCode = r.value;
       else if (r.instrument_key === "sd_status" && sdStatus === null) sdStatus = r.value;
@@ -75,44 +119,9 @@ export default async function MaintenancePage({
         currentTemps.set(r.instrument_key, r.value);
       }
     }
-
-    // Fault *history*, not just the current state above — every
-    // active_fault_code reading in the window, collapsed into discrete
-    // episodes (deriveFaultEvents) rather than shown as raw per-reading
-    // noise. Ascending order: the collapse walk needs to see faults in
-    // the order they actually happened.
-    const faultSince = new Date();
-    faultSince.setUTCDate(faultSince.getUTCDate() - FAULT_HISTORY_DAYS);
-    const { data: faultRows } = await supabase
-      .from("device_readings")
-      .select("value, ts")
-      .eq("device_id", device.id)
-      .eq("instrument_key", "active_fault_code")
-      .gte("ts", faultSince.toISOString())
-      .order("ts", { ascending: true })
-      .limit(2000);
-    faultEvents = deriveFaultEvents(faultRows ?? []);
-
-    // A reading from roughly a day ago (±2h window) for each temperature
-    // field, so the gauge can show whether it's trending up or easing off
-    // rather than just where it sits right now.
-    const dayAgo = new Date(Date.now() - 24 * 3600 * 1000);
-    const windowStart = new Date(dayAgo.getTime() - 2 * 3600 * 1000).toISOString();
-    const windowEnd = new Date(dayAgo.getTime() + 2 * 3600 * 1000).toISOString();
-    const { data: pastRows } = await supabase
-      .from("device_readings")
-      .select("instrument_key, value, ts")
-      .eq("device_id", device.id)
-      .in("instrument_key", tempKeys)
-      .gte("ts", windowStart)
-      .lte("ts", windowEnd)
-      .order("ts", { ascending: true })
-      .limit(50);
     for (const r of pastRows ?? []) {
       if (!previousTemps.has(r.instrument_key)) previousTemps.set(r.instrument_key, r.value);
     }
-
-    lastSync = await getLastSyncInfo(device.id);
   }
 
   return (

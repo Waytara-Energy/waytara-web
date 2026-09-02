@@ -1,5 +1,6 @@
 import "server-only";
 
+import { cache } from "react";
 import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient as createServerSupabaseClient } from "./client-server";
@@ -27,8 +28,17 @@ export type TypedSupabaseClient = SupabaseClient<Database, "waytara">;
  * Pass an existing client (e.g. from `createMiddlewareClient`) to reuse it;
  * otherwise a Server Component client is created via `next/headers` cookies —
  * which only works outside `middleware.ts`.
+ *
+ * Wrapped in React's `cache()` — every dashboard page calls this
+ * independently (same convention as each page fetching its own gate/data
+ * rather than threading it down from the layout), and the layout calls it
+ * too. Without memoization that's `auth.getUser()`'s network round trip to
+ * the Auth server, PLUS a `profiles` row fetch, repeated 2-3+ times on a
+ * single page load. `cache()` dedupes by call signature for the lifetime
+ * of one request/render pass — the no-args call every page actually makes
+ * hits the network exactly once no matter how many components call it.
  */
-export async function getCurrentProfile(
+export const getCurrentProfile = cache(async function getCurrentProfile(
   client?: TypedSupabaseClient
 ): Promise<Profile | null> {
   const supabase = client ?? (await createServerSupabaseClient());
@@ -59,7 +69,7 @@ export async function getCurrentProfile(
   }
 
   return data;
-}
+});
 
 /**
  * Server Component / Server Action / Route Handler guard: redirects to

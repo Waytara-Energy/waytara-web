@@ -3,8 +3,7 @@ import { TrendingUp } from "lucide-react";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 import { getSelectedDevice } from "@/lib/selected-device";
-import { PerformanceChart } from "@/components/dashboard/performance-chart";
-import { DivergingBarChart } from "@/components/dashboard/diverging-bar-chart";
+import { PerformanceChart, DivergingBarChart } from "@/components/dashboard/lazy-charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { aggregateDailyYield, zipDailySeries, type RawReading } from "@/lib/energy-aggregation";
@@ -27,8 +26,11 @@ const KEYS = [
 // comparisons (cycling behavior / self-consumption vs. grid dependency),
 // a computed self-consumption %, and the lifetime PV hero stat.
 export default async function PerformancePage() {
-  const profile = await getCurrentProfile();
   const supabase = await createClient();
+  // Device-centric redesign: yield for the *selected* device only, not
+  // summed across every device the customer owns. Independent of the
+  // profile/plan check below, so it runs alongside it.
+  const [profile, device] = await Promise.all([getCurrentProfile(), getSelectedDevice()]);
 
   const { data: customer } = profile
     ? await supabase.from("customers").select("plan:plans(features)").eq("id", profile.id).maybeSingle()
@@ -39,10 +41,6 @@ export default async function PerformancePage() {
     redirect("/dashboard");
   }
 
-  // Device-centric redesign: yield for the *selected* device only, not
-  // summed across every device the customer owns.
-  const device = await getSelectedDevice();
-
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - HISTORY_DAYS);
 
@@ -50,24 +48,27 @@ export default async function PerformancePage() {
   let lifetimePvKwh: number | null = null;
 
   if (device) {
-    const { data } = await supabase
-      .from("device_readings")
-      .select("device_id, instrument_key, value, ts")
-      .eq("device_id", device.id)
-      .in("instrument_key", KEYS)
-      .eq("is_test", false)
-      .gte("ts", since.toISOString())
-      .order("ts", { ascending: true });
+    // Both scoped to the same device, neither depends on the other's
+    // result — one round trip instead of two.
+    const [{ data }, { data: lifetimeRow }] = await Promise.all([
+      supabase
+        .from("device_readings")
+        .select("device_id, instrument_key, value, ts")
+        .eq("device_id", device.id)
+        .in("instrument_key", KEYS)
+        .eq("is_test", false)
+        .gte("ts", since.toISOString())
+        .order("ts", { ascending: true }),
+      supabase
+        .from("device_readings")
+        .select("value")
+        .eq("device_id", device.id)
+        .eq("instrument_key", "total_pv_energy_kwh")
+        .order("ts", { ascending: false })
+        .limit(1)
+        .maybeSingle(),
+    ]);
     rows = data ?? [];
-
-    const { data: lifetimeRow } = await supabase
-      .from("device_readings")
-      .select("value")
-      .eq("device_id", device.id)
-      .eq("instrument_key", "total_pv_energy_kwh")
-      .order("ts", { ascending: false })
-      .limit(1)
-      .maybeSingle();
     lifetimePvKwh = lifetimeRow?.value ?? null;
   }
 

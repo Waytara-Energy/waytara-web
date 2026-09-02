@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { cookies } from "next/headers";
 import { createClient } from "@waytara/supabase/server";
 
@@ -17,8 +18,13 @@ export interface CustomerDevice {
 /** Every device this customer owns, RLS-scoped, oldest first — the list
  *  both the header switcher and `getSelectedDevice` work from. Device is
  *  now the dashboard's navigation root: every device-scoped page calls
- *  `getSelectedDevice`, not "all devices for this customer". */
-export async function getCustomerDevices(): Promise<CustomerDevice[]> {
+ *  `getSelectedDevice`, not "all devices for this customer".
+ *
+ *  Wrapped in React's `cache()` — the layout fetches this once for the
+ *  header switcher, and every page fetches it again (via
+ *  `getSelectedDevice`) for its own device scoping. `cache()` dedupes
+ *  those into a single `devices` query per request instead of two. */
+export const getCustomerDevices = cache(async function getCustomerDevices(): Promise<CustomerDevice[]> {
   const supabase = await createClient();
   const { data } = await supabase
     .from("devices")
@@ -36,7 +42,7 @@ export async function getCustomerDevices(): Promise<CustomerDevice[]> {
     deviceType: d.device_type,
     site: d.site,
   }));
-}
+});
 
 /** Picks the cookie-selected device out of an already-fetched list, falling
  *  back to the first (oldest) device. Never trusts the cookie's id blindly
