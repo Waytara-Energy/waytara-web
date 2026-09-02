@@ -1,7 +1,10 @@
 import { redirect } from "next/navigation";
+import { TrendingUp } from "lucide-react";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
+import { getSelectedDevice } from "@/lib/selected-device";
 import { PerformanceChart } from "@/components/dashboard/performance-chart";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { aggregateDailyYield } from "@/lib/energy-aggregation";
 
 const HISTORY_DAYS = 180;
@@ -22,18 +25,19 @@ export default async function PerformancePage() {
     redirect("/dashboard");
   }
 
-  const { data: devices } = await supabase.from("devices").select("id");
-  const deviceIds = (devices ?? []).map((d) => d.id);
+  // Device-centric redesign: yield for the *selected* device only, not
+  // summed across every device the customer owns.
+  const device = await getSelectedDevice();
 
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - HISTORY_DAYS);
 
   let readings: { device_id: string; value: number | null; ts: string }[] = [];
-  if (deviceIds.length > 0) {
+  if (device) {
     const { data } = await supabase
       .from("device_readings")
       .select("device_id, value, ts")
-      .in("device_id", deviceIds)
+      .eq("device_id", device.id)
       .eq("instrument_key", YIELD_INSTRUMENT_KEY)
       .eq("is_test", false)
       .gte("ts", since.toISOString())
@@ -48,13 +52,27 @@ export default async function PerformancePage() {
       <div>
         <h1 className="text-2xl font-semibold text-theme-primary">Performance</h1>
         <p className="mt-1 text-sm text-theme-muted">
-          Household energy yield over time, across every solar device on your account.
+          {device
+            ? `Energy yield over time for ${device.label || device.deviceUid}.`
+            : "Household energy yield over time."}
         </p>
       </div>
 
-      <div className="rounded-xl border border-theme-border bg-theme-bg p-4">
-        <PerformanceChart daily={daily} unit="kWh" />
-      </div>
+      {!device ? (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <TrendingUp />
+            </EmptyMedia>
+            <EmptyTitle>No devices yet</EmptyTitle>
+            <EmptyDescription>Your WayTara advisor sets this up during installation.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <div className="rounded-xl border border-theme-border bg-theme-bg p-4">
+          <PerformanceChart daily={daily} unit="kWh" />
+        </div>
+      )}
     </div>
   );
 }

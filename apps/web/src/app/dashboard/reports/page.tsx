@@ -20,7 +20,11 @@ export default async function ReportsPage() {
     <div className="max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-theme-primary">Reports</h1>
-        <p className="mt-1 text-sm text-theme-muted">Export your energy and savings data as CSV or PDF.</p>
+        <p className="mt-1 text-sm text-theme-muted">
+          {report.deviceLabel
+            ? `Export ${report.deviceLabel}'s energy and savings data as CSV or PDF.`
+            : "Export your energy and savings data as CSV or PDF."}
+        </p>
       </div>
 
       <div className="rounded-xl border border-theme-border bg-theme-bg p-4">

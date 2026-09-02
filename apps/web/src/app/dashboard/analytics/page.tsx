@@ -1,12 +1,13 @@
 import { redirect } from "next/navigation";
+import { BarChart3 } from "lucide-react";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
+import { getSelectedDevice } from "@/lib/selected-device";
 import { PerformanceChart, type DailyPoint } from "@/components/dashboard/performance-chart";
-import { SiteComparisonChart, type SitePoint } from "@/components/dashboard/site-comparison-chart";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { maxByDeviceDay, sumByDay } from "@/lib/energy-aggregation";
 
 const HISTORY_DAYS = 365;
-const COMPARISON_WINDOW_DAYS = 30;
 const YIELD_INSTRUMENT_KEY = "daily_yield_kwh";
 
 function inr(value: number): string {
@@ -34,20 +35,21 @@ export default async function AnalyticsPage() {
   }
   const tariffRate = Number(customer?.tariff_rate_per_kwh ?? 8);
 
-  const { data: sites } = await supabase.from("sites").select("id, name").order("created_at", { ascending: true });
-  const { data: devices } = await supabase.from("devices").select("id, site_id");
-  const deviceIds = (devices ?? []).map((d) => d.id);
-  const siteIdByDevice = new Map((devices ?? []).map((d) => [d.id, d.site_id]));
+  // Device-centric redesign: cost savings/ROI for the *selected* device's
+  // own yield, not summed across every device — the cross-site comparison
+  // chart this page used to carry is gone along with that, since a
+  // single-device view has nothing left to compare against.
+  const device = await getSelectedDevice();
 
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - HISTORY_DAYS);
 
   let readings: { device_id: string; value: number | null; ts: string }[] = [];
-  if (deviceIds.length > 0) {
+  if (device) {
     const { data } = await supabase
       .from("device_readings")
       .select("device_id, value, ts")
-      .in("device_id", deviceIds)
+      .eq("device_id", device.id)
       .eq("instrument_key", YIELD_INSTRUMENT_KEY)
       .eq("is_test", false)
       .gte("ts", since.toISOString())
@@ -55,11 +57,13 @@ export default async function AnalyticsPage() {
     readings = data ?? [];
   }
 
+  // totalInvested stays account-wide (payments aren't tied to a device),
+  // even though the yield/savings chart below is device-scoped — the two
+  // figures answer different questions (what you spent on the system vs.
+  // what this one device has generated).
   const { data: payments } = await supabase.from("payments").select("amount, status").eq("status", "paid");
   const totalInvested = (payments ?? []).reduce((sum, p) => sum + Number(p.amount), 0);
 
-  // Same running-total-per-day semantics as Performance: the max value seen
-  // per device per calendar day is that day's total, summed across devices.
   const perDeviceDay = maxByDeviceDay(readings);
   const dailyKwh = sumByDay(perDeviceDay);
 
@@ -76,67 +80,56 @@ export default async function AnalyticsPage() {
   const paybackMonths = avgDailySaving > 0 ? remaining / (avgDailySaving * 30) : null;
   const roiPct = totalInvested > 0 ? (totalSavedToDate / totalInvested) * 100 : null;
 
-  // Cross-site comparison — last 30 days generation per site. Only worth
-  // showing once there's more than one site to compare.
-  const comparisonSince = new Date();
-  comparisonSince.setUTCDate(comparisonSince.getUTCDate() - COMPARISON_WINDOW_DAYS);
-  const siteTotals = new Map<string, number>();
-  for (const [key, value] of perDeviceDay) {
-    const [deviceId, day] = key.split(":");
-    if (day < comparisonSince.toISOString().slice(0, 10)) continue;
-    const siteId = siteIdByDevice.get(deviceId);
-    if (!siteId) continue;
-    siteTotals.set(siteId, (siteTotals.get(siteId) ?? 0) + value);
-  }
-  const sitePoints: SitePoint[] = (sites ?? []).map((s) => ({
-    siteId: s.id,
-    label: s.name,
-    value: siteTotals.get(s.id) ?? 0,
-  }));
-
   return (
     <div className="max-w-3xl space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-theme-primary">Analytics</h1>
         <p className="mt-1 text-sm text-theme-muted">
-          Cost savings and return on investment, estimated at ₹{tariffRate.toFixed(2)}/kWh.
+          {device ? `${device.label || device.deviceUid}'s cost savings and return on investment` : "Cost savings and return on investment"}
+          , estimated at ₹{tariffRate.toFixed(2)}/kWh.
         </p>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatTile label="Total invested" value={inr(totalInvested)} />
-        <StatTile label="Saved to date" value={inr(totalSavedToDate)} />
-        <StatTile label="Return on investment" value={roiPct !== null ? `${roiPct.toFixed(0)}%` : "—"} />
-        <StatTile
-          label="Est. time to break even"
-          value={
-            totalInvested === 0
-              ? "—"
-              : remaining === 0
-                ? "Recovered"
-                : paybackMonths !== null
-                  ? `${Math.ceil(paybackMonths)} mo`
-                  : "—"
-          }
-        />
-      </div>
+      {!device ? (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <BarChart3 />
+            </EmptyMedia>
+            <EmptyTitle>No devices yet</EmptyTitle>
+            <EmptyDescription>Your WayTara advisor sets this up during installation.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <StatTile label="Total invested" value={inr(totalInvested)} />
+            <StatTile label="Saved to date" value={inr(totalSavedToDate)} />
+            <StatTile label="Return on investment" value={roiPct !== null ? `${roiPct.toFixed(0)}%` : "—"} />
+            <StatTile
+              label="Est. time to break even"
+              value={
+                totalInvested === 0
+                  ? "—"
+                  : remaining === 0
+                    ? "Recovered"
+                    : paybackMonths !== null
+                      ? `${Math.ceil(paybackMonths)} mo`
+                      : "—"
+              }
+            />
+          </div>
 
-      <div className="rounded-xl border border-theme-border bg-theme-bg p-4">
-        <h2 className="mb-3 text-sm font-semibold text-theme-primary">Cumulative savings over time</h2>
-        <PerformanceChart
-          daily={cumulativeSavings}
-          aggregationMode="last"
-          valueFormat="inr"
-          totalLabel="Saved to date"
-        />
-      </div>
-
-      {sitePoints.length > 1 && (
-        <div className="rounded-xl border border-theme-border bg-theme-bg p-4">
-          <h2 className="text-sm font-semibold text-theme-primary">Site comparison</h2>
-          <p className="mb-3 text-xs text-theme-muted">Energy yield by site, last {COMPARISON_WINDOW_DAYS} days.</p>
-          <SiteComparisonChart sites={sitePoints} unit="kWh" />
-        </div>
+          <div className="rounded-xl border border-theme-border bg-theme-bg p-4">
+            <h2 className="mb-3 text-sm font-semibold text-theme-primary">Cumulative savings over time</h2>
+            <PerformanceChart
+              daily={cumulativeSavings}
+              aggregationMode="last"
+              valueFormat="inr"
+              totalLabel="Saved to date"
+            />
+          </div>
+        </>
       )}
     </div>
   );

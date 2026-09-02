@@ -1,10 +1,5 @@
 import { Document, Page, Text, View, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 
-export interface ReportSiteRow {
-  name: string;
-  kwhLast30Days: number;
-}
-
 export interface ReportWeekRow {
   label: string; // e.g. "18 Aug – 24 Aug"
   kwh: number;
@@ -13,6 +8,7 @@ export interface ReportWeekRow {
 export interface ReportPdfData {
   customerName: string;
   planName: string;
+  deviceLabel: string | null;
   generatedAt: string;
   periodLabel: string;
   totalKwh: number;
@@ -20,7 +16,6 @@ export interface ReportPdfData {
   totalInvested: number;
   roiPct: number | null;
   tariffRate: number;
-  sites: ReportSiteRow[];
   weeks: ReportWeekRow[];
 }
 
@@ -92,6 +87,12 @@ function ReportDocument({ data }: { data: ReportPdfData }) {
             <Text style={styles.label}>Plan</Text>
             <Text style={styles.value}>{data.planName}</Text>
           </View>
+          {data.deviceLabel && (
+            <View style={styles.row}>
+              <Text style={styles.label}>Device</Text>
+              <Text style={styles.value}>{data.deviceLabel}</Text>
+            </View>
+          )}
           <View style={styles.row}>
             <Text style={styles.label}>Tariff rate used</Text>
             <Text style={styles.value}>Rs. {data.tariffRate.toFixed(2)}/kWh</Text>
@@ -119,24 +120,6 @@ function ReportDocument({ data }: { data: ReportPdfData }) {
             </View>
           </View>
         </View>
-
-        {data.sites.length > 1 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Energy yield by site (last 30 days)</Text>
-            <View style={styles.table}>
-              <View style={styles.tableHeaderRow}>
-                <Text style={styles.colLabel}>Site</Text>
-                <Text style={styles.colValue}>Yield</Text>
-              </View>
-              {data.sites.map((site, i) => (
-                <View style={styles.tableRow} key={i}>
-                  <Text style={styles.colLabel}>{site.name}</Text>
-                  <Text style={styles.colValue}>{formatKwh(site.kwhLast30Days)}</Text>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Weekly yield</Text>

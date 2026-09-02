@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
   const pdfBuffer = await generateReportPdf({
     customerName: report.customerName,
     planName: report.planName,
+    deviceLabel: report.deviceLabel,
     generatedAt: new Date().toISOString(),
     periodLabel: PERIOD_LABEL[days] ?? `Last ${days} days`,
     totalKwh: report.totalKwh,
@@ -31,7 +32,6 @@ export async function GET(req: NextRequest) {
     totalInvested: report.totalInvested,
     roiPct: report.roiPct,
     tariffRate: report.tariffRate,
-    sites: report.sites.map((s) => ({ name: s.name, kwhLast30Days: s.kwhLast30Days })),
     weeks: toWeeklyRows(report.daily),
   });
 
