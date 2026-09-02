@@ -7,6 +7,7 @@ import {
   Layers,
   Cpu,
   ScrollText,
+  LifeBuoy,
   Zap,
 } from "lucide-react";
 import { cn } from "@waytara/ui/cn";
@@ -14,6 +15,7 @@ import { cn } from "@waytara/ui/cn";
 const NAV_ITEMS = [
   { label: "Leads", href: "/leads", icon: Users },
   { label: "Onboarding", href: "/onboarding", icon: ClipboardCheck },
+  { label: "Support", href: "/support", icon: LifeBuoy },
   { label: "Customers", href: "/customers", icon: UserCircle2 },
   { label: "Employees", href: "/employees", icon: UsersRound },
   { label: "Plans", href: "/plans", icon: Layers },
