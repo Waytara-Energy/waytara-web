@@ -13,12 +13,14 @@ import {
 } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
-import { visibleNavItems } from "./nav-config";
+import { visibleNavItems, SECONDARY_NAV_ITEMS } from "./nav-config";
 
 // ⌘K / Ctrl+K quick-nav across whatever dashboard pages this customer's
 // plan actually unlocks (same visibleNavItems feature-gate the sidebar
 // itself uses, so the palette never offers a destination the plan can't
-// reach).
+// reach). Also surfaces the account-menu pages (Sites & Devices, Support,
+// Billing, Settings) — they lost their sidebar row, not their reachability,
+// so power-users can still jump straight there.
 export function DashboardCommandMenu({ features = {} }: { features?: Record<string, boolean> }) {
   const [open, setOpen] = React.useState(false);
   const router = useRouter();
@@ -59,6 +61,14 @@ export function DashboardCommandMenu({ features = {} }: { features?: Record<stri
           <CommandEmpty>No matching page.</CommandEmpty>
           <CommandGroup heading="Dashboard">
             {navItems.map(({ href, label, icon: Icon }) => (
+              <CommandItem key={href} value={label} onSelect={() => go(href)}>
+                <Icon />
+                {label}
+              </CommandItem>
+            ))}
+          </CommandGroup>
+          <CommandGroup heading="Account">
+            {SECONDARY_NAV_ITEMS.map(({ href, label, icon: Icon }) => (
               <CommandItem key={href} value={label} onSelect={() => go(href)}>
                 <Icon />
                 {label}

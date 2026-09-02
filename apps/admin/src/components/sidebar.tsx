@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import {
   Users,
   ClipboardCheck,
@@ -8,7 +9,6 @@ import {
   Cpu,
   ScrollText,
   LifeBuoy,
-  Zap,
 } from "lucide-react";
 import { cn } from "@waytara/ui/cn";
 
@@ -30,7 +30,7 @@ export function Sidebar() {
         href="/dashboard"
         className="flex h-16 items-center gap-2 border-b border-border px-5"
       >
-        <Zap className="h-5 w-5 text-primary" />
+        <Image src="/images/icon.png" alt="" width={20} height={20} unoptimized className="h-5 w-5" />
         <span className="text-sm font-semibold tracking-tight">
           WayTara Admin
         </span>

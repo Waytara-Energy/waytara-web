@@ -36,3 +36,18 @@ export function Logo({ className, isLink = true }: LogoProps) {
     </Link>
   );
 }
+
+/** The icon-only brand mark (no wordmark) — for spots too narrow for the
+ *  full `Logo`, e.g. a collapsed sidebar rail or an app icon/favicon. */
+export function LogoMark({ className }: { className?: string }) {
+  return (
+    <Image
+      src="/images/icon.png"
+      alt="WayTara"
+      width={64}
+      height={64}
+      unoptimized
+      className={cn("object-contain", className)}
+    />
+  );
+}

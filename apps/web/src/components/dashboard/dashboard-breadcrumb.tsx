@@ -7,9 +7,7 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
 } from "@/components/ui/breadcrumb";
-import { BASE_NAV, GATED_NAV } from "./nav-config";
-
-const ALL_NAV = [...BASE_NAV, ...GATED_NAV];
+import { ALL_NAV } from "./nav-config";
 
 export function DashboardBreadcrumb() {
   const pathname = usePathname();

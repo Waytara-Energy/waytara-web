@@ -5,7 +5,6 @@ import { usePathname } from "next/navigation";
 import {
   Sidebar,
   SidebarContent,
-  SidebarFooter,
   SidebarGroup,
   SidebarGroupContent,
   SidebarHeader,
@@ -13,6 +12,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import { Logo } from "@/components/shared/logo";
 import { visibleNavItems } from "./nav-config";
@@ -22,11 +22,15 @@ import { visibleNavItems } from "./nav-config";
 // disappearing entirely, persists across reloads via the cookie
 // SidebarProvider itself manages). Same nav items, same feature-gating
 // logic as before, just re-rendered as SidebarMenuItems.
+//
+// The collapse toggle lives here in the sidebar's own header (logo left,
+// toggle right — collapsing to just the toggle, centered, in icon-rail
+// mode), not in the content header — the same place a collapsed-sidebar
+// app like Claude's web UI keeps it, rather than a button floating in the
+// main content area that has nothing to do with the content.
 export function DashboardSidebar({
-  planName,
   features = {},
 }: {
-  planName?: string | null;
   features?: Record<string, boolean>;
 }) {
   const pathname = usePathname();
@@ -34,10 +38,15 @@ export function DashboardSidebar({
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="h-16 justify-center border-b border-sidebar-border px-3 group-data-[collapsible=icon]:px-0">
-        <Link href="/dashboard" aria-label="Dashboard home" className="flex items-center justify-center">
-          <Logo isLink={false} className="h-6 group-data-[collapsible=icon]:hidden" />
+      <SidebarHeader className="h-16 flex-row items-center justify-between border-b border-sidebar-border px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+        <Link
+          href="/dashboard"
+          aria-label="Dashboard home"
+          className="flex items-center group-data-[collapsible=icon]:hidden"
+        >
+          <Logo isLink={false} className="h-6" />
         </Link>
+        <SidebarTrigger className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
       </SidebarHeader>
 
       <SidebarContent>
@@ -61,10 +70,6 @@ export function DashboardSidebar({
           </SidebarGroupContent>
         </SidebarGroup>
       </SidebarContent>
-
-      <SidebarFooter className="border-t border-sidebar-border p-3 text-xs text-sidebar-foreground/70 group-data-[collapsible=icon]:hidden">
-        Plan: <span className="font-medium text-sidebar-foreground">{planName ?? "None yet"}</span>
-      </SidebarFooter>
 
       <SidebarRail />
     </Sidebar>

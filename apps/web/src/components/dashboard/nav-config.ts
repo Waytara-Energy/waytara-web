@@ -21,24 +21,18 @@ export interface NavItem {
   featureKey?: string;
 }
 
-// Single source of truth for dashboard navigation — the sidebar, the
-// header breadcrumb, and the command palette (Phase 1) all read from this
-// instead of keeping three separate lists in sync by hand.
-export const BASE_NAV: NavItem[] = [
+// Single source of truth for dashboard navigation. One ordered list (not a
+// base/gated split concatenated together) because the sidebar's required
+// order interleaves gated and ungated items — Maintenance sits after
+// Reports, not grouped with the other always-on pages — so a filter that
+// preserves order beats a concat that can't express that ordering.
+export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/dashboard/sites", label: "Sites & Devices", icon: Sun },
-  { href: "/dashboard/maintenance", label: "Maintenance", icon: Wrench },
-  { href: "/dashboard/support", label: "Support", icon: LifeBuoy },
-  { href: "/dashboard/billing", label: "Billing & Plan", icon: CreditCard },
-  { href: "/dashboard/settings", label: "Application Settings", icon: Settings },
-];
-
-// Task 10: items gated by plans.features.
-export const GATED_NAV: NavItem[] = [
   { href: "/dashboard/monitoring", label: "Monitoring", icon: Activity, featureKey: "monitoring" },
   { href: "/dashboard/performance", label: "Performance", icon: TrendingUp, featureKey: "performance" },
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3, featureKey: "analytics" },
   { href: "/dashboard/reports", label: "Reports", icon: FileDown, featureKey: "reports" },
+  { href: "/dashboard/maintenance", label: "Maintenance", icon: Wrench },
   {
     href: "/dashboard/settings/instruments",
     label: "Instrument Settings",
@@ -47,6 +41,25 @@ export const GATED_NAV: NavItem[] = [
   },
 ];
 
+// Moved out of the sidebar and into the account (avatar) menu — still real
+// pages with their own URLs, so the breadcrumb and command palette both
+// still need to know about them; they just don't get a sidebar row.
+export const SECONDARY_NAV_ITEMS: NavItem[] = [
+  { href: "/dashboard/sites", label: "Sites & Devices", icon: Sun },
+  { href: "/dashboard/support", label: "Support", icon: LifeBuoy },
+  { href: "/dashboard/billing", label: "Billing & Plan", icon: CreditCard },
+  { href: "/dashboard/settings", label: "Application Settings", icon: Settings },
+];
+
+export const ALL_NAV: NavItem[] = [...NAV_ITEMS, ...SECONDARY_NAV_ITEMS];
+
+/** Sidebar + command palette's primary list. */
 export function visibleNavItems(features: Record<string, boolean>): NavItem[] {
-  return [...BASE_NAV, ...GATED_NAV.filter((item) => item.featureKey && features[item.featureKey])];
+  return NAV_ITEMS.filter((item) => !item.featureKey || features[item.featureKey]);
+}
+
+/** Command palette's full reach — primary items plus the account-menu
+ *  pages, none of which are feature-gated, so nothing extra to filter. */
+export function allReachableNavItems(features: Record<string, boolean>): NavItem[] {
+  return [...visibleNavItems(features), ...SECONDARY_NAV_ITEMS];
 }

@@ -1,4 +1,4 @@
-import { Zap } from "lucide-react";
+import Image from "next/image";
 import { Input } from "@waytara/ui/input";
 import { Button } from "@waytara/ui/button";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
@@ -42,7 +42,7 @@ export default async function EmployeeInvitePage({
     <div className="flex min-h-screen items-center justify-center px-4">
       <div className="w-full max-w-sm space-y-6">
         <div className="flex flex-col items-center text-center">
-          <Zap className="mb-2 h-6 w-6 text-primary" />
+          <Image src="/images/icon.png" alt="" width={40} height={40} unoptimized className="mb-2 h-10 w-10" />
           <h1 className="text-xl font-semibold tracking-tight">
             Join WayTara as {invite.role === "admin" ? "an admin" : "an employee"}
           </h1>
