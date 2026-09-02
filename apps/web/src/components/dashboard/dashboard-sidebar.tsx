@@ -12,9 +12,8 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
-  SidebarTrigger,
 } from "@/components/ui/sidebar";
-import { Logo } from "@/components/shared/logo";
+import { Logo, LogoMark } from "@/components/shared/logo";
 import { visibleNavItems } from "./nav-config";
 
 // Replaces the old hand-rolled dashboard-nav.tsx with shadcn's real
@@ -23,11 +22,12 @@ import { visibleNavItems } from "./nav-config";
 // SidebarProvider itself manages). Same nav items, same feature-gating
 // logic as before, just re-rendered as SidebarMenuItems.
 //
-// The collapse toggle lives here in the sidebar's own header (logo left,
-// toggle right — collapsing to just the toggle, centered, in icon-rail
-// mode), not in the content header — the same place a collapsed-sidebar
-// app like Claude's web UI keeps it, rather than a button floating in the
-// main content area that has nothing to do with the content.
+// Collapse/expand is SidebarRail below, not a button in the header row —
+// it's a click/drag target already sitting right on the sidebar's outer
+// edge (its own -right-4 positioning puts it on the boundary with the
+// main content), so a second explicit toggle button would just duplicate
+// it. The header simply swaps the full wordmark for the icon-only mark
+// when collapsed, same spot either way.
 export function DashboardSidebar({
   features = {},
 }: {
@@ -38,15 +38,11 @@ export function DashboardSidebar({
 
   return (
     <Sidebar collapsible="icon">
-      <SidebarHeader className="h-16 flex-row items-center justify-between border-b border-sidebar-border px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
-        <Link
-          href="/dashboard"
-          aria-label="Dashboard home"
-          className="flex items-center group-data-[collapsible=icon]:hidden"
-        >
-          <Logo isLink={false} className="h-6" />
+      <SidebarHeader className="h-16 flex-row items-center justify-center border-b border-sidebar-border px-3 group-data-[collapsible=icon]:px-0">
+        <Link href="/dashboard" aria-label="Dashboard home" className="flex items-center justify-center">
+          <Logo isLink={false} className="h-6 group-data-[collapsible=icon]:hidden" />
+          <LogoMark className="hidden h-7 w-7 group-data-[collapsible=icon]:block" />
         </Link>
-        <SidebarTrigger className="text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground" />
       </SidebarHeader>
 
       <SidebarContent>
