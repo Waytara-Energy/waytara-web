@@ -40,8 +40,8 @@ export function DashboardSidebar({
     <Sidebar collapsible="icon">
       <SidebarHeader className="h-16 flex-row items-center justify-center border-b border-sidebar-border px-3 group-data-[collapsible=icon]:px-0">
         <Link href="/dashboard" aria-label="Dashboard home" className="flex items-center justify-center">
-          <Logo isLink={false} className="h-6 group-data-[collapsible=icon]:hidden" />
-          <LogoMark className="hidden h-7 w-7 group-data-[collapsible=icon]:block" />
+          <Logo isLink={false} className="h-[clamp(19px,1.3vw,22px)] group-data-[collapsible=icon]:hidden" />
+          <LogoMark className="hidden h-[clamp(22px,1.5vw,25px)] w-[clamp(22px,1.5vw,25px)] group-data-[collapsible=icon]:block" />
         </Link>
       </SidebarHeader>
 
@@ -55,8 +55,8 @@ export function DashboardSidebar({
                   <SidebarMenuItem key={href}>
                     <SidebarMenuButton asChild isActive={active} tooltip={label}>
                       <Link href={href}>
-                        <Icon />
-                        <span>{label}</span>
+                        <Icon className="h-[clamp(15px,1vw,17px)] w-[clamp(15px,1vw,17px)]" />
+                        <span className="text-[clamp(12.5px,0.85vw,13.5px)]">{label}</span>
                       </Link>
                     </SidebarMenuButton>
                   </SidebarMenuItem>

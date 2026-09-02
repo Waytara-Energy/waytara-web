@@ -32,9 +32,9 @@ export function DashboardHeader({
   selectedDeviceId: string | null;
 }) {
   return (
-    <header className="grid h-16 shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 border-b border-border px-4">
+    <header className="grid h-[clamp(3.5rem,4.5vw,4.25rem)] shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 border-b border-border px-4">
       <div className="col-start-1 flex min-w-0 items-center gap-2">
-        <SidebarTrigger />
+        <SidebarTrigger className="[&_svg]:h-[clamp(17px,1.15vw,19.5px)] [&_svg]:w-[clamp(17px,1.15vw,19.5px)]" />
         <Separator orientation="vertical" className="h-5 shrink-0" />
         <DeviceSwitcher devices={devices} selectedId={selectedDeviceId} />
       </div>

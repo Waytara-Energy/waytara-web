@@ -36,7 +36,7 @@ export function DashboardUserMenu({
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <Avatar className="h-9 w-9 border-0">
+        <Avatar className="h-8 w-8 border-0">
           {avatarUrl && <AvatarImage src={avatarUrl} alt={fullName ?? "Account"} />}
           <AvatarFallback className="text-xs">{initials(fullName, email)}</AvatarFallback>
         </Avatar>
