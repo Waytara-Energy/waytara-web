@@ -195,7 +195,7 @@ export function Footer() {
                 Contact
               </h4>
               <ul className="space-y-2.5 text-xs text-theme-secondary">
-                <li>
+                <li className="space-y-1">
                   <a
                     href="tel:9363021195"
                     className="flex items-center gap-2 hover:text-theme-primary transition-colors"
@@ -203,14 +203,11 @@ export function Footer() {
                     <Phone className="h-3.5 w-3.5 shrink-0" />
                     <span>+91 93630 21195</span>
                   </a>
-                </li>
-                <li>
                   <a
                     href="tel:9384800141"
-                    className="flex items-center gap-2 hover:text-theme-primary transition-colors pl-[22px]"
+                    className="block pl-[22px] text-theme-muted hover:text-theme-primary transition-colors"
                   >
-                    <span className="text-theme-muted">Alt:</span>
-                    <span>+91 93848 00141</span>
+                    Alt +91 93848 00141
                   </a>
                 </li>
                 <li>
