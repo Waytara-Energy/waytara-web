@@ -7,12 +7,23 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { LiveMetricChart } from "@/components/dashboard/lazy-charts";
 import { PvStringComparison } from "@/components/dashboard/pv-string-comparison";
 import { TemperatureGauge } from "@/components/dashboard/temperature-gauge";
+import { MetricListCard } from "@/components/dashboard/metric-list-card";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { getSelectedDevice } from "@/lib/selected-device";
-import { TEMPERATURE_FIELDS } from "@/lib/telemetry-catalog";
+import {
+  TEMPERATURE_FIELDS,
+  BATTERY_DETAIL_FIELDS,
+  INVERTER_DETAIL_FIELDS,
+  GRID_DETAIL_FIELDS,
+  LOAD_DETAIL_FIELDS,
+} from "@/lib/telemetry-catalog";
 
 const SNAPSHOT_KEYS = [
   ...TEMPERATURE_FIELDS.map((f) => f.key),
+  ...BATTERY_DETAIL_FIELDS.map((f) => f.key),
+  ...INVERTER_DETAIL_FIELDS.map((f) => f.key),
+  ...GRID_DETAIL_FIELDS.map((f) => f.key),
+  ...LOAD_DETAIL_FIELDS.map((f) => f.key),
   "pv1_voltage_v",
   "pv1_current_a",
   "pv1_power_w",
@@ -20,6 +31,7 @@ const SNAPSHOT_KEYS = [
   "pv2_current_a",
   "pv2_power_w",
   "grid_connected",
+  "rated_power_w",
 ];
 
 // Server-side gate, matching Overview/Performance/Analytics — a Basic-tier
@@ -61,6 +73,7 @@ export default async function MonitoringPage() {
   }
   const getValue = (key: string) => latest.get(key) ?? null;
   const gridConnected = getValue("grid_connected");
+  const ratedPowerW = getValue("rated_power_w");
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -74,9 +87,12 @@ export default async function MonitoringPage() {
           </p>
         </div>
         {device && (
-          <Badge variant={gridConnected === 1 ? "default" : gridConnected === 0 ? "alert" : "secondary"}>
-            Grid {gridConnected === 1 ? "Connected" : gridConnected === 0 ? "Disconnected" : "Unknown"}
-          </Badge>
+          <div className="flex items-center gap-2">
+            {ratedPowerW !== null && <Badge variant="secondary">{(ratedPowerW / 1000).toFixed(1)} kW rated</Badge>}
+            <Badge variant={gridConnected === 1 ? "default" : gridConnected === 0 ? "alert" : "secondary"}>
+              Grid {gridConnected === 1 ? "Connected" : gridConnected === 0 ? "Disconnected" : "Unknown"}
+            </Badge>
+          </div>
         )}
       </div>
 
@@ -133,6 +149,11 @@ export default async function MonitoringPage() {
               ))}
             </CardContent>
           </Card>
+
+          <MetricListCard title="Battery Detail" fields={BATTERY_DETAIL_FIELDS} getValue={getValue} />
+          <MetricListCard title="Inverter Detail" fields={INVERTER_DETAIL_FIELDS} getValue={getValue} />
+          <MetricListCard title="Grid Detail" fields={GRID_DETAIL_FIELDS} getValue={getValue} />
+          <MetricListCard title="Load Detail" fields={LOAD_DETAIL_FIELDS} getValue={getValue} />
         </>
       )}
     </div>

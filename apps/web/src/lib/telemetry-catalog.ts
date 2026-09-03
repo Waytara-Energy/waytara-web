@@ -63,6 +63,71 @@ export const TODAY_ENERGY_FIELDS: TelemetryField[] = [
   { key: "grid_buy_energy_today_kwh", label: "Grid imported", unit: "kWh", decimals: 1 },
   { key: "grid_sell_energy_today_kwh", label: "Grid exported", unit: "kWh", decimals: 1 },
   { key: "load_energy_today_kwh", label: "Load consumed", unit: "kWh", decimals: 1 },
+  { key: "day_active_energy_kwh", label: "Active energy", unit: "kWh", decimals: 1 },
+  { key: "day_reactive_energy_kvarh", label: "Reactive energy", unit: "kVarh", decimals: 1 },
+];
+
+/** Read-side coverage pass (Phase 3): the 34 confirmed-register fields
+ *  that had no home in the UI yet, minus the 3 Generator/AUX fields
+ *  (no hardware connected — would sit permanently blank). Grouped to
+ *  match `MetricListCard`'s 4 mounts on Monitoring — one detail card per
+ *  flow node, labels dropping the redundant category prefix the card
+ *  title already carries (DB's "Battery Voltage" -> card "Battery
+ *  Detail" / row "Voltage"). */
+export const BATTERY_DETAIL_FIELDS: TelemetryField[] = [
+  { key: "battery_voltage_v", label: "Voltage", unit: "V", decimals: 2 },
+  { key: "battery_current_a", label: "Current", unit: "A", decimals: 2 },
+  { key: "battery_charge_limit_current_a", label: "Charge current limit", unit: "A" },
+  { key: "battery_discharge_limit_current_a", label: "Discharge current limit", unit: "A" },
+  { key: "battery_charging_voltage_v", label: "Charging voltage target", unit: "V", decimals: 2 },
+  { key: "bat1_soc_pct", label: "BMS reported SOC", unit: "%" },
+];
+
+export const INVERTER_DETAIL_FIELDS: TelemetryField[] = [
+  { key: "inverter_voltage_v", label: "Voltage", unit: "V", decimals: 1 },
+  { key: "inverter_current_a", label: "Current", unit: "A", decimals: 2 },
+  { key: "inverter_frequency_hz", label: "Frequency", unit: "Hz", decimals: 2 },
+  { key: "environment_temp_c", label: "Ambient temperature", unit: "°C", decimals: 1 },
+];
+
+export const GRID_DETAIL_FIELDS: TelemetryField[] = [
+  { key: "grid_voltage_v", label: "Voltage", unit: "V", decimals: 1 },
+  { key: "grid_frequency_hz", label: "Frequency", unit: "Hz", decimals: 2 },
+  { key: "grid_current_a", label: "Current", unit: "A", decimals: 2 },
+  { key: "grid_ct_power_w", label: "CT clamp power", unit: "W" },
+  { key: "grid_ld_power_w", label: "L/D power", unit: "W" },
+  { key: "grid_l2_power_w", label: "L2 power", unit: "W" },
+];
+
+export const LOAD_DETAIL_FIELDS: TelemetryField[] = [
+  { key: "load_frequency_hz", label: "Frequency", unit: "Hz", decimals: 2 },
+  { key: "load_l1_power_w", label: "L1 power", unit: "W" },
+  { key: "load_l2_power_w", label: "L2 power", unit: "W" },
+];
+
+/** Month/Year/Lifetime running counters — Performance's "Period &
+ *  Lifetime Totals" section. `total_pv_energy_kwh` is deliberately not
+ *  repeated here — Performance already shows it as its own "lifetime PV"
+ *  stat tile. */
+export const MONTH_TOTAL_FIELDS: TelemetryField[] = [
+  { key: "month_pv_energy_kwh", label: "Solar", unit: "kWh", decimals: 1 },
+  { key: "month_grid_energy_kwh", label: "Grid", unit: "kWh", decimals: 1 },
+  { key: "month_load_energy_kwh", label: "Load", unit: "kWh", decimals: 1 },
+];
+
+export const YEAR_TOTAL_FIELDS: TelemetryField[] = [
+  { key: "year_pv_energy_kwh", label: "Solar", unit: "kWh", decimals: 1 },
+  { key: "year_grid_export_kwh", label: "Grid exported", unit: "kWh", decimals: 1 },
+  { key: "year_load_energy_kwh", label: "Load", unit: "kWh", decimals: 1 },
+];
+
+export const LIFETIME_TOTAL_FIELDS: TelemetryField[] = [
+  { key: "total_active_energy_kwh", label: "Active energy", unit: "kWh", decimals: 1 },
+  { key: "total_battery_charge_kwh", label: "Battery charged", unit: "kWh", decimals: 1 },
+  { key: "total_battery_discharge_kwh", label: "Battery discharged", unit: "kWh", decimals: 1 },
+  { key: "total_grid_export_kwh", label: "Grid exported", unit: "kWh", decimals: 1 },
+  { key: "total_grid_import_kwh", label: "Grid imported", unit: "kWh", decimals: 1 },
+  { key: "total_load_energy_kwh", label: "Load consumed", unit: "kWh", decimals: 1 },
 ];
 
 export const PV_STRING_FIELDS = {

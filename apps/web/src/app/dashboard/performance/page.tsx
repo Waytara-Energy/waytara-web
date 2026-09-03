@@ -7,8 +7,15 @@ import { PerformanceChart, DivergingBarChart } from "@/components/dashboard/lazy
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { aggregateDailyYield, zipDailySeries, type RawReading } from "@/lib/energy-aggregation";
+import {
+  MONTH_TOTAL_FIELDS,
+  YEAR_TOTAL_FIELDS,
+  LIFETIME_TOTAL_FIELDS,
+  formatValue,
+} from "@/lib/telemetry-catalog";
 
 const HISTORY_DAYS = 180;
+const TOTALS_KEYS = [...MONTH_TOTAL_FIELDS, ...YEAR_TOTAL_FIELDS, ...LIFETIME_TOTAL_FIELDS].map((f) => f.key);
 const YIELD_KEY = "solar_energy_today_kwh";
 const KEYS = [
   YIELD_KEY,
@@ -44,11 +51,14 @@ export default async function PerformancePage() {
 
   let rows: { device_id: string; instrument_key: string; value: number | null; ts: string }[] = [];
   let lifetimePvKwh: number | null = null;
+  const totals = new Map<string, number | null>();
 
   if (device) {
-    // Both scoped to the same device, neither depends on the other's
-    // result — one round trip instead of two.
-    const [{ data }, { data: lifetimeRow }] = await Promise.all([
+    // Three independent device-scoped reads, one round trip instead of
+    // three — the totals snapshot is the same "latest value per
+    // instrument" pattern Overview/Monitoring already use, just scoped to
+    // the month/year/lifetime counter keys instead of live telemetry.
+    const [{ data }, { data: lifetimeRow }, { data: totalsRows }] = await Promise.all([
       supabase
         .from("device_readings")
         .select("device_id, instrument_key, value, ts")
@@ -65,10 +75,21 @@ export default async function PerformancePage() {
         .order("ts", { ascending: false })
         .limit(1)
         .maybeSingle(),
+      supabase
+        .from("device_readings")
+        .select("instrument_key, value, ts")
+        .eq("device_id", device.id)
+        .in("instrument_key", TOTALS_KEYS)
+        .order("ts", { ascending: false })
+        .limit(TOTALS_KEYS.length * 5),
     ]);
     rows = data ?? [];
     lifetimePvKwh = lifetimeRow?.value ?? null;
+    for (const r of totalsRows ?? []) {
+      if (!totals.has(r.instrument_key)) totals.set(r.instrument_key, r.value);
+    }
   }
+  const getTotal = (key: string) => totals.get(key) ?? null;
 
   const byKey = (key: string): RawReading[] =>
     rows.filter((r) => r.instrument_key === key).map((r) => ({ device_id: r.device_id, value: r.value, ts: r.ts }));
@@ -153,8 +174,49 @@ export default async function PerformancePage() {
               <DivergingBarChart data={gridDiverging} positiveLabel="Exported" negativeLabel="Imported" unit="kWh" />
             </CardContent>
           </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Period & Lifetime Totals</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">This month</p>
+                <div className="grid grid-cols-3 gap-4">
+                  {MONTH_TOTAL_FIELDS.map((field) => (
+                    <TotalTile key={field.key} label={field.label} value={formatValue(getTotal(field.key), field)} />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">This year</p>
+                <div className="grid grid-cols-3 gap-4">
+                  {YEAR_TOTAL_FIELDS.map((field) => (
+                    <TotalTile key={field.key} label={field.label} value={formatValue(getTotal(field.key), field)} />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="mb-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">Lifetime</p>
+                <div className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                  {LIFETIME_TOTAL_FIELDS.map((field) => (
+                    <TotalTile key={field.key} label={field.label} value={formatValue(getTotal(field.key), field)} />
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </>
       )}
+    </div>
+  );
+}
+
+function TotalTile({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-lg border border-theme-border bg-theme-surface p-3">
+      <p className="text-xs text-theme-muted">{label}</p>
+      <p className="mt-1 text-lg font-semibold text-theme-primary">{value}</p>
     </div>
   );
 }

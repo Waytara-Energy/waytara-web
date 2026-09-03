@@ -103,6 +103,8 @@ const MAX_DISCHARGE_W = 3000;
 const PEAK_SOLAR_W = 2200;
 const SUNRISE_HOUR = 6.0;
 const SUNSET_HOUR = 18.5;
+const NOMINAL_BATTERY_V = 51.2; // 16S LiFePO4 nominal — only used to derive plausible charge/discharge limit currents below
+const RATED_POWER_W = 8000; // nameplate — the "8K" in SUN-8K-SG05LP1-EU, doesn't change tick to tick
 
 function round(value, decimals = 0) {
   const factor = 10 ** decimals;
@@ -151,6 +153,8 @@ class SimState {
     this.dayBatteryChargeKwh = 0;
     this.dayBatteryDischargeKwh = 0;
     this.dayLoadKwh = 0;
+    this.dayActiveEnergyKwh = 0;
+    this.dayReactiveEnergyKvarh = 0;
   }
 
   async seedFromDb(deviceId) {
@@ -182,9 +186,12 @@ class SimState {
 }
 
 /** One tick's worth of readings, keyed by instrument_key — only the fields
- *  this simulation actually models. Anything in the catalog not covered
- *  here (e.g. AUX/generator fields, when nothing's connected) is left out
- *  of the insert entirely rather than faked as a nonzero value. */
+ *  this simulation actually models (Phase 3 of the Modbus register mapping
+ *  pass extended this to the full 34-field read-side UI coverage set, not
+ *  just the ~10 the earlier .seed-manoj-live-monitoring.mjs covered).
+ *  Anything in the catalog still not covered here (AUX/generator fields —
+ *  nothing's connected there) is left out of the insert entirely rather
+ *  than faked as a nonzero value. */
 function simulateTick(date, state) {
   const hour = date.getHours() + date.getMinutes() / 60;
   const dayKey = date.toISOString().slice(0, 10);
@@ -196,6 +203,8 @@ function simulateTick(date, state) {
     state.dayBatteryChargeKwh = 0;
     state.dayBatteryDischargeKwh = 0;
     state.dayLoadKwh = 0;
+    state.dayActiveEnergyKwh = 0;
+    state.dayReactiveEnergyKvarh = 0;
   }
 
   const df = daylightFactor(hour);
@@ -241,6 +250,13 @@ function simulateTick(date, state) {
   state.dayGridExportKwh += gridExportKwh;
   state.dayBatteryChargeKwh += battChargeKwh;
   state.dayBatteryDischargeKwh += battDischargeKwh;
+  // No confirmed register-level model for active/reactive metering — these
+  // are plausible approximations for demo data, not derived from the doc:
+  // net active energy for the day (generation minus consumption, signed),
+  // and reactive energy as a fixed fraction of load (typical ratio for a
+  // mixed household load, no capacitive/inductive detail modeled).
+  state.dayActiveEnergyKwh += solarKwh - loadKwh;
+  state.dayReactiveEnergyKvarh += loadKwh * 0.1;
   state.totalPvKwh += solarKwh;
   state.totalBatteryChargeKwh += battChargeKwh;
   state.totalBatteryDischargeKwh += battDischargeKwh;
@@ -270,6 +286,15 @@ function simulateTick(date, state) {
   const inverterCurrentA = inverterVoltageV > 0 ? Math.abs(solarW) / inverterVoltageV : 0;
   const loadFrequencyHz = gridFrequencyHz;
   const batteryCurrentA = batteryVoltageV > 0 ? batteryPowerW / batteryVoltageV : 0;
+  // Newly-covered fields (Phase 3): none of these have a confirmed
+  // register-level model in the docs — best-effort plausible values so
+  // simulate mode isn't blank for the new UI, same spirit as the rest of
+  // this function's approximations (see the file header comment).
+  const ambientTempC = jitter(18 + 10 * daylightFactor(hour), 0.05);
+  const batteryChargeLimitA = round(MAX_CHARGE_W / NOMINAL_BATTERY_V);
+  const batteryDischargeLimitA = round(MAX_DISCHARGE_W / NOMINAL_BATTERY_V);
+  const batteryChargingVoltageV = jitter(56.4, 0.002);
+  const gridCurrentA = gridVoltageV > 0 ? Math.abs(gridPowerW) / gridVoltageV : 0;
 
   return {
     // solar
@@ -286,6 +311,10 @@ function simulateTick(date, state) {
     battery_current_a: round(batteryCurrentA, 2),
     battery_soc_pct: round(state.socPct),
     battery_temp_c: round(batteryTempC, 1),
+    battery_charge_limit_current_a: batteryChargeLimitA,
+    battery_discharge_limit_current_a: batteryDischargeLimitA,
+    battery_charging_voltage_v: round(batteryChargingVoltageV, 2),
+    bat1_soc_pct: round(state.socPct),
     // inverter
     inverter_power_w: round(solarW - loadW < 0 ? -Math.abs(solarW) : solarW),
     inverter_voltage_v: round(inverterVoltageV, 1),
@@ -293,24 +322,34 @@ function simulateTick(date, state) {
     inverter_frequency_hz: round(inverterFrequencyHz, 2),
     inverter_dc_temp_c: round(inverterDcTempC, 1),
     inverter_ac_temp_c: round(inverterAcTempC, 1),
+    environment_temp_c: round(ambientTempC, 1),
     // grid
     grid_power_w: round(gridPowerW),
     grid_voltage_v: round(gridVoltageV, 1),
     grid_frequency_hz: round(gridFrequencyHz, 2),
     grid_connected: 1,
+    grid_current_a: round(gridCurrentA, 2),
+    grid_ct_power_w: round(gridPowerW),
+    grid_ld_power_w: round(gridPowerW),
+    grid_l2_power_w: 0, // single-phase unit — L2 doesn't carry load
     // load
     load_power_w: round(loadW),
     load_frequency_hz: round(loadFrequencyHz, 2),
     load_energy_today_kwh: round(state.dayLoadKwh, 2),
+    load_l1_power_w: round(loadW), // single-phase — all load on L1
+    load_l2_power_w: 0,
     // system / status
     inverter_state: 0,
     active_fault_code: 0,
     sd_status: 0,
+    rated_power_w: RATED_POWER_W,
     // energy — today
     day_battery_charge_kwh: round(state.dayBatteryChargeKwh, 2),
     day_battery_discharge_kwh: round(state.dayBatteryDischargeKwh, 2),
     grid_buy_energy_today_kwh: round(state.dayGridImportKwh, 2),
     grid_sell_energy_today_kwh: round(state.dayGridExportKwh, 2),
+    day_active_energy_kwh: round(state.dayActiveEnergyKwh, 2),
+    day_reactive_energy_kvarh: round(state.dayReactiveEnergyKvarh, 2),
     // energy — month/year/total
     month_pv_energy_kwh: round(state.monthPvKwh, 1),
     month_grid_energy_kwh: round(state.monthGridKwh, 1),
