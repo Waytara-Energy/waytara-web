@@ -67,9 +67,11 @@ export function OurTeam() {
 
         {/* 3. Vision, Mission & Goal — three plain text columns, no cards/borders,
             all first-person ("we"/"our") — this is WayTara speaking, not a
-            narrator describing WayTara. */}
+            narrator describing WayTara. Same grid-cols-3/gap as the Team
+            grid below (no max-w cap here) so the two 3-column rows share
+            identical column boundaries instead of drifting out of line. */}
         <Reveal direction="up" delay={180} duration={700}>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12 mt-10 mb-16 sm:mb-20 max-w-5xl">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12 mt-10 mb-16 sm:mb-20">
             <div>
               <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-3">
                 Our Vision
