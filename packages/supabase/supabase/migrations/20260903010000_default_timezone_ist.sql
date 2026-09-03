@@ -1,0 +1,14 @@
+-- Sets this database's default session timezone to IST (Asia/Kolkata).
+--
+-- Purely a display-time setting, not a data change: every `timestamptz`
+-- column continues to store the same UTC-normalized instant it always has
+-- (Postgres never actually stores a timezone in the column — this only
+-- controls how a value is *converted for display* when a session doesn't
+-- explicitly set its own timezone). Any query, the SQL Editor, `psql`, or
+-- the app's own connections that don't override this will now see
+-- `timestamptz` columns rendered in IST instead of UTC by default.
+--
+-- Existing rows are unaffected and require no backfill — there was never
+-- anything "wrong" with them to fix; this only changes how new sessions
+-- choose to look at the same, already-correct values.
+ALTER DATABASE postgres SET timezone TO 'Asia/Kolkata';
