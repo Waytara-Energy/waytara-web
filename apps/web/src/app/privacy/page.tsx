@@ -101,8 +101,8 @@ const sections: LegalSection[] = [
     body: (
       <p>
         You may request access to, correction of, or deletion of your personal data by contacting us at{" "}
-        <a href="mailto:contactus@waytaraenergy.com" className="text-theme-highlight hover:underline">
-          contactus@waytaraenergy.com
+        <a href="mailto:hello@waytaraenergy.com" className="text-theme-highlight hover:underline">
+          hello@waytaraenergy.com
         </a>
         . We will respond within a reasonable time and confirm what we can action, given any active service,
         warranty, or legal obligations tied to your account.
@@ -148,10 +148,10 @@ const sections: LegalSection[] = [
       <div className="rounded-xl border border-theme-border bg-theme-surface p-5">
         <p className="font-medium text-theme-primary">Questions about your data?</p>
         <p className="mt-1">
-          <a href="mailto:contactus@waytaraenergy.com" className="text-theme-highlight hover:underline">
-            contactus@waytaraenergy.com
+          <a href="mailto:hello@waytaraenergy.com" className="text-theme-highlight hover:underline">
+            hello@waytaraenergy.com
           </a>{" "}
-          · +91 93848 00141
+          · +91 93630 21195
         </p>
         <p className="mt-1 text-xs text-theme-muted">
           No. 6 &amp; 7, 3rd floor, 5th Street, Dr. Radhakrishnan Salai, Mylapore, Chennai

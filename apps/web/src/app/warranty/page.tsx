@@ -111,10 +111,10 @@ const sections: LegalSection[] = [
           Sign in to your dashboard and open Maintenance, or reach us directly:
         </p>
         <p className="mt-1">
-          <a href="mailto:contactus@waytaraenergy.com" className="text-theme-highlight hover:underline">
-            contactus@waytaraenergy.com
+          <a href="mailto:hello@waytaraenergy.com" className="text-theme-highlight hover:underline">
+            hello@waytaraenergy.com
           </a>{" "}
-          · +91 93848 00141
+          · +91 93630 21195
         </p>
       </div>
     ),

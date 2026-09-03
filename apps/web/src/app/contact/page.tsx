@@ -313,11 +313,20 @@ export default function ContactPage() {
                         Direct Helpline
                       </span>
                       <a
-                        href="tel:9384800141"
+                        href="tel:9363021195"
                         className="text-base font-bold text-theme-primary hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                       >
-                        +91 93848 00141
+                        +91 93630 21195
                       </a>
+                      <p className="text-xs text-theme-secondary mt-0.5">
+                        Alt:{" "}
+                        <a
+                          href="tel:9384800141"
+                          className="font-medium text-theme-secondary hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
+                        >
+                          +91 93848 00141
+                        </a>
+                      </p>
                       <p className="text-xs text-theme-secondary mt-0.5">
                         Mon–Sat: 8:00 AM – 8:00 PM IST
                       </p>
@@ -333,10 +342,10 @@ export default function ContactPage() {
                         Engineering Inquiries
                       </span>
                       <a
-                        href="mailto:contactus@waytaraenergy.com"
+                        href="mailto:hello@waytaraenergy.com"
                         className="text-base font-bold text-theme-primary hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors"
                       >
-                        contactus@waytaraenergy.com
+                        hello@waytaraenergy.com
                       </a>
                     </div>
                   </li>

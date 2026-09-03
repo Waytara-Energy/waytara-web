@@ -31,7 +31,7 @@ export async function notifyTeamOfNewLead(lead: Lead): Promise<void> {
     return;
   }
 
-  const to = process.env.LEADS_NOTIFICATION_EMAIL || "contactus@waytaraenergy.com";
+  const to = process.env.LEADS_NOTIFICATION_EMAIL || "hello@waytaraenergy.com";
   const from = process.env.RESEND_FROM_EMAIL || "WayTara Leads <onboarding@resend.dev>";
 
   const resend = new Resend(apiKey);

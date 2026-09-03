@@ -77,8 +77,8 @@ const sections: LegalSection[] = [
       <div className="rounded-xl border border-theme-border bg-theme-surface p-5">
         <p className="font-medium text-theme-primary">Questions about cookies?</p>
         <p className="mt-1">
-          <a href="mailto:contactus@waytaraenergy.com" className="text-theme-highlight hover:underline">
-            contactus@waytaraenergy.com
+          <a href="mailto:hello@waytaraenergy.com" className="text-theme-highlight hover:underline">
+            hello@waytaraenergy.com
           </a>
         </p>
       </div>

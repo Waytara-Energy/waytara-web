@@ -197,20 +197,29 @@ export function Footer() {
               <ul className="space-y-2.5 text-xs text-theme-secondary">
                 <li>
                   <a
-                    href="tel:9384800141"
+                    href="tel:9363021195"
                     className="flex items-center gap-2 hover:text-theme-primary transition-colors"
                   >
                     <Phone className="h-3.5 w-3.5 shrink-0" />
+                    <span>+91 93630 21195</span>
+                  </a>
+                </li>
+                <li>
+                  <a
+                    href="tel:9384800141"
+                    className="flex items-center gap-2 hover:text-theme-primary transition-colors pl-[22px]"
+                  >
+                    <span className="text-theme-muted">Alt:</span>
                     <span>+91 93848 00141</span>
                   </a>
                 </li>
                 <li>
                   <a
-                    href="mailto:contactus@waytaraenergy.com"
+                    href="mailto:hello@waytaraenergy.com"
                     className="flex items-center gap-2 hover:text-theme-primary transition-colors"
                   >
                     <Mail className="h-3.5 w-3.5 shrink-0" />
-                    <span>contactus@waytaraenergy.com</span>
+                    <span>hello@waytaraenergy.com</span>
                   </a>
                 </li>
                 <li>
