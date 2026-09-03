@@ -3,6 +3,7 @@ import { createClient } from "@waytara/supabase/server";
 import { Button } from "@waytara/ui/button";
 import { Input } from "@waytara/ui/input";
 import { MonitoringPanel } from "@waytara/ui/monitoring-panel";
+import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { QuotationForm } from "./quotation-form";
 import {
   resendQuoteLinkEmail,
@@ -207,6 +208,7 @@ export default async function OnboardingPipelinePage({
 
   return (
     <div className="max-w-3xl space-y-6">
+      <RealtimeRefresh table="customer_onboarding" event="UPDATE" filter={`id=eq.${id}`} />
       <div>
         <Link href={`/leads/${onboarding.lead_id}`} className="text-xs text-muted-foreground hover:underline">
           ← Back to Lead
@@ -479,7 +481,6 @@ export default async function OnboardingPipelinePage({
                   typeName: d.device_type?.name ?? null,
                 }))}
                 isTestOnly
-                pollIntervalMs={4000}
                 emptyMessage="No test signal received yet."
               />
 

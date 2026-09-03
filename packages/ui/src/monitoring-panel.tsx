@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { createClient } from "@waytara/supabase/client";
+import { useRealtimeTable, type RealtimeRowEvent } from "./realtime-provider";
 
 export interface MonitoringDevice {
   id: string;
@@ -16,6 +17,7 @@ interface ReadingRow {
   value: number | null;
   unit: string | null;
   ts: string;
+  is_test?: boolean;
 }
 
 interface MonitoringPanelProps {
@@ -26,9 +28,15 @@ interface MonitoringPanelProps {
    * module, which should never see test data.
    */
   isTestOnly?: boolean;
-  pollIntervalMs?: number;
   emptyMessage?: string;
 }
+
+// A Postgrest realtime filter can't express "no rows match" directly —
+// this nil UUID is a syntactically valid device_id that can never be a
+// real one, used when `devices` is empty so the subscription hook (which
+// must still be called, same as every render, per the Rules of Hooks)
+// simply never matches anything rather than subscribing unfiltered.
+const NEVER_MATCH_DEVICE_ID = "00000000-0000-0000-0000-000000000000";
 
 /**
  * Live per-device, per-instrument readings — genuinely shared between
@@ -48,22 +56,26 @@ interface MonitoringPanelProps {
  * the same plain-Tailwind style this file already committed to, which
  * gets the same visual outcome without the cross-app import.
  *
- * "Live" here means client-side polling of device_readings, not a Realtime
- * subscription — simpler and predictable, and RLS (readings_owner /
- * readings_admin_all / readings_employee_active_test_only) already scopes
- * the query correctly for whichever role is viewing, so this component
- * doesn't need to know or care which app/role is using it.
+ * Realtime rollout: the initial snapshot is still one fetch on mount
+ * (Realtime only tells us about *new* rows, not history), but new
+ * readings now arrive via a device_readings INSERT subscription instead
+ * of a poll — RLS (readings_owner / readings_admin_all /
+ * readings_employee_active_test_only) already scopes both the initial
+ * query and what the subscription is even allowed to deliver for
+ * whichever role is viewing, so this component still doesn't need to know
+ * or care which app/role is using it.
  */
 export function MonitoringPanel({
   devices,
   isTestOnly = false,
-  pollIntervalMs = 5000,
   emptyMessage = "No readings yet.",
 }: MonitoringPanelProps) {
   const [readings, setReadings] = React.useState<ReadingRow[]>([]);
   const [loading, setLoading] = React.useState(true);
   const deviceIds = React.useMemo(() => devices.map((d) => d.id), [devices]);
   const deviceIdsKey = deviceIds.join(",");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const deviceIdSet = React.useMemo(() => new Set(deviceIds), [deviceIdsKey]);
 
   React.useEffect(() => {
     if (deviceIds.length === 0) {
@@ -94,13 +106,37 @@ export function MonitoringPanel({
     }
 
     fetchReadings();
-    const interval = setInterval(fetchReadings, pollIntervalMs);
     return () => {
       cancelled = true;
-      clearInterval(interval);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deviceIdsKey, isTestOnly, pollIntervalMs]);
+  }, [deviceIdsKey, isTestOnly]);
+
+  // postgres_changes filters support one column — device_id here, via the
+  // `in.(...)` operator for the (usually one, occasionally several)
+  // devices this panel shows. is_test is checked client-side per event,
+  // same reasoning as the device_id-only filter on live-metric-chart.tsx.
+  const deviceFilter =
+    deviceIds.length > 0 ? `device_id=in.(${deviceIds.join(",")})` : `device_id=eq.${NEVER_MATCH_DEVICE_ID}`;
+
+  useRealtimeTable<ReadingRow>(
+    "device_readings",
+    "INSERT",
+    deviceFilter,
+    React.useCallback(
+      (payload: RealtimeRowEvent<ReadingRow>) => {
+        const row = payload.new;
+        if (row.is_test !== isTestOnly) return;
+        if (!deviceIdSet.has(row.device_id)) return;
+        // Prepend, not append — readings stays newest-first (the initial
+        // fetch is ordered `ts desc`), which is what latestByDevice's
+        // "first match per (device_id, instrument_key) wins" relies on.
+        setReadings((prev) => [row, ...prev].slice(0, 200));
+        setLoading(false);
+      },
+      [isTestOnly, deviceIdSet]
+    )
+  );
 
   // Latest value per (device_id, instrument_key) — readings are already
   // ordered newest-first, so the first match for each pair wins.

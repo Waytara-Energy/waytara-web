@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@waytara/supabase/server";
 import { cn } from "@waytara/ui/cn";
+import { RealtimeRefresh } from "@/components/realtime-refresh";
 
 const STATUSES = ["new", "assigned", "quoted", "converted", "lost"] as const;
 
@@ -38,6 +39,12 @@ export default async function LeadsPage({
 
   return (
     <div className="space-y-6">
+      {/* Unfiltered on purpose — "every lead a role can see" has no single
+          column to filter a realtime channel by (admin sees all, employee
+          sees only assigned), and RLS already governs which INSERT events
+          this connection is even allowed to receive, the same way it
+          already governs the query above. */}
+      <RealtimeRefresh table="leads" event="INSERT" />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Leads</h1>
         <p className="mt-1 text-sm text-muted-foreground">

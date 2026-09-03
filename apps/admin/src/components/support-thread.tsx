@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowLeft, Paperclip, Send, X } from "lucide-react";
 import { createClient } from "@waytara/supabase/client";
+import { useRealtimeTable, type RealtimeRowEvent } from "@waytara/ui/realtime-provider";
 import { Button } from "@waytara/ui/button";
 import { cn } from "@waytara/ui/cn";
 import { attachmentFileName } from "@/lib/support-attachments";
@@ -20,16 +21,14 @@ interface TicketMessage {
   created_at: string;
 }
 
-const MESSAGE_COLUMNS = "id, sender_id, sender_role, body, attachment_path, created_at";
-
 /** apps/admin's own thread view — same interaction pattern as apps/web's
- *  SupportThread (poll support_messages, refetch right after sending,
- *  signed URLs for the private support-attachments bucket) but hand-rolled
- *  in plain Tailwind: this app has no shadcn setup of its own, so there's
- *  no local Message/MessageBubble/MessageScroller/Menubar to reuse, and
- *  apps/web's copies aren't importable here (no cross-app imports, only
- *  packages/* is shared — and this thread view is small enough on its own
- *  not to be worth a new shared package export). */
+ *  SupportThread (support_messages realtime subscription instead of a
+ *  poll, signed URLs for the private support-attachments bucket) but
+ *  hand-rolled in plain Tailwind: this app has no shadcn setup of its
+ *  own, so there's no local Message/MessageBubble/MessageScroller/Menubar
+ *  to reuse, and apps/web's copies aren't importable here (no cross-app
+ *  imports, only packages/* is shared — and this thread view is small
+ *  enough on its own not to be worth a new shared package export). */
 export function SupportThread({
   ticket,
   initialMessages,
@@ -49,20 +48,14 @@ export function SupportThread({
   const formRef = React.useRef<HTMLFormElement>(null);
   const bottomRef = React.useRef<HTMLDivElement>(null);
 
-  const refetch = React.useCallback(async () => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("support_messages")
-      .select(MESSAGE_COLUMNS)
-      .eq("ticket_id", ticket.id)
-      .order("created_at", { ascending: true });
-    if (data) setMessages(data);
-  }, [ticket.id]);
-
-  React.useEffect(() => {
-    const interval = setInterval(refetch, 5000);
-    return () => clearInterval(interval);
-  }, [refetch]);
+  useRealtimeTable<TicketMessage>(
+    "support_messages",
+    "INSERT",
+    `ticket_id=eq.${ticket.id}`,
+    React.useCallback((payload: RealtimeRowEvent<TicketMessage>) => {
+      setMessages((prev) => (prev.some((m) => m.id === payload.new.id) ? prev : [...prev, payload.new]));
+    }, [])
+  );
 
   React.useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
@@ -105,7 +98,8 @@ export function SupportThread({
     setBody("");
     setFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
-    await refetch();
+    // No refetch — the support_messages realtime subscription above will
+    // append this message the same way it does for the customer's.
     setSending(false);
   }
 

@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@waytara/supabase/server";
 import { cn } from "@waytara/ui/cn";
+import { RealtimeRefresh } from "@/components/realtime-refresh";
 
 const STAGE_STYLES: Record<string, string> = {
   quotation_sent: "bg-accent text-accent-foreground",
@@ -30,6 +31,10 @@ export default async function OnboardingListPage() {
 
   return (
     <div className="space-y-6">
+      {/* Unfiltered — same reasoning as leads/page.tsx: "every record a
+          role can see" has no single filter column, RLS already governs
+          which UPDATE events this connection receives. */}
+      <RealtimeRefresh table="customer_onboarding" event="UPDATE" />
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Onboarding</h1>
         <p className="mt-1 text-sm text-muted-foreground">

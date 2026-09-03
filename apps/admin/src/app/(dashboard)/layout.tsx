@@ -1,6 +1,7 @@
 import { Sidebar } from "@/components/sidebar";
 import { Header } from "@/components/header";
 import { SessionWatcher } from "@/components/session-watcher";
+import { RealtimeProvider } from "@waytara/ui/realtime-provider";
 
 // Every route under this group is gated by middleware.ts (session +
 // admin/employee role, with /employees further restricted to admin only) —
@@ -11,13 +12,15 @@ export default function DashboardLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <div className="flex">
-      <SessionWatcher />
-      <Sidebar />
-      <div className="flex min-h-screen flex-1 flex-col">
-        <Header />
-        <main className="flex-1 p-6">{children}</main>
+    <RealtimeProvider>
+      <div className="flex">
+        <SessionWatcher />
+        <Sidebar />
+        <div className="flex min-h-screen flex-1 flex-col">
+          <Header />
+          <main className="flex-1 p-6">{children}</main>
+        </div>
       </div>
-    </div>
+    </RealtimeProvider>
   );
 }
