@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { createClient } from "@waytara/supabase/client";
+import { TEMP_HIDE_LANDING_SECTIONS } from "@/config/landing-flags";
 
 interface Account {
   fullName: string | null;
@@ -45,6 +46,12 @@ const NAV_LINKS = [
   { label: "How It Works", href: "/#how-it-works" },
   { label: "Why WayTara", href: "/#why-integrated" },
 ];
+
+// TEMP_HIDE_LANDING_SECTIONS (src/config/landing-flags.ts) — How It Works
+// is hidden along with its section; restored once the flag flips off.
+const VISIBLE_NAV_LINKS = TEMP_HIDE_LANDING_SECTIONS
+  ? NAV_LINKS.filter((link) => link.label !== "How It Works")
+  : NAV_LINKS;
 
 export function Navigation() {
   const pathname = usePathname();
@@ -141,7 +148,7 @@ export function Navigation() {
 
         {/* 2. Center: Clean Direct Navigation Links (Fluid Sizing with Smooth In-Page Anchor Scrolling) */}
         <nav className="hidden lg:flex items-center space-x-[clamp(0.25rem,0.6vw,0.75rem)]">
-          {NAV_LINKS.map((link) => (
+          {VISIBLE_NAV_LINKS.map((link) => (
             <Link
               key={link.label}
               href={link.href}
@@ -160,20 +167,22 @@ export function Navigation() {
 
         {/* 3. Right: Knowledge (?), Contact (Phone), and Theme Toggle */}
         <div className="hidden sm:flex items-center space-x-[clamp(0.2rem,0.5vw,0.6rem)]">
-          {/* ? Icon -> Knowledge Centre */}
-          <Link
-            href="/knowledge-centre"
-            className={cn(
-              "p-2 rounded-lg transition-all duration-200 flex items-center justify-center",
-              isThemeStyled
-                ? "text-theme-primary hover:text-theme-highlight hover:bg-theme-surface"
-                : "text-white hover:text-white hover:bg-white/15 drop-shadow-sm"
-            )}
-            title="Knowledge Centre & Guides"
-            aria-label="Knowledge Centre"
-          >
-            <HelpCircle className="h-[clamp(17px,1.15vw,19.5px)] w-[clamp(17px,1.15vw,19.5px)]" />
-          </Link>
+          {/* ? Icon -> Knowledge Centre — TEMP_HIDE_LANDING_SECTIONS */}
+          {!TEMP_HIDE_LANDING_SECTIONS && (
+            <Link
+              href="/knowledge-centre"
+              className={cn(
+                "p-2 rounded-lg transition-all duration-200 flex items-center justify-center",
+                isThemeStyled
+                  ? "text-theme-primary hover:text-theme-highlight hover:bg-theme-surface"
+                  : "text-white hover:text-white hover:bg-white/15 drop-shadow-sm"
+              )}
+              title="Knowledge Centre & Guides"
+              aria-label="Knowledge Centre"
+            >
+              <HelpCircle className="h-[clamp(17px,1.15vw,19.5px)] w-[clamp(17px,1.15vw,19.5px)]" />
+            </Link>
+          )}
 
           {/* Phone Icon -> Contact Us */}
           <Link
@@ -272,7 +281,7 @@ export function Navigation() {
                 </SheetHeader>
 
                 <div className="flex flex-col gap-1 mt-6">
-                  {NAV_LINKS.map((link) => (
+                  {VISIBLE_NAV_LINKS.map((link) => (
                     <Link
                       key={link.label}
                       href={link.href}
@@ -290,16 +299,20 @@ export function Navigation() {
               </div>
 
               <div className="pt-4 border-t border-theme-border space-y-2">
+                {/* TEMP_HIDE_LANDING_SECTIONS: Energy Planner is hidden, so
+                    this points at Who We Are instead (DOM id "about-us",
+                    see who-we-are.tsx), matching the Hero's primary button
+                    — restored once the flag flips off. */}
                 <Button asChild variant="gradient" className="w-full justify-center text-xs h-10">
                   <Link
-                    href="/#energy-planner"
+                    href={TEMP_HIDE_LANDING_SECTIONS ? "/#about-us" : "/#energy-planner"}
                     onClick={(e) => {
                       setMobileMenuOpen(false);
-                      handleNavClick(e, "/#energy-planner");
+                      handleNavClick(e, TEMP_HIDE_LANDING_SECTIONS ? "/#about-us" : "/#energy-planner");
                     }}
                   >
                     <Zap className="h-3.5 w-3.5 mr-1.5" />
-                    Start Energy Assessment
+                    {TEMP_HIDE_LANDING_SECTIONS ? "Explore WayTara" : "Start Energy Assessment"}
                   </Link>
                 </Button>
                 <p className="text-[10px] text-center text-theme-muted">

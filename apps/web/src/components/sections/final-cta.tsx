@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowUpRight, Sparkles, PhoneCall, ShieldCheck, Zap, Activity } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
+import { TEMP_HIDE_LANDING_SECTIONS } from "@/config/landing-flags";
 
 export function FinalCTA() {
   const scrollToPlanner = (e: React.MouseEvent) => {
@@ -51,27 +52,46 @@ export function FinalCTA() {
           </p>
         </Reveal>
 
-        {/* 4. Action Buttons */}
+        {/* 4. Action Buttons
+            TEMP_HIDE_LANDING_SECTIONS (src/config/landing-flags.ts): while
+            on, only "Speak with an Engineer" shows, carrying the green
+            gradient the "Plan with Tara AI" button (hidden along with the
+            Energy Planner section it scrolled to) used to have. Both
+            buttons come back once the flag flips off. */}
         <Reveal direction="zoom" delay={240} duration={750}>
           <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 mb-12">
-            
-            {/* Primary Action -> Plan with Tara AI */}
-            <button
-              type="button"
-              onClick={scrollToPlanner}
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-green-600 text-white text-sm sm:text-[15px] font-semibold shadow-lg shadow-emerald-600/25 hover:from-emerald-400 hover:via-emerald-500 hover:to-green-500 hover:shadow-emerald-600/35 hover:scale-105 active:scale-95 transition-all duration-200 group cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4 text-emerald-200 transition-transform group-hover:rotate-12" />
-              <span>Plan with Tara AI</span>
-              <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-            </button>
 
-            {/* Secondary Action -> Speak with an Energy Engineer */}
+            {/* Primary Action -> Plan with Tara AI */}
+            {!TEMP_HIDE_LANDING_SECTIONS && (
+              <button
+                type="button"
+                onClick={scrollToPlanner}
+                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-green-600 text-white text-sm sm:text-[15px] font-semibold shadow-lg shadow-emerald-600/25 hover:from-emerald-400 hover:via-emerald-500 hover:to-green-500 hover:shadow-emerald-600/35 hover:scale-105 active:scale-95 transition-all duration-200 group cursor-pointer"
+              >
+                <Sparkles className="w-4 h-4 text-emerald-200 transition-transform group-hover:rotate-12" />
+                <span>Plan with Tara AI</span>
+                <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
+              </button>
+            )}
+
+            {/* Speak with an Engineer — green gradient while
+                TEMP_HIDE_LANDING_SECTIONS is on (it's the only button
+                showing), the original neutral/bordered style otherwise. */}
             <Link
               href="/contact"
-              className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-4 rounded-2xl bg-theme-surface border border-theme-border text-theme-primary text-sm sm:text-[15px] font-semibold shadow-xs hover:bg-[#EBF4EC] dark:hover:bg-[#16271C] hover:border-emerald-500/50 hover:text-emerald-700 dark:hover:text-emerald-300 hover:shadow-lg hover:shadow-emerald-600/10 hover:scale-105 active:scale-95 transition-all duration-200 group cursor-pointer"
+              className={
+                TEMP_HIDE_LANDING_SECTIONS
+                  ? "w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-green-600 text-white text-sm sm:text-[15px] font-semibold shadow-lg shadow-emerald-600/25 hover:from-emerald-400 hover:via-emerald-500 hover:to-green-500 hover:shadow-emerald-600/35 hover:scale-105 active:scale-95 transition-all duration-200 group cursor-pointer"
+                  : "w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-4 rounded-2xl bg-theme-surface border border-theme-border text-theme-primary text-sm sm:text-[15px] font-semibold shadow-xs hover:bg-[#EBF4EC] dark:hover:bg-[#16271C] hover:border-emerald-500/50 hover:text-emerald-700 dark:hover:text-emerald-300 hover:shadow-lg hover:shadow-emerald-600/10 hover:scale-105 active:scale-95 transition-all duration-200 group cursor-pointer"
+              }
             >
-              <PhoneCall className="w-4 h-4 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform" />
+              <PhoneCall
+                className={
+                  TEMP_HIDE_LANDING_SECTIONS
+                    ? "w-4 h-4 text-emerald-200 group-hover:scale-110 transition-transform"
+                    : "w-4 h-4 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform"
+                }
+              />
               <span>Speak with an Engineer</span>
             </Link>
 

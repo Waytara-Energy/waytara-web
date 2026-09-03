@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { Logo } from "@/components/shared/logo";
 import { Mail, Phone, MapPin, ShieldCheck } from "lucide-react";
+import { TEMP_HIDE_LANDING_SECTIONS } from "@/config/landing-flags";
 
 export function Footer() {
   const handleAnchorClick = (
@@ -98,15 +99,20 @@ export function Footer() {
                     Who We Are
                   </Link>
                 </li>
-                <li>
-                  <Link
-                    href="/#how-it-works"
-                    onClick={(e) => handleAnchorClick("/#how-it-works", e)}
-                    className="hover:text-theme-primary transition-colors"
-                  >
-                    How It Works
-                  </Link>
-                </li>
+                {/* TEMP_HIDE_LANDING_SECTIONS (src/config/landing-flags.ts)
+                    — the 3 links below point at sections/pages hidden while
+                    the flag is on; restored once it flips off. */}
+                {!TEMP_HIDE_LANDING_SECTIONS && (
+                  <li>
+                    <Link
+                      href="/#how-it-works"
+                      onClick={(e) => handleAnchorClick("/#how-it-works", e)}
+                      className="hover:text-theme-primary transition-colors"
+                    >
+                      How It Works
+                    </Link>
+                  </li>
+                )}
                 <li>
                   <Link
                     href="/#why-integrated"
@@ -116,20 +122,24 @@ export function Footer() {
                     Why WayTara
                   </Link>
                 </li>
-                <li>
-                  <Link
-                    href="/#energy-planner"
-                    onClick={(e) => handleAnchorClick("/#energy-planner", e)}
-                    className="hover:text-theme-primary transition-colors"
-                  >
-                    Plan with Tara AI
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/knowledge-centre" className="hover:text-theme-primary transition-colors">
-                    Knowledge Centre
-                  </Link>
-                </li>
+                {!TEMP_HIDE_LANDING_SECTIONS && (
+                  <li>
+                    <Link
+                      href="/#energy-planner"
+                      onClick={(e) => handleAnchorClick("/#energy-planner", e)}
+                      className="hover:text-theme-primary transition-colors"
+                    >
+                      Plan with Tara AI
+                    </Link>
+                  </li>
+                )}
+                {!TEMP_HIDE_LANDING_SECTIONS && (
+                  <li>
+                    <Link href="/knowledge-centre" className="hover:text-theme-primary transition-colors">
+                      Knowledge Centre
+                    </Link>
+                  </li>
+                )}
               </ul>
             </div>
 
@@ -139,25 +149,31 @@ export function Footer() {
                 Help
               </h4>
               <ul className="space-y-2.5 text-xs text-theme-secondary">
-                <li>
-                  <Link
-                    href="/#faq"
-                    onClick={(e) => handleAnchorClick("/#faq", e)}
-                    className="hover:text-theme-primary transition-colors"
-                  >
-                    FAQs
-                  </Link>
-                </li>
+                {/* TEMP_HIDE_LANDING_SECTIONS — FAQ section and Knowledge
+                    Centre are both hidden; restored once it flips off. */}
+                {!TEMP_HIDE_LANDING_SECTIONS && (
+                  <li>
+                    <Link
+                      href="/#faq"
+                      onClick={(e) => handleAnchorClick("/#faq", e)}
+                      className="hover:text-theme-primary transition-colors"
+                    >
+                      FAQs
+                    </Link>
+                  </li>
+                )}
                 <li>
                   <Link href="/contact" className="hover:text-theme-primary transition-colors">
                     Contact Us
                   </Link>
                 </li>
-                <li>
-                  <Link href="/knowledge-centre" className="hover:text-theme-primary transition-colors">
-                    Help Centre
-                  </Link>
-                </li>
+                {!TEMP_HIDE_LANDING_SECTIONS && (
+                  <li>
+                    <Link href="/knowledge-centre" className="hover:text-theme-primary transition-colors">
+                      Help Centre
+                    </Link>
+                  </li>
+                )}
                 <li>
                   <Link href="/about" className="hover:text-theme-primary transition-colors">
                     About Us

@@ -14,6 +14,7 @@ import { FAQ } from "@/components/sections/faq";
 import { FinalCTA } from "@/components/sections/final-cta";
 import { Footer } from "@/components/sections/footer";
 import { CustomerSegmentId } from "@/types";
+import { TEMP_HIDE_LANDING_SECTIONS } from "@/config/landing-flags";
 
 function HomeContent() {
   const searchParams = useSearchParams();
@@ -51,20 +52,21 @@ function HomeContent() {
           onSelectSegment={setSelectedSegment}
         />
 
-        {/* 4.5 How It Works (3-Step Execution: Consultation, Design, Installation) */}
-        <HowItWorks />
+        {/* 4.5 How It Works (3-Step Execution: Consultation, Design, Installation)
+            — TEMP_HIDE_LANDING_SECTIONS, see src/config/landing-flags.ts */}
+        {!TEMP_HIDE_LANDING_SECTIONS && <HowItWorks />}
 
-        {/* 4.6 Energy Planner (Interactive AI Agent Flow) */}
-        <EnergyPlanner selectedSegment={selectedSegment} />
+        {/* 4.6 Energy Planner (Interactive AI Agent Flow) — TEMP_HIDE_LANDING_SECTIONS */}
+        {!TEMP_HIDE_LANDING_SECTIONS && <EnergyPlanner selectedSegment={selectedSegment} />}
 
         {/* 4.7 Why an Integrated System (2-track comparison) */}
         <WhyIntegratedSystem />
 
-        {/* 4.8 Trust (Leadership, Philosophy, Standards & Checklist) */}
-        <Trust />
+        {/* 4.8 Trust (Leadership, Philosophy, Standards & Checklist) — TEMP_HIDE_LANDING_SECTIONS */}
+        {!TEMP_HIDE_LANDING_SECTIONS && <Trust />}
 
-        {/* 4.9 FAQ (Money, Battery, Solar + dynamic segment switch) */}
-        <FAQ selectedSegment={selectedSegment} />
+        {/* 4.9 FAQ (Money, Battery, Solar + dynamic segment switch) — TEMP_HIDE_LANDING_SECTIONS */}
+        {!TEMP_HIDE_LANDING_SECTIONS && <FAQ selectedSegment={selectedSegment} />}
 
         {/* 4.10 Final CTA */}
         <FinalCTA />

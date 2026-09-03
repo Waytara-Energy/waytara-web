@@ -5,18 +5,29 @@ import Link from "next/link";
 import { ChevronDown, Sparkles, PhoneCall, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/shared/reveal";
+import { TEMP_HIDE_LANDING_SECTIONS } from "@/config/landing-flags";
 
 export function Hero() {
-  const scrollToPlanner = (e: React.MouseEvent) => {
+  // TEMP_HIDE_LANDING_SECTIONS (src/config/landing-flags.ts): the Energy
+  // Planner section this button used to jump to is hidden while the flag
+  // is on, so the primary action points at Who We Are instead — restored
+  // automatically once the flag flips back.
+  const heroPrimaryTargetId = TEMP_HIDE_LANDING_SECTIONS ? "about-us" : "energy-planner";
+  const heroPrimaryLabel = TEMP_HIDE_LANDING_SECTIONS ? "Explore WayTara" : "Plan with Tara AI";
+
+  const scrollToHeroPrimaryTarget = (e: React.MouseEvent) => {
     e.preventDefault();
-    const el = document.getElementById("energy-planner");
+    const el = document.getElementById(heroPrimaryTargetId);
     if (el) {
       el.scrollIntoView({ behavior: "smooth" });
     }
   };
 
   const scrollToNextSection = () => {
-    const el = document.getElementById("who-we-are");
+    // Pre-existing bug, fixed in passing: WhoWeAre's actual DOM id is
+    // "about-us" (see who-we-are.tsx), not "who-we-are" — this button
+    // silently no-opped before.
+    const el = document.getElementById("about-us");
     if (el) {
       el.scrollIntoView({ behavior: "smooth" });
     }
@@ -69,11 +80,11 @@ export function Hero() {
           <div className="mt-7 sm:mt-9 lg:mt-11 grid grid-cols-1 sm:grid-cols-2 gap-3.5 w-full max-w-md lg:max-w-xl">
             <Button
               size="default"
-              onClick={scrollToPlanner}
+              onClick={scrollToHeroPrimaryTarget}
               className="h-11 sm:h-12 lg:h-13 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-green-600 hover:from-emerald-400 hover:via-emerald-500 hover:to-green-500 text-white font-semibold text-xs sm:text-sm lg:text-base tracking-wide shadow-lg shadow-emerald-600/30 border-0 transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer"
             >
               <Sparkles className="w-4 h-4 text-emerald-200 mr-2 transition-transform group-hover:rotate-12" />
-              <span>Plan with Tara AI</span>
+              <span>{heroPrimaryLabel}</span>
               <ArrowUpRight className="w-4 h-4 ml-1.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
             </Button>
 
