@@ -28,6 +28,7 @@
 //   node scripts/deye-modbus-agent.mjs --device-id=<uuid>
 //   node scripts/deye-modbus-agent.mjs --read-only            # skip the write listener
 //   node scripts/deye-modbus-agent.mjs --once                 # one read tick, then exit (no loop)
+//   node scripts/deye-modbus-agent.mjs --no-read               # write listener only, no read tick/loop at all
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -49,9 +50,10 @@ function loadEnv() {
 }
 
 function parseArgs(argv) {
-  const args = { mode: "simulate", deviceId: "bc58bbdb-59d9-4075-b45e-a8c327ecc9bd", host: null, readOnly: false, once: false };
+  const args = { mode: "simulate", deviceId: "bc58bbdb-59d9-4075-b45e-a8c327ecc9bd", host: null, readOnly: false, once: false, noRead: false };
   for (const arg of argv) {
     if (arg === "--read-only") args.readOnly = true;
+    else if (arg === "--no-read") args.noRead = true;
     else if (arg === "--once") args.once = true;
     else if (arg.startsWith("--mode=")) args.mode = arg.slice("--mode=".length);
     else if (arg.startsWith("--device-id=")) args.deviceId = arg.slice("--device-id=".length);
@@ -472,9 +474,14 @@ async function main() {
   console.log(`Device: ${device.label ?? device.device_uid} (${device.device_type.name}) — ${catalog.length} registers cataloged`);
 
   const state = new SimState();
-  if (args.mode === "simulate") await state.seedFromDb(args.deviceId);
+  if (args.mode === "simulate" && !args.noRead) await state.seedFromDb(args.deviceId);
 
   if (!args.readOnly) startWriteListener(args.deviceId);
+
+  if (args.noRead) {
+    console.log("--no-read set: write listener only, no read tick/loop. Ctrl+C to stop.");
+    return;
+  }
 
   async function tick() {
     const now = new Date();
