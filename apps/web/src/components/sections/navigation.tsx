@@ -45,6 +45,7 @@ const NAV_LINKS = [
   { label: "Our Services", href: "/#customer-segments" },
   { label: "How It Works", href: "/#how-it-works" },
   { label: "Why WayTara", href: "/#why-integrated" },
+  { label: "Our Team", href: "/#our-team" },
 ];
 
 // TEMP_HIDE_LANDING_SECTIONS (src/config/landing-flags.ts) — How It Works

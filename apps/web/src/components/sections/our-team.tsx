@@ -22,7 +22,7 @@ const TEAM: TeamMember[] = [
     bio: "“I co-founded WayTara to bring the same rigor to clean energy delivery that any serious engineering project demands — from site assessment and DISCOM approvals through to long-term operations and maintenance. I work closely with our customers and partners to make sure our promise of one integrated system holds up in practice, not just on paper.”",
   },
   {
-    name: "Manoj",
+    name: "Manoj Loganathan",
     role: "Software Engineer, WayTara",
     bio: "“I build the software behind WayTara’s customer dashboard and device telemetry platform — the systems that turn a solar inverter’s raw data into the live monitoring, alerts, and controls our customers see every day. My work connects the hardware installed on a rooftop to the account a customer checks on their phone.”",
   },
