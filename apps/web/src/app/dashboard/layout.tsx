@@ -3,6 +3,7 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { SessionWatcher } from "@/components/dashboard/session-watcher";
+import { RealtimeProvider } from "@waytara/ui/realtime-provider";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { getCustomerDevices, resolveSelectedDevice, SELECTED_DEVICE_COOKIE } from "@/lib/selected-device";
 import { getCustomerPlan } from "@/lib/customer-plan";
@@ -42,18 +43,20 @@ export default async function DashboardLayout({
 
   if (!isOnboarded) {
     return (
-      <div className="flex min-h-screen flex-col bg-theme-bg text-theme-primary">
-        <SessionWatcher />
-        <header className="flex h-16 items-center justify-between border-b border-theme-border px-6">
-          <span className="text-sm font-semibold text-theme-primary">WayTara Energy</span>
-          <form action={logout}>
-            <SubmitButton variant="outline" size="sm" pendingText="Signing out…">
-              Sign out
-            </SubmitButton>
-          </form>
-        </header>
-        <main className="flex-1 p-6">{children}</main>
-      </div>
+      <RealtimeProvider>
+        <div className="flex min-h-screen flex-col bg-theme-bg text-theme-primary">
+          <SessionWatcher />
+          <header className="flex h-16 items-center justify-between border-b border-theme-border px-6">
+            <span className="text-sm font-semibold text-theme-primary">WayTara Energy</span>
+            <form action={logout}>
+              <SubmitButton variant="outline" size="sm" pendingText="Signing out…">
+                Sign out
+              </SubmitButton>
+            </form>
+          </header>
+          <main className="flex-1 p-6">{children}</main>
+        </div>
+      </RealtimeProvider>
     );
   }
 
@@ -76,21 +79,23 @@ export default async function DashboardLayout({
   const selectedDevice = resolveSelectedDevice(devices, cookieStore.get(SELECTED_DEVICE_COOKIE)?.value);
 
   return (
-    <SidebarProvider defaultOpen={sidebarOpen}>
-      <SessionWatcher />
-      <DashboardSidebar features={features} />
-      <SidebarInset>
-        <DashboardHeader
-          fullName={profile?.full_name ?? null}
-          email={profile?.email ?? null}
-          avatarUrl={profile?.avatar_url ?? null}
-          planName={customerPlan?.planName ?? null}
-          features={features}
-          devices={devices.map((d) => ({ id: d.id, label: d.label, deviceUid: d.deviceUid, siteName: d.site?.name ?? null }))}
-          selectedDeviceId={selectedDevice?.id ?? null}
-        />
-        <main className="flex-1 p-6">{children}</main>
-      </SidebarInset>
-    </SidebarProvider>
+    <RealtimeProvider>
+      <SidebarProvider defaultOpen={sidebarOpen}>
+        <SessionWatcher />
+        <DashboardSidebar features={features} />
+        <SidebarInset>
+          <DashboardHeader
+            fullName={profile?.full_name ?? null}
+            email={profile?.email ?? null}
+            avatarUrl={profile?.avatar_url ?? null}
+            planName={customerPlan?.planName ?? null}
+            features={features}
+            devices={devices.map((d) => ({ id: d.id, label: d.label, deviceUid: d.deviceUid, siteName: d.site?.name ?? null }))}
+            selectedDeviceId={selectedDevice?.id ?? null}
+          />
+          <main className="flex-1 p-6">{children}</main>
+        </SidebarInset>
+      </SidebarProvider>
+    </RealtimeProvider>
   );
 }

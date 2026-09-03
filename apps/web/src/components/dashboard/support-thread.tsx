@@ -4,6 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { CheckCircle2, ChevronLeft, Paperclip, Send } from "lucide-react";
 import { createClient } from "@waytara/supabase/client";
+import { useRealtimeTable, type RealtimeRowEvent } from "@waytara/ui/realtime-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -39,13 +40,12 @@ interface TicketMessage {
   created_at: string;
 }
 
-const MESSAGE_COLUMNS = "id, sender_id, sender_role, body, attachment_path, created_at";
-
 /** The thread itself — MessageScroller + Message/MessageBubble, a Menubar
- *  for "Attach file"/"Mark resolved", and a composer. Polls
- *  support_messages on an interval rather than a Realtime subscription,
- *  matching MonitoringPanel's established convention for "how this app
- *  makes something feel live". */
+ *  for "Attach file"/"Mark resolved", and a composer. Realtime rollout:
+ *  subscribes to support_messages INSERT filtered to this ticket instead
+ *  of polling — the realtime channel is now the *only* thing that ever
+ *  appends a message, whether it was sent by this browser or the other
+ *  party, so `handleSend` no longer needs its own refetch afterward. */
 export function SupportThread({
   ticket,
   initialMessages,
@@ -64,20 +64,14 @@ export function SupportThread({
   const fileInputRef = React.useRef<HTMLInputElement>(null);
   const formRef = React.useRef<HTMLFormElement>(null);
 
-  const refetch = React.useCallback(async () => {
-    const supabase = createClient();
-    const { data } = await supabase
-      .from("support_messages")
-      .select(MESSAGE_COLUMNS)
-      .eq("ticket_id", ticket.id)
-      .order("created_at", { ascending: true });
-    if (data) setMessages(data);
-  }, [ticket.id]);
-
-  React.useEffect(() => {
-    const interval = setInterval(refetch, 5000);
-    return () => clearInterval(interval);
-  }, [refetch]);
+  useRealtimeTable<TicketMessage>(
+    "support_messages",
+    "INSERT",
+    `ticket_id=eq.${ticket.id}`,
+    React.useCallback((payload: RealtimeRowEvent<TicketMessage>) => {
+      setMessages((prev) => (prev.some((m) => m.id === payload.new.id) ? prev : [...prev, payload.new]));
+    }, [])
+  );
 
   // support-attachments is a private bucket — a plain public URL won't
   // work, so each attachment needs its own signed URL, resolved once and
@@ -117,7 +111,8 @@ export function SupportThread({
     setBody("");
     setFile(null);
     if (fileInputRef.current) fileInputRef.current.value = "";
-    await refetch();
+    // No refetch — the support_messages realtime subscription above will
+    // append this message the same way it does for the other party's.
     setSending(false);
   }
 

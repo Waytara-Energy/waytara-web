@@ -1,17 +1,15 @@
-import { AlertTriangle, Bell, Zap } from "lucide-react";
+import { Zap } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { getSelectedDevice } from "@/lib/selected-device";
 import { getRequestProfile } from "@/lib/request-profile";
 import { Card, CardContent } from "@/components/ui/card";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { SubmitButton } from "@/components/ui/submit-button";
 import { Separator } from "@/components/ui/separator";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { DeviceStatusPill } from "@/components/dashboard/device-status-pill";
 import { FaultBanner } from "@/components/dashboard/fault-banner";
 import { EnergyFlowDiagram } from "@/components/dashboard/energy-flow-diagram";
+import { RecentAlerts } from "@/components/dashboard/recent-alerts";
 import { TODAY_ENERGY_FIELDS, formatValue } from "@/lib/telemetry-catalog";
-import { acknowledgeAlert } from "./actions";
 
 // Instruments this page actually needs — filtered explicitly rather than
 // "most recent N readings across every instrument" (the old approach),
@@ -83,7 +81,7 @@ export default async function DashboardOverviewPage() {
       .limit(OVERVIEW_KEYS.length * 5),
     supabase
       .from("alerts")
-      .select("id, severity, message, ts")
+      .select("id, device_id, severity, message, ts, acknowledged_at")
       .eq("device_id", device.id)
       .is("acknowledged_at", null)
       .order("ts", { ascending: false })
@@ -139,41 +137,7 @@ export default async function DashboardOverviewPage() {
 
       <div>
         <h2 className="mb-3 text-sm font-semibold text-foreground">Recent Alerts</h2>
-        {recentAlerts && recentAlerts.length > 0 ? (
-          <div className="space-y-2">
-            {recentAlerts.map((a) => (
-              <Alert key={a.id} variant={a.severity === "critical" ? "destructive" : "default"}>
-                <AlertTriangle />
-                <AlertTitle className="flex items-center justify-between gap-3 capitalize">
-                  {a.severity}
-                  <span className="text-xs font-normal normal-case text-muted-foreground">
-                    {new Date(a.ts).toLocaleDateString("en-IN")}
-                  </span>
-                </AlertTitle>
-                <AlertDescription>
-                  <p>{a.message}</p>
-                  <form action={acknowledgeAlert.bind(null, a.id)}>
-                    <SubmitButton variant="outline" size="sm" className="mt-1" pendingText="Acknowledging…">
-                      Acknowledge
-                    </SubmitButton>
-                  </form>
-                </AlertDescription>
-              </Alert>
-            ))}
-          </div>
-        ) : (
-          <Empty className="border">
-            <EmptyHeader>
-              <EmptyMedia variant="icon">
-                <Bell />
-              </EmptyMedia>
-              <EmptyTitle>No alerts</EmptyTitle>
-              <EmptyDescription>
-                This device is running clean — we&apos;ll show anything that needs your attention here.
-              </EmptyDescription>
-            </EmptyHeader>
-          </Empty>
-        )}
+        <RecentAlerts deviceId={device.id} initialAlerts={recentAlerts ?? []} />
       </div>
     </div>
   );

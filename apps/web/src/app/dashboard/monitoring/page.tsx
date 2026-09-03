@@ -69,8 +69,8 @@ export default async function MonitoringPage() {
           <h1 className="text-2xl font-semibold text-theme-primary">Monitoring</h1>
           <p className="mt-1 text-sm text-theme-muted">
             {device
-              ? `Live readings for ${device.label || device.deviceUid}, refreshed every 30 seconds.`
-              : "Live per-device readings, refreshed every 30 seconds."}
+              ? `Live readings for ${device.label || device.deviceUid}, updated in real time.`
+              : "Live per-device readings, updated in real time."}
           </p>
         </div>
         {device && (
