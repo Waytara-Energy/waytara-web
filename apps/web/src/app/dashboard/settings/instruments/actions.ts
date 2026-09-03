@@ -6,6 +6,7 @@ import { createClient } from "@waytara/supabase/server";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { getSelectedDevice } from "@/lib/selected-device";
 import { getSettingFields, validateBatteryCrossFields } from "@/lib/instrument-settings-catalog";
+import { getModbusRegister } from "@/lib/modbus-register-map";
 import { TOU_PROGRAM_COUNT, validateTouSlots, type TouSlot } from "@/lib/time-of-use";
 import { PROPERTY_TYPE_LABELS, POWER_SOURCE_LABELS, type SiteAddress } from "@/lib/site-catalog";
 
@@ -149,6 +150,7 @@ export async function updateDeviceSetting(
     unit: field.unit ?? null,
     source: "customer_dashboard",
     written_by: profile.id,
+    modbus_register: getModbusRegister(field.category, field.key) as never,
   });
 
   if (error) return { error: error.message };
@@ -189,6 +191,7 @@ export async function updateTimeOfUse(slots: TouSlot[]): Promise<{ error: string
     unit: null,
     source: "customer_dashboard",
     written_by: profile.id,
+    modbus_register: getModbusRegister("system_work_mode", `tou_prog${slot.index}`) as never,
   }));
 
   const { error } = await supabase.from("device_settings").insert(rows);
