@@ -9,6 +9,7 @@ import { DeviceStatusPill } from "@/components/dashboard/device-status-pill";
 import { FaultBanner } from "@/components/dashboard/fault-banner";
 import { EnergyFlowDiagram } from "@/components/dashboard/energy-flow-diagram";
 import { RecentAlerts } from "@/components/dashboard/recent-alerts";
+import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { TODAY_ENERGY_FIELDS, formatValue } from "@/lib/telemetry-catalog";
 
 // Instruments this page actually needs — filtered explicitly rather than
@@ -96,6 +97,11 @@ export default async function DashboardOverviewPage() {
 
   return (
     <div className="space-y-6">
+      {/* device_readings isn't safe to hand-patch here — the energy flow
+          diagram and "today so far" tiles are derived (latest-per-key,
+          formatted) from a raw insert payload, so a new reading
+          debounce-refreshes the whole page instead. */}
+      <RealtimeRefresh table="device_readings" event="INSERT" filter={`device_id=eq.${device.id}`} />
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h1 className="text-2xl font-semibold text-foreground">

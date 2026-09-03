@@ -8,6 +8,7 @@ import { LiveMetricChart } from "@/components/dashboard/lazy-charts";
 import { PvStringComparison } from "@/components/dashboard/pv-string-comparison";
 import { TemperatureGauge } from "@/components/dashboard/temperature-gauge";
 import { MetricListCard } from "@/components/dashboard/metric-list-card";
+import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { getSelectedDevice } from "@/lib/selected-device";
 import {
@@ -108,6 +109,12 @@ export default async function MonitoringPage() {
         </Empty>
       ) : (
         <>
+          {/* The live charts below already poll/subscribe on their own —
+              this is for everything else on the page (PV comparison,
+              temperatures, the detail cards, the header badges), all
+              snapshot-rendered server-side and not safe to hand-patch from
+              a raw insert payload. */}
+          <RealtimeRefresh table="device_readings" event="INSERT" filter={`device_id=eq.${device.id}`} />
           <Card>
             <CardHeader>
               <CardTitle className="text-sm">Power Flows</CardTitle>

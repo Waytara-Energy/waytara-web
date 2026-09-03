@@ -4,6 +4,7 @@ import { createClient } from "@waytara/supabase/server";
 import { getSelectedDevice } from "@/lib/selected-device";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { PerformanceChart, DivergingBarChart } from "@/components/dashboard/lazy-charts";
+import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { aggregateDailyYield, zipDailySeries, type RawReading } from "@/lib/energy-aggregation";
@@ -130,6 +131,11 @@ export default async function PerformancePage() {
         </Empty>
       ) : (
         <>
+          {/* Every chart/tile below is aggregated server-side (daily
+              buckets, latest-per-key totals) from device_readings — not
+              safe to hand-patch, so a new reading debounce-refreshes the
+              whole page. */}
+          <RealtimeRefresh table="device_readings" event="INSERT" filter={`device_id=eq.${device.id}`} />
           <div className="grid grid-cols-2 gap-4">
             <Card>
               <CardContent className="p-4">
