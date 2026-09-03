@@ -98,23 +98,26 @@ export function FinalCTA() {
           </div>
         </Reveal>
 
-        {/* 5. Minimal Engineering Guarantees */}
-        <Reveal direction="fade" delay={300} duration={800}>
-          <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 text-xs sm:text-[13px] text-theme-secondary">
-            <span className="flex items-center gap-2 font-medium">
-              <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>Single 25-Yr Accountable Warranty</span>
-            </span>
-            <span className="flex items-center gap-2 font-medium">
-              <Zap className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>Sub-20ms Zero-Flicker Backup</span>
-            </span>
-            <span className="flex items-center gap-2 font-medium">
-              <Activity className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-              <span>24/7 Tara AI Cloud Telemetry</span>
-            </span>
-          </div>
-        </Reveal>
+        {/* 5. Minimal Engineering Guarantees — TEMP_HIDE_LANDING_SECTIONS
+            (src/config/landing-flags.ts), restored once it flips off. */}
+        {!TEMP_HIDE_LANDING_SECTIONS && (
+          <Reveal direction="fade" delay={300} duration={800}>
+            <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 text-xs sm:text-[13px] text-theme-secondary">
+              <span className="flex items-center gap-2 font-medium">
+                <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>Single 25-Yr Accountable Warranty</span>
+              </span>
+              <span className="flex items-center gap-2 font-medium">
+                <Zap className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>Sub-20ms Zero-Flicker Backup</span>
+              </span>
+              <span className="flex items-center gap-2 font-medium">
+                <Activity className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                <span>24/7 Tara AI Cloud Telemetry</span>
+              </span>
+            </div>
+          </Reveal>
+        )}
 
       </div>
     </section>
