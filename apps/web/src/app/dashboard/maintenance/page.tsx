@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { NewMaintenanceTicketDialog } from "@/components/dashboard/new-maintenance-ticket-dialog";
+import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { FaultBanner } from "@/components/dashboard/fault-banner";
 import { FaultHistory } from "@/components/dashboard/fault-history";
 import { LastSyncIndicator } from "@/components/dashboard/last-sync-indicator";
@@ -126,6 +127,17 @@ export default async function MaintenancePage({
 
   return (
     <div className="max-w-2xl space-y-6">
+      {device && (
+        <>
+          {/* Fault status, temperature trends, and last-sync are all
+              derived server-side (fault-episode collapsing, trend deltas)
+              from device_readings — not safe to hand-patch from a raw
+              INSERT payload, so a new reading debounce-refreshes the whole
+              page instead (see RealtimeRefresh's own reasoning). */}
+          <RealtimeRefresh table="device_readings" event="INSERT" filter={`device_id=eq.${device.id}`} />
+          <RealtimeRefresh table="maintenance_tickets" event="UPDATE" filter={`device_id=eq.${device.id}`} />
+        </>
+      )}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-theme-primary">Maintenance</h1>

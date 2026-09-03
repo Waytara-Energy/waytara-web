@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { CheckCircle2, Settings2, TriangleAlert } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { getCustomerPlan } from "@/lib/customer-plan";
+import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -97,6 +98,13 @@ export default async function InstrumentSettingsPage({
 
   return (
     <div className="max-w-3xl space-y-6">
+      {device && (
+        // device_settings is append-only (a new row per change, ts-ascending
+        // "last write wins" — see the settingsMap comment below), never
+        // updated in place, confirmed live: an UPDATE subscription here
+        // never fires. INSERT is the real write event.
+        <RealtimeRefresh table="device_settings" event="INSERT" filter={`device_id=eq.${device.id}`} />
+      )}
       <div>
         <h1 className="text-2xl font-semibold text-theme-primary">Instrument Settings</h1>
         <p className="mt-1 text-sm text-theme-muted">

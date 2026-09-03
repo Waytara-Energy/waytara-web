@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { payAdvanceAmount, payFullAmount } from "./actions";
 
 const STAGE_COPY: Record<string, { title: string; body: string }> = {
@@ -57,6 +58,12 @@ export default async function OnboardingStatusPage({
 
   return (
     <div className="max-w-xl space-y-6">
+      {profile && (
+        <RealtimeRefresh table="customer_onboarding" event="UPDATE" filter={`customer_id=eq.${profile.id}`} />
+      )}
+      {onboarding?.quotation_id && (
+        <RealtimeRefresh table="quotations" event="UPDATE" filter={`id=eq.${onboarding.quotation_id}`} />
+      )}
       <div>
         <h1 className="text-2xl font-semibold text-theme-primary">Your Onboarding</h1>
         <p className="mt-1 text-sm text-theme-muted">

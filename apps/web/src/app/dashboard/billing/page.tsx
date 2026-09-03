@@ -1,6 +1,7 @@
 import { Receipt } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { getRequestProfile } from "@/lib/request-profile";
+import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -42,6 +43,7 @@ export default async function BillingPage() {
 
   return (
     <div className="max-w-2xl space-y-6">
+      {profile && <RealtimeRefresh table="payments" event="UPDATE" filter={`customer_id=eq.${profile.id}`} />}
       <div>
         <h1 className="text-2xl font-semibold text-theme-primary">Billing &amp; Plan</h1>
       </div>
