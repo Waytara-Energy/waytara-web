@@ -9,6 +9,7 @@ import { CustomerSegments } from "@/components/sections/customer-segments";
 import { EnergyPlanner } from "@/components/sections/energy-planner";
 import { HowItWorks } from "@/components/sections/how-it-works";
 import { WhyIntegratedSystem } from "@/components/sections/why-integrated";
+import { OurTeam } from "@/components/sections/our-team";
 import { Trust } from "@/components/sections/trust";
 import { FAQ } from "@/components/sections/faq";
 import { FinalCTA } from "@/components/sections/final-cta";
@@ -61,6 +62,9 @@ function HomeContent() {
 
         {/* 4.7 Why an Integrated System (2-track comparison) */}
         <WhyIntegratedSystem />
+
+        {/* 4.7.5 Our Team (Vision & Mission + minimal, photo-free bios) */}
+        <OurTeam />
 
         {/* 4.8 Trust (Leadership, Philosophy, Standards & Checklist) — TEMP_HIDE_LANDING_SECTIONS */}
         {!TEMP_HIDE_LANDING_SECTIONS && <Trust />}
