@@ -14,25 +14,27 @@ const TEAM: TeamMember[] = [
   {
     name: "Arun V Mahadev",
     role: "Founder, WayTara",
-    bio: "Arun founded WayTara to close the gap between India's residential and commercial clean energy potential and what actually gets installed on the ground. He sets the engineering and installation standards behind every system WayTara ships — the reason it's one accountable warranty, not a stack of separate vendor promises. His focus is building infrastructure people can trust for 25 years, not just for the day it's switched on.",
+    bio: "“I started WayTara to close the gap between what India’s homes and businesses could get from clean energy, and what actually gets installed on the ground. Our engineering and installation standards exist so every system we ship carries one accountable warranty — not a stack of separate vendor promises. I’m building infrastructure people can trust for 25 years, not just for the day it’s switched on.”",
   },
   {
     name: "Devaansh Pujara",
     role: "Co-Founder, WayTara",
-    bio: "Devaansh co-founded WayTara to bring the same rigor to clean energy delivery that complex engineering projects demand — from site assessment and DISCOM approvals through to long-term operations and maintenance. He works closely with customers and partners to make sure WayTara's promise of one integrated system holds up in practice, not just on paper.",
+    bio: "“I co-founded WayTara to bring the same rigor to clean energy delivery that any serious engineering project demands — from site assessment and DISCOM approvals through to long-term operations and maintenance. I work closely with our customers and partners to make sure our promise of one integrated system holds up in practice, not just on paper.”",
   },
   {
     name: "Manoj",
     role: "Software Engineer, WayTara",
-    bio: "Manoj builds the software behind WayTara's customer dashboard and device telemetry platform — the systems that turn a solar inverter's raw data into the live monitoring, alerts, and controls customers see every day. His work connects the hardware installed on a rooftop to the account a customer checks on their phone.",
+    bio: "“I build the software behind WayTara’s customer dashboard and device telemetry platform — the systems that turn a solar inverter’s raw data into the live monitoring, alerts, and controls our customers see every day. My work connects the hardware installed on a rooftop to the account a customer checks on their phone.”",
   },
 ];
 
 /**
- * Minimal, text-only team + vision/mission section — deliberately no
- * photos or avatar graphics per the brief, just clean typography
+ * Minimal, text-only team + vision/mission/goal section — deliberately
+ * no photos or avatar graphics per the brief, just clean typography
  * matching the "frameless minimal grid" pattern already used by
- * WhoWeAre's pillars and Trust's compliance protocols.
+ * WhoWeAre's pillars and Trust's compliance protocols. Every line of
+ * copy is first-person ("we"/"I") — WayTara and its people speaking
+ * directly, not a narrator describing them from the outside.
  */
 export function OurTeam() {
   return (
@@ -63,16 +65,18 @@ export function OurTeam() {
           </h2>
         </Reveal>
 
-        {/* 3. Vision & Mission — two plain text columns, no cards/borders */}
+        {/* 3. Vision, Mission & Goal — three plain text columns, no cards/borders,
+            all first-person ("we"/"our") — this is WayTara speaking, not a
+            narrator describing WayTara. */}
         <Reveal direction="up" delay={180} duration={700}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-16 mt-10 mb-16 sm:mb-20 max-w-4xl">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12 mt-10 mb-16 sm:mb-20 max-w-5xl">
             <div>
               <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-3">
                 Our Vision
               </h3>
               <p className="text-sm sm:text-base text-theme-primary leading-relaxed font-medium">
-                An India where every property generates, stores, and uses its own power on its own terms —
-                engineered as one intelligent system, not a patchwork of disconnected vendors.
+                We want every property in India to generate, store, and use its own power on its own terms
+                — engineered as one intelligent system, not a patchwork of disconnected vendors.
               </p>
             </div>
             <div>
@@ -83,6 +87,15 @@ export function OurTeam() {
                 We design, install, and stand behind integrated solar, battery, and EV charging systems —
                 built to a single standard, backed by one accountable team, and monitored in real time so
                 our customers never have to wonder if their system is working.
+              </p>
+            </div>
+            <div>
+              <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-3">
+                Our Goal
+              </h3>
+              <p className="text-sm sm:text-base text-theme-primary leading-relaxed font-medium">
+                We want to be the reason a property owner in India never has to think about their power
+                supply again — one system, one warranty, one team accountable for all of it.
               </p>
             </div>
           </div>
