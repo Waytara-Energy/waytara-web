@@ -29,6 +29,7 @@ interface Account {
   fullName: string | null;
   email: string | null;
   avatarUrl: string | null;
+  planName: string | null;
 }
 
 function initials(name: string | null, email: string | null): string {
@@ -84,13 +85,21 @@ export function Navigation() {
         data: { session },
       } = await supabase.auth.getSession();
       if (!session?.user || cancelled) return;
-      const { data: profile } = await supabase
-        .from("profiles")
-        .select("full_name, email, avatar_url, role")
-        .eq("id", session.user.id)
-        .maybeSingle();
+      // Independent of each other — one round trip instead of two. The
+      // plan lookup mirrors @/lib/customer-plan's server-side query
+      // (customers -> plans), just via the browser client since this
+      // component has no server layout to fetch it for it.
+      const [{ data: profile }, { data: customer }] = await Promise.all([
+        supabase.from("profiles").select("full_name, email, avatar_url, role").eq("id", session.user.id).maybeSingle(),
+        supabase.from("customers").select("plan:plans(name)").eq("id", session.user.id).maybeSingle(),
+      ]);
       if (!cancelled && profile?.role === "customer") {
-        setAccount({ fullName: profile.full_name, email: profile.email, avatarUrl: profile.avatar_url });
+        setAccount({
+          fullName: profile.full_name,
+          email: profile.email,
+          avatarUrl: profile.avatar_url,
+          planName: customer?.plan?.name ?? null,
+        });
       }
     })();
     return () => {
@@ -299,26 +308,42 @@ export function Navigation() {
                 </div>
               </div>
 
-              <div className="pt-4 border-t border-theme-border space-y-2">
-                {/* TEMP_HIDE_LANDING_SECTIONS: Energy Planner is hidden, so
-                    this points at Who We Are instead (DOM id "about-us",
-                    see who-we-are.tsx), matching the Hero's primary button
-                    — restored once the flag flips off. */}
-                <Button asChild variant="gradient" className="w-full justify-center text-xs h-10">
+              <div className="pt-4 border-t border-theme-border">
+                {/* Same account-aware logic as the desktop header's
+                    Get Started button / avatar (see the "Right: Knowledge,
+                    Contact, Theme Toggle" block above) — signed-in customers
+                    get their account summary instead of a sign-in prompt. */}
+                {account ? (
                   <Link
-                    href={TEMP_HIDE_LANDING_SECTIONS ? "/#about-us" : "/#energy-planner"}
-                    onClick={(e) => {
-                      setMobileMenuOpen(false);
-                      handleNavClick(e, TEMP_HIDE_LANDING_SECTIONS ? "/#about-us" : "/#energy-planner");
-                    }}
+                    href="/dashboard"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="flex items-center gap-3 rounded-xl p-2 -mx-2 hover:bg-theme-surface transition-colors"
+                    aria-label="Go to your dashboard"
                   >
-                    <Zap className="h-3.5 w-3.5 mr-1.5" />
-                    {TEMP_HIDE_LANDING_SECTIONS ? "Explore WayTara" : "Start Energy Assessment"}
+                    <Avatar className="h-11 w-11 border-0 shrink-0">
+                      {account.avatarUrl && <AvatarImage src={account.avatarUrl} alt={account.fullName ?? "Account"} />}
+                      <AvatarFallback className="text-sm">{initials(account.fullName, account.email)}</AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <p className="text-sm font-bold text-theme-primary truncate">
+                        {account.fullName || "My Account"}
+                      </p>
+                      {account.planName && (
+                        <p className="text-xs font-semibold text-theme-highlight truncate">
+                          {account.planName} Plan
+                        </p>
+                      )}
+                      <p className="text-xs text-theme-muted truncate">{account.email}</p>
+                    </div>
                   </Link>
-                </Button>
-                <p className="text-[10px] text-center text-theme-muted">
-                  1800-WAYTARA • Mon–Sat 8AM–8PM
-                </p>
+                ) : (
+                  <Button asChild variant="gradient" className="w-full justify-center text-xs h-10">
+                    <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                      <Zap className="h-3.5 w-3.5 mr-1.5 fill-white" />
+                      Get Started
+                    </Link>
+                  </Button>
+                )}
               </div>
             </SheetContent>
           </Sheet>
