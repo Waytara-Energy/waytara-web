@@ -16,7 +16,7 @@ import { TODAY_ENERGY_FIELDS, formatValue } from "@/lib/telemetry-catalog";
 // since the catalog now has 29 instruments and a flat top-50 window could
 // miss one that just hasn't reported as often as the others.
 const OVERVIEW_KEYS = [
-  "ac_output_power_w",
+  "inverter_power_w",
   "battery_power_w",
   "grid_power_w",
   "load_power_w",
@@ -115,7 +115,7 @@ export default async function DashboardOverviewPage() {
       <Card>
         <CardContent className="p-6">
           <EnergyFlowDiagram
-            solarW={get("ac_output_power_w")}
+            solarW={get("inverter_power_w")}
             batteryW={get("battery_power_w")}
             gridW={get("grid_power_w")}
             loadW={get("load_power_w")}

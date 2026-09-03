@@ -100,7 +100,7 @@ export default async function MonitoringPage() {
               <LiveMetricChart
                 deviceId={device.id}
                 series={[
-                  { key: "ac_output_power_w", label: "Solar", color: "var(--chart-1)" },
+                  { key: "inverter_power_w", label: "Solar", color: "var(--chart-1)" },
                   { key: "battery_power_w", label: "Battery", color: "var(--chart-2)" },
                   { key: "grid_power_w", label: "Grid", color: "var(--chart-3)" },
                   { key: "load_power_w", label: "Load", color: "var(--chart-4)" },

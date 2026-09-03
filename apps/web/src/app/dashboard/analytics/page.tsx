@@ -10,8 +10,8 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { aggregateDailyYield, maxByDeviceDay, sumByDay, type RawReading } from "@/lib/energy-aggregation";
 
 const HISTORY_DAYS = 365;
-const YIELD_INSTRUMENT_KEY = "daily_yield_kwh";
-const EXTRA_KEYS = ["day_grid_import_kwh", "day_grid_export_kwh"];
+const YIELD_INSTRUMENT_KEY = "solar_energy_today_kwh";
+const EXTRA_KEYS = ["grid_buy_energy_today_kwh", "grid_sell_energy_today_kwh"];
 
 function inr(value: number): string {
   return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
@@ -38,8 +38,12 @@ function pctChange(current: number, previous: number): number | null {
 //
 // Telemetry-driven redesign (Phase 11): the savings/ROI chart stays, joined
 // by a month-over-month / year-over-year PV comparison, grid import/export
-// cost estimation, battery cycle count, and the essential-vs-non-essential
-// load split.
+// cost estimation, and battery cycle count. (The essential-vs-non-essential
+// load split this phase originally shipped with was removed in the Modbus
+// register mapping pass — essential_load_pct has no confirmed register on
+// the real hardware, only a derived Watts formula, so the field was
+// dropped from the catalog rather than ship a card that can never
+// populate for a real customer.)
 export default async function AnalyticsPage() {
   const supabase = await createClient();
   // Device-centric redesign: cost savings/ROI for the *selected* device's
@@ -64,7 +68,6 @@ export default async function AnalyticsPage() {
   let readings: { device_id: string; value: number | null; ts: string }[] = [];
   let extraRows: { instrument_key: string; device_id: string; value: number | null; ts: string }[] = [];
   let batteryCycleCount: number | null = null;
-  let essentialLoadPct: number | null = null;
 
   // totalInvested stays account-wide (payments aren't tied to a device),
   // even though the yield/savings chart below is device-scoped — the two
@@ -100,7 +103,7 @@ export default async function AnalyticsPage() {
             .from("device_readings")
             .select("instrument_key, value, ts")
             .eq("device_id", device.id)
-            .in("instrument_key", ["battery_cycle_count", "essential_load_pct"])
+            .in("instrument_key", ["battery_cycle_count"])
             .order("ts", { ascending: false })
             .limit(20),
         ])
@@ -113,7 +116,6 @@ export default async function AnalyticsPage() {
     extraRows = extra ?? [];
     for (const r of latestRows ?? []) {
       if (r.instrument_key === "battery_cycle_count" && batteryCycleCount === null) batteryCycleCount = r.value;
-      if (r.instrument_key === "essential_load_pct" && essentialLoadPct === null) essentialLoadPct = r.value;
     }
   }
 
@@ -152,8 +154,8 @@ export default async function AnalyticsPage() {
   // a real feed-in tariff for exports often differs from the import rate,
   // but the register only reports kWh, so this is the same simplification
   // already made for "saved to date".
-  const gridImportKwh = extraRows.filter((r) => r.instrument_key === "day_grid_import_kwh") as RawReading[];
-  const gridExportKwh = extraRows.filter((r) => r.instrument_key === "day_grid_export_kwh") as RawReading[];
+  const gridImportKwh = extraRows.filter((r) => r.instrument_key === "grid_buy_energy_today_kwh") as RawReading[];
+  const gridExportKwh = extraRows.filter((r) => r.instrument_key === "grid_sell_energy_today_kwh") as RawReading[];
   const totalImportKwh = aggregateDailyYield(gridImportKwh).reduce((s, p) => s + p.value, 0);
   const totalExportKwh = aggregateDailyYield(gridExportKwh).reduce((s, p) => s + p.value, 0);
 
@@ -227,28 +229,17 @@ export default async function AnalyticsPage() {
             </CardContent>
           </Card>
 
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Battery Health</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <p className="text-2xl font-semibold text-foreground">
-                  {batteryCycleCount !== null ? batteryCycleCount.toLocaleString("en-IN") : "—"}
-                </p>
-                <p className="text-xs text-muted-foreground">Charge cycles to date</p>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Load Split</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <LoadSplit essentialPct={essentialLoadPct} />
-              </CardContent>
-            </Card>
-          </div>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Battery Health</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="text-2xl font-semibold text-foreground">
+                {batteryCycleCount !== null ? batteryCycleCount.toLocaleString("en-IN") : "—"}
+              </p>
+              <p className="text-xs text-muted-foreground">Charge cycles to date</p>
+            </CardContent>
+          </Card>
         </>
       )}
     </div>
@@ -278,31 +269,6 @@ function TrendTile({ label, pct }: { label: string; pct: number | null }) {
       >
         {pct === null ? "—" : `${pct > 0 ? "+" : ""}${pct.toFixed(0)}%`}
       </p>
-    </div>
-  );
-}
-
-function LoadSplit({ essentialPct }: { essentialPct: number | null }) {
-  if (essentialPct === null) {
-    return <p className="text-sm text-muted-foreground">No data yet.</p>;
-  }
-  const pct = Math.max(0, Math.min(100, essentialPct));
-  return (
-    <div className="space-y-2">
-      <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
-        <div className="h-full bg-emerald-500" style={{ width: `${pct}%` }} />
-        <div className="h-full bg-amber-500" style={{ width: `${100 - pct}%` }} />
-      </div>
-      <div className="flex justify-between text-xs">
-        <span className="text-muted-foreground">
-          <span className="mr-1 inline-block size-2 rounded-full bg-emerald-500" />
-          Essential {pct.toFixed(0)}%
-        </span>
-        <span className="text-muted-foreground">
-          <span className="mr-1 inline-block size-2 rounded-full bg-amber-500" />
-          Non-essential {(100 - pct).toFixed(0)}%
-        </span>
-      </div>
     </div>
   );
 }

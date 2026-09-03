@@ -4,7 +4,7 @@ import { getCustomerPlan } from "@/lib/customer-plan";
 import { getRequestProfile } from "@/lib/request-profile";
 import { maxByDeviceDay, sumByDay, type DailyPoint } from "@/lib/energy-aggregation";
 
-const YIELD_INSTRUMENT_KEY = "daily_yield_kwh";
+const YIELD_INSTRUMENT_KEY = "solar_energy_today_kwh";
 
 export interface ReportData {
   authorized: boolean;

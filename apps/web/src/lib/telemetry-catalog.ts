@@ -52,17 +52,17 @@ export function getSdStatusLabel(value: number | null | undefined): { label: str
 /** Flow-diagram fields, one per node — Overview reads these for the live
  *  wattage labels and arrow directions. */
 export const FLOW_POWER_KEYS: Record<FlowNode, string> = {
-  solar: "ac_output_power_w", // combined PV output (pv1_power_w + pv2_power_w also available individually)
+  solar: "inverter_power_w", // combined PV output (pv1_power_w + pv2_power_w also available individually)
   battery: "battery_power_w",
   grid: "grid_power_w",
   load: "load_power_w",
 };
 
 export const TODAY_ENERGY_FIELDS: TelemetryField[] = [
-  { key: "daily_yield_kwh", label: "Solar generated", unit: "kWh", decimals: 1 },
-  { key: "day_grid_import_kwh", label: "Grid imported", unit: "kWh", decimals: 1 },
-  { key: "day_grid_export_kwh", label: "Grid exported", unit: "kWh", decimals: 1 },
-  { key: "day_load_kwh", label: "Load consumed", unit: "kWh", decimals: 1 },
+  { key: "solar_energy_today_kwh", label: "Solar generated", unit: "kWh", decimals: 1 },
+  { key: "grid_buy_energy_today_kwh", label: "Grid imported", unit: "kWh", decimals: 1 },
+  { key: "grid_sell_energy_today_kwh", label: "Grid exported", unit: "kWh", decimals: 1 },
+  { key: "load_energy_today_kwh", label: "Load consumed", unit: "kWh", decimals: 1 },
 ];
 
 export const PV_STRING_FIELDS = {
@@ -88,12 +88,12 @@ export interface TemperatureField {
 
 export const TEMPERATURE_FIELDS: TemperatureField[] = [
   { key: "battery_temp_c", label: "Battery", warnAboveC: 45 },
-  { key: "dc_transformer_temp_c", label: "DC Transformer", warnAboveC: 75 },
-  { key: "radiator_temp_c", label: "Radiator", warnAboveC: 85 },
+  { key: "inverter_dc_temp_c", label: "DC Transformer", warnAboveC: 75 },
+  { key: "inverter_ac_temp_c", label: "Radiator", warnAboveC: 85 },
 ];
 
 export const LIVE_CHART_FIELDS: TelemetryField[] = [
-  { key: "ac_output_power_w", label: "Solar Power", unit: "W" },
+  { key: "inverter_power_w", label: "Solar Power", unit: "W" },
   { key: "battery_power_w", label: "Battery Power", unit: "W" },
   { key: "grid_power_w", label: "Grid Power", unit: "W" },
   { key: "load_power_w", label: "Load Power", unit: "W" },

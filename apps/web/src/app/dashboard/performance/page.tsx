@@ -9,13 +9,13 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { aggregateDailyYield, zipDailySeries, type RawReading } from "@/lib/energy-aggregation";
 
 const HISTORY_DAYS = 180;
-const YIELD_KEY = "daily_yield_kwh";
+const YIELD_KEY = "solar_energy_today_kwh";
 const KEYS = [
   YIELD_KEY,
   "day_battery_charge_kwh",
   "day_battery_discharge_kwh",
-  "day_grid_import_kwh",
-  "day_grid_export_kwh",
+  "grid_buy_energy_today_kwh",
+  "grid_sell_energy_today_kwh",
 ];
 
 // Server-side gate, matching Monitoring (Task 10.1) — a Basic-tier customer
@@ -76,8 +76,8 @@ export default async function PerformancePage() {
   const daily = aggregateDailyYield(byKey(YIELD_KEY));
   const batteryCharge = aggregateDailyYield(byKey("day_battery_charge_kwh"));
   const batteryDischarge = aggregateDailyYield(byKey("day_battery_discharge_kwh"));
-  const gridImport = aggregateDailyYield(byKey("day_grid_import_kwh"));
-  const gridExport = aggregateDailyYield(byKey("day_grid_export_kwh"));
+  const gridImport = aggregateDailyYield(byKey("grid_buy_energy_today_kwh"));
+  const gridExport = aggregateDailyYield(byKey("grid_sell_energy_today_kwh"));
 
   const batteryDiverging = zipDailySeries(batteryCharge, batteryDischarge);
   const gridDiverging = zipDailySeries(gridExport, gridImport);

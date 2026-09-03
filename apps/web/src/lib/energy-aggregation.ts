@@ -10,7 +10,8 @@ export interface DailyPoint {
 }
 
 /**
- * `daily_yield_kwh` is a running-for-the-day counter per device (resets
+ * `solar_energy_today_kwh` (and every other `*_energy_today_kwh` counter)
+ * is a running-for-the-day counter per device (resets
  * each morning, climbs through the day as the inverter reports) — so the
  * max value seen per device per calendar day is that day's total. Shared
  * by Performance, Analytics, and Reports so the three pages can never
