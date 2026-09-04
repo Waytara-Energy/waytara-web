@@ -174,10 +174,13 @@ function TeamCard({ member, delay }: { member: TeamMember; delay: number }) {
       <div className="relative">
         {/* Big decorative quote mark, sitting behind the text (not part of
             the centered block, not a small icon — a large grey glyph
-            pinned to the card's own top-left corner, per the reference). */}
+            pinned to the card's own top-left corner, per the reference).
+            Smaller and tucked in close now — the previous size/offset
+            pushed it up into the Vision/Mission/Goal row above instead of
+            sitting behind its own card's text. */}
         <span
           aria-hidden="true"
-          className="absolute -top-10 -left-6 sm:-top-20 sm:-left-12 lg:-top-28 lg:-left-16 -z-10 text-8xl sm:text-[12rem] lg:text-[16rem] font-serif text-theme-border leading-none select-none"
+          className="absolute -top-3 -left-2 sm:-top-6 sm:-left-4 lg:-top-8 lg:-left-6 -z-10 text-6xl sm:text-8xl lg:text-9xl font-serif text-theme-border leading-none select-none"
         >
           &#8246;
         </span>
