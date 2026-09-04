@@ -146,12 +146,16 @@ export function OurTeam() {
             pair; row 2: Manoj alone, centered. Every card's own content
             stays left-aligned (quote mark pinned to its top-left corner,
             never centered) — only the row as a whole is centered within
-            the section, not each card's internals. */}
-        <div className={cn("space-y-14 sm:space-y-16", signatureFont.variable)}>
+            the section, not each card's internals. Extra top clearance
+            and wider gaps than a plain text grid would need, so each
+            card's big decorative quote mark (offset up/left, behind the
+            text) has room to sit without crowding its neighbor or the
+            Vision/Mission/Goal block above. */}
+        <div className={cn("space-y-20 sm:space-y-28 mt-8 sm:mt-12", signatureFont.variable)}>
           {/* Full container width now (was capped at max-w-4xl, leaving big
               unused gutters either side) — matches the Vision/Mission/Goal
               grid above, which already spans the full fluid-container. */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-y-16 gap-x-12 lg:gap-x-20">
             <TeamCard member={TEAM[0]} delay={0} />
             <TeamCard member={TEAM[1]} delay={100} />
           </div>
@@ -173,7 +177,7 @@ function TeamCard({ member, delay }: { member: TeamMember; delay: number }) {
             pinned to the card's own top-left corner, per the reference). */}
         <span
           aria-hidden="true"
-          className="absolute -top-16 -left-16 -z-10 text-[12rem] sm:text-[16rem] font-serif text-theme-border leading-none select-none"
+          className="absolute -top-8 -left-8 sm:-top-16 sm:-left-16 -z-10 text-8xl sm:text-[12rem] lg:text-[16rem] font-serif text-theme-border leading-none select-none"
         >
           &ldquo;
         </span>
