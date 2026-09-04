@@ -165,41 +165,61 @@ export function OurTeam() {
 }
 
 function TeamCard({ member, delay }: { member: TeamMember; delay: number }) {
+  // Unique per instance — an SVG gradient needs its own id even though the
+  // three cards share the same visual gradient, so one card's <defs> never
+  // shadows another's when several render on the same page.
+  const gradientId = `team-quote-gradient-${member.name.replace(/\s+/g, "-").toLowerCase()}`;
+
   return (
     <Reveal direction="up" delay={delay} duration={650} distance={24}>
-      <div className="text-left">
-        {/* Quote mark — no badge/background, just the glyph itself, pinned
-            to the top-left corner of the card (never centered), theme-aware
-            (brand emerald, matching the accent color used for headings
-            elsewhere in this section). */}
+      <div>
+        {/* Quote mark — pinned to the card's top-left corner, deliberately
+            NOT part of the centered block below (text-align: center would
+            otherwise center this too, since svg is inline by default).
+            Green gradient fill via an SVG <defs> gradient (a plain
+            Tailwind fill-* class can't express a gradient). */}
         <svg
-          className="w-14 h-14 sm:w-16 sm:h-16 fill-emerald-600 dark:fill-emerald-400 mb-5 shrink-0"
+          className="w-14 h-14 sm:w-16 sm:h-16 mb-5 shrink-0"
           viewBox="0 0 24 24"
           aria-hidden="true"
         >
-          <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
+          <defs>
+            <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stopColor="#10b981" />
+              <stop offset="100%" stopColor="#16a34a" />
+            </linearGradient>
+          </defs>
+          <path
+            fill={`url(#${gradientId})`}
+            d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"
+          />
         </svg>
 
-        {/* Quote — bold lead clause, regular-weight remainder, larger type,
-            capped at 8 lines so no member's card can run arbitrarily long */}
-        <p className="text-lg sm:text-xl lg:text-2xl leading-relaxed mb-7 line-clamp-8">
-          <span className="text-theme-primary font-bold">{member.highlight}</span>
-          <span className="text-theme-secondary font-normal">{member.rest}</span>
-        </p>
+        {/* Everything below the quote mark is centered — text size matches
+            why-integrated.tsx's "WayTara is an integrated clean energy
+            platform..." paragraph exactly. */}
+        <div className="text-center">
+          {/* Quote — bold lead clause, regular-weight remainder, capped at
+              8 lines so no member's card can run arbitrarily long */}
+          <p className="text-base sm:text-lg lg:text-xl leading-relaxed mb-7 line-clamp-8">
+            <span className="text-theme-primary font-bold">{member.highlight}</span>
+            <span className="text-theme-secondary font-normal">{member.rest}</span>
+          </p>
 
-        {/* Divider + name/role | signature */}
-        <div className="flex items-center gap-4 pt-5 border-t border-theme-border justify-start">
-          <div className="min-w-0">
-            <p className="text-base font-bold text-theme-primary truncate">{member.name}</p>
-            <p className="text-sm text-theme-muted truncate">{member.role}</p>
+          {/* Divider + name/role | signature */}
+          <div className="flex items-center justify-center gap-4 pt-5 border-t border-theme-border">
+            <div className="min-w-0">
+              <p className="text-base font-bold text-theme-primary truncate">{member.name}</p>
+              <p className="text-sm text-theme-muted truncate">{member.role}</p>
+            </div>
+            <div className="w-px h-10 bg-theme-border shrink-0" aria-hidden="true" />
+            <span
+              className="text-4xl text-theme-secondary shrink-0"
+              style={{ fontFamily: "var(--font-signature)" }}
+            >
+              {member.name.split(" ")[0]}
+            </span>
           </div>
-          <div className="w-px h-10 bg-theme-border shrink-0" aria-hidden="true" />
-          <span
-            className="text-4xl text-theme-secondary shrink-0"
-            style={{ fontFamily: "var(--font-signature)" }}
-          >
-            {member.name.split(" ")[0]}
-          </span>
         </div>
       </div>
     </Reveal>
