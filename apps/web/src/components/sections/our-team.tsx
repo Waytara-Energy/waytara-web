@@ -18,10 +18,6 @@ interface TeamMember {
   highlight: string;
   /** Regular-weight remainder, continuing straight on from `highlight`. */
   rest: string;
-  /** Which edge of the section this row docks to — alternating
-   *  left/right/left gives the stack visual rhythm instead of every
-   *  row hugging the same edge. */
-  align: "left" | "right";
 }
 
 interface VisionMissionGoalItem {
@@ -62,7 +58,6 @@ const TEAM: TeamMember[] = [
     highlight:
       "I started WayTara because every energy provider was building their own island — a separate app for solar, another for storage, another for EV.",
     rest: " We built the opposite instead — one platform where every source and every ecosystem comes together under a single account.",
-    align: "left",
   },
   {
     name: "Devaansh Pujara",
@@ -70,7 +65,6 @@ const TEAM: TeamMember[] = [
     highlight:
       "I co-founded WayTara because building great technology isn’t enough — the installation, approvals, and years of upkeep after have to be just as disciplined.",
     rest: " My focus is making sure that promise holds up on every rooftop, not just in a product demo.",
-    align: "right",
   },
   {
     name: "Manoj Loganathan",
@@ -78,7 +72,6 @@ const TEAM: TeamMember[] = [
     highlight:
       "I research and build WayTara’s technology end to end — the hardware integrations, the IoT and device communication, and the software that ties it all together.",
     rest: " My job is turning every new idea into something real, reliable, and ready for a customer’s rooftop.",
-    align: "left",
   },
 ];
 
@@ -137,7 +130,7 @@ export function OurTeam() {
                   <div className="w-10 h-10 rounded-full bg-theme-surface border border-theme-border flex items-center justify-center text-theme-primary mb-4 group-hover:bg-emerald-500/10 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 group-hover:border-emerald-500/30 transition-colors">
                     <Icon className="w-5 h-5 stroke-[1.75]" />
                   </div>
-                  <h3 className="text-sm font-bold tracking-tight text-theme-primary mb-2">
+                  <h3 className="text-base sm:text-lg font-bold tracking-tight text-theme-primary mb-2">
                     {item.title}
                   </h3>
                   <p className="text-xs sm:text-sm text-theme-secondary leading-relaxed font-normal line-clamp-4">
@@ -149,60 +142,62 @@ export function OurTeam() {
           })}
         </div>
 
-        {/* 4. Team — one testimonial-style row per person (not a 3-column
-            grid): quote mark, bold-lead quote, name/role + signature
-            flourish below a divider, no photos. Rows alternate which
-            section edge they dock to (left/right/left) instead of
-            spanning full width, giving the stack visual rhythm. */}
+        {/* 4. Team — row 1: Arun + Devaansh side by side, centered as a
+            pair; row 2: Manoj alone, centered. Every card's own content
+            stays left-aligned (quote mark pinned to its top-left corner,
+            never centered) — only the row as a whole is centered within
+            the section, not each card's internals. */}
         <div className={cn("space-y-14 sm:space-y-16", signatureFont.variable)}>
-          {TEAM.map((member, idx) => {
-            const isRight = member.align === "right";
-            return (
-              <Reveal key={member.name} direction={isRight ? "left" : "right"} delay={idx * 100} duration={650} distance={24}>
-                <div className={cn("max-w-2xl", isRight ? "ml-auto text-right" : "mr-auto text-left")}>
-                  {/* Quote mark — no badge/background, just the glyph itself,
-                      bigger now, theme-aware (brand emerald, matching the
-                      accent color used for headings elsewhere in this
-                      section). */}
-                  <svg
-                    className={cn("w-14 h-14 sm:w-16 sm:h-16 fill-emerald-600 dark:fill-emerald-400 mb-5 shrink-0", isRight && "ml-auto")}
-                    viewBox="0 0 24 24"
-                    aria-hidden="true"
-                  >
-                    <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
-                  </svg>
-
-                  {/* Quote — bold lead clause, regular-weight remainder, larger type */}
-                  <p className="text-lg sm:text-xl lg:text-2xl leading-relaxed mb-7">
-                    <span className="text-theme-primary font-bold">{member.highlight}</span>
-                    <span className="text-theme-secondary font-normal">{member.rest}</span>
-                  </p>
-
-                  {/* Divider + name/role | signature */}
-                  <div
-                    className={cn(
-                      "flex items-center gap-4 pt-5 border-t border-theme-border",
-                      isRight ? "flex-row-reverse justify-end" : "justify-start"
-                    )}
-                  >
-                    <div className="min-w-0">
-                      <p className="text-base font-bold text-theme-primary truncate">{member.name}</p>
-                      <p className="text-sm text-theme-muted truncate">{member.role}</p>
-                    </div>
-                    <div className="w-px h-10 bg-theme-border shrink-0" aria-hidden="true" />
-                    <span
-                      className="text-4xl text-theme-secondary shrink-0"
-                      style={{ fontFamily: "var(--font-signature)" }}
-                    >
-                      {member.name.split(" ")[0]}
-                    </span>
-                  </div>
-                </div>
-              </Reveal>
-            );
-          })}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 max-w-4xl mx-auto">
+            <TeamCard member={TEAM[0]} delay={0} />
+            <TeamCard member={TEAM[1]} delay={100} />
+          </div>
+          <div className="max-w-xl mx-auto">
+            <TeamCard member={TEAM[2]} delay={200} />
+          </div>
         </div>
       </div>
     </section>
+  );
+}
+
+function TeamCard({ member, delay }: { member: TeamMember; delay: number }) {
+  return (
+    <Reveal direction="up" delay={delay} duration={650} distance={24}>
+      <div className="text-left">
+        {/* Quote mark — no badge/background, just the glyph itself, pinned
+            to the top-left corner of the card (never centered), theme-aware
+            (brand emerald, matching the accent color used for headings
+            elsewhere in this section). */}
+        <svg
+          className="w-14 h-14 sm:w-16 sm:h-16 fill-emerald-600 dark:fill-emerald-400 mb-5 shrink-0"
+          viewBox="0 0 24 24"
+          aria-hidden="true"
+        >
+          <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
+        </svg>
+
+        {/* Quote — bold lead clause, regular-weight remainder, larger type */}
+        <p className="text-lg sm:text-xl lg:text-2xl leading-relaxed mb-7">
+          <span className="text-theme-primary font-bold">{member.highlight}</span>
+          <span className="text-theme-secondary font-normal">{member.rest}</span>
+        </p>
+
+        {/* Divider + name/role | signature */}
+        <div className="flex items-center gap-4 pt-5 border-t border-theme-border justify-start">
+          <div className="min-w-0">
+            <p className="text-base font-bold text-theme-primary truncate">{member.name}</p>
+            <p className="text-sm text-theme-muted truncate">{member.role}</p>
+          </div>
+          <div className="w-px h-10 bg-theme-border shrink-0" aria-hidden="true" />
+          <span
+            className="text-4xl text-theme-secondary shrink-0"
+            style={{ fontFamily: "var(--font-signature)" }}
+          >
+            {member.name.split(" ")[0]}
+          </span>
+        </div>
+      </div>
+    </Reveal>
   );
 }
