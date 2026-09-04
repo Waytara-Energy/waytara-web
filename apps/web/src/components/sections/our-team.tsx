@@ -24,21 +24,21 @@ const TEAM: TeamMember[] = [
     name: "Arun V Mahadev",
     role: "Founder, WayTara",
     highlight:
-      "I started WayTara because clean energy in India needed better engineering, not more sales pitches.",
-    rest: " Every system we ship carries one accountable warranty — built to last 25 years, not just the day it’s switched on.",
+      "I founded WayTara around one idea: energy shouldn’t need a different app for every provider.",
+    rest: " Solar, storage, EV — we built one platform instead, so every source and every ecosystem lives under a single account, monitored in one place.",
   },
   {
     name: "Devaansh Pujara",
     role: "Co-Founder, WayTara",
     highlight:
-      "I co-founded WayTara to bring real engineering discipline to clean energy delivery,",
-    rest: " from approvals to years of upkeep after. My job: making sure one integrated system holds up in practice, not just on paper.",
+      "Arun’s a close friend, and his vision for WayTara was one I already believed in.",
+    rest: " I co-founded the company to build it properly — one integrated system, not ten disconnected ones.",
   },
   {
     name: "Manoj Loganathan",
     role: "Software Engineer, WayTara",
-    highlight: "I own WayTara’s technology end to end —",
-    rest: " the customer dashboard, the device telemetry, everything that turns a rooftop inverter’s raw data into monitoring people actually use. If it’s software here, I’m accountable for it.",
+    highlight: "I turn WayTara’s vision into applications people actually use —",
+    rest: " built around how customers think, not how the backend is organized. My job is making the sustainable choice the easy one.",
   },
 ];
 
