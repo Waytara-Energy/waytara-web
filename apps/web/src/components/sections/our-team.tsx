@@ -165,39 +165,11 @@ export function OurTeam() {
 }
 
 function TeamCard({ member, delay }: { member: TeamMember; delay: number }) {
-  // Unique per instance — an SVG gradient needs its own id even though the
-  // three cards share the same visual gradient, so one card's <defs> never
-  // shadows another's when several render on the same page.
-  const gradientId = `team-quote-gradient-${member.name.replace(/\s+/g, "-").toLowerCase()}`;
-
   return (
     <Reveal direction="up" delay={delay} duration={650} distance={24}>
       <div>
-        {/* Quote mark — pinned to the card's top-left corner, deliberately
-            NOT part of the centered block below (text-align: center would
-            otherwise center this too, since svg is inline by default).
-            Green gradient fill via an SVG <defs> gradient (a plain
-            Tailwind fill-* class can't express a gradient). */}
-        <svg
-          className="w-14 h-14 sm:w-16 sm:h-16 mb-5 shrink-0"
-          viewBox="0 0 24 24"
-          aria-hidden="true"
-        >
-          <defs>
-            <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#10b981" />
-              <stop offset="100%" stopColor="#16a34a" />
-            </linearGradient>
-          </defs>
-          <path
-            fill={`url(#${gradientId})`}
-            d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z"
-          />
-        </svg>
-
-        {/* Everything below the quote mark is centered — text size matches
-            why-integrated.tsx's "WayTara is an integrated clean energy
-            platform..." paragraph exactly. */}
+        {/* Text size matches why-integrated.tsx's "WayTara is an
+            integrated clean energy platform..." paragraph exactly. */}
         <div className="text-center">
           {/* Quote — bold lead clause, regular-weight remainder, capped at
               8 lines so no member's card can run arbitrarily long */}
