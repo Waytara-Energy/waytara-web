@@ -167,10 +167,20 @@ export function OurTeam() {
 function TeamCard({ member, delay }: { member: TeamMember; delay: number }) {
   return (
     <Reveal direction="up" delay={delay} duration={650} distance={24}>
-      <div>
+      <div className="relative">
+        {/* Big decorative quote mark, sitting behind the text (not part of
+            the centered block, not a small icon — a large grey glyph
+            pinned to the card's own top-left corner, per the reference). */}
+        <span
+          aria-hidden="true"
+          className="absolute -top-6 left-0 -z-10 text-8xl sm:text-9xl font-serif text-theme-border leading-none select-none"
+        >
+          &ldquo;
+        </span>
+
         {/* Text size matches why-integrated.tsx's "WayTara is an
             integrated clean energy platform..." paragraph exactly. */}
-        <div className="text-center">
+        <div className="text-center relative">
           {/* Quote — bold lead clause, regular-weight remainder, capped at
               8 lines so no member's card can run arbitrarily long */}
           <p className="text-base sm:text-lg lg:text-xl leading-relaxed mb-7 line-clamp-8">
