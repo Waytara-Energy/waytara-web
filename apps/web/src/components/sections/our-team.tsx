@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowDown } from "lucide-react";
+import { ArrowDown, Telescope, Compass, Target } from "lucide-react";
 import { Caveat } from "next/font/google";
 import { Reveal } from "@/components/shared/reveal";
 import { cn } from "@/lib/utils";
@@ -23,6 +23,37 @@ interface TeamMember {
    *  row hugging the same edge. */
   align: "left" | "right";
 }
+
+interface VisionMissionGoalItem {
+  icon: React.ElementType;
+  title: string;
+  description: string;
+}
+
+/** Same frameless icon-badge pattern as WhyIntegratedSystem's PILLARS /
+ *  Trust's COMPLIANCE_PROTOCOLS — reused here rather than the plain
+ *  label+paragraph style this block started with, for visual consistency
+ *  across the page. */
+const VISION_MISSION_GOAL: VisionMissionGoalItem[] = [
+  {
+    icon: Telescope,
+    title: "Our Vision",
+    description:
+      "We want every property in India to generate, store, and use its own power on its own terms — engineered as one intelligent system, not a patchwork of disconnected vendors.",
+  },
+  {
+    icon: Compass,
+    title: "Our Mission",
+    description:
+      "We design, install, and stand behind integrated solar, battery, and EV charging systems — built to a single standard, backed by one accountable team, and monitored in real time so our customers never have to wonder if their system is working.",
+  },
+  {
+    icon: Target,
+    title: "Our Goal",
+    description:
+      "We want to be the reason a property owner in India never has to think about their power supply again — one system, one warranty, one team accountable for all of it.",
+  },
+];
 
 const TEAM: TeamMember[] = [
   {
@@ -89,43 +120,34 @@ export function OurTeam() {
           </h2>
         </Reveal>
 
-        {/* 3. Vision, Mission & Goal — three plain text columns, no cards/borders,
-            all first-person ("we"/"our") — this is WayTara speaking, not a
-            narrator describing WayTara. Same grid-cols-3/gap as the Team
-            grid below (no max-w cap here) so the two 3-column rows share
+        {/* 3. Vision, Mission & Goal — same frameless icon-badge grid as
+            WhyIntegratedSystem's pillars / Trust's compliance protocols
+            (circular icon badge, bold title, description), for visual
+            consistency with the rest of the page. All first-person
+            ("we"/"our") — this is WayTara speaking, not a narrator
+            describing WayTara. Same grid-cols-3/gap as the Team grid
+            below (no max-w cap here) so the two 3-column rows share
             identical column boundaries instead of drifting out of line. */}
-        <Reveal direction="up" delay={180} duration={700}>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12 mt-10 mb-16 sm:mb-20">
-            <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-3">
-                Our Vision
-              </h3>
-              <p className="text-sm sm:text-base text-theme-primary leading-relaxed font-medium">
-                We want every property in India to generate, store, and use its own power on its own terms
-                — engineered as one intelligent system, not a patchwork of disconnected vendors.
-              </p>
-            </div>
-            <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-3">
-                Our Mission
-              </h3>
-              <p className="text-sm sm:text-base text-theme-primary leading-relaxed font-medium">
-                We design, install, and stand behind integrated solar, battery, and EV charging systems —
-                built to a single standard, backed by one accountable team, and monitored in real time so
-                our customers never have to wonder if their system is working.
-              </p>
-            </div>
-            <div>
-              <h3 className="text-xs font-bold uppercase tracking-wider text-emerald-600 dark:text-emerald-400 mb-3">
-                Our Goal
-              </h3>
-              <p className="text-sm sm:text-base text-theme-primary leading-relaxed font-medium">
-                We want to be the reason a property owner in India never has to think about their power
-                supply again — one system, one warranty, one team accountable for all of it.
-              </p>
-            </div>
-          </div>
-        </Reveal>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-12 mt-10 mb-16 sm:mb-20">
+          {VISION_MISSION_GOAL.map((item, idx) => {
+            const Icon = item.icon;
+            return (
+              <Reveal key={item.title} direction="up" delay={180 + idx * 100} duration={650} distance={24}>
+                <div className="flex flex-col justify-start text-left group">
+                  <div className="w-10 h-10 rounded-full bg-theme-surface border border-theme-border flex items-center justify-center text-theme-primary mb-4 group-hover:bg-emerald-500/10 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 group-hover:border-emerald-500/30 transition-colors">
+                    <Icon className="w-5 h-5 stroke-[1.75]" />
+                  </div>
+                  <h3 className="text-base sm:text-lg font-bold tracking-tight text-theme-primary mb-2">
+                    {item.title}
+                  </h3>
+                  <p className="text-xs sm:text-sm text-theme-secondary leading-relaxed font-normal">
+                    {item.description}
+                  </p>
+                </div>
+              </Reveal>
+            );
+          })}
+        </div>
 
         {/* 4. Team — one testimonial-style row per person (not a 3-column
             grid): quote mark, bold-lead quote, name/role + signature
