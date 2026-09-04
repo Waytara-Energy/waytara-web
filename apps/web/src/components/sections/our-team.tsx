@@ -45,7 +45,7 @@ const VISION_MISSION_GOAL: VisionMissionGoalItem[] = [
     icon: Compass,
     title: "Our Mission",
     description:
-      "We design, install, and stand behind integrated solar, battery, and EV charging systems — built to a single standard, backed by one accountable team, and monitored in real time so our customers never have to wonder if their system is working.",
+      "We design, install, and stand behind integrated solar, battery, and EV charging systems — one standard, one accountable team, monitored in real time so you never have to wonder if it’s working.",
   },
   {
     icon: Target,
@@ -137,10 +137,10 @@ export function OurTeam() {
                   <div className="w-10 h-10 rounded-full bg-theme-surface border border-theme-border flex items-center justify-center text-theme-primary mb-4 group-hover:bg-emerald-500/10 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 group-hover:border-emerald-500/30 transition-colors">
                     <Icon className="w-5 h-5 stroke-[1.75]" />
                   </div>
-                  <h3 className="text-base sm:text-lg font-bold tracking-tight text-theme-primary mb-2">
+                  <h3 className="text-sm font-bold tracking-tight text-theme-primary mb-2">
                     {item.title}
                   </h3>
-                  <p className="text-xs sm:text-sm text-theme-secondary leading-relaxed font-normal">
+                  <p className="text-xs sm:text-sm text-theme-secondary leading-relaxed font-normal line-clamp-4">
                     {item.description}
                   </p>
                 </div>
