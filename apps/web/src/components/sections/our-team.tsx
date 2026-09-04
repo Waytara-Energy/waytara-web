@@ -148,11 +148,14 @@ export function OurTeam() {
             never centered) — only the row as a whole is centered within
             the section, not each card's internals. */}
         <div className={cn("space-y-14 sm:space-y-16", signatureFont.variable)}>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12 max-w-4xl mx-auto">
+          {/* Full container width now (was capped at max-w-4xl, leaving big
+              unused gutters either side) — matches the Vision/Mission/Goal
+              grid above, which already spans the full fluid-container. */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 lg:gap-12">
             <TeamCard member={TEAM[0]} delay={0} />
             <TeamCard member={TEAM[1]} delay={100} />
           </div>
-          <div className="max-w-xl mx-auto">
+          <div className="max-w-2xl mx-auto">
             <TeamCard member={TEAM[2]} delay={200} />
           </div>
         </div>
@@ -177,8 +180,9 @@ function TeamCard({ member, delay }: { member: TeamMember; delay: number }) {
           <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
         </svg>
 
-        {/* Quote — bold lead clause, regular-weight remainder, larger type */}
-        <p className="text-lg sm:text-xl lg:text-2xl leading-relaxed mb-7">
+        {/* Quote — bold lead clause, regular-weight remainder, larger type,
+            capped at 8 lines so no member's card can run arbitrarily long */}
+        <p className="text-lg sm:text-xl lg:text-2xl leading-relaxed mb-7 line-clamp-8">
           <span className="text-theme-primary font-bold">{member.highlight}</span>
           <span className="text-theme-secondary font-normal">{member.rest}</span>
         </p>
