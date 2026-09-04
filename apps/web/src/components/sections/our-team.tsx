@@ -18,8 +18,9 @@ interface TeamMember {
   highlight: string;
   /** Regular-weight remainder, continuing straight on from `highlight`. */
   rest: string;
-  /** Which edge of the section this row sits at, per the brief: row 1
-   *  left, row 2 left, row 3 right — not a strict left/right alternation. */
+  /** Which edge of the section this row docks to — alternating
+   *  left/right/left gives the stack visual rhythm instead of every
+   *  row hugging the same edge. */
   align: "left" | "right";
 }
 
@@ -38,7 +39,7 @@ const TEAM: TeamMember[] = [
     highlight:
       "I co-founded WayTara because building great technology isn’t enough — the installation, approvals, and years of upkeep after have to be just as disciplined.",
     rest: " My focus is making sure that promise holds up on every rooftop, not just in a product demo.",
-    align: "left",
+    align: "right",
   },
   {
     name: "Manoj Loganathan",
@@ -46,7 +47,7 @@ const TEAM: TeamMember[] = [
     highlight:
       "I research and build WayTara’s technology end to end — the hardware integrations, the IoT and device communication, and the software that ties it all together.",
     rest: " My job is turning every new idea into something real, reliable, and ready for a customer’s rooftop.",
-    align: "right",
+    align: "left",
   },
 ];
 
@@ -128,9 +129,9 @@ export function OurTeam() {
 
         {/* 4. Team — one testimonial-style row per person (not a 3-column
             grid): quote mark, bold-lead quote, name/role + signature
-            flourish below a divider, no photos. Each row docks to a
-            section edge per the brief (row 1 left, row 2 left, row 3
-            right) rather than spanning full width. */}
+            flourish below a divider, no photos. Rows alternate which
+            section edge they dock to (left/right/left) instead of
+            spanning full width, giving the stack visual rhythm. */}
         <div className={cn("space-y-14 sm:space-y-16", signatureFont.variable)}>
           {TEAM.map((member, idx) => {
             const isRight = member.align === "right";
