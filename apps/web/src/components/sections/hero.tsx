@@ -34,7 +34,7 @@ export function Hero() {
   };
 
   return (
-    <section className="relative w-full h-[100dvh] min-h-[580px] flex flex-col justify-center items-center text-center overflow-hidden select-none bg-black px-4">
+    <section className="relative w-full h-[100dvh] min-h-[580px] flex flex-col justify-center items-center text-center overflow-hidden select-none bg-black px-[var(--page-gutter)]">
       
       {/* 1. Full-Bleed Background Video - Shifted down so top arc sits towards the center */}
       <div className="absolute inset-0 z-0 w-full h-full overflow-hidden flex items-center justify-center bg-black">

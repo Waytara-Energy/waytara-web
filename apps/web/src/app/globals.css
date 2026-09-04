@@ -88,8 +88,14 @@
     --alert: #D97706;
     --alert-bg: rgba(217, 119, 6, 0.08);
 
-    /* Dynamic Page Gutter (Continuous Fluid Scaling for All Screen Sizes) */
-    --page-gutter: clamp(1rem, 3.2vw, 3.25rem);
+    /* Dynamic Page Gutter (Continuous Fluid Scaling for All Screen Sizes).
+       Floor raised 1rem -> 1.5rem — on real phone widths (~360-430px),
+       3.2vw alone landed under the old 1rem floor, so every small screen
+       was stuck at the flat 16px minimum, cards/text nearly flush with
+       the viewport edge. 1.5rem (24px) is the new floor small screens
+       actually hit; the vw coefficient bumped slightly too so the ramp
+       up to the unchanged 3.25rem cap stays smooth in between. */
+    --page-gutter: clamp(1.5rem, 4vw, 3.25rem);
 
     /* Primary gradient: 135deg diagonal */
     --gradient-primary: linear-gradient(135deg, #34D399 0%, #16A34A 50%, #15803D 100%);
