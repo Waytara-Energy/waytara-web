@@ -177,9 +177,9 @@ function TeamCard({ member, delay }: { member: TeamMember; delay: number }) {
             pinned to the card's own top-left corner, per the reference). */}
         <span
           aria-hidden="true"
-          className="absolute -top-8 -left-8 sm:-top-16 sm:-left-16 -z-10 text-8xl sm:text-[12rem] lg:text-[16rem] font-serif text-theme-border leading-none select-none"
+          className="absolute -top-10 -left-6 sm:-top-20 sm:-left-12 lg:-top-28 lg:-left-16 -z-10 text-8xl sm:text-[12rem] lg:text-[16rem] font-serif text-theme-border leading-none select-none"
         >
-          &ldquo;
+          &#8246;
         </span>
 
         {/* Text size matches why-integrated.tsx's "WayTara is an
