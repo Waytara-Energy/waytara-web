@@ -173,7 +173,7 @@ function TeamCard({ member, delay }: { member: TeamMember; delay: number }) {
             pinned to the card's own top-left corner, per the reference). */}
         <span
           aria-hidden="true"
-          className="absolute -top-6 left-0 -z-10 text-8xl sm:text-9xl font-serif text-theme-border leading-none select-none"
+          className="absolute -top-6 left-0 -z-10 text-9xl sm:text-[10rem] font-serif text-theme-border leading-none select-none"
         >
           &ldquo;
         </span>
