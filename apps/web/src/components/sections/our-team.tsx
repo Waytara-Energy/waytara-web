@@ -134,8 +134,8 @@ export function OurTeam() {
 
                 {/* Quote — bold lead clause, regular-weight remainder */}
                 <p className="text-sm sm:text-base leading-relaxed mb-6 flex-1">
-                  <span className="text-theme-primary font-bold">&ldquo;{member.highlight}</span>
-                  <span className="text-theme-secondary font-normal">{member.rest}&rdquo;</span>
+                  <span className="text-theme-primary font-bold">{member.highlight}</span>
+                  <span className="text-theme-secondary font-normal">{member.rest}</span>
                 </p>
 
                 {/* Divider + name/role | signature */}
