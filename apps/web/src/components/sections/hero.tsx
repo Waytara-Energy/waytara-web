@@ -2,12 +2,48 @@
 
 import * as React from "react";
 import Link from "next/link";
+import Image from "next/image";
+import { useTheme } from "next-themes";
 import { ChevronDown, Sparkles, PhoneCall, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/shared/reveal";
 import { TEMP_HIDE_LANDING_SECTIONS } from "@/config/landing-flags";
+import { cn } from "@/lib/utils";
+
+// TEMPORARY — requested 2026-09-07 to trial theme-aware static hero images
+// in place of the background video, without touching the video itself.
+// Flip back to `false` (or delete this const + its one `if` below) to
+// instantly restore the video; nothing about the video markup/source has
+// been removed.
+const TEMP_USE_HERO_TEST_IMAGE = true;
 
 export function Hero() {
+  // Same mounted-guard pattern as shared/theme-toggle.tsx: `resolvedTheme`
+  // is undefined until after hydration (defaultTheme="system" in
+  // layout.tsx), so we can't pick light/dark art on the server render.
+  const { resolvedTheme } = useTheme();
+  const [mounted, setMounted] = React.useState(false);
+  const [isDark, setIsDark] = React.useState(false);
+  React.useEffect(() => setMounted(true), []);
+
+  // layout.tsx's ThemeProvider sets `disableTransitionOnChange`, which
+  // briefly force-disables ALL CSS transitions site-wide (via an injected
+  // `* { transition: none }` stylesheet) during a theme switch, so every
+  // themed element swaps color instantly instead of cross-fading. If we
+  // drove the crossfade straight off `resolvedTheme`, our opacity change
+  // would land inside that disabled window and jump instantly too — so we
+  // wait a beat past it before flipping, which is enough for next-themes
+  // to have already lifted its override and our own transition to
+  // actually animate. A plain timeout, not requestAnimationFrame — rAF
+  // only fires while the tab is actively painting frames, and won't run
+  // at all in a backgrounded/inactive tab.
+  React.useEffect(() => {
+    if (!mounted) return;
+    const target = resolvedTheme === "dark";
+    const timer = setTimeout(() => setIsDark(target), 50);
+    return () => clearTimeout(timer);
+  }, [resolvedTheme, mounted]);
+
   // TEMP_HIDE_LANDING_SECTIONS (src/config/landing-flags.ts): the Energy
   // Planner section this button used to jump to is hidden while the flag
   // is on, so the primary action points at Who We Are instead — restored
@@ -38,16 +74,41 @@ export function Hero() {
       
       {/* 1. Full-Bleed Background Video - Shifted down so top arc sits towards the center */}
       <div className="absolute inset-0 z-0 w-full h-full overflow-hidden flex items-center justify-center bg-black">
-        <video
-          autoPlay
-          loop
-          muted
-          playsInline
-          className="w-full h-full min-w-full min-h-full object-cover pointer-events-none translate-y-[14%] sm:translate-y-[18%] lg:translate-y-[22%] scale-110 sm:scale-115 transition-transform duration-500"
-        >
-          <source src="/videos/hero-bg.mp4" type="video/mp4" />
-          Your browser does not support the video tag.
-        </video>
+        {TEMP_USE_HERO_TEST_IMAGE ? (
+          <>
+            {/* Day image is always the base layer; the night image
+                crossfades in on top of it — smoother than swapping `src`
+                (which would pop/reload) and avoids a blank gap mid-toggle. */}
+            <Image
+              src="/images/hero-bg-light-v2.png"
+              alt=""
+              fill
+              priority
+              className="object-cover pointer-events-none"
+            />
+            <Image
+              src="/images/hero-bg-dark-v2.png"
+              alt=""
+              fill
+              priority
+              className={cn(
+                "object-cover pointer-events-none transition-opacity duration-[1200ms] ease-in-out",
+                isDark ? "opacity-100" : "opacity-0"
+              )}
+            />
+          </>
+        ) : (
+          <video
+            autoPlay
+            loop
+            muted
+            playsInline
+            className="w-full h-full min-w-full min-h-full object-cover pointer-events-none translate-y-[14%] sm:translate-y-[18%] lg:translate-y-[22%] scale-110 sm:scale-115 transition-transform duration-500"
+          >
+            <source src="/videos/hero-bg.mp4" type="video/mp4" />
+            Your browser does not support the video tag.
+          </video>
+        )}
 
         {/* Subtle Vignette Gradient Overlay for Text Legibility */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/20 to-black/85 pointer-events-none" />
@@ -71,7 +132,7 @@ export function Hero() {
         {/* Subtitle */}
         <Reveal direction="up" delay={450} duration={850} distance={20}>
           <p className="mt-2 sm:mt-3 lg:mt-4 text-[clamp(0.9rem,1.35vw,1.3rem)] font-medium text-white/90 tracking-wide drop-shadow-md">
-            Solar &bull; Battery Storage &bull; EV Charging
+            Solar &bull; Inverter &bull; Battery Storage &bull; EV Charging
           </p>
         </Reveal>
 
