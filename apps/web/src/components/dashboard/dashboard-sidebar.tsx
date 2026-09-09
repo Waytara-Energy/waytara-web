@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
@@ -12,6 +13,7 @@ import {
   SidebarMenuButton,
   SidebarMenuItem,
   SidebarRail,
+  SidebarTrigger,
   useSidebar,
 } from "@/components/ui/sidebar";
 import { Logo, LogoMark } from "@/components/shared/logo";
@@ -23,12 +25,18 @@ import { visibleNavItems } from "./nav-config";
 // SidebarProvider itself manages). Same nav items, same feature-gating
 // logic as before, just re-rendered as SidebarMenuItems.
 //
-// Collapse/expand is SidebarRail below, not a button in the header row —
-// it's a click/drag target already sitting right on the sidebar's outer
-// edge (its own -right-4 positioning puts it on the boundary with the
-// main content), so a second explicit toggle button would just duplicate
-// it. The header simply swaps the full wordmark for the icon-only mark
-// when collapsed, same spot either way.
+// The collapse toggle lives here, at the end of the logo row, rather than
+// in the header — SidebarRail (the edge click/drag target) still works
+// too, this just gives it an explicit, discoverable button.
+//
+// Two more expand affordances once collapsed to the icon rail, since
+// there's no room for a permanent visible trigger at that width:
+//  - Hovering the logo mark crossfades it into the trigger button, in the
+//    same spot (see the `group/logo` wrapper below).
+//  - Clicking any empty area of the collapsed sidebar expands it —
+//    handleSidebarClick, attached to the whole <Sidebar>, no-ops if the
+//    click actually landed on a real control (nav link/button) so those
+//    keep navigating instead of just toggling the rail open.
 export function DashboardSidebar({
   features = {},
 }: {
@@ -36,7 +44,7 @@ export function DashboardSidebar({
 }) {
   const pathname = usePathname();
   const navItems = visibleNavItems(features);
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { isMobile, setOpenMobile, state, setOpen } = useSidebar();
 
   // On mobile the sidebar is a Sheet overlay covering the page (see
   // sidebar.tsx's own mobile branch) — picking a module should close it
@@ -47,13 +55,32 @@ export function DashboardSidebar({
     if (isMobile) setOpenMobile(false);
   }
 
+  function handleSidebarClick(e: React.MouseEvent<HTMLDivElement>) {
+    if (isMobile || state !== "collapsed") return;
+    // Real controls (nav links, the trigger button itself) handle their
+    // own click — only an empty-space click should expand the rail.
+    if ((e.target as HTMLElement).closest("a, button")) return;
+    setOpen(true);
+  }
+
   return (
-    <Sidebar collapsible="icon">
-      <SidebarHeader className="h-16 flex-row items-center justify-center border-b border-sidebar-border px-3 group-data-[collapsible=icon]:px-0">
-        <Link href="/dashboard" aria-label="Dashboard home" className="flex items-center justify-center" onClick={handleNavClick}>
-          <Logo isLink={false} className="h-[clamp(19px,1.3vw,22px)] group-data-[collapsible=icon]:hidden" />
-          <LogoMark className="hidden h-[clamp(22px,1.5vw,25px)] w-[clamp(22px,1.5vw,25px)] group-data-[collapsible=icon]:block" />
-        </Link>
+    <Sidebar collapsible="icon" onClick={handleSidebarClick}>
+      <SidebarHeader className="h-16 flex-row items-center justify-between px-3 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:px-0">
+        <div className="group/logo relative flex items-center">
+          <Link
+            href="/dashboard"
+            aria-label="Dashboard home"
+            className="flex items-center group-data-[collapsible=icon]:group-hover/logo:opacity-0"
+            onClick={handleNavClick}
+          >
+            <Logo isLink={false} className="h-[clamp(19px,1.3vw,22px)] group-data-[collapsible=icon]:hidden" />
+            <LogoMark className="hidden h-[clamp(22px,1.5vw,25px)] w-[clamp(22px,1.5vw,25px)] group-data-[collapsible=icon]:block" />
+          </Link>
+          {/* Collapsed-only — sits exactly over the logo mark above,
+              revealed on hover of that same spot. */}
+          <SidebarTrigger className="absolute inset-0 hidden items-center justify-center opacity-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:group-hover/logo:opacity-100 [&_svg]:h-[clamp(17px,1.15vw,19.5px)] [&_svg]:w-[clamp(17px,1.15vw,19.5px)]" />
+        </div>
+        <SidebarTrigger className="group-data-[collapsible=icon]:hidden [&_svg]:h-[clamp(17px,1.15vw,19.5px)] [&_svg]:w-[clamp(17px,1.15vw,19.5px)]" />
       </SidebarHeader>
 
       <SidebarContent>
