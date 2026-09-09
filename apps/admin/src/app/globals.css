@@ -15,3 +15,11 @@ html {
 body {
   font-family: var(--font-inter), system-ui, -apple-system, sans-serif;
 }
+
+/* Pure-CSS day/night image swap (mirrors apps/web's globals.css) — driven
+   by the `.dark` class next-themes toggles on <html>, so both variants can
+   sit in the DOM at once with no JS/hydration flicker. */
+.theme-media-light { display: block; }
+.theme-media-dark { display: none; }
+.dark .theme-media-light { display: none; }
+.dark .theme-media-dark { display: block; }
