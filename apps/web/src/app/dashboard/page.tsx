@@ -118,17 +118,13 @@ export default async function DashboardOverviewPage() {
 
       <FaultBanner faultCode={get("active_fault_code")} />
 
-      <Card>
-        <CardContent className="p-6">
-          <EnergyFlowDiagram
-            solarW={get("inverter_power_w")}
-            batteryW={get("battery_power_w")}
-            gridW={get("grid_power_w")}
-            loadW={get("load_power_w")}
-            batterySocPct={get("battery_soc_pct")}
-          />
-        </CardContent>
-      </Card>
+      <EnergyFlowDiagram
+        solarW={get("inverter_power_w")}
+        batteryW={get("battery_power_w")}
+        gridW={get("grid_power_w")}
+        loadW={get("load_power_w")}
+        batterySocPct={get("battery_soc_pct")}
+      />
 
       <div>
         <h2 className="mb-3 text-sm font-semibold text-foreground">Today so far</h2>
