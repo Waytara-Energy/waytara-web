@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { TrendingUp } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
+import { getSelectedSite, resolveDeviceInSite, deviceDisplayId } from "@/lib/selected-site";
 import { DevicePicker } from "@/components/dashboard/device-picker";
 import { DeviceDetailsCard } from "@/components/dashboard/device-details-card";
 import { getCustomerPlan } from "@/lib/customer-plan";
@@ -122,7 +122,7 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
         <h1 className="text-2xl font-semibold text-theme-primary">Performance</h1>
         <p className="mt-1 text-sm text-theme-muted">
           {device
-            ? `Energy yield over time for ${device.label || device.deviceUid}.`
+            ? `Energy yield over time for ${deviceDisplayId(device)}.`
             : "Household energy yield over time."}
         </p>
       </div>

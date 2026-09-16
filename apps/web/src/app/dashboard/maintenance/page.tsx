@@ -1,6 +1,6 @@
 import { Wrench } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
+import { getSelectedSite, resolveDeviceInSite, deviceDisplayId } from "@/lib/selected-site";
 import { DevicePicker } from "@/components/dashboard/device-picker";
 import { DeviceDetailsCard } from "@/components/dashboard/device-details-card";
 import { Badge } from "@/components/ui/badge";
@@ -17,6 +17,7 @@ import { TemperatureGauge } from "@/components/dashboard/temperature-gauge";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { deriveFaultEvents } from "@/lib/deye-fault-codes";
 import { TEMPERATURE_FIELDS } from "@/lib/telemetry-catalog";
+import { getServiceStatus, type ServiceStatus } from "@/lib/service-status";
 
 const FAULT_HISTORY_DAYS = 90;
 
@@ -53,6 +54,7 @@ export default async function MaintenancePage({
   let previousTemps = new Map<string, number | null>();
   let lastSync = null as Awaited<ReturnType<typeof getLastSyncInfo>> | null;
   let faultEvents: ReturnType<typeof deriveFaultEvents> = [];
+  let serviceStatus: ServiceStatus | null = null;
 
   if (device) {
     const tempKeys = TEMPERATURE_FIELDS.map((f) => f.key);
@@ -112,6 +114,8 @@ export default async function MaintenancePage({
       getLastSyncInfo(device.id),
     ]);
 
+    if (device.serviceId) serviceStatus = await getServiceStatus(device.serviceId);
+
     tickets = ticketRows;
     lastSync = resolvedLastSync;
     faultEvents = deriveFaultEvents(faultRows ?? []);
@@ -146,14 +150,14 @@ export default async function MaintenancePage({
           <h1 className="text-2xl font-semibold text-theme-primary">Maintenance</h1>
           <p className="mt-1 text-sm text-theme-muted">
             {device
-              ? `Report an issue or request a scheduled visit for ${device.label || device.deviceUid}.`
+              ? `Report an issue or request a scheduled visit for ${deviceDisplayId(device)}.`
               : "Report an issue or request a scheduled visit."}
           </p>
         </div>
         {device && site && (
           <NewMaintenanceTicketDialog
             deviceId={device.id}
-            deviceLabel={device.label || device.deviceUid}
+            deviceLabel={deviceDisplayId(device)}
             siteId={site.id}
             siteName={site.name}
             error={error}
@@ -216,6 +220,48 @@ export default async function MaintenancePage({
             </Card>
           </div>
 
+          {serviceStatus && (
+            <div className="space-y-3">
+              <h2 className="text-sm font-semibold text-theme-primary">Service</h2>
+              <Card>
+                <CardHeader>
+                  <CardTitle className="text-sm">{serviceStatus.planName ?? "Service plan"}</CardTitle>
+                </CardHeader>
+                <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
+                  <ServiceStat
+                    label="Next service"
+                    value={serviceStatus.nextServiceDate ? formatServiceDate(serviceStatus.nextServiceDate) : "Not scheduled"}
+                  />
+                  <ServiceStat
+                    label="Services used"
+                    value={
+                      serviceStatus.totalIncluded !== null
+                        ? `${serviceStatus.completedCount} of ${serviceStatus.totalIncluded}`
+                        : String(serviceStatus.completedCount)
+                    }
+                  />
+                  <ServiceStat
+                    label="Remaining"
+                    value={serviceStatus.remainingCount !== null ? String(serviceStatus.remainingCount) : "—"}
+                  />
+                  <ServiceStat
+                    label="Last completed"
+                    value={serviceStatus.lastCompletedAt ? formatServiceDate(serviceStatus.lastCompletedAt) : "None yet"}
+                  />
+                  <ServiceStat
+                    label="Free / paid included"
+                    value={
+                      serviceStatus.freeIncluded !== null && serviceStatus.totalIncluded !== null
+                        ? `${serviceStatus.freeIncluded} free · ${serviceStatus.totalIncluded - serviceStatus.freeIncluded} paid`
+                        : "—"
+                    }
+                  />
+                  <ServiceStat label="Plan ends" value={formatServiceDate(serviceStatus.contractEndDate)} />
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
           <div className="space-y-2">
             <h2 className="text-sm font-semibold text-theme-primary">Your requests</h2>
             {!tickets || tickets.length === 0 ? (
@@ -259,6 +305,19 @@ export default async function MaintenancePage({
           </div>
         </>
       )}
+    </div>
+  );
+}
+
+function formatServiceDate(value: string): string {
+  return new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function ServiceStat({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <p className="text-xs text-theme-muted">{label}</p>
+      <p className="mt-0.5 font-medium text-theme-primary">{value}</p>
     </div>
   );
 }

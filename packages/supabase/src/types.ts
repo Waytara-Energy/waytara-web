@@ -371,43 +371,66 @@ export type Database = {
       devices: {
         Row: {
           created_at: string
-          device_type_id: string
-          device_uid: string
+          device_status: Database["waytara"]["Enums"]["device_status"]
           id: string
+          installation_id: string | null
           installed_at: string | null
           label: string | null
+          service_id: string | null
           site_id: string
-          status: Database["waytara"]["Enums"]["device_status"]
-          warranty_info: Json | null
+          stock_device_id: string
+          updated_at: string
+          warranty_end_date: string | null
+          warranty_start_date: string | null
         }
         Insert: {
           created_at?: string
-          device_type_id: string
-          device_uid: string
+          device_status?: Database["waytara"]["Enums"]["device_status"]
           id?: string
+          installation_id?: string | null
           installed_at?: string | null
           label?: string | null
+          service_id?: string | null
           site_id: string
-          status?: Database["waytara"]["Enums"]["device_status"]
-          warranty_info?: Json | null
+          stock_device_id: string
+          updated_at?: string
+          warranty_end_date?: string | null
+          warranty_start_date?: string | null
         }
         Update: {
           created_at?: string
-          device_type_id?: string
-          device_uid?: string
+          device_status?: Database["waytara"]["Enums"]["device_status"]
           id?: string
+          installation_id?: string | null
           installed_at?: string | null
           label?: string | null
+          service_id?: string | null
           site_id?: string
-          status?: Database["waytara"]["Enums"]["device_status"]
-          warranty_info?: Json | null
+          stock_device_id?: string
+          updated_at?: string
+          warranty_end_date?: string | null
+          warranty_start_date?: string | null
         }
         Relationships: [
           {
             foreignKeyName: "devices_device_type_id_fkey"
-            columns: ["device_type_id"]
+            columns: ["stock_device_id"]
             isOneToOne: false
             referencedRelation: "stock"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devices_installation_id_fkey"
+            columns: ["installation_id"]
+            isOneToOne: false
+            referencedRelation: "installations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devices_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "service_contracts"
             referencedColumns: ["id"]
           },
           {
@@ -608,6 +631,7 @@ export type Database = {
       }
       maintenance_tickets: {
         Row: {
+          charge_amount: number | null
           completed_at: string | null
           created_at: string
           customer_id: string
@@ -615,12 +639,15 @@ export type Database = {
           device_id: string | null
           employee_id: string | null
           id: string
+          is_chargeable: boolean | null
           scheduled_date: string | null
+          service_contract_id: string | null
           site_id: string
           status: string
           type: string
         }
         Insert: {
+          charge_amount?: number | null
           completed_at?: string | null
           created_at?: string
           customer_id: string
@@ -628,12 +655,15 @@ export type Database = {
           device_id?: string | null
           employee_id?: string | null
           id?: string
+          is_chargeable?: boolean | null
           scheduled_date?: string | null
+          service_contract_id?: string | null
           site_id: string
           status?: string
           type?: string
         }
         Update: {
+          charge_amount?: number | null
           completed_at?: string | null
           created_at?: string
           customer_id?: string
@@ -641,7 +671,9 @@ export type Database = {
           device_id?: string | null
           employee_id?: string | null
           id?: string
+          is_chargeable?: boolean | null
           scheduled_date?: string | null
+          service_contract_id?: string | null
           site_id?: string
           status?: string
           type?: string
@@ -666,6 +698,13 @@ export type Database = {
             columns: ["employee_id"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "maintenance_tickets_service_contract_id_fkey"
+            columns: ["service_contract_id"]
+            isOneToOne: false
+            referencedRelation: "service_contracts"
             referencedColumns: ["id"]
           },
           {
@@ -906,13 +945,100 @@ export type Database = {
           },
         ]
       }
+      service_contracts: {
+        Row: {
+          created_at: string
+          device_id: string
+          end_date: string
+          id: string
+          service_plan_id: string | null
+          start_date: string
+        }
+        Insert: {
+          created_at?: string
+          device_id: string
+          end_date: string
+          id?: string
+          service_plan_id?: string | null
+          start_date: string
+        }
+        Update: {
+          created_at?: string
+          device_id?: string
+          end_date?: string
+          id?: string
+          service_plan_id?: string | null
+          start_date?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "service_contracts_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "service_contracts_service_plan_id_fkey"
+            columns: ["service_plan_id"]
+            isOneToOne: false
+            referencedRelation: "service_plans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      service_plans: {
+        Row: {
+          covered_items: Json | null
+          created_at: string
+          device_category: string
+          duration_months: number
+          free_services_count: number
+          id: string
+          name: string
+          paid_extras: Json | null
+          per_extra_service_price_amount: number | null
+          price_amount: number | null
+          total_services_included: number
+        }
+        Insert: {
+          covered_items?: Json | null
+          created_at?: string
+          device_category: string
+          duration_months: number
+          free_services_count?: number
+          id?: string
+          name: string
+          paid_extras?: Json | null
+          per_extra_service_price_amount?: number | null
+          price_amount?: number | null
+          total_services_included: number
+        }
+        Update: {
+          covered_items?: Json | null
+          created_at?: string
+          device_category?: string
+          duration_months?: number
+          free_services_count?: number
+          id?: string
+          name?: string
+          paid_extras?: Json | null
+          per_extra_service_price_amount?: number | null
+          price_amount?: number | null
+          total_services_included?: number
+        }
+        Relationships: []
+      }
       sites: {
         Row: {
           address: Json | null
           created_at: string
           customer_id: string
           id: string
+          latitude: number | null
+          longitude: number | null
           name: string
+          power_package: Database["waytara"]["Enums"]["power_package"] | null
           power_source_category: Database["waytara"]["Enums"]["power_source_category"]
           property_type: Database["waytara"]["Enums"]["property_type"]
         }
@@ -921,7 +1047,10 @@ export type Database = {
           created_at?: string
           customer_id: string
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name: string
+          power_package?: Database["waytara"]["Enums"]["power_package"] | null
           power_source_category: Database["waytara"]["Enums"]["power_source_category"]
           property_type: Database["waytara"]["Enums"]["property_type"]
         }
@@ -930,7 +1059,10 @@ export type Database = {
           created_at?: string
           customer_id?: string
           id?: string
+          latitude?: number | null
+          longitude?: number | null
           name?: string
+          power_package?: Database["waytara"]["Enums"]["power_package"] | null
           power_source_category?: Database["waytara"]["Enums"]["power_source_category"]
           property_type?: Database["waytara"]["Enums"]["property_type"]
         }
@@ -1212,7 +1344,10 @@ export type Database = {
         Args: {
           p_address: Json
           p_device_id: string
+          p_latitude?: number
+          p_longitude?: number
           p_name: string
+          p_power_package?: Database["waytara"]["Enums"]["power_package"]
           p_power_source_category: Database["waytara"]["Enums"]["power_source_category"]
           p_property_type: Database["waytara"]["Enums"]["property_type"]
         }
@@ -1236,6 +1371,14 @@ export type Database = {
       payment_status: "pending" | "paid" | "failed" | "refunded"
       payment_type: "full" | "advance" | "balance"
       plan_code: "basic" | "pro" | "advance"
+      power_package:
+        | "solar_inverter"
+        | "solar_battery_inverter"
+        | "inverter_battery"
+        | "solar_inverter_ev"
+        | "solar_battery_inverter_ev"
+        | "inverter_battery_ev"
+        | "ev_charger_only"
       power_source_category: "grid_tied" | "off_grid" | "hybrid"
       property_type:
         | "residential_independent_villas"
@@ -1404,6 +1547,15 @@ export const Constants = {
       payment_status: ["pending", "paid", "failed", "refunded"],
       payment_type: ["full", "advance", "balance"],
       plan_code: ["basic", "pro", "advance"],
+      power_package: [
+        "solar_inverter",
+        "solar_battery_inverter",
+        "inverter_battery",
+        "solar_inverter_ev",
+        "solar_battery_inverter_ev",
+        "inverter_battery_ev",
+        "ev_charger_only",
+      ],
       power_source_category: ["grid_tied", "off_grid", "hybrid"],
       property_type: [
         "residential_independent_villas",

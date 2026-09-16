@@ -41,8 +41,8 @@ export async function GET(req: NextRequest) {
 
   const { data: devices, error: devicesError } = await supabase
     .from("devices")
-    .select("id, label, device_uid")
-    .eq("status", "active");
+    .select("id, label, device_type:stock(serial_number, model_number)")
+    .eq("device_status", "active");
 
   if (devicesError) {
     return NextResponse.json({ error: devicesError.message }, { status: 500 });
@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
     const existingAlertId = openAlertByDevice.get(device.id);
 
     if (isOffline && !existingAlertId) {
-      const label = device.label || device.device_uid;
+      const label = device.label || device.device_type?.serial_number || device.device_type?.model_number || "Device";
       const message = lastSeen
         ? `${OFFLINE_MESSAGE_PREFIX}: ${label} hasn't reported in over ${OFFLINE_THRESHOLD_HOURS} hours.`
         : `${OFFLINE_MESSAGE_PREFIX}: ${label} has never reported a reading.`;

@@ -25,6 +25,17 @@ import {
   completeInstallation,
 } from "./actions";
 
+// devices no longer carries its own free-typed device_uid — the linked
+// stock item's own serial/model number is the per-unit identifier now
+// (see selected-site.ts's deviceDisplayId for the customer-app twin of
+// this same helper).
+function deviceIdentity(d: {
+  label: string | null;
+  device_type: { serial_number: string | null; model_number: string | null } | null;
+}): string {
+  return d.label || d.device_type?.serial_number || d.device_type?.model_number || "Device";
+}
+
 const PROPERTY_TYPE_LABELS: Record<string, string> = {
   residential_independent_villas: "Residential & Independent Villas",
   gated_communities_rwas_high_rises: "Gated Communities, RWAs & High-Rises",
@@ -38,6 +49,16 @@ const POWER_SOURCE_LABELS: Record<string, string> = {
   grid_tied: "Grid Tied",
   off_grid: "Off Grid",
   hybrid: "Hybrid",
+};
+
+const POWER_PACKAGE_LABELS: Record<string, string> = {
+  solar_inverter: "Solar + Inverter",
+  solar_battery_inverter: "Solar + Battery + Inverter",
+  inverter_battery: "Inverter + Battery",
+  solar_inverter_ev: "Solar + Inverter + EV Charger",
+  solar_battery_inverter_ev: "Solar + Battery + Inverter + EV Charger",
+  inverter_battery_ev: "Inverter + Battery + EV Charger",
+  ev_charger_only: "EV Charger Only",
 };
 
 const TIME_SLOT_LABELS: Record<string, string> = {
@@ -113,12 +134,13 @@ export default async function OnboardingPipelinePage({
   } | null = null;
   let devices: {
     id: string;
-    device_uid: string;
     label: string | null;
-    status: string;
+    device_status: string;
     installed_at: string | null;
     device_type: {
       name: string;
+      serial_number: string | null;
+      model_number: string | null;
       device_parameters: { parameter_key: string; unit: string | null; is_required: boolean }[];
     } | null;
   }[] = [];
@@ -155,7 +177,7 @@ export default async function OnboardingPipelinePage({
       const { data: deviceRows } = await supabase
         .from("devices")
         .select(
-          "id, device_uid, label, status, installed_at, device_type:stock(name, device_parameters(parameter_key, unit, is_required))"
+          "id, label, device_status, installed_at, device_type:stock(name, serial_number, model_number, device_parameters(parameter_key, unit, is_required))"
         )
         .eq("site_id", site.id)
         .order("created_at", { ascending: false });
@@ -351,6 +373,21 @@ export default async function OnboardingPipelinePage({
                   ))}
                 </select>
               </div>
+              <div className="space-y-1.5">
+                <label className="text-sm font-medium">Power package (optional)</label>
+                <select
+                  name="powerPackage"
+                  className="h-10 w-full rounded-md border border-border bg-background px-3 text-sm"
+                  defaultValue=""
+                >
+                  <option value="">Not set yet</option>
+                  {Object.entries(POWER_PACKAGE_LABELS).map(([value, label]) => (
+                    <option key={value} value={value}>
+                      {label}
+                    </option>
+                  ))}
+                </select>
+              </div>
               <Button type="submit" size="sm">
                 Create Site
               </Button>
@@ -372,9 +409,7 @@ export default async function OnboardingPipelinePage({
                     {devices.map((d) => (
                       <li key={d.id} className="rounded-md border border-border p-3 text-sm">
                         <span className="font-medium">{d.device_type?.name ?? "Device"}</span>{" "}
-                        <span className="text-muted-foreground">
-                          — {d.label || d.device_uid} ({d.device_uid})
-                        </span>
+                        <span className="text-muted-foreground">— {deviceIdentity(d)}</span>
                       </li>
                     ))}
                   </ul>
@@ -387,7 +422,7 @@ export default async function OnboardingPipelinePage({
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium">Device type</label>
                     <select
-                      name="deviceTypeId"
+                      name="stockId"
                       className="h-9 rounded-md border border-border bg-background px-2 text-sm"
                       required
                       defaultValue=""
@@ -401,10 +436,6 @@ export default async function OnboardingPipelinePage({
                         </option>
                       ))}
                     </select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-medium">Device ID</label>
-                    <Input name="deviceUid" placeholder="e.g. deye-8k-01" className="h-9 w-40" required />
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium">Label (optional)</label>
@@ -477,7 +508,7 @@ export default async function OnboardingPipelinePage({
                 devices={devices.map((d) => ({
                   id: d.id,
                   label: d.label,
-                  deviceUid: d.device_uid,
+                  deviceUid: deviceIdentity(d),
                   typeName: d.device_type?.name ?? null,
                 }))}
                 isTestOnly
@@ -498,16 +529,16 @@ export default async function OnboardingPipelinePage({
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <div className="text-sm">
                           <span className="font-medium">{device.device_type?.name ?? "Device"}</span>{" "}
-                          <span className="text-muted-foreground">— {device.label || device.device_uid}</span>
+                          <span className="text-muted-foreground">— {deviceIdentity(device)}</span>
                         </div>
                         <span
                           className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                            device.status === "active"
+                            device.device_status === "active"
                               ? "bg-primary/15 text-primary"
                               : "bg-accent text-accent-foreground"
                           }`}
                         >
-                          Data Testing: {device.status === "active" ? "passed" : device.status}
+                          Data Testing: {device.device_status === "active" ? "passed" : device.device_status}
                         </span>
                       </div>
 
@@ -550,7 +581,7 @@ export default async function OnboardingPipelinePage({
                             Send Test Signal
                           </Button>
                         </form>
-                        {device.status !== "active" && (
+                        {device.device_status !== "active" && (
                           <form action={markDeviceVerified.bind(null, onboarding.id, device.id)}>
                             <Button type="submit" size="sm">
                               Mark Data Test Passed
@@ -575,7 +606,7 @@ export default async function OnboardingPipelinePage({
                       size="sm"
                       disabled={devices.some((d) => {
                         const c = equipmentChecks[d.id];
-                        return d.status !== "active" || !c?.availability || !c?.quality || !c?.power_connect;
+                        return d.device_status !== "active" || !c?.availability || !c?.quality || !c?.power_connect;
                       })}
                     >
                       Confirm Software Test Passed → Schedule Install
@@ -610,7 +641,7 @@ export default async function OnboardingPipelinePage({
                   {devices.map((d) => (
                     <li key={d.id} className="text-sm">
                       <span className="font-medium">{d.device_type?.name ?? "Device"}</span>{" "}
-                      <span className="text-muted-foreground">— {d.label || d.device_uid}</span>
+                      <span className="text-muted-foreground">— {deviceIdentity(d)}</span>
                     </li>
                   ))}
                 </ul>
@@ -736,7 +767,7 @@ export default async function OnboardingPipelinePage({
                   <li key={d.id} className="flex items-center justify-between">
                     <span>
                       <span className="font-medium">{d.device_type?.name ?? "Device"}</span>{" "}
-                      <span className="text-muted-foreground">— {d.label || d.device_uid}</span>
+                      <span className="text-muted-foreground">— {deviceIdentity(d)}</span>
                     </span>
                     <span className="text-xs text-muted-foreground">
                       {d.installed_at ? new Date(d.installed_at).toLocaleDateString("en-IN") : "—"}

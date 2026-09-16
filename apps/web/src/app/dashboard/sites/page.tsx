@@ -26,7 +26,7 @@ export default async function SitesPage() {
   const { data: devices } = await supabase
     .from("devices")
     .select(
-      "id, site_id, device_uid, label, status, device_type:stock(name, device_parameters(parameter_name, unit, is_required))"
+      "id, site_id, label, device_status, device_type:stock(name, serial_number, model_number, device_parameters(parameter_name, unit, is_required))"
     )
     .order("created_at", { ascending: false });
 
@@ -110,10 +110,12 @@ export default async function SitesPage() {
                                   (d.device_type?.name ?? "Device")
                                 )}
                               </TableCell>
-                              <TableCell className="text-muted-foreground">{d.label || d.device_uid}</TableCell>
+                              <TableCell className="text-muted-foreground">
+                                {d.label || d.device_type?.serial_number || d.device_type?.model_number || "Device"}
+                              </TableCell>
                               <TableCell className="text-right">
-                                <Badge variant={d.status === "active" ? "default" : "secondary"} className="capitalize">
-                                  {d.status}
+                                <Badge variant={d.device_status === "active" ? "default" : "secondary"} className="capitalize">
+                                  {d.device_status}
                                 </Badge>
                               </TableCell>
                             </TableRow>

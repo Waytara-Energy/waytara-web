@@ -15,10 +15,11 @@ import { SettingFieldRow } from "@/components/dashboard/setting-field-row";
 import { TimeOfUseEditor } from "@/components/dashboard/time-of-use-editor";
 import { DevicePicker } from "@/components/dashboard/device-picker";
 import { DeviceDetailsCard } from "@/components/dashboard/device-details-card";
-import { getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
+import { getSelectedSite, resolveDeviceInSite, deviceDisplayId } from "@/lib/selected-site";
 import { getSettingFieldsByCategory, SETTING_CATEGORIES } from "@/lib/instrument-settings-catalog";
 import { defaultTouSlots, type TouSlot } from "@/lib/time-of-use";
-import { PROPERTY_TYPE_OPTIONS, POWER_SOURCE_OPTIONS } from "@/lib/site-catalog";
+import { PROPERTY_TYPE_OPTIONS, POWER_SOURCE_OPTIONS, POWER_PACKAGE_OPTIONS } from "@/lib/site-catalog";
+import { EnableLocationButton } from "@/components/dashboard/enable-location-button";
 import { updateSiteSetting } from "./actions";
 
 function parseTouSlots(settingsMap: Map<string, string>): TouSlot[] {
@@ -107,7 +108,7 @@ export default async function InstrumentSettingsPage({
         <h1 className="text-2xl font-semibold text-theme-primary">Instrument Settings</h1>
         <p className="mt-1 text-sm text-theme-muted">
           {device
-            ? `Configure ${device.label || device.deviceUid}.`
+            ? `Configure ${deviceDisplayId(device)}.`
             : "Configure operating parameters for your devices."}
         </p>
       </div>
@@ -176,7 +177,7 @@ export default async function InstrumentSettingsPage({
                           id="deviceLabel"
                           name="deviceLabel"
                           defaultValue={device.label ?? ""}
-                          placeholder={device.deviceUid}
+                          placeholder={device.deviceType?.serialNumber ?? device.deviceType?.modelNumber ?? "Device"}
                         />
                         <FieldDescription>A friendly name for this device — shown in the header switcher.</FieldDescription>
                       </FieldContent>
@@ -208,6 +209,25 @@ export default async function InstrumentSettingsPage({
                     </Field>
 
                     <Field orientation="responsive">
+                      <FieldLabel htmlFor="powerPackage">Power package</FieldLabel>
+                      <FieldContent>
+                        <Select name="powerPackage" defaultValue={site?.powerPackage ?? undefined}>
+                          <SelectTrigger id="powerPackage" className="w-full">
+                            <SelectValue placeholder="Select…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {POWER_PACKAGE_OPTIONS.map((o) => (
+                              <SelectItem key={o.value} value={o.value}>
+                                {o.label}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                        <FieldDescription>What equipment this site has — decides which wires the energy flow diagram can show.</FieldDescription>
+                      </FieldContent>
+                    </Field>
+
+                    <Field orientation="responsive">
                       <FieldLabel htmlFor="powerSourceCategory">Power source</FieldLabel>
                       <FieldContent>
                         <Select name="powerSourceCategory" defaultValue={site?.powerSourceCategory ?? undefined} required>
@@ -232,6 +252,14 @@ export default async function InstrumentSettingsPage({
                         <Input name="addressCity" placeholder="City" defaultValue={address.city ?? ""} />
                         <Input name="addressState" placeholder="State" defaultValue={address.state ?? ""} />
                         <Input name="addressPincode" placeholder="PIN code" defaultValue={address.pincode ?? ""} />
+                      </FieldContent>
+                    </Field>
+
+                    <Field>
+                      <FieldLabel>Location</FieldLabel>
+                      <FieldContent>
+                        <EnableLocationButton initialLatitude={site?.latitude ?? null} initialLongitude={site?.longitude ?? null} />
+                        <FieldDescription>Used to place this site accurately — grants your browser's location just once.</FieldDescription>
                       </FieldContent>
                     </Field>
                   </FieldGroup>

@@ -1,6 +1,6 @@
 import { Zap } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { getSelectedSite } from "@/lib/selected-site";
+import { getSelectedSite, deviceDisplayId } from "@/lib/selected-site";
 import { getRequestProfile } from "@/lib/request-profile";
 import { fetchDeviceOverview } from "@/lib/device-overview";
 import { Card, CardContent } from "@/components/ui/card";
@@ -129,6 +129,8 @@ export default async function DashboardOverviewPage() {
             loadW={overview.get("load_power_w")}
             batterySocPct={overview.get("battery_soc_pct")}
             evW={overview.evW}
+            powerPackage={site.powerPackage}
+            powerSourceCategory={site.powerSourceCategory}
           />
 
           <TodaySoFar get={overview.get} />
@@ -152,12 +154,14 @@ export default async function DashboardOverviewPage() {
                 <Card key={d.id}>
                   <CardContent className="p-4">
                     <div className="min-w-0">
-                      <p className="truncate font-medium text-foreground">{d.label || d.deviceUid}</p>
+                      <p className="truncate font-medium text-foreground">{deviceDisplayId(d)}</p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {d.deviceType?.name ?? "Device"}
                         {d.deviceType?.manufacturer ? ` · ${d.deviceType.manufacturer}` : ""}
                       </p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">Serial {d.deviceUid}</p>
+                      {d.deviceType?.serialNumber && (
+                        <p className="mt-0.5 text-xs text-muted-foreground">Serial {d.deviceType.serialNumber}</p>
+                      )}
                     </div>
                     <div className="mt-3">
                       <DeviceStatusPill

@@ -18,8 +18,24 @@ export const POWER_SOURCE_LABELS: Record<string, string> = {
   hybrid: "Hybrid",
 };
 
+/** `sites.power_package` — what equipment the site actually has, which
+ *  the energy-flow diagram uses to decide which wires can ever show
+ *  (on top of each wire's own live-reading check). Independent of
+ *  `power_source_category` above, which separately governs the Grid
+ *  wire only. */
+export const POWER_PACKAGE_LABELS: Record<string, string> = {
+  solar_inverter: "Solar + Inverter",
+  solar_battery_inverter: "Solar + Battery + Inverter",
+  inverter_battery: "Inverter + Battery",
+  solar_inverter_ev: "Solar + Inverter + EV Charger",
+  solar_battery_inverter_ev: "Solar + Battery + Inverter + EV Charger",
+  inverter_battery_ev: "Inverter + Battery + EV Charger",
+  ev_charger_only: "EV Charger Only",
+};
+
 export const PROPERTY_TYPE_OPTIONS = Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => ({ value, label }));
 export const POWER_SOURCE_OPTIONS = Object.entries(POWER_SOURCE_LABELS).map(([value, label]) => ({ value, label }));
+export const POWER_PACKAGE_OPTIONS = Object.entries(POWER_PACKAGE_LABELS).map(([value, label]) => ({ value, label }));
 
 export interface SiteAddress {
   line1?: string;

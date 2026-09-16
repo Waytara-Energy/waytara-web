@@ -10,7 +10,7 @@ import { TemperatureGauge } from "@/components/dashboard/temperature-gauge";
 import { MetricListCard } from "@/components/dashboard/metric-list-card";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { getCustomerPlan } from "@/lib/customer-plan";
-import { getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
+import { getSelectedSite, resolveDeviceInSite, deviceDisplayId } from "@/lib/selected-site";
 import { DevicePicker } from "@/components/dashboard/device-picker";
 import { DeviceDetailsCard } from "@/components/dashboard/device-details-card";
 import {
@@ -92,7 +92,7 @@ export default async function MonitoringPage({ searchParams }: { searchParams: P
           <h1 className="text-2xl font-semibold text-theme-primary">Monitoring</h1>
           <p className="mt-1 text-sm text-theme-muted">
             {device
-              ? `Live readings for ${device.label || device.deviceUid}, updated in real time.`
+              ? `Live readings for ${deviceDisplayId(device)}, updated in real time.`
               : "Live per-device readings, updated in real time."}
           </p>
         </div>

@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { BarChart3 } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
+import { getSelectedSite, resolveDeviceInSite, deviceDisplayId } from "@/lib/selected-site";
 import { DevicePicker } from "@/components/dashboard/device-picker";
 import { DeviceDetailsCard } from "@/components/dashboard/device-details-card";
 import { getCustomerPlan } from "@/lib/customer-plan";
@@ -172,7 +172,7 @@ export default async function AnalyticsPage({ searchParams }: { searchParams: Pr
       <div>
         <h1 className="text-2xl font-semibold text-theme-primary">Analytics</h1>
         <p className="mt-1 text-sm text-theme-muted">
-          {device ? `${device.label || device.deviceUid}'s cost savings and return on investment` : "Cost savings and return on investment"}
+          {device ? `${deviceDisplayId(device)}'s cost savings and return on investment` : "Cost savings and return on investment"}
           , estimated at ₹{tariffRate.toFixed(2)}/kWh.
         </p>
       </div>

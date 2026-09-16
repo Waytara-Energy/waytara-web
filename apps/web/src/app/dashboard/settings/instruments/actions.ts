@@ -8,7 +8,7 @@ import { getCustomerSites, type CustomerDevice } from "@/lib/selected-site";
 import { getSettingFields, validateBatteryCrossFields } from "@/lib/instrument-settings-catalog";
 import { getModbusRegister } from "@/lib/modbus-register-map";
 import { TOU_PROGRAM_COUNT, validateTouSlots, type TouSlot } from "@/lib/time-of-use";
-import { PROPERTY_TYPE_LABELS, POWER_SOURCE_LABELS, type SiteAddress } from "@/lib/site-catalog";
+import { PROPERTY_TYPE_LABELS, POWER_SOURCE_LABELS, POWER_PACKAGE_LABELS, type SiteAddress } from "@/lib/site-catalog";
 
 const INSTRUMENTS_PATH = "/dashboard/settings/instruments";
 
@@ -46,7 +46,10 @@ export async function updateSiteSetting(deviceId: string, formData: FormData) {
   const siteName = String(formData.get("siteName") ?? "").trim();
   const propertyType = String(formData.get("propertyType") ?? "");
   const powerSourceCategory = String(formData.get("powerSourceCategory") ?? "");
+  const powerPackageRaw = String(formData.get("powerPackage") ?? "").trim();
   const deviceLabel = String(formData.get("deviceLabel") ?? "").trim();
+  const latitudeRaw = String(formData.get("latitude") ?? "").trim();
+  const longitudeRaw = String(formData.get("longitude") ?? "").trim();
 
   if (!siteName) {
     redirect(`${INSTRUMENTS_PATH}?error=${encodeURIComponent("Site name can't be empty.")}`);
@@ -57,6 +60,12 @@ export async function updateSiteSetting(deviceId: string, formData: FormData) {
   if (!(powerSourceCategory in POWER_SOURCE_LABELS)) {
     redirect(`${INSTRUMENTS_PATH}?error=${encodeURIComponent("Invalid power source category.")}`);
   }
+  if (powerPackageRaw && !(powerPackageRaw in POWER_PACKAGE_LABELS)) {
+    redirect(`${INSTRUMENTS_PATH}?error=${encodeURIComponent("Invalid power package.")}`);
+  }
+  const powerPackage = powerPackageRaw || null;
+  const latitude = latitudeRaw ? Number(latitudeRaw) : null;
+  const longitude = longitudeRaw ? Number(longitudeRaw) : null;
 
   const address: SiteAddress = {
     line1: String(formData.get("addressLine1") ?? "").trim() || undefined,
@@ -81,6 +90,9 @@ export async function updateSiteSetting(deviceId: string, formData: FormData) {
     p_property_type: propertyType as never,
     p_power_source_category: powerSourceCategory as never,
     p_address: hasAddress ? (address as never) : null,
+    p_power_package: powerPackage as never,
+    p_latitude: latitude ?? undefined,
+    p_longitude: longitude ?? undefined,
   });
 
   if (siteError) {

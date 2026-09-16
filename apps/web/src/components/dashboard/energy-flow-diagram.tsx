@@ -121,6 +121,28 @@ interface Conduit {
   active: boolean;
 }
 
+// power_package says which equipment a site actually has — a null value
+// (not yet configured for an existing site) falls back to "don't hide
+// anything," i.e. today's device-presence-only behavior. power_package's
+// role is purely to additionally *hide* a wire that's known not to
+// exist; a live, non-null reading is still required for a wire to show,
+// exactly like the EV wire already worked before this.
+function hasSolarPackage(pkg: string | null): boolean {
+  return pkg === null || pkg.includes("solar");
+}
+function hasBatteryPackage(pkg: string | null): boolean {
+  return pkg === null || pkg.includes("battery");
+}
+function hasEvPackage(pkg: string | null): boolean {
+  return pkg === null || pkg.includes("_ev") || pkg === "ev_charger_only";
+}
+// power_source_category is a separate, orthogonal site field (how the
+// site connects to the utility, not what equipment it has) — it only
+// ever hides the Grid wire, and only for a genuinely off-grid site.
+function hasGridSource(category: string | null): boolean {
+  return category !== "off_grid";
+}
+
 export function EnergyFlowDiagram({
   solarW,
   batteryW,
@@ -128,6 +150,8 @@ export function EnergyFlowDiagram({
   loadW,
   batterySocPct,
   evW = null,
+  powerPackage = null,
+  powerSourceCategory = null,
 }: {
   solarW: number | null;
   /** positive = charging, negative = discharging */
@@ -141,7 +165,20 @@ export function EnergyFlowDiagram({
    *  optional and simply omitted (no wire, no label) when the site
    *  doesn't have a charger or that device hasn't reported yet. */
   evW?: number | null;
+  /** The site's configured equipment combination (sites.power_package) —
+   *  additionally hides a wire known not to exist for this site (e.g. no
+   *  Battery wire for a plain solar_inverter site), on top of the
+   *  existing live-reading check. */
+  powerPackage?: string | null;
+  /** The site's grid connection type (sites.power_source_category) —
+   *  hides the Grid wire entirely for an off_grid site. */
+  powerSourceCategory?: string | null;
 }) {
+  const showSolar = hasSolarPackage(powerPackage) && solarW !== null;
+  const showBattery = hasBatteryPackage(powerPackage) && batteryW !== null;
+  const showGrid = hasGridSource(powerSourceCategory) && gridW !== null;
+  const showEv = hasEvPackage(powerPackage) && evW !== null;
+
   const solarActive = (solarW ?? 0) > 0;
   const batteryCharging = (batteryW ?? 0) > 0;
   const batteryDischarging = (batteryW ?? 0) < 0;
@@ -173,14 +210,13 @@ export function EnergyFlowDiagram({
   const evPath = [EV_CABLE_TOP, EV_CABLE_BEND1, EV_CABLE_BEND2, EV_CABLE_BEND3, EV_CABLE_END];
 
   const conduits: Conduit[] = [
-    { key: "solar", d: roundedPath(solarPath, 30), color: FLOW_COLOR[solarColor], active: solarActive },
-    { key: "battery", d: roundedPath(batteryPath, 40), color: FLOW_COLOR[batteryColor], active: batteryCharging || batteryDischarging },
-    { key: "grid", d: roundedPath(gridPath, 60), color: FLOW_COLOR[gridColor], active: gridImporting || gridExporting },
+    ...(showSolar ? [{ key: "solar", d: roundedPath(solarPath, 30), color: FLOW_COLOR[solarColor], active: solarActive }] : []),
+    ...(showBattery
+      ? [{ key: "battery", d: roundedPath(batteryPath, 40), color: FLOW_COLOR[batteryColor], active: batteryCharging || batteryDischarging }]
+      : []),
+    ...(showGrid ? [{ key: "grid", d: roundedPath(gridPath, 60), color: FLOW_COLOR[gridColor], active: gridImporting || gridExporting }] : []),
     { key: "home", d: roundedPath(homePath, 50), color: FLOW_COLOR[homeColor], active: loadActive },
-    // Only drawn when this site actually has an EV charger — evW stays
-    // null (rather than 0) when there's no such device, distinguishing
-    // "charger present, currently idle" from "no charger at all".
-    ...(evW !== null ? [{ key: "ev", d: roundedPath(evPath, 45), color: FLOW_COLOR[evColor], active: evActive }] : []),
+    ...(showEv ? [{ key: "ev", d: roundedPath(evPath, 45), color: FLOW_COLOR[evColor], active: evActive }] : []),
   ];
 
   const batteryValue = `${fmtW(batteryW)} · ${batterySocPct !== null ? Math.round(batterySocPct) : "—"}%`;
@@ -208,10 +244,40 @@ export function EnergyFlowDiagram({
           colors differ — so the pointer/value colors switch with the
           dashboard's theme even though the underlying photo doesn't. */}
       <div className="absolute inset-0 dark:hidden">
-        <FlowOverlay conduits={conduits} solarW={solarW} batteryValue={batteryValue} loadW={loadW} gridW={gridW} evW={evW} gridColor={gridColor} leaderColor="#000000" titleColor="#64748b" valueColor="#1e293b" />
+        <FlowOverlay
+          conduits={conduits}
+          solarW={solarW}
+          batteryValue={batteryValue}
+          loadW={loadW}
+          gridW={gridW}
+          evW={evW}
+          gridColor={gridColor}
+          showSolar={showSolar}
+          showBattery={showBattery}
+          showGrid={showGrid}
+          showEv={showEv}
+          leaderColor="#000000"
+          titleColor="#64748b"
+          valueColor="#1e293b"
+        />
       </div>
       <div className="absolute inset-0 hidden dark:block">
-        <FlowOverlay conduits={conduits} solarW={solarW} batteryValue={batteryValue} loadW={loadW} gridW={gridW} evW={evW} gridColor={gridColor} leaderColor="#f8fafc" titleColor="#94a3b8" valueColor="#f8fafc" />
+        <FlowOverlay
+          conduits={conduits}
+          solarW={solarW}
+          batteryValue={batteryValue}
+          loadW={loadW}
+          gridW={gridW}
+          evW={evW}
+          gridColor={gridColor}
+          showSolar={showSolar}
+          showBattery={showBattery}
+          showGrid={showGrid}
+          showEv={showEv}
+          leaderColor="#f8fafc"
+          titleColor="#94a3b8"
+          valueColor="#f8fafc"
+        />
       </div>
     </div>
   );
@@ -225,6 +291,10 @@ function FlowOverlay({
   gridW,
   evW,
   gridColor,
+  showSolar,
+  showBattery,
+  showGrid,
+  showEv,
   leaderColor,
   titleColor,
   valueColor,
@@ -236,6 +306,10 @@ function FlowOverlay({
   gridW: number | null;
   evW: number | null;
   gridColor: FlowColorKey;
+  showSolar: boolean;
+  showBattery: boolean;
+  showGrid: boolean;
+  showEv: boolean;
   leaderColor: string;
   titleColor: string;
   valueColor: string;
@@ -271,26 +345,30 @@ function FlowOverlay({
           </circle>
         ))}
 
-      <FlowLabel
-        anchor={SOLAR_LABEL_ANCHOR}
-        labelPos={{ x: SOLAR_LABEL_ANCHOR.x, y: TOP_LABEL_Y }}
-        align="middle"
-        title="Solar"
-        value={fmtW(solarW)}
-        leaderColor={leaderColor}
-        titleColor={titleColor}
-        valueColor={valueColor}
-      />
-      <FlowLabel
-        anchor={BATTERY_LABEL_ANCHOR}
-        labelPos={{ x: BATTERY_LABEL_ANCHOR.x, y: TOP_LABEL_Y }}
-        align="middle"
-        title="Battery"
-        value={batteryValue}
-        leaderColor={leaderColor}
-        titleColor={titleColor}
-        valueColor={valueColor}
-      />
+      {showSolar && (
+        <FlowLabel
+          anchor={SOLAR_LABEL_ANCHOR}
+          labelPos={{ x: SOLAR_LABEL_ANCHOR.x, y: TOP_LABEL_Y }}
+          align="middle"
+          title="Solar"
+          value={fmtW(solarW)}
+          leaderColor={leaderColor}
+          titleColor={titleColor}
+          valueColor={valueColor}
+        />
+      )}
+      {showBattery && (
+        <FlowLabel
+          anchor={BATTERY_LABEL_ANCHOR}
+          labelPos={{ x: BATTERY_LABEL_ANCHOR.x, y: TOP_LABEL_Y }}
+          align="middle"
+          title="Battery"
+          value={batteryValue}
+          leaderColor={leaderColor}
+          titleColor={titleColor}
+          valueColor={valueColor}
+        />
+      )}
       <FlowLabel
         anchor={HOME_LABEL_ANCHOR}
         labelPos={{ x: HOME_LABEL_ANCHOR.x, y: BOTTOM_LABEL_Y }}
@@ -302,23 +380,26 @@ function FlowOverlay({
         titleColor={titleColor}
         valueColor={valueColor}
       />
-      <FlowLabel
-        anchor={GRID_EXIT}
-        labelPos={{ x: GRID_EXIT.x, y: BOTTOM_LABEL_Y }}
-        align="middle"
-        title="Grid"
-        value={fmtW(gridW)}
-        valueAbove
-        leaderColor={leaderColor}
-        titleColor={titleColor}
-        valueColor={FLOW_COLOR[gridColor]}
-      />
-      {/* Only when this site actually has an EV charger — see the "ev"
-          conduit's own comment. Centered on the anchor like every other
-          label — EV_LABEL_ANCHOR sits far enough from the frame's right
-          edge (480px of margin at x=3370 of a 3850-wide canvas) that a
+      {showGrid && (
+        <FlowLabel
+          anchor={GRID_EXIT}
+          labelPos={{ x: GRID_EXIT.x, y: BOTTOM_LABEL_Y }}
+          align="middle"
+          title="Grid"
+          value={fmtW(gridW)}
+          valueAbove
+          leaderColor={leaderColor}
+          titleColor={titleColor}
+          valueColor={FLOW_COLOR[gridColor]}
+        />
+      )}
+      {/* Only when this site actually has an EV charger and its package
+          says it's EV-equipped — see the "ev" conduit's own comment.
+          Centered on the anchor like every other label —
+          EV_LABEL_ANCHOR sits far enough from the frame's right edge
+          (480px of margin at x=3370 of a 3850-wide canvas) that a
           centered title/value never clips. */}
-      {evW !== null && (
+      {showEv && (
         <FlowLabel
           anchor={EV_LABEL_ANCHOR}
           labelPos={{ x: EV_LABEL_ANCHOR.x, y: TOP_LABEL_Y }}

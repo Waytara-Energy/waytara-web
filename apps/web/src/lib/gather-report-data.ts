@@ -1,5 +1,5 @@
 import { createClient } from "@waytara/supabase/server";
-import { getSelectedSite, resolveDeviceInSite, type CustomerSite } from "@/lib/selected-site";
+import { getSelectedSite, resolveDeviceInSite, deviceDisplayId, type CustomerSite } from "@/lib/selected-site";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { getRequestProfile } from "@/lib/request-profile";
 import { maxByDeviceDay, sumByDay, type DailyPoint } from "@/lib/energy-aggregation";
@@ -114,7 +114,7 @@ export async function gatherReportData(historyDays: number, deviceIdParam?: stri
     authorized: true,
     customerName: profile.full_name ?? "Customer",
     planName: customerPlan?.planName ?? "—",
-    deviceLabel: device.label || device.deviceUid,
+    deviceLabel: deviceDisplayId(device),
     tariffRate,
     daily,
     totalKwh,

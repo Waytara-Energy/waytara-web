@@ -9,11 +9,33 @@ export const SELECTED_SITE_COOKIE = "selected_site_id";
 export interface CustomerDevice {
   id: string;
   label: string | null;
-  deviceUid: string;
-  status: string;
+  deviceStatus: string;
   createdAt: string;
   installedAt: string | null;
-  deviceType: { id: string; category: string; name: string; manufacturer: string | null; brand: string | null; model: string | null } | null;
+  warrantyStartDate: string | null;
+  warrantyEndDate: string | null;
+  serviceId: string | null;
+  deviceType: {
+    id: string;
+    category: string;
+    name: string;
+    manufacturer: string | null;
+    brand: string | null;
+    model: string | null;
+    serialNumber: string | null;
+    modelNumber: string | null;
+  } | null;
+}
+
+/** The per-unit identifier shown wherever a device needs a short label
+ *  beyond its (optional) friendly name — onboarding's device list, admin
+ *  rows, dashboard fallbacks. `devices` no longer carries its own
+ *  free-typed serial (`device_uid` was dropped); a `stock` row already
+ *  represents one specific purchased/serialized unit in how this catalog
+ *  is actually used, so its own serial number is the faithful per-unit
+ *  identifier, falling back to the model number for non-serialized items. */
+export function deviceDisplayId(device: CustomerDevice): string {
+  return device.label || device.deviceType?.serialNumber || device.deviceType?.modelNumber || "Device";
 }
 
 export interface CustomerSite {
@@ -21,6 +43,9 @@ export interface CustomerSite {
   name: string;
   propertyType: string;
   powerSourceCategory: string;
+  powerPackage: string | null;
+  latitude: number | null;
+  longitude: number | null;
   address: SiteAddress | null;
   devices: CustomerDevice[];
 }
@@ -40,7 +65,7 @@ export const getCustomerSites = cache(async function getCustomerSites(): Promise
   const { data } = await supabase
     .from("sites")
     .select(
-      "id, name, property_type, power_source_category, address, devices(id, label, device_uid, status, created_at, installed_at, device_type:stock(id, category, name, manufacturer, brand, model))"
+      "id, name, property_type, power_source_category, power_package, latitude, longitude, address, devices(id, label, device_status, created_at, installed_at, warranty_start_date, warranty_end_date, service_id, device_type:stock(id, category, name, manufacturer, brand, model, serial_number, model_number))"
     )
     .order("created_at", { ascending: true });
 
@@ -49,6 +74,9 @@ export const getCustomerSites = cache(async function getCustomerSites(): Promise
     name: s.name,
     propertyType: s.property_type,
     powerSourceCategory: s.power_source_category,
+    powerPackage: s.power_package,
+    latitude: s.latitude,
+    longitude: s.longitude,
     address: (s.address as SiteAddress | null) ?? null,
     devices: (s.devices ?? [])
       .slice()
@@ -56,11 +84,24 @@ export const getCustomerSites = cache(async function getCustomerSites(): Promise
       .map((d) => ({
         id: d.id,
         label: d.label,
-        deviceUid: d.device_uid,
-        status: d.status,
+        deviceStatus: d.device_status,
         createdAt: d.created_at,
         installedAt: d.installed_at,
-        deviceType: d.device_type,
+        warrantyStartDate: d.warranty_start_date,
+        warrantyEndDate: d.warranty_end_date,
+        serviceId: d.service_id,
+        deviceType: d.device_type
+          ? {
+              id: d.device_type.id,
+              category: d.device_type.category,
+              name: d.device_type.name,
+              manufacturer: d.device_type.manufacturer,
+              brand: d.device_type.brand,
+              model: d.device_type.model,
+              serialNumber: d.device_type.serial_number,
+              modelNumber: d.device_type.model_number,
+            }
+          : null,
       })),
   }));
 });

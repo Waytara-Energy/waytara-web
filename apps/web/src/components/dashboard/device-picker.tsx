@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { cn } from "@/lib/utils";
-import type { CustomerDevice } from "@/lib/selected-site";
+import { deviceDisplayId, type CustomerDevice } from "@/lib/selected-site";
 
 /** A site can have more than one device now, so device-scoped pages
  *  (Analytics, Monitoring, Performance, Instrument Settings, Maintenance)
@@ -26,7 +26,7 @@ export function DevicePicker({ devices, selectedId }: { devices: CustomerDevice[
               : "border-border text-muted-foreground hover:bg-accent hover:text-foreground"
           )}
         >
-          {d.label || d.deviceUid}
+          {deviceDisplayId(d)}
         </Link>
       ))}
     </div>

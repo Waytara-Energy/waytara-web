@@ -290,6 +290,7 @@ export async function recordSplitPayment(
 export async function createSite(onboardingId: string, formData: FormData) {
   const propertyType = String(formData.get("propertyType") ?? "");
   const powerSourceCategory = String(formData.get("powerSourceCategory") ?? "");
+  const powerPackageRaw = String(formData.get("powerPackage") ?? "").trim();
   const siteName = String(formData.get("siteName") ?? "").trim();
 
   if (!propertyType || !powerSourceCategory || !siteName) {
@@ -318,6 +319,7 @@ export async function createSite(onboardingId: string, formData: FormData) {
     // own <select> options, so these casts are safe.
     property_type: propertyType as never,
     power_source_category: powerSourceCategory as never,
+    power_package: (powerPackageRaw || null) as never,
   });
 
   if (error) {
@@ -328,24 +330,43 @@ export async function createSite(onboardingId: string, formData: FormData) {
   redirect(`/onboarding/${onboardingId}`);
 }
 
+// Warranty years live on the linked stock item's own warranty_info jsonb
+// (shape varies — {"years": 5} for most items, {"product_years": 12,
+// "performance_years": 30} for panels) — "years" wins when both are
+// present, since it's the more common shape. Used by completeInstallation
+// below, where warranty actually gets calculated — see that function's
+// own comment for why it's not calculated at device-registration time.
+// Not exported: a "use server" file's exports must all be Server Actions
+// (async functions callable from the client), and this is a plain sync
+// helper only used internally in this file.
+function warrantyYearsFrom(warrantyInfo: unknown): number | null {
+  if (!warrantyInfo || typeof warrantyInfo !== "object") return null;
+  const info = warrantyInfo as Record<string, unknown>;
+  const years = info.years ?? info.product_years;
+  return typeof years === "number" ? years : null;
+}
+
 export async function addDevice(onboardingId: string, siteId: string, formData: FormData) {
-  const deviceTypeId = String(formData.get("deviceTypeId") ?? "");
-  const deviceUid = String(formData.get("deviceUid") ?? "").trim();
+  const stockId = String(formData.get("stockId") ?? "");
   const label = String(formData.get("label") ?? "").trim() || null;
 
-  if (!deviceTypeId || !deviceUid) {
-    redirect(
-      `/onboarding/${onboardingId}?error=${encodeURIComponent("Pick a device type and enter a device ID.")}`
-    );
+  if (!stockId) {
+    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent("Pick a device.")}`);
   }
 
   const supabase = await createClient();
+
+  // Deliberately not setting installed_at or warranty dates here — this
+  // step (Site & Device Setup) just registers the device in the system,
+  // often days before it's physically installed. completeInstallation is
+  // the step that sets the real installed_at for every device at the site
+  // at once; warranty is calculated there, from that real date, not this
+  // provisional registration moment.
   const { error } = await supabase.from("devices").insert({
     site_id: siteId,
-    device_type_id: deviceTypeId,
-    device_uid: deviceUid,
+    stock_device_id: stockId,
     label,
-    status: "test",
+    device_status: "test",
   });
 
   if (error) {
@@ -490,7 +511,7 @@ export async function sendTestSignal(onboardingId: string, deviceId: string, for
 
 export async function markDeviceVerified(onboardingId: string, deviceId: string) {
   const supabase = await createClient();
-  const { error } = await supabase.from("devices").update({ status: "active" }).eq("id", deviceId);
+  const { error } = await supabase.from("devices").update({ device_status: "active" }).eq("id", deviceId);
 
   if (error) {
     redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
@@ -534,8 +555,8 @@ export async function updateEquipmentCheck(onboardingId: string, deviceId: strin
 export async function completeConnectionTest(onboardingId: string, sessionId: string, siteId: string) {
   const supabase = await createClient();
 
-  const { data: devices } = await supabase.from("devices").select("id, status").eq("site_id", siteId);
-  if (!devices || devices.length === 0 || devices.some((d) => d.status !== "active")) {
+  const { data: devices } = await supabase.from("devices").select("id, device_status").eq("site_id", siteId);
+  if (!devices || devices.length === 0 || devices.some((d) => d.device_status !== "active")) {
     redirect(
       `/onboarding/${onboardingId}?error=${encodeURIComponent("Every device needs to be verified before completing the test.")}`
     );
@@ -728,13 +749,44 @@ export async function completeInstallation(onboardingId: string, siteId: string)
     }
   }
 
-  const { error: deviceError } = await supabase
+  // The real install date for every device at this site — warranty is
+  // calculated from here (per device, since different stock items can
+  // carry different warranty lengths), not from whenever each device was
+  // merely registered during Site & Device Setup (addDevice deliberately
+  // leaves these null for exactly this reason).
+  const installedAt = new Date();
+  const warrantyStartDate = installedAt.toISOString().slice(0, 10);
+
+  const { data: siteDevices, error: siteDevicesError } = await supabase
     .from("devices")
-    .update({ installed_at: new Date().toISOString() })
+    .select("id, stock_device:stock(warranty_info)")
     .eq("site_id", siteId);
 
-  if (deviceError) {
-    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(deviceError.message)}`);
+  if (siteDevicesError) {
+    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(siteDevicesError.message)}`);
+  }
+
+  for (const device of siteDevices ?? []) {
+    const warrantyYears = warrantyYearsFrom(device.stock_device?.warranty_info);
+    const warrantyEndDate =
+      warrantyYears !== null
+        ? new Date(installedAt.getFullYear() + warrantyYears, installedAt.getMonth(), installedAt.getDate())
+            .toISOString()
+            .slice(0, 10)
+        : null;
+
+    const { error: deviceError } = await supabase
+      .from("devices")
+      .update({
+        installed_at: installedAt.toISOString(),
+        warranty_start_date: warrantyStartDate,
+        warranty_end_date: warrantyEndDate,
+      })
+      .eq("id", device.id);
+
+    if (deviceError) {
+      redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(deviceError.message)}`);
+    }
   }
 
   const { error: stageError } = await supabase
