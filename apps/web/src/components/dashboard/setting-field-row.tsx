@@ -17,7 +17,15 @@ import { updateDeviceSetting } from "@/app/dashboard/settings/instruments/action
  *  tabs don't mean 25 full-page redirects. Select/toggle save immediately
  *  on change; number needs an explicit Save so typing doesn't fire a
  *  write per keystroke. */
-export function SettingFieldRow({ field, currentValue }: { field: SettingField; currentValue: string }) {
+export function SettingFieldRow({
+  deviceId,
+  field,
+  currentValue,
+}: {
+  deviceId: string;
+  field: SettingField;
+  currentValue: string;
+}) {
   const [value, setValue] = React.useState(currentValue);
   const [pending, startTransition] = React.useTransition();
   const fieldId = `setting-${field.key}`;
@@ -25,7 +33,7 @@ export function SettingFieldRow({ field, currentValue }: { field: SettingField; 
   function save(nextValue: string) {
     setValue(nextValue);
     startTransition(async () => {
-      const result = await updateDeviceSetting(field.key, nextValue);
+      const result = await updateDeviceSetting(deviceId, field.key, nextValue);
       if ("error" in result) {
         toast.error(result.error);
       } else {

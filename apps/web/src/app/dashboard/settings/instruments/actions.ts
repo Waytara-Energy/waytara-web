@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@waytara/supabase/server";
 import { getCurrentProfile } from "@waytara/supabase/auth";
-import { getSelectedDevice } from "@/lib/selected-device";
+import { getCustomerSites, type CustomerDevice } from "@/lib/selected-site";
 import { getSettingFields, validateBatteryCrossFields } from "@/lib/instrument-settings-catalog";
 import { getModbusRegister } from "@/lib/modbus-register-map";
 import { TOU_PROGRAM_COUNT, validateTouSlots, type TouSlot } from "@/lib/time-of-use";
@@ -12,19 +12,34 @@ import { PROPERTY_TYPE_LABELS, POWER_SOURCE_LABELS, type SiteAddress } from "@/l
 
 const INSTRUMENTS_PATH = "/dashboard/settings/instruments";
 
-// ---- Site Setting tab: edits `sites` (via the sites_customer_update_own
-// RLS policy) and the selected device's own `label` — a classic <form
-// action> + redirect, same shape as the rest of this app's forms, since
-// it's one combined submit rather than ~25 independently-saved fields. ----
+// A site can have more than one device now, so there's no single
+// cookie-resolved "current device" to trust the way there used to be —
+// every action here takes an explicit deviceId (bound server-side from the
+// page's own already-resolved device for the site.ts form, passed as a
+// prop for the two direct-call actions) and re-resolves it against this
+// customer's own sites/devices (RLS-scoped) before touching anything, the
+// same don't-trust-the-client reasoning every other id-bearing action in
+// this app already follows.
+async function resolveOwnDevice(deviceId: string): Promise<CustomerDevice | null> {
+  const sites = await getCustomerSites();
+  for (const site of sites) {
+    const device = site.devices.find((d) => d.id === deviceId);
+    if (device) return device;
+  }
+  return null;
+}
 
-export async function updateSiteSetting(formData: FormData) {
+// ---- Site Setting tab: edits `sites` (via the update_device_site RPC)
+// and the selected device's own `label` — a classic <form action> +
+// redirect, same shape as the rest of this app's forms, since it's one
+// combined submit rather than ~25 independently-saved fields. ----
+
+export async function updateSiteSetting(deviceId: string, formData: FormData) {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
-  // Device (and its site) resolved server-side from the same cookie every
-  // other device-scoped page reads — never trusted from the form.
-  const device = await getSelectedDevice();
-  if (!device || !device.site) {
+  const device = await resolveOwnDevice(deviceId);
+  if (!device) {
     redirect(`${INSTRUMENTS_PATH}?error=${encodeURIComponent("No device selected.")}`);
   }
 
@@ -53,15 +68,20 @@ export async function updateSiteSetting(formData: FormData) {
 
   const supabase = await createClient();
 
-  const { error: siteError } = await supabase
-    .from("sites")
-    .update({
-      name: siteName,
-      property_type: propertyType as never,
-      power_source_category: powerSourceCategory as never,
-      address: hasAddress ? (address as never) : null,
-    })
-    .eq("id", device.site.id);
+  // Sites belong to a customer, not to any one device — several devices
+  // can legitimately share one site (genuinely co-located installs), so a
+  // plain `update` here would silently change every sibling device's
+  // address too. This RPC only updates in place when the device is the
+  // sole one on its site; otherwise it splits a fresh site off for just
+  // this device, leaving siblings on the original untouched. See
+  // 20260911000000_split_shared_site_on_customer_edit.sql.
+  const { error: siteError } = await supabase.rpc("update_device_site", {
+    p_device_id: device.id,
+    p_name: siteName,
+    p_property_type: propertyType as never,
+    p_power_source_category: powerSourceCategory as never,
+    p_address: hasAddress ? (address as never) : null,
+  });
 
   if (siteError) {
     redirect(`${INSTRUMENTS_PATH}?error=${encodeURIComponent(siteError.message)}`);
@@ -78,26 +98,27 @@ export async function updateSiteSetting(formData: FormData) {
 
   revalidatePath(INSTRUMENTS_PATH);
   revalidatePath("/dashboard/sites");
-  revalidatePath("/dashboard", "layout"); // header switcher shows the device label
-  redirect(`${INSTRUMENTS_PATH}?success=1`);
+  revalidatePath("/dashboard", "layout"); // header switcher shows the site's device count
+  redirect(`${INSTRUMENTS_PATH}?success=1&device=${device.id}`);
 }
 
 // ---- Basic/Battery/System Work Mode/Grid/Gen tabs: one setting per call,
 // invoked directly from a client component (not a <form>) so saving one
-// of ~25 fields doesn't redirect the whole page — mirrors selectDevice's
+// of ~25 fields doesn't redirect the whole page — mirrors selectSite's
 // direct-call pattern from the header switcher. ----
 
 export async function updateDeviceSetting(
+  deviceId: string,
   settingKey: string,
   settingValue: string
 ): Promise<{ error: string } | { ok: true }> {
   const profile = await getCurrentProfile();
   if (!profile) return { error: "Not signed in." };
 
-  const device = await getSelectedDevice();
+  const device = await resolveOwnDevice(deviceId);
   if (!device) return { error: "No device selected." };
 
-  const field = getSettingFields(device.deviceType?.code ?? "").find((f) => f.key === settingKey);
+  const field = getSettingFields(device.deviceType?.category ?? "").find((f) => f.key === settingKey);
   if (!field) return { error: "Unknown setting." };
 
   const value = settingValue.trim();
@@ -162,11 +183,11 @@ export async function updateDeviceSetting(
 // ---- System Work Mode's Time-of-Use sub-editor: saved as one set of 6
 // rows, not per-field. ----
 
-export async function updateTimeOfUse(slots: TouSlot[]): Promise<{ error: string } | { ok: true }> {
+export async function updateTimeOfUse(deviceId: string, slots: TouSlot[]): Promise<{ error: string } | { ok: true }> {
   const profile = await getCurrentProfile();
   if (!profile) return { error: "Not signed in." };
 
-  const device = await getSelectedDevice();
+  const device = await resolveOwnDevice(deviceId);
   if (!device) return { error: "No device selected." };
 
   if (!Array.isArray(slots) || slots.length !== TOU_PROGRAM_COUNT) {

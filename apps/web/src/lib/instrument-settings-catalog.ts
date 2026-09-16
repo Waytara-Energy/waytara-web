@@ -3,7 +3,7 @@
  * render/validate each one. No catalog table backs this yet (Task 11.3's
  * device/instrument catalog editor is where it'd move if it needs to be
  * admin-editable) — a reasonable first pass in code, same spirit as the
- * device_type_instruments seed data ("settings mirroring the deye_settings
+ * device_parameters seed data ("settings mirroring the deye_settings
  * sheet", Deye being the reference inverter brand for solar_inverter).
  *
  * solar_inverter's field list is scoped to `deye_sunsynk_write_registers.md`

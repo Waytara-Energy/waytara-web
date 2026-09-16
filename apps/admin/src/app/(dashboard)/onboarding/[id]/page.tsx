@@ -119,13 +119,13 @@ export default async function OnboardingPipelinePage({
     installed_at: string | null;
     device_type: {
       name: string;
-      device_type_instruments: { instrument_key: string; unit: string | null; is_required: boolean }[];
+      device_parameters: { parameter_key: string; unit: string | null; is_required: boolean }[];
     } | null;
   }[] = [];
   let deviceTypes: {
     id: string;
     name: string;
-    device_type_instruments: { instrument_name: string; unit: string | null; is_required: boolean }[];
+    device_parameters: { parameter_name: string; unit: string | null; is_required: boolean }[];
   }[] = [];
   let testSession: {
     id: string;
@@ -155,7 +155,7 @@ export default async function OnboardingPipelinePage({
       const { data: deviceRows } = await supabase
         .from("devices")
         .select(
-          "id, device_uid, label, status, installed_at, device_type:device_types(name, device_type_instruments(instrument_key, unit, is_required))"
+          "id, device_uid, label, status, installed_at, device_type:stock(name, device_parameters(parameter_key, unit, is_required))"
         )
         .eq("site_id", site.id)
         .order("created_at", { ascending: false });
@@ -164,8 +164,8 @@ export default async function OnboardingPipelinePage({
 
     if (onboarding.current_stage === "site_setup") {
       const { data: deviceTypeRows } = await supabase
-        .from("device_types")
-        .select("id, name, device_type_instruments(instrument_name, unit, is_required)")
+        .from("stock")
+        .select("id, name, device_parameters(parameter_name, unit, is_required)")
         .order("name");
       deviceTypes = deviceTypeRows ?? [];
     }
@@ -418,13 +418,13 @@ export default async function OnboardingPipelinePage({
                 {deviceTypes.length > 0 && (
                   <div className="mt-3 space-y-2">
                     <p className="text-xs font-medium text-muted-foreground">
-                      Instrument checklist by device type:
+                      Parameter checklist by device type:
                     </p>
                     {deviceTypes.map((dt) => (
                       <div key={dt.id} className="text-xs text-muted-foreground">
                         <span className="font-medium text-foreground">{dt.name}:</span>{" "}
-                        {dt.device_type_instruments
-                          .map((i) => `${i.instrument_name}${i.unit ? ` (${i.unit})` : ""}${i.is_required ? "*" : ""}`)
+                        {dt.device_parameters
+                          .map((i) => `${i.parameter_name}${i.unit ? ` (${i.unit})` : ""}${i.is_required ? "*" : ""}`)
                           .join(", ")}
                       </div>
                     ))}
@@ -486,11 +486,11 @@ export default async function OnboardingPipelinePage({
 
               <div className="space-y-4 border-t border-border pt-4">
                 {devices.map((device) => {
-                  const requiredInstruments = (device.device_type?.device_type_instruments ?? []).filter(
+                  const requiredParameters = (device.device_type?.device_parameters ?? []).filter(
                     (i) => i.is_required
                   );
                   const payload = JSON.stringify(
-                    requiredInstruments.map((i) => ({ key: i.instrument_key, unit: i.unit }))
+                    requiredParameters.map((i) => ({ key: i.parameter_key, unit: i.unit }))
                   );
                   const check = equipmentChecks[device.id];
                   return (
@@ -545,7 +545,7 @@ export default async function OnboardingPipelinePage({
                             type="submit"
                             variant="outline"
                             size="sm"
-                            disabled={requiredInstruments.length === 0}
+                            disabled={requiredParameters.length === 0}
                           >
                             Send Test Signal
                           </Button>

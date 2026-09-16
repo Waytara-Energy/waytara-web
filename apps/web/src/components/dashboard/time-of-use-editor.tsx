@@ -16,7 +16,7 @@ import { updateTimeOfUse } from "@/app/dashboard/settings/instruments/actions";
  *  like the generic catalog fields) — validated client-side for instant
  *  feedback, then re-validated server-side before it ever reaches
  *  `device_settings`. */
-export function TimeOfUseEditor({ initialSlots }: { initialSlots: TouSlot[] }) {
+export function TimeOfUseEditor({ deviceId, initialSlots }: { deviceId: string; initialSlots: TouSlot[] }) {
   const [slots, setSlots] = React.useState<TouSlot[]>(initialSlots);
   const [pending, startTransition] = React.useTransition();
 
@@ -26,7 +26,7 @@ export function TimeOfUseEditor({ initialSlots }: { initialSlots: TouSlot[] }) {
 
   function save() {
     startTransition(async () => {
-      const result = await updateTimeOfUse(slots);
+      const result = await updateTimeOfUse(deviceId, slots);
       if ("error" in result) {
         toast.error(result.error);
       } else {

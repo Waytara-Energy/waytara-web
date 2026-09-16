@@ -18,7 +18,7 @@
 //     the read side has been verified against real hardware.
 //
 // Register data is NOT hardcoded here — both loops read `modbus_register`
-// straight from the DB (device_type_instruments for the read catalog,
+// straight from the DB (device_parameters for the read catalog,
 // each device_settings row for the write listener), so this script and the
 // database can never silently drift apart on what maps to what.
 //
@@ -77,14 +77,14 @@ const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE
 async function loadDevice(deviceId) {
   const { data: device, error } = await supabase
     .from("devices")
-    .select("id, label, device_uid, device_type:device_types(id, code, name)")
+    .select("id, label, device_uid, device_type:stock(id, category, name)")
     .eq("id", deviceId)
     .maybeSingle();
   if (error || !device) throw new Error(`Device ${deviceId} not found: ${error?.message ?? "no row"}`);
 
   const { data: catalog, error: catalogError } = await supabase
-    .from("device_type_instruments")
-    .select("instrument_key, instrument_name, category, unit, modbus_register")
+    .from("device_parameters")
+    .select("parameter_key, parameter_name, category, unit, modbus_register")
     .eq("device_type_id", device.device_type.id)
     .not("modbus_register", "is", null);
   if (catalogError) throw new Error(`Failed to load register catalog: ${catalogError.message}`);
@@ -369,9 +369,9 @@ function simulateTick(date, state) {
 }
 
 async function insertReadings(deviceId, catalog, values, ts) {
-  const unitByKey = new Map(catalog.map((c) => [c.instrument_key, c.unit]));
+  const unitByKey = new Map(catalog.map((c) => [c.parameter_key, c.unit]));
   const rows = Object.entries(values)
-    .filter(([key]) => unitByKey.has(key) || catalog.some((c) => c.instrument_key === key))
+    .filter(([key]) => unitByKey.has(key) || catalog.some((c) => c.parameter_key === key))
     .map(([instrument_key, value]) => ({
       device_id: deviceId,
       instrument_key,
@@ -415,7 +415,7 @@ async function readModbusTick(catalog, host) {
       }
       let combined = raw.length === 2 ? (raw[0] << 16) | raw[1] : raw[0];
       if (spec.signed && combined > 0x7fff && raw.length === 1) combined -= 0x10000;
-      values[entry.instrument_key] = combined * (spec.scale ?? 1);
+      values[entry.parameter_key] = combined * (spec.scale ?? 1);
     }
   } finally {
     client.close(() => {});

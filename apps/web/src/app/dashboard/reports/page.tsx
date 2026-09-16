@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { gatherReportData, toWeeklyRows } from "@/lib/gather-report-data";
 import { ReportControls } from "@/components/dashboard/report-controls";
+import { DevicePicker } from "@/components/dashboard/device-picker";
+import { DeviceDetailsCard } from "@/components/dashboard/device-details-card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 const DEFAULT_DAYS = 90;
@@ -8,13 +10,15 @@ const DEFAULT_DAYS = 90;
 // Server-side gate, matching Monitoring/Performance/Analytics — a customer
 // on a plan without the "reports" feature (only Advance has it) gets
 // redirected, not just hidden from the nav.
-export default async function ReportsPage() {
-  const report = await gatherReportData(DEFAULT_DAYS);
+export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ device?: string }> }) {
+  const { device: deviceIdParam } = await searchParams;
+  const report = await gatherReportData(DEFAULT_DAYS, deviceIdParam);
   if (!report.authorized) {
     redirect("/dashboard");
   }
 
   const weeks = toWeeklyRows(report.daily, 8);
+  const device = report.site && report.deviceId ? (report.site.devices.find((d) => d.id === report.deviceId) ?? null) : null;
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -27,8 +31,11 @@ export default async function ReportsPage() {
         </p>
       </div>
 
+      {report.site && device && <DevicePicker devices={report.site.devices} selectedId={device.id} />}
+      {device && <DeviceDetailsCard device={device} />}
+
       <div className="rounded-xl border border-theme-border bg-theme-bg p-4">
-        <ReportControls defaultDays={DEFAULT_DAYS} />
+        <ReportControls defaultDays={DEFAULT_DAYS} deviceId={report.deviceId} />
       </div>
 
       <div className="rounded-xl border border-theme-border bg-theme-bg p-4">

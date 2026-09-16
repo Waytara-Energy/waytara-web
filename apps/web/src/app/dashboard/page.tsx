@@ -1,51 +1,44 @@
 import { Zap } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { getSelectedDevice } from "@/lib/selected-device";
+import { getSelectedSite } from "@/lib/selected-site";
 import { getRequestProfile } from "@/lib/request-profile";
+import { fetchDeviceOverview } from "@/lib/device-overview";
 import { Card, CardContent } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { DeviceStatusPill } from "@/components/dashboard/device-status-pill";
+import { DeviceDetailsCard } from "@/components/dashboard/device-details-card";
+import { WeatherHeader } from "@/components/dashboard/weather-header";
 import { FaultBanner } from "@/components/dashboard/fault-banner";
 import { EnergyFlowDiagram } from "@/components/dashboard/energy-flow-diagram";
+import { TodaySoFar } from "@/components/dashboard/today-so-far";
 import { RecentAlerts } from "@/components/dashboard/recent-alerts";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
-import { TODAY_ENERGY_FIELDS, formatValue } from "@/lib/telemetry-catalog";
 
-// Instruments this page actually needs — filtered explicitly rather than
-// "most recent N readings across every instrument" (the old approach),
-// since the catalog now has 29 instruments and a flat top-50 window could
-// miss one that just hasn't reported as often as the others.
-const OVERVIEW_KEYS = [
-  "inverter_power_w",
-  "battery_power_w",
-  "grid_power_w",
-  "load_power_w",
-  "battery_soc_pct",
-  "inverter_state",
-  "active_fault_code",
-  ...TODAY_ENERGY_FIELDS.map((f) => f.key),
-];
-
-// Device-centric redesign: Overview is now the selected device's overview,
-// not an account-wide rollup — same RLS-scoped query shape as before, just
-// filtered to one device_id instead of every device this customer owns.
+// Site-centric redesign: Overview is now the selected *site*'s overview —
+// a customer can have several sites, and each site can have several
+// devices (a real install is rarely just one instrument). The site's
+// weather sits at the top (its own location, so it belongs here rather
+// than per device), then the *primary* device's full detail — the energy
+// flow diagram, status, fault banner, today's totals, recent alerts —
+// rendered directly on this page. "Primary" prefers a solar inverter
+// (what the diagram's wiring represents) and falls back to the site's
+// first device otherwise.
 //
-// Telemetry-driven redesign (Phase 8): the flat stat-card grid is replaced
-// with the classic energy-flow diagram from the inverter's own LCD (solar /
-// battery / grid / load, arrows showing direction), a status pill, a
-// prominent fault banner when the device is actually reporting a fault, and
-// a "today so far" totals row from the daily-reset energy counters.
+// Every device at the site — primary included — also gets a plain status
+// card below: there's no per-device detail page anymore (removed once the
+// diagram above started covering the whole site's picture on its own,
+// EV charger included), so these are read-only, not links to anywhere.
 export default async function DashboardOverviewPage() {
   const supabase = await createClient();
   // Independent of each other — getRequestProfile is cache()-deduped
   // against the layout's own call anyway (and free in the common case, see
-  // @/lib/request-profile), but running it alongside the device lookup
+  // @/lib/request-profile), but running it alongside the site lookup
   // rather than after it still saves a round trip's worth of latency on
   // whichever one is slower.
-  const [profile, device] = await Promise.all([getRequestProfile(), getSelectedDevice()]);
+  const [profile, site] = await Promise.all([getRequestProfile(), getSelectedSite()]);
 
-  if (!device) {
+  if (!site) {
     return (
       <div className="space-y-6">
         <div>
@@ -59,7 +52,7 @@ export default async function DashboardOverviewPage() {
             <EmptyMedia variant="icon">
               <Zap />
             </EmptyMedia>
-            <EmptyTitle>No devices yet</EmptyTitle>
+            <EmptyTitle>No sites yet</EmptyTitle>
             <EmptyDescription>Your WayTara advisor sets this up during installation.</EmptyDescription>
           </EmptyHeader>
         </Empty>
@@ -67,91 +60,118 @@ export default async function DashboardOverviewPage() {
     );
   }
 
-  // Simplification: takes the most recent readings within a bounded window
-  // (per the fixed key list above, not every instrument) rather than a
-  // true "latest value per instrument" query (needs a DISTINCT ON not
-  // easily expressed through the query builder). Fine for an overview
-  // snapshot.
-  const [{ data: recentReadings }, { data: recentAlerts }] = await Promise.all([
-    supabase
-      .from("device_readings")
-      .select("instrument_key, value, unit, ts")
-      .eq("device_id", device.id)
-      .in("instrument_key", OVERVIEW_KEYS)
-      .order("ts", { ascending: false })
-      .limit(OVERVIEW_KEYS.length * 5),
-    supabase
-      .from("alerts")
-      .select("id, device_id, severity, message, ts, acknowledged_at")
-      .eq("device_id", device.id)
-      .is("acknowledged_at", null)
-      .order("ts", { ascending: false })
-      .limit(5),
+  const primaryDevice = site.devices.find((d) => d.deviceType?.category === "solar_inverter") ?? site.devices[0] ?? null;
+  const deviceIds = site.devices.map((d) => d.id);
+
+  // Independent of `overview` below — one status snapshot (inverter_state,
+  // active_fault_code) across every device at the site, latest-per-
+  // (device,key), for the cards; the primary device's own status pill up
+  // top comes from `overview` instead (already reading the same two keys
+  // for the fault banner), so it isn't refetched here.
+  const [overview, statusReadings] = await Promise.all([
+    primaryDevice ? fetchDeviceOverview(supabase, site, primaryDevice) : null,
+    deviceIds.length > 0
+      ? supabase
+          .from("device_readings")
+          .select("device_id, instrument_key, value, ts")
+          .in("device_id", deviceIds)
+          .in("instrument_key", ["inverter_state", "active_fault_code"])
+          .order("ts", { ascending: false })
+          .limit(deviceIds.length * 10)
+          .then((r) => r.data)
+      : Promise.resolve([]),
   ]);
 
-  const latest = new Map<string, number | null>();
-  for (const r of recentReadings ?? []) {
-    if (!latest.has(r.instrument_key)) latest.set(r.instrument_key, r.value);
+  const latestStatus = new Map<string, number | null>(); // `${deviceId}:${instrumentKey}` -> value
+  for (const r of statusReadings ?? []) {
+    const key = `${r.device_id}:${r.instrument_key}`;
+    if (!latestStatus.has(key)) latestStatus.set(key, r.value);
   }
-  const get = (key: string) => latest.get(key) ?? null;
 
   return (
     <div className="space-y-6">
       {/* device_readings isn't safe to hand-patch here — the energy flow
-          diagram and "today so far" tiles are derived (latest-per-key,
-          formatted) from a raw insert payload, so a new reading
-          debounce-refreshes the whole page instead. */}
-      <RealtimeRefresh table="device_readings" event="INSERT" filter={`device_id=eq.${device.id}`} />
+          diagram, "today so far" tiles, and every card's status pill are
+          all derived (latest-per-key, formatted) from a raw insert
+          payload, so a new reading debounce-refreshes the whole page
+          instead. */}
+      {deviceIds.length > 0 && (
+        <RealtimeRefresh table="device_readings" event="INSERT" filter={`device_id=in.(${deviceIds.join(",")})`} />
+      )}
+
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-foreground">
-            Welcome{profile?.full_name ? `, ${profile.full_name}` : ""}
-          </h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {device.label || device.deviceUid}
-            {device.deviceType?.name ? ` · ${device.deviceType.name}` : ""}
-            {device.site ? ` · ${device.site.name}` : ""}
-          </p>
-        </div>
-        <DeviceStatusPill inverterState={get("inverter_state")} activeFaultCode={get("active_fault_code")} />
+        <WeatherHeader address={site.address} siteName={site.name} />
+        {primaryDevice && overview && (
+          <DeviceStatusPill inverterState={overview.get("inverter_state")} activeFaultCode={overview.get("active_fault_code")} />
+        )}
       </div>
 
-      <FaultBanner faultCode={get("active_fault_code")} />
+      {!primaryDevice || !overview ? (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <Zap />
+            </EmptyMedia>
+            <EmptyTitle>No devices yet</EmptyTitle>
+            <EmptyDescription>Your WayTara advisor sets this up during installation.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <>
+          <DeviceDetailsCard device={primaryDevice} />
 
-      <EnergyFlowDiagram
-        solarW={get("inverter_power_w")}
-        batteryW={get("battery_power_w")}
-        gridW={get("grid_power_w")}
-        loadW={get("load_power_w")}
-        batterySocPct={get("battery_soc_pct")}
-      />
+          <FaultBanner faultCode={overview.get("active_fault_code")} />
 
-      <div>
-        <h2 className="mb-3 text-sm font-semibold text-foreground">Today so far</h2>
-        <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-          {TODAY_ENERGY_FIELDS.map((field) => (
-            <StatCard key={field.key} label={field.label} value={formatValue(get(field.key), field)} />
-          ))}
-        </div>
-      </div>
+          <EnergyFlowDiagram
+            solarW={overview.get("inverter_power_w")}
+            batteryW={overview.get("battery_power_w")}
+            gridW={overview.get("grid_power_w")}
+            loadW={overview.get("load_power_w")}
+            batterySocPct={overview.get("battery_soc_pct")}
+            evW={overview.evW}
+          />
 
-      <Separator />
+          <TodaySoFar get={overview.get} />
 
-      <div>
-        <h2 className="mb-3 text-sm font-semibold text-foreground">Recent Alerts</h2>
-        <RecentAlerts deviceId={device.id} initialAlerts={recentAlerts ?? []} />
-      </div>
+          <Separator />
+
+          <div>
+            <h2 className="mb-3 text-sm font-semibold text-foreground">Recent Alerts</h2>
+            <RecentAlerts deviceId={primaryDevice.id} initialAlerts={overview.recentAlerts} />
+          </div>
+        </>
+      )}
+
+      {site.devices.length > 0 && (
+        <>
+          <Separator />
+          <div>
+            <h2 className="mb-3 text-sm font-semibold text-foreground">Devices at {site.name}</h2>
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+              {site.devices.map((d) => (
+                <Card key={d.id}>
+                  <CardContent className="p-4">
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-foreground">{d.label || d.deviceUid}</p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">
+                        {d.deviceType?.name ?? "Device"}
+                        {d.deviceType?.manufacturer ? ` · ${d.deviceType.manufacturer}` : ""}
+                      </p>
+                      <p className="mt-0.5 text-xs text-muted-foreground">Serial {d.deviceUid}</p>
+                    </div>
+                    <div className="mt-3">
+                      <DeviceStatusPill
+                        inverterState={latestStatus.get(`${d.id}:inverter_state`) ?? null}
+                        activeFaultCode={latestStatus.get(`${d.id}:active_fault_code`) ?? null}
+                      />
+                    </div>
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          </div>
+        </>
+      )}
     </div>
-  );
-}
-
-function StatCard({ label, value }: { label: string; value: string }) {
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{label}</p>
-        <p className="mt-1 text-lg font-semibold text-foreground">{value}</p>
-      </CardContent>
-    </Card>
   );
 }

@@ -1,6 +1,8 @@
 import { Wrench } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { getSelectedDevice } from "@/lib/selected-device";
+import { getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
+import { DevicePicker } from "@/components/dashboard/device-picker";
+import { DeviceDetailsCard } from "@/components/dashboard/device-details-card";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -38,9 +40,10 @@ const STATUS_BADGE_VARIANT: Record<string, "alert" | "default" | "secondary"> = 
 export default async function MaintenancePage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string }>;
+  searchParams: Promise<{ error?: string; device?: string }>;
 }) {
-  const [{ error }, device] = await Promise.all([searchParams, getSelectedDevice()]);
+  const [{ error, device: deviceIdParam }, site] = await Promise.all([searchParams, getSelectedSite()]);
+  const device = resolveDeviceInSite(site, deviceIdParam);
   const supabase = await createClient();
 
   let tickets: { id: string; description: string | null; status: string; type: string; created_at: string }[] | null = null;
@@ -147,14 +150,23 @@ export default async function MaintenancePage({
               : "Report an issue or request a scheduled visit."}
           </p>
         </div>
-        {device && (
+        {device && site && (
           <NewMaintenanceTicketDialog
+            deviceId={device.id}
             deviceLabel={device.label || device.deviceUid}
-            siteName={device.site?.name ?? null}
+            siteId={site.id}
+            siteName={site.name}
             error={error}
           />
         )}
       </div>
+
+      {site && device && (
+        <>
+          <DevicePicker devices={site.devices} selectedId={device.id} />
+          <DeviceDetailsCard device={device} />
+        </>
+      )}
 
       {!device ? (
         <Empty className="border">

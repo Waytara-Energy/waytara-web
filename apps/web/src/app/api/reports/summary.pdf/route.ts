@@ -15,8 +15,9 @@ const PERIOD_LABEL: Record<number, string> = {
 export async function GET(req: NextRequest) {
   const daysParam = Number(req.nextUrl.searchParams.get("days"));
   const days = Number.isInteger(daysParam) && daysParam > 0 ? Math.min(daysParam, MAX_DAYS) : 90;
+  const deviceId = req.nextUrl.searchParams.get("device") ?? undefined;
 
-  const report = await gatherReportData(days);
+  const report = await gatherReportData(days, deviceId);
   if (!report.authorized) {
     return NextResponse.json({ error: "Not available on your plan." }, { status: 403 });
   }

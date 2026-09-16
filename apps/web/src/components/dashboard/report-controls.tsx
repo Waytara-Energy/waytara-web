@@ -39,7 +39,8 @@ const PERIODS = [
 
 const MAX_RANGE_DAYS = 365;
 
-export function ReportControls({ defaultDays = 90 }: { defaultDays?: number }) {
+export function ReportControls({ defaultDays = 90, deviceId }: { defaultDays?: number; deviceId?: string | null }) {
+  const deviceQuery = deviceId ? `&device=${deviceId}` : "";
   const [days, setDays] = React.useState(defaultDays);
   const [range, setRange] = React.useState<DateRange | undefined>(undefined);
   const [csvPending, triggerCsvPending] = useDownloadPending();
@@ -110,7 +111,7 @@ export function ReportControls({ defaultDays = 90 }: { defaultDays?: number }) {
         <Tooltip>
           <TooltipTrigger asChild>
             <Button asChild variant="outline" size="sm">
-              <a href={`/api/reports/energy.csv?days=${days}`} onClick={triggerCsvPending}>
+              <a href={`/api/reports/energy.csv?days=${days}${deviceQuery}`} onClick={triggerCsvPending}>
                 <ButtonSpinner show={csvPending} />
                 Download CSV
               </a>
@@ -121,7 +122,7 @@ export function ReportControls({ defaultDays = 90 }: { defaultDays?: number }) {
         <Tooltip>
           <TooltipTrigger asChild>
             <Button asChild size="sm">
-              <a href={`/api/reports/summary.pdf?days=${days}`} onClick={triggerPdfPending}>
+              <a href={`/api/reports/summary.pdf?days=${days}${deviceQuery}`} onClick={triggerPdfPending}>
                 <ButtonSpinner show={pdfPending} />
                 Download PDF summary
               </a>

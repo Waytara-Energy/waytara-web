@@ -2,7 +2,7 @@
  * The read-side counterpart to instrument-settings-catalog.ts: which
  * telemetry instrument keys exist per device type, how to label/format
  * them, and which "flow node" or module they belong to. Not DB-backed —
- * device_type_instruments is the source of truth for *what exists*, this
+ * device_parameters is the source of truth for *what exists*, this
  * file is the source of truth for *how to present it*, same split already
  * established between the two catalogs.
  *

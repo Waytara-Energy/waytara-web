@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { TrendingUp } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { getSelectedDevice } from "@/lib/selected-device";
+import { getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
+import { DevicePicker } from "@/components/dashboard/device-picker";
+import { DeviceDetailsCard } from "@/components/dashboard/device-details-card";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { PerformanceChart, DivergingBarChart } from "@/components/dashboard/lazy-charts";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
@@ -33,14 +35,20 @@ const KEYS = [
 // by battery charge-vs-discharge and grid import-vs-export as diverging
 // comparisons (cycling behavior / self-consumption vs. grid dependency),
 // a computed self-consumption %, and the lifetime PV hero stat.
-export default async function PerformancePage() {
+export default async function PerformancePage({ searchParams }: { searchParams: Promise<{ device?: string }> }) {
   const supabase = await createClient();
-  // Device-centric redesign: yield for the *selected* device only, not
-  // summed across every device the customer owns. Independent of the
-  // plan check below, so it runs alongside it. getCustomerPlan() is
-  // cache()-deduped against the layout's own call, so this costs nothing
-  // extra.
-  const [customerPlan, device] = await Promise.all([getCustomerPlan(), getSelectedDevice()]);
+  // Yield for the *selected* device only, not summed across every device
+  // at the site — a site can have more than one device now, so which one
+  // is picked via this page's own `?device=` (DevicePicker below).
+  // Independent of the plan check below, so it runs alongside it.
+  // getCustomerPlan() is cache()-deduped against the layout's own call, so
+  // this costs nothing extra.
+  const [customerPlan, { device: deviceIdParam }, site] = await Promise.all([
+    getCustomerPlan(),
+    searchParams,
+    getSelectedSite(),
+  ]);
+  const device = resolveDeviceInSite(site, deviceIdParam);
 
   const features = customerPlan?.features ?? {};
   if (!features.performance) {
@@ -136,6 +144,8 @@ export default async function PerformancePage() {
               safe to hand-patch, so a new reading debounce-refreshes the
               whole page. */}
           <RealtimeRefresh table="device_readings" event="INSERT" filter={`device_id=eq.${device.id}`} />
+          {site && <DevicePicker devices={site.devices} selectedId={device.id} />}
+          <DeviceDetailsCard device={device} />
           <div className="grid grid-cols-2 gap-4">
             <Card>
               <CardContent className="p-4">

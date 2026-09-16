@@ -80,7 +80,13 @@ export function DashboardSidebar({
               revealed on hover of that same spot. */}
           <SidebarTrigger className="absolute inset-0 hidden items-center justify-center opacity-0 group-data-[collapsible=icon]:flex group-data-[collapsible=icon]:group-hover/logo:opacity-100 [&_svg]:h-[clamp(17px,1.15vw,19.5px)] [&_svg]:w-[clamp(17px,1.15vw,19.5px)]" />
         </div>
-        <SidebarTrigger className="group-data-[collapsible=icon]:hidden [&_svg]:h-[clamp(17px,1.15vw,19.5px)] [&_svg]:w-[clamp(17px,1.15vw,19.5px)]" />
+        {/* Hidden below md — that's the header's own trigger's job on
+            mobile (dashboard-header.tsx), since this one has nothing
+            useful to do there: the mobile Sheet doesn't collapse to an
+            icon rail, so all this could do is close the Sheet you just
+            opened via the header's trigger, which reads as a dead end
+            rather than a toggle. */}
+        <SidebarTrigger className="max-md:hidden group-data-[collapsible=icon]:hidden [&_svg]:h-[clamp(17px,1.15vw,19.5px)] [&_svg]:w-[clamp(17px,1.15vw,19.5px)]" />
       </SidebarHeader>
 
       <SidebarContent>

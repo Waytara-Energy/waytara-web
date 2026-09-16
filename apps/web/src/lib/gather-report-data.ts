@@ -1,5 +1,5 @@
 import { createClient } from "@waytara/supabase/server";
-import { getSelectedDevice } from "@/lib/selected-device";
+import { getSelectedSite, resolveDeviceInSite, type CustomerSite } from "@/lib/selected-site";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { getRequestProfile } from "@/lib/request-profile";
 import { maxByDeviceDay, sumByDay, type DailyPoint } from "@/lib/energy-aggregation";
@@ -17,6 +17,8 @@ export interface ReportData {
   totalSaved: number;
   totalInvested: number;
   roiPct: number | null;
+  site: CustomerSite | null;
+  deviceId: string | null;
 }
 
 const UNAUTHORIZED: ReportData = {
@@ -30,6 +32,8 @@ const UNAUTHORIZED: ReportData = {
   totalSaved: 0,
   totalInvested: 0,
   roiPct: null,
+  site: null,
+  deviceId: null,
 };
 
 /**
@@ -37,24 +41,23 @@ const UNAUTHORIZED: ReportData = {
  * route — all three need the same RLS-scoped dataset, and duplicating this
  * query/aggregation three times is how they'd eventually disagree.
  * `historyDays` controls how far back readings are pulled (the CSV/PDF
- * period selector).
- *
- * Device-centric redesign: resolves the *selected* device itself (same
- * getSelectedDevice() every other device-scoped page uses) rather than
- * taking a customer-wide "every device" query — the sites/site-comparison
- * concept this used to carry is gone along with that, since a report is
- * now about one device, not a multi-site rollup.
+ * period selector). `deviceIdParam` is the page's own `?device=` (or the
+ * export routes' own copy of it, threaded through from the page's download
+ * links) — resolved the same way every other device-scoped page resolves
+ * it (`resolveDeviceInSite`, falling back to the site's first device),
+ * since a site can have more than one device now.
  */
-export async function gatherReportData(historyDays: number): Promise<ReportData> {
+export async function gatherReportData(historyDays: number, deviceIdParam?: string): Promise<ReportData> {
   // These two routes (energy.csv, summary.pdf) sit outside proxy.ts's
   // /dashboard/:path* matcher, so getRequestProfile() always takes its
   // fallback path here (a real getCurrentProfile() call) — still correct,
   // just not free the way it is on a /dashboard/* page. getCustomerPlan()
   // replaces what used to be this file's own customers/plan query — the
   // 6th copy of that exact query found in this codebase, see
-  // @/lib/customer-plan for the other five. profile and device don't
-  // depend on each other, so they run together.
-  const [profile, device] = await Promise.all([getRequestProfile(), getSelectedDevice()]);
+  // @/lib/customer-plan for the other five. profile and site don't depend
+  // on each other, so they run together.
+  const [profile, site] = await Promise.all([getRequestProfile(), getSelectedSite()]);
+  const device = resolveDeviceInSite(site, deviceIdParam);
   if (!profile) return UNAUTHORIZED;
 
   const supabase = await createClient();
@@ -79,6 +82,8 @@ export async function gatherReportData(historyDays: number): Promise<ReportData>
       totalSaved: 0,
       totalInvested: 0,
       roiPct: null,
+      site,
+      deviceId: null,
     };
   }
 
@@ -116,6 +121,8 @@ export async function gatherReportData(historyDays: number): Promise<ReportData>
     totalSaved,
     totalInvested,
     roiPct,
+    site,
+    deviceId: device.id,
   };
 }
 

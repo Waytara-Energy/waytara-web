@@ -74,6 +74,18 @@ const SOLAR_LABEL_ANCHOR: Point = { x: 1000, y: 1180 };
 // x≈2500, y≈1900 — not the inverter panel above it, so the leader line
 // actually lands on the battery instead of stopping in empty wall space.
 const BATTERY_LABEL_ANCHOR: Point = { x: 2500, y: 1900 };
+// The EV charger's own real charging cable — a lit loop from the
+// wall-mounted unit's underside, curving down and left to the car's
+// charging port in the garage bay. More waypoints than the other wires'
+// bends, since this one is a real continuous curve rather than a corner —
+// a couple of straight segments cut visibly inside the arc.
+const EV_CABLE_TOP: Point = { x: 3400, y: 2250 };
+const EV_CABLE_BEND1: Point = { x: 3385, y: 2370 };
+const EV_CABLE_BEND2: Point = { x: 3345, y: 2410 };
+const EV_CABLE_BEND3: Point = { x: 3280, y: 2420 };
+const EV_CABLE_END: Point = { x: 3240, y: 2400 };
+// Top of the charger unit itself.
+const EV_LABEL_ANCHOR: Point = { x: 3370, y: 1935 };
 const TOP_LABEL_Y = 300;
 const BOTTOM_LABEL_Y = 3600;
 
@@ -115,6 +127,7 @@ export function EnergyFlowDiagram({
   gridW,
   loadW,
   batterySocPct,
+  evW = null,
 }: {
   solarW: number | null;
   /** positive = charging, negative = discharging */
@@ -123,6 +136,11 @@ export function EnergyFlowDiagram({
   gridW: number | null;
   loadW: number | null;
   batterySocPct: number | null;
+  /** The site's EV charger, if it has one — a separate device from
+   *  whichever one this diagram's other readings come from, so it's
+   *  optional and simply omitted (no wire, no label) when the site
+   *  doesn't have a charger or that device hasn't reported yet. */
+  evW?: number | null;
 }) {
   const solarActive = (solarW ?? 0) > 0;
   const batteryCharging = (batteryW ?? 0) > 0;
@@ -130,14 +148,17 @@ export function EnergyFlowDiagram({
   const gridImporting = (gridW ?? 0) > 0;
   const gridExporting = (gridW ?? 0) < 0;
   const loadActive = (loadW ?? 0) > 0;
+  const evActive = (evW ?? 0) > 0;
 
   const solarColor: FlowColorKey = solarActive ? "favorable" : "idle";
   const batteryColor: FlowColorKey = batteryCharging ? "favorable" : batteryDischarging ? "drawing" : "idle";
   const gridColor: FlowColorKey = gridExporting ? "favorable" : gridImporting ? "drawing" : "idle";
-  // Load only ever consumes — there's no "direction" to encode, so it gets
-  // its own color rather than reusing favorable/drawing, which both imply a
-  // direction choice that doesn't apply here.
+  // Load and EV charging only ever consume — there's no "direction" to
+  // encode, so they get their own color rather than reusing
+  // favorable/drawing, which both imply a direction choice that doesn't
+  // apply here.
   const homeColor: FlowColorKey = loadActive ? "neutral" : "idle";
+  const evColor: FlowColorKey = evActive ? "neutral" : "idle";
 
   const reverse = (pts: Point[]) => [...pts].reverse();
 
@@ -146,15 +167,20 @@ export function EnergyFlowDiagram({
   const batteryPath = batteryCharging ? batteryPathPoints : reverse(batteryPathPoints);
   const gridPathPoints = [INVERTER_BOTTOM, GRID_BEND, GRID_EXIT];
   const gridPath = gridExporting ? gridPathPoints : reverse(gridPathPoints);
-  // Energy only ever flows one way here (inverter → home), so this path
-  // never needs reversing the way battery/grid do.
+  // Energy only ever flows one way here (inverter → home, charger → car),
+  // so neither of these paths ever needs reversing the way battery/grid do.
   const homePath = [HOME_JUNCTION, HOME_BEND, HOME_EXIT];
+  const evPath = [EV_CABLE_TOP, EV_CABLE_BEND1, EV_CABLE_BEND2, EV_CABLE_BEND3, EV_CABLE_END];
 
   const conduits: Conduit[] = [
     { key: "solar", d: roundedPath(solarPath, 30), color: FLOW_COLOR[solarColor], active: solarActive },
     { key: "battery", d: roundedPath(batteryPath, 40), color: FLOW_COLOR[batteryColor], active: batteryCharging || batteryDischarging },
     { key: "grid", d: roundedPath(gridPath, 60), color: FLOW_COLOR[gridColor], active: gridImporting || gridExporting },
     { key: "home", d: roundedPath(homePath, 50), color: FLOW_COLOR[homeColor], active: loadActive },
+    // Only drawn when this site actually has an EV charger — evW stays
+    // null (rather than 0) when there's no such device, distinguishing
+    // "charger present, currently idle" from "no charger at all".
+    ...(evW !== null ? [{ key: "ev", d: roundedPath(evPath, 45), color: FLOW_COLOR[evColor], active: evActive }] : []),
   ];
 
   const batteryValue = `${fmtW(batteryW)} · ${batterySocPct !== null ? Math.round(batterySocPct) : "—"}%`;
@@ -182,10 +208,10 @@ export function EnergyFlowDiagram({
           colors differ — so the pointer/value colors switch with the
           dashboard's theme even though the underlying photo doesn't. */}
       <div className="absolute inset-0 dark:hidden">
-        <FlowOverlay conduits={conduits} solarW={solarW} batteryValue={batteryValue} loadW={loadW} gridW={gridW} gridColor={gridColor} leaderColor="#000000" titleColor="#64748b" valueColor="#1e293b" />
+        <FlowOverlay conduits={conduits} solarW={solarW} batteryValue={batteryValue} loadW={loadW} gridW={gridW} evW={evW} gridColor={gridColor} leaderColor="#000000" titleColor="#64748b" valueColor="#1e293b" />
       </div>
       <div className="absolute inset-0 hidden dark:block">
-        <FlowOverlay conduits={conduits} solarW={solarW} batteryValue={batteryValue} loadW={loadW} gridW={gridW} gridColor={gridColor} leaderColor="#f8fafc" titleColor="#94a3b8" valueColor="#f8fafc" />
+        <FlowOverlay conduits={conduits} solarW={solarW} batteryValue={batteryValue} loadW={loadW} gridW={gridW} evW={evW} gridColor={gridColor} leaderColor="#f8fafc" titleColor="#94a3b8" valueColor="#f8fafc" />
       </div>
     </div>
   );
@@ -197,6 +223,7 @@ function FlowOverlay({
   batteryValue,
   loadW,
   gridW,
+  evW,
   gridColor,
   leaderColor,
   titleColor,
@@ -207,6 +234,7 @@ function FlowOverlay({
   batteryValue: string;
   loadW: number | null;
   gridW: number | null;
+  evW: number | null;
   gridColor: FlowColorKey;
   leaderColor: string;
   titleColor: string;
@@ -285,6 +313,23 @@ function FlowOverlay({
         titleColor={titleColor}
         valueColor={FLOW_COLOR[gridColor]}
       />
+      {/* Only when this site actually has an EV charger — see the "ev"
+          conduit's own comment. Centered on the anchor like every other
+          label — EV_LABEL_ANCHOR sits far enough from the frame's right
+          edge (480px of margin at x=3370 of a 3850-wide canvas) that a
+          centered title/value never clips. */}
+      {evW !== null && (
+        <FlowLabel
+          anchor={EV_LABEL_ANCHOR}
+          labelPos={{ x: EV_LABEL_ANCHOR.x, y: TOP_LABEL_Y }}
+          align="middle"
+          title="EV Charger"
+          value={fmtW(evW)}
+          leaderColor={leaderColor}
+          titleColor={titleColor}
+          valueColor={valueColor}
+        />
+      )}
     </svg>
   );
 }

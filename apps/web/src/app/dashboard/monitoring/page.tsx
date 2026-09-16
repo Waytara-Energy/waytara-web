@@ -10,7 +10,9 @@ import { TemperatureGauge } from "@/components/dashboard/temperature-gauge";
 import { MetricListCard } from "@/components/dashboard/metric-list-card";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { getCustomerPlan } from "@/lib/customer-plan";
-import { getSelectedDevice } from "@/lib/selected-device";
+import { getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
+import { DevicePicker } from "@/components/dashboard/device-picker";
+import { DeviceDetailsCard } from "@/components/dashboard/device-details-card";
 import {
   TEMPERATURE_FIELDS,
   BATTERY_DETAIL_FIELDS,
@@ -44,14 +46,21 @@ const SNAPSHOT_KEYS = [
 // is replaced with two live-polling charts (power flows + battery SOC),
 // a PV1-vs-PV2 comparison, temperature gauges, and a grid-connected
 // indicator.
-export default async function MonitoringPage() {
+export default async function MonitoringPage({ searchParams }: { searchParams: Promise<{ device?: string }> }) {
   const supabase = await createClient();
-  // getSelectedDevice() doesn't depend on the plan check below, so it runs
+  // getSelectedSite() doesn't depend on the plan check below, so it runs
   // alongside it instead of after. getCustomerPlan() is cache()-deduped
   // against the layout's own call (and every other page's), so this isn't
   // a second real query — same reasoning throughout this pass: independent
-  // queries in one round trip, not a waterfall of them.
-  const [customerPlan, device] = await Promise.all([getCustomerPlan(), getSelectedDevice()]);
+  // queries in one round trip, not a waterfall of them. Which device at
+  // the site is picked via this page's own `?device=` (DevicePicker
+  // below) — a site can have more than one now.
+  const [customerPlan, { device: deviceIdParam }, site] = await Promise.all([
+    getCustomerPlan(),
+    searchParams,
+    getSelectedSite(),
+  ]);
+  const device = resolveDeviceInSite(site, deviceIdParam);
 
   const features = customerPlan?.features ?? {};
   if (!features.monitoring) {
@@ -96,6 +105,13 @@ export default async function MonitoringPage() {
           </div>
         )}
       </div>
+
+      {site && device && (
+        <>
+          <DevicePicker devices={site.devices} selectedId={device.id} />
+          <DeviceDetailsCard device={device} />
+        </>
+      )}
 
       {!device ? (
         <Empty className="border">

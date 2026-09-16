@@ -1,0 +1,101 @@
+import "server-only";
+import { cache } from "react";
+import { cookies } from "next/headers";
+import { createClient } from "@waytara/supabase/server";
+import type { SiteAddress } from "./site-catalog";
+
+export const SELECTED_SITE_COOKIE = "selected_site_id";
+
+export interface CustomerDevice {
+  id: string;
+  label: string | null;
+  deviceUid: string;
+  status: string;
+  createdAt: string;
+  installedAt: string | null;
+  deviceType: { id: string; category: string; name: string; manufacturer: string | null; brand: string | null; model: string | null } | null;
+}
+
+export interface CustomerSite {
+  id: string;
+  name: string;
+  propertyType: string;
+  powerSourceCategory: string;
+  address: SiteAddress | null;
+  devices: CustomerDevice[];
+}
+
+/** Every site this customer owns, RLS-scoped, oldest first, each with its
+ *  own devices nested — site is the dashboard's navigation root: a
+ *  customer can have several sites (properties), and each site can have
+ *  several devices (a real install is rarely just one instrument). The
+ *  header switcher and `getSelectedSite` both work from this.
+ *
+ *  Wrapped in React's `cache()` — the layout fetches this once for the
+ *  header switcher, and every page fetches it again (via `getSelectedSite`)
+ *  for its own scoping. `cache()` dedupes those into a single `sites`
+ *  query per request instead of two. */
+export const getCustomerSites = cache(async function getCustomerSites(): Promise<CustomerSite[]> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("sites")
+    .select(
+      "id, name, property_type, power_source_category, address, devices(id, label, device_uid, status, created_at, installed_at, device_type:stock(id, category, name, manufacturer, brand, model))"
+    )
+    .order("created_at", { ascending: true });
+
+  return (data ?? []).map((s) => ({
+    id: s.id,
+    name: s.name,
+    propertyType: s.property_type,
+    powerSourceCategory: s.power_source_category,
+    address: (s.address as SiteAddress | null) ?? null,
+    devices: (s.devices ?? [])
+      .slice()
+      .sort((a, b) => a.created_at.localeCompare(b.created_at))
+      .map((d) => ({
+        id: d.id,
+        label: d.label,
+        deviceUid: d.device_uid,
+        status: d.status,
+        createdAt: d.created_at,
+        installedAt: d.installed_at,
+        deviceType: d.device_type,
+      })),
+  }));
+});
+
+/** Picks the cookie-selected site out of an already-fetched list, falling
+ *  back to the first (oldest) site. Never trusts the cookie's id blindly as
+ *  "the" site — `sites` is already RLS-scoped to this customer, so a stale
+ *  or foreign id just silently falls through to that default instead of
+ *  granting access to anything. */
+export function resolveSelectedSite(sites: CustomerSite[], selectedId: string | undefined): CustomerSite | null {
+  if (sites.length === 0) return null;
+  return sites.find((s) => s.id === selectedId) ?? sites[0];
+}
+
+/** The one-stop call for any site-scoped page: fetches the customer's sites
+ *  and resolves which one is selected, in one helper — mirrors how
+ *  `getCurrentProfile()` is the one place every page gets the signed-in
+ *  profile. */
+export async function getSelectedSite(): Promise<CustomerSite | null> {
+  const sites = await getCustomerSites();
+  const cookieStore = await cookies();
+  return resolveSelectedSite(sites, cookieStore.get(SELECTED_SITE_COOKIE)?.value);
+}
+
+/** Picks a device out of the *selected site's own* device list — this is
+ *  the second, page-local level of selection every device-scoped page
+ *  (Analytics, Monitoring, Performance, Instrument Settings, Maintenance)
+ *  needs now that a site can have more than one device: each of those
+ *  pages reads `?device=` from its own searchParams and resolves it here,
+ *  independently of whatever any other page currently has picked — there's
+ *  no single global "current device" the way there was before sites could
+ *  hold more than one. Falls back to the first device at the site when
+ *  `deviceId` is missing or doesn't belong to this site (same
+ *  don't-trust-the-id-blindly reasoning as resolveSelectedSite). */
+export function resolveDeviceInSite(site: CustomerSite | null, deviceId: string | undefined): CustomerDevice | null {
+  if (!site || site.devices.length === 0) return null;
+  return site.devices.find((d) => d.id === deviceId) ?? site.devices[0];
+}

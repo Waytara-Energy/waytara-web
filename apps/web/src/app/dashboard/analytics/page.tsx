@@ -1,7 +1,9 @@
 import { redirect } from "next/navigation";
 import { BarChart3 } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { getSelectedDevice } from "@/lib/selected-device";
+import { getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
+import { DevicePicker } from "@/components/dashboard/device-picker";
+import { DeviceDetailsCard } from "@/components/dashboard/device-details-card";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import type { DailyPoint } from "@/components/dashboard/performance-chart";
 import { PerformanceChart } from "@/components/dashboard/lazy-charts";
@@ -45,17 +47,22 @@ function pctChange(current: number, previous: number): number | null {
 // the real hardware, only a derived Watts formula, so the field was
 // dropped from the catalog rather than ship a card that can never
 // populate for a real customer.)
-export default async function AnalyticsPage() {
+export default async function AnalyticsPage({ searchParams }: { searchParams: Promise<{ device?: string }> }) {
   const supabase = await createClient();
-  // Device-centric redesign: cost savings/ROI for the *selected* device's
-  // own yield, not summed across every device — the cross-site comparison
-  // chart this page used to carry is gone along with that, since a
-  // single-device view has nothing left to compare against. Independent
-  // of the plan check below, so it runs alongside it. getCustomerPlan()
-  // is cache()-deduped against the layout's own call and carries the
-  // tariff rate too, so this replaces what used to be a separate
-  // `customers` query here.
-  const [customerPlan, device] = await Promise.all([getCustomerPlan(), getSelectedDevice()]);
+  // Cost savings/ROI for the *selected* device's own yield, not summed
+  // across every device at the site — a site can have more than one
+  // device now, so which one is picked via this page's own `?device=`
+  // (DevicePicker below), independently of Monitoring/Performance/etc.
+  // Independent of the plan check below, so it runs alongside it.
+  // getCustomerPlan() is cache()-deduped against the layout's own call and
+  // carries the tariff rate too, so this replaces what used to be a
+  // separate `customers` query here.
+  const [customerPlan, { device: deviceIdParam }, site] = await Promise.all([
+    getCustomerPlan(),
+    searchParams,
+    getSelectedSite(),
+  ]);
+  const device = resolveDeviceInSite(site, deviceIdParam);
 
   const features = customerPlan?.features ?? {};
   if (!features.analytics) {
@@ -186,6 +193,8 @@ export default async function AnalyticsPage() {
               server-side from device_readings — not safe to hand-patch, so
               a new reading debounce-refreshes the whole page. */}
           <RealtimeRefresh table="device_readings" event="INSERT" filter={`device_id=eq.${device.id}`} />
+          {site && <DevicePicker devices={site.devices} selectedId={device.id} />}
+          <DeviceDetailsCard device={device} />
           <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
             <StatTile label="Total invested" value={inr(totalInvested)} />
             <StatTile label="Saved to date" value={inr(totalSavedToDate)} />

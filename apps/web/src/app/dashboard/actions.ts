@@ -5,17 +5,17 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@waytara/supabase/server";
 import { getCurrentProfile } from "@waytara/supabase/auth";
-import { SELECTED_DEVICE_COOKIE } from "@/lib/selected-device";
+import { SELECTED_SITE_COOKIE } from "@/lib/selected-site";
 
-// Called directly from the header's DeviceSwitcher (a client component),
-// not via a <form action>. No ownership check on `deviceId` here — the
-// cookie is a UI preference, not an authorization boundary; every
-// device-scoped query still goes through RLS regardless of what this
-// cookie says, so a tampered/foreign id just fails to resolve to anything
-// in resolveSelectedDevice() rather than granting access.
-export async function selectDevice(deviceId: string) {
+// Called directly from the header's SiteSwitcher (a client component), not
+// via a <form action>. No ownership check on `siteId` here — the cookie is
+// a UI preference, not an authorization boundary; every site-scoped query
+// still goes through RLS regardless of what this cookie says, so a
+// tampered/foreign id just fails to resolve to anything in
+// resolveSelectedSite() rather than granting access.
+export async function selectSite(siteId: string) {
   const cookieStore = await cookies();
-  cookieStore.set(SELECTED_DEVICE_COOKIE, deviceId, {
+  cookieStore.set(SELECTED_SITE_COOKIE, siteId, {
     path: "/",
     maxAge: 60 * 60 * 24 * 365,
     sameSite: "lax",

@@ -8,44 +8,37 @@ import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
-import { selectDevice } from "@/app/dashboard/actions";
+import { selectSite } from "@/app/dashboard/actions";
 
-export interface SwitcherDevice {
+export interface SwitcherSite {
   id: string;
-  label: string | null;
-  deviceUid: string;
-  siteName: string | null;
+  name: string;
+  deviceCount: number;
 }
 
-/** Vercel's project-switcher pattern, applied to devices — device is the
- *  dashboard's navigation root now, not sites. Search value combines
- *  label/uid/site so a customer with several devices at different sites can
- *  find one by typing either. Selecting calls the `selectDevice` server
- *  action directly (same "client component calls a server action, not a
- *  <form>" pattern already used for sign-out) and refreshes so every
- *  server-rendered page re-reads the new cookie immediately. */
-export function DeviceSwitcher({
-  devices,
-  selectedId,
-}: {
-  devices: SwitcherDevice[];
-  selectedId: string | null;
-}) {
+/** Vercel's project-switcher pattern, applied to sites — a customer can
+ *  have several sites (properties), each with its own devices, so site is
+ *  the dashboard's navigation root, not device. Selecting calls the
+ *  `selectSite` server action directly (same "client component calls a
+ *  server action, not a <form>" pattern already used for sign-out) and
+ *  refreshes so every server-rendered page re-reads the new cookie
+ *  immediately. */
+export function SiteSwitcher({ sites, selectedId }: { sites: SwitcherSite[]; selectedId: string | null }) {
   const [open, setOpen] = React.useState(false);
   const [pending, startTransition] = React.useTransition();
   const router = useRouter();
-  const selected = devices.find((d) => d.id === selectedId) ?? devices[0];
+  const selected = sites.find((s) => s.id === selectedId) ?? sites[0];
 
   function handleSelect(id: string) {
     setOpen(false);
     if (id === selected?.id) return;
     startTransition(async () => {
-      await selectDevice(id);
+      await selectSite(id);
       router.refresh();
     });
   }
 
-  if (devices.length === 0) return null;
+  if (sites.length === 0) return null;
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -57,7 +50,7 @@ export function DeviceSwitcher({
           disabled={pending}
           className="h-8 min-w-0 max-w-[140px] justify-between gap-1.5 px-2 text-sm font-medium text-foreground hover:bg-accent lg:max-w-[220px]"
         >
-          <span className="min-w-0 truncate">{selected?.label || selected?.deviceUid}</span>
+          <span className="min-w-0 truncate">{selected?.name}</span>
           {pending ? (
             <Spinner className="size-3.5 shrink-0 text-muted-foreground" />
           ) : (
@@ -67,20 +60,18 @@ export function DeviceSwitcher({
       </PopoverTrigger>
       <PopoverContent className="w-64 p-0" align="start">
         <Command>
-          <CommandInput placeholder="Find device…" />
+          <CommandInput placeholder="Find site…" />
           <CommandList>
-            <CommandEmpty>No device found.</CommandEmpty>
+            <CommandEmpty>No site found.</CommandEmpty>
             <CommandGroup>
-              {devices.map((d) => (
-                <CommandItem
-                  key={d.id}
-                  value={`${d.label ?? ""} ${d.deviceUid} ${d.siteName ?? ""}`}
-                  onSelect={() => handleSelect(d.id)}
-                >
-                  <Check className={cn("size-4 shrink-0", d.id === selected?.id ? "opacity-100" : "opacity-0")} />
+              {sites.map((s) => (
+                <CommandItem key={s.id} value={s.name} onSelect={() => handleSelect(s.id)}>
+                  <Check className={cn("size-4 shrink-0", s.id === selected?.id ? "opacity-100" : "opacity-0")} />
                   <div className="flex min-w-0 flex-col">
-                    <span className="truncate">{d.label || d.deviceUid}</span>
-                    {d.siteName && <span className="truncate text-xs text-muted-foreground">{d.siteName}</span>}
+                    <span className="truncate">{s.name}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {s.deviceCount} device{s.deviceCount === 1 ? "" : "s"}
+                    </span>
                   </div>
                 </CommandItem>
               ))}

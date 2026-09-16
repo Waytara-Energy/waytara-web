@@ -22,7 +22,7 @@ const ACCOUNT_GROUP_ITEMS = [...SECONDARY_NAV_ITEMS, SITES_NAV_ITEM];
 // itself uses, so the palette never offers a destination the plan can't
 // reach). Also surfaces the account-menu pages (Support, Billing, Settings)
 // plus Sites & Devices — none of them have a sidebar row (Sites & Devices
-// lives in the header's DeviceSwitcher instead), but they're still
+// lives in the header's SiteSwitcher instead), but they're still
 // reachable, so power-users can still jump straight there.
 export function DashboardCommandMenu({ features = {} }: { features?: Record<string, boolean> }) {
   const [open, setOpen] = React.useState(false);

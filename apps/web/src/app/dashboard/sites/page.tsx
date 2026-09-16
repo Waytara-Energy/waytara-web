@@ -26,7 +26,7 @@ export default async function SitesPage() {
   const { data: devices } = await supabase
     .from("devices")
     .select(
-      "id, site_id, device_uid, label, status, device_type:device_types(name, device_type_instruments(instrument_name, unit, is_required))"
+      "id, site_id, device_uid, label, status, device_type:stock(name, device_parameters(parameter_name, unit, is_required))"
     )
     .order("created_at", { ascending: false });
 
@@ -81,23 +81,23 @@ export default async function SitesPage() {
                       </TableHeader>
                       <TableBody>
                         {siteDevices.map((d) => {
-                          const instruments = d.device_type?.device_type_instruments ?? [];
+                          const parameters = d.device_type?.device_parameters ?? [];
                           return (
                             <TableRow key={d.id}>
                               <TableCell className="font-medium text-foreground">
-                                {instruments.length > 0 ? (
+                                {parameters.length > 0 ? (
                                   <HoverCard>
                                     <HoverCardTrigger className="cursor-default underline decoration-dotted decoration-muted-foreground underline-offset-4">
                                       {d.device_type?.name ?? "Device"}
                                     </HoverCardTrigger>
                                     <HoverCardContent className="w-72">
                                       <p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-                                        Instruments
+                                        Parameters
                                       </p>
                                       <ul className="mt-2 space-y-1 text-sm text-foreground">
-                                        {instruments.map((i) => (
-                                          <li key={i.instrument_name}>
-                                            {i.instrument_name}
+                                        {parameters.map((i) => (
+                                          <li key={i.parameter_name}>
+                                            {i.parameter_name}
                                             {i.unit ? ` (${i.unit})` : ""}
                                             {i.is_required ? " *" : ""}
                                           </li>

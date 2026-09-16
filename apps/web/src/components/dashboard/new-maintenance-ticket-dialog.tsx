@@ -20,18 +20,23 @@ import { createMaintenanceTicket } from "@/app/dashboard/maintenance/actions";
 /** Standing in for a "new ticket" form — same `createMaintenanceTicket`
  *  action as before, just inside a Dialog instead of an always-visible
  *  inline form. No more a site picker: the device (and its site) is
- *  already chosen via the header's DeviceSwitcher, so this form is just
- *  the description — shown as read-only context instead, so the customer
- *  can still confirm they're reporting against the right thing. Reopens
- *  itself (`defaultOpen={!!error}`) when the action redirects back here
- *  with an error, so the customer's typed description isn't lost behind a
- *  closed dialog they'd have to reopen themselves. */
+ *  already chosen on the Maintenance page itself (via the site switcher +
+ *  this page's own device picker), so this form is just the description —
+ *  shown as read-only context instead, so the customer can still confirm
+ *  they're reporting against the right thing. Reopens itself
+ *  (`defaultOpen={!!error}`) when the action redirects back here with an
+ *  error, so the customer's typed description isn't lost behind a closed
+ *  dialog they'd have to reopen themselves. */
 export function NewMaintenanceTicketDialog({
+  deviceId,
   deviceLabel,
+  siteId,
   siteName,
   error,
 }: {
+  deviceId: string;
   deviceLabel: string;
+  siteId: string;
   siteName: string | null;
   error?: string;
 }) {
@@ -60,7 +65,7 @@ export function NewMaintenanceTicketDialog({
           </p>
         )}
 
-        <form action={createMaintenanceTicket} className="space-y-4">
+        <form action={createMaintenanceTicket.bind(null, deviceId, siteId)} className="space-y-4">
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="description">Describe the issue</FieldLabel>

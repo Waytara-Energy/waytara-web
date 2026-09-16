@@ -51,8 +51,8 @@ export const SECONDARY_NAV_ITEMS: NavItem[] = [
   { href: "/dashboard/settings", label: "Application Settings", icon: Settings },
 ];
 
-// Sites & Devices lives in the header's DeviceSwitcher now ("Manage Sites &
-// Devices" footer link) — not in the avatar popup — but the page itself is
+// Sites & Devices isn't in the avatar popup — the header's SiteSwitcher is
+// the primary way to move between sites now — but the page itself is
 // unchanged, so it still needs a breadcrumb label and a command-palette
 // entry. Kept separate from SECONDARY_NAV_ITEMS specifically so it does
 // *not* render in the avatar popup.

@@ -5,7 +5,7 @@ import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { SessionWatcher } from "@/components/dashboard/session-watcher";
 import { RealtimeProvider } from "@waytara/ui/realtime-provider";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { getCustomerDevices, resolveSelectedDevice, SELECTED_DEVICE_COOKIE } from "@/lib/selected-device";
+import { getCustomerSites, resolveSelectedSite, SELECTED_SITE_COOKIE } from "@/lib/selected-site";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { getRequestProfile, isRequestOnboarded } from "@/lib/request-profile";
 import { logout } from "./actions";
@@ -30,8 +30,8 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  // profile and devices don't depend on each other at all.
-  const [profile, devices] = await Promise.all([getRequestProfile(), getCustomerDevices()]);
+  // profile and sites don't depend on each other at all.
+  const [profile, sites] = await Promise.all([getRequestProfile(), getCustomerSites()]);
 
   // Onboarding pipeline redesign, Phase 6: proxy.ts already redirects any
   // not-yet-onboarded customer to /dashboard/onboarding-status for every
@@ -70,13 +70,13 @@ export default async function DashboardLayout({
   const cookieStore = await cookies();
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
-  // Device is the dashboard's navigation root now — every device-scoped
-  // page resolves its own selection via getSelectedDevice() (same cookie,
+  // Site is the dashboard's navigation root now — every site-scoped page
+  // resolves its own selection via getSelectedSite() (same cookie,
   // re-fetched independently), matching this app's existing convention of
   // each page fetching its own gate/data rather than threading it down
-  // from the layout. `devices` was already fetched above (in parallel
-  // with `profile`) purely for the header switcher's list.
-  const selectedDevice = resolveSelectedDevice(devices, cookieStore.get(SELECTED_DEVICE_COOKIE)?.value);
+  // from the layout. `sites` was already fetched above (in parallel with
+  // `profile`) purely for the header switcher's list.
+  const selectedSite = resolveSelectedSite(sites, cookieStore.get(SELECTED_SITE_COOKIE)?.value);
 
   return (
     <RealtimeProvider>
@@ -95,8 +95,8 @@ export default async function DashboardLayout({
             avatarUrl={profile?.avatar_url ?? null}
             planName={customerPlan?.planName ?? null}
             features={features}
-            devices={devices.map((d) => ({ id: d.id, label: d.label, deviceUid: d.deviceUid, siteName: d.site?.name ?? null }))}
-            selectedDeviceId={selectedDevice?.id ?? null}
+            sites={sites.map((s) => ({ id: s.id, name: s.name, deviceCount: s.devices.length }))}
+            selectedSiteId={selectedSite?.id ?? null}
           />
           <main className="flex-1 overflow-y-auto">
             {/* Fades scrolled content as it passes under the header edge —

@@ -229,6 +229,47 @@ export type Database = {
           },
         ]
       }
+      device_parameters: {
+        Row: {
+          category: string | null
+          device_type_id: string
+          id: string
+          is_required: boolean
+          modbus_register: Json | null
+          parameter_key: string
+          parameter_name: string
+          unit: string | null
+        }
+        Insert: {
+          category?: string | null
+          device_type_id: string
+          id?: string
+          is_required?: boolean
+          modbus_register?: Json | null
+          parameter_key: string
+          parameter_name: string
+          unit?: string | null
+        }
+        Update: {
+          category?: string | null
+          device_type_id?: string
+          id?: string
+          is_required?: boolean
+          modbus_register?: Json | null
+          parameter_key?: string
+          parameter_name?: string
+          unit?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_type_instruments_device_type_id_fkey"
+            columns: ["device_type_id"]
+            isOneToOne: false
+            referencedRelation: "stock"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       device_readings: {
         Row: {
           created_at: string
@@ -327,74 +368,6 @@ export type Database = {
           },
         ]
       }
-      device_type_instruments: {
-        Row: {
-          category: string | null
-          device_type_id: string
-          id: string
-          instrument_key: string
-          instrument_name: string
-          is_required: boolean
-          modbus_register: Json | null
-          unit: string | null
-        }
-        Insert: {
-          category?: string | null
-          device_type_id: string
-          id?: string
-          instrument_key: string
-          instrument_name: string
-          is_required?: boolean
-          modbus_register?: Json | null
-          unit?: string | null
-        }
-        Update: {
-          category?: string | null
-          device_type_id?: string
-          id?: string
-          instrument_key?: string
-          instrument_name?: string
-          is_required?: boolean
-          modbus_register?: Json | null
-          unit?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "device_type_instruments_device_type_id_fkey"
-            columns: ["device_type_id"]
-            isOneToOne: false
-            referencedRelation: "device_types"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      device_types: {
-        Row: {
-          code: string
-          created_at: string
-          description: string | null
-          id: string
-          manufacturer: string | null
-          name: string
-        }
-        Insert: {
-          code: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          manufacturer?: string | null
-          name: string
-        }
-        Update: {
-          code?: string
-          created_at?: string
-          description?: string | null
-          id?: string
-          manufacturer?: string | null
-          name?: string
-        }
-        Relationships: []
-      }
       devices: {
         Row: {
           created_at: string
@@ -434,7 +407,7 @@ export type Database = {
             foreignKeyName: "devices_device_type_id_fkey"
             columns: ["device_type_id"]
             isOneToOne: false
-            referencedRelation: "device_types"
+            referencedRelation: "stock"
             referencedColumns: ["id"]
           },
           {
@@ -971,6 +944,87 @@ export type Database = {
           },
         ]
       }
+      stock: {
+        Row: {
+          brand: string | null
+          category: string
+          created_at: string
+          id: string
+          manufacturer: string | null
+          model: string | null
+          model_number: string | null
+          name: string
+          pack_size: number | null
+          po_reference: string | null
+          power_capacity_unit: string | null
+          power_capacity_value: number | null
+          primary_uom: string | null
+          purchase_date: string | null
+          purchase_price_amount: number | null
+          quantity: number
+          serial_number: string | null
+          size_unit: string | null
+          size_value: number | null
+          status: Database["waytara"]["Enums"]["stock_status"]
+          supplier: string | null
+          technical_specs: Json | null
+          unit_price: number | null
+          warranty_info: Json | null
+        }
+        Insert: {
+          brand?: string | null
+          category: string
+          created_at?: string
+          id?: string
+          manufacturer?: string | null
+          model?: string | null
+          model_number?: string | null
+          name: string
+          pack_size?: number | null
+          po_reference?: string | null
+          power_capacity_unit?: string | null
+          power_capacity_value?: number | null
+          primary_uom?: string | null
+          purchase_date?: string | null
+          purchase_price_amount?: number | null
+          quantity?: number
+          serial_number?: string | null
+          size_unit?: string | null
+          size_value?: number | null
+          status?: Database["waytara"]["Enums"]["stock_status"]
+          supplier?: string | null
+          technical_specs?: Json | null
+          unit_price?: number | null
+          warranty_info?: Json | null
+        }
+        Update: {
+          brand?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          manufacturer?: string | null
+          model?: string | null
+          model_number?: string | null
+          name?: string
+          pack_size?: number | null
+          po_reference?: string | null
+          power_capacity_unit?: string | null
+          power_capacity_value?: number | null
+          primary_uom?: string | null
+          purchase_date?: string | null
+          purchase_price_amount?: number | null
+          quantity?: number
+          serial_number?: string | null
+          size_unit?: string | null
+          size_value?: number | null
+          status?: Database["waytara"]["Enums"]["stock_status"]
+          supplier?: string | null
+          technical_specs?: Json | null
+          unit_price?: number | null
+          warranty_info?: Json | null
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           created_at: string
@@ -1154,6 +1208,16 @@ export type Database = {
     Functions: {
       is_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
+      update_device_site: {
+        Args: {
+          p_address: Json
+          p_device_id: string
+          p_name: string
+          p_power_source_category: Database["waytara"]["Enums"]["power_source_category"]
+          p_property_type: Database["waytara"]["Enums"]["property_type"]
+        }
+        Returns: string
+      }
     }
     Enums: {
       device_status: "test" | "active" | "offline" | "decommissioned"
@@ -1187,6 +1251,12 @@ export type Database = {
         | "rejected"
         | "expired"
         | "revision_requested"
+      stock_status:
+        | "in_stock"
+        | "allocated"
+        | "installed"
+        | "damaged"
+        | "returned"
       subscription_status: "trialing" | "active" | "past_due" | "cancelled"
       test_session_status: "running" | "verified" | "failed"
       user_role: "admin" | "employee" | "customer"
@@ -1350,6 +1420,13 @@ export const Constants = {
         "rejected",
         "expired",
         "revision_requested",
+      ],
+      stock_status: [
+        "in_stock",
+        "allocated",
+        "installed",
+        "damaged",
+        "returned",
       ],
       subscription_status: ["trialing", "active", "past_due", "cancelled"],
       test_session_status: ["running", "verified", "failed"],
