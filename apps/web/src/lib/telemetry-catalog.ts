@@ -157,6 +157,17 @@ export const TEMPERATURE_FIELDS: TemperatureField[] = [
   { key: "inverter_ac_temp_c", label: "Radiator", warnAboveC: 85 },
 ];
 
+/** Live health glance for Monitoring's Storage & Battery Telemetry section
+ *  — `battery_cycle_count` is otherwise only shown in Analytics (framed as
+ *  ROI-adjacent battery health over months); this is the same instrument
+ *  key, framed here as today's charge/discharge activity instead, not a
+ *  duplicate of that view. */
+export const BATTERY_HEALTH_FIELDS: TelemetryField[] = [
+  { key: "battery_cycle_count", label: "Cycle count" },
+  { key: "day_battery_charge_kwh", label: "Charged today", unit: "kWh", decimals: 1 },
+  { key: "day_battery_discharge_kwh", label: "Discharged today", unit: "kWh", decimals: 1 },
+];
+
 export const LIVE_CHART_FIELDS: TelemetryField[] = [
   { key: "inverter_power_w", label: "Solar Power", unit: "W" },
   { key: "battery_power_w", label: "Battery Power", unit: "W" },

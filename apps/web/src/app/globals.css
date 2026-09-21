@@ -319,3 +319,30 @@ body {
   margin-bottom: 0.5rem;
 }
 
+/* charging-sessions-carousel's animated bolt icon — a short dash traces a
+   continuous loop around the bolt's own outline (`pathLength="1"` on the
+   <path> normalizes stroke-dasharray/offset to fractions of its length, so
+   this doesn't need the bolt's real SVG path length computed by hand),
+   while the fill beneath it breathes in time — reads as "actively
+   charging" rather than a generic spinner. */
+@theme {
+  --animate-bolt-trace: bolt-trace 1.6s linear infinite;
+  --animate-bolt-fill: bolt-fill 2.2s ease-in-out infinite;
+}
+
+@keyframes bolt-trace {
+  to {
+    stroke-dashoffset: -1;
+  }
+}
+
+@keyframes bolt-fill {
+  0%,
+  100% {
+    opacity: 0.35;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+

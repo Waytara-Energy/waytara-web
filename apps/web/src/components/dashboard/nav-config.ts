@@ -1,6 +1,5 @@
 import {
   LayoutDashboard,
-  Sun,
   Wrench,
   LifeBuoy,
   CreditCard,
@@ -9,7 +8,7 @@ import {
   TrendingUp,
   BarChart3,
   FileDown,
-  SlidersHorizontal,
+  Cpu,
   type LucideIcon,
 } from "lucide-react";
 
@@ -23,9 +22,16 @@ export interface NavItem {
 
 // Single source of truth for dashboard navigation. One ordered list (not a
 // base/gated split concatenated together) because the sidebar's required
-// order interleaves gated and ungated items — Maintenance sits after
-// Reports, not grouped with the other always-on pages — so a filter that
-// preserves order beats a concat that can't express that ordering.
+// order interleaves gated and ungated items — Maintenance and Devices both
+// sit after Reports, not grouped with the other always-on pages — so a
+// filter that preserves order beats a concat that can't express that
+// ordering.
+//
+// Devices is the consolidated hub for device+site details and settings by
+// category (was three separate destinations: Devices, Sites & Devices,
+// Instrument Settings) — not feature-gated itself, since Device/Site
+// Details are always visible; the settings-editing section within it still
+// checks `features.instrument_settings` on the page itself.
 export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/monitoring", label: "Monitoring", icon: Activity, featureKey: "monitoring" },
@@ -33,12 +39,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3, featureKey: "analytics" },
   { href: "/dashboard/reports", label: "Reports", icon: FileDown, featureKey: "reports" },
   { href: "/dashboard/maintenance", label: "Maintenance", icon: Wrench },
-  {
-    href: "/dashboard/settings/instruments",
-    label: "Instrument Settings",
-    icon: SlidersHorizontal,
-    featureKey: "instrument_settings",
-  },
+  { href: "/dashboard/devices", label: "Devices", icon: Cpu },
 ];
 
 // Rendered by the avatar popup — still real pages with their own URLs, so
@@ -51,14 +52,7 @@ export const SECONDARY_NAV_ITEMS: NavItem[] = [
   { href: "/dashboard/settings", label: "Application Settings", icon: Settings },
 ];
 
-// Sites & Devices isn't in the avatar popup — the header's SiteSwitcher is
-// the primary way to move between sites now — but the page itself is
-// unchanged, so it still needs a breadcrumb label and a command-palette
-// entry. Kept separate from SECONDARY_NAV_ITEMS specifically so it does
-// *not* render in the avatar popup.
-export const SITES_NAV_ITEM: NavItem = { href: "/dashboard/sites", label: "Sites & Devices", icon: Sun };
-
-export const ALL_NAV: NavItem[] = [...NAV_ITEMS, ...SECONDARY_NAV_ITEMS, SITES_NAV_ITEM];
+export const ALL_NAV: NavItem[] = [...NAV_ITEMS, ...SECONDARY_NAV_ITEMS];
 
 /** Sidebar + command palette's primary list. */
 export function visibleNavItems(features: Record<string, boolean>): NavItem[] {
@@ -66,8 +60,7 @@ export function visibleNavItems(features: Record<string, boolean>): NavItem[] {
 }
 
 /** Command palette's full reach — primary items plus every account-menu
- *  page (including Sites & Devices, even though it isn't in the avatar
- *  popup) — none of which are feature-gated, so nothing extra to filter. */
+ *  page — none of which are feature-gated, so nothing extra to filter. */
 export function allReachableNavItems(features: Record<string, boolean>): NavItem[] {
-  return [...visibleNavItems(features), ...SECONDARY_NAV_ITEMS, SITES_NAV_ITEM];
+  return [...visibleNavItems(features), ...SECONDARY_NAV_ITEMS];
 }

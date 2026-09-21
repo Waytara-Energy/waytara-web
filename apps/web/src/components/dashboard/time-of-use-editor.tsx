@@ -10,7 +10,7 @@ import { Switch } from "@/components/ui/switch";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CHARGE_SOURCE_OPTIONS } from "@/lib/instrument-settings-catalog";
 import type { TouSlot } from "@/lib/time-of-use";
-import { updateTimeOfUse } from "@/app/dashboard/settings/instruments/actions";
+import { updateTimeOfUse } from "@/app/dashboard/devices/[deviceId]/actions";
 
 /** Prog1-6 Time-of-Use schedule, edited and saved as one set (not per-row
  *  like the generic catalog fields) — validated client-side for instant

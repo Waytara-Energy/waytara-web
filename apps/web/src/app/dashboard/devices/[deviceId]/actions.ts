@@ -10,8 +10,6 @@ import { getModbusRegister } from "@/lib/modbus-register-map";
 import { TOU_PROGRAM_COUNT, validateTouSlots, type TouSlot } from "@/lib/time-of-use";
 import { PROPERTY_TYPE_LABELS, POWER_SOURCE_LABELS, POWER_PACKAGE_LABELS, type SiteAddress } from "@/lib/site-catalog";
 
-const INSTRUMENTS_PATH = "/dashboard/settings/instruments";
-
 // A site can have more than one device now, so there's no single
 // cookie-resolved "current device" to trust the way there used to be —
 // every action here takes an explicit deviceId (bound server-side from the
@@ -38,9 +36,11 @@ export async function updateSiteSetting(deviceId: string, formData: FormData) {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
+  const devicePath = `/dashboard/devices/${deviceId}`;
+
   const device = await resolveOwnDevice(deviceId);
   if (!device) {
-    redirect(`${INSTRUMENTS_PATH}?error=${encodeURIComponent("No device selected.")}`);
+    redirect(`/dashboard/devices?error=${encodeURIComponent("No device selected.")}`);
   }
 
   const siteName = String(formData.get("siteName") ?? "").trim();
@@ -52,16 +52,16 @@ export async function updateSiteSetting(deviceId: string, formData: FormData) {
   const longitudeRaw = String(formData.get("longitude") ?? "").trim();
 
   if (!siteName) {
-    redirect(`${INSTRUMENTS_PATH}?error=${encodeURIComponent("Site name can't be empty.")}`);
+    redirect(`${devicePath}?error=${encodeURIComponent("Site name can't be empty.")}`);
   }
   if (!(propertyType in PROPERTY_TYPE_LABELS)) {
-    redirect(`${INSTRUMENTS_PATH}?error=${encodeURIComponent("Invalid property type.")}`);
+    redirect(`${devicePath}?error=${encodeURIComponent("Invalid property type.")}`);
   }
   if (!(powerSourceCategory in POWER_SOURCE_LABELS)) {
-    redirect(`${INSTRUMENTS_PATH}?error=${encodeURIComponent("Invalid power source category.")}`);
+    redirect(`${devicePath}?error=${encodeURIComponent("Invalid power source category.")}`);
   }
   if (powerPackageRaw && !(powerPackageRaw in POWER_PACKAGE_LABELS)) {
-    redirect(`${INSTRUMENTS_PATH}?error=${encodeURIComponent("Invalid power package.")}`);
+    redirect(`${devicePath}?error=${encodeURIComponent("Invalid power package.")}`);
   }
   const powerPackage = powerPackageRaw || null;
   const latitude = latitudeRaw ? Number(latitudeRaw) : null;
@@ -96,7 +96,7 @@ export async function updateSiteSetting(deviceId: string, formData: FormData) {
   });
 
   if (siteError) {
-    redirect(`${INSTRUMENTS_PATH}?error=${encodeURIComponent(siteError.message)}`);
+    redirect(`${devicePath}?error=${encodeURIComponent(siteError.message)}`);
   }
 
   const { error: deviceError } = await supabase
@@ -105,19 +105,19 @@ export async function updateSiteSetting(deviceId: string, formData: FormData) {
     .eq("id", device.id);
 
   if (deviceError) {
-    redirect(`${INSTRUMENTS_PATH}?error=${encodeURIComponent(deviceError.message)}`);
+    redirect(`${devicePath}?error=${encodeURIComponent(deviceError.message)}`);
   }
 
-  revalidatePath(INSTRUMENTS_PATH);
-  revalidatePath("/dashboard/sites");
+  revalidatePath(devicePath);
+  revalidatePath("/dashboard/devices");
   revalidatePath("/dashboard", "layout"); // header switcher shows the site's device count
-  redirect(`${INSTRUMENTS_PATH}?success=1&device=${device.id}`);
+  redirect(`${devicePath}?success=1`);
 }
 
-// ---- Basic/Battery/System Work Mode/Grid/Gen tabs: one setting per call,
-// invoked directly from a client component (not a <form>) so saving one
-// of ~25 fields doesn't redirect the whole page — mirrors selectSite's
-// direct-call pattern from the header switcher. ----
+// ---- Per-category settings tabs: one setting per call, invoked directly
+// from a client component (not a <form>) so saving one of many fields
+// doesn't redirect the whole page — mirrors selectSite's direct-call
+// pattern from the header switcher. ----
 
 export async function updateDeviceSetting(
   deviceId: string,
@@ -132,6 +132,7 @@ export async function updateDeviceSetting(
 
   const field = getSettingFields(device.deviceType?.category ?? "").find((f) => f.key === settingKey);
   if (!field) return { error: "Unknown setting." };
+  if (field.readOnly) return { error: `${field.label} is read-only.` };
 
   const value = settingValue.trim();
   if (!value) return { error: "Value can't be empty." };
@@ -188,7 +189,7 @@ export async function updateDeviceSetting(
 
   if (error) return { error: error.message };
 
-  revalidatePath(INSTRUMENTS_PATH);
+  revalidatePath(`/dashboard/devices/${deviceId}`);
   return { ok: true };
 }
 
@@ -230,6 +231,6 @@ export async function updateTimeOfUse(deviceId: string, slots: TouSlot[]): Promi
   const { error } = await supabase.from("device_settings").insert(rows);
   if (error) return { error: error.message };
 
-  revalidatePath(INSTRUMENTS_PATH);
+  revalidatePath(`/dashboard/devices/${deviceId}`);
   return { ok: true };
 }

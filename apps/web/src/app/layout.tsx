@@ -70,6 +70,7 @@ export default function RootLayout({
     >
       <body
         className={`${ACTIVE_BRAND_FONT.className} min-h-screen bg-theme-bg text-theme-primary antialiased selection:bg-emerald-500 selection:text-white`}
+        suppressHydrationWarning
       >
         <ThemeProvider
           attribute="class"

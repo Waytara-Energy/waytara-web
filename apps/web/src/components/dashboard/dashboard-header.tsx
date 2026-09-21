@@ -2,7 +2,9 @@ import { SidebarTrigger } from "@/components/ui/sidebar";
 import { DashboardBreadcrumb } from "./dashboard-breadcrumb";
 import { DashboardCommandMenu } from "./dashboard-command-menu";
 import { DashboardUserMenu } from "./dashboard-user-menu";
+import { NotificationCenter } from "./notification-center";
 import { SiteSwitcher, type SwitcherSite } from "./site-switcher";
+import type { AlertRow } from "./recent-alerts";
 
 // `minmax(0,1fr) auto minmax(0,1fr)` centers the breadcrumb on the
 // header's true midpoint regardless of how wide the flanking clusters are
@@ -20,6 +22,8 @@ export function DashboardHeader({
   features,
   sites,
   selectedSiteId,
+  alertDeviceIds,
+  initialAlerts,
 }: {
   fullName: string | null;
   email: string | null;
@@ -28,6 +32,11 @@ export function DashboardHeader({
   features: Record<string, boolean>;
   sites: SwitcherSite[];
   selectedSiteId: string | null;
+  /** Every device across every one of the customer's sites — the
+   *  notification bell isn't scoped to whichever site is selected, since
+   *  it's mounted once here in the layout, not per-page. */
+  alertDeviceIds: string[];
+  initialAlerts: AlertRow[];
 }) {
   return (
     <header className="grid h-[clamp(3.5rem,4.5vw,4.25rem)] shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 bg-background px-4">
@@ -44,6 +53,7 @@ export function DashboardHeader({
         <DashboardBreadcrumb />
       </div>
       <div className="col-start-3 flex items-center justify-end gap-2">
+        <NotificationCenter deviceIds={alertDeviceIds} initialAlerts={initialAlerts} />
         <DashboardCommandMenu features={features} />
         <DashboardUserMenu fullName={fullName} email={email} avatarUrl={avatarUrl} planName={planName} />
       </div>

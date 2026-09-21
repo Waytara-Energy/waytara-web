@@ -9,14 +9,17 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import type { SettingField } from "@/lib/instrument-settings-catalog";
-import { updateDeviceSetting } from "@/app/dashboard/settings/instruments/actions";
+import { updateDeviceSetting } from "@/app/dashboard/devices/[deviceId]/actions";
 
-/** One row in a Deye settings tab (Basic/Battery/System Work Mode/Grid/
- *  Gen) — number/select/toggle, each saving independently via a direct
- *  server-action call (not a native form submit) so ~25 fields across 5
- *  tabs don't mean 25 full-page redirects. Select/toggle save immediately
- *  on change; number needs an explicit Save so typing doesn't fire a
- *  write per keystroke. */
+/** One row in a device's settings tab (Deye's Basic/Battery/System Work
+ *  Mode/Grid/Gen, or an EV charger's OCPP Configuration) —
+ *  number/select/toggle/text, each saving independently via a direct
+ *  server-action call (not a native form submit) so a tab with many fields
+ *  doesn't mean many full-page redirects. Select/toggle save immediately
+ *  on change; number/text need an explicit Save so typing doesn't fire a
+ *  write per keystroke. `readOnly` fields (OCPP keys the spec itself marks
+ *  Read-Only) skip the input entirely and just show the current value —
+ *  the device reports these, a customer can't change them. */
 export function SettingFieldRow({
   deviceId,
   field,
@@ -40,6 +43,21 @@ export function SettingFieldRow({
         toast.success(`${field.label} saved.`);
       }
     });
+  }
+
+  if (field.readOnly) {
+    return (
+      <Field orientation="responsive">
+        <FieldLabel>
+          {field.label}
+          {field.unit ? ` (${field.unit})` : ""}
+        </FieldLabel>
+        <FieldContent>
+          <p className="text-sm text-foreground">{currentValue || "—"}</p>
+          {field.helpText && <FieldDescription>{field.helpText}</FieldDescription>}
+        </FieldContent>
+      </Field>
+    );
   }
 
   return (
@@ -79,7 +97,7 @@ export function SettingFieldRow({
           <div className="flex max-w-xs items-center gap-2">
             <Input
               id={fieldId}
-              type="number"
+              type={field.type === "text" ? "text" : "number"}
               min={field.min}
               max={field.max}
               step={field.step}

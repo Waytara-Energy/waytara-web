@@ -104,6 +104,50 @@ export type Database = {
           },
         ]
       }
+      charging_sessions: {
+        Row: {
+          created_at: string
+          device_id: string
+          end_energy_kwh: number | null
+          ended_at: string | null
+          id: string
+          is_test: boolean
+          start_energy_kwh: number | null
+          started_at: string
+          stop_reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          device_id: string
+          end_energy_kwh?: number | null
+          ended_at?: string | null
+          id?: string
+          is_test?: boolean
+          start_energy_kwh?: number | null
+          started_at: string
+          stop_reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          device_id?: string
+          end_energy_kwh?: number | null
+          ended_at?: string | null
+          id?: string
+          is_test?: boolean
+          start_energy_kwh?: number | null
+          started_at?: string
+          stop_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "charging_sessions_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_onboarding: {
         Row: {
           balance_payment_status: string

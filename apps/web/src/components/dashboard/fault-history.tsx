@@ -1,3 +1,4 @@
+import { ShieldCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import type { FaultEvent } from "@/lib/deye-fault-codes";
 
@@ -11,7 +12,15 @@ function formatDate(ts: string): string {
  *  code/label/description vocabulary in both places. */
 export function FaultHistory({ events }: { events: FaultEvent[] }) {
   if (events.length === 0) {
-    return <p className="py-4 text-center text-sm text-muted-foreground">No faults reported in this window.</p>;
+    return (
+      <div className="flex flex-col items-center gap-2 py-8 text-center">
+        <span className="flex size-10 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+          <ShieldCheck className="size-5" />
+        </span>
+        <p className="text-sm font-medium text-theme-primary">No faults reported</p>
+        <p className="text-xs text-theme-muted">This device has been running clean over this window.</p>
+      </div>
+    );
   }
 
   return (

@@ -3,11 +3,21 @@ import { SkeletonCard, SkeletonChart, SkeletonPageHeader } from "@/components/da
 
 export default function Loading() {
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <SkeletonPageHeader />
         <Skeleton className="h-6 w-28 rounded-full" />
       </div>
+
+      <div className="flex flex-wrap gap-1.5">
+        {[0, 1, 2, 3, 4, 5, 6].map((i) => (
+          <Skeleton key={i} className="h-6 w-20 rounded-full" />
+        ))}
+      </div>
+
+      <SkeletonCard>
+        <SkeletonChart />
+      </SkeletonCard>
 
       <SkeletonCard>
         <SkeletonChart />

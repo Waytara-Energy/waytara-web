@@ -9,19 +9,22 @@ import "server-only";
 export interface GeocodedLocation {
   latitude: number;
   longitude: number;
-  timezone: string;
 }
 
 export interface CurrentWeather {
   tempC: number;
   code: number;
   isDay: boolean;
+  /** Resolved by the forecast call itself (`timezone=auto`) from whichever
+   *  coordinates were passed in — one less round trip than asking the
+   *  geocoder for it separately, and it works just as well for a site's
+   *  own lat/long as for a geocoded city. */
+  timezone: string;
 }
 
 interface GeocodeResult {
   latitude: number;
   longitude: number;
-  timezone: string;
   name: string;
   admin1?: string;
 }
@@ -43,11 +46,17 @@ export async function geocodeCity(city: string, state?: string): Promise<Geocode
     // Prefer a result whose state/region matches, when we have one to check
     // against — a bare city name alone can match places in several states.
     const match = (state && results.find((r) => r.admin1?.toLowerCase().includes(state.trim().toLowerCase()))) || results[0];
-    return { latitude: match.latitude, longitude: match.longitude, timezone: match.timezone };
+    return { latitude: match.latitude, longitude: match.longitude };
   } catch {
     return null;
   }
 }
+
+// 30 min — matches the auto-refresh interval on the pages that render
+// this (see IntervalRefresh), so a client left open picks up genuinely
+// new data each time it refreshes rather than replaying the same cached
+// response.
+const WEATHER_REVALIDATE_SECONDS = 60 * 30;
 
 export async function getCurrentWeather(latitude: number, longitude: number): Promise<CurrentWeather | null> {
   try {
@@ -55,14 +64,16 @@ export async function getCurrentWeather(latitude: number, longitude: number): Pr
     url.searchParams.set("latitude", String(latitude));
     url.searchParams.set("longitude", String(longitude));
     url.searchParams.set("current", "temperature_2m,weather_code,is_day");
-    const res = await fetch(url, { next: { revalidate: 60 * 20 } });
+    url.searchParams.set("timezone", "auto");
+    const res = await fetch(url, { next: { revalidate: WEATHER_REVALIDATE_SECONDS } });
     if (!res.ok) return null;
-    const json: { current?: { temperature_2m: number; weather_code: number; is_day: number } } = await res.json();
+    const json: { current?: { temperature_2m: number; weather_code: number; is_day: number }; timezone?: string } = await res.json();
     if (!json.current) return null;
     return {
       tempC: Math.round(json.current.temperature_2m),
       code: json.current.weather_code,
       isDay: json.current.is_day === 1,
+      timezone: json.timezone ?? "UTC",
     };
   } catch {
     return null;

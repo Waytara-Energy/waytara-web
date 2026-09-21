@@ -11,15 +11,30 @@ function toTitleCase(value: string): string {
 // Replaces the old "Welcome, {name} / {device} · {type} · {site}" header —
 // the device switcher up in the dashboard header already shows which
 // device/site is selected, so that line was redundant here. Live current
-// conditions for the site's own address instead: geocoded once (cached for
-// 30 days) into coordinates + a timezone, then a short-lived weather fetch
-// against those coordinates. Both calls are free/keyless (Open-Meteo). The
-// heading itself is now "{city} · {site name}" (e.g. "Chennai · Waytara
-// Office Roof") instead of a generic "Weather Today" label, so it doubles
-// as confirmation of which of the customer's sites this is for.
-export async function WeatherHeader({ address, siteName }: { address: SiteAddress | null; siteName: string | null }) {
+// conditions for the site's own location instead: the site's own
+// latitude/longitude (set via EnableLocationButton on a device's Site
+// Setting tab, under Devices) when it has one — no geocoding needed, straight to the forecast call —
+// falling back to geocoding the address's city (cached 30 days) only when
+// the site has no coordinates yet. Both calls are free/keyless
+// (Open-Meteo). The heading itself is "{city} · {site name}" (e.g.
+// "Chennai · Waytara Office Roof") instead of a generic "Weather Today"
+// label, so it doubles as confirmation of which of the customer's sites
+// this is for — city comes from the address either way (not reverse-
+// geocoded from coordinates), so it's still shown even when lat/long is
+// what drove the actual forecast lookup.
+export async function WeatherHeader({
+  address,
+  siteName,
+  latitude,
+  longitude,
+}: {
+  address: SiteAddress | null;
+  siteName: string | null;
+  latitude: number | null;
+  longitude: number | null;
+}) {
   const city = address?.city?.trim();
-  const location = city ? await geocodeCity(city, address?.state) : null;
+  const location = latitude !== null && longitude !== null ? { latitude, longitude } : city ? await geocodeCity(city, address?.state) : null;
   const weather = location ? await getCurrentWeather(location.latitude, location.longitude) : null;
   const heading = [city ? toTitleCase(city) : null, siteName].filter(Boolean).join(" · ") || "Weather Today";
 
@@ -29,8 +44,8 @@ export async function WeatherHeader({ address, siteName }: { address: SiteAddres
         <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{heading}</p>
         <p className="mt-1 text-sm text-foreground">
           Add your site address in{" "}
-          <Link href="/dashboard/settings/instruments" className="font-medium underline underline-offset-2 hover:text-foreground">
-            Settings
+          <Link href="/dashboard/devices" className="font-medium underline underline-offset-2 hover:text-foreground">
+            Devices
           </Link>{" "}
           to see local weather here.
         </p>
@@ -40,8 +55,8 @@ export async function WeatherHeader({ address, siteName }: { address: SiteAddres
 
   const condition = describeWeatherCode(weather.code, weather.isDay);
   const now = new Date();
-  const timeLabel = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: location.timezone }).format(now);
-  const dateLabel = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: location.timezone }).format(now);
+  const timeLabel = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: weather.timezone }).format(now);
+  const dateLabel = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: weather.timezone }).format(now);
 
   return (
     <div>

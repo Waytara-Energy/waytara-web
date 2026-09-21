@@ -1,34 +1,33 @@
 import { Zap } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { getSelectedSite, deviceDisplayId } from "@/lib/selected-site";
+import { getSelectedSite } from "@/lib/selected-site";
 import { getRequestProfile } from "@/lib/request-profile";
-import { fetchDeviceOverview } from "@/lib/device-overview";
-import { Card, CardContent } from "@/components/ui/card";
-import { Separator } from "@/components/ui/separator";
+import { fetchSiteOverview, fetchTodayChargingSessions, fetchRecentChargingStats } from "@/lib/device-overview";
+import { getCustomerPlan } from "@/lib/customer-plan";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { DeviceStatusPill } from "@/components/dashboard/device-status-pill";
-import { DeviceDetailsCard } from "@/components/dashboard/device-details-card";
 import { WeatherHeader } from "@/components/dashboard/weather-header";
 import { FaultBanner } from "@/components/dashboard/fault-banner";
 import { EnergyFlowDiagram } from "@/components/dashboard/energy-flow-diagram";
-import { TodaySoFar } from "@/components/dashboard/today-so-far";
-import { RecentAlerts } from "@/components/dashboard/recent-alerts";
+import { SolarLiveStatusCards } from "@/components/dashboard/solar-live-status-cards";
+import { EvLiveStatusCards } from "@/components/dashboard/ev-live-status-cards";
+import { PowerGenerationChart } from "@/components/dashboard/lazy-charts";
+import { ChargingSessionsCarousel } from "@/components/dashboard/charging-sessions-carousel";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
+import { IntervalRefresh } from "@/components/dashboard/interval-refresh";
+
+const WEATHER_REFRESH_MS = 30 * 60 * 1000;
 
 // Site-centric redesign: Overview is now the selected *site*'s overview —
 // a customer can have several sites, and each site can have several
-// devices (a real install is rarely just one instrument). The site's
-// weather sits at the top (its own location, so it belongs here rather
-// than per device), then the *primary* device's full detail — the energy
-// flow diagram, status, fault banner, today's totals, recent alerts —
-// rendered directly on this page. "Primary" prefers a solar inverter
-// (what the diagram's wiring represents) and falls back to the site's
-// first device otherwise.
-//
-// Every device at the site — primary included — also gets a plain status
-// card below: there's no per-device detail page anymore (removed once the
-// diagram above started covering the whole site's picture on its own,
-// EV charger included), so these are read-only, not links to anywhere.
+// devices (a real install is rarely just one instrument). There's no
+// per-device filter here anymore (that's what the Devices module is for,
+// see /dashboard/devices) — Overview always shows the site's *combined*
+// picture: the site's weather up top (its own location, so it belongs here
+// rather than per device), then every inverter's flow/energy numbers and
+// every charger's power summed into one energy-flow diagram
+// (fetchSiteOverview), and recent alerts pooled across every device at
+// the site.
 export default async function DashboardOverviewPage() {
   const supabase = await createClient();
   // Independent of each other — getRequestProfile is cache()-deduped
@@ -60,53 +59,52 @@ export default async function DashboardOverviewPage() {
     );
   }
 
-  const primaryDevice = site.devices.find((d) => d.deviceType?.category === "solar_inverter") ?? site.devices[0] ?? null;
   const deviceIds = site.devices.map((d) => d.id);
-
-  // Independent of `overview` below — one status snapshot (inverter_state,
-  // active_fault_code) across every device at the site, latest-per-
-  // (device,key), for the cards; the primary device's own status pill up
-  // top comes from `overview` instead (already reading the same two keys
-  // for the fault banner), so it isn't refetched here.
-  const [overview, statusReadings] = await Promise.all([
-    primaryDevice ? fetchDeviceOverview(supabase, site, primaryDevice) : null,
-    deviceIds.length > 0
-      ? supabase
-          .from("device_readings")
-          .select("device_id, instrument_key, value, ts")
-          .in("device_id", deviceIds)
-          .in("instrument_key", ["inverter_state", "active_fault_code"])
-          .order("ts", { ascending: false })
-          .limit(deviceIds.length * 10)
-          .then((r) => r.data)
-      : Promise.resolve([]),
+  const chargerIds = site.devices.filter((d) => d.deviceType?.category === "ev_charger").map((d) => d.id);
+  const inverterId = site.devices.find((d) => d.deviceType?.category === "solar_inverter")?.id;
+  const [overview, chargingSummary, recentChargingStats, customerPlan] = await Promise.all([
+    deviceIds.length > 0 ? fetchSiteOverview(supabase, site) : Promise.resolve(null),
+    chargerIds.length > 0 ? fetchTodayChargingSessions(supabase, chargerIds[0]) : Promise.resolve(null),
+    chargerIds.length > 0 ? fetchRecentChargingStats(supabase, chargerIds[0]) : Promise.resolve(null),
+    getCustomerPlan(),
   ]);
-
-  const latestStatus = new Map<string, number | null>(); // `${deviceId}:${instrumentKey}` -> value
-  for (const r of statusReadings ?? []) {
-    const key = `${r.device_id}:${r.instrument_key}`;
-    if (!latestStatus.has(key)) latestStatus.set(key, r.value);
-  }
+  const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
 
   return (
     <div className="space-y-6">
       {/* device_readings isn't safe to hand-patch here — the energy flow
-          diagram, "today so far" tiles, and every card's status pill are
-          all derived (latest-per-key, formatted) from a raw insert
-          payload, so a new reading debounce-refreshes the whole page
-          instead. */}
+          diagram and the status pill are both derived (latest-per-key,
+          summed/averaged across devices) from a raw insert payload, so a
+          new reading debounce-refreshes the whole page instead. */}
       {deviceIds.length > 0 && (
         <RealtimeRefresh table="device_readings" event="INSERT" filter={`device_id=in.(${deviceIds.join(",")})`} />
       )}
+      {/* charging_sessions isn't reflected in device_readings at all (it's
+          a derived table, not a raw reading) — a session opening is an
+          INSERT, closing is an UPDATE on that same row, so both need their
+          own subscription for "Energy Delivered Today" and the EV cards to
+          catch up the moment a session starts or ends, not just whenever
+          the next device_readings tick happens to land. */}
+      {chargerIds.length > 0 && (
+        <>
+          <RealtimeRefresh table="charging_sessions" event="INSERT" filter={`device_id=in.(${chargerIds.join(",")})`} />
+          <RealtimeRefresh table="charging_sessions" event="UPDATE" filter={`device_id=in.(${chargerIds.join(",")})`} />
+        </>
+      )}
+      {/* Weather comes from an external API, not a table this app owns —
+          nothing to subscribe to, so it's kept current on a plain timer
+          instead (see WEATHER_REFRESH_MS / getCurrentWeather's own cache
+          window in @/lib/weather). */}
+      <IntervalRefresh intervalMs={WEATHER_REFRESH_MS} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <WeatherHeader address={site.address} siteName={site.name} />
-        {primaryDevice && overview && (
+        <WeatherHeader address={site.address} siteName={site.name} latitude={site.latitude} longitude={site.longitude} />
+        {overview && (
           <DeviceStatusPill inverterState={overview.get("inverter_state")} activeFaultCode={overview.get("active_fault_code")} />
         )}
       </div>
 
-      {!primaryDevice || !overview ? (
+      {!overview ? (
         <Empty className="border">
           <EmptyHeader>
             <EmptyMedia variant="icon">
@@ -118,8 +116,6 @@ export default async function DashboardOverviewPage() {
         </Empty>
       ) : (
         <>
-          <DeviceDetailsCard device={primaryDevice} />
-
           <FaultBanner faultCode={overview.get("active_fault_code")} />
 
           <EnergyFlowDiagram
@@ -133,47 +129,27 @@ export default async function DashboardOverviewPage() {
             powerSourceCategory={site.powerSourceCategory}
           />
 
-          <TodaySoFar get={overview.get} />
+          <SolarLiveStatusCards supabase={supabase} site={site} />
 
-          <Separator />
+          <EvLiveStatusCards supabase={supabase} site={site} />
 
-          <div>
-            <h2 className="mb-3 text-sm font-semibold text-foreground">Recent Alerts</h2>
-            <RecentAlerts deviceId={primaryDevice.id} initialAlerts={overview.recentAlerts} />
-          </div>
-        </>
-      )}
+          {inverterId && <PowerGenerationChart deviceId={inverterId} />}
 
-      {site.devices.length > 0 && (
-        <>
-          <Separator />
-          <div>
-            <h2 className="mb-3 text-sm font-semibold text-foreground">Devices at {site.name}</h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {site.devices.map((d) => (
-                <Card key={d.id}>
-                  <CardContent className="p-4">
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-foreground">{deviceDisplayId(d)}</p>
-                      <p className="mt-0.5 text-xs text-muted-foreground">
-                        {d.deviceType?.name ?? "Device"}
-                        {d.deviceType?.manufacturer ? ` · ${d.deviceType.manufacturer}` : ""}
-                      </p>
-                      {d.deviceType?.serialNumber && (
-                        <p className="mt-0.5 text-xs text-muted-foreground">Serial {d.deviceType.serialNumber}</p>
-                      )}
-                    </div>
-                    <div className="mt-3">
-                      <DeviceStatusPill
-                        inverterState={latestStatus.get(`${d.id}:inverter_state`) ?? null}
-                        activeFaultCode={latestStatus.get(`${d.id}:active_fault_code`) ?? null}
-                      />
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </div>
+          {chargerIds.length > 0 && (
+            <ChargingSessionsCarousel
+              deviceId={chargerIds[0]}
+              sessions={chargingSummary?.sessions ?? []}
+              ratedPowerW={chargingSummary?.ratedPowerW ?? null}
+              currentPowerW={chargingSummary?.currentPowerW ?? null}
+              currentA={chargingSummary?.currentA ?? null}
+              voltageV={chargingSummary?.voltageV ?? null}
+              temperatureC={chargingSummary?.temperatureC ?? null}
+              connectorStatus={chargingSummary?.connectorStatus ?? null}
+              tariffRate={tariffRate}
+              showCost={site.propertyType !== "residential_independent_villas"}
+              recentStats={recentChargingStats}
+            />
+          )}
         </>
       )}
     </div>

@@ -1,4 +1,5 @@
 import { cookies } from "next/headers";
+import { createClient } from "@waytara/supabase/server";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
@@ -8,6 +9,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { getCustomerSites, resolveSelectedSite, SELECTED_SITE_COOKIE } from "@/lib/selected-site";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { getRequestProfile, isRequestOnboarded } from "@/lib/request-profile";
+import { fetchCustomerAlerts } from "@/lib/device-overview";
 import { logout } from "./actions";
 
 // Reachable only as a `customer` profile — middleware.ts enforces that.
@@ -62,12 +64,22 @@ export default async function DashboardLayout({
 
   const features = customerPlan?.features ?? {};
 
+  // Every device across every site the customer has — the header's
+  // notification bell isn't scoped to whichever site happens to be
+  // selected (it's mounted once here, outside any single site's page), so
+  // it needs the full set, not just the selected site's own devices.
+  const allDeviceIds = sites.flatMap((s) => s.devices.map((d) => d.id));
+
   // Dashboard redesign Phase 1: SidebarProvider's own state defaults to
   // open every load unless told otherwise — reading its cookie here (the
   // exact cookie it writes on toggle, see sidebar.tsx's SIDEBAR_COOKIE_NAME)
   // is what makes a collapsed sidebar stay collapsed across a reload
-  // instead of springing back open.
-  const cookieStore = await cookies();
+  // instead of springing back open. Runs alongside the alerts fetch below
+  // since neither depends on the other.
+  const [cookieStore, initialAlerts] = await Promise.all([
+    cookies(),
+    createClient().then((supabase) => fetchCustomerAlerts(supabase, allDeviceIds)),
+  ]);
   const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
 
   // Site is the dashboard's navigation root now — every site-scoped page
@@ -97,6 +109,8 @@ export default async function DashboardLayout({
             features={features}
             sites={sites.map((s) => ({ id: s.id, name: s.name, deviceCount: s.devices.length }))}
             selectedSiteId={selectedSite?.id ?? null}
+            alertDeviceIds={allDeviceIds}
+            initialAlerts={initialAlerts}
           />
           <main className="flex-1 overflow-y-auto">
             {/* Fades scrolled content as it passes under the header edge —

@@ -9,17 +9,8 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { NewMaintenanceTicketDialog } from "@/components/dashboard/new-maintenance-ticket-dialog";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
-import { FaultBanner } from "@/components/dashboard/fault-banner";
-import { FaultHistory } from "@/components/dashboard/fault-history";
-import { LastSyncIndicator } from "@/components/dashboard/last-sync-indicator";
-import { SdStatusIndicator } from "@/components/dashboard/sd-status-indicator";
-import { TemperatureGauge } from "@/components/dashboard/temperature-gauge";
-import { getLastSyncInfo } from "@/lib/device-sync";
-import { deriveFaultEvents } from "@/lib/deye-fault-codes";
-import { TEMPERATURE_FIELDS } from "@/lib/telemetry-catalog";
+import { DeviceHealthContent } from "@/components/dashboard/device-health-content";
 import { getServiceStatus, type ServiceStatus } from "@/lib/service-status";
-
-const FAULT_HISTORY_DAYS = 90;
 
 const STATUS_BADGE_VARIANT: Record<string, "alert" | "default" | "secondary"> = {
   open: "alert",
@@ -32,12 +23,13 @@ const STATUS_BADGE_VARIANT: Record<string, "alert" | "default" | "secondary"> = 
 // the selected device's device_id rather than every ticket across every
 // site the customer owns.
 //
-// Telemetry-driven redesign (Phase 12, final phase of this arc): a "Device
-// Health" section now sits above the ticket list — the current fault
-// status (FaultBanner, reused from Overview), temperature trends against
-// the manual's safe-operating ceilings, and a last-sync indicator so a
-// customer can tell "the inverter is fine, the connection dropped" from
-// "the inverter has a fault" at a glance, per the user's own spec.
+// Phase 5 of the multi-device-type dashboard roadmap: "Device Health" is
+// now category-aware via DeviceHealthContent — solar_inverter keeps the
+// fault banner/history, temperature trends, and SD-card status (Phase 12's
+// original build); ev_charger gets its own connector-status/error-code
+// health view. The ticket list and service-contract section below are
+// already device-agnostic (maintenance_tickets/service_contracts aren't
+// tied to any one category), so they're untouched.
 export default async function MaintenancePage({
   searchParams,
 }: {
@@ -48,88 +40,20 @@ export default async function MaintenancePage({
   const supabase = await createClient();
 
   let tickets: { id: string; description: string | null; status: string; type: string; created_at: string }[] | null = null;
-  let activeFaultCode: number | null = null;
-  let sdStatus: number | null = null;
-  let currentTemps = new Map<string, number | null>();
-  let previousTemps = new Map<string, number | null>();
-  let lastSync = null as Awaited<ReturnType<typeof getLastSyncInfo>> | null;
-  let faultEvents: ReturnType<typeof deriveFaultEvents> = [];
   let serviceStatus: ServiceStatus | null = null;
 
   if (device) {
-    const tempKeys = TEMPERATURE_FIELDS.map((f) => f.key);
-
-    // A day ago (±2h window), for the temperature trend arrows.
-    const dayAgo = new Date(Date.now() - 24 * 3600 * 1000);
-    const windowStart = new Date(dayAgo.getTime() - 2 * 3600 * 1000).toISOString();
-    const windowEnd = new Date(dayAgo.getTime() + 2 * 3600 * 1000).toISOString();
-
-    const faultSince = new Date();
-    faultSince.setUTCDate(faultSince.getUTCDate() - FAULT_HISTORY_DAYS);
-
-    // Five reads, all scoped to this one device, none depending on
-    // another's result (or on `tickets`, which doesn't touch
-    // device_readings at all) — one round trip instead of five.
-    const [
-      { data: ticketRows },
-      { data: latestRows },
-      { data: faultRows },
-      { data: pastRows },
-      resolvedLastSync,
-    ] = await Promise.all([
+    const [{ data: ticketRows }] = await Promise.all([
       supabase
         .from("maintenance_tickets")
         .select("id, description, status, type, created_at")
         .eq("device_id", device.id)
         .order("created_at", { ascending: false }),
-      supabase
-        .from("device_readings")
-        .select("instrument_key, value, ts")
-        .eq("device_id", device.id)
-        .in("instrument_key", ["active_fault_code", "sd_status", ...tempKeys])
-        .order("ts", { ascending: false })
-        .limit((tempKeys.length + 2) * 5),
-      // Fault *history*, not just the current state — every
-      // active_fault_code reading in the window, collapsed into discrete
-      // episodes (deriveFaultEvents) rather than shown as raw per-reading
-      // noise. Ascending order: the collapse walk needs to see faults in
-      // the order they actually happened.
-      supabase
-        .from("device_readings")
-        .select("value, ts")
-        .eq("device_id", device.id)
-        .eq("instrument_key", "active_fault_code")
-        .gte("ts", faultSince.toISOString())
-        .order("ts", { ascending: true })
-        .limit(2000),
-      supabase
-        .from("device_readings")
-        .select("instrument_key, value, ts")
-        .eq("device_id", device.id)
-        .in("instrument_key", tempKeys)
-        .gte("ts", windowStart)
-        .lte("ts", windowEnd)
-        .order("ts", { ascending: true })
-        .limit(50),
-      getLastSyncInfo(device.id),
     ]);
 
     if (device.serviceId) serviceStatus = await getServiceStatus(device.serviceId);
 
     tickets = ticketRows;
-    lastSync = resolvedLastSync;
-    faultEvents = deriveFaultEvents(faultRows ?? []);
-
-    for (const r of latestRows ?? []) {
-      if (r.instrument_key === "active_fault_code" && activeFaultCode === null) activeFaultCode = r.value;
-      else if (r.instrument_key === "sd_status" && sdStatus === null) sdStatus = r.value;
-      else if (tempKeys.includes(r.instrument_key) && !currentTemps.has(r.instrument_key)) {
-        currentTemps.set(r.instrument_key, r.value);
-      }
-    }
-    for (const r of pastRows ?? []) {
-      if (!previousTemps.has(r.instrument_key)) previousTemps.set(r.instrument_key, r.value);
-    }
   }
 
   return (
@@ -186,38 +110,7 @@ export default async function MaintenancePage({
         <>
           <div className="space-y-3">
             <h2 className="text-sm font-semibold text-theme-primary">Device Health</h2>
-            <FaultBanner faultCode={activeFaultCode} />
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Fault History (last {FAULT_HISTORY_DAYS}d)</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <FaultHistory events={faultEvents} />
-              </CardContent>
-            </Card>
-
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              {lastSync && <LastSyncIndicator sync={lastSync} />}
-              <SdStatusIndicator value={sdStatus} />
-            </div>
-
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-sm">Temperature Trends</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                {TEMPERATURE_FIELDS.map((field) => (
-                  <TemperatureGauge
-                    key={field.key}
-                    label={field.label}
-                    valueC={currentTemps.get(field.key) ?? null}
-                    warnAboveC={field.warnAboveC}
-                    previousValueC={previousTemps.get(field.key) ?? null}
-                  />
-                ))}
-              </CardContent>
-            </Card>
+            <DeviceHealthContent supabase={supabase} device={device} />
           </div>
 
           {serviceStatus && (

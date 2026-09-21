@@ -29,6 +29,11 @@
 //   node scripts/deye-modbus-agent.mjs --read-only            # skip the write listener
 //   node scripts/deye-modbus-agent.mjs --once                 # one read tick, then exit (no loop)
 //   node scripts/deye-modbus-agent.mjs --no-read               # write listener only, no read tick/loop at all
+//   node scripts/deye-modbus-agent.mjs --backfill-days=1       # regenerate today's readings (midnight -> now),
+//                                                               then keep running the live loop — use this after
+//                                                               deleting a day's worth of device_readings so the
+//                                                               gap doesn't sit empty until the live loop refills it
+//                                                               one tick at a time. --backfill-days=7 for a week.
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -50,7 +55,15 @@ function loadEnv() {
 }
 
 function parseArgs(argv) {
-  const args = { mode: "simulate", deviceId: "bc58bbdb-59d9-4075-b45e-a8c327ecc9bd", host: null, readOnly: false, once: false, noRead: false };
+  const args = {
+    mode: "simulate",
+    deviceId: "8e307e23-6540-406b-adb9-9c8d209c8ba1",
+    host: null,
+    readOnly: false,
+    once: false,
+    noRead: false,
+    backfillDays: 0,
+  };
   for (const arg of argv) {
     if (arg === "--read-only") args.readOnly = true;
     else if (arg === "--no-read") args.noRead = true;
@@ -58,6 +71,7 @@ function parseArgs(argv) {
     else if (arg.startsWith("--mode=")) args.mode = arg.slice("--mode=".length);
     else if (arg.startsWith("--device-id=")) args.deviceId = arg.slice("--device-id=".length);
     else if (arg.startsWith("--host=")) args.host = arg.slice("--host=".length);
+    else if (arg.startsWith("--backfill-days=")) args.backfillDays = Number(arg.slice("--backfill-days=".length));
   }
   return args;
 }
@@ -77,7 +91,7 @@ const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE
 async function loadDevice(deviceId) {
   const { data: device, error } = await supabase
     .from("devices")
-    .select("id, label, device_uid, device_type:stock(id, category, name)")
+    .select("id, label, device_type:stock(id, category, name)")
     .eq("id", deviceId)
     .maybeSingle();
   if (error || !device) throw new Error(`Device ${deviceId} not found: ${error?.message ?? "no row"}`);
@@ -123,6 +137,38 @@ function daylightFactor(hour) {
   return Math.max(0, Math.sin(Math.PI * x) ** 1.3);
 }
 
+// Weather realism: rather than one flat per-tick random multiplier (which
+// reads as pure static noise, not weather), each calendar day gets a
+// "day type" — deterministic from the date itself (hashDay), so the same
+// day always simulates the same weather even across process restarts —
+// that sets a baseline cloud cover and how often a transient "cloud
+// passing overhead" dip occurs. Within the day, cloud cover then drifts
+// slowly (mean-reverting random walk, see simulateTick) rather than
+// jumping randomly tick to tick, so a run of readings actually looks like
+// weather moving through, not sensor jitter.
+const DAY_TYPES = [
+  { name: "clear", weight: 45, baseCloud: 0.05, passProbPerTick: 0.03, passDepth: [0.15, 0.35] },
+  { name: "partly-cloudy", weight: 30, baseCloud: 0.2, passProbPerTick: 0.08, passDepth: [0.3, 0.6] },
+  { name: "overcast", weight: 15, baseCloud: 0.55, passProbPerTick: 0.05, passDepth: [0.15, 0.35] },
+  { name: "rainy", weight: 10, baseCloud: 0.75, passProbPerTick: 0.02, passDepth: [0.05, 0.15] },
+];
+
+function hashDay(dayKey) {
+  let h = 0;
+  for (let i = 0; i < dayKey.length; i++) h = (Math.imul(h, 31) + dayKey.charCodeAt(i)) >>> 0;
+  return h;
+}
+
+function pickDayType(dayKey) {
+  const totalWeight = DAY_TYPES.reduce((sum, d) => sum + d.weight, 0);
+  let r = hashDay(dayKey) % totalWeight;
+  for (const dayType of DAY_TYPES) {
+    if (r < dayType.weight) return dayType;
+    r -= dayType.weight;
+  }
+  return DAY_TYPES[0];
+}
+
 function loadBaselineW(hour) {
   const morning = 900 * Math.exp(-((hour - 8) ** 2) / (2 * 1.2 ** 2));
   const evening = 1400 * Math.exp(-((hour - 20) ** 2) / (2 * 1.5 ** 2));
@@ -149,6 +195,10 @@ class SimState {
     this.yearGridExportKwh = 0;
     this.yearLoadKwh = 0;
     this.dayKey = null;
+    this.dayType = DAY_TYPES[0];
+    this.cloudCover = DAY_TYPES[0].baseCloud;
+    this.cloudPassRemainingTicks = 0;
+    this.cloudPassDepth = 0;
     this.dayYieldKwh = 0;
     this.dayGridImportKwh = 0;
     this.dayGridExportKwh = 0;
@@ -199,6 +249,9 @@ function simulateTick(date, state) {
   const dayKey = date.toISOString().slice(0, 10);
   if (state.dayKey !== dayKey) {
     state.dayKey = dayKey;
+    state.dayType = pickDayType(dayKey);
+    state.cloudCover = state.dayType.baseCloud;
+    state.cloudPassRemainingTicks = 0;
     state.dayYieldKwh = 0;
     state.dayGridImportKwh = 0;
     state.dayGridExportKwh = 0;
@@ -210,8 +263,29 @@ function simulateTick(date, state) {
   }
 
   const df = daylightFactor(hour);
-  const cloudNoise = 0.85 + Math.random() * 0.3;
-  const solarW = df > 0 ? jitter(PEAK_SOLAR_W * df * cloudNoise, 0.05) : 0;
+
+  // Slow mean-reverting drift toward the day's own baseline (a small random
+  // step each tick, pulled back toward baseCloud) — this is what makes
+  // cloud cover look like it's actually moving through rather than
+  // re-rolling from scratch every 5 minutes.
+  state.cloudCover += (Math.random() - 0.5) * 0.04 + (state.dayType.baseCloud - state.cloudCover) * 0.15;
+  state.cloudCover = Math.max(0, Math.min(0.95, state.cloudCover));
+
+  // A transient "cloud passing overhead" — a deeper dip layered on top of
+  // the slow drift, lasting a few ticks (~5-15 min) once triggered, only
+  // possible in daylight (nothing to visibly dim at night).
+  if (state.cloudPassRemainingTicks > 0) {
+    state.cloudPassRemainingTicks--;
+  } else if (df > 0 && Math.random() < state.dayType.passProbPerTick) {
+    state.cloudPassRemainingTicks = 1 + Math.floor(Math.random() * 3);
+    const [minDepth, maxDepth] = state.dayType.passDepth;
+    state.cloudPassDepth = minDepth + Math.random() * (maxDepth - minDepth);
+  }
+  const passFactor = state.cloudPassRemainingTicks > 0 ? state.cloudPassDepth : 0;
+  const effectiveCloud = Math.min(0.97, state.cloudCover + passFactor);
+  const cloudFactor = 1 - effectiveCloud; // 1 = full sun, ~0 = heavy overcast/rain
+
+  const solarW = df > 0 ? jitter(PEAK_SOLAR_W * df * cloudFactor, 0.04) : 0;
   const pv1ShareW = solarW * 0.55;
   const pv2ShareW = solarW * 0.45;
   const loadW = jitter(loadBaselineW(hour), 0.12);
@@ -292,7 +366,7 @@ function simulateTick(date, state) {
   // register-level model in the docs — best-effort plausible values so
   // simulate mode isn't blank for the new UI, same spirit as the rest of
   // this function's approximations (see the file header comment).
-  const ambientTempC = jitter(18 + 10 * daylightFactor(hour), 0.05);
+  const ambientTempC = jitter(18 + 10 * daylightFactor(hour) * cloudFactor - (state.dayType.name === "rainy" ? 2 : 0), 0.05);
   const batteryChargeLimitA = round(MAX_CHARGE_W / NOMINAL_BATTERY_V);
   const batteryDischargeLimitA = round(MAX_DISCHARGE_W / NOMINAL_BATTERY_V);
   const batteryChargingVoltageV = jitter(56.4, 0.002);
@@ -317,8 +391,11 @@ function simulateTick(date, state) {
     battery_discharge_limit_current_a: batteryDischargeLimitA,
     battery_charging_voltage_v: round(batteryChargingVoltageV, 2),
     bat1_soc_pct: round(state.socPct),
-    // inverter
-    inverter_power_w: round(solarW - loadW < 0 ? -Math.abs(solarW) : solarW),
+    // inverter — real PV output is never negative; solarW is already
+    // floored at 0 by daylightFactor, so this is the actual generation
+    // reading, not a sign-flipped "generation minus load" figure (that was
+    // a bug — see git history).
+    inverter_power_w: round(solarW),
     inverter_voltage_v: round(inverterVoltageV, 1),
     inverter_current_a: round(inverterCurrentA, 2),
     inverter_frequency_hz: round(inverterFrequencyHz, 2),
@@ -368,9 +445,9 @@ function simulateTick(date, state) {
   };
 }
 
-async function insertReadings(deviceId, catalog, values, ts) {
+function buildRows(deviceId, catalog, values, ts) {
   const unitByKey = new Map(catalog.map((c) => [c.parameter_key, c.unit]));
-  const rows = Object.entries(values)
+  return Object.entries(values)
     .filter(([key]) => unitByKey.has(key) || catalog.some((c) => c.parameter_key === key))
     .map(([instrument_key, value]) => ({
       device_id: deviceId,
@@ -380,9 +457,46 @@ async function insertReadings(deviceId, catalog, values, ts) {
       ts,
       is_test: false,
     }));
+}
+
+async function insertReadings(deviceId, catalog, values, ts) {
+  const rows = buildRows(deviceId, catalog, values, ts);
   if (rows.length === 0) return;
   const { error } = await supabase.from("device_readings").insert(rows);
   if (error) throw new Error(`insert @ ${ts} failed: ${error.message}`);
+}
+
+async function insertRowsChunked(rows, chunkSize = 1000) {
+  for (let i = 0; i < rows.length; i += chunkSize) {
+    const chunk = rows.slice(i, i + chunkSize);
+    const { error } = await supabase.from("device_readings").insert(chunk);
+    if (error) throw new Error(`backfill insert (rows ${i}-${i + chunk.length}) failed: ${error.message}`);
+  }
+}
+
+/** Regenerates the last `days` days of readings (today included, ending
+ *  "now") — one simulateTick() per 5-minute slot, walked forward in order
+ *  so the day-boundary counter resets and the cloud model's slow drift
+ *  both behave exactly like a real multi-day run would, not like `days`
+ *  independent single-day simulations. Meant to be run after deleting a
+ *  range of device_readings so the gap doesn't sit empty until the live
+ *  loop catches up tick by tick. */
+async function backfillDeye(deviceId, catalog, state, days) {
+  const now = new Date();
+  const start = new Date(now);
+  start.setHours(0, 0, 0, 0);
+  start.setDate(start.getDate() - (days - 1));
+
+  console.log(`[backfill] generating ${days} day(s) of readings from ${start.toISOString()} to ${now.toISOString()}...`);
+  let rows = [];
+  let ticks = 0;
+  for (let t = new Date(start); t <= now; t = new Date(t.getTime() + INTERVAL_MS)) {
+    const values = simulateTick(t, state);
+    rows.push(...buildRows(deviceId, catalog, values, t.toISOString()));
+    ticks++;
+  }
+  await insertRowsChunked(rows);
+  console.log(`[backfill] done — ${ticks} ticks, ${rows.length} rows inserted.`);
 }
 
 // ============================================================
@@ -471,10 +585,14 @@ async function main() {
   console.log(`Deye Modbus agent — mode=${args.mode} device=${args.deviceId}${args.readOnly ? " (read-only)" : ""}`);
 
   const { device, catalog } = await loadDevice(args.deviceId);
-  console.log(`Device: ${device.label ?? device.device_uid} (${device.device_type.name}) — ${catalog.length} registers cataloged`);
+  console.log(`Device: ${device.label ?? device.id} (${device.device_type.name}) — ${catalog.length} registers cataloged`);
 
   const state = new SimState();
   if (args.mode === "simulate" && !args.noRead) await state.seedFromDb(args.deviceId);
+
+  if (args.mode === "simulate" && args.backfillDays > 0) {
+    await backfillDeye(args.deviceId, catalog, state, args.backfillDays);
+  }
 
   if (!args.readOnly) startWriteListener(args.deviceId);
 

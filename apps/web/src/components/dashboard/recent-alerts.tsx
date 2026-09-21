@@ -17,22 +17,25 @@ export interface AlertRow {
   acknowledged_at: string | null;
 }
 
-/** Overview's "Recent Alerts" card. Realtime rollout: seeded from the
- *  server's initial (unacknowledged-only) query, then kept live by an
- *  `alerts` subscription for this device — a new alert appears the moment
+/** Overview's "Recent Alerts" card — scoped to whichever device id(s) the
+ *  page's own filter currently has selected (one device, or every device
+ *  at the site for "All"). Realtime rollout: seeded from the server's
+ *  initial (unacknowledged-only) query, then kept live by an `alerts`
+ *  subscription over that same id set — a new alert appears the moment
  *  it's created (e.g. the offline-detection cron), and one acknowledged
  *  from anywhere else (another tab, a staff action) disappears without a
  *  refresh. Acknowledging from *this* card still goes through the same
  *  `acknowledgeAlert` Server Action as before — its own write flows back
  *  through this same subscription, so there's nothing special-cased for
  *  "I acknowledged my own alert" vs. "it got acknowledged elsewhere." */
-export function RecentAlerts({ deviceId, initialAlerts }: { deviceId: string; initialAlerts: AlertRow[] }) {
+export function RecentAlerts({ deviceIds, initialAlerts }: { deviceIds: string[]; initialAlerts: AlertRow[] }) {
   const [alerts, setAlerts] = React.useState<AlertRow[]>(initialAlerts);
+  const filter = `device_id=in.(${deviceIds.join(",")})`;
 
   useRealtimeTable<AlertRow>(
     "alerts",
     "INSERT",
-    `device_id=eq.${deviceId}`,
+    filter,
     React.useCallback((payload: RealtimeRowEvent<AlertRow>) => {
       setAlerts((prev) =>
         prev.some((a) => a.id === payload.new.id) ? prev : [payload.new, ...prev].slice(0, 5)
@@ -43,7 +46,7 @@ export function RecentAlerts({ deviceId, initialAlerts }: { deviceId: string; in
   useRealtimeTable<AlertRow>(
     "alerts",
     "UPDATE",
-    `device_id=eq.${deviceId}`,
+    filter,
     React.useCallback((payload: RealtimeRowEvent<AlertRow>) => {
       setAlerts((prev) =>
         payload.new.acknowledged_at

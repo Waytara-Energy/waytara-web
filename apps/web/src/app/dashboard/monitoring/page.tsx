@@ -1,51 +1,24 @@
 import { redirect } from "next/navigation";
 import { Activity } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { LiveMetricChart } from "@/components/dashboard/lazy-charts";
-import { PvStringComparison } from "@/components/dashboard/pv-string-comparison";
-import { TemperatureGauge } from "@/components/dashboard/temperature-gauge";
-import { MetricListCard } from "@/components/dashboard/metric-list-card";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
+import { MonitoringContent } from "@/components/dashboard/monitoring-content";
 import { getCustomerPlan } from "@/lib/customer-plan";
-import { getSelectedSite, resolveDeviceInSite, deviceDisplayId } from "@/lib/selected-site";
-import { DevicePicker } from "@/components/dashboard/device-picker";
-import { DeviceDetailsCard } from "@/components/dashboard/device-details-card";
-import {
-  TEMPERATURE_FIELDS,
-  BATTERY_DETAIL_FIELDS,
-  INVERTER_DETAIL_FIELDS,
-  GRID_DETAIL_FIELDS,
-  LOAD_DETAIL_FIELDS,
-} from "@/lib/telemetry-catalog";
-
-const SNAPSHOT_KEYS = [
-  ...TEMPERATURE_FIELDS.map((f) => f.key),
-  ...BATTERY_DETAIL_FIELDS.map((f) => f.key),
-  ...INVERTER_DETAIL_FIELDS.map((f) => f.key),
-  ...GRID_DETAIL_FIELDS.map((f) => f.key),
-  ...LOAD_DETAIL_FIELDS.map((f) => f.key),
-  "pv1_voltage_v",
-  "pv1_current_a",
-  "pv1_power_w",
-  "pv2_voltage_v",
-  "pv2_current_a",
-  "pv2_power_w",
-  "grid_connected",
-  "rated_power_w",
-];
+import { getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
 
 // Server-side gate, matching Overview/Performance/Analytics — a Basic-tier
 // customer hitting this URL directly gets redirected, matching the
 // RLS-not-UI enforcement pattern used everywhere else in this codebase.
 //
-// Telemetry-driven redesign (Phase 9): the old flat MonitoringPanel dump
-// (still used untouched by apps/admin's onboarding connection-test panel)
-// is replaced with two live-polling charts (power flows + battery SOC),
-// a PV1-vs-PV2 comparison, temperature gauges, and a grid-connected
-// indicator.
+// Phase 2 of the multi-device-type dashboard roadmap: the body (live
+// charts + snapshot detail) is now category-aware via MonitoringContent —
+// solar_inverter keeps the two live-polling charts (power flows + battery
+// SOC), PV1-vs-PV2 comparison, temperature gauges, and grid-connected
+// indicator this page has had since Phase 9; ev_charger gets its own live
+// charging-power/current charts and detail list built from OCPP telemetry
+// instead of the inverter's fixed key list (which it never reported, so
+// this page used to come back essentially blank for it).
 export default async function MonitoringPage({ searchParams }: { searchParams: Promise<{ device?: string }> }) {
   const supabase = await createClient();
   // getSelectedSite() doesn't depend on the plan check below, so it runs
@@ -53,8 +26,8 @@ export default async function MonitoringPage({ searchParams }: { searchParams: P
   // against the layout's own call (and every other page's), so this isn't
   // a second real query — same reasoning throughout this pass: independent
   // queries in one round trip, not a waterfall of them. Which device at
-  // the site is picked via this page's own `?device=` (DevicePicker
-  // below) — a site can have more than one now.
+  // the site is picked via this page's own `?device=` (DeviceSwitcher,
+  // rendered inside MonitoringContent) — a site can have more than one now.
   const [customerPlan, { device: deviceIdParam }, site] = await Promise.all([
     getCustomerPlan(),
     searchParams,
@@ -67,52 +40,8 @@ export default async function MonitoringPage({ searchParams }: { searchParams: P
     redirect("/dashboard");
   }
 
-  const { data: snapshotReadings } = device
-    ? await supabase
-        .from("device_readings")
-        .select("instrument_key, value, ts")
-        .eq("device_id", device.id)
-        .in("instrument_key", SNAPSHOT_KEYS)
-        .order("ts", { ascending: false })
-        .limit(SNAPSHOT_KEYS.length * 5)
-    : { data: null };
-
-  const latest = new Map<string, number | null>();
-  for (const r of snapshotReadings ?? []) {
-    if (!latest.has(r.instrument_key)) latest.set(r.instrument_key, r.value);
-  }
-  const getValue = (key: string) => latest.get(key) ?? null;
-  const gridConnected = getValue("grid_connected");
-  const ratedPowerW = getValue("rated_power_w");
-
   return (
-    <div className="max-w-3xl space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-semibold text-theme-primary">Monitoring</h1>
-          <p className="mt-1 text-sm text-theme-muted">
-            {device
-              ? `Live readings for ${deviceDisplayId(device)}, updated in real time.`
-              : "Live per-device readings, updated in real time."}
-          </p>
-        </div>
-        {device && (
-          <div className="flex items-center gap-2">
-            {ratedPowerW !== null && <Badge variant="secondary">{(ratedPowerW / 1000).toFixed(1)} kW rated</Badge>}
-            <Badge variant={gridConnected === 1 ? "default" : gridConnected === 0 ? "alert" : "secondary"}>
-              Grid {gridConnected === 1 ? "Connected" : gridConnected === 0 ? "Disconnected" : "Unknown"}
-            </Badge>
-          </div>
-        )}
-      </div>
-
-      {site && device && (
-        <>
-          <DevicePicker devices={site.devices} selectedId={device.id} />
-          <DeviceDetailsCard device={device} />
-        </>
-      )}
-
+    <div className="space-y-6">
       {!device ? (
         <Empty className="border">
           <EmptyHeader>
@@ -125,58 +54,12 @@ export default async function MonitoringPage({ searchParams }: { searchParams: P
         </Empty>
       ) : (
         <>
-          {/* The live charts below already poll/subscribe on their own —
-              this is for everything else on the page (PV comparison,
-              temperatures, the detail cards, the header badges), all
-              snapshot-rendered server-side and not safe to hand-patch from
-              a raw insert payload. */}
+          {/* The live charts inside MonitoringContent already poll/subscribe
+              on their own — this is for everything else on the page (detail
+              cards, badges), all snapshot-rendered server-side and not safe
+              to hand-patch from a raw insert payload. */}
           <RealtimeRefresh table="device_readings" event="INSERT" filter={`device_id=eq.${device.id}`} />
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Power Flows</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <LiveMetricChart
-                deviceId={device.id}
-                series={[
-                  { key: "inverter_power_w", label: "Solar", color: "var(--chart-1)" },
-                  { key: "battery_power_w", label: "Battery", color: "var(--chart-2)" },
-                  { key: "grid_power_w", label: "Grid", color: "var(--chart-3)" },
-                  { key: "load_power_w", label: "Load", color: "var(--chart-4)" },
-                ]}
-              />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Battery SOC Trend</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <LiveMetricChart
-                deviceId={device.id}
-                series={[{ key: "battery_soc_pct", label: "SOC", color: "var(--chart-2)" }]}
-              />
-            </CardContent>
-          </Card>
-
-          <PvStringComparison getValue={getValue} />
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Temperatures</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {TEMPERATURE_FIELDS.map((field) => (
-                <TemperatureGauge key={field.key} label={field.label} valueC={getValue(field.key)} warnAboveC={field.warnAboveC} />
-              ))}
-            </CardContent>
-          </Card>
-
-          <MetricListCard title="Battery Detail" fields={BATTERY_DETAIL_FIELDS} getValue={getValue} />
-          <MetricListCard title="Inverter Detail" fields={INVERTER_DETAIL_FIELDS} getValue={getValue} />
-          <MetricListCard title="Grid Detail" fields={GRID_DETAIL_FIELDS} getValue={getValue} />
-          <MetricListCard title="Load Detail" fields={LOAD_DETAIL_FIELDS} getValue={getValue} />
+          <MonitoringContent supabase={supabase} device={device} devices={site?.devices ?? [device]} />
         </>
       )}
     </div>

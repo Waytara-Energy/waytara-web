@@ -251,7 +251,6 @@ export function EnergyFlowDiagram({
           loadW={loadW}
           gridW={gridW}
           evW={evW}
-          gridColor={gridColor}
           showSolar={showSolar}
           showBattery={showBattery}
           showGrid={showGrid}
@@ -269,7 +268,6 @@ export function EnergyFlowDiagram({
           loadW={loadW}
           gridW={gridW}
           evW={evW}
-          gridColor={gridColor}
           showSolar={showSolar}
           showBattery={showBattery}
           showGrid={showGrid}
@@ -290,7 +288,6 @@ function FlowOverlay({
   loadW,
   gridW,
   evW,
-  gridColor,
   showSolar,
   showBattery,
   showGrid,
@@ -305,7 +302,6 @@ function FlowOverlay({
   loadW: number | null;
   gridW: number | null;
   evW: number | null;
-  gridColor: FlowColorKey;
   showSolar: boolean;
   showBattery: boolean;
   showGrid: boolean;
@@ -390,7 +386,7 @@ function FlowOverlay({
           valueAbove
           leaderColor={leaderColor}
           titleColor={titleColor}
-          valueColor={FLOW_COLOR[gridColor]}
+          valueColor={valueColor}
         />
       )}
       {/* Only when this site actually has an EV charger and its package

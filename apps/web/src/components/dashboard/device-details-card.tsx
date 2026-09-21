@@ -1,7 +1,7 @@
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { deviceDisplayId, type CustomerDevice } from "@/lib/selected-site";
 
-const STATUS_BADGE_VARIANT: Record<string, BadgeProps["variant"]> = {
+export const STATUS_BADGE_VARIANT: Record<string, BadgeProps["variant"]> = {
   active: "default",
   test: "secondary",
   offline: "alert",
