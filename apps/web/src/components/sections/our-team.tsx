@@ -54,16 +54,16 @@ const VISION_MISSION_GOAL: VisionMissionGoalItem[] = [
 const TEAM: TeamMember[] = [
   {
     name: "Arun V Mahadev",
-    role: "Founder, WayTara",
+    role: "Partner, WayTara",
     highlight:
-      "I started WayTara because every energy provider was building their own island — a separate app for solar, another for storage, another for EV.",
+      "I lead WayTara because every energy provider was building their own island — a separate app for solar, another for storage, another for EV.",
     rest: " We built the opposite instead — one platform where every source and every ecosystem comes together under a single account.",
   },
   {
     name: "Devaansh Pujara",
-    role: "Co-Founder, WayTara",
+    role: "Partner, WayTara",
     highlight:
-      "I co-founded WayTara because building great technology isn’t enough — the installation, approvals, and years of upkeep after have to be just as disciplined.",
+      "At WayTara, I make sure building great technology isn’t enough — the installation, approvals, and years of upkeep after have to be just as disciplined.",
     rest: " My focus is making sure that promise holds up on every rooftop, not just in a product demo.",
   },
   {

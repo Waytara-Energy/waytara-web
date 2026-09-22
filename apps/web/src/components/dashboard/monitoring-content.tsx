@@ -1,7 +1,8 @@
 import { createClient } from "@waytara/supabase/server";
-import type { CustomerDevice } from "@/lib/selected-site";
+import { getSelectedSite, type CustomerDevice } from "@/lib/selected-site";
+import { getCustomerPlan } from "@/lib/customer-plan";
 import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
-import { fetchTodayEvEnergyKwh } from "@/lib/device-overview";
+import { fetchTodayEvEnergyKwh, fetchTodayChargingSessions, fetchRecentChargingStats } from "@/lib/device-overview";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { co2AvoidedKg, treesEquivalent } from "@/lib/environmental-impact";
 import {
@@ -26,7 +27,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   TriangleAlert,
-  Cpu,
+  Server,
   Sun,
   BatteryCharging,
   Home,
@@ -38,6 +39,8 @@ import {
   TreePine,
   ArrowDownToLine,
   ArrowUpFromLine,
+  Plug,
+  History,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -51,7 +54,8 @@ import { DeviceStatusPill } from "./device-status-pill";
 import { FaultBanner } from "./fault-banner";
 import { DeviceParameterCards } from "./device-parameter-cards";
 import { StatTile } from "./analytics-content";
-import { MonitoringTabs } from "./monitoring-tabs";
+import { ChargingSessionsCarousel } from "./charging-sessions-carousel";
+import { MonitoringTabs, type TabHeadlineInfo } from "./monitoring-tabs";
 import { LiveSyncedAgo } from "./live-synced-ago";
 import { DeviceSwitcher } from "./device-switcher";
 
@@ -98,59 +102,19 @@ const GRID_DETAIL_REMAINING_FIELDS = GRID_DETAIL_FIELDS.filter(
   (f) => f.key !== "grid_voltage_v" && f.key !== "grid_current_a" && f.key !== "grid_frequency_hz"
 );
 
-/** A tab button's own content — just an icon and a label, nothing else.
- *  Deliberately minimal: a tab button that also tries to show a live
- *  number ends up sized and styled enough like a card that it gets
- *  mistaken for one of the stat cards under it (see TabHeadline below for
- *  where that number actually lives now). */
+/** A tab button's own content — icon + label at rest. The active tab
+ *  drops its icon (`group-data-[state=active]:hidden`, keyed off the
+ *  parent TabsTrigger's own Radix `data-state` via its `group` class) —
+ *  that icon, in color, reappears in MonitoringTabs' headline above the
+ *  strip instead (see TabHeadlineBar), alongside the live number a tab
+ *  button never needs to hold itself. The label's own color comes from
+ *  the parent trigger's per-tab active className, not from here. */
 function TabButtonContent({ icon: Icon, label }: { icon: LucideIcon; label: string }) {
   return (
     <>
-      <Icon className="size-4 shrink-0" />
+      <Icon className="size-4 shrink-0 group-data-[state=active]:hidden" />
       <span className="text-sm font-medium">{label}</span>
     </>
-  );
-}
-
-/** The selected tab's own headline — icon, label, and its one live
- *  number — shown once at the top of that tab's panel content instead of
- *  crammed into the tab button itself. Radix only mounts the active
- *  TabsContent, so this naturally shows only the selected tab's number
- *  with no client-side toggling needed, and it keeps the tab strip
- *  (MonitoringTabs' TabsList) a plain row of small buttons that can't be
- *  mistaken for a content card at any size. */
-function TabHeadline({
-  icon: Icon,
-  iconClassName,
-  label,
-  statValue,
-  statLabel,
-}: {
-  icon: LucideIcon;
-  iconClassName: string;
-  label: string;
-  statValue: string;
-  statLabel: string;
-}) {
-  return (
-    <div className="flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-3">
-        <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-full", iconClassName)}>
-          <Icon className="size-5" />
-        </span>
-        <div>
-          <p className="text-xs font-medium text-theme-muted">{label}</p>
-          <p className="text-2xl font-semibold text-theme-primary">{statValue}</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2 text-xs text-theme-muted">
-        <span>{statLabel}</span>
-        <span className="flex items-center gap-1 font-medium text-emerald-600 dark:text-emerald-400">
-          <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-          Live Active
-        </span>
-      </div>
-    </div>
   );
 }
 
@@ -315,6 +279,17 @@ async function SolarInverterMonitoring({
     return v !== null ? `${v.toFixed(2)} Hz` : "—";
   })();
 
+  // One live number per tab, shown above the tab strip by MonitoringTabs
+  // itself (keyed by the currently selected tab's value) rather than
+  // repeated inside each tab button or each panel's own content.
+  const tabHeadlines: Record<string, TabHeadlineInfo> = {
+    hub: { value: liveOutputKw, label: "Live Output" },
+    solar: { value: solarTodayText, label: "Power Generated" },
+    battery: { value: socPctText, label: "Charge Level" },
+    load: { value: loadTodayText, label: "Consumed Today" },
+    grid: { value: gridImportedTodayText, label: "Imported Today" },
+  };
+
   return (
     <>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -332,28 +307,42 @@ async function SolarInverterMonitoring({
           its own tab is selected (Radix Tabs unmounts inactive
           TabsContent), rather than every section's charts/queries all
           living on one long scrolled page at once. */}
-      <MonitoringTabs defaultValue="hub">
-        <TabsList variant="card">
-          <TabsTrigger value="hub" variant="card">
-            <TabButtonContent icon={Cpu} label="Main Hub" />
+      <MonitoringTabs defaultValue="hub" headlines={tabHeadlines}>
+        <TabsList variant="line">
+          <TabsTrigger value="hub" variant="line" className="data-[state=active]:border-primary data-[state=active]:text-primary">
+            <TabButtonContent icon={Server} label="Main Hub" />
           </TabsTrigger>
-          <TabsTrigger value="solar" variant="card">
+          <TabsTrigger
+            value="solar"
+            variant="line"
+            className="data-[state=active]:border-amber-500 data-[state=active]:text-amber-600 dark:data-[state=active]:text-amber-400"
+          >
             <TabButtonContent icon={Sun} label="Solar Array" />
           </TabsTrigger>
-          <TabsTrigger value="battery" variant="card">
+          <TabsTrigger
+            value="battery"
+            variant="line"
+            className="data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400"
+          >
             <TabButtonContent icon={BatteryCharging} label="Battery Pack" />
           </TabsTrigger>
-          <TabsTrigger value="load" variant="card">
+          <TabsTrigger
+            value="load"
+            variant="line"
+            className="data-[state=active]:border-sky-500 data-[state=active]:text-sky-600 dark:data-[state=active]:text-sky-400"
+          >
             <TabButtonContent icon={Home} label="Home Load" />
           </TabsTrigger>
-          <TabsTrigger value="grid" variant="card">
+          <TabsTrigger
+            value="grid"
+            variant="line"
+            className="data-[state=active]:border-violet-500 data-[state=active]:text-violet-600 dark:data-[state=active]:text-violet-400"
+          >
             <TabButtonContent icon={Zap} label="Grid Interface" />
           </TabsTrigger>
         </TabsList>
 
         <TabsContent value="hub" className="space-y-4">
-          <TabHeadline icon={Cpu} iconClassName="bg-primary/15 text-primary" label="Main Hub" statValue={liveOutputKw} statLabel="Live Output" />
-          <p className="text-sm text-theme-muted">The inverter itself — everything connected to it, consolidated.</p>
           <FaultBanner faultCode={getValue("active_fault_code")} />
 
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -417,14 +406,6 @@ async function SolarInverterMonitoring({
         </TabsContent>
 
         <TabsContent value="solar" className="space-y-4">
-          <TabHeadline
-            icon={Sun}
-            iconClassName="bg-amber-500/15 text-amber-600 dark:text-amber-400"
-            label="Solar Array"
-            statValue={solarTodayText}
-            statLabel="Power Generated"
-          />
-          <p className="text-sm text-theme-muted">Only what&apos;s happening at the panels.</p>
 
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <LiveStatusCard
@@ -483,14 +464,6 @@ async function SolarInverterMonitoring({
         </TabsContent>
 
         <TabsContent value="battery" className="space-y-4">
-          <TabHeadline
-            icon={BatteryCharging}
-            iconClassName="bg-emerald-500/15 text-emerald-600 dark:text-emerald-400"
-            label="Battery Pack"
-            statValue={socPctText}
-            statLabel="Charge Level"
-          />
-          <p className="text-sm text-theme-muted">Only what&apos;s happening in storage.</p>
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <LiveStatusCard
               icon={BatteryCharging}
@@ -547,14 +520,6 @@ async function SolarInverterMonitoring({
         </TabsContent>
 
         <TabsContent value="load" className="space-y-4">
-          <TabHeadline
-            icon={Home}
-            iconClassName="bg-sky-500/15 text-sky-600 dark:text-sky-400"
-            label="Home Load"
-            statValue={loadTodayText}
-            statLabel="Consumed Today"
-          />
-          <p className="text-sm text-theme-muted">Only what&apos;s being drawn by the house.</p>
 
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <LiveStatusCard
@@ -607,14 +572,6 @@ async function SolarInverterMonitoring({
         </TabsContent>
 
         <TabsContent value="grid" className="space-y-4">
-          <TabHeadline
-            icon={Zap}
-            iconClassName="bg-violet-500/15 text-violet-600 dark:text-violet-400"
-            label="Grid Interface"
-            statValue={gridImportedTodayText}
-            statLabel="Imported Today"
-          />
-          <p className="text-sm text-theme-muted">Only what&apos;s crossing the meter.</p>
           <div className="flex items-center gap-2">
             <Badge variant={gridConnected === 1 ? "default" : gridConnected === 0 ? "alert" : "secondary"}>
               Grid {gridConnected === 1 ? "Connected" : gridConnected === 0 ? "Disconnected" : "Unknown"}
@@ -687,17 +644,22 @@ async function EvChargerMonitoring({
   device: CustomerDevice;
   devices: CustomerDevice[];
 }) {
-  const [{ data: snapshotReadings }, lastSync, todayEnergyKwh] = await Promise.all([
-    supabase
-      .from("device_readings")
-      .select("instrument_key, value, ts")
-      .eq("device_id", device.id)
-      .in("instrument_key", EV_SNAPSHOT_KEYS)
-      .order("ts", { ascending: false })
-      .limit(EV_SNAPSHOT_KEYS.length * 5),
-    getLastSyncInfo(device.id),
-    fetchTodayEvEnergyKwh(supabase, [device.id]),
-  ]);
+  const [{ data: snapshotReadings }, lastSync, todayEnergyKwh, chargingSummary, recentChargingStats, customerPlan, site] =
+    await Promise.all([
+      supabase
+        .from("device_readings")
+        .select("instrument_key, value, ts")
+        .eq("device_id", device.id)
+        .in("instrument_key", EV_SNAPSHOT_KEYS)
+        .order("ts", { ascending: false })
+        .limit(EV_SNAPSHOT_KEYS.length * 5),
+      getLastSyncInfo(device.id),
+      fetchTodayEvEnergyKwh(supabase, [device.id]),
+      fetchTodayChargingSessions(supabase, device.id),
+      fetchRecentChargingStats(supabase, device.id),
+      getCustomerPlan(),
+      getSelectedSite(),
+    ]);
 
   const latest = new Map<string, number | null>();
   for (const r of snapshotReadings ?? []) {
@@ -719,10 +681,9 @@ async function EvChargerMonitoring({
   const utilizationPct =
     powerW !== null && offeredW !== null && offeredW > 0 ? Math.max(0, Math.min(100, (powerW / offeredW) * 100)) : null;
 
-  // A charger has no PV/battery/grid/load sub-parts of its own to split
-  // into separate tabs the way the inverter does — it's a single piece of
-  // equipment, so everything connected to it lives in one consolidated
-  // panel instead, no tab strip needed for just one panel.
+  const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
+  const showCost = site?.propertyType !== "residential_independent_villas";
+
   return (
     <>
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -736,55 +697,82 @@ async function EvChargerMonitoring({
         </div>
       </div>
 
-      <div className="space-y-4">
-        <div>
-          <h2 className="text-lg font-semibold text-theme-primary">Charger Hub</h2>
-          <p className="text-sm text-theme-muted">The charger itself — everything connected to it, consolidated.</p>
-        </div>
+      {/* Two panels rather than one long scroll: the charger's own live
+          detail (power/current/temperature/OCPP fields) versus its
+          session history — different questions ("is it healthy right
+          now?" vs. "what did it actually deliver?"), so they get their
+          own tabs instead of being stacked on one page. */}
+      <MonitoringTabs defaultValue="hub" headlines={{}}>
+        <TabsList variant="line">
+          <TabsTrigger value="hub" variant="line">
+            <TabButtonContent icon={Plug} label="Charger Hub" />
+          </TabsTrigger>
+          <TabsTrigger value="sessions" variant="line">
+            <TabButtonContent icon={History} label="Charging Session" />
+          </TabsTrigger>
+        </TabsList>
 
-        {errorLabel ? (
-          <Alert variant="destructive">
-            <TriangleAlert />
-            <AlertTitle>Charger fault</AlertTitle>
-            <AlertDescription>{errorLabel}</AlertDescription>
-          </Alert>
-        ) : (
-          <Alert>
-            <AlertTitle>No active faults</AlertTitle>
-          </Alert>
-        )}
+        <TabsContent value="hub" className="space-y-4">
+          {errorLabel ? (
+            <Alert variant="destructive">
+              <TriangleAlert />
+              <AlertTitle>Charger fault</AlertTitle>
+              <AlertDescription>{errorLabel}</AlertDescription>
+            </Alert>
+          ) : (
+            <Alert>
+              <AlertTitle>No active faults</AlertTitle>
+            </Alert>
+          )}
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Charging Power</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <LiveMetricChart deviceId={device.id} series={[{ key: "power_active_import_w", label: "Power", color: "var(--chart-1)" }]} />
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Charging Power</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <LiveMetricChart deviceId={device.id} series={[{ key: "power_active_import_w", label: "Power", color: "var(--chart-1)" }]} />
+            </CardContent>
+          </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Current</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <LiveMetricChart deviceId={device.id} series={[{ key: "current_import_a", label: "Current", color: "var(--chart-2)" }]} />
-          </CardContent>
-        </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-sm">Current</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <LiveMetricChart deviceId={device.id} series={[{ key: "current_import_a", label: "Current", color: "var(--chart-2)" }]} />
+            </CardContent>
+          </Card>
 
-        <MetricListCard title="Charger Detail" fields={detailFields} getValue={getValue} />
+          <MetricListCard title="Charger Detail" fields={detailFields} getValue={getValue} />
 
-        <Card>
-          <CardContent className="pt-6">
-            <TemperatureGauge label="Connector Temperature" valueC={getValue("temperature_c")} warnAboveC={EV_CONNECTOR_TEMP_WARN_C} />
-          </CardContent>
-        </Card>
+          <Card>
+            <CardContent className="pt-6">
+              <TemperatureGauge label="Connector Temperature" valueC={getValue("temperature_c")} warnAboveC={EV_CONNECTOR_TEMP_WARN_C} />
+            </CardContent>
+          </Card>
 
-        <div className="grid grid-cols-2 gap-3">
-          <StatTile label="Energy delivered today" value={todayEnergyKwh !== null ? `${todayEnergyKwh.toFixed(1)} kWh` : "—"} />
-          <StatTile label="Power utilization" value={utilizationPct !== null ? `${utilizationPct.toFixed(0)}%` : "—"} />
-        </div>
-      </div>
+          <div className="grid grid-cols-2 gap-3">
+            <StatTile label="Energy delivered today" value={todayEnergyKwh !== null ? `${todayEnergyKwh.toFixed(1)} kWh` : "—"} />
+            <StatTile label="Power utilization" value={utilizationPct !== null ? `${utilizationPct.toFixed(0)}%` : "—"} />
+          </div>
+        </TabsContent>
+
+        <TabsContent value="sessions" className="space-y-4">
+          <ChargingSessionsCarousel
+            deviceId={device.id}
+            sessions={chargingSummary.sessions}
+            ratedPowerW={chargingSummary.ratedPowerW}
+            currentPowerW={chargingSummary.currentPowerW}
+            currentA={chargingSummary.currentA}
+            voltageV={chargingSummary.voltageV}
+            temperatureC={chargingSummary.temperatureC}
+            connectorStatus={chargingSummary.connectorStatus}
+            tariffRate={tariffRate}
+            showCost={showCost}
+            recentStats={recentChargingStats}
+          />
+        </TabsContent>
+      </MonitoringTabs>
     </>
   );
 }

@@ -328,9 +328,12 @@ export function BarTrendChart({
                 <TrendTooltipContent
                   indicator="dashed"
                   labelFormatter={(l) => formatBucketLabel(String(l), bucketMinutes)}
-                  formatter={(value, name) => (
-                    <span className="flex w-full justify-between gap-3">
-                      <span className="text-muted-foreground">{String(name)}</span>
+                  formatter={(value, name, item) => (
+                    <span className="flex w-full items-center justify-between gap-3">
+                      <span className="flex items-center gap-1.5 text-muted-foreground">
+                        <span className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: item.color }} />
+                        {String(name)}
+                      </span>
                       <span className="font-medium text-foreground tabular-nums">
                         {typeof value === "number" ? value.toFixed(2) : String(value)} {unit}
                       </span>
