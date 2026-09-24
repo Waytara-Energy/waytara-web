@@ -96,14 +96,30 @@ async function loadDevice(deviceId) {
     .maybeSingle();
   if (error || !device) throw new Error(`Device ${deviceId} not found: ${error?.message ?? "no row"}`);
 
+  // device_parameters is retired — instrument_catalog + device_parameter_map
+  // replace it (multi-vendor catalog, see 20260924000100/000200). Reassembled
+  // into device_parameters' old combined `modbus_register` shape
+  // ({registers, scale, signed, ...} in one object) right here, so
+  // everything below (readModbusTick, buildRows) needs zero changes — this
+  // script was never told the columns split into address + decode.
   const { data: catalog, error: catalogError } = await supabase
-    .from("device_parameters")
-    .select("parameter_key, parameter_name, category, unit, modbus_register")
-    .eq("device_type_id", device.device_type.id)
-    .not("modbus_register", "is", null);
+    .from("device_parameter_map")
+    .select("instrument_key, address, decode, instrument_catalog(name, category, unit)")
+    .eq("stock_id", device.device_type.id)
+    .eq("is_enabled", true);
   if (catalogError) throw new Error(`Failed to load register catalog: ${catalogError.message}`);
 
-  return { device, catalog: catalog ?? [] };
+  const rows = (catalog ?? [])
+    .filter((c) => c.address?.registers?.length)
+    .map((c) => ({
+      parameter_key: c.instrument_key,
+      parameter_name: c.instrument_catalog?.name ?? c.instrument_key,
+      category: c.instrument_catalog?.category ?? null,
+      unit: c.instrument_catalog?.unit ?? null,
+      modbus_register: { ...c.address, ...(c.decode ?? {}) },
+    }));
+
+  return { device, catalog: rows };
 }
 
 // ============================================================
