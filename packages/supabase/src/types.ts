@@ -273,6 +273,99 @@ export type Database = {
           },
         ]
       }
+      device_feature_flags: {
+        Row: {
+          category: string
+          device_id: string
+          is_enabled: boolean
+          updated_at: string
+          updated_by: string | null
+        }
+        Insert: {
+          category: string
+          device_id: string
+          is_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Update: {
+          category?: string
+          device_id?: string
+          is_enabled?: boolean
+          updated_at?: string
+          updated_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_feature_flags_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: false
+            referencedRelation: "devices"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_feature_flags_updated_by_fkey"
+            columns: ["updated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      device_parameter_map: {
+        Row: {
+          address: Json
+          decode: Json | null
+          id: string
+          instrument_key: string
+          is_enabled: boolean
+          is_required: boolean
+          notes: string | null
+          protocol: string
+          stock_id: string
+          verified: boolean
+        }
+        Insert: {
+          address: Json
+          decode?: Json | null
+          id?: string
+          instrument_key: string
+          is_enabled?: boolean
+          is_required?: boolean
+          notes?: string | null
+          protocol: string
+          stock_id: string
+          verified?: boolean
+        }
+        Update: {
+          address?: Json
+          decode?: Json | null
+          id?: string
+          instrument_key?: string
+          is_enabled?: boolean
+          is_required?: boolean
+          notes?: string | null
+          protocol?: string
+          stock_id?: string
+          verified?: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_parameter_map_instrument_key_fkey"
+            columns: ["instrument_key"]
+            isOneToOne: false
+            referencedRelation: "instrument_catalog"
+            referencedColumns: ["instrument_key"]
+          },
+          {
+            foreignKeyName: "device_parameter_map_stock_id_fkey"
+            columns: ["stock_id"]
+            isOneToOne: false
+            referencedRelation: "stock"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       device_parameters: {
         Row: {
           category: string | null
@@ -357,10 +450,12 @@ export type Database = {
       }
       device_settings: {
         Row: {
+          applied_preset_key: string | null
           device_id: string
           id: number
           modbus_register: Json | null
           notes: string | null
+          previous_value: string | null
           setting_category: string
           setting_key: string
           setting_value: string
@@ -370,10 +465,12 @@ export type Database = {
           written_by: string | null
         }
         Insert: {
+          applied_preset_key?: string | null
           device_id: string
           id?: never
           modbus_register?: Json | null
           notes?: string | null
+          previous_value?: string | null
           setting_category: string
           setting_key: string
           setting_value: string
@@ -383,10 +480,12 @@ export type Database = {
           written_by?: string | null
         }
         Update: {
+          applied_preset_key?: string | null
           device_id?: string
           id?: never
           modbus_register?: Json | null
           notes?: string | null
+          previous_value?: string | null
           setting_category?: string
           setting_key?: string
           setting_value?: string
@@ -396,6 +495,13 @@ export type Database = {
           written_by?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "device_settings_applied_preset_key_fkey"
+            columns: ["applied_preset_key"]
+            isOneToOne: false
+            referencedRelation: "setting_presets"
+            referencedColumns: ["key"]
+          },
           {
             foreignKeyName: "device_settings_device_id_fkey"
             columns: ["device_id"]
@@ -619,6 +725,78 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      instrument_catalog: {
+        Row: {
+          cadence_seconds: number | null
+          category: string
+          description: string | null
+          device_category: string
+          direction: string
+          enum_ref: string | null
+          instrument_key: string
+          min_role: Database["waytara"]["Enums"]["user_role"]
+          name: string
+          regulated: boolean
+          unit: string | null
+          valid_max: number | null
+          valid_min: number | null
+          value_kind: string
+        }
+        Insert: {
+          cadence_seconds?: number | null
+          category: string
+          description?: string | null
+          device_category: string
+          direction: string
+          enum_ref?: string | null
+          instrument_key: string
+          min_role?: Database["waytara"]["Enums"]["user_role"]
+          name: string
+          regulated?: boolean
+          unit?: string | null
+          valid_max?: number | null
+          valid_min?: number | null
+          value_kind: string
+        }
+        Update: {
+          cadence_seconds?: number | null
+          category?: string
+          description?: string | null
+          device_category?: string
+          direction?: string
+          enum_ref?: string | null
+          instrument_key?: string
+          min_role?: Database["waytara"]["Enums"]["user_role"]
+          name?: string
+          regulated?: boolean
+          unit?: string | null
+          valid_max?: number | null
+          valid_min?: number | null
+          value_kind?: string
+        }
+        Relationships: []
+      }
+      instrument_enum_values: {
+        Row: {
+          code: string
+          enum_ref: string
+          label: string
+          notes: string | null
+        }
+        Insert: {
+          code: string
+          enum_ref: string
+          label: string
+          notes?: string | null
+        }
+        Update: {
+          code?: string
+          enum_ref?: string
+          label?: string
+          notes?: string | null
+        }
+        Relationships: []
       }
       leads: {
         Row: {
@@ -1073,6 +1251,36 @@ export type Database = {
         }
         Relationships: []
       }
+      setting_presets: {
+        Row: {
+          description: string
+          device_category: string
+          id: string
+          is_active: boolean
+          key: string
+          name: string
+          values: Json
+        }
+        Insert: {
+          description: string
+          device_category: string
+          id?: string
+          is_active?: boolean
+          key: string
+          name: string
+          values: Json
+        }
+        Update: {
+          description?: string
+          device_category?: string
+          id?: string
+          is_active?: boolean
+          key?: string
+          name?: string
+          values?: Json
+        }
+        Relationships: []
+      }
       sites: {
         Row: {
           address: Json | null
@@ -1383,6 +1591,7 @@ export type Database = {
     }
     Functions: {
       is_admin: { Args: never; Returns: boolean }
+      is_site_engineer_or_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
       update_device_site: {
         Args: {
@@ -1446,7 +1655,7 @@ export type Database = {
         | "returned"
       subscription_status: "trialing" | "active" | "past_due" | "cancelled"
       test_session_status: "running" | "verified" | "failed"
-      user_role: "admin" | "employee" | "customer"
+      user_role: "admin" | "employee" | "customer" | "site_engineer"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1626,7 +1835,7 @@ export const Constants = {
       ],
       subscription_status: ["trialing", "active", "past_due", "cancelled"],
       test_session_status: ["running", "verified", "failed"],
-      user_role: ["admin", "employee", "customer"],
+      user_role: ["admin", "employee", "customer", "site_engineer"],
     },
   },
 } as const

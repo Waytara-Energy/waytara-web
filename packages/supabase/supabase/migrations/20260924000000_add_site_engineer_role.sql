@@ -1,0 +1,12 @@
+-- Multi-vendor instrument catalog redesign: the new register set's own
+-- Role column (customer/installer/engineer/internal) needs a real distinct
+-- tier between `employee` (on-site installer actions) and `admin` (full
+-- access) for grid-compliance-adjacent settings (grid_standard,
+-- grid_frequency_setting, protection trip thresholds) — see
+-- 20260924000100_instrument_catalog_schema.sql for where this is used.
+--
+-- Adding an enum value must be its own migration/transaction — Postgres
+-- won't let a freshly-added enum value be used (e.g. in a check constraint
+-- or a row insert) within the same transaction that added it (see
+-- 20260901030000_quotation_status_revision_requested.sql, same reasoning).
+alter type waytara.user_role add value if not exists 'site_engineer';
