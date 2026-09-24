@@ -15,6 +15,7 @@ import { PowerGenerationChart } from "@/components/dashboard/lazy-charts";
 import { ChargingSessionsCarousel } from "@/components/dashboard/charging-sessions-carousel";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { IntervalRefresh } from "@/components/dashboard/interval-refresh";
+import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
 
 const WEATHER_REFRESH_MS = 30 * 60 * 1000;
 
@@ -62,11 +63,14 @@ export default async function DashboardOverviewPage() {
   const deviceIds = site.devices.map((d) => d.id);
   const chargerIds = site.devices.filter((d) => d.deviceType?.category === "ev_charger").map((d) => d.id);
   const inverterId = site.devices.find((d) => d.deviceType?.category === "solar_inverter")?.id;
-  const [overview, chargingSummary, recentChargingStats, customerPlan] = await Promise.all([
+  const [overview, chargingSummary, recentChargingStats, customerPlan, connectorStatusOptions] = await Promise.all([
     deviceIds.length > 0 ? fetchSiteOverview(supabase, site) : Promise.resolve(null),
     chargerIds.length > 0 ? fetchTodayChargingSessions(supabase, chargerIds[0]) : Promise.resolve(null),
     chargerIds.length > 0 ? fetchRecentChargingStats(supabase, chargerIds[0]) : Promise.resolve(null),
     getCustomerPlan(),
+    chargerIds.length > 0
+      ? fetchEnumOptions(supabase, ["connector_status"]).then((m) => m.get("connector_status") ?? [])
+      : Promise.resolve([]),
   ]);
   const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
 
@@ -145,6 +149,7 @@ export default async function DashboardOverviewPage() {
               voltageV={chargingSummary?.voltageV ?? null}
               temperatureC={chargingSummary?.temperatureC ?? null}
               connectorStatus={chargingSummary?.connectorStatus ?? null}
+              connectorStatusOptions={connectorStatusOptions}
               tariffRate={tariffRate}
               showCost={site.propertyType !== "residential_independent_villas"}
               recentStats={recentChargingStats}

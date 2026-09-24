@@ -2,6 +2,7 @@ import { TriangleAlert } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import type { CustomerDevice } from "@/lib/selected-site";
 import { getConnectorStatusLabel, getErrorCodeLabel, EV_LIVE_FIELDS, EV_TOTAL_FIELDS, EV_TODAY_DETAIL_FIELDS } from "@/lib/ev-charger-catalog";
+import { fetchReadKeys, fetchEnumOptions } from "@/lib/instrument-catalog-data";
 import { formatValue } from "@/lib/telemetry-catalog";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { fetchTodayEvEnergyKwh } from "@/lib/device-overview";
@@ -13,7 +14,10 @@ import { RecentAlerts, type AlertRow } from "./recent-alerts";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
-const READ_KEYS = [...EV_LIVE_FIELDS, ...EV_TOTAL_FIELDS].map((f) => f.key).concat(["connector_status", "error_code"]);
+// Full presentation universe — filtered per device in EvChargerOverview
+// against fetchReadKeys, same reasoning as monitoring-content.tsx's
+// EV_CANDIDATE_KEYS.
+const READ_CANDIDATE_KEYS = [...EV_LIVE_FIELDS, ...EV_TOTAL_FIELDS].map((f) => f.key).concat(["connector_status", "error_code"]);
 
 /** The EV charger's own curated Overview — the charger-category
  *  counterpart to the solar inverter's status pill / fault banner / energy
@@ -30,14 +34,17 @@ export async function EvChargerOverview({
   device: CustomerDevice;
   showAlerts?: boolean;
 }) {
-  const [{ data: readings }, { data: recentAlerts }, { data: openSession }, customerPlan, todayEnergyKwh] = await Promise.all([
+  const readKeys = await fetchReadKeys(supabase, device);
+  const readCandidateKeys = READ_CANDIDATE_KEYS.filter((k) => readKeys.has(k));
+
+  const [{ data: readings }, { data: recentAlerts }, { data: openSession }, customerPlan, todayEnergyKwh, enumOptions] = await Promise.all([
     supabase
       .from("device_readings")
       .select("instrument_key, value, ts")
       .eq("device_id", device.id)
-      .in("instrument_key", READ_KEYS)
+      .in("instrument_key", readCandidateKeys)
       .order("ts", { ascending: false })
-      .limit(READ_KEYS.length * 5),
+      .limit(readCandidateKeys.length * 5),
     showAlerts
       ? supabase
           .from("alerts")
@@ -50,6 +57,7 @@ export async function EvChargerOverview({
     supabase.from("charging_sessions").select("started_at").eq("device_id", device.id).is("ended_at", null).maybeSingle(),
     getCustomerPlan(),
     fetchTodayEvEnergyKwh(supabase, [device.id]),
+    fetchEnumOptions(supabase, ["connector_status", "error_code"]),
   ]);
 
   const latest = new Map<string, number | null>();
@@ -58,8 +66,8 @@ export async function EvChargerOverview({
   }
   const get = (key: string) => latest.get(key) ?? null;
 
-  const status = getConnectorStatusLabel(get("connector_status"));
-  const errorLabel = getErrorCodeLabel(get("error_code"));
+  const status = getConnectorStatusLabel(get("connector_status"), enumOptions.get("connector_status") ?? []);
+  const errorLabel = getErrorCodeLabel(get("error_code"), enumOptions.get("error_code") ?? []);
   const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
 
   return (

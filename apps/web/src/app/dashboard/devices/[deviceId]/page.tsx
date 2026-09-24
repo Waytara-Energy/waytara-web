@@ -3,8 +3,8 @@ import { CheckCircle2, Settings2, TriangleAlert } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { getSelectedSite } from "@/lib/selected-site";
-import { getSettingFieldsByCategory, getSettingCategories } from "@/lib/instrument-settings-catalog";
-import { fetchDeviceSettingFields, categoryLabel } from "@/lib/device-settings-data";
+import { getSettingFields, getSettingFieldsByCategory } from "@/lib/instrument-settings-catalog";
+import { fetchDeviceSettingFields, categoryLabel } from "@/lib/instrument-catalog-data";
 import { gridChargeWindows, formatHourWindows } from "@/lib/tou-presets";
 import { averageInHourWindows } from "@/lib/energy-aggregation";
 import { PROPERTY_TYPE_OPTIONS, POWER_SOURCE_OPTIONS, POWER_PACKAGE_OPTIONS } from "@/lib/site-catalog";
@@ -39,10 +39,10 @@ import { updateSiteSetting } from "./actions";
 //     generic parameter-card fallback.
 //  4. Site & Settings — editable, gated behind `features.instrument_settings`
 //     same as the old Instrument Settings page was: a Site Setting tab
-//     (edits `sites`/`devices`) plus one tab per category from
-//     `getSettingCategories(category)` — 6 Deye-backed tabs for a solar
-//     inverter, one OCPP Configuration tab for an EV charger, none for an
-//     unrecognized category (nothing to show instead of a broken tab).
+//     (edits `sites`/`devices`) plus one tab per category. solar_inverter
+//     and ev_charger both get their tabs from instrument_catalog directly;
+//     anything else (currently just battery_storage) falls back to
+//     instrument-settings-catalog.ts's hardcoded fields.
 //
 // A device id foreign to the selected site 404s rather than silently
 // falling back to some other device — this is its own dedicated URL, not
@@ -66,15 +66,26 @@ export default async function DeviceDetailPage({
   if (!site || !device) notFound();
 
   const category = device.deviceType?.category ?? "";
-  const isSolarInverter = category === "solar_inverter";
+  // Both categories instrument_catalog actually covers (Section 1's Deye
+  // seed for solar_inverter, 20260926000000's OCPP seed for ev_charger)
+  // get the real DB-driven Settings pipeline; anything else (currently
+  // just battery_storage, which has no register source of its own) falls
+  // back to instrument-settings-catalog.ts's hardcoded fields.
+  const isCatalogDriven = category === "solar_inverter" || category === "ev_charger";
   const canEditSettings = customerPlan?.features?.instrument_settings ?? false;
-  const settingCategories = getSettingCategories(category);
+  // Fallback path's own tab list, derived from whichever categories its
+  // hardcoded fields actually use (currently just "battery" for
+  // battery_storage) rather than a separate hand-maintained list.
+  const fallbackCategories = Array.from(new Set(getSettingFields(category).map((f) => f.category))).map((key) => ({
+    key,
+    label: categoryLabel(key),
+  }));
   const address = site.address ?? {};
 
   let settingsMap = new Map<string, string>();
   let touPresetOptions: TouPresetOption[] = [];
   let currentTouPresetKey: string | null = null;
-  let solarSettingsCatalog: Awaited<ReturnType<typeof fetchDeviceSettingFields>> | null = null;
+  let deviceSettingsCatalog: Awaited<ReturnType<typeof fetchDeviceSettingFields>> | null = null;
   if (canEditSettings) {
     const { data: settingsRows } = await supabase
       .from("device_settings")
@@ -83,43 +94,47 @@ export default async function DeviceDetailPage({
       .order("ts", { ascending: true }); // ts-ascending, so the last write per (category, key) wins.
     settingsMap = new Map(settingsRows?.map((row) => [`${row.setting_category}:${row.setting_key}`, row.setting_value]));
 
-    if (isSolarInverter) {
-      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const [{ data: presetRows }, { data: gridReadings }, { data: appliedRows }, settingsCatalog] = await Promise.all([
-        supabase
-          .from("setting_presets")
-          .select("key, name, description, values")
-          .eq("device_category", "solar_inverter")
-          .eq("is_active", true)
-          .order("key"),
-        supabase
-          .from("device_readings")
-          .select("device_id, value, ts")
-          .eq("device_id", device.id)
-          .eq("instrument_key", "grid_power_w")
-          .gte("ts", sevenDaysAgo),
-        supabase
-          .from("device_settings")
-          .select("applied_preset_key, ts")
-          .eq("device_id", device.id)
-          .not("applied_preset_key", "is", null)
-          .order("ts", { ascending: false })
-          .limit(1),
-        fetchDeviceSettingFields(supabase, device),
-      ]);
+    if (isCatalogDriven) {
+      deviceSettingsCatalog = await fetchDeviceSettingFields(supabase, device);
 
-      currentTouPresetKey = appliedRows?.[0]?.applied_preset_key ?? null;
-      touPresetOptions = (presetRows ?? []).map((preset) => {
-        const windows = gridChargeWindows(preset.values as Record<string, unknown>);
-        return {
-          key: preset.key,
-          name: preset.name,
-          description: preset.description,
-          gridWindowsText: windows.length > 0 ? formatHourWindows(windows) : null,
-          averageGridDrawW: averageInHourWindows(gridReadings ?? [], windows),
-        };
-      });
-      solarSettingsCatalog = settingsCatalog;
+      // TOU presets are solar_inverter-only — setting_presets has no
+      // ev_charger rows (nothing preset-shaped in the OCPP field list).
+      if (category === "solar_inverter") {
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        const [{ data: presetRows }, { data: gridReadings }, { data: appliedRows }] = await Promise.all([
+          supabase
+            .from("setting_presets")
+            .select("key, name, description, values")
+            .eq("device_category", "solar_inverter")
+            .eq("is_active", true)
+            .order("key"),
+          supabase
+            .from("device_readings")
+            .select("device_id, value, ts")
+            .eq("device_id", device.id)
+            .eq("instrument_key", "grid_power_w")
+            .gte("ts", sevenDaysAgo),
+          supabase
+            .from("device_settings")
+            .select("applied_preset_key, ts")
+            .eq("device_id", device.id)
+            .not("applied_preset_key", "is", null)
+            .order("ts", { ascending: false })
+            .limit(1),
+        ]);
+
+        currentTouPresetKey = appliedRows?.[0]?.applied_preset_key ?? null;
+        touPresetOptions = (presetRows ?? []).map((preset) => {
+          const windows = gridChargeWindows(preset.values as Record<string, unknown>);
+          return {
+            key: preset.key,
+            name: preset.name,
+            description: preset.description,
+            gridWindowsText: windows.length > 0 ? formatHourWindows(windows) : null,
+            averageGridDrawW: averageInHourWindows(gridReadings ?? [], windows),
+          };
+        });
+      }
     }
   }
 
@@ -128,9 +143,9 @@ export default async function DeviceDetailPage({
   // stored anywhere. A category with zero enabled write fields for this
   // specific device (all disabled via device_feature_flags, or none in
   // this model's device_parameter_map) just doesn't get a tab.
-  const SOLAR_CATEGORY_ORDER = ["solar", "battery", "grid", "generator", "system"];
-  const solarCategoryKeys = solarSettingsCatalog
-    ? SOLAR_CATEGORY_ORDER.filter((key) => solarSettingsCatalog!.fieldsByCategory.has(key))
+  const CATEGORY_ORDER = ["solar", "battery", "grid", "generator", "system", "charging"];
+  const catalogCategoryKeys = deviceSettingsCatalog
+    ? CATEGORY_ORDER.filter((key) => deviceSettingsCatalog!.fieldsByCategory.has(key))
     : [];
 
   return (
@@ -198,13 +213,13 @@ export default async function DeviceDetailPage({
           <Tabs key={device.id} defaultValue="site" className="w-full">
             <TabsList className="h-auto flex-wrap justify-start gap-1">
               <TabsTrigger value="site">Site Setting</TabsTrigger>
-              {isSolarInverter
-                ? solarCategoryKeys.map((key) => (
+              {isCatalogDriven
+                ? catalogCategoryKeys.map((key) => (
                     <TabsTrigger key={key} value={key}>
                       {categoryLabel(key)}
                     </TabsTrigger>
                   ))
-                : settingCategories.map((cat) => (
+                : fallbackCategories.map((cat) => (
                     <TabsTrigger key={cat.key} value={cat.key}>
                       {cat.label}
                     </TabsTrigger>
@@ -319,9 +334,9 @@ export default async function DeviceDetailPage({
               </Card>
             </TabsContent>
 
-            {isSolarInverter
-              ? solarCategoryKeys.map((key) => {
-                  const fields = solarSettingsCatalog!.fieldsByCategory.get(key) ?? [];
+            {isCatalogDriven
+              ? catalogCategoryKeys.map((key) => {
+                  const fields = deviceSettingsCatalog!.fieldsByCategory.get(key) ?? [];
                   return (
                     <TabsContent key={key} value={key}>
                       <Card>
@@ -334,7 +349,7 @@ export default async function DeviceDetailPage({
                               key={field.key}
                               deviceId={device.id}
                               field={field}
-                              enumOptions={field.enumRef ? (solarSettingsCatalog!.enumOptionsByRef.get(field.enumRef) ?? []) : []}
+                              enumOptions={field.enumRef ? (deviceSettingsCatalog!.enumOptionsByRef.get(field.enumRef) ?? []) : []}
                             />
                           ))}
                           {key === "system" && touPresetOptions.length > 0 && (
@@ -351,7 +366,7 @@ export default async function DeviceDetailPage({
                     </TabsContent>
                   );
                 })
-              : settingCategories.map((cat) => {
+              : fallbackCategories.map((cat) => {
                   const fields = getSettingFieldsByCategory(category, cat.key);
                   return (
                     <TabsContent key={cat.key} value={cat.key}>
@@ -360,21 +375,7 @@ export default async function DeviceDetailPage({
                           <CardTitle>{cat.label}</CardTitle>
                         </CardHeader>
                         <CardContent className="space-y-5">
-                          {cat.helpText && <p className="text-sm text-theme-muted">{cat.helpText}</p>}
-
-                          {cat.key === "advanced" ? (
-                            <Empty>
-                              <EmptyHeader>
-                                <EmptyMedia variant="icon">
-                                  <Settings2 />
-                                </EmptyMedia>
-                                <EmptyTitle>Nothing available yet</EmptyTitle>
-                                <EmptyDescription>
-                                  No Advanced Function settings on this device model are confirmed safe to write yet.
-                                </EmptyDescription>
-                              </EmptyHeader>
-                            </Empty>
-                          ) : fields.length === 0 ? (
+                          {fields.length === 0 ? (
                             <Empty>
                               <EmptyHeader>
                                 <EmptyMedia variant="icon">

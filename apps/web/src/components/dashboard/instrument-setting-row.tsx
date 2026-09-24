@@ -20,7 +20,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import type { EnumOption, SettingField } from "@/lib/device-settings-data";
+import type { EnumOption, SettingField } from "@/lib/instrument-catalog-data";
 import { updateInstrumentSetting } from "@/app/dashboard/devices/[deviceId]/actions";
 
 function rangeHint(field: SettingField): string | null {

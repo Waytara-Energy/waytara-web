@@ -3,6 +3,7 @@ import type { CustomerDevice } from "@/lib/selected-site";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { deriveFaultEvents } from "@/lib/deye-fault-codes";
 import { getConnectorStatusLabel, getErrorCodeLabel } from "@/lib/ev-charger-catalog";
+import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
 import { TEMPERATURE_FIELDS } from "@/lib/telemetry-catalog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
@@ -139,7 +140,7 @@ async function SolarInverterHealth({ supabase, device }: { supabase: SupabaseSer
 }
 
 async function EvChargerHealth({ supabase, device }: { supabase: SupabaseServerClient; device: CustomerDevice }) {
-  const [{ data: latestRows }, lastSync] = await Promise.all([
+  const [{ data: latestRows }, lastSync, enumOptions] = await Promise.all([
     supabase
       .from("device_readings")
       .select("instrument_key, value, ts")
@@ -148,14 +149,15 @@ async function EvChargerHealth({ supabase, device }: { supabase: SupabaseServerC
       .order("ts", { ascending: false })
       .limit(15),
     getLastSyncInfo(device.id),
+    fetchEnumOptions(supabase, ["connector_status", "error_code"]),
   ]);
 
   const latest = new Map<string, number | null>();
   for (const r of latestRows ?? []) {
     if (!latest.has(r.instrument_key)) latest.set(r.instrument_key, r.value);
   }
-  const status = getConnectorStatusLabel(latest.get("connector_status") ?? null);
-  const errorLabel = getErrorCodeLabel(latest.get("error_code") ?? null);
+  const status = getConnectorStatusLabel(latest.get("connector_status") ?? null, enumOptions.get("connector_status") ?? []);
+  const errorLabel = getErrorCodeLabel(latest.get("error_code") ?? null, enumOptions.get("error_code") ?? []);
   const temperature = latest.get("temperature_c") ?? null;
 
   return (

@@ -9,25 +9,34 @@
  */
 
 import type { TelemetryField } from "./telemetry-catalog";
+import type { EnumOption } from "./instrument-catalog-data";
 
 export interface StatusInfo {
   label: string;
   tone: "good" | "neutral" | "bad";
 }
 
-// OCPP 1.6 StatusNotification.status — matches the encoding documented in
-// the 20260917000000_ev_charger_ocpp_parameters.sql migration.
-const CONNECTOR_STATUS_LABELS: Record<number, StatusInfo> = {
-  0: { label: "Available", tone: "neutral" },
-  1: { label: "Preparing", tone: "neutral" },
-  2: { label: "Charging", tone: "good" },
-  3: { label: "Suspended", tone: "neutral" },
-  4: { label: "Faulted", tone: "bad" },
+// Tone stays presentation logic (good/neutral/bad color coding) — the
+// label TEXT now resolves through instrument_enum_values (see
+// instrument-catalog-data.ts's fetchEnumOptions), keyed by the same codes
+// this map used to hardcode, so the code -> label mapping lives in one
+// place shared with the Settings form's own enum dropdowns.
+const CONNECTOR_STATUS_TONE: Record<number, StatusInfo["tone"]> = {
+  0: "neutral", // Available
+  1: "neutral", // Preparing
+  2: "good", // Charging
+  3: "neutral", // Suspended
+  4: "bad", // Faulted
 };
 
-export function getConnectorStatusLabel(value: number | null): StatusInfo {
+// Takes the plain connector_status option array (not the whole Map
+// fetchEnumOptions returns) so client components — ChargingSessionsCarousel
+// is interactive, not a server component — can receive it as an ordinary
+// serializable prop rather than needing their own DB access.
+export function getConnectorStatusLabel(value: number | null, options: EnumOption[]): StatusInfo {
   if (value === null) return { label: "Unknown", tone: "neutral" };
-  return CONNECTOR_STATUS_LABELS[value] ?? { label: `Status ${value}`, tone: "neutral" };
+  const match = options.find((o) => o.code === String(value));
+  return { label: match?.label ?? `Status ${value}`, tone: CONNECTOR_STATUS_TONE[value] ?? "neutral" };
 }
 
 // No OCPP-specified ceiling exists for connector temperature, so this
@@ -37,37 +46,15 @@ export function getConnectorStatusLabel(value: number | null): StatusInfo {
 // gauge cite the same number instead of two independent constants.
 export const EV_CONNECTOR_TEMP_WARN_C = 45;
 
-// OCPP 1.6 StatusNotification.errorCode enum, in the order the spec itself
-// lists it — index 0 is NoError (matches the seeded sample data), every
-// other index maps 1:1 onto the spec's remaining values. Arbitrary but
-// documented + stable, same "friendly key instead of a raw protocol
-// number" reasoning already used for device_readings.instrument_key
-// elsewhere in this app.
-const OCPP_ERROR_CODES = [
-  "NoError",
-  "ConnectorLockFailure",
-  "EVCommunicationError",
-  "GroundFailure",
-  "HighTemperature",
-  "InternalError",
-  "LocalListConflict",
-  "OtherError",
-  "OverCurrentFailure",
-  "OverVoltage",
-  "PowerMeterFailure",
-  "PowerSwitchFailure",
-  "ReaderFailure",
-  "ResetFailure",
-  "UnderVoltage",
-  "WeakSignal",
-];
-
-/** null when there's nothing to report (code 0/null) — same "renders
- *  nothing when there's no fault" contract FaultBanner uses for the
- *  inverter, so a caller can show this unconditionally. */
-export function getErrorCodeLabel(code: number | null): string | null {
+/** null when there's nothing to report (code 0/NoError, or null) — same
+ *  "renders nothing when there's no fault" contract FaultBanner uses for
+ *  the inverter, so a caller can show this unconditionally. Label text
+ *  resolves through instrument_enum_values (enum_ref 'error_code'), same
+ *  as getConnectorStatusLabel. */
+export function getErrorCodeLabel(code: number | null, options: EnumOption[]): string | null {
   if (code === null || code === 0) return null;
-  return OCPP_ERROR_CODES[code] ?? `Error ${code}`;
+  const match = options.find((o) => o.code === String(code));
+  return match?.label ?? `Error ${code}`;
 }
 
 // The live charging snapshot — what's actually flowing right now.

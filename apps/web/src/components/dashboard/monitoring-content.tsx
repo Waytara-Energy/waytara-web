@@ -3,6 +3,7 @@ import { getSelectedSite, type CustomerDevice } from "@/lib/selected-site";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
 import { getDisabledCategories } from "@/lib/device-feature-flags";
+import { fetchReadKeys, fetchEnumOptions } from "@/lib/instrument-catalog-data";
 import { fetchTodayChargingSessions, fetchRecentChargingStats } from "@/lib/device-overview";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { co2AvoidedKg, treesEquivalent } from "@/lib/environmental-impact";
@@ -713,7 +714,12 @@ async function SolarInverterMonitoring({
   );
 }
 
-const EV_SNAPSHOT_KEYS = [...EV_LIVE_FIELDS, ...EV_TOTAL_FIELDS].map((f) => f.key).concat(["connector_status", "error_code"]);
+// The full presentation universe — filtered per device below against
+// what this device's own stock model + device_feature_flags actually
+// confirm exist (fetchReadKeys), so a future charger model missing a
+// register (e.g. no temperature sensor) doesn't query for it and show a
+// permanently-blank card.
+const EV_CANDIDATE_KEYS = [...EV_LIVE_FIELDS, ...EV_TOTAL_FIELDS].map((f) => f.key).concat(["connector_status", "error_code"]);
 
 async function EvChargerMonitoring({
   supabase,
@@ -724,20 +730,24 @@ async function EvChargerMonitoring({
   device: CustomerDevice;
   devices: CustomerDevice[];
 }) {
-  const [{ data: snapshotReadings }, lastSync, chargingSummary, recentChargingStats, customerPlan, site] =
+  const readKeys = await fetchReadKeys(supabase, device);
+  const snapshotKeys = EV_CANDIDATE_KEYS.filter((k) => readKeys.has(k));
+
+  const [{ data: snapshotReadings }, lastSync, chargingSummary, recentChargingStats, customerPlan, site, enumOptions] =
     await Promise.all([
       supabase
         .from("device_readings")
         .select("instrument_key, value, ts")
         .eq("device_id", device.id)
-        .in("instrument_key", EV_SNAPSHOT_KEYS)
+        .in("instrument_key", snapshotKeys)
         .order("ts", { ascending: false })
-        .limit(EV_SNAPSHOT_KEYS.length * 5),
+        .limit(snapshotKeys.length * 5),
       getLastSyncInfo(device.id),
       fetchTodayChargingSessions(supabase, device.id),
       fetchRecentChargingStats(supabase, device.id),
       getCustomerPlan(),
       getSelectedSite(),
+      fetchEnumOptions(supabase, ["connector_status", "error_code"]),
     ]);
 
   const latest = new Map<string, number | null>();
@@ -745,8 +755,8 @@ async function EvChargerMonitoring({
     if (!latest.has(r.instrument_key)) latest.set(r.instrument_key, r.value);
   }
   const getValue = (key: string) => latest.get(key) ?? null;
-  const status = getConnectorStatusLabel(getValue("connector_status"));
-  const errorLabel = getErrorCodeLabel(getValue("error_code"));
+  const status = getConnectorStatusLabel(getValue("connector_status"), enumOptions.get("connector_status") ?? []);
+  const errorLabel = getErrorCodeLabel(getValue("error_code"), enumOptions.get("error_code") ?? []);
 
   const powerW = getValue("power_active_import_w");
   const offeredW = getValue("power_offered_w");
@@ -877,6 +887,7 @@ async function EvChargerMonitoring({
             voltageV={chargingSummary.voltageV}
             temperatureC={chargingSummary.temperatureC}
             connectorStatus={chargingSummary.connectorStatus}
+            connectorStatusOptions={enumOptions.get("connector_status") ?? []}
             tariffRate={tariffRate}
             showCost={showCost}
             recentStats={recentChargingStats}

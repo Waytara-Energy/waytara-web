@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { startChargingSession, stopChargingSession } from "@/app/dashboard/ev-session-actions";
 import { getConnectorStatusLabel, type StatusInfo } from "@/lib/ev-charger-catalog";
+import type { EnumOption } from "@/lib/instrument-catalog-data";
 import type { ChargingSessionDetail, RecentChargingStats } from "@/lib/device-overview";
 
 const DEFAULT_RATED_POWER_W = 7400;
@@ -232,6 +233,7 @@ function IdleSlide({
   deviceId,
   ratedPowerW,
   connectorStatus,
+  connectorStatusOptions,
   sessionCount,
   energyToday,
   recentStats,
@@ -239,11 +241,12 @@ function IdleSlide({
   deviceId: string;
   ratedPowerW: number;
   connectorStatus: number | null;
+  connectorStatusOptions: EnumOption[];
   sessionCount: number;
   energyToday: number;
   recentStats: RecentChargingStats | null;
 }) {
-  const status = getConnectorStatusLabel(connectorStatus);
+  const status = getConnectorStatusLabel(connectorStatus, connectorStatusOptions);
   return (
     <div className="flex flex-col gap-6">
       <StatusText label={status.label} tone={status.tone} icon />
@@ -290,6 +293,7 @@ function SessionSlide({
   voltageV,
   temperatureC,
   connectorStatus,
+  connectorStatusOptions,
   tariffRate,
   showCost,
 }: {
@@ -300,6 +304,7 @@ function SessionSlide({
   voltageV: number | null;
   temperatureC: number | null;
   connectorStatus: number | null;
+  connectorStatusOptions: EnumOption[];
   tariffRate: number;
   showCost: boolean;
 }) {
@@ -307,7 +312,9 @@ function SessionSlide({
   const avgPowerW = session.energyKwh !== null ? (session.energyKwh * 1000) / durationHours(session.startedAt, session.endedAt) : null;
   const powerW = session.isOpen ? currentPowerW : avgPowerW;
   const powerKw = powerW !== null ? powerW / 1000 : null;
-  const status = session.isOpen ? getConnectorStatusLabel(connectorStatus) : { label: "Complete", tone: "neutral" as const };
+  const status = session.isOpen
+    ? getConnectorStatusLabel(connectorStatus, connectorStatusOptions)
+    : { label: "Complete", tone: "neutral" as const };
 
   return (
     <div className="flex flex-col gap-6">
@@ -382,6 +389,7 @@ export function ChargingSessionsCarousel({
   voltageV,
   temperatureC,
   connectorStatus,
+  connectorStatusOptions,
   tariffRate,
   showCost = true,
   recentStats,
@@ -394,6 +402,10 @@ export function ChargingSessionsCarousel({
   voltageV: number | null;
   temperatureC: number | null;
   connectorStatus: number | null;
+  /** connector_status's instrument_enum_values options — a plain array
+   *  prop rather than the whole enum Map, since this is a client
+   *  component with no DB access of its own. */
+  connectorStatusOptions: EnumOption[];
   tariffRate: number;
   /** False for residential/independent-villa sites (site.propertyType ===
    *  "residential_independent_villas") — cost isn't shown there; every
@@ -516,6 +528,7 @@ export function ChargingSessionsCarousel({
                 deviceId={deviceId}
                 ratedPowerW={rated}
                 connectorStatus={connectorStatus}
+                connectorStatusOptions={connectorStatusOptions}
                 sessionCount={sessions.length}
                 energyToday={energyToday}
                 recentStats={recentStats}
@@ -529,6 +542,7 @@ export function ChargingSessionsCarousel({
                 voltageV={current.session.isOpen ? voltageV : null}
                 temperatureC={current.session.isOpen ? temperatureC : null}
                 connectorStatus={connectorStatus}
+                connectorStatusOptions={connectorStatusOptions}
                 tariffRate={tariffRate}
                 showCost={showCost}
               />

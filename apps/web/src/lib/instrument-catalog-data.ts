@@ -36,6 +36,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   grid: "Grid",
   solar: "Solar",
   system: "System",
+  charging: "Charging",
 };
 
 export function categoryLabel(category: string): string {
@@ -74,27 +75,18 @@ export async function fetchDeviceSettingFields(supabase: SupabaseServerClient, d
   const keys = rows.map((r) => r.instrument_key);
   const enumRefs = Array.from(new Set(rows.map((r) => r.instrument_catalog.enum_ref).filter((r): r is string => Boolean(r))));
 
-  const [{ data: settingsRows }, { data: enumRows }] = await Promise.all([
+  const [{ data: settingsRows }, enumOptionsByRef] = await Promise.all([
     supabase
       .from("device_settings")
       .select("setting_key, setting_value, ts")
       .eq("device_id", device.id)
       .in("setting_key", keys)
       .order("ts", { ascending: true }), // ascending so the last write per key (assigned below) wins.
-    enumRefs.length > 0
-      ? supabase.from("instrument_enum_values").select("enum_ref, code, label").in("enum_ref", enumRefs).order("code")
-      : Promise.resolve({ data: [] }),
+    fetchEnumOptions(supabase, enumRefs),
   ]);
 
   const currentByKey = new Map<string, string>();
   for (const row of settingsRows ?? []) currentByKey.set(row.setting_key, row.setting_value);
-
-  const enumOptionsByRef = new Map<string, EnumOption[]>();
-  for (const row of enumRows ?? []) {
-    const list = enumOptionsByRef.get(row.enum_ref) ?? [];
-    list.push({ code: row.code, label: row.label });
-    enumOptionsByRef.set(row.enum_ref, list);
-  }
 
   const fieldsByCategory = new Map<string, SettingField[]>();
   for (const row of rows) {
@@ -120,4 +112,55 @@ export async function fetchDeviceSettingFields(supabase: SupabaseServerClient, d
   for (const list of fieldsByCategory.values()) list.sort((a, b) => a.name.localeCompare(b.name));
 
   return { fieldsByCategory, enumOptionsByRef };
+}
+
+/** Every read-direction instrument key this device's own stock model
+ *  reports (device_parameter_map, is_enabled) minus whatever this specific
+ *  install's device_feature_flags disable — the DB's answer to "what does
+ *  this device actually have," used to filter the hand-tuned presentation
+ *  field lists in telemetry-catalog.ts/ev-charger-catalog.ts down to what
+ *  a given vendor/model genuinely supports, instead of showing a
+ *  permanently-blank card for a register a different model doesn't have.
+ *  Works for any device_category — nothing solar_inverter-specific here. */
+export async function fetchReadKeys(supabase: SupabaseServerClient, device: CustomerDevice): Promise<Set<string>> {
+  const stockId = device.deviceType?.id;
+  if (!stockId) return new Set();
+
+  const [{ data: mapRows }, disabledCategories] = await Promise.all([
+    supabase
+      .from("device_parameter_map")
+      .select("instrument_key, instrument_catalog!inner(category, direction)")
+      .eq("stock_id", stockId)
+      .eq("is_enabled", true)
+      .eq("instrument_catalog.direction", "read"),
+    getDisabledCategories(supabase, device.id),
+  ]);
+
+  return new Set((mapRows ?? []).filter((r) => !disabledCategories.has(r.instrument_catalog.category)).map((r) => r.instrument_key));
+}
+
+/** Batch enum-code -> label lookup, shared by the Settings form's
+ *  dropdowns and any read-side display of an enum-valued reading
+ *  (inverter_state, connector_status, error_code, ...) — one place the
+ *  code -> label mapping lives, instead of a hardcoded switch per caller. */
+export async function fetchEnumOptions(supabase: SupabaseServerClient, enumRefs: string[]): Promise<Map<string, EnumOption[]>> {
+  const enumOptionsByRef = new Map<string, EnumOption[]>();
+  if (enumRefs.length === 0) return enumOptionsByRef;
+
+  const { data: enumRows } = await supabase.from("instrument_enum_values").select("enum_ref, code, label").in("enum_ref", enumRefs).order("code");
+  for (const row of enumRows ?? []) {
+    const list = enumOptionsByRef.get(row.enum_ref) ?? [];
+    list.push({ code: row.code, label: row.label });
+    enumOptionsByRef.set(row.enum_ref, list);
+  }
+  return enumOptionsByRef;
+}
+
+/** Convenience for a single enum_ref — looks up one code's label, falling
+ *  back to the raw code string (still better than nothing) if it's
+ *  missing from instrument_enum_values or the code itself is unrecognized. */
+export function lookupEnumLabel(options: Map<string, EnumOption[]>, enumRef: string, code: string | number | null): string | null {
+  if (code === null) return null;
+  const match = (options.get(enumRef) ?? []).find((o) => o.code === String(code));
+  return match?.label ?? `Code ${code}`;
 }
