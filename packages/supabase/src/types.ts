@@ -366,47 +366,6 @@ export type Database = {
           },
         ]
       }
-      device_parameters: {
-        Row: {
-          category: string | null
-          device_type_id: string
-          id: string
-          is_required: boolean
-          modbus_register: Json | null
-          parameter_key: string
-          parameter_name: string
-          unit: string | null
-        }
-        Insert: {
-          category?: string | null
-          device_type_id: string
-          id?: string
-          is_required?: boolean
-          modbus_register?: Json | null
-          parameter_key: string
-          parameter_name: string
-          unit?: string | null
-        }
-        Update: {
-          category?: string | null
-          device_type_id?: string
-          id?: string
-          is_required?: boolean
-          modbus_register?: Json | null
-          parameter_key?: string
-          parameter_name?: string
-          unit?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "device_type_instruments_device_type_id_fkey"
-            columns: ["device_type_id"]
-            isOneToOne: false
-            referencedRelation: "stock"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       device_readings: {
         Row: {
           created_at: string

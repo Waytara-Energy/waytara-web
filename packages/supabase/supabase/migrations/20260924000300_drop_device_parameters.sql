@@ -1,0 +1,11 @@
+-- device_parameters is fully retired. Its data has been migrated onto
+-- instrument_catalog + device_parameter_map (20260924000200), and every
+-- read/write call site in both apps has been repointed onto the new
+-- tables and verified (grep confirms zero remaining references, the
+-- repointed admin devices/page.tsx query has been verified directly
+-- against production, and both apps type-check clean).
+--
+-- Deliberately its own migration, run only after that verification —
+-- not bundled into the schema-creation or seed migrations, so a problem
+-- with either of those could never take this table down with it.
+drop table if exists waytara.device_parameters;
