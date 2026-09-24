@@ -2,6 +2,7 @@ import { createClient } from "@waytara/supabase/server";
 import type { CustomerDevice, CustomerSite } from "@/lib/selected-site";
 import { fetchDeviceOverview } from "@/lib/device-overview";
 import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
+import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
 import { DeviceStatusPill } from "./device-status-pill";
 import { FaultBanner } from "./fault-banner";
 import { EnergyFlowDiagram } from "./energy-flow-diagram";
@@ -57,11 +58,18 @@ export async function DeviceOverviewContent({
   const category = device.deviceType?.category;
 
   if (category === "solar_inverter") {
-    const overview = await fetchDeviceOverview(supabase, site, device);
+    const [overview, inverterStateOptions] = await Promise.all([
+      fetchDeviceOverview(supabase, site, device),
+      fetchEnumOptions(supabase, ["inverter_state"]).then((m) => m.get("inverter_state") ?? []),
+    ]);
     return (
       <div className="space-y-4">
         <div className="flex justify-end">
-          <DeviceStatusPill inverterState={overview.get("inverter_state")} activeFaultCode={overview.get("active_fault_code")} />
+          <DeviceStatusPill
+            inverterState={overview.get("inverter_state")}
+            activeFaultCode={overview.get("active_fault_code")}
+            inverterStateOptions={inverterStateOptions}
+          />
         </div>
 
         <FaultBanner faultCode={overview.get("active_fault_code")} />

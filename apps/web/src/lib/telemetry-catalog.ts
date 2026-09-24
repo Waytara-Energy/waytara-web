@@ -22,16 +22,6 @@ export interface TelemetryField {
   decimals?: number;
 }
 
-export const INVERTER_STATE_LABELS: Record<number, { label: string; tone: "good" | "neutral" | "bad" }> = {
-  0: { label: "Normal", tone: "good" },
-  1: { label: "Standby", tone: "neutral" },
-  2: { label: "Fault", tone: "bad" },
-};
-
-export function getInverterStateLabel(value: number | null | undefined): { label: string; tone: "good" | "neutral" | "bad" } {
-  if (value === null || value === undefined) return { label: "Unknown", tone: "neutral" };
-  return INVERTER_STATE_LABELS[value] ?? { label: `State ${value}`, tone: "neutral" };
-}
 
 /** [92] in the manual — whether the inverter's onboard SD-card logging is
  *  working. A separate signal from the customer-facing "last sync"
@@ -95,7 +85,6 @@ export const GRID_DETAIL_FIELDS: TelemetryField[] = [
   { key: "grid_frequency_hz", label: "Frequency", unit: "Hz", decimals: 2 },
   { key: "grid_current_a", label: "Current", unit: "A", decimals: 2 },
   { key: "grid_ct_power_w", label: "CT clamp power", unit: "W" },
-  { key: "grid_ld_power_w", label: "L/D power", unit: "W" },
   { key: "grid_l2_power_w", label: "L2 power", unit: "W" },
 ];
 

@@ -1,7 +1,7 @@
 /**
  * The read-side presentation catalog for the ev_charger category — the
  * OCPP counterpart to telemetry-catalog.ts's inverter-oriented fields and
- * getInverterStateLabel/getSdStatusLabel. Kept in its own file rather than
+ * getSdStatusLabel. Kept in its own file rather than
  * folded into telemetry-catalog.ts: this app is meant to grow more device
  * categories/vendors over time (see EvChargerOverview's own comment), and
  * each one gets its own catalog module like this rather than one file

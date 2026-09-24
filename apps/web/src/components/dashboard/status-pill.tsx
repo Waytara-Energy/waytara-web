@@ -22,9 +22,10 @@ export type StatusTone = keyof typeof TONE_VARIANT;
  *  pill (DeviceStatusPill for solar inverters, EvChargerOverview's own
  *  pill for chargers, and whatever a future category needs) — the
  *  domain-specific "what label/tone does this device's raw state mean"
- *  decision lives in each category's own catalog (telemetry-catalog.ts's
- *  getInverterStateLabel, ev-charger-catalog.ts's getConnectorStatusLabel,
- *  …), this component just renders whatever it's given.
+ *  decision lives in each category's own place (device-status-pill.tsx's
+ *  own instrument_enum_values lookup, ev-charger-catalog.ts's
+ *  getConnectorStatusLabel, …), this component just renders whatever it's
+ *  given.
  *
  *  `variant="text"` drops the pill background/border for a spot that wants
  *  just the tone-colored word (Monitoring's header) — defaults to the

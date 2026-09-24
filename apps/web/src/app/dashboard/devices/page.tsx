@@ -8,6 +8,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 import { DeviceStatusPill } from "@/components/dashboard/device-status-pill";
 import { STATUS_BADGE_VARIANT } from "@/components/dashboard/device-details-card";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
+import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
 
 // Overview shows the site's combined picture only now (see
 // /dashboard/page.tsx) — this is where per-device browsing lives instead:
@@ -50,16 +51,20 @@ export default async function DevicesPage() {
   // inverter at the site, latest-per-(device,key) — same query Overview
   // used to run for its own "Devices at {site}" grid before that moved
   // here.
-  const { data: statusReadings } =
+  const [{ data: statusReadings }, inverterStateOptions] = await Promise.all([
     inverterIds.length > 0
-      ? await supabase
+      ? supabase
           .from("device_readings")
           .select("device_id, instrument_key, value, ts")
           .in("device_id", inverterIds)
           .in("instrument_key", ["inverter_state", "active_fault_code"])
           .order("ts", { ascending: false })
           .limit(inverterIds.length * 10)
-      : { data: null };
+      : Promise.resolve({ data: null }),
+    inverterIds.length > 0
+      ? fetchEnumOptions(supabase, ["inverter_state"]).then((m) => m.get("inverter_state") ?? [])
+      : Promise.resolve([]),
+  ]);
 
   const latestStatus = new Map<string, number | null>(); // `${deviceId}:${instrumentKey}` -> value
   for (const r of statusReadings ?? []) {
@@ -96,6 +101,7 @@ export default async function DevicesPage() {
                     <DeviceStatusPill
                       inverterState={latestStatus.get(`${d.id}:inverter_state`) ?? null}
                       activeFaultCode={latestStatus.get(`${d.id}:active_fault_code`) ?? null}
+                      inverterStateOptions={inverterStateOptions}
                     />
                   ) : (
                     <Badge variant={STATUS_BADGE_VARIANT[d.deviceStatus] ?? "secondary"} className="capitalize">

@@ -2,7 +2,6 @@ import { createClient } from "@waytara/supabase/server";
 import { getSelectedSite, type CustomerDevice } from "@/lib/selected-site";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
-import { getDisabledCategories } from "@/lib/device-feature-flags";
 import { fetchReadKeys, fetchEnumOptions } from "@/lib/instrument-catalog-data";
 import { fetchTodayChargingSessions, fetchRecentChargingStats } from "@/lib/device-overview";
 import { getLastSyncInfo } from "@/lib/device-sync";
@@ -162,17 +161,25 @@ async function SolarInverterMonitoring({
   device: CustomerDevice;
   devices: CustomerDevice[];
 }) {
-  // Generator is the one category this device's install may or may not
-  // actually have (not every site has a generator connected) — checked
-  // before building the snapshot query's own key list, so a disabled
-  // category's registers are never fetched at all, not just hidden after
-  // the fact.
-  const disabledCategories = await getDisabledCategories(supabase, device.id);
-  const generatorEnabled = !disabledCategories.has("generator");
+  // readKeys is this device's own stock model + device_feature_flags —
+  // both "is generator connected at all" (tab visibility) and "which
+  // candidate keys actually exist for this device" (the fetch itself) are
+  // derived from it, so a disabled category's registers are never fetched,
+  // not just hidden after the fact. Same pattern already proven for
+  // EvChargerMonitoring, now safe here too since the key vocabulary
+  // mismatch between the Excel seed and the live simulator (grid_power_w
+  // vs grid_total_power_w, etc.) has been reconciled.
+  const readKeys = await fetchReadKeys(supabase, device);
+  const generatorEnabled = GENERATOR_KEYS.some((k) => readKeys.has(k));
+  // active_fault_code is deliberately excluded from readKeys' filter — it
+  // has no instrument_catalog row at all (deye-fault-codes.ts's own
+  // docstring: this app's fault model doesn't match the real register
+  // structure yet), but FaultBanner and DeviceStatusPill's fault-override
+  // both depend on it being fetched regardless. Everything else genuinely
+  // needs a real register mapping to be worth fetching.
+  const snapshotKeys = [...SOLAR_SNAPSHOT_KEYS, ...GENERATOR_KEYS].filter((k) => readKeys.has(k) || k === "active_fault_code");
 
-  const snapshotKeys = generatorEnabled ? [...SOLAR_SNAPSHOT_KEYS, ...GENERATOR_KEYS] : SOLAR_SNAPSHOT_KEYS;
-
-  const [{ data: snapshotReadings }, lastSync] = await Promise.all([
+  const [{ data: snapshotReadings }, lastSync, inverterStateOptions] = await Promise.all([
     supabase
       .from("device_readings")
       .select("instrument_key, value, ts")
@@ -181,6 +188,7 @@ async function SolarInverterMonitoring({
       .order("ts", { ascending: false })
       .limit(snapshotKeys.length * 5),
     getLastSyncInfo(device.id),
+    fetchEnumOptions(supabase, ["inverter_state"]).then((m) => m.get("inverter_state") ?? []),
   ]);
 
   const latest = new Map<string, number | null>();
@@ -328,7 +336,12 @@ async function SolarInverterMonitoring({
           <p className="mt-1 text-sm text-theme-muted">Live readings for this inverter, updated in real time.</p>
         </div>
         <div className="flex flex-col items-end gap-1.5">
-          <DeviceStatusPill inverterState={getValue("inverter_state")} activeFaultCode={getValue("active_fault_code")} variant="text" />
+          <DeviceStatusPill
+            inverterState={getValue("inverter_state")}
+            activeFaultCode={getValue("active_fault_code")}
+            inverterStateOptions={inverterStateOptions}
+            variant="text"
+          />
           <LiveSyncedAgo lastTs={lastSync.lastTs} />
         </div>
       </div>

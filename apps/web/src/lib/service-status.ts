@@ -24,8 +24,8 @@ export interface ServiceStatus {
 
 /** Derived, not stored — same reasoning as everywhere else this app
  *  computes a "current state" from a history table rather than keeping a
- *  column that would go stale (getInverterStateLabel, is_service_valid
- *  from the schema discussion, etc.). A "service visit" is a
+ *  column that would go stale (device-status-pill.tsx's inverter_state
+ *  lookup, is_service_valid from the schema discussion, etc.). A "service visit" is a
  *  maintenance_tickets row tagged with this contract's id and
  *  type = 'scheduled_service' — completedCount/remainingCount/nextDate
  *  are all just aggregates over that list, not separately tracked

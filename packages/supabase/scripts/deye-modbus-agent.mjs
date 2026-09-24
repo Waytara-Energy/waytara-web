@@ -487,7 +487,6 @@ function simulateTick(date, state) {
     grid_connected: 1,
     grid_current_a: round(gridCurrentA, 2),
     grid_ct_power_w: round(gridPowerW),
-    grid_ld_power_w: round(gridPowerW),
     grid_l2_power_w: 0, // single-phase unit — L2 doesn't carry load
     // load
     load_power_w: round(loadW),
@@ -495,8 +494,12 @@ function simulateTick(date, state) {
     load_energy_today_kwh: round(state.dayLoadKwh, 2),
     load_l1_power_w: round(loadW), // single-phase — all load on L1
     load_l2_power_w: 0,
-    // system / status
-    inverter_state: 0,
+    // system / status — real Deye inverter_state codes (register 59, see
+    // instrument_enum_values enum_ref 'inverter_state'): 0=Standby,
+    // 2=Normal. No fault modeling in this simulator (active_fault_code is
+    // always 0 here), so 4=Fault never fires — matches the more detailed
+    // Python simulator's same 3-way mapping, just without the fault branch.
+    inverter_state: solarW <= 0 && Math.abs(batteryPowerW) < 1 ? 0 : 2,
     active_fault_code: 0,
     sd_status: 0,
     rated_power_w: RATED_POWER_W,

@@ -63,7 +63,7 @@ export default async function DashboardOverviewPage() {
   const deviceIds = site.devices.map((d) => d.id);
   const chargerIds = site.devices.filter((d) => d.deviceType?.category === "ev_charger").map((d) => d.id);
   const inverterId = site.devices.find((d) => d.deviceType?.category === "solar_inverter")?.id;
-  const [overview, chargingSummary, recentChargingStats, customerPlan, connectorStatusOptions] = await Promise.all([
+  const [overview, chargingSummary, recentChargingStats, customerPlan, connectorStatusOptions, inverterStateOptions] = await Promise.all([
     deviceIds.length > 0 ? fetchSiteOverview(supabase, site) : Promise.resolve(null),
     chargerIds.length > 0 ? fetchTodayChargingSessions(supabase, chargerIds[0]) : Promise.resolve(null),
     chargerIds.length > 0 ? fetchRecentChargingStats(supabase, chargerIds[0]) : Promise.resolve(null),
@@ -71,6 +71,7 @@ export default async function DashboardOverviewPage() {
     chargerIds.length > 0
       ? fetchEnumOptions(supabase, ["connector_status"]).then((m) => m.get("connector_status") ?? [])
       : Promise.resolve([]),
+    inverterId ? fetchEnumOptions(supabase, ["inverter_state"]).then((m) => m.get("inverter_state") ?? []) : Promise.resolve([]),
   ]);
   const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
 
@@ -104,7 +105,11 @@ export default async function DashboardOverviewPage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <WeatherHeader address={site.address} siteName={site.name} latitude={site.latitude} longitude={site.longitude} />
         {overview && (
-          <DeviceStatusPill inverterState={overview.get("inverter_state")} activeFaultCode={overview.get("active_fault_code")} />
+          <DeviceStatusPill
+            inverterState={overview.get("inverter_state")}
+            activeFaultCode={overview.get("active_fault_code")}
+            inverterStateOptions={inverterStateOptions}
+          />
         )}
       </div>
 
