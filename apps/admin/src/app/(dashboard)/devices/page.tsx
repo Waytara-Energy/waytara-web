@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LibraryBig } from "lucide-react";
+import { LibraryBig, ListChecks } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { Button } from "@waytara/ui/button";
 import { StockTable, type StockRow } from "./stock-table";
@@ -69,12 +69,20 @@ export default async function DevicesPage({
             employees pick from during Site &amp; Device Setup, and what customers see readings for.
           </p>
         </div>
-        <Button asChild variant="outline" size="sm">
-          <Link href="/devices/catalog">
-            <LibraryBig className="size-4" />
-            Instrument Catalog
-          </Link>
-        </Button>
+        <div className="flex gap-2">
+          <Button asChild variant="outline" size="sm">
+            <Link href="/devices/catalog">
+              <LibraryBig className="size-4" />
+              Instrument Catalog
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/devices/presets">
+              <ListChecks className="size-4" />
+              Setting Presets
+            </Link>
+          </Button>
+        </div>
       </div>
 
       {error && (
