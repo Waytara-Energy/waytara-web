@@ -7,7 +7,9 @@ import type { Database, Json } from "@waytara/supabase";
 
 type UserRole = Database["waytara"]["Enums"]["user_role"];
 const USER_ROLES: UserRole[] = ["customer", "employee", "site_engineer", "admin"];
-function toUserRole(raw: FormDataEntryValue | null): UserRole {
+// Exported for devices/catalog/actions.ts's own instrument_catalog forms —
+// same enum, same "bad/missing value falls back to customer" reasoning.
+export function toUserRole(raw: FormDataEntryValue | null): UserRole {
   const str = String(raw ?? "");
   return (USER_ROLES as string[]).includes(str) ? (str as UserRole) : "customer";
 }

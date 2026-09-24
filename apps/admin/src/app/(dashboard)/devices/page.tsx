@@ -1,4 +1,7 @@
+import Link from "next/link";
+import { LibraryBig } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
+import { Button } from "@waytara/ui/button";
 import { StockTable, type StockRow } from "./stock-table";
 
 // Admin-only route (enforced in middleware.ts). Originally a bare 4-column
@@ -58,12 +61,20 @@ export default async function DevicesPage({
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Stock Catalog</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Every device model in inventory — specs, purchase details, and the instruments each one reports. What
-          employees pick from during Site &amp; Device Setup, and what customers see readings for.
-        </p>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Stock Catalog</h1>
+          <p className="mt-1 text-sm text-muted-foreground">
+            Every device model in inventory — specs, purchase details, and the instruments each one reports. What
+            employees pick from during Site &amp; Device Setup, and what customers see readings for.
+          </p>
+        </div>
+        <Button asChild variant="outline" size="sm">
+          <Link href="/devices/catalog">
+            <LibraryBig className="size-4" />
+            Instrument Catalog
+          </Link>
+        </Button>
       </div>
 
       {error && (
