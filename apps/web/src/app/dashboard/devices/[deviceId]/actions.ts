@@ -7,7 +7,6 @@ import { getCurrentProfile } from "@waytara/supabase/auth";
 import { getCustomerSites, type CustomerDevice } from "@/lib/selected-site";
 import { getSettingFields, validateBatteryCrossFields } from "@/lib/instrument-settings-catalog";
 import { getModbusRegister } from "@/lib/modbus-register-map";
-import { TOU_PROGRAM_COUNT, validateTouSlots, type TouSlot } from "@/lib/time-of-use";
 import { PROPERTY_TYPE_LABELS, POWER_SOURCE_LABELS, POWER_PACKAGE_LABELS, type SiteAddress } from "@/lib/site-catalog";
 
 // A site can have more than one device now, so there's no single
@@ -193,39 +192,65 @@ export async function updateDeviceSetting(
   return { ok: true };
 }
 
-// ---- System Work Mode's Time-of-Use sub-editor: saved as one set of 6
-// rows, not per-field. ----
+// ---- System Work Mode's Time-of-Use tab: instead of exposing the raw
+// tou_slot*_* write registers (min_role 'employee' in instrument_catalog —
+// deliberately above what a customer can edit field-by-field), the
+// customer picks one of a handful of pre-vetted setting_presets rows.
+// Applying one writes its whole `values` set through the same
+// device_settings pipeline any individual field write uses, tagged with
+// applied_preset_key so it's traceable, and captures each key's prior
+// value the same way the append-only log already does everywhere else. ----
 
-export async function updateTimeOfUse(deviceId: string, slots: TouSlot[]): Promise<{ error: string } | { ok: true }> {
+export async function applySettingPreset(deviceId: string, presetKey: string): Promise<{ error: string } | { ok: true }> {
   const profile = await getCurrentProfile();
   if (!profile) return { error: "Not signed in." };
 
   const device = await resolveOwnDevice(deviceId);
   if (!device) return { error: "No device selected." };
 
-  if (!Array.isArray(slots) || slots.length !== TOU_PROGRAM_COUNT) {
-    return { error: "Malformed schedule." };
+  const supabase = await createClient();
+
+  const { data: preset, error: presetError } = await supabase
+    .from("setting_presets")
+    .select("key, device_category, values, is_active")
+    .eq("key", presetKey)
+    .maybeSingle();
+
+  if (presetError || !preset || !preset.is_active) {
+    return { error: "This template isn't available anymore." };
+  }
+  if (preset.device_category !== (device.deviceType?.category ?? "")) {
+    return { error: "This template doesn't apply to this device." };
   }
 
-  const validationError = validateTouSlots(slots);
-  if (validationError) return { error: validationError };
+  const values = preset.values as Record<string, string | number | boolean>;
+  const keys = Object.keys(values);
+  if (keys.length === 0) return { error: "This template has nothing to apply." };
 
-  const supabase = await createClient();
-  const rows = slots.map((slot) => ({
+  const [{ data: catalogRows }, { data: currentRows }] = await Promise.all([
+    supabase.from("instrument_catalog").select("instrument_key, category, unit").in("instrument_key", keys),
+    supabase
+      .from("device_settings")
+      .select("setting_key, setting_value, ts")
+      .eq("device_id", device.id)
+      .in("setting_key", keys)
+      .order("ts", { ascending: true }), // ts-ascending so the last row per key (assigned below) is the current one.
+  ]);
+
+  const catalogByKey = new Map((catalogRows ?? []).map((c) => [c.instrument_key, c]));
+  const currentByKey = new Map<string, string>();
+  for (const row of currentRows ?? []) currentByKey.set(row.setting_key, row.setting_value);
+
+  const rows = keys.map((key) => ({
     device_id: device.id,
-    setting_category: "system_work_mode",
-    setting_key: `tou_prog${slot.index}`,
-    setting_value: JSON.stringify({
-      startTime: slot.startTime,
-      powerW: slot.powerW,
-      capacityPct: slot.capacityPct,
-      chargeSource: slot.chargeSource,
-      gridSellEnabled: slot.gridSellEnabled,
-    }),
-    unit: null,
+    setting_category: catalogByKey.get(key)?.category ?? "system_work_mode",
+    setting_key: key,
+    setting_value: String(values[key]),
+    previous_value: currentByKey.get(key) ?? null,
+    unit: catalogByKey.get(key)?.unit ?? null,
     source: "customer_dashboard",
     written_by: profile.id,
-    modbus_register: getModbusRegister("system_work_mode", `tou_prog${slot.index}`) as never,
+    applied_preset_key: preset.key,
   }));
 
   const { error } = await supabase.from("device_settings").insert(rows);

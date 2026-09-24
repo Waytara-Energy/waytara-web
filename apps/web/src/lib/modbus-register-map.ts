@@ -72,41 +72,14 @@ const REGISTER_MAP: Record<string, ModbusRegisterSpec> = {
   "grid:grid_trickle_feed_power_w": { registers: [206], signed: true },
 };
 
-const TOU_REGISTERS: [start: number[], power: number[], capacity: number[], voltage: number[], packed: number[]] = [
-  [250, 251, 252, 253, 254, 255],
-  [256, 257, 258, 259, 260, 261],
-  [268, 269, 270, 271, 272, 273],
-  [262, 263, 264, 265, 266, 267],
-  [274, 275, 276, 277, 278, 279],
-];
-
-/** Prog1..6's own register spec — the 6 slots share the same shape, just
- *  shifted by one register per slot (see the write-registers doc's Time
- *  of Use table), so this is generated rather than hand-repeated 6 times. */
-function touRegisterSpec(slotIndex: number): ModbusFieldSpec {
-  const i = slotIndex - 1;
-  const [start, power, capacity, voltage, packed] = TOU_REGISTERS;
-  return {
-    fields: {
-      startTime: { registers: [start[i]] },
-      powerW: { registers: [power[i]] },
-      capacityPct: { registers: [capacity[i]] },
-      voltageV: { registers: [voltage[i]], scale: 0.01 },
-      charge: { registers: [packed[i]], bitmask: "0x03" },
-      mode: { registers: [packed[i]], bitmask: "0x1C" },
-      gridSellEnabled: { registers: [packed[i]], bitmask: "0x40" },
-    },
-  };
-}
-
 /** Looks up the register spec for a `device_settings` write. Returns null
  *  for anything not in the confirmed-register list (nothing should hit
  *  this in practice — the settings catalog is itself scoped to exactly
  *  what's confirmed — but a null is safer than throwing from a write path
- *  over an unexpected key). */
+ *  over an unexpected key). Time-of-Use's own registers are looked up
+ *  through device_parameter_map instead (see setting-presets.ts) — the
+ *  customer picks a preset rather than editing tou_* fields directly, so
+ *  they never reach this generic per-field path. */
 export function getModbusRegister(category: string, key: string): ModbusRegisterSpec | ModbusFieldSpec | null {
-  const touMatch = /^tou_prog([1-6])$/.exec(key);
-  if (touMatch) return touRegisterSpec(Number(touMatch[1]));
-
   return REGISTER_MAP[`${category}:${key}`] ?? null;
 }

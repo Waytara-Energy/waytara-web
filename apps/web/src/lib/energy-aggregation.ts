@@ -65,3 +65,27 @@ export function zipDailySeries(positive: DailyPoint[], negative: DailyPoint[]): 
     .sort()
     .map((date) => ({ date, positive: positiveByDate.get(date) ?? 0, negative: negativeByDate.get(date) ?? 0 }));
 }
+
+export interface HourWindow {
+  startHour: number;
+  endHour: number; // exclusive; 24 means "through midnight"
+}
+
+/** Average of `value` across readings whose timestamp's hour-of-day falls
+ *  in any of `windows` — lets a TOU preset show the customer their own
+ *  recent grid draw during exactly the hours it would charge from the
+ *  grid, instead of a generic claim. Null when nothing matches. */
+export function averageInHourWindows(readings: RawReading[], windows: HourWindow[]): number | null {
+  if (windows.length === 0) return null;
+  let sum = 0;
+  let count = 0;
+  for (const r of readings) {
+    if (r.value == null) continue;
+    const hour = new Date(r.ts).getHours();
+    if (windows.some((w) => hour >= w.startHour && hour < w.endHour)) {
+      sum += r.value;
+      count++;
+    }
+  }
+  return count > 0 ? sum / count : null;
+}

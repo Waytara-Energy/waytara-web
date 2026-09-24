@@ -4,7 +4,8 @@ import { createClient } from "@waytara/supabase/server";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { getSelectedSite } from "@/lib/selected-site";
 import { getSettingFieldsByCategory, getSettingCategories } from "@/lib/instrument-settings-catalog";
-import { defaultTouSlots, type TouSlot } from "@/lib/time-of-use";
+import { gridChargeWindows, formatHourWindows } from "@/lib/tou-presets";
+import { averageInHourWindows } from "@/lib/energy-aggregation";
 import { PROPERTY_TYPE_OPTIONS, POWER_SOURCE_OPTIONS, POWER_PACKAGE_OPTIONS } from "@/lib/site-catalog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -18,30 +19,10 @@ import { DeviceDetailsCard } from "@/components/dashboard/device-details-card";
 import { SiteDetailsCard } from "@/components/dashboard/site-details-card";
 import { DeviceOverviewContent } from "@/components/dashboard/device-overview-content";
 import { SettingFieldRow } from "@/components/dashboard/setting-field-row";
-import { TimeOfUseEditor } from "@/components/dashboard/time-of-use-editor";
+import { TouPresetPicker, type TouPresetOption } from "@/components/dashboard/tou-preset-picker";
 import { EnableLocationButton } from "@/components/dashboard/enable-location-button";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { updateSiteSetting } from "./actions";
-
-function parseTouSlots(settingsMap: Map<string, string>): TouSlot[] {
-  return defaultTouSlots().map((def) => {
-    const raw = settingsMap.get(`system_work_mode:tou_prog${def.index}`);
-    if (!raw) return def;
-    try {
-      const parsed = JSON.parse(raw) as Partial<TouSlot>;
-      return {
-        index: def.index,
-        startTime: typeof parsed.startTime === "string" ? parsed.startTime : def.startTime,
-        powerW: typeof parsed.powerW === "number" ? parsed.powerW : def.powerW,
-        capacityPct: typeof parsed.capacityPct === "number" ? parsed.capacityPct : def.capacityPct,
-        chargeSource: parsed.chargeSource ?? def.chargeSource,
-        gridSellEnabled: typeof parsed.gridSellEnabled === "boolean" ? parsed.gridSellEnabled : def.gridSellEnabled,
-      };
-    } catch {
-      return def;
-    }
-  });
-}
 
 // A single device's own page — the consolidated hub that used to be three
 // separate destinations (Devices, Sites & Devices, Instrument Settings):
@@ -89,6 +70,8 @@ export default async function DeviceDetailPage({
   const address = site.address ?? {};
 
   let settingsMap = new Map<string, string>();
+  let touPresetOptions: TouPresetOption[] = [];
+  let currentTouPresetKey: string | null = null;
   if (canEditSettings) {
     const { data: settingsRows } = await supabase
       .from("device_settings")
@@ -96,8 +79,44 @@ export default async function DeviceDetailPage({
       .eq("device_id", device.id)
       .order("ts", { ascending: true }); // ts-ascending, so the last write per (category, key) wins.
     settingsMap = new Map(settingsRows?.map((row) => [`${row.setting_category}:${row.setting_key}`, row.setting_value]));
+
+    if (isSolarInverter) {
+      const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+      const [{ data: presetRows }, { data: gridReadings }, { data: appliedRows }] = await Promise.all([
+        supabase
+          .from("setting_presets")
+          .select("key, name, description, values")
+          .eq("device_category", "solar_inverter")
+          .eq("is_active", true)
+          .order("key"),
+        supabase
+          .from("device_readings")
+          .select("device_id, value, ts")
+          .eq("device_id", device.id)
+          .eq("instrument_key", "grid_power_w")
+          .gte("ts", sevenDaysAgo),
+        supabase
+          .from("device_settings")
+          .select("applied_preset_key, ts")
+          .eq("device_id", device.id)
+          .not("applied_preset_key", "is", null)
+          .order("ts", { ascending: false })
+          .limit(1),
+      ]);
+
+      currentTouPresetKey = appliedRows?.[0]?.applied_preset_key ?? null;
+      touPresetOptions = (presetRows ?? []).map((preset) => {
+        const windows = gridChargeWindows(preset.values as Record<string, unknown>);
+        return {
+          key: preset.key,
+          name: preset.name,
+          description: preset.description,
+          gridWindowsText: windows.length > 0 ? formatHourWindows(windows) : null,
+          averageGridDrawW: averageInHourWindows(gridReadings ?? [], windows),
+        };
+      });
+    }
   }
-  const touSlots = parseTouSlots(settingsMap);
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -155,7 +174,7 @@ export default async function DeviceDetailPage({
           <h2 className="mb-3 text-sm font-semibold text-foreground">Site &amp; Settings</h2>
           {/* Keyed on the device: every field below is an uncontrolled input
               seeded once from server data — <Input defaultValue>, <Select
-              defaultValue>, and SettingFieldRow/TimeOfUseEditor's own
+              defaultValue>, and SettingFieldRow's own
               useState(propValue). Since this page is itself scoped to one
               device by route param, switching devices is a full navigation
               (new page instance) rather than a re-render with new props, so
@@ -324,13 +343,13 @@ export default async function DeviceDetailPage({
                               currentValue={settingsMap.get(`${cat.key}:${field.key}`) ?? ""}
                             />
                           ))}
-                          {cat.key === "system_work_mode" && isSolarInverter && (
+                          {cat.key === "system_work_mode" && isSolarInverter && touPresetOptions.length > 0 && (
                             <div className="space-y-2 pt-2">
                               <h3 className="text-sm font-semibold text-theme-primary">Time-of-Use schedule</h3>
                               <p className="text-sm text-theme-muted">
-                                Prog1-6 run in order, each until the next one starts (wrapping from Prog6 back to Prog1).
+                                Pick a template rather than editing individual registers — each one is a vetted 6-slot schedule.
                               </p>
-                              <TimeOfUseEditor deviceId={device.id} initialSlots={touSlots} />
+                              <TouPresetPicker deviceId={device.id} presets={touPresetOptions} currentPresetKey={currentTouPresetKey} />
                             </div>
                           )}
                         </>

@@ -108,13 +108,6 @@ const GEN_PORT_USAGE_OPTIONS: SettingFieldOption[] = [
   { value: "smart_load", label: "Smart Load / AUX" },
 ];
 
-const CHARGE_SOURCE_OPTIONS: SettingFieldOption[] = [
-  { value: "solar_only", label: "Solar only" },
-  { value: "solar_and_grid", label: "Solar + Grid" },
-  { value: "solar_and_gen", label: "Solar + Generator" },
-  { value: "solar_grid_gen", label: "Solar + Grid + Generator" },
-];
-
 export const INSTRUMENT_SETTINGS_CATALOG: Record<string, SettingField[]> = {
   solar_inverter: [
     // basic
@@ -255,8 +248,8 @@ export const INSTRUMENT_SETTINGS_CATALOG: Record<string, SettingField[]> = {
     { key: "grid_charge_enabled", label: "Grid charge enabled", category: "battery", type: "toggle" },
     { key: "bms_protocol", label: "BMS Protocol", category: "battery", type: "select", options: BMS_PROTOCOL_OPTIONS },
 
-    // system_work_mode (Time-of-Use Prog1-6 is its own sub-editor, not a
-    // catalog field — see time-of-use.ts)
+    // system_work_mode (Time-of-Use is its own preset-picker, not a raw
+    // catalog field — see tou-preset-picker.tsx)
     {
       key: "max_solar_power_w",
       label: "Max solar power",
@@ -584,5 +577,3 @@ export function validateBatteryCrossFields(values: Partial<Record<string, string
 
   return null;
 }
-
-export { CHARGE_SOURCE_OPTIONS };
