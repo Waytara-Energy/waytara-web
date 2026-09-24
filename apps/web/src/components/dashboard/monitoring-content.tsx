@@ -41,6 +41,7 @@ import {
   ArrowUpFromLine,
   Plug,
   History,
+  Fuel,
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -84,6 +85,12 @@ const SOLAR_SNAPSHOT_KEYS = [
   "grid_power_w",
   "load_power_w",
 ];
+
+// This device's own generator readings — kept separate from
+// SOLAR_SNAPSHOT_KEYS rather than folded in, since these are only ever
+// fetched when device_feature_flags says this specific install actually
+// has a generator connected (not every site does).
+const GENERATOR_KEYS = ["gen_power_w", "gen_voltage_v", "gen_frequency_hz"];
 
 // No warnAboveC is defined for environment_temp_c anywhere else in the app
 // (it's an ambient reading, not a component with a manufacturer-stated
@@ -153,14 +160,30 @@ async function SolarInverterMonitoring({
   device: CustomerDevice;
   devices: CustomerDevice[];
 }) {
+  // Generator is the one category this device's install may or may not
+  // actually have (not every site has a generator connected) — checked
+  // before building the snapshot query's own key list, so a disabled
+  // category's registers are never fetched at all, not just hidden after
+  // the fact. Absence of a device_feature_flags row means enabled (see
+  // that table's own doc comment).
+  const { data: disabledFlags } = await supabase
+    .from("device_feature_flags")
+    .select("category")
+    .eq("device_id", device.id)
+    .eq("is_enabled", false);
+  const disabledCategories = new Set((disabledFlags ?? []).map((f) => f.category));
+  const generatorEnabled = !disabledCategories.has("generator");
+
+  const snapshotKeys = generatorEnabled ? [...SOLAR_SNAPSHOT_KEYS, ...GENERATOR_KEYS] : SOLAR_SNAPSHOT_KEYS;
+
   const [{ data: snapshotReadings }, lastSync] = await Promise.all([
     supabase
       .from("device_readings")
       .select("instrument_key, value, ts")
       .eq("device_id", device.id)
-      .in("instrument_key", SOLAR_SNAPSHOT_KEYS)
+      .in("instrument_key", snapshotKeys)
       .order("ts", { ascending: false })
-      .limit(SOLAR_SNAPSHOT_KEYS.length * 5),
+      .limit(snapshotKeys.length * 5),
     getLastSyncInfo(device.id),
   ]);
 
@@ -278,6 +301,17 @@ async function SolarInverterMonitoring({
     return v !== null ? `${v.toFixed(2)} Hz` : "—";
   })();
 
+  // Generator tab — only ever populated (and only ever fetched, see
+  // snapshotKeys above) when this specific install has one connected.
+  const genPowerW = getValue("gen_power_w");
+  const genLiveText = genPowerW !== null ? `${(genPowerW / 1000).toFixed(2)} kW` : "—";
+  const genVoltageV = getValue("gen_voltage_v");
+  const genVoltageText = genVoltageV !== null ? `${genVoltageV.toFixed(1)} V` : "—";
+  const genFrequencyText = (() => {
+    const v = getValue("gen_frequency_hz");
+    return v !== null ? `${v.toFixed(2)} Hz` : "—";
+  })();
+
   // One live number per tab, shown above the tab strip by MonitoringTabs
   // itself (keyed by the currently selected tab's value) rather than
   // repeated inside each tab button or each panel's own content.
@@ -287,6 +321,7 @@ async function SolarInverterMonitoring({
     battery: { value: socPctText, label: "Charge Level" },
     load: { value: loadTodayText, label: "Consumed Today" },
     grid: { value: gridImportedTodayText, label: "Imported Today" },
+    ...(generatorEnabled ? { generator: { value: genLiveText, label: "Generator Output" } } : {}),
   };
 
   return (
@@ -339,6 +374,15 @@ async function SolarInverterMonitoring({
           >
             <TabButtonContent icon={Zap} label="Grid Interface" />
           </TabsTrigger>
+          {generatorEnabled && (
+            <TabsTrigger
+              value="generator"
+              variant="line"
+              className="data-[state=active]:border-orange-500 data-[state=active]:text-orange-600 dark:data-[state=active]:text-orange-400"
+            >
+              <TabButtonContent icon={Fuel} label="Generator" />
+            </TabsTrigger>
+          )}
         </TabsList>
 
         <TabsContent value="hub" className="space-y-4">
@@ -627,6 +671,48 @@ async function SolarInverterMonitoring({
           <BarTrendChart deviceId={device.id} title="Grid Power" series={[{ key: "grid_power_w", label: "Grid", color: "var(--chart-4)" }]} />
           <MetricListCard title="Grid Detail" fields={GRID_DETAIL_REMAINING_FIELDS} getValue={getValue} />
         </TabsContent>
+
+        {generatorEnabled && (
+          <TabsContent value="generator" className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <LiveStatusCard
+                icon={Fuel}
+                title="Live Output"
+                subtitle="Generator power"
+                value={genLiveText}
+                liveValue={genPowerW}
+                statusLabel="Status"
+                badgeLabel={genPowerW && genPowerW > 0 ? "Running" : "Idle"}
+                badgeTone={genPowerW && genPowerW > 0 ? "good" : "neutral"}
+                sparkline={[]}
+              />
+              <LiveStatusCard
+                icon={Gauge}
+                title="Voltage"
+                subtitle="Output voltage"
+                value={genVoltageText}
+                liveValue={genVoltageV}
+                statusLabel="Frequency"
+                badgeLabel={genFrequencyText}
+                badgeTone="neutral"
+                sparkline={[]}
+              />
+              <LiveStatusCard
+                icon={Activity}
+                title="Frequency"
+                subtitle="Output frequency"
+                value={genFrequencyText}
+                liveValue={getValue("gen_frequency_hz")}
+                statusLabel="Status"
+                badgeLabel="Live"
+                badgeTone="neutral"
+                sparkline={[]}
+              />
+            </div>
+
+            <BarTrendChart deviceId={device.id} title="Generator Power" series={[{ key: "gen_power_w", label: "Generator", color: "var(--chart-5)" }]} />
+          </TabsContent>
+        )}
       </MonitoringTabs>
     </>
   );

@@ -40,6 +40,9 @@ yarn-error.log*
 .env*
 !.env.example
 
+# local Supabase data/storage backups — real customer data, never committed
+/backup/
+
 # vercel
 .vercel
 
