@@ -34,36 +34,30 @@ export default async function LeadDetailPage({
   const isAdmin = profile?.role === "admin";
   const isAssignedEmployee = lead.assigned_to === profile?.id;
 
-  const { data: onboarding } = await supabase
-    .from("customer_onboarding")
-    .select("id, current_stage, employee_id")
-    .eq("lead_id", id)
-    .maybeSingle();
-
-  // Assignment history — reuses the existing audit_log trigger on `leads`
-  // rather than a dedicated history table. RLS restricts audit_log to
-  // admins only (audit_admin_only policy), so this section is skipped
-  // entirely for employees rather than erroring.
-  let auditEntries: { created_at: string; changes: unknown }[] = [];
-  if (isAdmin) {
-    const { data } = await supabase
-      .from("audit_log")
-      .select("created_at, changes")
-      .eq("entity", "leads")
-      .eq("entity_id", id)
-      .order("created_at", { ascending: false });
-    auditEntries = data ?? [];
-  }
-
-  let employees: { id: string; full_name: string | null; email: string }[] = [];
-  if (isAdmin) {
-    const { data } = await supabase
-      .from("profiles")
-      .select("id, full_name, email")
-      .eq("role", "employee")
-      .order("full_name");
-    employees = data ?? [];
-  }
+  // None of these three depend on `lead`'s own row data (onboarding is
+  // keyed off the `id` route param; the other two are gated on `isAdmin`,
+  // already known from `profile`) — fetched together instead of one after
+  // another. audit_log is RLS-restricted to admins (audit_admin_only
+  // policy), so that query — and the employees list, admin-only for the
+  // same reason — is skipped entirely for an employee session rather than
+  // firing a call that would just come back empty/denied.
+  const [{ data: onboarding }, auditLogResult, employeesResult] = await Promise.all([
+    supabase.from("customer_onboarding").select("id, current_stage, employee_id").eq("lead_id", id).maybeSingle(),
+    isAdmin
+      ? supabase
+          .from("audit_log")
+          .select("created_at, changes")
+          .eq("entity", "leads")
+          .eq("entity_id", id)
+          .order("created_at", { ascending: false })
+          .limit(200)
+      : Promise.resolve({ data: null }),
+    isAdmin
+      ? supabase.from("profiles").select("id, full_name, email").eq("role", "employee").order("full_name")
+      : Promise.resolve({ data: null }),
+  ]);
+  const auditEntries: { created_at: string; changes: unknown }[] = auditLogResult.data ?? [];
+  const employees: { id: string; full_name: string | null; email: string }[] = employeesResult.data ?? [];
 
   const canStartOnboarding = (isAdmin || (isAssignedEmployee && !!lead.accepted_at)) && !onboarding;
 

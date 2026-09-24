@@ -80,8 +80,12 @@ export async function GET(req: NextRequest) {
 
   const openAlertByDevice = new Map((openOfflineAlerts ?? []).map((a) => [a.device_id, a.id]));
 
-  let newAlerts = 0;
-  let resolvedAlerts = 0;
+  // Decide per-device in the loop (cheap, in-memory), but batch the actual
+  // writes into at most one INSERT and one UPDATE instead of one
+  // round-trip per device — with dozens/hundreds of active devices this
+  // was the slowest part of the whole check by far.
+  const toInsert: { device_id: string; severity: "critical"; message: string }[] = [];
+  const toResolveIds: string[] = [];
 
   for (const device of devices ?? []) {
     const lastSeen = lastSeenByDevice.get(device.id);
@@ -93,24 +97,25 @@ export async function GET(req: NextRequest) {
       const message = lastSeen
         ? `${OFFLINE_MESSAGE_PREFIX}: ${label} hasn't reported in over ${OFFLINE_THRESHOLD_HOURS} hours.`
         : `${OFFLINE_MESSAGE_PREFIX}: ${label} has never reported a reading.`;
-      const { error } = await supabase.from("alerts").insert({
-        device_id: device.id,
-        severity: "critical",
-        message,
-      });
-      if (!error) newAlerts++;
+      toInsert.push({ device_id: device.id, severity: "critical", message });
     } else if (!isOffline && existingAlertId) {
       // Device is reporting again — auto-resolve the standing offline
       // alert rather than leaving it open forever. acknowledged_by stays
       // null to distinguish a system auto-resolve from a person clicking
       // "Acknowledge".
-      const { error } = await supabase
-        .from("alerts")
-        .update({ acknowledged_at: new Date().toISOString() })
-        .eq("id", existingAlertId);
-      if (!error) resolvedAlerts++;
+      toResolveIds.push(existingAlertId);
     }
   }
+
+  const [insertResult, resolveResult] = await Promise.all([
+    toInsert.length > 0 ? supabase.from("alerts").insert(toInsert) : Promise.resolve({ error: null }),
+    toResolveIds.length > 0
+      ? supabase.from("alerts").update({ acknowledged_at: new Date().toISOString() }).in("id", toResolveIds)
+      : Promise.resolve({ error: null }),
+  ]);
+
+  const newAlerts = insertResult.error ? 0 : toInsert.length;
+  const resolvedAlerts = resolveResult.error ? 0 : toResolveIds.length;
 
   return NextResponse.json({ checked: devices?.length ?? 0, newAlerts, resolvedAlerts });
 }

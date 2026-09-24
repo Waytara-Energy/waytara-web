@@ -713,11 +713,12 @@ export async function recordBalancePayment(
 export async function completeInstallation(onboardingId: string, siteId: string) {
   const supabase = await createClient();
 
-  const { data: onboarding } = await supabase
-    .from("customer_onboarding")
-    .select("lead_id")
-    .eq("id", onboardingId)
-    .single();
+  // siteDevices depends only on `siteId`, not on `onboarding` or anything
+  // derived from it — fetched alongside it instead of after.
+  const [{ data: onboarding }, { data: siteDevices, error: siteDevicesError }] = await Promise.all([
+    supabase.from("customer_onboarding").select("lead_id").eq("id", onboardingId).single(),
+    supabase.from("devices").select("id, stock_device_id, stock_device:stock(warranty_info)").eq("site_id", siteId),
+  ]);
 
   // Server-side guard, not just a hidden/disabled button — same
   // discipline as completeConnectionTest's checks. Only a split-payment
@@ -757,16 +758,19 @@ export async function completeInstallation(onboardingId: string, siteId: string)
   const installedAt = new Date();
   const warrantyStartDate = installedAt.toISOString().slice(0, 10);
 
-  const { data: siteDevices, error: siteDevicesError } = await supabase
-    .from("devices")
-    .select("id, stock_device:stock(warranty_info)")
-    .eq("site_id", siteId);
-
   if (siteDevicesError) {
     redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(siteDevicesError.message)}`);
   }
 
-  for (const device of siteDevices ?? []) {
+  // Each device gets its own warranty_end_date (different stock items can
+  // carry different warranty lengths), so this can't collapse into a
+  // single `.update().in("id", [...])` the way a uniform update could —
+  // `.upsert()` by `id` still gets every device written in one round trip
+  // instead of one per device. Every id here is a known-existing device
+  // (from `siteDevices` above), so the upsert always takes the
+  // conflict-update path, never a fresh insert with missing NOT NULL
+  // columns.
+  const deviceUpdates = (siteDevices ?? []).map((device) => {
     const warrantyYears = warrantyYearsFrom(device.stock_device?.warranty_info);
     const warrantyEndDate =
       warrantyYears !== null
@@ -774,16 +778,24 @@ export async function completeInstallation(onboardingId: string, siteId: string)
             .toISOString()
             .slice(0, 10)
         : null;
+    return {
+      id: device.id,
+      // `.upsert()`'s Insert-side typing requires every NOT NULL column
+      // with no default, even though the conflict-update path (the only
+      // one ever taken here, since every id already exists) doesn't
+      // actually need them — carried over unchanged rather than left to
+      // Postgres, which `.upsert()` can't express ("only touch these
+      // columns, leave the rest alone").
+      site_id: siteId,
+      stock_device_id: device.stock_device_id,
+      installed_at: installedAt.toISOString(),
+      warranty_start_date: warrantyStartDate,
+      warranty_end_date: warrantyEndDate,
+    };
+  });
 
-    const { error: deviceError } = await supabase
-      .from("devices")
-      .update({
-        installed_at: installedAt.toISOString(),
-        warranty_start_date: warrantyStartDate,
-        warranty_end_date: warrantyEndDate,
-      })
-      .eq("id", device.id);
-
+  if (deviceUpdates.length > 0) {
+    const { error: deviceError } = await supabase.from("devices").upsert(deviceUpdates, { onConflict: "id" });
     if (deviceError) {
       redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(deviceError.message)}`);
     }

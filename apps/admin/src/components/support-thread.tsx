@@ -69,10 +69,12 @@ export function SupportThread({
     let cancelled = false;
     const supabase = createClient();
     (async () => {
+      // Bulk endpoint (one request for every path) instead of one
+      // createSignedUrl call per attachment, same as apps/web's copy.
+      const { data } = await supabase.storage.from("support-attachments").createSignedUrls(paths, 3600);
       const entries: Record<string, string> = {};
-      for (const path of paths) {
-        const { data } = await supabase.storage.from("support-attachments").createSignedUrl(path, 3600);
-        if (data?.signedUrl) entries[path] = data.signedUrl;
+      for (const item of data ?? []) {
+        if (item.path && item.signedUrl) entries[item.path] = item.signedUrl;
       }
       if (!cancelled && Object.keys(entries).length > 0) {
         setAttachmentUrls((prev) => ({ ...prev, ...entries }));

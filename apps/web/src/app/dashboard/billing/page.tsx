@@ -18,28 +18,34 @@ export default async function BillingPage() {
   const profile = await getRequestProfile();
   const supabase = await createClient();
 
-  const { data: customer } = profile
-    ? await supabase
-        .from("customers")
-        .select("status, plan_started_at, plan:plans(name, price_monthly, price_yearly)")
-        .eq("id", profile.id)
-        .maybeSingle()
-    : { data: null };
-
-  const { data: subscription } = profile
-    ? await supabase
-        .from("subscriptions")
-        .select("status, current_period_start, current_period_end")
-        .eq("customer_id", profile.id)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle()
-    : { data: null };
-
-  const { data: payments } = await supabase
-    .from("payments")
-    .select("id, payment_type, amount, status, paid_at, created_at")
-    .order("created_at", { ascending: false });
+  // Three independent reads (none depends on another's result) — fetched
+  // together instead of one after another. `payments` relies on RLS to
+  // scope to this customer (same "RLS scopes it, not the query" pattern
+  // used elsewhere), with a defensive limit so a very long-lived account
+  // can't turn this into an unbounded fetch.
+  const [{ data: customer }, { data: subscription }, { data: payments }] = await Promise.all([
+    profile
+      ? supabase
+          .from("customers")
+          .select("status, plan_started_at, plan:plans(name, price_monthly, price_yearly)")
+          .eq("id", profile.id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    profile
+      ? supabase
+          .from("subscriptions")
+          .select("status, current_period_start, current_period_end")
+          .eq("customer_id", profile.id)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("payments")
+      .select("id, payment_type, amount, status, paid_at, created_at")
+      .order("created_at", { ascending: false })
+      .limit(500),
+  ]);
 
   return (
     <div className="max-w-2xl space-y-6">

@@ -2,7 +2,7 @@ import { createClient } from "@waytara/supabase/server";
 import { getSelectedSite, type CustomerDevice } from "@/lib/selected-site";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
-import { fetchTodayEvEnergyKwh, fetchTodayChargingSessions, fetchRecentChargingStats } from "@/lib/device-overview";
+import { fetchTodayChargingSessions, fetchRecentChargingStats } from "@/lib/device-overview";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { co2AvoidedKg, treesEquivalent } from "@/lib/environmental-impact";
 import {
@@ -44,7 +44,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { LiveMetricChart, BarTrendChart, MainHubTrendGroup, BatteryTrendGroup } from "./lazy-charts";
+import { BarTrendChart, MainHubTrendGroup, BatteryTrendGroup, ChargerTrendGroup } from "./lazy-charts";
 import { PvStringComparison } from "./pv-string-comparison";
 import { TemperatureGauge } from "./temperature-gauge";
 import { MetricListCard } from "./metric-list-card";
@@ -53,7 +53,6 @@ import { StatusPill } from "./status-pill";
 import { DeviceStatusPill } from "./device-status-pill";
 import { FaultBanner } from "./fault-banner";
 import { DeviceParameterCards } from "./device-parameter-cards";
-import { StatTile } from "./analytics-content";
 import { ChargingSessionsCarousel } from "./charging-sessions-carousel";
 import { MonitoringTabs, type TabHeadlineInfo } from "./monitoring-tabs";
 import { LiveSyncedAgo } from "./live-synced-ago";
@@ -644,7 +643,7 @@ async function EvChargerMonitoring({
   device: CustomerDevice;
   devices: CustomerDevice[];
 }) {
-  const [{ data: snapshotReadings }, lastSync, todayEnergyKwh, chargingSummary, recentChargingStats, customerPlan, site] =
+  const [{ data: snapshotReadings }, lastSync, chargingSummary, recentChargingStats, customerPlan, site] =
     await Promise.all([
       supabase
         .from("device_readings")
@@ -654,7 +653,6 @@ async function EvChargerMonitoring({
         .order("ts", { ascending: false })
         .limit(EV_SNAPSHOT_KEYS.length * 5),
       getLastSyncInfo(device.id),
-      fetchTodayEvEnergyKwh(supabase, [device.id]),
       fetchTodayChargingSessions(supabase, device.id),
       fetchRecentChargingStats(supabase, device.id),
       getCustomerPlan(),
@@ -669,13 +667,6 @@ async function EvChargerMonitoring({
   const status = getConnectorStatusLabel(getValue("connector_status"));
   const errorLabel = getErrorCodeLabel(getValue("error_code"));
 
-  // Voltage/Power Offered as a snapshot list — Charging Power, Current, and
-  // Connector Temperature each get their own chart/gauge elsewhere on this
-  // page, so they're left out here rather than shown twice.
-  const detailFields = [...EV_LIVE_FIELDS, ...EV_TOTAL_FIELDS].filter(
-    (f) => f.key !== "power_active_import_w" && f.key !== "current_import_a" && f.key !== "temperature_c"
-  );
-
   const powerW = getValue("power_active_import_w");
   const offeredW = getValue("power_offered_w");
   const utilizationPct =
@@ -683,6 +674,10 @@ async function EvChargerMonitoring({
 
   const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
   const showCost = site?.propertyType !== "residential_independent_villas";
+
+  const sessionsToday = chargingSummary.sessions.length;
+  const energyTodayKwh = chargingSummary.sessions.reduce((sum, s) => sum + (s.energyKwh ?? 0), 0);
+  const offeredKw = offeredW !== null ? offeredW / 1000 : null;
 
   return (
     <>
@@ -719,42 +714,76 @@ async function EvChargerMonitoring({
               <AlertTitle>Charger fault</AlertTitle>
               <AlertDescription>{errorLabel}</AlertDescription>
             </Alert>
-          ) : (
-            <Alert>
-              <AlertTitle>No active faults</AlertTitle>
-            </Alert>
-          )}
+          ) : null}
 
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Charging Power</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <LiveMetricChart deviceId={device.id} series={[{ key: "power_active_import_w", label: "Power", color: "var(--chart-1)" }]} />
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm">Current</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <LiveMetricChart deviceId={device.id} series={[{ key: "current_import_a", label: "Current", color: "var(--chart-2)" }]} />
-            </CardContent>
-          </Card>
-
-          <MetricListCard title="Charger Detail" fields={detailFields} getValue={getValue} />
-
-          <Card>
-            <CardContent className="pt-6">
-              <TemperatureGauge label="Connector Temperature" valueC={getValue("temperature_c")} warnAboveC={EV_CONNECTOR_TEMP_WARN_C} />
-            </CardContent>
-          </Card>
-
-          <div className="grid grid-cols-2 gap-3">
-            <StatTile label="Energy delivered today" value={todayEnergyKwh !== null ? `${todayEnergyKwh.toFixed(1)} kWh` : "—"} />
-            <StatTile label="Power utilization" value={utilizationPct !== null ? `${utilizationPct.toFixed(0)}%` : "—"} />
+          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <LiveStatusCard
+              icon={Zap}
+              title="Power Offered"
+              subtitle="Max charger output"
+              value={offeredKw !== null ? `${offeredKw.toFixed(1)} kW` : "—"}
+              liveValue={offeredKw}
+              statusLabel="Status"
+              badgeLabel="Live"
+              badgeTone="neutral"
+              sparkline={[]}
+            />
+            <LiveStatusCard
+              icon={Plug}
+              title="Sessions"
+              subtitle="Started today"
+              value={String(sessionsToday)}
+              liveValue={sessionsToday}
+              statusLabel="Status"
+              badgeLabel="Today"
+              badgeTone="neutral"
+              sparkline={[]}
+            />
+            <LiveStatusCard
+              icon={ArrowDownToLine}
+              title="Energy Delivered"
+              subtitle="Total today"
+              value={`${energyTodayKwh.toFixed(1)} kWh`}
+              liveValue={energyTodayKwh}
+              statusLabel="Status"
+              badgeLabel="Today"
+              badgeTone="good"
+              sparkline={[]}
+            />
+            <LiveStatusCard
+              icon={Gauge}
+              title="Power Utilization"
+              subtitle="Of max output"
+              value={utilizationPct !== null ? `${utilizationPct.toFixed(0)}%` : "—"}
+              liveValue={utilizationPct}
+              statusLabel="Status"
+              badgeLabel="Live"
+              badgeTone="neutral"
+              sparkline={[]}
+            />
           </div>
+
+          <ChargerTrendGroup
+            deviceId={device.id}
+            powerSeries={[
+              {
+                key: "power_active_import_w",
+                label: "Power",
+                color: "var(--chart-1)",
+                scale: 0.001,
+                unit: "kW",
+                footerMode: "sum",
+                footerUnit: "kWh",
+              },
+              { key: "current_import_a", label: "Current", color: "var(--chart-2)", scale: 1, unit: "A", footerMode: "average" },
+            ]}
+            sessionMarkers={chargingSummary.sessions.map((sess) => ({
+              startedAt: sess.startedAt,
+              endedAt: sess.endedAt,
+              energyKwh: sess.energyKwh,
+            }))}
+            temperatureRows={[{ key: "temperature_c", label: "Connector", maxC: EV_CONNECTOR_TEMP_WARN_C }]}
+          />
         </TabsContent>
 
         <TabsContent value="sessions" className="space-y-4">

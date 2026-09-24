@@ -65,3 +65,11 @@ export const BatteryTrendGroup = dynamic(() => import("./battery-trend-group").t
   ssr: false,
   loading: ChartSkeleton,
 });
+
+// EV Charger's Charging Power & Current chart + its own connector
+// temperature heatmap, sharing one interval picker — same reasoning as
+// MainHubTrendGroup above.
+export const ChargerTrendGroup = dynamic(() => import("./charger-trend-group").then((m) => m.ChargerTrendGroup), {
+  ssr: false,
+  loading: ChartSkeleton,
+});

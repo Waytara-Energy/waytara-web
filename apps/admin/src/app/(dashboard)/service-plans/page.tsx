@@ -37,17 +37,18 @@ export default async function ServicePlansPage({
   const { error, success } = await searchParams;
   const supabase = await createClient();
 
-  const { data: plans } = await supabase
-    .from("service_plans")
-    .select(
-      "id, name, device_category, duration_months, total_services_included, free_services_count, price_amount, per_extra_service_price_amount, covered_items, paid_extras"
-    )
-    .order("name");
-
-  const { data: devices } = await supabase
-    .from("devices")
-    .select("id, label, service_id, device_type:stock(name, serial_number), site:sites(name)")
-    .order("created_at", { ascending: false });
+  const [{ data: plans }, { data: devices }] = await Promise.all([
+    supabase
+      .from("service_plans")
+      .select(
+        "id, name, device_category, duration_months, total_services_included, free_services_count, price_amount, per_extra_service_price_amount, covered_items, paid_extras"
+      )
+      .order("name"),
+    supabase
+      .from("devices")
+      .select("id, label, service_id, device_type:stock(name, serial_number), site:sites(name)")
+      .order("created_at", { ascending: false }),
+  ]);
 
   return (
     <div className="space-y-6">

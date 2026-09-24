@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { TrendingDown, TrendingUp } from "lucide-react";
-import { Bar, BarChart, Cell, XAxis } from "recharts";
+import { Bar, Cell, ComposedChart, Line, ReferenceArea, ReferenceLine, XAxis, YAxis } from "recharts";
 import { createClient } from "@waytara/supabase/client";
 import { useRealtimeTable, type RealtimeRowEvent } from "@waytara/ui/realtime-provider";
 import { fetchAllDeviceReadings, type DeviceReadingRow } from "@/lib/device-readings-fetch";
@@ -10,6 +10,7 @@ import { INTERVAL_OPTIONS, DEFAULT_INTERVAL_MINUTES, todayMidnight, bucketKeyFor
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface RealtimeDeviceReadingRow {
   device_id: string;
@@ -19,10 +20,82 @@ interface RealtimeDeviceReadingRow {
   is_test: boolean;
 }
 
+// Module-level (not per-component) so switching tabs — which remounts this
+// component, since Radix unmounts inactive TabsContent — can paint the
+// last-fetched points immediately instead of a fresh skeleton, then quietly
+// refetch to catch up. Capped so a long session hopping between many
+// devices/tabs can't grow this without bound; oldest entry evicted first,
+// which is close enough to LRU for a handful of concurrently-visited
+// charts.
+const CHART_CACHE_MAX = 24;
+const chartDataCache = new Map<string, ChartPoint[]>();
+function cacheChartPoints(key: string, points: ChartPoint[]) {
+  chartDataCache.delete(key);
+  chartDataCache.set(key, points);
+  if (chartDataCache.size > CHART_CACHE_MAX) {
+    const oldest = chartDataCache.keys().next().value;
+    if (oldest !== undefined) chartDataCache.delete(oldest);
+  }
+}
+
 export interface BarTrendSeries {
   key: string;
   label: string;
   color: string;
+  /** Per-series reading -> display scale, overriding the chart's own
+   *  `valueScale` — lets one chart combine series that aren't the same
+   *  unit (e.g. a charger's power in kW alongside its current in A),
+   *  each scaled correctly instead of sharing one factor. */
+  scale?: number;
+  /** Per-series tooltip/footer unit, overriding the chart's own `unit`
+   *  for the same mixed-unit case. Series sharing a unit (the common
+   *  case) also share one y-axis; a series with its own unit gets its
+   *  own hidden axis so its bars scale independently instead of being
+   *  dwarfed by/dwarfing a series on a very different scale. */
+  unit?: string;
+  /** Per-series footer mode/unit, overriding the chart's own
+   *  `footerMode`/`footerUnit` — e.g. a charger's Power series wants
+   *  "kWh delivered so far today" (sum) alongside a Current series that
+   *  only makes sense as an "A avg" (average), in the same chart. */
+  footerMode?: "sum" | "average";
+  footerUnit?: string;
+  /** "bar" (default) or "line" — a cumulative quantity (see
+   *  `cumulativeOf`) reads better as a rising line laid over the other
+   *  series' bars than as one more bar competing for the same space. */
+  chartType?: "bar" | "line";
+  /** Marks this series as *derived*, not fetched: instead of querying its
+   *  own `key` as an instrument, its value at each bucket is the running
+   *  total of another series already in this chart (`cumulativeOf`,
+   *  scaled by that bucket's width) — the same integration the footer's
+   *  "sum" mode already does, just exposed per-bucket as a line instead
+   *  of one final number. Stops (renders nothing further) once elapsed
+   *  time runs out, rather than continuing into the yesterday-borrowed
+   *  future portion of the base series, since energy that hasn't
+   *  happened yet obviously isn't "delivered". `key` still needs to be a
+   *  value nothing else in `series` uses, since it becomes this series'
+   *  own point field and dataKey. */
+  cumulativeOf?: string;
+}
+
+export interface BarTrendReferenceLine {
+  /** Already in the target axis's display unit (e.g. kW), not raw. */
+  value: number;
+  label: string;
+  /** Which series' unit (hence y-axis) this line is plotted against. */
+  unit: string;
+  color?: string;
+}
+
+/** One session's span, marked directly on the time axis — a dotted line
+ *  where it started, a shaded band with the energy delivered labeled in
+ *  the middle, and (once it has one) a second dotted line where it
+ *  ended. `endedAt: null` — a session still in progress — skips the band
+ *  and the end line entirely rather than guessing where it'll finish;
+ *  the start line's own label carries "so far" instead. */
+export interface BarTrendSessionMarker {
+  startedAt: string;
+  endedAt: string | null;
+  energyKwh: number | null;
 }
 
 interface ChartPoint {
@@ -68,7 +141,13 @@ function TrendTooltipContent(props: React.ComponentProps<typeof ChartTooltipCont
 /** Sums + counts a set of readings into per-bucket, per-series-key values —
  *  shared shape for both today's real data and yesterday's reference data
  *  (yesterday keyed by time-of-day only, via `keyFor` stripping the date). */
-function bucketReadings(rows: DeviceReadingRow[], bucketMinutes: number, keyFor: (ts: string) => string, seriesKeys: string[], valueScale: number) {
+function bucketReadings(
+  rows: DeviceReadingRow[],
+  bucketMinutes: number,
+  keyFor: (ts: string) => string,
+  seriesKeys: string[],
+  scaleByKey: Record<string, number>
+) {
   const sums = new Map<string, Record<string, number>>();
   const counts = new Map<string, Record<string, number>>();
   for (const row of rows) {
@@ -78,7 +157,7 @@ function bucketReadings(rows: DeviceReadingRow[], bucketMinutes: number, keyFor:
       sums.set(bucket, Object.fromEntries(seriesKeys.map((k) => [k, 0])));
       counts.set(bucket, Object.fromEntries(seriesKeys.map((k) => [k, 0])));
     }
-    sums.get(bucket)![row.instrument_key] += row.value * valueScale;
+    sums.get(bucket)![row.instrument_key] += row.value * (scaleByKey[row.instrument_key] ?? 1);
     counts.get(bucket)![row.instrument_key] += 1;
   }
   return { sums, counts };
@@ -102,23 +181,29 @@ export function BarTrendChart({
   footerUnit = "kWh",
   bucketMinutes: controlledBucketMinutes,
   onBucketMinutesChange,
+  referenceLines,
+  sessionMarkers,
 }: {
   deviceId: string;
   title: string;
   series: BarTrendSeries[];
   /** Raw reading -> chart value scale — default 0.001 converts W to kW.
-   *  Pass 1 for a series that's already in its display unit (e.g. SOC%). */
+   *  Pass 1 for a series that's already in its display unit (e.g. SOC%).
+   *  Falls back for any series without its own `scale`. */
   valueScale?: number;
-  /** Per-reading unit shown in the tooltip. */
+  /** Per-reading unit shown in the tooltip and (in "average" footer mode)
+   *  the footer — falls back for any series without its own `unit`. */
   unit?: string;
   /** "sum" (default): footer integrates each series into an energy total
    *  over elapsed hours ("X kWh generated today") — only meaningful when
    *  `series` are power readings. "average": footer shows each series'
    *  today-so-far average instead, for a non-power series like battery
-   *  SOC% where a summed total wouldn't mean anything. */
+   *  SOC% where a summed total wouldn't mean anything. Falls back for any
+   *  series without its own `footerMode`. */
   footerMode?: "sum" | "average";
   /** Footer's own unit in "sum" mode (independent of the tooltip's
-   *  per-reading `unit`, e.g. "kW" readings integrate into "kWh"). */
+   *  per-reading `unit`, e.g. "kW" readings integrate into "kWh"). Falls
+   *  back for any series without its own `footerUnit`. */
   footerUnit?: string;
   /** Controlled interval, for a caller (MainHubTrendGroup) that needs to
    *  drive a sibling chart's own bucketing off this one's Select — omit
@@ -126,24 +211,78 @@ export function BarTrendChart({
    *  same as every other BarTrendChart usage. */
   bucketMinutes?: number;
   onBucketMinutesChange?: (minutes: number) => void;
+  /** Constant dashed lines drawn over the chart (e.g. a charger's own
+   *  "Power Offered" ceiling) — plotted against whichever axis matches
+   *  their `unit`, not a new series of their own. */
+  referenceLines?: BarTrendReferenceLine[];
+  /** One or more charging-session spans to mark on the time axis — see
+   *  BarTrendSessionMarker. Independent of `series`/fetching entirely;
+   *  just drawn over whatever's already there. */
+  sessionMarkers?: BarTrendSessionMarker[];
 }) {
   const seriesKeys = React.useMemo(() => series.map((s) => s.key), [series]);
   const seriesKeysJoined = seriesKeys.join(",");
+  // Only real instrument keys get fetched/bucketed — a `cumulativeOf`
+  // series is derived from another series already in `points`, not
+  // queried on its own (see the post-processing pass below).
+  const fetchSeriesKeys = React.useMemo(() => series.filter((s) => !s.cumulativeOf).map((s) => s.key), [series]);
+  const fetchSeriesKeysJoined = fetchSeriesKeys.join(",");
+  const scaleByKey = React.useMemo(
+    () => Object.fromEntries(series.map((s) => [s.key, s.scale ?? valueScale])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [series, valueScale]
+  );
+  const scalesJoined = series.map((s) => s.scale ?? valueScale).join(",");
+  const unitByKey = React.useMemo(
+    () => Object.fromEntries(series.map((s) => [s.key, s.unit ?? unit])),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [series, unit]
+  );
+  // Series sharing a unit share one (hidden) y-axis, scaled to fit them
+  // together; a series with its own `unit` gets its own axis so its bars
+  // aren't dwarfed by/dwarfing a series on a very different scale (e.g.
+  // power in kW alongside current in A on the same chart).
+  const axisIds = React.useMemo(() => Array.from(new Set(series.map((s) => s.unit ?? unit))), [series, unit]);
   const [internalBucketMinutes, setInternalBucketMinutes] = React.useState<number>(DEFAULT_INTERVAL_MINUTES);
   const bucketMinutes = controlledBucketMinutes ?? internalBucketMinutes;
   const setBucketMinutes = onBucketMinutesChange ?? setInternalBucketMinutes;
   const [points, setPoints] = React.useState<ChartPoint[]>([]);
   const [loaded, setLoaded] = React.useState(false);
   const fetchRef = React.useRef<() => void>(() => {});
+  const realtimeDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const chartConfig = React.useMemo(
     () => Object.fromEntries(series.map((s) => [s.key, { label: s.label, color: s.color }])) satisfies ChartConfig,
     [series]
   );
 
+  // Snap each session's start/end to the exact bucket-key strings `points`
+  // itself uses (the x-axis is categorical, keyed by that same string) —
+  // recomputed straight from `bucketMinutes` on every render rather than
+  // its own effect, since it's pure and cheap (no fetching involved).
+  const sessionRanges = React.useMemo(
+    () =>
+      (sessionMarkers ?? []).map((m) => ({
+        startKey: bucketKeyFor(m.startedAt, bucketMinutes),
+        endKey: m.endedAt ? bucketKeyFor(m.endedAt, bucketMinutes) : null,
+        energyKwh: m.energyKwh,
+      })),
+    [sessionMarkers, bucketMinutes]
+  );
+
   React.useEffect(() => {
     let cancelled = false;
     const supabase = createClient();
+    const cacheKey = `${deviceId}|${fetchSeriesKeysJoined}|${bucketMinutes}`;
+
+    // Paint whatever this exact chart last fetched immediately — instant on
+    // a tab revisit — then still run fetchData below to pick up anything
+    // that changed since.
+    const cached = chartDataCache.get(cacheKey);
+    if (cached) {
+      setPoints(cached);
+      setLoaded(true);
+    }
 
     async function fetchData() {
       const since = todayMidnight().toISOString();
@@ -151,23 +290,23 @@ export function BarTrendChart({
       yesterdayStart.setDate(yesterdayStart.getDate() - 1);
 
       const [today, yesterday] = await Promise.all([
-        fetchAllDeviceReadings(supabase, deviceId, seriesKeys, since),
-        fetchAllDeviceReadings(supabase, deviceId, seriesKeys, yesterdayStart.toISOString(), since),
+        fetchAllDeviceReadings(supabase, deviceId, fetchSeriesKeys, since),
+        fetchAllDeviceReadings(supabase, deviceId, fetchSeriesKeys, yesterdayStart.toISOString(), since),
       ]);
       if (cancelled) return;
       setLoaded(true);
 
-      const { sums, counts } = bucketReadings(today, bucketMinutes, (ts) => bucketKeyFor(ts, bucketMinutes), seriesKeys, valueScale);
+      const { sums, counts } = bucketReadings(today, bucketMinutes, (ts) => bucketKeyFor(ts, bucketMinutes), fetchSeriesKeys, scaleByKey);
       const { sums: ySums, counts: yCounts } = bucketReadings(
         yesterday,
         bucketMinutes,
         (ts) => bucketKeyFor(ts, bucketMinutes).slice(11),
-        seriesKeys,
-        valueScale
+        fetchSeriesKeys,
+        scaleByKey
       );
 
       const nowBucketKey = bucketKeyFor(localBucketDateString(new Date()), bucketMinutes);
-      const carry: Record<string, number | null> = Object.fromEntries(seriesKeys.map((k) => [k, null]));
+      const carry: Record<string, number | null> = Object.fromEntries(fetchSeriesKeys.map((k) => [k, null]));
 
       const filled = fullDayBucketKeys(bucketMinutes).map((bk): ChartPoint => {
         const s = sums.get(bk);
@@ -179,7 +318,7 @@ export function BarTrendChart({
         const point: ChartPoint = { time: bk };
         let usedYesterday = false;
 
-        for (const key of seriesKeys) {
+        for (const key of fetchSeriesKeys) {
           // Yesterday's own value at this same time-of-day, kept on every
           // bucket (not just future ones borrowing it for display) purely
           // so the footer's trend line can compare today-so-far against
@@ -203,7 +342,31 @@ export function BarTrendChart({
         if (usedYesterday) point.isYesterday = true;
         return point;
       });
+
+      // Derived (`cumulativeOf`) series: the running integral of their
+      // base series, elapsed-hours at a time — the exact same math the
+      // footer's own "sum" mode uses, just kept per-bucket instead of
+      // collapsed into one final number. Stops accumulating (and stops
+      // rendering, via `null`) past "now" — the base series' own future
+      // buckets borrow yesterday's value so its *bars* still read as a
+      // continuous day, but energy that hasn't happened yet can't count
+      // toward a running total.
+      const bucketHours = bucketMinutes / 60;
+      for (const s of series) {
+        if (!s.cumulativeOf) continue;
+        let running = 0;
+        for (const point of filled) {
+          if (point.isYesterday) {
+            point[s.key] = null;
+            continue;
+          }
+          running += ((point[s.cumulativeOf] as number | null | undefined) ?? 0) * bucketHours;
+          point[s.key] = running;
+        }
+      }
+
       setPoints(filled);
+      cacheChartPoints(cacheKey, filled);
     }
 
     fetchRef.current = () => {
@@ -214,11 +377,17 @@ export function BarTrendChart({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deviceId, bucketMinutes, seriesKeysJoined, valueScale]);
+  }, [deviceId, bucketMinutes, fetchSeriesKeysJoined, scalesJoined]);
 
   // Any new reading changes the day's shape enough (a fresh real point
   // replacing a carried-forward or yesterday-borrowed one) that a full
-  // refetch is simpler and cheap here.
+  // refetch is simpler and cheap here. The shared realtime channel already
+  // batches rows within a ~300ms window, but still calls this handler once
+  // per row in that batch (see realtime-provider.tsx) — one device "tick"
+  // is commonly 20-30 rows across every instrument, of which several can
+  // match this one chart's own series, so without its own debounce this
+  // was firing several full refetches (2 queries each) back-to-back for a
+  // single logical update.
   useRealtimeTable<RealtimeDeviceReadingRow>(
     "device_readings",
     "INSERT",
@@ -227,11 +396,12 @@ export function BarTrendChart({
       (payload: RealtimeRowEvent<RealtimeDeviceReadingRow>) => {
         const row = payload.new;
         if (row.is_test) return;
-        if (!seriesKeys.includes(row.instrument_key)) return;
-        fetchRef.current();
+        if (!fetchSeriesKeys.includes(row.instrument_key)) return;
+        if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
+        realtimeDebounceRef.current = setTimeout(() => fetchRef.current(), 500);
       },
       // eslint-disable-next-line react-hooks/exhaustive-deps
-      [seriesKeysJoined]
+      [fetchSeriesKeysJoined]
     )
   );
 
@@ -255,26 +425,48 @@ export function BarTrendChart({
     return { pct: ((todayAvg - yesterdayAvg) / yesterdayAvg) * 100 };
   }, [points, primaryKey]);
 
+  // Both the "average so far today" and the "integrated over elapsed
+  // hours" total, for every series — cheap to compute both regardless of
+  // mode, since each series picks its own footer mode/unit below (a
+  // charger's Power wants the integrated kWh, its Current only makes
+  // sense as an average).
   const totals = React.useMemo(() => {
-    if (footerMode === "average") {
-      const out: Record<string, number> = {};
-      for (const key of seriesKeys) {
-        const real = points.filter((p) => !p.isYesterday && p[key] !== null && p[key] !== undefined);
-        out[key] = real.length > 0 ? real.reduce((sum, p) => sum + ((p[key] as number) ?? 0), 0) / real.length : 0;
-      }
-      return out;
-    }
     const bucketHours = bucketMinutes / 60;
-    const out: Record<string, number> = Object.fromEntries(seriesKeys.map((k) => [k, 0]));
-    for (const p of points) {
-      if (p.isYesterday) continue;
-      for (const key of seriesKeys) {
-        out[key] += ((p[key] as number) ?? 0) * bucketHours;
-      }
+    const out: Record<string, { avg: number; sum: number }> = {};
+    for (const key of seriesKeys) {
+      const real = points.filter((p) => !p.isYesterday && p[key] !== null && p[key] !== undefined);
+      const avg = real.length > 0 ? real.reduce((s, p) => s + ((p[key] as number) ?? 0), 0) / real.length : 0;
+      const sum = real.reduce((s, p) => s + ((p[key] as number) ?? 0) * bucketHours, 0);
+      out[key] = { avg, sum };
     }
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [points, bucketMinutes, seriesKeysJoined, footerMode]);
+  }, [points, bucketMinutes, seriesKeysJoined]);
+
+  // Card shell stays put and only its contents swap to skeletons — keeps
+  // the mount -> first-fetch-resolves gap (which the dynamic-import
+  // ChartSkeleton in lazy-charts.tsx doesn't cover, since that one
+  // unmounts as soon as this component's own JS has loaded) from ever
+  // rendering an empty axes-with-no-bars chart.
+  if (!loaded) {
+    return (
+      <Card>
+        <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
+          <div className="space-y-2">
+            <CardTitle className="text-sm">{title}</CardTitle>
+            <Skeleton className="h-4 w-48" />
+          </div>
+          <Skeleton className="h-8 w-[110px] shrink-0 rounded-md" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-[240px] w-full rounded-lg" />
+        </CardContent>
+        <CardFooter className="flex-col items-start gap-2">
+          <Skeleton className="h-4 w-56 max-w-full" />
+        </CardFooter>
+      </Card>
+    );
+  }
 
   if (loaded && points.every((p) => seriesKeys.every((k) => p[k] === null || p[k] === undefined))) {
     return (
@@ -311,8 +503,9 @@ export function BarTrendChart({
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="aspect-auto h-[240px] w-full">
-          <BarChart accessibilityLayer data={points} margin={{ left: 4, right: 4, top: 8 }}>
+          <ComposedChart accessibilityLayer data={points} margin={{ left: 4, right: 4, top: 8 }}>
             <XAxis
+              xAxisId={0}
               dataKey="time"
               tickLine={false}
               axisLine={false}
@@ -335,21 +528,93 @@ export function BarTrendChart({
                         {String(name)}
                       </span>
                       <span className="font-medium text-foreground tabular-nums">
-                        {typeof value === "number" ? value.toFixed(2) : String(value)} {unit}
+                        {typeof value === "number" ? value.toFixed(2) : String(value)} {unitByKey[item.dataKey as string] ?? unit}
                       </span>
                     </span>
                   )}
                 />
               }
             />
-            {series.map((s) => (
-              <Bar key={s.key} dataKey={s.key} name={s.label} fill={`var(--color-${s.key})`} radius={4}>
-                {points.map((p, i) => (
-                  <Cell key={i} fillOpacity={p.isYesterday ? 0.3 : 1} fill={p.isYesterday ? "var(--muted-foreground)" : `var(--color-${s.key})`} />
-                ))}
-              </Bar>
+            {axisIds.map((id) => (
+              <YAxis key={id} yAxisId={id} hide domain={["auto", "auto"]} />
             ))}
-          </BarChart>
+            {sessionRanges.map(
+              (r, i) =>
+                r.endKey && (
+                  <ReferenceArea
+                    key={`session-area-${i}`}
+                    yAxisId={axisIds[0]}
+                    x1={r.startKey}
+                    x2={r.endKey}
+                    fill="var(--foreground)"
+                    fillOpacity={0.05}
+                    label={
+                      r.energyKwh !== null
+                        ? { value: `${r.energyKwh.toFixed(1)} kWh`, position: "insideTop", fontSize: 10, fill: "var(--foreground)" }
+                        : undefined
+                    }
+                  />
+                )
+            )}
+            {series.map((s) =>
+              s.chartType === "line" ? (
+                <Line
+                  key={s.key}
+                  type="monotone"
+                  dataKey={s.key}
+                  name={s.label}
+                  yAxisId={s.unit ?? unit}
+                  stroke={`var(--color-${s.key})`}
+                  strokeWidth={2}
+                  dot={false}
+                  connectNulls={false}
+                  isAnimationActive={false}
+                />
+              ) : (
+                <Bar key={s.key} dataKey={s.key} name={s.label} yAxisId={s.unit ?? unit} fill={`var(--color-${s.key})`} radius={4}>
+                  {points.map((p, i) => (
+                    <Cell key={i} fillOpacity={p.isYesterday ? 0.3 : 1} fill={p.isYesterday ? "var(--muted-foreground)" : `var(--color-${s.key})`} />
+                  ))}
+                </Bar>
+              )
+            )}
+            {referenceLines?.map((rl, i) => (
+              <ReferenceLine
+                key={i}
+                yAxisId={rl.unit}
+                y={rl.value}
+                ifOverflow="extendDomain"
+                stroke={rl.color ?? "var(--muted-foreground)"}
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                label={{ value: rl.label, position: "insideTopRight", fontSize: 10, fill: rl.color ?? "var(--muted-foreground)" }}
+              />
+            ))}
+            {sessionRanges.map((r, i) => (
+              <React.Fragment key={`session-lines-${i}`}>
+                <ReferenceLine
+                  yAxisId={axisIds[0]}
+                  x={r.startKey}
+                  stroke="var(--muted-foreground)"
+                  strokeDasharray="2 3"
+                  strokeWidth={1}
+                  label={
+                    !r.endKey
+                      ? {
+                          value: r.energyKwh !== null ? `${r.energyKwh.toFixed(1)} kWh so far` : "Session started",
+                          position: "insideTopLeft",
+                          fontSize: 10,
+                          fill: "var(--foreground)",
+                        }
+                      : undefined
+                  }
+                />
+                {r.endKey && (
+                  <ReferenceLine yAxisId={axisIds[0]} x={r.endKey} stroke="var(--muted-foreground)" strokeDasharray="2 3" strokeWidth={1} />
+                )}
+              </React.Fragment>
+            ))}
+          </ComposedChart>
         </ChartContainer>
       </CardContent>
       <CardFooter className="flex-col items-start gap-2 text-sm">
@@ -361,11 +626,16 @@ export function BarTrendChart({
         )}
         <div className="leading-none text-muted-foreground">
           {series
-            .map((s) =>
-              footerMode === "average"
-                ? `${totals[s.key].toFixed(1)} ${unit} avg ${s.label.toLowerCase()}`
-                : `${totals[s.key].toFixed(1)} ${footerUnit} ${s.label.toLowerCase()}`
-            )
+            // A `cumulativeOf` series is just its base series' own "sum"
+            // total, replotted per-bucket — showing it again here would
+            // just repeat that same number a second time.
+            .filter((s) => !s.cumulativeOf)
+            .map((s) => {
+              const mode = s.footerMode ?? footerMode;
+              return mode === "average"
+                ? `${totals[s.key].avg.toFixed(1)} ${s.unit ?? unit} avg ${s.label.toLowerCase()}`
+                : `${totals[s.key].sum.toFixed(1)} ${s.footerUnit ?? footerUnit} ${s.label.toLowerCase()}`;
+            })
             .join(" · ")}{" "}
           so far today
         </div>

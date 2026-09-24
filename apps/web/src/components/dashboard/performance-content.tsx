@@ -1,6 +1,7 @@
 import { createClient } from "@waytara/supabase/server";
 import type { CustomerDevice } from "@/lib/selected-site";
 import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
+import { fetchAllDeviceReadings } from "@/lib/device-readings-fetch";
 import { PerformanceChart, DivergingBarChart } from "./lazy-charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -57,15 +58,15 @@ async function SolarInverterPerformance({ supabase, device }: { supabase: Supaba
   // three — the totals snapshot is the same "latest value per instrument"
   // pattern Overview/Monitoring already use, just scoped to the
   // month/year/lifetime counter keys instead of live telemetry.
-  const [{ data }, { data: lifetimeRow }, { data: totalsRows }] = await Promise.all([
-    supabase
-      .from("device_readings")
-      .select("device_id, instrument_key, value, ts")
-      .eq("device_id", device.id)
-      .in("instrument_key", SOLAR_KEYS)
-      .eq("is_test", false)
-      .gte("ts", since.toISOString())
-      .order("ts", { ascending: true }),
+  //
+  // The first uses fetchAllDeviceReadings (paginated) rather than a plain
+  // query: HISTORY_DAYS=180 across 5 keys easily clears PostgREST's
+  // per-request row cap, which was silently truncating this chart's more
+  // recent data (ascending order means the *oldest* rows survive the cap,
+  // not the newest) — the exact bug fetchAllDeviceReadings's own doc
+  // comment already describes for a different chart.
+  const [rawRows, { data: lifetimeRow }, { data: totalsRows }] = await Promise.all([
+    fetchAllDeviceReadings(supabase, device.id, SOLAR_KEYS, since.toISOString()),
     supabase
       .from("device_readings")
       .select("value")
@@ -83,7 +84,6 @@ async function SolarInverterPerformance({ supabase, device }: { supabase: Supaba
       .limit(TOTALS_KEYS.length * 5),
   ]);
 
-  const rows = data ?? [];
   const lifetimePvKwh = lifetimeRow?.value ?? null;
   const totals = new Map<string, number | null>();
   for (const r of totalsRows ?? []) {
@@ -92,7 +92,7 @@ async function SolarInverterPerformance({ supabase, device }: { supabase: Supaba
   const getTotal = (key: string) => totals.get(key) ?? null;
 
   const byKey = (key: string): RawReading[] =>
-    rows.filter((r) => r.instrument_key === key).map((r) => ({ device_id: r.device_id, value: r.value, ts: r.ts }));
+    rawRows.filter((r) => r.instrument_key === key).map((r) => ({ device_id: device.id, value: r.value, ts: r.ts }));
 
   const daily = aggregateDailyYield(byKey(YIELD_KEY));
   const batteryCharge = aggregateDailyYield(byKey("day_battery_charge_kwh"));
@@ -197,15 +197,11 @@ async function EvChargerPerformance({ supabase, device }: { supabase: SupabaseSe
   // resets, so max == last within a day). aggregationMode="last" below
   // then makes weekly/monthly rollups take that latest value instead of
   // summing it (summing a cumulative series would double-count).
-  const [{ data: energyRows }, { data: sessions }] = await Promise.all([
-    supabase
-      .from("device_readings")
-      .select("device_id, instrument_key, value, ts")
-      .eq("device_id", device.id)
-      .eq("instrument_key", "energy_active_import_register_kwh")
-      .eq("is_test", false)
-      .gte("ts", since.toISOString())
-      .order("ts", { ascending: true }),
+  // See SolarInverterPerformance's identical comment — a single-key,
+  // 180-day, unpaginated query is still at risk of PostgREST's row cap,
+  // just with a smaller blast radius (1 key instead of 5).
+  const [energyRows, { data: sessions }] = await Promise.all([
+    fetchAllDeviceReadings(supabase, device.id, ["energy_active_import_register_kwh"], since.toISOString()),
     supabase
       .from("charging_sessions")
       .select("id, started_at, ended_at, start_energy_kwh, end_energy_kwh, stop_reason")
@@ -214,7 +210,7 @@ async function EvChargerPerformance({ supabase, device }: { supabase: SupabaseSe
       .limit(30),
   ]);
 
-  const daily = aggregateDailyYield((energyRows ?? []).map((r) => ({ device_id: r.device_id, value: r.value, ts: r.ts })));
+  const daily = aggregateDailyYield(energyRows.map((r) => ({ device_id: device.id, value: r.value, ts: r.ts })));
 
   return (
     <>

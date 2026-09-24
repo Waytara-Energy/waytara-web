@@ -24,10 +24,19 @@ export function RealtimeRefresh({
   table,
   event,
   filter,
+  debounceMs = 400,
 }: {
   table: string;
   event: PgChangeEvent;
   filter?: string;
+  /** Override the 400ms default for a table that changes very often (e.g.
+   *  Monitoring's `device_readings`, which can insert 20-30 rows per
+   *  device "tick") — `router.refresh()` re-runs the whole page's Server
+   *  Component, including every query that isn't actually reading-driven
+   *  (session history, plan, site), so a table this hot needs a longer
+   *  window or the full-page refresh fires almost continuously and starves
+   *  everything else (chart fetches, tab switches) of bandwidth/CPU. */
+  debounceMs?: number;
 }) {
   const router = useRouter();
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -38,8 +47,8 @@ export function RealtimeRefresh({
     filter,
     React.useCallback(() => {
       if (timerRef.current) clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => router.refresh(), 400);
-    }, [router])
+      timerRef.current = setTimeout(() => router.refresh(), debounceMs);
+    }, [router, debounceMs])
   );
 
   return null;

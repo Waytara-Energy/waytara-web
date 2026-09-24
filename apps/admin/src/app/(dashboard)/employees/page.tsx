@@ -26,17 +26,18 @@ export default async function EmployeesPage({
   const currentProfile = await getCurrentProfile();
   const supabase = await createClient();
 
-  const { data: staff } = await supabase
-    .from("profiles")
-    .select("id, full_name, email, role, created_at, deactivated_at, deleted_at")
-    .in("role", ["admin", "employee"])
-    .order("created_at", { ascending: true });
-
-  const { data: invites } = await supabase
-    .from("employee_invites")
-    .select("id, email, role, status, expires_at, created_at")
-    .eq("status", "pending")
-    .order("created_at", { ascending: false });
+  const [{ data: staff }, { data: invites }] = await Promise.all([
+    supabase
+      .from("profiles")
+      .select("id, full_name, email, role, created_at, deactivated_at, deleted_at")
+      .in("role", ["admin", "employee"])
+      .order("created_at", { ascending: true }),
+    supabase
+      .from("employee_invites")
+      .select("id, email, role, status, expires_at, created_at")
+      .eq("status", "pending")
+      .order("created_at", { ascending: false }),
+  ]);
 
   const now = Date.now();
 

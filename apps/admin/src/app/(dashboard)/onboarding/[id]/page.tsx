@@ -78,11 +78,13 @@ export default async function OnboardingPipelinePage({
   const { error: actionError } = await searchParams;
   const supabase = await createClient();
 
-  const { data: onboarding, error } = await supabase
-    .from("customer_onboarding")
-    .select("*")
-    .eq("id", id)
-    .single();
+  // `plans` doesn't depend on `onboarding` at all — fetched alongside it
+  // instead of after, same for `lead`+`quotations` below (both depend only
+  // on `onboarding.lead_id`, not on each other).
+  const [{ data: onboarding, error }, { data: plans }] = await Promise.all([
+    supabase.from("customer_onboarding").select("*").eq("id", id).single(),
+    supabase.from("plans").select("id, name, price_monthly").eq("is_active", true).order("price_monthly"),
+  ]);
 
   if (error || !onboarding) {
     return (
@@ -92,27 +94,18 @@ export default async function OnboardingPipelinePage({
     );
   }
 
-  const { data: lead } = await supabase
-    .from("leads")
-    .select("id, full_name, email, phone")
-    .eq("id", onboarding.lead_id)
-    .single();
-
-  const { data: quotations } = await supabase
-    .from("quotations")
-    .select("*, plan:plans(name)")
-    .eq("lead_id", onboarding.lead_id)
-    .order("created_at", { ascending: false });
+  const [{ data: lead }, { data: quotations }] = await Promise.all([
+    supabase.from("leads").select("id, full_name, email, phone").eq("id", onboarding.lead_id).single(),
+    supabase
+      .from("quotations")
+      .select("*, plan:plans(name)")
+      .eq("lead_id", onboarding.lead_id)
+      .order("created_at", { ascending: false }),
+  ]);
 
   const activeQuotation = quotations?.find((q) => q.status === "draft" || q.status === "sent");
   const acceptedQuotation = quotations?.find((q) => q.status === "accepted");
   const pastQuotations = quotations?.filter((q) => q !== activeQuotation) ?? [];
-
-  const { data: plans } = await supabase
-    .from("plans")
-    .select("id, name, price_monthly")
-    .eq("is_active", true)
-    .order("price_monthly");
 
   // Not a `profiles` lookup: profiles_self_or_admin RLS only allows self or
   // admin, so an employee can't read an arbitrary customer's profile row

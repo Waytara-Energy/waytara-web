@@ -1,7 +1,6 @@
 import "server-only";
 
 import { cache } from "react";
-import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient as createServerSupabaseClient } from "./client-server";
 import type { Database } from "./types";
@@ -37,6 +36,14 @@ export type TypedSupabaseClient = SupabaseClient<Database, "waytara">;
  * single page load. `cache()` dedupes by call signature for the lifetime
  * of one request/render pass — the no-args call every page actually makes
  * hits the network exactly once no matter how many components call it.
+ *
+ * `select("*")` is fine here despite running on every page load: `profiles`
+ * is a narrow table (10 small scalar columns, no blob/JSON-heavy ones
+ * besides `notification_preferences`), and every column — `avatar_url`,
+ * `full_name`, `email`, `phone`, `role`, `notification_preferences` — is
+ * read by at least one caller across the two apps, so narrowing it would
+ * save negligible bytes for real risk of silently breaking a caller that
+ * needs a column this function stopped selecting.
  */
 export const getCurrentProfile = cache(async function getCurrentProfile(
   client?: TypedSupabaseClient
@@ -70,32 +77,3 @@ export const getCurrentProfile = cache(async function getCurrentProfile(
 
   return data;
 });
-
-/**
- * Server Component / Server Action / Route Handler guard: redirects to
- * `/login` if there's no session, or to `/unauthorized` if the signed-in
- * user's `profiles.role` isn't one of `role`. Returns the profile otherwise.
- *
- * Not for `middleware.ts` — `next/navigation`'s `redirect()` only works in
- * the App Router render/action pipeline. In middleware, call
- * `getCurrentProfile(supabase)` yourself and return
- * `NextResponse.redirect(...)` on failure (see `createMiddlewareClient`'s
- * example in `@waytara/supabase/middleware`).
- */
-export async function requireRole(
-  role: Role | Role[],
-  options?: { redirectTo?: string; unauthorizedTo?: string }
-): Promise<Profile> {
-  const allowed = Array.isArray(role) ? role : [role];
-  const profile = await getCurrentProfile();
-
-  if (!profile) {
-    redirect(options?.redirectTo ?? "/login");
-  }
-
-  if (!allowed.includes(profile.role)) {
-    redirect(options?.unauthorizedTo ?? "/unauthorized");
-  }
-
-  return profile;
-}

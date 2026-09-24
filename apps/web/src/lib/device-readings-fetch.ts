@@ -1,6 +1,14 @@
-import type { createClient } from "@waytara/supabase/client";
+import type { createClient as createBrowserClient } from "@waytara/supabase/client";
+import type { createClient as createServerClient } from "@waytara/supabase/server";
 
-type SupabaseBrowserClient = ReturnType<typeof createClient>;
+// `import type` only — fully erased at compile time (no runtime reference,
+// not even a require call), so referencing the server factory's return
+// type here doesn't pull `server-only` into a "use client" bundle. Both
+// factories wrap the same `SupabaseClient<Database, "waytara">` shape, just
+// with different cookie plumbing, so their query-builder types line up —
+// this lets Server Components reuse the same safe pagination this function
+// already gives Client Components, instead of a second copy of it.
+type AnySupabaseClient = ReturnType<typeof createBrowserClient> | Awaited<ReturnType<typeof createServerClient>>;
 
 export interface DeviceReadingRow {
   instrument_key: string;
@@ -18,7 +26,7 @@ export interface DeviceReadingRow {
  *  mid-morning until this was found. Bounded by MAX_ROWS so a single
  *  device can't page forever. */
 export async function fetchAllDeviceReadings(
-  supabase: SupabaseBrowserClient,
+  supabase: AnySupabaseClient,
   deviceId: string,
   keys: string[],
   gte: string,

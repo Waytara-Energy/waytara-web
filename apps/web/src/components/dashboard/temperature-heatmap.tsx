@@ -7,6 +7,8 @@ import { fetchAllDeviceReadings } from "@/lib/device-readings-fetch";
 import { INTERVAL_OPTIONS, todayMidnight, bucketKeyFor, fullDayBucketKeys, formatBucketLabel } from "@/lib/day-buckets";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 export interface HeatmapRow {
   key: string;
@@ -24,6 +26,20 @@ interface RealtimeDeviceReadingRow {
   value: number | null;
   ts: string;
   is_test: boolean;
+}
+
+// Same reasoning as BarTrendChart's own module-level cache: this component
+// remounts (and would otherwise refetch from a blank skeleton) every time
+// its tab is reselected, since Radix unmounts inactive TabsContent.
+const HEATMAP_CACHE_MAX = 24;
+const heatmapCache = new Map<string, Map<string, Record<string, number | null>>>();
+function cacheHeatmapBuckets(key: string, buckets: Map<string, Record<string, number | null>>) {
+  heatmapCache.delete(key);
+  heatmapCache.set(key, buckets);
+  if (heatmapCache.size > HEATMAP_CACHE_MAX) {
+    const oldest = heatmapCache.keys().next().value;
+    if (oldest !== undefined) heatmapCache.delete(oldest);
+  }
 }
 
 /** Green (cool) through amber to red (at/above `maxC`) — a continuous
@@ -49,16 +65,41 @@ function heatColor(valueC: number, maxC: number): string {
  *  (see MainHubTrendGroup, which owns the shared state) — changing that
  *  chart's interval picker rebuckets this grid too, rather than the two
  *  showing different time granularities side by side. */
-export function TemperatureHeatmap({ deviceId, rows, bucketMinutes }: { deviceId: string; rows: HeatmapRow[]; bucketMinutes: number }) {
+export function TemperatureHeatmap({
+  deviceId,
+  rows,
+  bucketMinutes,
+  title = "Temperature Today",
+  showRowLabels = true,
+}: {
+  deviceId: string;
+  rows: HeatmapRow[];
+  bucketMinutes: number;
+  title?: string;
+  /** Hide the per-row sensor label column — set false when there's only
+   *  one row and its name is already carried by `title`, so the label
+   *  isn't shown twice (e.g. EV charger's single "Connector" row under a
+   *  "Connector Temperature" title). The row's own label still appears in
+   *  its cell tooltips. */
+  showRowLabels?: boolean;
+}) {
   const rowKeys = React.useMemo(() => rows.map((r) => r.key), [rows]);
   const rowKeysJoined = rowKeys.join(",");
   const [bucketed, setBucketed] = React.useState<Map<string, Record<string, number | null>>>(new Map());
   const [loaded, setLoaded] = React.useState(false);
   const fetchRef = React.useRef<() => void>(() => {});
+  const realtimeDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
 
   React.useEffect(() => {
     let cancelled = false;
     const supabase = createClient();
+    const cacheKey = `${deviceId}|${rowKeysJoined}|${bucketMinutes}`;
+
+    const cached = heatmapCache.get(cacheKey);
+    if (cached) {
+      setBucketed(cached);
+      setLoaded(true);
+    }
 
     async function fetchData() {
       const since = todayMidnight().toISOString();
@@ -93,6 +134,7 @@ export function TemperatureHeatmap({ deviceId, rows, bucketMinutes }: { deviceId
         merged.set(bk, vals);
       }
       setBucketed(merged);
+      cacheHeatmapBuckets(cacheKey, merged);
     }
 
     fetchRef.current = () => {
@@ -104,6 +146,10 @@ export function TemperatureHeatmap({ deviceId, rows, bucketMinutes }: { deviceId
     };
   }, [deviceId, rowKeysJoined, rowKeys, bucketMinutes]);
 
+  // See BarTrendChart's identical comment — one device "tick" can insert
+  // several rows matching this heatmap's own keys, so this needs its own
+  // debounce on top of the shared realtime channel's ~300ms batching or a
+  // single tick fires several uncollapsed refetches back-to-back.
   useRealtimeTable<RealtimeDeviceReadingRow>(
     "device_readings",
     "INSERT",
@@ -113,7 +159,8 @@ export function TemperatureHeatmap({ deviceId, rows, bucketMinutes }: { deviceId
         const row = payload.new;
         if (row.is_test) return;
         if (!rowKeys.includes(row.instrument_key)) return;
-        fetchRef.current();
+        if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
+        realtimeDebounceRef.current = setTimeout(() => fetchRef.current(), 500);
       },
       [rowKeys]
     )
@@ -122,11 +169,39 @@ export function TemperatureHeatmap({ deviceId, rows, bucketMinutes }: { deviceId
   const buckets = Array.from(bucketed.keys()).sort();
   const intervalLabel = INTERVAL_OPTIONS.find((o) => o.minutes === bucketMinutes)?.label ?? `${bucketMinutes} min`;
 
+  // Same shell-stays-put approach as BarTrendChart's own !loaded branch —
+  // this component remounts (and refetches) every time its tab is
+  // reselected, since Radix unmounts inactive TabsContent, so this isn't
+  // just a first-visit state.
+  if (!loaded) {
+    return (
+      <Card>
+        <CardHeader className="space-y-1.5">
+          <div className="flex flex-row items-center justify-between gap-4">
+            <CardTitle className="text-sm">{title}</CardTitle>
+            <Skeleton className="h-2 w-20 rounded-full" />
+          </div>
+          <Skeleton className="h-4 w-64 max-w-full" />
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-2">
+            {rows.map((row) => (
+              <div key={row.key} className="flex items-center gap-2">
+                {showRowLabels ? <Skeleton className="h-3 w-20 shrink-0" /> : null}
+                <Skeleton className="h-5 flex-1 rounded-[3px]" />
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
   if (loaded && buckets.length === 0) {
     return (
       <Card>
         <CardHeader>
-          <CardTitle className="text-sm">Temperature Today</CardTitle>
+          <CardTitle className="text-sm">{title}</CardTitle>
         </CardHeader>
         <CardContent>
           <p className="py-8 text-center text-sm text-muted-foreground">No live data yet.</p>
@@ -139,7 +214,7 @@ export function TemperatureHeatmap({ deviceId, rows, bucketMinutes }: { deviceId
     <Card>
       <CardHeader className="space-y-1.5">
         <div className="flex flex-row items-center justify-between gap-4">
-          <CardTitle className="text-sm">Temperature Today</CardTitle>
+          <CardTitle className="text-sm">{title}</CardTitle>
           <div className="flex shrink-0 items-center gap-1.5 text-[10px] text-muted-foreground">
             <span>Cool</span>
             <div
@@ -157,7 +232,9 @@ export function TemperatureHeatmap({ deviceId, rows, bucketMinutes }: { deviceId
         <div className="space-y-2">
           {rows.map((row) => (
             <div key={row.key} className="flex items-center gap-2">
-              <span className="w-28 shrink-0 truncate text-xs text-muted-foreground">{row.label}</span>
+              {showRowLabels ? (
+                <span className="w-28 shrink-0 truncate text-xs text-muted-foreground">{row.label}</span>
+              ) : null}
               <div className="flex flex-1 gap-1">
                 {buckets.map((bk) => {
                   const v = bucketed.get(bk)?.[row.key] ?? null;
@@ -183,7 +260,7 @@ export function TemperatureHeatmap({ deviceId, rows, bucketMinutes }: { deviceId
           ))}
         </div>
 
-        <div className="mt-1.5 flex gap-1 pl-[7.5rem]">
+        <div className={cn("mt-1.5 flex gap-1", showRowLabels && "pl-[7.5rem]")}>
           {buckets.map((bk) => (
             <span key={bk} className="flex-1 text-center text-[9px] text-muted-foreground">
               {bk.slice(14, 16) === "00" ? formatBucketLabel(bk, bucketMinutes) : ""}

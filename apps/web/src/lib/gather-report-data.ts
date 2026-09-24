@@ -3,6 +3,8 @@ import { getSelectedSite, resolveDeviceInSite, deviceDisplayId, type CustomerSit
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { getRequestProfile } from "@/lib/request-profile";
 import { maxByDeviceDay, sumByDay, type DailyPoint } from "@/lib/energy-aggregation";
+import { getTotalInvested } from "@/lib/total-invested";
+import { fetchAllDeviceReadings } from "@/lib/device-readings-fetch";
 
 const YIELD_INSTRUMENT_KEY = "solar_energy_today_kwh";
 
@@ -91,20 +93,17 @@ export async function gatherReportData(historyDays: number, deviceIdParam?: stri
   since.setUTCDate(since.getUTCDate() - historyDays);
 
   // Independent of each other — one round trip instead of two.
-  const [{ data: readings }, { data: payments }] = await Promise.all([
-    supabase
-      .from("device_readings")
-      .select("device_id, value, ts")
-      .eq("device_id", device.id)
-      .eq("instrument_key", YIELD_INSTRUMENT_KEY)
-      .eq("is_test", false)
-      .gte("ts", since.toISOString())
-      .order("ts", { ascending: true }),
-    supabase.from("payments").select("amount, status").eq("status", "paid"),
+  // fetchAllDeviceReadings (paginated), not a plain query: `historyDays`
+  // here can be 90-365 days (CSV/PDF export period), which for a single
+  // busy instrument key can still clear PostgREST's per-request row cap —
+  // same silent-truncation risk fetchAllDeviceReadings's own doc comment
+  // describes, just with a smaller blast radius than a multi-key query.
+  const [readings, totalInvested] = await Promise.all([
+    fetchAllDeviceReadings(supabase, device.id, [YIELD_INSTRUMENT_KEY], since.toISOString()),
+    getTotalInvested(supabase),
   ]);
-  const totalInvested = (payments ?? []).reduce((sum, p) => sum + Number(p.amount), 0);
 
-  const perDeviceDay = maxByDeviceDay(readings ?? []);
+  const perDeviceDay = maxByDeviceDay(readings.map((r) => ({ device_id: device.id, value: r.value, ts: r.ts })));
   const daily = sumByDay(perDeviceDay);
   const totalKwh = daily.reduce((sum, p) => sum + p.value, 0);
   const totalSaved = totalKwh * tariffRate;

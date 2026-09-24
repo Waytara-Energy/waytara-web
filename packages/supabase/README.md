@@ -15,16 +15,18 @@ import { createClient } from "@waytara/supabase/server";
 // middleware.ts
 import { createMiddlewareClient } from "@waytara/supabase/middleware";
 
-// Auth guards (server-only)
-import { getCurrentProfile, requireRole } from "@waytara/supabase/auth";
+// Auth guard (server-only)
+import { getCurrentProfile } from "@waytara/supabase/auth";
 ```
 
-`requireRole` uses `next/navigation`'s `redirect()`, so it only works inside
-the App Router render/action pipeline (Server Components, Server Actions,
-Route Handlers) — not in `middleware.ts`. In middleware, call
-`getCurrentProfile(supabase)` yourself and return
-`NextResponse.redirect(...)` on failure; see the example in
-[`src/middleware.ts`](./src/middleware.ts).
+`getCurrentProfile` only works inside the App Router render/action pipeline
+(Server Components, Server Actions, Route Handlers) via `next/headers`
+cookies — not in `middleware.ts`. In middleware, call
+`getCurrentProfile(supabase)` with an explicit client from
+`createMiddlewareClient` instead; see the example in
+[`src/middleware.ts`](./src/middleware.ts). Each page is responsible for its
+own `redirect()` on a missing/unauthorized profile — see any dashboard
+`page.tsx` for the pattern.
 
 ## Environment variables
 

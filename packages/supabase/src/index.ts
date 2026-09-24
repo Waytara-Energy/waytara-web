@@ -6,7 +6,7 @@
 //   import { createClient } from "@waytara/supabase/client";     // Client Components
 //   import { createClient } from "@waytara/supabase/server";     // Server Components / Actions / Route Handlers
 //   import { createMiddlewareClient } from "@waytara/supabase/middleware";
-//   import { getCurrentProfile, requireRole } from "@waytara/supabase/auth";
+//   import { getCurrentProfile } from "@waytara/supabase/auth";
 //   import { createServiceRoleClient } from "@waytara/supabase/service-role"; // server-only, bypasses RLS
 //   import { STAFF_ROLES, isStaffRole, isCustomerRole } from "@waytara/supabase/roles";
 

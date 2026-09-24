@@ -20,9 +20,6 @@ export default async function AuditLogPage({
   const { entity, action } = await searchParams;
   const supabase = await createClient();
 
-  const { data: entityRows } = await supabase.from("audit_log").select("entity").limit(1000);
-  const entities = Array.from(new Set((entityRows ?? []).map((r) => r.entity))).sort();
-
   let query = supabase
     .from("audit_log")
     .select("id, action, entity, entity_id, actor_role, changes, created_at, actor:profiles!audit_log_actor_id_fkey(full_name, email)")
@@ -34,7 +31,13 @@ export default async function AuditLogPage({
     query = query.eq("action", action as (typeof ACTIONS)[number]);
   }
 
-  const { data: rows, error } = await query;
+  // Independent of the filtered `rows` query above (neither depends on the
+  // other's result) — fetched together instead of one after another.
+  const [{ data: entityRows }, { data: rows, error }] = await Promise.all([
+    supabase.from("audit_log").select("entity").limit(1000),
+    query,
+  ]);
+  const entities = Array.from(new Set((entityRows ?? []).map((r) => r.entity))).sort();
 
   return (
     <div className="space-y-6">

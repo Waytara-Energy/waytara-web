@@ -63,37 +63,61 @@ export async function GET(req: NextRequest) {
 
   const { data: openSessions } = await supabase
     .from("charging_sessions")
-    .select("id, device_id")
+    .select("id, device_id, started_at")
     .in("device_id", chargerIds)
     .is("ended_at", null);
 
-  const openSessionByDevice = new Map((openSessions ?? []).map((s) => [s.device_id, s.id]));
+  const openSessionByDevice = new Map((openSessions ?? []).map((s) => [s.device_id, s]));
 
-  let opened = 0;
-  let closed = 0;
   const now = new Date().toISOString();
+
+  // Decide per-charger in the loop (cheap, in-memory), but batch the
+  // actual writes into at most one INSERT and one upsert instead of one
+  // round-trip per charger. The closing sessions can't share a single
+  // `.update().in("id", [...])` the way detect-alerts's resolve-batch
+  // does — each one needs its *own* `end_energy_kwh` — so those go through
+  // `.upsert()` by `id` instead, one round trip either way. `device_id`/
+  // `started_at` are carried over unchanged (both NOT NULL with no
+  // default, so `.upsert()`'s Insert-side typing requires them even
+  // though the conflict-update path — the only one ever taken here, since
+  // every id already exists — doesn't actually need them).
+  const toOpen: { device_id: string; started_at: string; start_energy_kwh: number | null }[] = [];
+  const toClose: {
+    id: string;
+    device_id: string;
+    started_at: string;
+    ended_at: string;
+    end_energy_kwh: number | null;
+    stop_reason: string;
+  }[] = [];
 
   for (const deviceId of chargerIds) {
     const status = latestStatus.get(deviceId) ?? null;
     const energy = latestEnergy.get(deviceId) ?? null;
-    const openSessionId = openSessionByDevice.get(deviceId);
+    const openSession = openSessionByDevice.get(deviceId);
     const isCharging = status === CHARGING_STATUS;
 
-    if (isCharging && !openSessionId) {
-      const { error } = await supabase.from("charging_sessions").insert({
-        device_id: deviceId,
-        started_at: now,
-        start_energy_kwh: energy,
+    if (isCharging && !openSession) {
+      toOpen.push({ device_id: deviceId, started_at: now, start_energy_kwh: energy });
+    } else if (!isCharging && openSession) {
+      toClose.push({
+        id: openSession.id,
+        device_id: openSession.device_id,
+        started_at: openSession.started_at,
+        ended_at: now,
+        end_energy_kwh: energy,
+        stop_reason: "Local",
       });
-      if (!error) opened++;
-    } else if (!isCharging && openSessionId) {
-      const { error } = await supabase
-        .from("charging_sessions")
-        .update({ ended_at: now, end_energy_kwh: energy, stop_reason: "Local" })
-        .eq("id", openSessionId);
-      if (!error) closed++;
     }
   }
+
+  const [insertResult, closeResult] = await Promise.all([
+    toOpen.length > 0 ? supabase.from("charging_sessions").insert(toOpen) : Promise.resolve({ error: null }),
+    toClose.length > 0 ? supabase.from("charging_sessions").upsert(toClose, { onConflict: "id" }) : Promise.resolve({ error: null }),
+  ]);
+
+  const opened = insertResult.error ? 0 : toOpen.length;
+  const closed = closeResult.error ? 0 : toClose.length;
 
   return NextResponse.json({ checked: chargerIds.length, opened, closed });
 }

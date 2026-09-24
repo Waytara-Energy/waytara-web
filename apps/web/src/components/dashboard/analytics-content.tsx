@@ -5,6 +5,8 @@ import type { DailyPoint } from "./performance-chart";
 import { PerformanceChart } from "./lazy-charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { aggregateDailyYield, maxByDeviceDay, sumByDay, type RawReading } from "@/lib/energy-aggregation";
+import { getTotalInvested } from "@/lib/total-invested";
+import { fetchAllDeviceReadings } from "@/lib/device-readings-fetch";
 import { DeviceParameterCards } from "./device-parameter-cards";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -101,24 +103,16 @@ async function SolarInverterAnalytics({
   // even though the yield/savings chart below is device-scoped — the two
   // figures answer different questions (what you spent on the system vs.
   // what this one device has generated).
-  const [{ data: payments }, { data }, { data: extra }, { data: latestRows }] = await Promise.all([
-    supabase.from("payments").select("amount, status").eq("status", "paid"),
-    supabase
-      .from("device_readings")
-      .select("device_id, value, ts")
-      .eq("device_id", device.id)
-      .eq("instrument_key", YIELD_INSTRUMENT_KEY)
-      .eq("is_test", false)
-      .gte("ts", since.toISOString())
-      .order("ts", { ascending: true }),
-    supabase
-      .from("device_readings")
-      .select("instrument_key, device_id, value, ts")
-      .eq("device_id", device.id)
-      .in("instrument_key", EXTRA_KEYS)
-      .eq("is_test", false)
-      .gte("ts", since.toISOString())
-      .order("ts", { ascending: true }),
+  // HISTORY_DAYS=365 here — the widest date range in the app, and the
+  // first two queries below were plain unpaginated `.from()` calls despite
+  // that, which for any device with regular readings clears PostgREST's
+  // per-request row cap easily (ascending order means the *oldest* rows
+  // survive the cap, so a year-old account was silently missing its most
+  // recent months). fetchAllDeviceReadings pages through the cap instead.
+  const [totalInvested, readings, extraRows, { data: latestRows }] = await Promise.all([
+    getTotalInvested(supabase),
+    fetchAllDeviceReadings(supabase, device.id, [YIELD_INSTRUMENT_KEY], since.toISOString()),
+    fetchAllDeviceReadings(supabase, device.id, EXTRA_KEYS, since.toISOString()),
     supabase
       .from("device_readings")
       .select("instrument_key, value, ts")
@@ -127,17 +121,12 @@ async function SolarInverterAnalytics({
       .order("ts", { ascending: false })
       .limit(20),
   ]);
-
-  const readings = data ?? [];
-  const extraRows = extra ?? [];
   let batteryCycleCount: number | null = null;
   for (const r of latestRows ?? []) {
     if (r.instrument_key === "battery_cycle_count" && batteryCycleCount === null) batteryCycleCount = r.value;
   }
 
-  const totalInvested = (payments ?? []).reduce((sum, p) => sum + Number(p.amount), 0);
-
-  const perDeviceDay = maxByDeviceDay(readings);
+  const perDeviceDay = maxByDeviceDay(readings.map((r) => ({ device_id: device.id, value: r.value, ts: r.ts })));
   const dailyKwh = sumByDay(perDeviceDay);
 
   let running = 0;
@@ -169,8 +158,9 @@ async function SolarInverterAnalytics({
   // real feed-in tariff for exports often differs from the import rate,
   // but the register only reports kWh, so this is the same simplification
   // already made for "saved to date".
-  const gridImportKwh = extraRows.filter((r) => r.instrument_key === "grid_buy_energy_today_kwh") as RawReading[];
-  const gridExportKwh = extraRows.filter((r) => r.instrument_key === "grid_sell_energy_today_kwh") as RawReading[];
+  const toRawReading = (r: { value: number | null; ts: string }): RawReading => ({ device_id: device.id, value: r.value, ts: r.ts });
+  const gridImportKwh = extraRows.filter((r) => r.instrument_key === "grid_buy_energy_today_kwh").map(toRawReading);
+  const gridExportKwh = extraRows.filter((r) => r.instrument_key === "grid_sell_energy_today_kwh").map(toRawReading);
   const totalImportKwh = aggregateDailyYield(gridImportKwh).reduce((s, p) => s + p.value, 0);
   const totalExportKwh = aggregateDailyYield(gridExportKwh).reduce((s, p) => s + p.value, 0);
 

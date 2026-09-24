@@ -17,12 +17,13 @@ const STATUS_STYLES: Record<string, string> = {
 export default async function CustomersPage() {
   const supabase = await createClient();
 
-  const { data: customers, error } = await supabase
-    .from("customers")
-    .select("id, status, plan_started_at, created_at, profile:profiles!customers_id_fkey(full_name, email), plan:plans(name)")
-    .order("created_at", { ascending: false });
-
-  const { data: onboardingRows } = await supabase.from("customer_onboarding").select("id, customer_id");
+  const [{ data: customers, error }, { data: onboardingRows }] = await Promise.all([
+    supabase
+      .from("customers")
+      .select("id, status, plan_started_at, created_at, profile:profiles!customers_id_fkey(full_name, email), plan:plans(name)")
+      .order("created_at", { ascending: false }),
+    supabase.from("customer_onboarding").select("id, customer_id"),
+  ]);
   const onboardingIdByCustomer = new Map((onboardingRows ?? []).map((o) => [o.customer_id, o.id]));
 
   return (
