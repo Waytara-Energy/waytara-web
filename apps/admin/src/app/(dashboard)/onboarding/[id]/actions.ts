@@ -552,6 +552,52 @@ export async function updateEquipmentCheck(onboardingId: string, deviceId: strin
   redirect(`/onboarding/${onboardingId}`);
 }
 
+// Absence of a device_feature_flags row means "enabled" (the common case —
+// most installs have every category the model supports), so this only ever
+// writes rows for categories an installer actually unchecked, and deletes
+// the row the moment a category gets re-checked, rather than maintaining an
+// explicit is_enabled=true row for everything that's just... present.
+export async function updateDeviceFeatureFlags(onboardingId: string, deviceId: string, formData: FormData) {
+  const profile = await getCurrentProfile();
+  if (!profile) redirect("/login");
+
+  const supabase = await createClient();
+  const allCategories = String(formData.get("allCategories") ?? "")
+    .split(",")
+    .filter(Boolean);
+  const enabledCategories = new Set(formData.getAll("enabledCategories").map(String));
+  const disabledCategories = allCategories.filter((c) => !enabledCategories.has(c));
+
+  const [{ error: deleteError }, { error: upsertError }] = await Promise.all([
+    enabledCategories.size > 0
+      ? supabase
+          .from("device_feature_flags")
+          .delete()
+          .eq("device_id", deviceId)
+          .in("category", Array.from(enabledCategories))
+      : Promise.resolve({ error: null }),
+    disabledCategories.length > 0
+      ? supabase.from("device_feature_flags").upsert(
+          disabledCategories.map((category) => ({
+            device_id: deviceId,
+            category,
+            is_enabled: false,
+            updated_by: profile.id,
+            updated_at: new Date().toISOString(),
+          })),
+          { onConflict: "device_id,category" }
+        )
+      : Promise.resolve({ error: null }),
+  ]);
+
+  if (deleteError || upsertError) {
+    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent((deleteError ?? upsertError)!.message)}`);
+  }
+
+  revalidatePath(`/onboarding/${onboardingId}`);
+  redirect(`/onboarding/${onboardingId}`);
+}
+
 export async function completeConnectionTest(onboardingId: string, sessionId: string, siteId: string) {
   const supabase = await createClient();
 

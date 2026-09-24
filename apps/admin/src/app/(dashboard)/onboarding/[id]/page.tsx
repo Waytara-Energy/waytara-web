@@ -18,6 +18,7 @@ import {
   sendTestSignal,
   markDeviceVerified,
   updateEquipmentCheck,
+  updateDeviceFeatureFlags,
   completeConnectionTest,
   failTestSession,
   scheduleInstall,
@@ -135,7 +136,9 @@ export default async function OnboardingPipelinePage({
       serial_number: string | null;
       model_number: string | null;
       device_parameters: { parameter_key: string; unit: string | null; is_required: boolean }[];
+      availableCategories: string[];
     } | null;
+    disabledCategories: string[];
   }[] = [];
   let deviceTypes: {
     id: string;
@@ -174,12 +177,29 @@ export default async function OnboardingPipelinePage({
       const { data: deviceRows } = await supabase
         .from("devices")
         .select(
-          "id, label, device_status, installed_at, device_type:stock(name, serial_number, model_number, device_parameter_map(instrument_key, is_required, instrument_catalog(unit)))"
+          "id, label, device_status, installed_at, device_type:stock(name, serial_number, model_number, device_parameter_map(instrument_key, is_required, instrument_catalog(unit, category)))"
         )
         .eq("site_id", site.id)
         .order("created_at", { ascending: false });
+
+      const deviceIds = (deviceRows ?? []).map((d) => d.id);
+      // Absence of a row means enabled — only categories an installer has
+      // actually turned off get a row here (see updateDeviceFeatureFlags's
+      // own doc comment). "system"/"diagnostics" aren't real optional
+      // equipment (every model always has them), so they're not offered as
+      // a toggle at all.
+      const { data: flagRows } =
+        deviceIds.length > 0
+          ? await supabase.from("device_feature_flags").select("device_id, category").in("device_id", deviceIds).eq("is_enabled", false)
+          : { data: [] };
+      const disabledByDevice = new Map<string, string[]>();
+      for (const f of flagRows ?? []) {
+        disabledByDevice.set(f.device_id, [...(disabledByDevice.get(f.device_id) ?? []), f.category]);
+      }
+
       devices = (deviceRows ?? []).map((d) => ({
         ...d,
+        disabledCategories: disabledByDevice.get(d.id) ?? [],
         device_type: d.device_type
           ? {
               ...d.device_type,
@@ -188,6 +208,13 @@ export default async function OnboardingPipelinePage({
                 unit: m.instrument_catalog?.unit ?? null,
                 is_required: m.is_required,
               })),
+              availableCategories: Array.from(
+                new Set(
+                  (d.device_type.device_parameter_map ?? [])
+                    .map((m) => m.instrument_catalog?.category)
+                    .filter((c): c is string => !!c && c !== "system" && c !== "diagnostics")
+                )
+              ).sort(),
             }
           : null,
       }));
@@ -558,6 +585,30 @@ export default async function OnboardingPipelinePage({
                           Data Testing: {device.device_status === "active" ? "passed" : device.device_status}
                         </span>
                       </div>
+
+                      {device.device_type && device.device_type.availableCategories.length > 0 && (
+                        <form
+                          action={updateDeviceFeatureFlags.bind(null, onboarding.id, device.id)}
+                          className="flex flex-wrap items-center gap-4 border-t border-border pt-3"
+                        >
+                          <input type="hidden" name="allCategories" value={device.device_type.availableCategories.join(",")} />
+                          <span className="text-xs font-medium text-muted-foreground">Equipment actually present:</span>
+                          {device.device_type.availableCategories.map((category) => (
+                            <label key={category} className="flex items-center gap-1.5 text-sm capitalize">
+                              <input
+                                type="checkbox"
+                                name="enabledCategories"
+                                value={category}
+                                defaultChecked={!device.disabledCategories.includes(category)}
+                              />
+                              {category}
+                            </label>
+                          ))}
+                          <Button type="submit" variant="outline" size="sm">
+                            Save
+                          </Button>
+                        </form>
+                      )}
 
                       <form
                         action={updateEquipmentCheck.bind(null, onboarding.id, device.id)}
