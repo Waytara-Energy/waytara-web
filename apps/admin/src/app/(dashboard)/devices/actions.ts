@@ -116,6 +116,17 @@ export async function updateStockItem(stockId: string, formData: FormData) {
   redirect("/devices?success=1");
 }
 
+// device_parameters (device_type_id, parameter_key, parameter_name, unit,
+// category, is_required, modbus_register) is retired — this form's two
+// actions now write instrument_catalog (the shared logical definition,
+// reused across every stock item that has this same instrument_key) +
+// device_parameter_map (the per-model row this form is really editing).
+// This form never collected direction/value_kind/register info, so a
+// parameter added here defaults to a plain informational field: read,
+// text-typed, customer-visible, no real Modbus address — matching exactly
+// what the old device_parameters row could express (nothing register-level
+// either). A parameter that DOES need real register mapping belongs in the
+// Register Map editor instead, once that exists.
 export async function addParameter(stockId: string, formData: FormData) {
   const parameterKey = String(formData.get("parameterKey") ?? "").trim();
   const parameterName = String(formData.get("parameterName") ?? "").trim();
@@ -128,26 +139,54 @@ export async function addParameter(stockId: string, formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("device_parameters").insert({
-    device_type_id: stockId,
-    parameter_key: parameterKey,
-    parameter_name: parameterName,
-    unit,
-    category,
+
+  const { data: stock } = await supabase.from("stock").select("category").eq("id", stockId).single();
+
+  // instrument_catalog is shared across every stock item — only create it
+  // if this instrument_key doesn't already exist (e.g. a second inverter
+  // model reusing the same key), never overwrite an existing definition
+  // from this simple form.
+  const { data: existingCatalog } = await supabase
+    .from("instrument_catalog")
+    .select("instrument_key")
+    .eq("instrument_key", parameterKey)
+    .maybeSingle();
+
+  if (!existingCatalog) {
+    const { error: catalogError } = await supabase.from("instrument_catalog").insert({
+      instrument_key: parameterKey,
+      name: parameterName,
+      category: category ?? "system",
+      device_category: stock?.category ?? "solar_inverter",
+      unit,
+      value_kind: "text",
+      direction: "read",
+      min_role: "customer",
+    });
+    if (catalogError) {
+      redirect(`/devices?error=${encodeURIComponent(catalogError.message)}`);
+    }
+  }
+
+  const { error: mapError } = await supabase.from("device_parameter_map").insert({
+    stock_id: stockId,
+    instrument_key: parameterKey,
+    protocol: "manual",
+    address: {},
     is_required: isRequired,
   });
 
-  if (error) {
-    redirect(`/devices?error=${encodeURIComponent(error.message)}`);
+  if (mapError) {
+    redirect(`/devices?error=${encodeURIComponent(mapError.message)}`);
   }
 
   revalidatePath("/devices");
   redirect("/devices?success=1");
 }
 
-export async function removeParameter(parameterId: string) {
+export async function removeParameter(parameterMapId: string) {
   const supabase = await createClient();
-  const { error } = await supabase.from("device_parameters").delete().eq("id", parameterId);
+  const { error } = await supabase.from("device_parameter_map").delete().eq("id", parameterMapId);
 
   if (error) {
     redirect(`/devices?error=${encodeURIComponent(error.message)}`);

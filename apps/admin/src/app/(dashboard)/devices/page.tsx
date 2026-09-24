@@ -16,12 +16,34 @@ export default async function DevicesPage({
   const { error, success } = await searchParams;
   const supabase = await createClient();
 
-  const { data: stockItems } = await supabase
+  // device_parameters is retired — its old flat shape (parameter_key,
+  // parameter_name, unit, category, modbus_register, is_required) is now
+  // split across instrument_catalog (the shared definition, joined here)
+  // and device_parameter_map (the per-model row, `stock`'s real child now).
+  // Reassembled into that exact same flat shape below so stock-table.tsx
+  // needs no changes at all — it was never told any of this moved.
+  const { data: stockItemsRaw } = await supabase
     .from("stock")
     .select(
-      "id, name, category, brand, model, model_number, manufacturer, serial_number, status, power_capacity_value, power_capacity_unit, size_value, size_unit, technical_specs, warranty_info, quantity, pack_size, primary_uom, purchase_price_amount, unit_price, purchase_date, supplier, po_reference, device_parameters(id, parameter_key, parameter_name, unit, category, modbus_register, is_required)"
+      "id, name, category, brand, model, model_number, manufacturer, serial_number, status, power_capacity_value, power_capacity_unit, size_value, size_unit, technical_specs, warranty_info, quantity, pack_size, primary_uom, purchase_price_amount, unit_price, purchase_date, supplier, po_reference, device_parameter_map(id, instrument_key, is_required, address, decode, instrument_catalog(name, category, unit))"
     )
     .order("name");
+
+  const stockItems = (stockItemsRaw ?? []).map((item) => {
+    const { device_parameter_map, ...rest } = item;
+    return {
+      ...rest,
+      device_parameters: (device_parameter_map ?? []).map((m) => ({
+        id: m.id,
+        parameter_key: m.instrument_key,
+        parameter_name: m.instrument_catalog?.name ?? m.instrument_key,
+        unit: m.instrument_catalog?.unit ?? null,
+        category: m.instrument_catalog?.category ?? null,
+        modbus_register: { ...(m.address as object), ...((m.decode as object) ?? {}) },
+        is_required: m.is_required,
+      })),
+    };
+  });
 
   return (
     <div className="space-y-6">

@@ -166,23 +166,47 @@ export default async function OnboardingPipelinePage({
       .maybeSingle();
     site = siteRow;
 
+    // device_parameters is retired — reassembled below from
+    // device_parameter_map + instrument_catalog into the exact same flat
+    // shape (parameter_key/parameter_name + unit + is_required) so nothing
+    // past this point (the install checklist below) needs to change.
     if (site) {
       const { data: deviceRows } = await supabase
         .from("devices")
         .select(
-          "id, label, device_status, installed_at, device_type:stock(name, serial_number, model_number, device_parameters(parameter_key, unit, is_required))"
+          "id, label, device_status, installed_at, device_type:stock(name, serial_number, model_number, device_parameter_map(instrument_key, is_required, instrument_catalog(unit)))"
         )
         .eq("site_id", site.id)
         .order("created_at", { ascending: false });
-      devices = deviceRows ?? [];
+      devices = (deviceRows ?? []).map((d) => ({
+        ...d,
+        device_type: d.device_type
+          ? {
+              ...d.device_type,
+              device_parameters: (d.device_type.device_parameter_map ?? []).map((m) => ({
+                parameter_key: m.instrument_key,
+                unit: m.instrument_catalog?.unit ?? null,
+                is_required: m.is_required,
+              })),
+            }
+          : null,
+      }));
     }
 
     if (onboarding.current_stage === "site_setup") {
       const { data: deviceTypeRows } = await supabase
         .from("stock")
-        .select("id, name, device_parameters(parameter_name, unit, is_required)")
+        .select("id, name, device_parameter_map(is_required, instrument_catalog(name, unit))")
         .order("name");
-      deviceTypes = deviceTypeRows ?? [];
+      deviceTypes = (deviceTypeRows ?? []).map((s) => ({
+        id: s.id,
+        name: s.name,
+        device_parameters: (s.device_parameter_map ?? []).map((m) => ({
+          parameter_name: m.instrument_catalog?.name ?? "",
+          unit: m.instrument_catalog?.unit ?? null,
+          is_required: m.is_required,
+        })),
+      }));
     }
 
     if (onboarding.current_stage === "connection_test" && site) {
