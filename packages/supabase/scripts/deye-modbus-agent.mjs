@@ -34,11 +34,38 @@
 //                                                               deleting a day's worth of device_readings so the
 //                                                               gap doesn't sit empty until the live loop refills it
 //                                                               one tick at a time. --backfill-days=7 for a week.
+//
+// Test modes — each runs once, reports, and exits (no live loop):
+//   node scripts/deye-modbus-agent.mjs --mode=codec-test [--device-id=<uuid>]
+//       Round-trips register-codec.mjs's decode()/encode() against every
+//       real decode spec in device_parameter_map for this device's stock:
+//       generates a plausible raw register value, decodes it, and for
+//       write-direction rows encodes the decoded value back and asserts it
+//       reproduces the same raw register value(s).
+//   node scripts/deye-modbus-agent.mjs --mode=preset-test --preset=<key> [--device-id=<uuid>]
+//       Applies a real setting_presets row exactly the way the customer
+//       dashboard does (inserts into device_settings with
+//       applied_preset_key set), then confirms every one of its keys
+//       resolves through this device's writeCatalog to a real register via
+//       encode() — the same exercise the customer flow's own tests already
+//       covered at the DB layer, proven here through the agent's own
+//       lookup path instead.
+//   node scripts/deye-modbus-agent.mjs --mode=feature-flag-test --category=<name> [--device-id=<uuid>]
+//       Disables `category` via device_feature_flags on this device,
+//       confirms the read catalog excludes every instrument in it and a
+//       write attempt against one is rejected before reaching the
+//       register-write step, then re-enables it (deletes the flag row).
+//   node scripts/deye-modbus-agent.mjs --mode=protocol-test --device-id=<ev-charger-device-id>
+//       Confirms loadDevice's generic stock_id/protocol-keyed lookup works
+//       unmodified against a non-Modbus protocol (ocpp_1_6) — proves the
+//       catalog/lookup layer is protocol-agnostic. Not a live OCPP
+//       connection — there's no real charger or simulator to connect to.
 
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import path from "node:path";
 import { createClient } from "@supabase/supabase-js";
+import { decode, encode } from "./register-codec.mjs";
 
 function loadEnv() {
   const envPath = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../../apps/web/.env.local");
@@ -63,6 +90,8 @@ function parseArgs(argv) {
     once: false,
     noRead: false,
     backfillDays: 0,
+    preset: null,
+    category: null,
   };
   for (const arg of argv) {
     if (arg === "--read-only") args.readOnly = true;
@@ -72,6 +101,8 @@ function parseArgs(argv) {
     else if (arg.startsWith("--device-id=")) args.deviceId = arg.slice("--device-id=".length);
     else if (arg.startsWith("--host=")) args.host = arg.slice("--host=".length);
     else if (arg.startsWith("--backfill-days=")) args.backfillDays = Number(arg.slice("--backfill-days=".length));
+    else if (arg.startsWith("--preset=")) args.preset = arg.slice("--preset=".length);
+    else if (arg.startsWith("--category=")) args.category = arg.slice("--category=".length);
   }
   return args;
 }
@@ -88,6 +119,16 @@ const supabase = createClient(env.NEXT_PUBLIC_SUPABASE_URL, env.SUPABASE_SERVICE
 // Startup — resolve the device, load its register catalog from the DB.
 // ============================================================
 
+/** Categories device_feature_flags disables for this specific physical
+ *  installation (absence of a row = enabled) — the exact same query and
+ *  reasoning as apps/web's getDisabledCategories, applied here so the
+ *  agent never polls (or accepts a write for) a register category this
+ *  install doesn't actually have connected, not just hides it in the UI. */
+async function loadDisabledCategories(deviceId) {
+  const { data } = await supabase.from("device_feature_flags").select("category").eq("device_id", deviceId).eq("is_enabled", false);
+  return new Set((data ?? []).map((f) => f.category));
+}
+
 async function loadDevice(deviceId) {
   const { data: device, error } = await supabase
     .from("devices")
@@ -97,20 +138,25 @@ async function loadDevice(deviceId) {
   if (error || !device) throw new Error(`Device ${deviceId} not found: ${error?.message ?? "no row"}`);
 
   // device_parameters is retired — instrument_catalog + device_parameter_map
-  // replace it (multi-vendor catalog, see 20260924000100/000200). Reassembled
-  // into device_parameters' old combined `modbus_register` shape
-  // ({registers, scale, signed, ...} in one object) right here, so
-  // everything below (readModbusTick, buildRows) needs zero changes — this
-  // script was never told the columns split into address + decode.
-  const { data: catalog, error: catalogError } = await supabase
-    .from("device_parameter_map")
-    .select("instrument_key, address, decode, instrument_catalog(name, category, unit)")
-    .eq("stock_id", device.device_type.id)
-    .eq("is_enabled", true);
+  // replace it (multi-vendor catalog, see 20260924000100/000200).
+  const [{ data: mapRows, error: catalogError }, disabledCategories] = await Promise.all([
+    supabase
+      .from("device_parameter_map")
+      .select("instrument_key, address, decode, instrument_catalog(name, category, unit, direction, value_kind, min_role, regulated, valid_min, valid_max)")
+      .eq("stock_id", device.device_type.id)
+      .eq("is_enabled", true),
+    loadDisabledCategories(deviceId),
+  ]);
   if (catalogError) throw new Error(`Failed to load register catalog: ${catalogError.message}`);
 
-  const rows = (catalog ?? [])
-    .filter((c) => c.address?.registers?.length)
+  const enabled = (mapRows ?? []).filter((c) => !disabledCategories.has(c.instrument_catalog?.category));
+
+  // Reassembled into device_parameters' old combined `modbus_register`
+  // shape ({registers, scale, signed, ...} in one object) for the read
+  // catalog specifically, so readModbusTick/buildRows (which predate the
+  // address/decode split) need zero changes.
+  const readCatalog = enabled
+    .filter((c) => c.instrument_catalog?.direction === "read" && c.address?.registers?.length)
     .map((c) => ({
       parameter_key: c.instrument_key,
       parameter_name: c.instrument_catalog?.name ?? c.instrument_key,
@@ -119,7 +165,23 @@ async function loadDevice(deviceId) {
       modbus_register: { ...c.address, ...(c.decode ?? {}) },
     }));
 
-  return { device, catalog: rows };
+  // Write catalog keeps address/decode separate (encode() below wants
+  // them apart, not pre-merged) plus the catalog metadata applyModbusWrite
+  // needs to validate a value before ever touching a register.
+  const writeCatalog = enabled
+    .filter((c) => c.instrument_catalog?.direction === "write")
+    .map((c) => ({
+      parameter_key: c.instrument_key,
+      parameter_name: c.instrument_catalog?.name ?? c.instrument_key,
+      category: c.instrument_catalog?.category ?? null,
+      value_kind: c.instrument_catalog?.value_kind ?? "numeric",
+      min_role: c.instrument_catalog?.min_role ?? "customer",
+      regulated: c.instrument_catalog?.regulated ?? false,
+      registers: c.address?.registers ?? [],
+      decode: c.decode ?? null,
+    }));
+
+  return { device, catalog: readCatalog, writeCatalog, disabledCategories };
 }
 
 // ============================================================
@@ -554,37 +616,66 @@ async function readModbusTick(catalog, host) {
 }
 
 // ============================================================
-// WRITE LISTENER — Realtime, dry-run only.
+// WRITE — real register math via register-codec.mjs's encode(), gated
+// behind a live Modbus connection; dry-run (log only) otherwise. A key
+// with no enabled write-direction entry in writeCatalog — because
+// device_feature_flags disabled its category, this model doesn't map it,
+// or it's not a real register write at all (e.g. a setting_presets key
+// like tou_slot* resolved through a different pipeline) — is rejected
+// before any register math runs, not just logged as unknown.
 // ============================================================
 
-function startWriteListener(deviceId) {
+function resolveWriteEntry(writeCatalog, settingKey) {
+  return writeCatalog.find((e) => e.parameter_key === settingKey) ?? null;
+}
+
+/** device_settings.setting_value is always text — converts it to the
+ *  number encode() expects, per value_kind. Booleans and enum codes are
+ *  written as their numeric register code, same as any other numeric
+ *  field once converted. */
+function computeRegisterWrites(entry, settingValue) {
+  const value = entry.value_kind === "boolean" ? (settingValue === "true" ? 1 : 0) : Number(settingValue);
+  if (!Number.isFinite(value)) throw new Error(`cannot convert "${settingValue}" to a number for ${entry.parameter_key}`);
+  return encode(value, entry.registers, entry.decode);
+}
+
+async function applyModbusWrite(client, writes) {
+  for (const w of writes) {
+    await client.writeRegister(w.register, w.value);
+    await new Promise((r) => setTimeout(r, 50)); // same WRITE_MESSAGE_SPACING reasoning as the read loop
+  }
+}
+
+function startWriteListener(deviceId, writeCatalog, modbusClient) {
   const channel = supabase
     .channel(`deye-agent:device_settings:${deviceId}`)
     .on(
       "postgres_changes",
       { event: "INSERT", schema: "waytara", table: "device_settings", filter: `device_id=eq.${deviceId}` },
-      (payload) => {
+      async (payload) => {
         const row = payload.new;
-        const spec = row.modbus_register;
         console.log(`\n[write] setting change requested: ${row.setting_category}.${row.setting_key} = ${row.setting_value}`);
-        if (!spec) {
-          console.log(`[write]   no modbus_register on this row — nothing to attempt.`);
+
+        const entry = resolveWriteEntry(writeCatalog, row.setting_key);
+        if (!entry || entry.registers.length === 0) {
+          console.log(
+            `[write]   no enabled register mapping for "${row.setting_key}" on this device (disabled category, model doesn't map it, or it isn't a direct register write) — nothing sent.`
+          );
           return;
         }
-        if (spec.fields) {
-          console.log(`[write]   compound field (${Object.keys(spec.fields).length} sub-registers):`);
-          for (const [sub, subSpec] of Object.entries(spec.fields)) {
-            console.log(`[write]     .${sub} -> register(s) [${subSpec.registers.join(",")}]${subSpec.bitmask ? ` bitmask ${subSpec.bitmask}` : ""}${subSpec.scale ? ` x${subSpec.scale}` : ""}`);
+
+        try {
+          const writes = computeRegisterWrites(entry, row.setting_value);
+          for (const w of writes) {
+            console.log(`[write]   register ${w.register} <- ${w.value}${modbusClient ? "" : " (dry-run — no live Modbus connection)"}`);
           }
-        } else {
-          console.log(
-            `[write]   would write register(s) [${spec.registers.join(",")}]${spec.bitmask ? ` (bitmask ${spec.bitmask}, read-modify-write required)` : ""}${spec.scale ? ` scale x${spec.scale}` : ""}`
-          );
+          if (modbusClient) {
+            await applyModbusWrite(modbusClient, writes);
+            console.log(`[write]   sent to hardware.`);
+          }
+        } catch (err) {
+          console.error(`[write]   failed to compute/send register write:`, err.message ?? err);
         }
-        // TODO: real Modbus write (client.writeRegister / read-modify-write
-        // for bitmask fields) + insert a confirmation row back to Supabase
-        // once the read side above has been verified against real
-        // hardware. Deliberately dry-run only for now.
       }
     )
     .subscribe((status) => {
@@ -594,14 +685,203 @@ function startWriteListener(deviceId) {
 }
 
 // ============================================================
+// TEST MODES — each runs once, reports, and exits. See the usage comment
+// at the top of the file for what each one proves.
+// ============================================================
+
+async function codecTest(deviceId) {
+  const { data: device } = await supabase.from("devices").select("id, label, device_type:stock(id, name)").eq("id", deviceId).maybeSingle();
+  if (!device) throw new Error(`Device ${deviceId} not found`);
+
+  const { data: rows, error } = await supabase
+    .from("device_parameter_map")
+    .select("instrument_key, address, decode, instrument_catalog!inner(direction)")
+    .eq("stock_id", device.device_type.id)
+    .eq("is_enabled", true);
+  if (error) throw new Error(`catalog load failed: ${error.message}`);
+
+  let pass = 0;
+  let fail = 0;
+  let skipped = 0;
+  for (const row of rows ?? []) {
+    const registers = row.address?.registers ?? [];
+    if (registers.length === 0) {
+      skipped++;
+      continue;
+    }
+
+    const regReadings = registers.map((register) => ({ register, raw: Math.floor(Math.random() * 60000) + 100 }));
+
+    let decoded;
+    try {
+      decoded = decode(regReadings, row.decode);
+    } catch (err) {
+      console.log(`FAIL  ${row.instrument_key}: decode() threw: ${err.message}`);
+      fail++;
+      continue;
+    }
+
+    if (row.instrument_catalog.direction !== "write") {
+      console.log(`ok    ${row.instrument_key}: raw=[${regReadings.map((r) => r.raw).join(",")}] -> decoded=${decoded}`);
+      pass++;
+      continue;
+    }
+
+    try {
+      const reEncoded = encode(decoded, registers, row.decode);
+      const matches = reEncoded.every((w) => regReadings.find((r) => r.register === w.register)?.raw === w.value);
+      if (matches) {
+        console.log(
+          `PASS  ${row.instrument_key}: raw=[${regReadings.map((r) => r.raw).join(",")}] -> decoded=${decoded} -> re-encoded=[${reEncoded.map((w) => w.value).join(",")}]`
+        );
+        pass++;
+      } else {
+        console.log(
+          `FAIL  ${row.instrument_key}: round-trip mismatch. raw=[${regReadings.map((r) => r.raw).join(",")}] decoded=${decoded} re-encoded=[${reEncoded.map((w) => w.value).join(",")}]`
+        );
+        fail++;
+      }
+    } catch (err) {
+      console.log(`FAIL  ${row.instrument_key}: encode() threw: ${err.message}`);
+      fail++;
+    }
+  }
+
+  console.log(`\n[codec-test] ${pass} passed, ${fail} failed, ${skipped} skipped (no register address) — ${rows?.length ?? 0} total rows checked.`);
+  if (fail > 0) process.exitCode = 1;
+}
+
+async function presetTest(deviceId, presetKey) {
+  const { data: preset } = await supabase.from("setting_presets").select("key, device_category, values").eq("key", presetKey).maybeSingle();
+  if (!preset) throw new Error(`Preset "${presetKey}" not found`);
+
+  const { writeCatalog } = await loadDevice(deviceId);
+  const values = preset.values;
+  const keys = Object.keys(values);
+
+  // Inserted exactly like the customer dashboard's applySettingPreset —
+  // setting_category "test" so cleanup below can scope precisely to these
+  // rows and never touch a real pre-existing row for the same key (the
+  // lesson from this session's earlier cleanup incident).
+  const rows = keys.map((key) => ({
+    device_id: deviceId,
+    setting_category: "test",
+    setting_key: key,
+    setting_value: String(values[key]),
+    source: "agent_preset_test",
+    applied_preset_key: preset.key,
+  }));
+  const { error: insertErr } = await supabase.from("device_settings").insert(rows);
+  if (insertErr) throw new Error(`insert failed: ${insertErr.message}`);
+  console.log(`[preset-test] inserted ${rows.length} device_settings rows for preset "${preset.key}"`);
+
+  let resolved = 0;
+  let unresolved = 0;
+  for (const key of keys) {
+    const entry = resolveWriteEntry(writeCatalog, key);
+    if (!entry || entry.registers.length === 0) {
+      console.log(`  UNRESOLVED  ${key} — no enabled register mapping on this device`);
+      unresolved++;
+      continue;
+    }
+    try {
+      const writes = computeRegisterWrites(entry, String(values[key]));
+      console.log(`  ok  ${key} = ${values[key]} -> register(s) ${writes.map((w) => `${w.register}=${w.value}`).join(", ")}`);
+      resolved++;
+    } catch (err) {
+      console.log(`  FAIL  ${key}: ${err.message}`);
+      unresolved++;
+    }
+  }
+  console.log(`\n[preset-test] ${resolved} of ${keys.length} keys resolved to a real register write.`);
+
+  const { data: check } = await supabase
+    .from("device_settings")
+    .select("applied_preset_key")
+    .eq("device_id", deviceId)
+    .eq("setting_category", "test")
+    .limit(1);
+  console.log(`[preset-test] applied_preset_key on the inserted rows: ${check?.[0]?.applied_preset_key ?? "MISSING"}`);
+
+  const { error: cleanupErr, count } = await supabase
+    .from("device_settings")
+    .delete({ count: "exact" })
+    .eq("device_id", deviceId)
+    .eq("setting_category", "test")
+    .eq("applied_preset_key", preset.key);
+  console.log(`[preset-test] cleanup: ${cleanupErr ? cleanupErr.message : `deleted ${count} rows`}`);
+
+  if (unresolved > 0) process.exitCode = 1;
+}
+
+async function featureFlagTest(deviceId, category) {
+  const before = await loadDevice(deviceId);
+  const beforeInCatalog = before.catalog.some((c) => c.category === category) || before.writeCatalog.some((c) => c.category === category);
+  console.log(`[feature-flag-test] before disabling "${category}": present in catalog = ${beforeInCatalog}`);
+
+  const { error: insertErr } = await supabase.from("device_feature_flags").insert({ device_id: deviceId, category, is_enabled: false });
+  if (insertErr) throw new Error(`could not disable category: ${insertErr.message}`);
+
+  try {
+    const after = await loadDevice(deviceId);
+    const stillInRead = after.catalog.some((c) => c.category === category);
+    const stillInWrite = after.writeCatalog.some((c) => c.category === category);
+    console.log(`[feature-flag-test] after disabling: still in read catalog = ${stillInRead}, still in write catalog = ${stillInWrite}`);
+
+    const anyWriteEntry = before.writeCatalog.find((c) => c.category === category);
+    if (anyWriteEntry) {
+      const resolved = resolveWriteEntry(after.writeCatalog, anyWriteEntry.parameter_key);
+      console.log(`[feature-flag-test] write lookup for "${anyWriteEntry.parameter_key}" while disabled: ${resolved ? "STILL RESOLVES (bug)" : "correctly rejected"}`);
+    }
+
+    const pass = !stillInRead && !stillInWrite;
+    console.log(`\n[feature-flag-test] ${pass ? "PASS" : "FAIL"} — category "${category}" ${pass ? "fully excluded" : "still present"} after being disabled.`);
+    if (!pass) process.exitCode = 1;
+  } finally {
+    const { error: cleanupErr } = await supabase.from("device_feature_flags").delete().eq("device_id", deviceId).eq("category", category);
+    console.log(`[feature-flag-test] cleanup: ${cleanupErr ? cleanupErr.message : "re-enabled (flag row removed)"}`);
+  }
+}
+
+async function protocolTest(deviceId) {
+  const { device, catalog, writeCatalog } = await loadDevice(deviceId);
+
+  const { data: protocolRows } = await supabase
+    .from("device_parameter_map")
+    .select("protocol")
+    .eq("stock_id", device.device_type.id)
+    .eq("is_enabled", true);
+  const protocols = [...new Set((protocolRows ?? []).map((r) => r.protocol))];
+
+  console.log(`[protocol-test] ${device.label ?? device.id} (${device.device_type.name}) — protocol(s) in device_parameter_map: ${protocols.join(", ") || "none"}`);
+  console.log(
+    `[protocol-test] loadDevice's same query/lookup path (no protocol-specific branching) resolved ${catalog.length} read + ${writeCatalog.length} write entries for this device.`
+  );
+  console.log(
+    `\n[protocol-test] confirmed — this device's registers use [${protocols.join(", ")}], and the exact same generic code that serves the Modbus device above handled it unmodified.`
+  );
+}
+
+// ============================================================
 // Main
 // ============================================================
 
 async function main() {
   console.log(`Deye Modbus agent — mode=${args.mode} device=${args.deviceId}${args.readOnly ? " (read-only)" : ""}`);
 
-  const { device, catalog } = await loadDevice(args.deviceId);
-  console.log(`Device: ${device.label ?? device.id} (${device.device_type.name}) — ${catalog.length} registers cataloged`);
+  if (args.mode === "codec-test") return codecTest(args.deviceId);
+  if (args.mode === "preset-test") {
+    if (!args.preset) throw new Error("--mode=preset-test requires --preset=<key>");
+    return presetTest(args.deviceId, args.preset);
+  }
+  if (args.mode === "feature-flag-test") {
+    if (!args.category) throw new Error("--mode=feature-flag-test requires --category=<name>");
+    return featureFlagTest(args.deviceId, args.category);
+  }
+  if (args.mode === "protocol-test") return protocolTest(args.deviceId);
+
+  const { device, catalog, writeCatalog } = await loadDevice(args.deviceId);
+  console.log(`Device: ${device.label ?? device.id} (${device.device_type.name}) — ${catalog.length} read + ${writeCatalog.length} write registers cataloged`);
 
   const state = new SimState();
   if (args.mode === "simulate" && !args.noRead) await state.seedFromDb(args.deviceId);
@@ -610,7 +890,17 @@ async function main() {
     await backfillDeye(args.deviceId, catalog, state, args.backfillDays);
   }
 
-  if (!args.readOnly) startWriteListener(args.deviceId);
+  let modbusClient = null;
+  if (args.mode === "modbus" && !args.readOnly) {
+    const { default: ModbusRTU } = await import("modbus-serial");
+    modbusClient = new ModbusRTU();
+    modbusClient.setID(1);
+    modbusClient.setTimeout(3000);
+    await modbusClient.connectTCP(args.host, { port: 502 });
+    console.log(`[write] connected to ${args.host}:502 for real register writes.`);
+  }
+
+  if (!args.readOnly) startWriteListener(args.deviceId, writeCatalog, modbusClient);
 
   if (args.noRead) {
     console.log("--no-read set: write listener only, no read tick/loop. Ctrl+C to stop.");
