@@ -39,9 +39,18 @@ export interface StockRow {
     parameter_name: string;
     unit: string | null;
     category: string | null;
+    direction: string;
     modbus_register: unknown;
     is_required: boolean;
+    verified: boolean;
   }[];
+}
+
+export interface InstrumentCatalogEntry {
+  instrument_key: string;
+  name: string;
+  category: string;
+  direction: string;
 }
 
 // Instrument/register management only makes sense for the device kinds
@@ -162,10 +171,154 @@ function formatModbusRegister(value: unknown): string {
   return JSON.stringify(value);
 }
 
+// Register Map editor — the actual "onboard a new vendor/model" workflow.
+// Typing an existing instrument_key (autocompleted from `instrumentCatalog`,
+// shared across every stock item) skips the "New instrument" fields
+// entirely: only this model's register mapping gets added, the shared
+// catalog definition is never touched. Typing a key that doesn't match
+// anything reveals those fields, so a genuinely new instrument gets defined
+// once, here, then reusable by every future model.
+function RegisterMappingForm({ stockId, instrumentCatalog }: { stockId: string; instrumentCatalog: InstrumentCatalogEntry[] }) {
+  const [key, setKey] = React.useState("");
+  const existing = instrumentCatalog.find((c) => c.instrument_key === key.trim());
+  const isNewKey = key.trim().length > 0 && !existing;
+  const datalistId = `instrument-keys-${stockId}`;
+
+  return (
+    <form action={addParameter.bind(null, stockId)} className="space-y-3 rounded-md border border-dashed border-border p-3">
+      <datalist id={datalistId}>
+        {instrumentCatalog.map((c) => (
+          <option key={c.instrument_key} value={c.instrument_key}>
+            {c.name}
+          </option>
+        ))}
+      </datalist>
+
+      <div className="flex flex-wrap items-end gap-2">
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Instrument key</label>
+          <Input
+            name="parameterKey"
+            list={datalistId}
+            value={key}
+            onChange={(e) => setKey(e.target.value)}
+            placeholder="e.g. battery_soc_pct"
+            className="h-8 w-48 text-xs"
+            required
+          />
+        </div>
+        {existing && (
+          <p className="pb-1.5 text-xs text-muted-foreground">
+            Existing instrument ({existing.category}, {existing.direction}) — only the register mapping below is added.
+          </p>
+        )}
+      </div>
+
+      {isNewKey && (
+        <div className="flex flex-wrap items-end gap-2 border-t border-border pt-3">
+          <p className="w-full text-xs font-medium text-muted-foreground">New instrument definition</p>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Name</label>
+            <Input name="parameterName" placeholder="e.g. State of Charge" className="h-8 w-40 text-xs" required />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Unit</label>
+            <Input name="unit" placeholder="%, V, kWh…" className="h-8 w-20 text-xs" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Category</label>
+            <Input name="category" placeholder="solar, battery…" className="h-8 w-28 text-xs" />
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Value kind</label>
+            <select name="valueKind" defaultValue="numeric" className={selectClass}>
+              <option value="numeric">numeric</option>
+              <option value="enum">enum</option>
+              <option value="boolean">boolean</option>
+              <option value="text">text</option>
+              <option value="timestamp">timestamp</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Direction</label>
+            <select name="direction" defaultValue="read" className={selectClass}>
+              <option value="read">read</option>
+              <option value="write">write</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Min role</label>
+            <select name="minRole" defaultValue="customer" className={selectClass}>
+              <option value="customer">customer</option>
+              <option value="employee">employee</option>
+              <option value="site_engineer">site_engineer</option>
+              <option value="admin">admin</option>
+            </select>
+          </div>
+          <div className="space-y-1.5">
+            <label className="text-xs font-medium text-muted-foreground">Cadence (s)</label>
+            <Input name="cadenceSeconds" type="number" placeholder="on-open" className="h-8 w-20 text-xs" />
+          </div>
+          <label className="flex h-8 items-center gap-1.5 text-xs">
+            <input type="checkbox" name="regulated" className="h-3.5 w-3.5" />
+            Regulated
+          </label>
+        </div>
+      )}
+
+      <div className="flex flex-wrap items-end gap-2 border-t border-border pt-3">
+        <p className="w-full text-xs font-medium text-muted-foreground">Register mapping (this model)</p>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Protocol</label>
+          <Input name="protocol" defaultValue="modbus_tcp" className="h-8 w-28 text-xs" />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Registers</label>
+          <Input name="registers" placeholder="184 or 72,73" className="h-8 w-24 text-xs" />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Scale</label>
+          <Input name="scale" type="number" step="any" placeholder="1" className="h-8 w-16 text-xs" />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Offset</label>
+          <Input name="offset" type="number" step="any" placeholder="-1000" className="h-8 w-20 text-xs" />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Bitmask</label>
+          <Input name="bitmask" placeholder="0x0C" className="h-8 w-20 text-xs" />
+        </div>
+        <div className="space-y-1.5">
+          <label className="text-xs font-medium text-muted-foreground">Combine</label>
+          <select name="combine" defaultValue="" className={selectClass}>
+            <option value="">—</option>
+            <option value="low_high_word">low_high_word</option>
+          </select>
+        </div>
+        <label className="flex h-8 items-center gap-1.5 text-xs">
+          <input type="checkbox" name="signed" className="h-3.5 w-3.5" />
+          Signed
+        </label>
+        <label className="flex h-8 items-center gap-1.5 text-xs">
+          <input type="checkbox" name="isRequired" className="h-3.5 w-3.5" />
+          Required
+        </label>
+        <label className="flex h-8 items-center gap-1.5 text-xs">
+          <input type="checkbox" name="verified" className="h-3.5 w-3.5" />
+          Verified
+        </label>
+        <Button type="submit" variant="outline" size="sm">
+          Add
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 // Only device kinds that actually report telemetry (see
 // isMonitoredCategory) get parameter/register management at all — a
 // cable or breaker's detail sheet just skips this section entirely.
-function ParametersSection({ item }: { item: StockRow }) {
+function ParametersSection({ item, instrumentCatalog }: { item: StockRow; instrumentCatalog: InstrumentCatalogEntry[] }) {
   if (!isMonitoredCategory(item.category)) return null;
 
   return (
@@ -179,8 +332,10 @@ function ParametersSection({ item }: { item: StockRow }) {
                 <TableHead>Parameter</TableHead>
                 <TableHead>Unit</TableHead>
                 <TableHead>Category</TableHead>
+                <TableHead>Dir.</TableHead>
                 <TableHead>Modbus register</TableHead>
                 <TableHead>Required</TableHead>
+                <TableHead>Verified</TableHead>
                 <TableHead />
               </TableRow>
             </TableHeader>
@@ -193,12 +348,18 @@ function ParametersSection({ item }: { item: StockRow }) {
                   </TableCell>
                   <TableCell className="text-muted-foreground">{parameter.unit ?? "—"}</TableCell>
                   <TableCell className="text-muted-foreground">{parameter.category ?? "—"}</TableCell>
+                  <TableCell className="text-muted-foreground">{parameter.direction}</TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">
                     {formatModbusRegister(parameter.modbus_register)}
                   </TableCell>
                   <TableCell>
                     <Badge variant={parameter.is_required ? "default" : "secondary"}>
                       {parameter.is_required ? "Required" : "Optional"}
+                    </Badge>
+                  </TableCell>
+                  <TableCell>
+                    <Badge variant={parameter.verified ? "default" : "secondary"}>
+                      {parameter.verified ? "Verified" : "Unverified"}
                     </Badge>
                   </TableCell>
                   <TableCell>
@@ -215,31 +376,7 @@ function ParametersSection({ item }: { item: StockRow }) {
         </div>
       )}
 
-      <form action={addParameter.bind(null, item.id)} className="flex flex-wrap items-end gap-2 pt-2">
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Key</label>
-          <Input name="parameterKey" placeholder="e.g. battery_soc_pct" className="h-8 w-40 text-xs" required />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Name</label>
-          <Input name="parameterName" placeholder="e.g. State of Charge" className="h-8 w-40 text-xs" required />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Unit</label>
-          <Input name="unit" placeholder="%, V, kWh…" className="h-8 w-20 text-xs" />
-        </div>
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground">Category</label>
-          <Input name="category" placeholder="solar, battery…" className="h-8 w-24 text-xs" />
-        </div>
-        <label className="flex h-8 items-center gap-1.5 text-xs">
-          <input type="checkbox" name="isRequired" className="h-3.5 w-3.5" />
-          Required
-        </label>
-        <Button type="submit" variant="outline" size="sm">
-          Add
-        </Button>
-      </form>
+      <RegisterMappingForm stockId={item.id} instrumentCatalog={instrumentCatalog} />
     </div>
   );
 }
@@ -247,7 +384,17 @@ function ParametersSection({ item }: { item: StockRow }) {
 // Row-click detail: full spec/purchase info + the edit form + instrument
 // catalog, all in one Sheet — keeps the table itself down to the handful
 // of columns someone scanning inventory actually needs at a glance.
-function DetailSheet({ item, open, onOpenChange }: { item: StockRow | null; open: boolean; onOpenChange: (open: boolean) => void }) {
+function DetailSheet({
+  item,
+  open,
+  onOpenChange,
+  instrumentCatalog,
+}: {
+  item: StockRow | null;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  instrumentCatalog: InstrumentCatalogEntry[];
+}) {
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent>
@@ -276,7 +423,7 @@ function DetailSheet({ item, open, onOpenChange }: { item: StockRow | null; open
               </Button>
             </form>
 
-            <ParametersSection item={item} />
+            <ParametersSection item={item} instrumentCatalog={instrumentCatalog} />
           </>
         )}
       </SheetContent>
@@ -293,7 +440,7 @@ function SummaryStat({ label, value }: { label: string; value: string }) {
   );
 }
 
-export function StockTable({ items }: { items: StockRow[] }) {
+export function StockTable({ items, instrumentCatalog }: { items: StockRow[]; instrumentCatalog: InstrumentCatalogEntry[] }) {
   const [search, setSearch] = React.useState("");
   const [category, setCategory] = React.useState("all");
   const [status, setStatus] = React.useState("all");
@@ -412,7 +559,12 @@ export function StockTable({ items }: { items: StockRow[] }) {
         </Table>
       </div>
 
-      <DetailSheet item={selected} open={selected !== null} onOpenChange={(open) => !open && setSelected(null)} />
+      <DetailSheet
+        item={selected}
+        open={selected !== null}
+        onOpenChange={(open) => !open && setSelected(null)}
+        instrumentCatalog={instrumentCatalog}
+      />
     </div>
   );
 }

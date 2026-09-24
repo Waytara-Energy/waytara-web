@@ -20,14 +20,23 @@ export default async function DevicesPage({
   // parameter_name, unit, category, modbus_register, is_required) is now
   // split across instrument_catalog (the shared definition, joined here)
   // and device_parameter_map (the per-model row, `stock`'s real child now).
-  // Reassembled into that exact same flat shape below so stock-table.tsx
-  // needs no changes at all — it was never told any of this moved.
-  const { data: stockItemsRaw } = await supabase
-    .from("stock")
-    .select(
-      "id, name, category, brand, model, model_number, manufacturer, serial_number, status, power_capacity_value, power_capacity_unit, size_value, size_unit, technical_specs, warranty_info, quantity, pack_size, primary_uom, purchase_price_amount, unit_price, purchase_date, supplier, po_reference, device_parameter_map(id, instrument_key, is_required, address, decode, instrument_catalog(name, category, unit))"
-    )
-    .order("name");
+  // Reassembled into that exact same flat shape below so stock-table.tsx's
+  // existing table display needs no changes — plus verified/direction,
+  // new columns the Register Map editor needs that device_parameters never had.
+  const [{ data: stockItemsRaw }, { data: catalogRows }] = await Promise.all([
+    supabase
+      .from("stock")
+      .select(
+        "id, name, category, brand, model, model_number, manufacturer, serial_number, status, power_capacity_value, power_capacity_unit, size_value, size_unit, technical_specs, warranty_info, quantity, pack_size, primary_uom, purchase_price_amount, unit_price, purchase_date, supplier, po_reference, device_parameter_map(id, instrument_key, is_required, verified, address, decode, instrument_catalog(name, category, unit, direction))"
+      )
+      .order("name"),
+    // The full shared catalog, for the Register Map editor's "reuse an
+    // existing key" autocomplete — an admin onboarding a second vendor
+    // types an existing key here instead of ever recreating it.
+    supabase.from("instrument_catalog").select("instrument_key, name, category, direction").order("instrument_key"),
+  ]);
+
+  const instrumentCatalog = catalogRows ?? [];
 
   const stockItems = (stockItemsRaw ?? []).map((item) => {
     const { device_parameter_map, ...rest } = item;
@@ -39,8 +48,10 @@ export default async function DevicesPage({
         parameter_name: m.instrument_catalog?.name ?? m.instrument_key,
         unit: m.instrument_catalog?.unit ?? null,
         category: m.instrument_catalog?.category ?? null,
+        direction: m.instrument_catalog?.direction ?? "read",
         modbus_register: { ...(m.address as object), ...((m.decode as object) ?? {}) },
         is_required: m.is_required,
+        verified: m.verified,
       })),
     };
   });
@@ -64,7 +75,7 @@ export default async function DevicesPage({
         <div className="rounded-lg border border-border bg-primary/10 p-4 text-sm text-primary">Saved.</div>
       )}
 
-      <StockTable items={(stockItems ?? []) as StockRow[]} />
+      <StockTable items={(stockItems ?? []) as StockRow[]} instrumentCatalog={instrumentCatalog} />
     </div>
   );
 }

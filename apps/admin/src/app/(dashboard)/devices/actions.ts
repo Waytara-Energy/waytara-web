@@ -3,6 +3,14 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@waytara/supabase/server";
+import type { Database, Json } from "@waytara/supabase";
+
+type UserRole = Database["waytara"]["Enums"]["user_role"];
+const USER_ROLES: UserRole[] = ["customer", "employee", "site_engineer", "admin"];
+function toUserRole(raw: FormDataEntryValue | null): UserRole {
+  const str = String(raw ?? "");
+  return (USER_ROLES as string[]).includes(str) ? (str as UserRole) : "customer";
+}
 
 // Numeric/date form fields all follow the same "empty string -> null,
 // otherwise parse" rule — <input type="number"> and <input type="date">
@@ -116,36 +124,26 @@ export async function updateStockItem(stockId: string, formData: FormData) {
   redirect("/devices?success=1");
 }
 
-// device_parameters (device_type_id, parameter_key, parameter_name, unit,
-// category, is_required, modbus_register) is retired — this form's two
-// actions now write instrument_catalog (the shared logical definition,
-// reused across every stock item that has this same instrument_key) +
-// device_parameter_map (the per-model row this form is really editing).
-// This form never collected direction/value_kind/register info, so a
-// parameter added here defaults to a plain informational field: read,
-// text-typed, customer-visible, no real Modbus address — matching exactly
-// what the old device_parameters row could express (nothing register-level
-// either). A parameter that DOES need real register mapping belongs in the
-// Register Map editor instead, once that exists.
+// device_parameters is retired — this is now the Register Map editor: the
+// actual "onboard a new vendor/model" workflow the architecture is built
+// around. Two paths depending on whether `parameterKey` already exists in
+// instrument_catalog:
+//   - Existing key (a second model reusing e.g. "battery_soc_pct"): only
+//     the register mapping fields matter — the catalog entry (name,
+//     category, value kind, role, ...) is untouched, so onboarding a new
+//     vendor is purely additive rows here, never a risk of silently
+//     redefining a shared instrument's meaning out from under other models.
+//   - New key: also creates the instrument_catalog row from the form's
+//     "New instrument" fields, which the client only shows once it detects
+//     the typed key doesn't match anything in the datalist it was given.
 export async function addParameter(stockId: string, formData: FormData) {
   const parameterKey = String(formData.get("parameterKey") ?? "").trim();
-  const parameterName = String(formData.get("parameterName") ?? "").trim();
-  const unit = String(formData.get("unit") ?? "").trim() || null;
-  const category = String(formData.get("category") ?? "").trim() || null;
-  const isRequired = formData.get("isRequired") === "on";
-
-  if (!parameterKey || !parameterName) {
-    redirect(`/devices?error=${encodeURIComponent("Parameter key and name are required.")}`);
+  if (!parameterKey) {
+    redirect(`/devices?error=${encodeURIComponent("Instrument key is required.")}`);
   }
 
   const supabase = await createClient();
 
-  const { data: stock } = await supabase.from("stock").select("category").eq("id", stockId).single();
-
-  // instrument_catalog is shared across every stock item — only create it
-  // if this instrument_key doesn't already exist (e.g. a second inverter
-  // model reusing the same key), never overwrite an existing definition
-  // from this simple form.
   const { data: existingCatalog } = await supabase
     .from("instrument_catalog")
     .select("instrument_key")
@@ -153,27 +151,60 @@ export async function addParameter(stockId: string, formData: FormData) {
     .maybeSingle();
 
   if (!existingCatalog) {
+    const parameterName = String(formData.get("parameterName") ?? "").trim();
+    if (!parameterName) {
+      redirect(`/devices?error=${encodeURIComponent("Name is required for a new instrument key.")}`);
+    }
+    const { data: stock } = await supabase.from("stock").select("category").eq("id", stockId).single();
     const { error: catalogError } = await supabase.from("instrument_catalog").insert({
       instrument_key: parameterKey,
       name: parameterName,
-      category: category ?? "system",
+      category: String(formData.get("category") ?? "").trim() || "system",
       device_category: stock?.category ?? "solar_inverter",
-      unit,
-      value_kind: "text",
-      direction: "read",
-      min_role: "customer",
+      unit: String(formData.get("unit") ?? "").trim() || null,
+      value_kind: String(formData.get("valueKind") ?? "numeric"),
+      direction: String(formData.get("direction") ?? "read"),
+      min_role: toUserRole(formData.get("minRole")),
+      regulated: formData.get("regulated") === "on",
+      cadence_seconds: toNumberOrNull(formData.get("cadenceSeconds")),
     });
     if (catalogError) {
       redirect(`/devices?error=${encodeURIComponent(catalogError.message)}`);
     }
   }
 
+  // Register address — "184" or "72,73" for a multi-register (u32) value.
+  // Empty/unparseable input means "no real register" (a manual/
+  // informational field, same as before this form gained register support).
+  const registersRaw = String(formData.get("registers") ?? "").trim();
+  const registers = registersRaw
+    ? registersRaw
+        .split(",")
+        .map((r) => Number(r.trim()))
+        .filter((n) => Number.isInteger(n))
+    : [];
+
+  const scale = toNumberOrNull(formData.get("scale"));
+  const offset = toNumberOrNull(formData.get("offset"));
+  const bitmask = toTextOrNull(formData.get("bitmask"));
+  const combine = String(formData.get("combine") ?? "") || null;
+  const signed = formData.get("signed") === "on";
+
+  const decode: Record<string, Json> = {};
+  if (scale !== null) decode.scale = scale;
+  if (signed) decode.signed = true;
+  if (offset !== null) decode.offset = offset;
+  if (bitmask) decode.bitmask = bitmask;
+  if (combine) decode.combine = combine;
+
   const { error: mapError } = await supabase.from("device_parameter_map").insert({
     stock_id: stockId,
     instrument_key: parameterKey,
-    protocol: "manual",
-    address: {},
-    is_required: isRequired,
+    protocol: String(formData.get("protocol") ?? "").trim() || "modbus_tcp",
+    address: registers.length > 0 ? { registers } : {},
+    decode: Object.keys(decode).length > 0 ? decode : null,
+    is_required: formData.get("isRequired") === "on",
+    verified: formData.get("verified") === "on",
   });
 
   if (mapError) {
