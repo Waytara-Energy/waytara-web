@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { LibraryBig, ListChecks } from "lucide-react";
+import { LibraryBig, ListChecks, History } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { Button } from "@waytara/ui/button";
 import { StockTable, type StockRow } from "./stock-table";
@@ -80,6 +80,12 @@ export default async function DevicesPage({
             <Link href="/devices/presets">
               <ListChecks className="size-4" />
               Setting Presets
+            </Link>
+          </Button>
+          <Button asChild variant="outline" size="sm">
+            <Link href="/devices/settings-history">
+              <History className="size-4" />
+              Settings History
             </Link>
           </Button>
         </div>
