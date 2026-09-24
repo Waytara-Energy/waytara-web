@@ -4,6 +4,7 @@ import { createClient } from "@waytara/supabase/server";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { getSelectedSite } from "@/lib/selected-site";
 import { getSettingFieldsByCategory, getSettingCategories } from "@/lib/instrument-settings-catalog";
+import { fetchDeviceSettingFields, categoryLabel } from "@/lib/device-settings-data";
 import { gridChargeWindows, formatHourWindows } from "@/lib/tou-presets";
 import { averageInHourWindows } from "@/lib/energy-aggregation";
 import { PROPERTY_TYPE_OPTIONS, POWER_SOURCE_OPTIONS, POWER_PACKAGE_OPTIONS } from "@/lib/site-catalog";
@@ -19,6 +20,7 @@ import { DeviceDetailsCard } from "@/components/dashboard/device-details-card";
 import { SiteDetailsCard } from "@/components/dashboard/site-details-card";
 import { DeviceOverviewContent } from "@/components/dashboard/device-overview-content";
 import { SettingFieldRow } from "@/components/dashboard/setting-field-row";
+import { InstrumentSettingRow } from "@/components/dashboard/instrument-setting-row";
 import { TouPresetPicker, type TouPresetOption } from "@/components/dashboard/tou-preset-picker";
 import { EnableLocationButton } from "@/components/dashboard/enable-location-button";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
@@ -72,6 +74,7 @@ export default async function DeviceDetailPage({
   let settingsMap = new Map<string, string>();
   let touPresetOptions: TouPresetOption[] = [];
   let currentTouPresetKey: string | null = null;
+  let solarSettingsCatalog: Awaited<ReturnType<typeof fetchDeviceSettingFields>> | null = null;
   if (canEditSettings) {
     const { data: settingsRows } = await supabase
       .from("device_settings")
@@ -82,7 +85,7 @@ export default async function DeviceDetailPage({
 
     if (isSolarInverter) {
       const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-      const [{ data: presetRows }, { data: gridReadings }, { data: appliedRows }] = await Promise.all([
+      const [{ data: presetRows }, { data: gridReadings }, { data: appliedRows }, settingsCatalog] = await Promise.all([
         supabase
           .from("setting_presets")
           .select("key, name, description, values")
@@ -102,6 +105,7 @@ export default async function DeviceDetailPage({
           .not("applied_preset_key", "is", null)
           .order("ts", { ascending: false })
           .limit(1),
+        fetchDeviceSettingFields(supabase, device),
       ]);
 
       currentTouPresetKey = appliedRows?.[0]?.applied_preset_key ?? null;
@@ -115,8 +119,19 @@ export default async function DeviceDetailPage({
           averageGridDrawW: averageInHourWindows(gridReadings ?? [], windows),
         };
       });
+      solarSettingsCatalog = settingsCatalog;
     }
   }
+
+  // Fixed display order for the DB-driven categories — instrument_catalog
+  // has no ordering column of its own, so this is purely presentation, not
+  // stored anywhere. A category with zero enabled write fields for this
+  // specific device (all disabled via device_feature_flags, or none in
+  // this model's device_parameter_map) just doesn't get a tab.
+  const SOLAR_CATEGORY_ORDER = ["solar", "battery", "grid", "generator", "system"];
+  const solarCategoryKeys = solarSettingsCatalog
+    ? SOLAR_CATEGORY_ORDER.filter((key) => solarSettingsCatalog!.fieldsByCategory.has(key))
+    : [];
 
   return (
     <div className="max-w-3xl space-y-6">
@@ -183,11 +198,17 @@ export default async function DeviceDetailPage({
           <Tabs key={device.id} defaultValue="site" className="w-full">
             <TabsList className="h-auto flex-wrap justify-start gap-1">
               <TabsTrigger value="site">Site Setting</TabsTrigger>
-              {settingCategories.map((cat) => (
-                <TabsTrigger key={cat.key} value={cat.key}>
-                  {cat.label}
-                </TabsTrigger>
-              ))}
+              {isSolarInverter
+                ? solarCategoryKeys.map((key) => (
+                    <TabsTrigger key={key} value={key}>
+                      {categoryLabel(key)}
+                    </TabsTrigger>
+                  ))
+                : settingCategories.map((cat) => (
+                    <TabsTrigger key={cat.key} value={cat.key}>
+                      {cat.label}
+                    </TabsTrigger>
+                  ))}
             </TabsList>
 
             <TabsContent value="site">
@@ -298,52 +319,25 @@ export default async function DeviceDetailPage({
               </Card>
             </TabsContent>
 
-            {settingCategories.map((cat) => {
-              const fields = getSettingFieldsByCategory(category, cat.key);
-              return (
-                <TabsContent key={cat.key} value={cat.key}>
-                  <Card>
-                    <CardHeader>
-                      <CardTitle>{cat.label}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="space-y-5">
-                      {cat.helpText && <p className="text-sm text-theme-muted">{cat.helpText}</p>}
-
-                      {cat.key === "advanced" ? (
-                        <Empty>
-                          <EmptyHeader>
-                            <EmptyMedia variant="icon">
-                              <Settings2 />
-                            </EmptyMedia>
-                            <EmptyTitle>Nothing available yet</EmptyTitle>
-                            <EmptyDescription>
-                              No Advanced Function settings on this device model are confirmed safe to write yet.
-                            </EmptyDescription>
-                          </EmptyHeader>
-                        </Empty>
-                      ) : fields.length === 0 ? (
-                        <Empty>
-                          <EmptyHeader>
-                            <EmptyMedia variant="icon">
-                              <Settings2 />
-                            </EmptyMedia>
-                            <EmptyTitle>Not applicable for this device</EmptyTitle>
-                            <EmptyDescription>
-                              {device.deviceType?.name ?? "This device type"} doesn&apos;t have {cat.label.toLowerCase()} yet.
-                            </EmptyDescription>
-                          </EmptyHeader>
-                        </Empty>
-                      ) : (
-                        <>
+            {isSolarInverter
+              ? solarCategoryKeys.map((key) => {
+                  const fields = solarSettingsCatalog!.fieldsByCategory.get(key) ?? [];
+                  return (
+                    <TabsContent key={key} value={key}>
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>{categoryLabel(key)}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-5">
                           {fields.map((field) => (
-                            <SettingFieldRow
+                            <InstrumentSettingRow
                               key={field.key}
                               deviceId={device.id}
                               field={field}
-                              currentValue={settingsMap.get(`${cat.key}:${field.key}`) ?? ""}
+                              enumOptions={field.enumRef ? (solarSettingsCatalog!.enumOptionsByRef.get(field.enumRef) ?? []) : []}
                             />
                           ))}
-                          {cat.key === "system_work_mode" && isSolarInverter && touPresetOptions.length > 0 && (
+                          {key === "system" && touPresetOptions.length > 0 && (
                             <div className="space-y-2 pt-2">
                               <h3 className="text-sm font-semibold text-theme-primary">Time-of-Use schedule</h3>
                               <p className="text-sm text-theme-muted">
@@ -352,13 +346,61 @@ export default async function DeviceDetailPage({
                               <TouPresetPicker deviceId={device.id} presets={touPresetOptions} currentPresetKey={currentTouPresetKey} />
                             </div>
                           )}
-                        </>
-                      )}
-                    </CardContent>
-                  </Card>
-                </TabsContent>
-              );
-            })}
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+                  );
+                })
+              : settingCategories.map((cat) => {
+                  const fields = getSettingFieldsByCategory(category, cat.key);
+                  return (
+                    <TabsContent key={cat.key} value={cat.key}>
+                      <Card>
+                        <CardHeader>
+                          <CardTitle>{cat.label}</CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-5">
+                          {cat.helpText && <p className="text-sm text-theme-muted">{cat.helpText}</p>}
+
+                          {cat.key === "advanced" ? (
+                            <Empty>
+                              <EmptyHeader>
+                                <EmptyMedia variant="icon">
+                                  <Settings2 />
+                                </EmptyMedia>
+                                <EmptyTitle>Nothing available yet</EmptyTitle>
+                                <EmptyDescription>
+                                  No Advanced Function settings on this device model are confirmed safe to write yet.
+                                </EmptyDescription>
+                              </EmptyHeader>
+                            </Empty>
+                          ) : fields.length === 0 ? (
+                            <Empty>
+                              <EmptyHeader>
+                                <EmptyMedia variant="icon">
+                                  <Settings2 />
+                                </EmptyMedia>
+                                <EmptyTitle>Not applicable for this device</EmptyTitle>
+                                <EmptyDescription>
+                                  {device.deviceType?.name ?? "This device type"} doesn&apos;t have {cat.label.toLowerCase()} yet.
+                                </EmptyDescription>
+                              </EmptyHeader>
+                            </Empty>
+                          ) : (
+                            fields.map((field) => (
+                              <SettingFieldRow
+                                key={field.key}
+                                deviceId={device.id}
+                                field={field}
+                                currentValue={settingsMap.get(`${cat.key}:${field.key}`) ?? ""}
+                              />
+                            ))
+                          )}
+                        </CardContent>
+                      </Card>
+                    </TabsContent>
+                  );
+                })}
           </Tabs>
         </div>
       )}

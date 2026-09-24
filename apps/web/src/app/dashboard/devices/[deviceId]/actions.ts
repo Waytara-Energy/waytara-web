@@ -5,8 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@waytara/supabase/server";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { getCustomerSites, type CustomerDevice } from "@/lib/selected-site";
-import { getSettingFields, validateBatteryCrossFields } from "@/lib/instrument-settings-catalog";
-import { getModbusRegister } from "@/lib/modbus-register-map";
+import { getSettingFields } from "@/lib/instrument-settings-catalog";
 import { PROPERTY_TYPE_LABELS, POWER_SOURCE_LABELS, POWER_PACKAGE_LABELS, type SiteAddress } from "@/lib/site-catalog";
 
 // A site can have more than one device now, so there's no single
@@ -155,26 +154,6 @@ export async function updateDeviceSetting(
 
   const supabase = await createClient();
 
-  // Battery's Shutdown<Low<Restart / Float<Absorption<=Equalization rules
-  // span multiple keys — device_settings is an append-only log of single
-  // key writes, so the full proposed set has to be assembled here: latest
-  // value per key, with this write's own value applied on top.
-  if (field.category === "battery") {
-    const { data: rows } = await supabase
-      .from("device_settings")
-      .select("setting_key, setting_value, ts")
-      .eq("device_id", device.id)
-      .eq("setting_category", "battery")
-      .order("ts", { ascending: true });
-
-    const current: Record<string, string> = {};
-    for (const row of rows ?? []) current[row.setting_key] = row.setting_value;
-    current[field.key] = value;
-
-    const crossFieldError = validateBatteryCrossFields(current);
-    if (crossFieldError) return { error: crossFieldError };
-  }
-
   const { error } = await supabase.from("device_settings").insert({
     device_id: device.id,
     setting_category: field.category,
@@ -183,7 +162,6 @@ export async function updateDeviceSetting(
     unit: field.unit ?? null,
     source: "customer_dashboard",
     written_by: profile.id,
-    modbus_register: getModbusRegister(field.category, field.key) as never,
   });
 
   if (error) return { error: error.message };
@@ -255,6 +233,107 @@ export async function applySettingPreset(deviceId: string, presetKey: string): P
 
   const { error } = await supabase.from("device_settings").insert(rows);
   if (error) return { error: error.message };
+
+  revalidatePath(`/dashboard/devices/${deviceId}`);
+  return { ok: true };
+}
+
+// ---- Catalog-driven raw field settings (solar_inverter's Battery/Grid/
+// Generator/Solar/System tabs) — the DB-backed successor to
+// instrument-settings-catalog.ts's hardcoded field list, for whichever
+// device category instrument_catalog actually covers. A field only
+// reaches this action if instrument_catalog says direction='write' and
+// this device's own model maps it (device_parameter_map, is_enabled) —
+// see fetchDeviceSettingFields. ----
+
+function validateSettingValue(
+  field: { valueKind: string; validMin: number | null; validMax: number | null },
+  enumCodes: string[] | undefined,
+  value: string
+): string | null {
+  switch (field.valueKind) {
+    case "numeric": {
+      const n = Number(value);
+      if (!Number.isFinite(n)) return "Must be a number.";
+      if (field.validMin !== null && n < field.validMin) return `Must be at least ${field.validMin}.`;
+      if (field.validMax !== null && n > field.validMax) return `Must be at most ${field.validMax}.`;
+      return null;
+    }
+    case "boolean":
+      return value === "true" || value === "false" ? null : "Invalid value.";
+    case "enum":
+      return enumCodes?.includes(value) ? null : "Invalid option.";
+    case "text":
+      return value.trim() ? null : "Value can't be empty.";
+    default:
+      return "Unsupported field type.";
+  }
+}
+
+export async function updateInstrumentSetting(
+  deviceId: string,
+  key: string,
+  value: string,
+  confirmedRegulated: boolean
+): Promise<{ error: string } | { ok: true }> {
+  const profile = await getCurrentProfile();
+  if (!profile) return { error: "Not signed in." };
+
+  const device = await resolveOwnDevice(deviceId);
+  if (!device) return { error: "No device selected." };
+
+  const supabase = await createClient();
+
+  const { data: field } = await supabase
+    .from("instrument_catalog")
+    .select("name, category, unit, value_kind, direction, min_role, regulated, enum_ref, valid_min, valid_max, device_category")
+    .eq("instrument_key", key)
+    .maybeSingle();
+
+  if (!field || field.direction !== "write" || field.device_category !== (device.deviceType?.category ?? "")) {
+    return { error: "Unknown setting." };
+  }
+  if (field.min_role !== "customer") {
+    return { error: `${field.name} can only be changed by ${field.min_role.replace(/_/g, " ")}.` };
+  }
+  if (field.regulated && !confirmedRegulated) {
+    return { error: "This is a grid-compliance setting — confirmation is required." };
+  }
+
+  let enumCodes: string[] | undefined;
+  if (field.value_kind === "enum" && field.enum_ref) {
+    const { data: enumRows } = await supabase.from("instrument_enum_values").select("code").eq("enum_ref", field.enum_ref);
+    enumCodes = (enumRows ?? []).map((r) => r.code);
+  }
+
+  const validationError = validateSettingValue(
+    { valueKind: field.value_kind, validMin: field.valid_min, validMax: field.valid_max },
+    enumCodes,
+    value
+  );
+  if (validationError) return { error: `${field.name}: ${validationError}` };
+
+  const { data: currentRows } = await supabase
+    .from("device_settings")
+    .select("setting_value, ts")
+    .eq("device_id", device.id)
+    .eq("setting_key", key)
+    .order("ts", { ascending: false })
+    .limit(1);
+  const previousValue = currentRows?.[0]?.setting_value ?? null;
+
+  const { error: insertError } = await supabase.from("device_settings").insert({
+    device_id: device.id,
+    setting_category: field.category,
+    setting_key: key,
+    setting_value: value,
+    previous_value: previousValue,
+    unit: field.unit,
+    source: "customer_dashboard",
+    written_by: profile.id,
+  });
+
+  if (insertError) return { error: insertError.message };
 
   revalidatePath(`/dashboard/devices/${deviceId}`);
   return { ok: true };
