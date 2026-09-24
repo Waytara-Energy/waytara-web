@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@waytara/supabase/server";
 import type { CustomerDevice } from "./selected-site";
+import { getDisabledCategories } from "./device-feature-flags";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -33,17 +34,16 @@ export async function fetchDeviceParameterReadings(supabase: SupabaseServerClien
   const stockId = device.deviceType?.id;
   if (!stockId) return [];
 
-  const [{ data: catalog }, { data: disabledFlags }] = await Promise.all([
+  const [{ data: catalog }, disabledCategories] = await Promise.all([
     supabase
       .from("device_parameter_map")
       .select("instrument_key, is_required, instrument_catalog!inner(name, category, unit, direction)")
       .eq("stock_id", stockId)
       .eq("is_enabled", true)
       .eq("instrument_catalog.direction", "read"),
-    supabase.from("device_feature_flags").select("category").eq("device_id", device.id).eq("is_enabled", false),
+    getDisabledCategories(supabase, device.id),
   ]);
 
-  const disabledCategories = new Set((disabledFlags ?? []).map((f) => f.category));
   const parameters = (catalog ?? [])
     .filter((p) => !disabledCategories.has(p.instrument_catalog.category))
     .map((p) => ({

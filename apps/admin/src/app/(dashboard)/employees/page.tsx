@@ -30,7 +30,7 @@ export default async function EmployeesPage({
     supabase
       .from("profiles")
       .select("id, full_name, email, role, created_at, deactivated_at, deleted_at")
-      .in("role", ["admin", "employee"])
+      .in("role", ["admin", "employee", "site_engineer"])
       .order("created_at", { ascending: true }),
     supabase
       .from("employee_invites")
@@ -46,7 +46,7 @@ export default async function EmployeesPage({
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Employees</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          Manage staff accounts and send invites to new admins or employees.
+          Manage staff accounts and send invites to new admins, employees, or site engineers.
         </p>
       </div>
 
@@ -76,6 +76,7 @@ export default async function EmployeesPage({
               defaultValue="employee"
             >
               <option value="employee">Employee</option>
+              <option value="site_engineer">Site Engineer</option>
               <option value="admin">Admin</option>
             </select>
           </div>
@@ -153,10 +154,14 @@ export default async function EmployeesPage({
                     <span
                       className={cn(
                         "rounded-full px-2 py-0.5 text-xs font-medium capitalize",
-                        person.role === "admin" ? "bg-primary text-primary-foreground" : "bg-accent text-accent-foreground"
+                        person.role === "admin"
+                          ? "bg-primary text-primary-foreground"
+                          : person.role === "site_engineer"
+                            ? "bg-secondary text-secondary-foreground"
+                            : "bg-accent text-accent-foreground"
                       )}
                     >
-                      {person.role}
+                      {person.role.replace(/_/g, " ")}
                     </span>
                   </td>
                   <td className="px-4 py-3">
@@ -191,6 +196,7 @@ export default async function EmployeesPage({
                               className="h-8 rounded-md border border-border bg-background px-2 text-xs"
                             >
                               <option value="employee">Employee</option>
+                              <option value="site_engineer">Site Engineer</option>
                               <option value="admin">Admin</option>
                             </select>
                             <Button type="submit" variant="outline" size="sm">

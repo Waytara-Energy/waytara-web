@@ -44,7 +44,7 @@ export default async function EmployeeInvitePage({
         <div className="flex flex-col items-center text-center">
           <Image src="/images/icon.png" alt="" width={40} height={40} unoptimized className="mb-2 h-10 w-10" />
           <h1 className="text-xl font-semibold tracking-tight">
-            Join WayTara as {invite.role === "admin" ? "an admin" : "an employee"}
+            Join WayTara as {invite.role === "admin" ? "an admin" : invite.role === "site_engineer" ? "a site engineer" : "an employee"}
           </h1>
           <p className="mt-1 text-sm text-muted-foreground">{invite.email}</p>
         </div>

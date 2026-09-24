@@ -2,9 +2,15 @@ import { Resend } from "resend";
 
 export interface EmployeeInviteEmailInput {
   to: string;
-  role: "admin" | "employee";
+  role: "admin" | "employee" | "site_engineer";
   token: string;
 }
+
+const ROLE_COPY: Record<EmployeeInviteEmailInput["role"], string> = {
+  admin: "an admin",
+  employee: "an employee",
+  site_engineer: "a site engineer",
+};
 
 /**
  * Points at this app's own /invite/[token] acceptance flow (apps/admin's
@@ -35,7 +41,7 @@ export async function sendEmployeeInviteEmail(input: EmployeeInviteEmailInput): 
       text: [
         `Hi,`,
         ``,
-        `You've been invited to join the WayTara staff panel as ${input.role === "admin" ? "an admin" : "an employee"}.`,
+        `You've been invited to join the WayTara staff panel as ${ROLE_COPY[input.role]}.`,
         `Set up your account:`,
         inviteUrl,
         ``,

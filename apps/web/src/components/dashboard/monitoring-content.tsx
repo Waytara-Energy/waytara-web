@@ -2,6 +2,7 @@ import { createClient } from "@waytara/supabase/server";
 import { getSelectedSite, type CustomerDevice } from "@/lib/selected-site";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
+import { getDisabledCategories } from "@/lib/device-feature-flags";
 import { fetchTodayChargingSessions, fetchRecentChargingStats } from "@/lib/device-overview";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { co2AvoidedKg, treesEquivalent } from "@/lib/environmental-impact";
@@ -164,14 +165,8 @@ async function SolarInverterMonitoring({
   // actually have (not every site has a generator connected) — checked
   // before building the snapshot query's own key list, so a disabled
   // category's registers are never fetched at all, not just hidden after
-  // the fact. Absence of a device_feature_flags row means enabled (see
-  // that table's own doc comment).
-  const { data: disabledFlags } = await supabase
-    .from("device_feature_flags")
-    .select("category")
-    .eq("device_id", device.id)
-    .eq("is_enabled", false);
-  const disabledCategories = new Set((disabledFlags ?? []).map((f) => f.category));
+  // the fact.
+  const disabledCategories = await getDisabledCategories(supabase, device.id);
   const generatorEnabled = !disabledCategories.has("generator");
 
   const snapshotKeys = generatorEnabled ? [...SOLAR_SNAPSHOT_KEYS, ...GENERATOR_KEYS] : SOLAR_SNAPSHOT_KEYS;

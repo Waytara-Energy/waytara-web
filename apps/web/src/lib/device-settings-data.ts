@@ -1,6 +1,7 @@
 import "server-only";
 import { createClient } from "@waytara/supabase/server";
 import type { CustomerDevice } from "./selected-site";
+import { getDisabledCategories } from "./device-feature-flags";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -53,7 +54,7 @@ export async function fetchDeviceSettingFields(supabase: SupabaseServerClient, d
   const empty: DeviceSettingsCatalog = { fieldsByCategory: new Map(), enumOptionsByRef: new Map() };
   if (!stockId) return empty;
 
-  const [{ data: mapRows }, { data: disabledFlags }] = await Promise.all([
+  const [{ data: mapRows }, disabledCategories] = await Promise.all([
     supabase
       .from("device_parameter_map")
       .select(
@@ -62,10 +63,9 @@ export async function fetchDeviceSettingFields(supabase: SupabaseServerClient, d
       .eq("stock_id", stockId)
       .eq("is_enabled", true)
       .eq("instrument_catalog.direction", "write"),
-    supabase.from("device_feature_flags").select("category").eq("device_id", device.id).eq("is_enabled", false),
+    getDisabledCategories(supabase, device.id),
   ]);
 
-  const disabledCategories = new Set((disabledFlags ?? []).map((f) => f.category));
   const rows = (mapRows ?? []).filter(
     (r) => !r.instrument_key.startsWith("tou_slot") && !disabledCategories.has(r.instrument_catalog.category)
   );

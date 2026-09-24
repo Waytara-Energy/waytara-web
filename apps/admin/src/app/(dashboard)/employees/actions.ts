@@ -6,8 +6,15 @@ import { createClient } from "@waytara/supabase/server";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { sendEmployeeInviteEmail } from "@/lib/send-employee-invite-email";
+import type { Database } from "@waytara/supabase";
 
 const INVITE_EXPIRY_DAYS = 7;
+
+const STAFF_ROLES = ["employee", "site_engineer", "admin"] as const satisfies readonly Database["waytara"]["Enums"]["user_role"][];
+type StaffRole = (typeof STAFF_ROLES)[number];
+function isStaffRole(role: string): role is StaffRole {
+  return (STAFF_ROLES as readonly string[]).includes(role);
+}
 
 export async function sendEmployeeInvite(formData: FormData) {
   const profile = await getCurrentProfile();
@@ -16,7 +23,7 @@ export async function sendEmployeeInvite(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const role = String(formData.get("role") ?? "");
 
-  if (!email || (role !== "admin" && role !== "employee")) {
+  if (!email || !isStaffRole(role)) {
     redirect(`/employees?error=${encodeURIComponent("Enter a valid email and pick a role.")}`);
   }
 
@@ -32,7 +39,7 @@ export async function sendEmployeeInvite(formData: FormData) {
 
   const { error } = await supabase.from("employee_invites").insert({
     email,
-    role: role as "admin" | "employee",
+    role,
     token,
     invited_by: profile.id,
     expires_at: expiresAt,
@@ -42,7 +49,7 @@ export async function sendEmployeeInvite(formData: FormData) {
     redirect(`/employees?error=${encodeURIComponent(error.message)}`);
   }
 
-  await sendEmployeeInviteEmail({ to: email, role: role as "admin" | "employee", token });
+  await sendEmployeeInviteEmail({ to: email, role, token });
 
   revalidatePath("/employees");
   redirect("/employees?success=invited");
@@ -75,7 +82,7 @@ export async function changeEmployeeRole(profileId: string, formData: FormData) 
   }
 
   const newRole = String(formData.get("role") ?? "");
-  if (newRole !== "admin" && newRole !== "employee") {
+  if (!isStaffRole(newRole)) {
     redirect(`/employees?error=${encodeURIComponent("Invalid role.")}`);
   }
 
