@@ -5,6 +5,15 @@ import { Footer } from "@/components/sections/footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ArrowRight, Zap } from "lucide-react";
+import { pageMetadata } from "@/lib/seo";
+
+// noindex until the guides listed here are actually published.
+export const metadata = pageMetadata({
+  title: "Knowledge Centre",
+  description: "Guides on rooftop solar net metering, battery safety, PM Surya Ghar subsidies and green-energy ROI.",
+  path: "/knowledge-centre",
+  noIndex: true,
+});
 
 export default function KnowledgeCentrePage() {
   return (

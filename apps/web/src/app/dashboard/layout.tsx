@@ -11,6 +11,7 @@ import { getCustomerPlan } from "@/lib/customer-plan";
 import { getRequestProfile, isRequestOnboarded } from "@/lib/request-profile";
 import { fetchCustomerAlerts } from "@/lib/device-overview";
 import { logout } from "./actions";
+import { NO_INDEX } from "@/lib/seo";
 
 // Reachable only as a `customer` profile — middleware.ts enforces that.
 //
@@ -27,6 +28,9 @@ import { logout } from "./actions";
 // @/lib/request-profile — this was the biggest remaining cost, since it's
 // a real network round trip to Supabase's Auth server), and the rest run
 // in two parallel batches instead of four sequential ones.
+// The customer dashboard is private; never index it.
+export const metadata = NO_INDEX;
+
 export default async function DashboardLayout({
   children,
 }: {

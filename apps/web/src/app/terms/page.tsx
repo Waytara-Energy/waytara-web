@@ -2,6 +2,7 @@ import Link from "next/link";
 import { LegalPageLayout, type LegalSection } from "@/components/legal/legal-page-layout";
 import { LegalCallout } from "@/components/legal/legal-callout";
 import { LegalSubList } from "@/components/legal/legal-sub-list";
+import { pageMetadata } from "@/lib/seo";
 
 const sections: LegalSection[] = [
   {
@@ -225,9 +226,11 @@ const sections: LegalSection[] = [
   },
 ];
 
-export const metadata = {
-  title: "Terms of Service | WayTara Energy",
-};
+export const metadata = pageMetadata({
+  title: "Terms of Service",
+  description: "The terms that govern use of WayTara Energy's website and services.",
+  path: "/terms",
+});
 
 export default function TermsPage() {
   return (

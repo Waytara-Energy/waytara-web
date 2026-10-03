@@ -1,6 +1,7 @@
 import { LegalPageLayout, type LegalSection } from "@/components/legal/legal-page-layout";
 import { LegalCallout } from "@/components/legal/legal-callout";
 import { LegalSubList } from "@/components/legal/legal-sub-list";
+import { pageMetadata } from "@/lib/seo";
 
 const sections: LegalSection[] = [
   {
@@ -121,9 +122,11 @@ const sections: LegalSection[] = [
   },
 ];
 
-export const metadata = {
-  title: "Warranty Policy | WayTara Energy",
-};
+export const metadata = pageMetadata({
+  title: "Warranty Policy",
+  description: "WayTara Energy's integrated system warranty coverage and claim process.",
+  path: "/warranty",
+});
 
 export default function WarrantyPage() {
   return (

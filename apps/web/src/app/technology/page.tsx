@@ -5,6 +5,15 @@ import { Footer } from "@/components/sections/footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Cpu, Zap, ArrowRight, ShieldCheck, Activity } from "lucide-react";
+import { pageMetadata } from "@/lib/seo";
+
+// noindex until the "coming soon" placeholder copy is replaced with real content.
+export const metadata = pageMetadata({
+  title: "Technology & Power Architecture",
+  description: "WayTara cloud gateway, sub-20ms transfer relay physics, thermal protection and microgrid telemetry.",
+  path: "/technology",
+  noIndex: true,
+});
 
 export default function TechnologyPage() {
   return (

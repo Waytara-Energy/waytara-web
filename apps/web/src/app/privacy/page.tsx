@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LegalPageLayout, type LegalSection } from "@/components/legal/legal-page-layout";
+import { pageMetadata } from "@/lib/seo";
 
 const sections: LegalSection[] = [
   {
@@ -161,9 +162,11 @@ const sections: LegalSection[] = [
   },
 ];
 
-export const metadata = {
-  title: "Privacy Policy | WayTara Energy",
-};
+export const metadata = pageMetadata({
+  title: "Privacy Policy",
+  description: "How WayTara Energy collects, uses and protects your personal information.",
+  path: "/privacy",
+});
 
 export default function PrivacyPage() {
   return (

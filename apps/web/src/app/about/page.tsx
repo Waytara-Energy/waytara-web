@@ -5,6 +5,14 @@ import { Footer } from "@/components/sections/footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { ShieldCheck, Users, Target, Zap, ArrowRight } from "lucide-react";
+import { pageMetadata } from "@/lib/seo";
+
+export const metadata = pageMetadata({
+  title: "About WayTara — Our Story & Mission",
+  description:
+    "WayTara was founded by power-systems engineers to replace fragmented solar sales with one accountable partner: honest generation estimates, integrated hardware and a real warranty.",
+  path: "/about",
+});
 
 export default function AboutPage() {
   return (

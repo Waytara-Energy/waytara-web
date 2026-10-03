@@ -95,3 +95,29 @@ Lighthouse (mobile, local, noisy because Docker runs alongside): `/` 80 → ~77 
 - **Realtime refresh throttling**: pages that re-render server-side on telemetry now refresh at most every 15 s
   (`RealtimeRefresh throttleMs`) instead of re-running the whole page every ingest tick.
 - Tests: `02_data_layer.test.sql` (16 assertions: newest-wins trigger, test data ignored, RLS, bucket math, guards).
+
+## Phase 7 — SEO / GEO / AEO
+**Biggest finding: the home page and `/solutions` were invisible to crawlers.** Both used `useSearchParams()` inside a
+`Suspense` boundary, so the prerendered HTML was only "Loading WayTara Energy…" (17 KB, no `<h1>`); the real content
+was built in the browser. Now server-rendered (104 KB / 141 KB with full content, one `<h1>` each). The query-string
+values they read (`?for=`, `?segment=`) are applied after mount instead. Lighthouse: home 77 → 82 (blocking time
+330 → 80 ms), `/solutions` 48 → 82.
+
+- **Technical SEO**: `metadataBase` on the real domain; title template; per-page title/description/canonical/Open
+  Graph/Twitter via `pageMetadata()`; canonical for `/solutions/ev_fleet` → `/solutions/ev-fleet` (no duplicate
+  content); `robots.txt`, `sitemap.xml` (14 canonical URLs), web manifest; generated 1200×630 link-preview image.
+- **Indexing rules**: login/reset/invite/quote (auth group) and `/dashboard` are `noindex`; admin app disallows all.
+  `/technology` and `/knowledge-centre` are `noindex` and out of the sitemap because they still contain
+  "coming soon" placeholder copy (thin content). Remove `noIndex` once real content is published.
+- **AEO (answer engines)**: `FAQPage` JSON-LD from the FAQs that are actually visible on each solutions page (6
+  segment pages + the consolidated FAQ on `/solutions`), `Service` and `BreadcrumbList` per segment page,
+  `Organization` + `WebSite` site-wide. XSS-safe serialisation (`<` escaped).
+- **GEO (generative engines)**: `/llms.txt` (company facts, six solutions with summaries, key pages, guidance for
+  assistants); AI crawlers are not blocked on public pages. Facts live in one place (`src/lib/site.ts`).
+- `/.well-known/security.txt` (vulnerability contact).
+- 10 unit tests lock the rules in (no duplicate/underscore sitemap URLs, private pages never listed, noindex, JSON-LD shape).
+
+**Needs the founder (marked REVIEW in `src/lib/site.ts`)**: which phone number is the public one (the site shows three);
+real social-profile URLs (footer links are bare `twitter.com` etc., so `sameAs` is omitted); founding year; content for
+the two placeholder pages; confirm Search Console / Bing Webmaster ownership once deployed; GA4 measurement ID + consent
+banner (not added — needs your property ID).

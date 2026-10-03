@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { LegalPageLayout, type LegalSection } from "@/components/legal/legal-page-layout";
+import { pageMetadata } from "@/lib/seo";
 
 const sections: LegalSection[] = [
   {
@@ -86,9 +87,11 @@ const sections: LegalSection[] = [
   },
 ];
 
-export const metadata = {
-  title: "Cookie Policy | WayTara Energy",
-};
+export const metadata = pageMetadata({
+  title: "Cookie Policy",
+  description: "How WayTara Energy uses cookies and similar technologies.",
+  path: "/cookies",
+});
 
 export default function CookiesPage() {
   return (

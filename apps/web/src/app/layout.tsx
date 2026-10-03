@@ -4,6 +4,9 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import { JsonLd } from "@/components/seo/json-ld";
+import { organizationJsonLd, websiteJsonLd } from "@/lib/seo";
+import { SITE } from "@/lib/site";
 
 // Primary Brand Font: Poppins
 const poppins = Poppins({
@@ -29,9 +32,15 @@ const outfit = Outfit({
 const ACTIVE_BRAND_FONT = poppins; // To switch to Outfit, change to: outfit
 
 export const metadata: Metadata = {
-  title: "WayTara | Intelligent Clean Energy Systems for Home, Business & Fleet",
-  description:
-    "Solar. Battery Storage. EV Charging. Monitoring — designed around your needs, installed under one trusted partner.",
+  // Resolves every relative canonical / Open Graph URL against the real domain.
+  metadataBase: new URL(SITE.url),
+  applicationName: SITE.name,
+  title: {
+    default: `WayTara | ${SITE.tagline}`,
+    // Pages pass just their own title ("About Us"); this appends the brand.
+    template: "%s | WayTara Energy",
+  },
+  description: SITE.description,
   keywords: [
     "Solar Energy",
     "Battery Energy Storage",
@@ -48,7 +57,12 @@ export const metadata: Metadata = {
     description:
       "Integrated rooftop solar, smart battery storage, and EV charging designed and installed under one accountable warranty.",
     type: "website",
+    siteName: SITE.name,
+    locale: SITE.locale,
+    url: "/",
   },
+  twitter: { card: "summary_large_image" },
+  formatDetection: { telephone: false },
 };
 
 export const viewport: Viewport = {
@@ -76,6 +90,8 @@ export default function RootLayout({
         className={`${ACTIVE_BRAND_FONT.className} min-h-screen bg-theme-bg text-theme-primary antialiased selection:bg-emerald-500 selection:text-white`}
         suppressHydrationWarning
       >
+        {/* Site-wide entity data: who the organisation is and what the site is. */}
+        <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
         <ThemeProvider
           attribute="class"
           defaultTheme="system"

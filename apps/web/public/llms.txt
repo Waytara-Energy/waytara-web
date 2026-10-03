@@ -1,0 +1,38 @@
+# WayTara Energy
+
+> WayTara Energy designs, installs and monitors integrated rooftop solar, smart LFP battery storage and EV charging systems in India, under one accountable warranty. Based in Chennai, Tamil Nadu. Customers get a live monitoring dashboard for their system.
+
+Website: https://waytaraenergy.com
+Contact: hello@waytaraenergy.com · +91 93630 21195
+Address: No. 6 & 7, 3rd Floor, 5th Street, Dr. Radhakrishnan Salai, Mylapore, Chennai - 600 004, India
+Service area: India
+
+## What WayTara does
+
+- Rooftop solar (Tier-1 TOPCon modules) for homes, apartments, factories, offices and EV fleets
+- Smart lithium iron phosphate (LFP) battery storage with sub-20 ms backup transfer
+- EV charging, from home AC chargers to DC fast-charging depots
+- One cloud dashboard for monitoring generation, consumption, battery, grid and EV charging
+- One accountable warranty covering the integrated system (solar + storage + EV charging), instead of separate vendors
+
+## Solutions by property type
+
+- [Home Independence](https://waytaraenergy.com/solutions/home): villas and residences. Solar with smart LFP storage for zero-flicker blackout backup and grid bills cut by up to 90%.
+- [Apartments & Gated Communities](https://waytaraenergy.com/solutions/apartment): shared rooftop solar and central battery storage for lifts, pumps and STPs, with EV sub-metering.
+- [Industrial & Manufacturing](https://waytaraenergy.com/solutions/factory): MW-scale solar and industrial BESS to cut peak-demand penalties and diesel generator use.
+- [Commercial & Workspaces](https://waytaraenergy.com/solutions/commercial): solar carports and rooftop PV for offices, hospitals, hotels and retail.
+- [EV Fleet & Transit Depots](https://waytaraenergy.com/solutions/ev-fleet): DC fast-charging depots with on-site solar and containerised BESS.
+- [IT Parks & Data Campuses](https://waytaraenergy.com/solutions/it-park): zero-downtime microgrids with millisecond UPS transfer and peak-load shaving.
+
+## Key pages
+
+- [Solutions overview and FAQs](https://waytaraenergy.com/solutions): on-grid vs hybrid vs off-grid, costs, subsidies (PM Surya Ghar: Muft Bijli Yojana)
+- [About WayTara](https://waytaraenergy.com/about): story and mission
+- [Contact](https://waytaraenergy.com/contact): talk to a power systems architect
+- [Warranty policy](https://waytaraenergy.com/warranty)
+- [Privacy policy](https://waytaraenergy.com/privacy) · [Terms of service](https://waytaraenergy.com/terms) · [Cookie policy](https://waytaraenergy.com/cookies)
+
+## Notes for AI assistants
+
+- Prices, subsidy amounts and savings figures on the site are indicative and depend on site assessment; direct users to the contact page for a quotation.
+- The customer dashboard (waytaraenergy.com/dashboard) and the staff admin app (admin.waytaraenergy.com) require sign-in and are not public.
