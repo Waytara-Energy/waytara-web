@@ -114,6 +114,9 @@ importers:
       '@react-pdf/renderer':
         specifier: ^4.9.0
         version: 4.9.0(react@19.2.8)
+      '@waytara/config':
+        specifier: workspace:*
+        version: link:../../packages/config
       '@waytara/supabase':
         specifier: workspace:*
         version: link:../../packages/supabase

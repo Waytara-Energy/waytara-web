@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isCronAuthorized } from "@/lib/cron-auth";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
 
 // Task 12.1: device-offline detection. Meant to run on a schedule hitting
@@ -18,20 +19,8 @@ import { createServiceRoleClient } from "@waytara/supabase/service-role";
 const OFFLINE_THRESHOLD_HOURS = 6;
 const OFFLINE_MESSAGE_PREFIX = "Device offline";
 
-function isAuthorized(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    // No secret configured — allowed, but logged, so local/dev testing
-    // isn't blocked. Set CRON_SECRET in production so this endpoint can't
-    // be triggered by anyone who finds the URL.
-    console.warn("[cron/detect-alerts] CRON_SECRET not set — running unauthenticated.");
-    return true;
-  }
-  return req.headers.get("authorization") === `Bearer ${secret}`;
-}
-
 export async function GET(req: NextRequest) {
-  if (!isAuthorized(req)) {
+  if (!isCronAuthorized(req, "detect-alerts")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

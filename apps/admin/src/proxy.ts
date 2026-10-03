@@ -49,17 +49,15 @@ export async function proxy(request: NextRequest) {
   return getResponse();
 }
 
+// Secure by default: the proxy runs for EVERY path except the explicitly
+// public ones below, so a newly added route (a page or a route handler) is
+// staff-gated automatically instead of being silently open until someone
+// remembers to list it. Public: the auth pages, the OAuth/email callback,
+// Next's static assets and the app icons. The bare "/" is excluded too — it
+// only redirects (to /dashboard or /login) and must not show a spurious
+// "please sign in" toast to someone just typing the domain.
 export const config = {
   matcher: [
-    "/dashboard/:path*",
-    "/leads/:path*",
-    "/onboarding/:path*",
-    "/support/:path*",
-    "/customers/:path*",
-    "/employees/:path*",
-    "/plans/:path*",
-    "/devices/:path*",
-    "/service-plans/:path*",
-    "/audit/:path*",
+    "/((?!login|forgot-password|reset-password|invite|auth/callback|_next/|favicon|icon|apple-icon|robots|sitemap).+)",
   ],
 };

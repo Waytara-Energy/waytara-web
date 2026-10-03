@@ -1512,6 +1512,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      consume_rate_limit: {
+        Args: { p_bucket: string; p_key: string; p_max: number; p_window_seconds: number }
+        Returns: boolean
+      }
       is_admin: { Args: never; Returns: boolean }
       is_site_engineer_or_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }

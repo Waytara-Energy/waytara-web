@@ -883,7 +883,7 @@ export default async function OnboardingPipelinePage({
             </div>
             {activeQuotation.pdf_url && (
               <a
-                href={activeQuotation.pdf_url}
+                href={`/quotations/${activeQuotation.id}/pdf`}
                 target="_blank"
                 rel="noreferrer"
                 className="text-sm text-primary hover:underline"
@@ -959,7 +959,14 @@ export default async function OnboardingPipelinePage({
                   <span>
                     {q.plan?.name ?? "Plan"} — ₹{Number(q.total_amount).toLocaleString("en-IN")}
                   </span>
-                  <span className="capitalize">{q.status.replace(/_/g, " ")}</span>
+                  <span className="flex items-center gap-3">
+                    {q.pdf_url && (
+                      <a href={`/quotations/${q.id}/pdf`} target="_blank" rel="noreferrer" className="text-primary hover:underline">
+                        PDF
+                      </a>
+                    )}
+                    <span className="capitalize">{q.status.replace(/_/g, " ")}</span>
+                  </span>
                 </div>
                 {q.customer_message && (
                   <p className="mt-0.5 text-xs italic">&ldquo;{q.customer_message}&rdquo;</p>

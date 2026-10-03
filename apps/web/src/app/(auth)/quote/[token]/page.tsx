@@ -40,7 +40,7 @@ export default async function QuotePage({
   const { data: quotation } = await service
     .from("quotations")
     .select(
-      "id, status, pricing_breakdown, subtotal_amount, gst_rate, gst_amount, total_amount, valid_until, plan:plans(name, price_monthly), lead:leads(full_name, email)"
+      "id, status, pdf_url, pricing_breakdown, subtotal_amount, gst_rate, gst_amount, total_amount, valid_until, plan:plans(name, price_monthly), lead:leads(full_name, email)"
     )
     .eq("access_token", token)
     .maybeSingle();
@@ -74,6 +74,14 @@ export default async function QuotePage({
         <div className="max-w-sm space-y-2 text-center">
           <h1 className="text-xl font-semibold text-theme-primary">{copy.title}</h1>
           <p className="text-sm text-theme-muted">{copy.body}</p>
+          {quotation.status === "accepted" && quotation.pdf_url && (
+            <a
+              href={`/quote/${token}/pdf`}
+              className="inline-block pt-2 text-sm font-medium text-theme-highlight underline underline-offset-4"
+            >
+              Download your quotation (PDF)
+            </a>
+          )}
         </div>
       </div>
     );

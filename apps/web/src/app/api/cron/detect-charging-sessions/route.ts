@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { isCronAuthorized } from "@/lib/cron-auth";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
 
 // Phase 0 of the multi-device-type dashboard roadmap (see
@@ -12,17 +13,8 @@ import { createServiceRoleClient } from "@waytara/supabase/service-role";
 // a manual/local/CI trigger for now.
 const CHARGING_STATUS = 2;
 
-function isAuthorized(req: NextRequest): boolean {
-  const secret = process.env.CRON_SECRET;
-  if (!secret) {
-    console.warn("[cron/detect-charging-sessions] CRON_SECRET not set — running unauthenticated.");
-    return true;
-  }
-  return req.headers.get("authorization") === `Bearer ${secret}`;
-}
-
 export async function GET(req: NextRequest) {
-  if (!isAuthorized(req)) {
+  if (!isCronAuthorized(req, "detect-charging-sessions")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 

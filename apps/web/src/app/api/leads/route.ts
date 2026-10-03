@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { createClient } from "@waytara/supabase/server";
 import { notifyTeamOfNewLead } from "@/lib/notify-team";
+import { allowRequest, clientIp } from "@/lib/rate-limit";
 
 const leadSchema = z.object({
   fullName: z.string().min(2, "Name is required"),
@@ -31,23 +32,12 @@ const leadSchema = z.object({
   website: z.string().optional(),
 });
 
-// In-memory sliding-window rate limit, per IP. Resets on cold start and
-// isn't shared across serverless instances — a real deterrent against
-// basic scripted spam, not a guarantee against a determined/distributed
-// attacker. Upstash/Vercel KV would fix that gap if it becomes one.
-const RATE_LIMIT_WINDOW_MS = 10 * 60 * 1000;
-const RATE_LIMIT_MAX = 5;
-const submissionLog = new Map<string, number[]>();
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const timestamps = (submissionLog.get(ip) ?? []).filter(
-    (t) => now - t < RATE_LIMIT_WINDOW_MS
-  );
-  timestamps.push(now);
-  submissionLog.set(ip, timestamps);
-  return timestamps.length > RATE_LIMIT_MAX;
-}
+// Rate limiting is Postgres-backed (see lib/rate-limit.ts): per client IP, plus
+// a global ceiling so a distributed flood still can't spam the team inbox.
+const PER_IP_MAX = 5;
+const PER_IP_WINDOW_SECONDS = 10 * 60;
+const GLOBAL_MAX = 300;
+const GLOBAL_WINDOW_SECONDS = 60 * 60;
 
 function formatContext(data: z.infer<typeof leadSchema>): string | null {
   const lines: string[] = [];
@@ -79,9 +69,12 @@ function formatContext(data: z.infer<typeof leadSchema>): string | null {
 
 export async function POST(req: NextRequest) {
   try {
-    const ip = req.headers.get("x-forwarded-for")?.split(",")[0]?.trim() || "unknown";
+    const ip = clientIp(req.headers);
 
-    if (isRateLimited(ip)) {
+    const allowed =
+      (await allowRequest("leads:ip", ip, PER_IP_MAX, PER_IP_WINDOW_SECONDS)) &&
+      (await allowRequest("leads:global", "all", GLOBAL_MAX, GLOBAL_WINDOW_SECONDS));
+    if (!allowed) {
       return NextResponse.json(
         { success: false, error: "Too many requests. Please try again later." },
         { status: 429 }

@@ -176,6 +176,20 @@ export async function submitQuoteAccept(token: string, formData: FormData) {
     balanceAmount,
   });
 
+  // Keep a copy in the PRIVATE quotation-pdfs bucket and record its path, so
+  // the customer (via the signed-link route on the quote page) and staff can
+  // re-download it later; the emailed attachment is no longer the only copy.
+  // A storage failure must not undo the acceptance, so it is logged only.
+  const pdfPath = `${quotation.id}.pdf`;
+  const { error: pdfUploadError } = await service.storage
+    .from("quotation-pdfs")
+    .upload(pdfPath, pdfBuffer, { contentType: "application/pdf", upsert: true });
+  if (pdfUploadError) {
+    console.error("[quote] could not store quotation PDF:", pdfUploadError.message);
+  } else {
+    await service.from("quotations").update({ pdf_url: pdfPath }).eq("id", quotation.id);
+  }
+
   // Mint the account-creation invite now, same shape as admin's retired
   // advanceToAccountCreatedAndInvite — the customer_onboarding row already
   // exists (created when the employee started this lead's onboarding), so
