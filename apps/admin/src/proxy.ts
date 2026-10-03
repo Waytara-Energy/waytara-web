@@ -58,6 +58,8 @@ export async function proxy(request: NextRequest) {
 // "please sign in" toast to someone just typing the domain.
 export const config = {
   matcher: [
-    "/((?!login|forgot-password|reset-password|invite|auth/callback|_next/|favicon|icon|apple-icon|robots|sitemap).+)",
+    // Static assets (/images/..., anything with a file extension) must stay
+    // reachable while logged out: the login page itself uses them.
+    "/((?!login|forgot-password|reset-password|invite|auth/callback|_next/|images/|favicon|icon|apple-icon|robots|sitemap|.*\\.(?:svg|png|jpg|jpeg|gif|webp|avif|ico|txt|xml|webmanifest)$).+)",
   ],
 };

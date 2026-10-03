@@ -121,3 +121,21 @@ values they read (`?for=`, `?segment=`) are applied after mount instead. Lightho
 real social-profile URLs (footer links are bare `twitter.com` etc., so `sameAs` is omitted); founding year; content for
 the two placeholder pages; confirm Search Console / Bing Webmaster ownership once deployed; GA4 measurement ID + consent
 banner (not added — needs your property ID).
+
+## Phase 6 (continued) — End-to-end tests
+`pnpm test:e2e` (Playwright, 26 tests) boots both apps in dev mode against the **local** Supabase stack
+(`e2e/support/local-supabase.ts` refuses any non-local URL) and seeds a customer, admin and employee. Covers:
+- Public site: server-rendered HTML for crawlers, JSON-LD types, canonical aliasing, robots/sitemap/llms.txt,
+  noindex rules, security headers.
+- Access control: anonymous redirects (including a brand-new unknown admin route), customer refused by admin app and
+  staff refused by customer app, employee blocked from admin-only pages, forged/malformed quotation tokens, PDF routes.
+- Auth flows: wrong password, successful sign-in, session survives reload.
+- Accessibility (axe, WCAG A/AA): critical violations fail the build.
+- A regression test for a bug the suite itself found: the secure-by-default admin proxy briefly blocked `/images/*`, breaking
+  the login hero image for logged-out users (matcher now exempts static assets).
+
+**Accessibility debt logged by axe (serious, not yet failing the build):** colour contrast on `/login` (2), `/contact`
+(1) and `/solutions/home` (17 nodes), and a link-in-text-block on `/login`. Fix in a design pass.
+
+Also fixed: pnpm 11 left `esbuild: set this to true or false` in `pnpm-workspace.yaml`, which makes every
+`pnpm install` / `pnpm exec` exit non-zero (would have failed CI). Approved as `true`.

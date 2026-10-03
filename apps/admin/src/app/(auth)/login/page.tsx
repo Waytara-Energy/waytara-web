@@ -20,7 +20,7 @@ export default function LoginPage() {
           shown here from the operations side rather than the resident's. */}
       <div className="relative hidden w-1/2 lg:block">
         <Image
-          src="/images/login-light.png"
+          src="/images/login-light.webp"
           alt="A WayTara-equipped home with rooftop solar and an EV charger, in daylight"
           fill
           priority
@@ -28,7 +28,7 @@ export default function LoginPage() {
           className="theme-media-light object-cover"
         />
         <Image
-          src="/images/login-dark.png"
+          src="/images/login-dark.webp"
           alt="A WayTara-equipped home with rooftop solar and an EV charger, at night"
           fill
           priority
