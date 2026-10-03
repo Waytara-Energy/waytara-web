@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { notify } from "@waytara/ui/notify";
 
@@ -16,7 +16,7 @@ import { notify } from "@waytara/ui/notify";
  *  real text, or `successMessages` to map the param's value (e.g. an action
  *  slug like "invited") to its display text — a value with no entry shows
  *  nothing, same as the inline banners this replaces. */
-export function ToastFromSearchParams({
+function ToastFromSearchParamsInner({
   errorParam = "error",
   successParam = "success",
   successMessage,
@@ -61,4 +61,17 @@ export function ToastFromSearchParams({
   }, [error, success]);
 
   return null;
+}
+
+type ToastFromSearchParamsProps = React.ComponentProps<typeof ToastFromSearchParamsInner>;
+
+/** useSearchParams() forces a client-side render bailout, so Next requires
+ *  a Suspense boundary above it or static prerender of the page fails.
+ *  Wrapped here once so every page can drop this in without its own. */
+export function ToastFromSearchParams(props: ToastFromSearchParamsProps) {
+  return (
+    <Suspense fallback={null}>
+      <ToastFromSearchParamsInner {...props} />
+    </Suspense>
+  );
 }

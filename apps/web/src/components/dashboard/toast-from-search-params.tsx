@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { Suspense, useEffect, useRef } from "react";
 import { useRouter, usePathname, useSearchParams } from "next/navigation";
 import { notify } from "@waytara/ui/notify";
 
@@ -15,7 +15,7 @@ import { notify } from "@waytara/ui/notify";
  *  Error toasts are `important` (no close button — it has to actually be
  *  read, not reflex-dismissed next to the button that caused it); success
  *  toasts are routine and dismissible. */
-export function ToastFromSearchParams({
+function ToastFromSearchParamsInner({
   errorParam = "error",
   successParam = "success",
   successMessage = "Saved.",
@@ -59,4 +59,17 @@ export function ToastFromSearchParams({
   }, [error, success]);
 
   return null;
+}
+
+type ToastFromSearchParamsProps = React.ComponentProps<typeof ToastFromSearchParamsInner>;
+
+/** useSearchParams() forces a client-side render bailout, so Next requires
+ *  a Suspense boundary above it or static prerender of the page fails.
+ *  Wrapped here once so every page can drop this in without its own. */
+export function ToastFromSearchParams(props: ToastFromSearchParamsProps) {
+  return (
+    <Suspense fallback={null}>
+      <ToastFromSearchParamsInner {...props} />
+    </Suspense>
+  );
 }
