@@ -513,7 +513,7 @@ export function ChargingSessionsCarousel({
         <div className="flex flex-col gap-6 sm:flex-row">
           <div className="relative aspect-[16/10] w-full shrink-0 overflow-hidden rounded-2xl sm:aspect-auto sm:min-h-[420px] sm:w-[38%]">
             <Image
-              src="/images/ev-charging-car.png"
+              src="/images/ev-charging-car.webp"
               alt=""
               fill
               sizes="(min-width: 640px) 38vw, 100vw"

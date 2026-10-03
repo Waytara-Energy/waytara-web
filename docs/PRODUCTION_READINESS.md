@@ -66,3 +66,15 @@ telemetry insert avg 75 ms/call; 52 of 109 RLS policies use bare `auth.uid()`.
   (self-promotion to admin, moving/renaming another customer's device, forging telemetry), employee scoping,
   audit-log immutability (even for admins), rate limiter, private quotation bucket. `pnpm --filter @waytara/supabase test:db`.
 - CI runs lint, type-check, unit tests, build, dependency audit, CodeQL, and the database suite.
+
+## Phase 3 — Performance quick wins (measured)
+| Change | Effect |
+|---|---|
+| Compressed/resized oversized media (18 MB house photo → 193 KB, login PNGs 9.1 MB → 0.4 MB WebP, hero video 7.5 → 2.2 MB, EV image 957 → 89 KB); checked visually | `public/` **44 MB → 5.7 MB** |
+| Deleted 4 unused files (incl. a byte-identical 2.3 MB duplicate) | |
+| Removed 4 `unoptimized` flags (images now served as AVIF/WebP at the right size); added `sizes` to the `/solutions` hero | `/solutions` transfer 2.8 → 0.5 MB, LCP 15.5 → ~4.2 s |
+| Replaced `framer-motion` (used only for a skeleton shimmer and a button spinner) with CSS; dependency removed | −~50 KB JS everywhere |
+| Marketing nav no longer loads the Supabase client for anonymous visitors (cookie check + dynamic import) | home first-load JS **338 → 234 KB gzip** (−65 KB) |
+
+Lighthouse (mobile, local, noisy because Docker runs alongside): `/` 80 → ~77 (TBT-bound), `/login` 90 → 91,
+`/solutions` 48 → ~65-73, transfer `/` 3.4 → 0.7 MB. Re-measure with `node scripts/first-load-js.mjs <base> <routes...>`.

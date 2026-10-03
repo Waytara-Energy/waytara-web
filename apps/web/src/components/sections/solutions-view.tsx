@@ -269,7 +269,7 @@ export function SolutionsView({ initialSegment = "home" }: SolutionsViewProps) {
             alt={activeData.name}
             fill
             priority
-            unoptimized
+            sizes="100vw"
             className="object-cover object-center"
           />
 

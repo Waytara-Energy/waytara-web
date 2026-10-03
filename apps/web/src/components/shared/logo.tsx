@@ -18,7 +18,6 @@ export function Logo({ className, isLink = true }: LogoProps) {
         width={180}
         height={48}
         priority
-        unoptimized
         className="h-[clamp(1.6rem,2.2vw,2.1rem)] w-auto object-contain transition-opacity duration-200 group-hover:opacity-90"
       />
     </div>
@@ -46,7 +45,6 @@ export function LogoMark({ className }: { className?: string }) {
       alt="WayTara"
       width={64}
       height={64}
-      unoptimized
       className={cn("object-contain", className)}
     />
   );

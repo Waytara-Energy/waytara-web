@@ -22,7 +22,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { createClient } from "@waytara/supabase/client";
 import { TEMP_HIDE_LANDING_SECTIONS } from "@/config/landing-flags";
 
 interface Account {
@@ -80,6 +79,13 @@ export function Navigation() {
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
+      // Anonymous visitors (nearly all marketing traffic) have no Supabase
+      // auth cookie — skip the whole client (~65 KB gzipped) for them. It is
+      // also a dynamic import, so for everyone else it loads after the page
+      // is interactive instead of blocking it.
+      if (!document.cookie.includes("-auth-token")) return;
+      const { createClient } = await import("@waytara/supabase/client");
+      if (cancelled) return;
       const supabase = createClient();
       const {
         data: { session },
