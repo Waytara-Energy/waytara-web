@@ -6,7 +6,6 @@ import {
   Settings,
   Activity,
   TrendingUp,
-  BarChart3,
   FileDown,
   Cpu,
   type LucideIcon,
@@ -35,8 +34,10 @@ export interface NavItem {
 export const NAV_ITEMS: NavItem[] = [
   { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
   { href: "/dashboard/monitoring", label: "Monitoring", icon: Activity, featureKey: "monitoring" },
+  // Analytics was previously its own sidebar entry/page — merged into
+  // Performance's single page (its own features.analytics gate now checked
+  // inline there, not as a second nav item/redirect-gated route).
   { href: "/dashboard/performance", label: "Performance", icon: TrendingUp, featureKey: "performance" },
-  { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3, featureKey: "analytics" },
   { href: "/dashboard/reports", label: "Reports", icon: FileDown, featureKey: "reports" },
   { href: "/dashboard/maintenance", label: "Maintenance", icon: Wrench },
   { href: "/dashboard/devices", label: "Devices", icon: Cpu },

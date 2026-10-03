@@ -1,6 +1,5 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@waytara/supabase/server";
 
@@ -59,51 +58,49 @@ function readServicePlanFields(formData: FormData) {
   };
 }
 
-export async function createServicePlan(formData: FormData) {
+export async function createServicePlan(formData: FormData): Promise<void> {
   const result = readServicePlanFields(formData);
   if (!result.ok) {
-    redirect(`/service-plans?error=${encodeURIComponent(result.error)}`);
+    throw new Error(result.error);
   }
 
   const supabase = await createClient();
   const { error } = await supabase.from("service_plans").insert(result.fields as never);
 
   if (error) {
-    redirect(`/service-plans?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   revalidatePath("/service-plans");
-  redirect("/service-plans?success=1");
 }
 
-export async function updateServicePlan(planId: string, formData: FormData) {
+export async function updateServicePlan(planId: string, formData: FormData): Promise<void> {
   const result = readServicePlanFields(formData);
   if (!result.ok) {
-    redirect(`/service-plans?error=${encodeURIComponent(result.error)}`);
+    throw new Error(result.error);
   }
 
   const supabase = await createClient();
   const { error } = await supabase.from("service_plans").update(result.fields as never).eq("id", planId);
 
   if (error) {
-    redirect(`/service-plans?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   revalidatePath("/service-plans");
-  redirect("/service-plans?success=1");
 }
 
 // Attaches a plan to one device as its active contract — end_date is
 // computed once from start_date + the plan's duration_months, then stored
 // as a plain editable column (same "computed default, not generated"
-// reasoning as devices.warranty_end_date), not recalculated afterward.
-export async function createServiceContract(formData: FormData) {
+// reasoning as equipment.warranty_end_date), not recalculated afterward.
+export async function createServiceContract(formData: FormData): Promise<void> {
   const deviceId = String(formData.get("deviceId") ?? "").trim();
   const servicePlanId = String(formData.get("servicePlanId") ?? "").trim();
   const startDateRaw = String(formData.get("startDate") ?? "").trim();
 
   if (!deviceId || !servicePlanId || !startDateRaw) {
-    redirect(`/service-plans?error=${encodeURIComponent("Device, plan, and start date are required.")}`);
+    throw new Error("Device, plan, and start date are required.");
   }
 
   const supabase = await createClient();
@@ -114,7 +111,7 @@ export async function createServiceContract(formData: FormData) {
     .maybeSingle();
 
   if (!plan) {
-    redirect(`/service-plans?error=${encodeURIComponent("Plan not found.")}`);
+    throw new Error("Plan not found.");
   }
 
   const startDate = new Date(startDateRaw);
@@ -132,18 +129,17 @@ export async function createServiceContract(formData: FormData) {
     .single();
 
   if (error || !contract) {
-    redirect(`/service-plans?error=${encodeURIComponent(error?.message ?? "Failed to create contract.")}`);
+    throw new Error(error?.message ?? "Failed to create contract.");
   }
 
   const { error: deviceError } = await supabase
-    .from("devices")
+    .from("equipment")
     .update({ service_id: contract.id })
     .eq("id", deviceId);
 
   if (deviceError) {
-    redirect(`/service-plans?error=${encodeURIComponent(deviceError.message)}`);
+    throw new Error(deviceError.message);
   }
 
   revalidatePath("/service-plans");
-  redirect("/service-plans?success=1");
 }

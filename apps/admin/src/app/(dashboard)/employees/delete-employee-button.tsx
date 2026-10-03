@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Button } from "@waytara/ui/button";
 import { Input } from "@waytara/ui/input";
+import { ActionForm } from "@waytara/ui/action-form";
 import { permanentlyDeleteEmployee } from "./actions";
 
 /**
@@ -30,7 +31,12 @@ export function DeleteEmployeeButton({ profileId, currentName }: { profileId: st
         audit log entries, and invites stay exactly as they are — pick what name those records show
         from now on:
       </p>
-      <form action={permanentlyDeleteEmployee.bind(null, profileId)} className="mt-2 flex items-center gap-2">
+      <ActionForm
+        action={permanentlyDeleteEmployee.bind(null, profileId)}
+        loading="Deleting account…"
+        success="Account permanently deleted."
+        className="mt-2 flex items-center gap-2"
+      >
         <Input name="displayName" defaultValue={currentName} className="h-8 text-xs" required />
         <Button type="submit" variant="destructive" size="sm">
           Confirm delete
@@ -38,7 +44,7 @@ export function DeleteEmployeeButton({ profileId, currentName }: { profileId: st
         <Button type="button" variant="outline" size="sm" onClick={() => setConfirming(false)}>
           Cancel
         </Button>
-      </form>
+      </ActionForm>
     </div>
   );
 }

@@ -29,15 +29,13 @@ async function loadOwnOnboarding(customerId: string) {
   return { supabase, onboarding };
 }
 
-export async function payFullAmount() {
+export async function payFullAmount(): Promise<void> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
   const { supabase, onboarding } = await loadOwnOnboarding(profile.id);
   if (!onboarding || onboarding.current_stage !== "payment_pending" || !onboarding.quotation_id) {
-    redirect(
-      `/dashboard/onboarding-status?error=${encodeURIComponent("No payment is due right now.")}`
-    );
+    throw new Error("No payment is due right now.");
   }
 
   const { data: quotation } = await supabase
@@ -47,9 +45,7 @@ export async function payFullAmount() {
     .single();
 
   if (!quotation || quotation.payment_option !== "full") {
-    redirect(
-      `/dashboard/onboarding-status?error=${encodeURIComponent("This quote isn't set up for a full payment.")}`
-    );
+    throw new Error("This quote isn't set up for a full payment.");
   }
 
   const { error } = await supabase.from("payments").insert({
@@ -63,24 +59,21 @@ export async function payFullAmount() {
   });
 
   if (error) {
-    redirect(`/dashboard/onboarding-status?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   await supabase.from("customer_onboarding").update({ current_stage: "site_setup" }).eq("id", onboarding.id);
 
   revalidatePath("/dashboard/onboarding-status");
-  redirect("/dashboard/onboarding-status");
 }
 
-export async function payAdvanceAmount() {
+export async function payAdvanceAmount(): Promise<void> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
   const { supabase, onboarding } = await loadOwnOnboarding(profile.id);
   if (!onboarding || onboarding.current_stage !== "payment_pending" || !onboarding.quotation_id) {
-    redirect(
-      `/dashboard/onboarding-status?error=${encodeURIComponent("No payment is due right now.")}`
-    );
+    throw new Error("No payment is due right now.");
   }
 
   const { data: quotation } = await supabase
@@ -95,9 +88,7 @@ export async function payAdvanceAmount() {
     quotation.advance_amount == null ||
     quotation.balance_amount == null
   ) {
-    redirect(
-      `/dashboard/onboarding-status?error=${encodeURIComponent("This quote isn't set up for a split payment.")}`
-    );
+    throw new Error("This quote isn't set up for a split payment.");
   }
 
   const { error } = await supabase.from("payments").insert([
@@ -121,7 +112,7 @@ export async function payAdvanceAmount() {
   ]);
 
   if (error) {
-    redirect(`/dashboard/onboarding-status?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   await supabase
@@ -130,5 +121,4 @@ export async function payAdvanceAmount() {
     .eq("id", onboarding.id);
 
   revalidatePath("/dashboard/onboarding-status");
-  redirect("/dashboard/onboarding-status");
 }

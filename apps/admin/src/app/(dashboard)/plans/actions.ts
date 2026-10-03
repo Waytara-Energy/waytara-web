@@ -1,19 +1,18 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@waytara/supabase/server";
 
 const FEATURE_KEYS = ["monitoring", "performance", "analytics", "reports", "instrument_settings"] as const;
 
-export async function updatePlan(planId: string, formData: FormData) {
+export async function updatePlan(planId: string, formData: FormData): Promise<void> {
   const priceMonthly = Number(formData.get("priceMonthly"));
   const priceYearlyRaw = String(formData.get("priceYearly") ?? "").trim();
   const maxDevicesRaw = String(formData.get("maxDevices") ?? "").trim();
   const isActive = formData.get("isActive") === "on";
 
   if (!Number.isFinite(priceMonthly) || priceMonthly < 0) {
-    redirect(`/plans?error=${encodeURIComponent("Monthly price must be a valid number.")}`);
+    throw new Error("Monthly price must be a valid number.");
   }
 
   const features: Record<string, boolean> = {};
@@ -34,9 +33,8 @@ export async function updatePlan(planId: string, formData: FormData) {
     .eq("id", planId);
 
   if (error) {
-    redirect(`/plans?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   revalidatePath("/plans");
-  redirect("/plans?success=1");
 }

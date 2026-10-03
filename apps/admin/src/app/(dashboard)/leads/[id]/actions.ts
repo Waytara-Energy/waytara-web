@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@waytara/supabase/server";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 
-export async function assignLead(leadId: string, formData: FormData) {
+export async function assignLead(leadId: string, formData: FormData): Promise<void> {
   const profile = await getCurrentProfile();
   if (profile?.role !== "admin") {
     // RLS (leads_admin_update) would block this anyway — this is just a
@@ -14,7 +14,7 @@ export async function assignLead(leadId: string, formData: FormData) {
   }
 
   const employeeId = String(formData.get("employeeId") ?? "");
-  if (!employeeId) return;
+  if (!employeeId) throw new Error("Select an employee to assign.");
 
   const supabase = await createClient();
   const { error } = await supabase
@@ -23,7 +23,7 @@ export async function assignLead(leadId: string, formData: FormData) {
     .eq("id", leadId);
 
   if (error) {
-    console.error("assignLead failed:", error.message);
+    throw new Error(error.message);
   }
 
   revalidatePath(`/leads/${leadId}`);
@@ -34,27 +34,27 @@ export async function assignLead(leadId: string, formData: FormData) {
 // this" marker from the employee, distinct from merely being assigned
 // (an admin action the employee didn't necessarily see yet). Gates
 // startOnboarding below — see canStartOnboarding on the detail page.
-export async function acceptLeadAssignment(leadId: string) {
+export async function acceptLeadAssignment(leadId: string): Promise<void> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
   const supabase = await createClient();
   const { data: lead } = await supabase.from("leads").select("assigned_to").eq("id", leadId).single();
   if (lead?.assigned_to !== profile.id) {
-    redirect(`/leads/${leadId}?error=${encodeURIComponent("Only the assigned employee can accept this lead.")}`);
+    throw new Error("Only the assigned employee can accept this lead.");
   }
 
   const { error } = await supabase.from("leads").update({ accepted_at: new Date().toISOString() }).eq("id", leadId);
 
   if (error) {
-    redirect(`/leads/${leadId}?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   revalidatePath(`/leads/${leadId}`);
   revalidatePath("/leads");
 }
 
-export async function startOnboarding(leadId: string) {
+export async function startOnboarding(leadId: string): Promise<void> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
@@ -82,12 +82,11 @@ export async function startOnboarding(leadId: string) {
   });
 
   if (error) {
-    console.error("startOnboarding failed:", error.message);
-    redirect(`/leads/${leadId}?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
+  // Task 8 (the pipeline UI) doesn't exist yet — the lead detail page
+  // itself now shows the onboarding row that was just created, via its
+  // own revalidatePath below (no separate pipeline page to redirect to).
   revalidatePath(`/leads/${leadId}`);
-  // Task 8 (the pipeline UI) doesn't exist yet — land back on the lead
-  // detail page, which now shows the onboarding row that was just created.
-  redirect(`/leads/${leadId}`);
 }

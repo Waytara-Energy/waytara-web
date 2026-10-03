@@ -8,10 +8,23 @@ import { cn } from "@waytara/ui/cn";
 // Same mounted-guard pattern as apps/web's shared/theme-toggle.tsx —
 // `theme` is undefined until after hydration (defaultTheme="system" in
 // layout.tsx), so a real icon can't be picked on the server render.
+// useSyncExternalStore instead of useState+useEffect(() => setMounted
+// (true)) — the getSnapshot/getServerSnapshot split (true vs false) gives
+// the same "false" on the server/first paint, "true" after, with no
+// extra render from a synchronous setState inside an effect.
+function subscribe() {
+  return () => {};
+}
+function getSnapshot() {
+  return true;
+}
+function getServerSnapshot() {
+  return false;
+}
+
 export function ThemeToggle({ className }: { className?: string }) {
   const { theme, setTheme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
-  React.useEffect(() => setMounted(true), []);
+  const mounted = React.useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
 
   if (!mounted) {
     return (

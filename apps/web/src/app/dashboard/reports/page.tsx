@@ -1,11 +1,20 @@
 import { redirect } from "next/navigation";
+import { FileText } from "lucide-react";
+import { createClient } from "@waytara/supabase/server";
 import { gatherReportData, toWeeklyRows } from "@/lib/gather-report-data";
+import { fetchDashboardFields, fetchFieldValues, resolveComputedValues, type FieldValue } from "@/lib/template-fields";
+import { DynamicFieldGroup } from "@/components/dashboard/dynamic-field-group";
 import { ReportControls } from "@/components/dashboard/report-controls";
-import { DevicePicker } from "@/components/dashboard/device-picker";
-import { DeviceDetailsCard } from "@/components/dashboard/device-details-card";
+import { DeviceSwitcher } from "@/components/dashboard/device-switcher";
+import { ChartEmptyState } from "@/components/dashboard/chart-empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 
 const DEFAULT_DAYS = 90;
+
+function groupTitle(category: string, groupName: string | null): string {
+  return groupName ? `${category} — ${groupName}` : category;
+}
 
 // Server-side gate, matching Monitoring/Performance/Analytics — a customer
 // on a plan without the "reports" feature (only Advance has it) gets
@@ -20,51 +29,94 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const weeks = toWeeklyRows(report.daily, 8);
   const device = report.site && report.deviceId ? (report.site.devices.find((d) => d.id === report.deviceId) ?? null) : null;
 
+  // The new equipment_templates inventory has no Reports-section rows for
+  // ev_charger at all (confirmed via direct query) — every Reports field
+  // is solar-only, so this section is skipped entirely for any other
+  // category rather than rendering an empty shell.
+  let reportSections: Awaited<ReturnType<typeof fetchDashboardFields>> = [];
+  let getFieldValue: (key: string) => FieldValue = () => null;
+  if (device && device.deviceType?.category === "solar_inverter") {
+    const supabase = await createClient();
+    reportSections = await fetchDashboardFields(supabase, device, "Reports");
+    const dynamicFields = reportSections.flatMap((s) => s.groups.flatMap((g) => g.fields));
+    const dynamicKeys = dynamicFields.map((f) => f.key);
+    // total_pv_energy_kwh is Monitoring-owned, cross-referenced for
+    // co2_saved_kg/trees_equivalent's own resolvers (same reuse pattern
+    // every other phase already established).
+    const rawValues = await fetchFieldValues(supabase, device.id, [...dynamicKeys, "total_pv_energy_kwh"]);
+    const values = resolveComputedValues(dynamicFields, rawValues, device);
+    // savings_amount is this exact page's own totalSaved figure
+    // (totalKwh * tariffRate over the selected period) — gatherReportData
+    // already computes it for the weekly table above, reused here rather
+    // than recomputed.
+    getFieldValue = (key) => (key === "savings_amount" ? report.totalSaved : (values.get(key) ?? null));
+  }
+
   return (
-    <div className="max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-theme-primary">Reports</h1>
-        <p className="mt-1 text-sm text-theme-muted">
-          {report.deviceLabel
-            ? `Export ${report.deviceLabel}'s energy and savings data as CSV or PDF.`
-            : "Export your energy and savings data as CSV or PDF."}
-        </p>
-      </div>
-
-      {report.site && device && <DevicePicker devices={report.site.devices} selectedId={device.id} />}
-      {device && <DeviceDetailsCard device={device} />}
-
-      <div className="rounded-xl border border-theme-border bg-theme-bg p-4">
-        <ReportControls defaultDays={DEFAULT_DAYS} deviceId={report.deviceId} />
-      </div>
-
-      <div className="rounded-xl border border-theme-border bg-theme-bg p-4">
-        <h2 className="mb-3 text-sm font-semibold text-theme-primary">Weekly yield (last 8 weeks)</h2>
-        {weeks.length === 0 ? (
-          <p className="text-sm text-theme-muted">No readings yet.</p>
-        ) : (
-          <div className="overflow-x-auto rounded-lg border border-theme-border">
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Week</TableHead>
-                  <TableHead className="text-right">Yield</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {weeks.map((w) => (
-                  <TableRow key={w.label}>
-                    <TableCell className="text-foreground">{w.label}</TableCell>
-                    <TableCell className="text-right tabular-nums text-muted-foreground">
-                      {w.kwh.toFixed(1)} kWh
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
+    <div className="space-y-6">
+      {!device ? (
+        <Empty className="border">
+          <EmptyHeader>
+            <EmptyMedia variant="icon">
+              <FileText />
+            </EmptyMedia>
+            <EmptyTitle>No devices yet</EmptyTitle>
+            <EmptyDescription>Your WayTara advisor sets this up during installation.</EmptyDescription>
+          </EmptyHeader>
+        </Empty>
+      ) : (
+        <>
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <DeviceSwitcher devices={report.site?.devices ?? [device]} selectedId={device.id} />
+              <p className="mt-1 text-sm text-theme-muted">Export this device&apos;s energy and savings data as CSV or PDF.</p>
+            </div>
           </div>
-        )}
-      </div>
+
+          <div className="rounded-xl border border-theme-border bg-theme-bg p-4">
+            <ReportControls defaultDays={DEFAULT_DAYS} deviceId={report.deviceId} />
+          </div>
+
+          <div className="rounded-xl border border-theme-border bg-theme-bg p-4">
+            <h2 className="mb-3 text-sm font-semibold text-theme-primary">Weekly yield (last 8 weeks)</h2>
+            {weeks.length === 0 ? (
+              <ChartEmptyState />
+            ) : (
+              <div className="overflow-x-auto rounded-lg border border-theme-border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Week</TableHead>
+                      <TableHead className="text-right">Yield</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {weeks.map((w) => (
+                      <TableRow key={w.label}>
+                        <TableCell className="text-foreground">{w.label}</TableCell>
+                        <TableCell className="text-right tabular-nums text-muted-foreground">
+                          {w.kwh.toFixed(1)} kWh
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            )}
+          </div>
+
+          {reportSections.map((section) =>
+            section.groups.map((group) => (
+              <DynamicFieldGroup
+                key={`${section.category}-${group.groupName ?? ""}`}
+                title={groupTitle(section.category, group.groupName)}
+                fields={group.fields}
+                getValue={getFieldValue}
+              />
+            ))
+          )}
+        </>
+      )}
     </div>
   );
 }

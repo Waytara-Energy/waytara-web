@@ -2,17 +2,15 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
+import { ToastFromSearchParams } from "@/components/dashboard/toast-from-search-params";
 import { acceptCustomerInvite } from "./actions";
 
 export default async function CustomerInvitePage({
   params,
-  searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ error?: string }>;
 }) {
   const { token } = await params;
-  const { error } = await searchParams;
 
   const service = createServiceRoleClient();
   const { data: onboarding } = await service
@@ -58,11 +56,7 @@ export default async function CustomerInvitePage({
           </p>
         </div>
 
-        {error ? (
-          <div className="rounded-lg border border-theme-border bg-theme-alert-subtle px-4 py-3 text-sm text-theme-alert">
-            {error}
-          </div>
-        ) : null}
+        <ToastFromSearchParams />
 
         <form action={action} className="space-y-4">
           <div className="space-y-1.5">

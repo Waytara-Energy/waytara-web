@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
+import { ChartEmptyState } from "./chart-empty-state";
 
 export interface HeatmapRow {
   key: string;
@@ -21,8 +22,8 @@ export interface HeatmapRow {
 }
 
 interface RealtimeDeviceReadingRow {
-  device_id: string;
-  instrument_key: string;
+  equipment_id: string;
+  key_name: string;
   value: number | null;
   ts: string;
   is_test: boolean;
@@ -95,8 +96,11 @@ export function TemperatureHeatmap({
     const supabase = createClient();
     const cacheKey = `${deviceId}|${rowKeysJoined}|${bucketMinutes}`;
 
+    // Same instant-repaint-on-revisit reasoning as BarTrendChart's own
+    // cache-hit fast path — deliberately synchronous, not deferred.
     const cached = heatmapCache.get(cacheKey);
     if (cached) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setBucketed(cached);
       setLoaded(true);
     }
@@ -116,8 +120,8 @@ export function TemperatureHeatmap({
           sums.set(bucket, Object.fromEntries(rowKeys.map((k) => [k, 0])));
           counts.set(bucket, Object.fromEntries(rowKeys.map((k) => [k, 0])));
         }
-        sums.get(bucket)![r.instrument_key] += r.value;
-        counts.get(bucket)![r.instrument_key] += 1;
+        sums.get(bucket)![r.key_name] += r.value;
+        counts.get(bucket)![r.key_name] += 1;
       }
 
       // Always every bucket of the full day, not just up through "now" —
@@ -151,14 +155,14 @@ export function TemperatureHeatmap({
   // debounce on top of the shared realtime channel's ~300ms batching or a
   // single tick fires several uncollapsed refetches back-to-back.
   useRealtimeTable<RealtimeDeviceReadingRow>(
-    "device_readings",
+    "equipment_telemetry",
     "INSERT",
-    `device_id=eq.${deviceId}`,
+    `equipment_id=eq.${deviceId}`,
     React.useCallback(
       (payload: RealtimeRowEvent<RealtimeDeviceReadingRow>) => {
         const row = payload.new;
         if (row.is_test) return;
-        if (!rowKeys.includes(row.instrument_key)) return;
+        if (!rowKeys.includes(row.key_name)) return;
         if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
         realtimeDebounceRef.current = setTimeout(() => fetchRef.current(), 500);
       },
@@ -204,7 +208,7 @@ export function TemperatureHeatmap({
           <CardTitle className="text-sm">{title}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="py-8 text-center text-sm text-muted-foreground">No live data yet.</p>
+          <ChartEmptyState />
         </CardContent>
       </Card>
     );

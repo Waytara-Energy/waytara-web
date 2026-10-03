@@ -9,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/shared/reveal";
 import { TEMP_HIDE_LANDING_SECTIONS } from "@/config/landing-flags";
 import { cn } from "@/lib/utils";
+import { useHasMounted } from "@/hooks/use-has-mounted";
 
 // TEMPORARY — requested 2026-09-07 to trial theme-aware static hero images
 // in place of the background video, without touching the video itself.
@@ -22,9 +23,8 @@ export function Hero() {
   // is undefined until after hydration (defaultTheme="system" in
   // layout.tsx), so we can't pick light/dark art on the server render.
   const { resolvedTheme } = useTheme();
-  const [mounted, setMounted] = React.useState(false);
+  const mounted = useHasMounted();
   const [isDark, setIsDark] = React.useState(false);
-  React.useEffect(() => setMounted(true), []);
 
   // layout.tsx's ThemeProvider sets `disableTransitionOnChange`, which
   // briefly force-disables ALL CSS transitions site-wide (via an injected

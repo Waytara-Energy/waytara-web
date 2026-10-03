@@ -3,10 +3,8 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
 import {
   ArrowDown,
-  ArrowRight,
   ArrowUpRight,
   Home,
   Building,
@@ -22,37 +20,24 @@ import {
   CheckCircle2,
   XCircle,
   Smartphone,
-  Sliders,
-  DollarSign,
   Car,
-  FileCheck,
-  FileText,
-  Server,
   Layers,
-  Leaf,
   ChevronDown,
   ChevronUp,
   Sparkles,
   CalendarCheck,
-  Award,
-  BarChart3,
-  Activity,
-  RotateCcw,
   Moon,
 } from "lucide-react";
 import {
   SEGMENT_SOLUTIONS_DATA,
-  SEGMENT_KEYS,
   SegmentSolutionData,
   normalizeSegmentSlug,
   SOLAR_TOPOLOGIES_DATA,
   TOPOLOGY_COMPARISON_MATRIX,
   SOLAR_TOPOLOGY_CONSOLIDATED_FAQS,
-  SolarTopologyDetail,
 } from "@/data/solutions-data";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Reveal, StaggerContainer } from "@/components/shared/reveal";
+import { Reveal } from "@/components/shared/reveal";
 import { cn } from "@/lib/utils";
 import { AssessmentModal } from "./assessment-modal";
 
@@ -104,24 +89,25 @@ const TOPIC_ITEMS = [
 ];
 
 export function SolutionsView({ initialSegment = "home" }: SolutionsViewProps) {
-  const router = useRouter();
   const normalizedInitial = normalizeSegmentSlug(initialSegment);
   const [activeSegmentId, setActiveSegmentId] = React.useState<string>(normalizedInitial);
   const [activeTopicId, setActiveTopicId] = React.useState<string>("topology");
   const [activeTopologyTab, setActiveTopologyTab] = React.useState<"on_grid" | "hybrid" | "off_grid">("on_grid");
-  const [selectedHardwareTier, setSelectedHardwareTier] = React.useState<number>(0);
   const [powerFlowMode, setPowerFlowMode] = React.useState<"day" | "night">("day");
-  const [isComparisonToggled, setIsComparisonToggled] = React.useState<boolean>(true);
   const [selectedPackageIndex, setSelectedPackageIndex] = React.useState<number>(1);
   const [openFaqIndex, setOpenFaqIndex] = React.useState<number | null>(0);
   const [assessmentModalOpen, setAssessmentModalOpen] = React.useState(false);
 
-  // Sync state if initialSegment prop changes
-  React.useEffect(() => {
-    const norm = normalizeSegmentSlug(initialSegment);
-    setActiveSegmentId(norm);
+  // Re-synced when `initialSegment` itself changes — adjusting state
+  // directly during render on a prop change (React's own recommended
+  // alternative to an effect here), rather than a render-then-effect-
+  // then-re-render round trip.
+  const [prevInitialSegment, setPrevInitialSegment] = React.useState(initialSegment);
+  if (initialSegment !== prevInitialSegment) {
+    setPrevInitialSegment(initialSegment);
+    setActiveSegmentId(normalizedInitial);
     setSelectedPackageIndex(1);
-  }, [initialSegment]);
+  }
 
   // Scrollspy observer for "ON THIS PAGE" topics
   React.useEffect(() => {
@@ -177,25 +163,6 @@ export function SolutionsView({ initialSegment = "home" }: SolutionsViewProps) {
         return Car;
       default:
         return Zap;
-    }
-  };
-
-  const getHardwareIcon = (iconName: string) => {
-    switch (iconName) {
-      case "Sun":
-        return Sun;
-      case "BatteryCharging":
-        return BatteryCharging;
-      case "Zap":
-        return Zap;
-      case "Smartphone":
-        return Smartphone;
-      case "Server":
-        return Server;
-      case "Car":
-        return Car;
-      default:
-        return Layers;
     }
   };
 
@@ -1535,9 +1502,7 @@ export function SolutionsView({ initialSegment = "home" }: SolutionsViewProps) {
         open={assessmentModalOpen}
         onOpenChange={setAssessmentModalOpen}
         preselectedSegment={
-          activeSegmentId === "factory" || activeSegmentId === "it_park"
-            ? "commercial"
-            : (activeSegmentId as any)
+          activeSegmentId === "factory" || activeSegmentId === "it_park" ? "commercial" : activeSegmentId
         }
       />
     </div>

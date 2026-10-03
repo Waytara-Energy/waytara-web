@@ -3,6 +3,8 @@ import type { CustomerDevice, CustomerSite } from "@/lib/selected-site";
 import { fetchDeviceOverview } from "@/lib/device-overview";
 import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
 import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
+import { fetchDashboardFields, fetchFieldValues, resolveComputedValues } from "@/lib/template-fields";
+import { DynamicFieldGroup } from "./dynamic-field-group";
 import { DeviceStatusPill } from "./device-status-pill";
 import { FaultBanner } from "./fault-banner";
 import { EnergyFlowDiagram } from "./energy-flow-diagram";
@@ -12,6 +14,14 @@ import { EvChargerOverview } from "./ev-charger-overview";
 import { DeviceParameterCards } from "./device-parameter-cards";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
+
+// solar's Overview dashboard_section is one flat "Overview" category split
+// into 11 group_names — most of them (Battery, Grid import/export, Home
+// load, Inverter status, Live solar production, Today consumption/
+// production) are already shown via the bespoke DeviceStatusPill/
+// EnergyFlowDiagram/TodaySoFar cards below. Only these groups have no
+// bespoke home yet, so they're the ones rendered dynamically.
+const SOLAR_OVERVIEW_LEFTOVER_GROUPS = new Set(["CO₂ saved today", "Self use", "Weather", "Work mode"]);
 
 /** Picks the right curated telemetry Overview for a device's own category
  *  — one place used by both the main Overview page's per-device tabs and
@@ -58,15 +68,28 @@ export async function DeviceOverviewContent({
   const category = device.deviceType?.category;
 
   if (category === "solar_inverter") {
-    const [overview, inverterStateOptions] = await Promise.all([
+    // enum_ref stays "inverter_state" even though the field's own key is
+    // now "inverter_run_state" — see dashboard/page.tsx's identical note.
+    const [overview, inverterStateOptions, leftoverSections] = await Promise.all([
       fetchDeviceOverview(supabase, site, device),
       fetchEnumOptions(supabase, ["inverter_state"]).then((m) => m.get("inverter_state") ?? []),
+      fetchDashboardFields(supabase, device, "Overview"),
     ]);
+    const allOverviewFields = leftoverSections.flatMap((s) => s.groups.flatMap((g) => g.fields));
+    const leftoverGroups = leftoverSections.flatMap((s) => s.groups).filter((g) => SOLAR_OVERVIEW_LEFTOVER_GROUPS.has(g.groupName ?? ""));
+    const leftoverFields = leftoverGroups.flatMap((g) => g.fields);
+    const leftoverRawValues = await fetchFieldValues(
+      supabase,
+      device.id,
+      leftoverFields.map((f) => f.key)
+    );
+    const leftoverValues = resolveComputedValues(leftoverFields, leftoverRawValues, device);
+    const getLeftoverValue = (key: string) => leftoverValues.get(key) ?? null;
     return (
       <div className="space-y-4">
         <div className="flex justify-end">
           <DeviceStatusPill
-            inverterState={overview.get("inverter_state")}
+            inverterState={overview.get("inverter_run_state")}
             activeFaultCode={overview.get("active_fault_code")}
             inverterStateOptions={inverterStateOptions}
           />
@@ -76,10 +99,10 @@ export async function DeviceOverviewContent({
 
         {showEnergyFlowDiagram && (
           <EnergyFlowDiagram
-            solarW={overview.get("inverter_power_w")}
+            solarW={overview.get("inverter_output_power_w")}
             batteryW={overview.get("battery_power_w")}
-            gridW={overview.get("grid_power_w")}
-            loadW={overview.get("load_power_w")}
+            gridW={overview.get("grid_total_power_w")}
+            loadW={overview.get("load_total_power_w")}
             batterySocPct={overview.get("battery_soc_pct")}
             evW={overview.evW}
             powerPackage={site.powerPackage}
@@ -87,7 +110,18 @@ export async function DeviceOverviewContent({
           />
         )}
 
-        <TodaySoFar get={overview.get} />
+        <TodaySoFar fields={allOverviewFields} get={overview.get} enabledKeys={overview.enabledKeys} />
+
+        {leftoverGroups.length > 0 && (
+          // Columns, not a grid — see the Devices page's identical note on
+          // why (uneven card heights + grid's row-major placement leaves
+          // gaps a masonry-style column flow doesn't).
+          <div className="columns-1 gap-4 sm:columns-2 [&>*]:mb-4 [&>*]:break-inside-avoid">
+            {leftoverGroups.map((group) => (
+              <DynamicFieldGroup key={group.groupName ?? ""} title={group.groupName ?? "Overview"} fields={group.fields} getValue={getLeftoverValue} />
+            ))}
+          </div>
+        )}
 
         {showAlerts && (
           <div>

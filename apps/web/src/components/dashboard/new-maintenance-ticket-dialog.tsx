@@ -15,6 +15,7 @@ import { Field, FieldContent, FieldGroup, FieldLabel } from "@/components/ui/fie
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { withPromiseToast } from "@waytara/ui/notify";
 import { createMaintenanceTicket } from "@/app/dashboard/maintenance/actions";
 
 /** Standing in for a "new ticket" form — same `createMaintenanceTicket`
@@ -23,24 +24,30 @@ import { createMaintenanceTicket } from "@/app/dashboard/maintenance/actions";
  *  already chosen on the Maintenance page itself (via the site switcher +
  *  this page's own device picker), so this form is just the description —
  *  shown as read-only context instead, so the customer can still confirm
- *  they're reporting against the right thing. Reopens itself
- *  (`defaultOpen={!!error}`) when the action redirects back here with an
- *  error, so the customer's typed description isn't lost behind a closed
- *  dialog they'd have to reopen themselves. */
+ *  they're reporting against the right thing. Submitting shows a
+ *  loading → success/error toast (withPromiseToast); the dialog itself
+ *  only closes on success, so a failed submit leaves the typed
+ *  description right where the customer left it. */
 export function NewMaintenanceTicketDialog({
   deviceId,
   deviceLabel,
   siteId,
   siteName,
-  error,
 }: {
   deviceId: string;
   deviceLabel: string;
   siteId: string;
   siteName: string | null;
-  error?: string;
 }) {
-  const [open, setOpen] = React.useState(!!error);
+  const [open, setOpen] = React.useState(false);
+
+  async function handleSubmit(formData: FormData) {
+    const ok = await withPromiseToast(createMaintenanceTicket.bind(null, deviceId, siteId), {
+      loading: "Submitting…",
+      success: "Ticket submitted.",
+    })(formData);
+    if (ok) setOpen(false);
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -59,13 +66,7 @@ export function NewMaintenanceTicketDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {error && (
-          <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {error}
-          </p>
-        )}
-
-        <form action={createMaintenanceTicket.bind(null, deviceId, siteId)} className="space-y-4">
+        <form action={handleSubmit} className="space-y-4">
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="description">Describe the issue</FieldLabel>

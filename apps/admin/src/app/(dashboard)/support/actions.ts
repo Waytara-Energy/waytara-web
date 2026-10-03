@@ -11,7 +11,7 @@ function attachmentPathFor(ticketId: string, file: File): string {
   return `${ticketId}/${Date.now()}-${file.name}`;
 }
 
-export async function sendSupportReply(formData: FormData) {
+export async function sendSupportReply(formData: FormData): Promise<void> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
@@ -20,7 +20,7 @@ export async function sendSupportReply(formData: FormData) {
   const attachment = formData.get("attachment");
 
   if (!ticketId || !body) {
-    redirect(`/support/${ticketId}?error=${encodeURIComponent("Write a reply before sending.")}`);
+    throw new Error("Write a reply before sending.");
   }
 
   const supabase = await createClient();
@@ -30,7 +30,7 @@ export async function sendSupportReply(formData: FormData) {
     const path = attachmentPathFor(ticketId, attachment);
     const { error: uploadError } = await supabase.storage.from("support-attachments").upload(path, attachment);
     if (uploadError) {
-      redirect(`/support/${ticketId}?error=${encodeURIComponent(uploadError.message)}`);
+      throw new Error(uploadError.message);
     }
     attachmentPath = path;
   }
@@ -49,7 +49,7 @@ export async function sendSupportReply(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/support/${ticketId}?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   await supabase.from("support_tickets").update({ updated_at: new Date().toISOString() }).eq("id", ticketId);
@@ -58,7 +58,7 @@ export async function sendSupportReply(formData: FormData) {
   revalidatePath("/support");
 }
 
-export async function updateTicketStatus(ticketId: string, status: string) {
+export async function updateTicketStatus(ticketId: string, status: string): Promise<void> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
@@ -69,7 +69,7 @@ export async function updateTicketStatus(ticketId: string, status: string) {
     .eq("id", ticketId);
 
   if (error) {
-    redirect(`/support/${ticketId}?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   revalidatePath(`/support/${ticketId}`);

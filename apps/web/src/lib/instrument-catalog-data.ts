@@ -1,7 +1,6 @@
 import "server-only";
 import { createClient } from "@waytara/supabase/server";
 import type { CustomerDevice } from "./selected-site";
-import { getDisabledCategories } from "./device-feature-flags";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -15,10 +14,7 @@ export interface SettingField {
   name: string;
   category: string;
   unit: string | null;
-  description: string | null;
   valueKind: string;
-  minRole: string;
-  regulated: boolean;
   enumRef: string | null;
   validMin: number | null;
   validMax: number | null;
@@ -31,123 +27,111 @@ export interface DeviceSettingsCatalog {
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
-  battery: "Battery",
-  generator: "Generator",
-  grid: "Grid",
-  solar: "Solar",
-  system: "System",
-  charging: "Charging",
+  Battery: "Battery",
+  Generator: "Generator",
+  Grid: "Grid",
+  Solar: "Solar",
+  System: "System",
+  Inverter: "Inverter",
+  Load: "Load",
+  Diagnostics: "Diagnostics",
+  "Metering & Export": "Metering & Export",
+  "Energy Management": "Energy Management",
+  "My Settings": "My Settings",
+  "System Checks": "System Checks",
+  "Device Info": "Device Info",
+  "Installer Settings (view only)": "Installer Settings",
 };
 
 export function categoryLabel(category: string): string {
   return CATEGORY_LABELS[category] ?? category;
 }
 
-/** Catalog-driven write-side settings for one device — instrument_catalog
- *  rows this device's stock model actually maps (device_parameter_map,
- *  is_enabled) with direction='write', grouped by category and excluding
- *  whatever this specific install's device_feature_flags disable. TOU's
- *  own tou_slot* keys are deliberately excluded here — those are edited
- *  through setting_presets (see tou-preset-picker.tsx), never as raw
- *  fields, since their write registers are min_role 'employee'. */
+/** Write-direction fields for one device — equipment_metrics rows this
+ *  specific installation actually has (show_for_user = true), joined to
+ *  equipment_templates for display metadata, grouped by category. There's
+ *  no separate per-installation "feature flag" layer anymore: a category
+ *  is simply absent here when this device's own metrics rows don't
+ *  include it. Time-of-Use's slot fields render the same as any other
+ *  write field now (no preset layer) — see equipment_templates' "Energy
+ *  Management" category, "Time of Use" group. */
 export async function fetchDeviceSettingFields(supabase: SupabaseServerClient, device: CustomerDevice): Promise<DeviceSettingsCatalog> {
-  const stockId = device.deviceType?.id;
   const empty: DeviceSettingsCatalog = { fieldsByCategory: new Map(), enumOptionsByRef: new Map() };
-  if (!stockId) return empty;
 
-  const [{ data: mapRows }, disabledCategories] = await Promise.all([
-    supabase
-      .from("device_parameter_map")
-      .select(
-        "instrument_key, instrument_catalog!inner(name, category, unit, description, value_kind, min_role, regulated, enum_ref, valid_min, valid_max, direction)"
-      )
-      .eq("stock_id", stockId)
-      .eq("is_enabled", true)
-      .eq("instrument_catalog.direction", "write"),
-    getDisabledCategories(supabase, device.id),
-  ]);
+  const { data: metricRows } = await supabase
+    .from("equipment_metrics")
+    .select("key_name, category, enum_ref, valid_min, valid_max, equipment_templates!inner(display_name, unit, value_kind)")
+    .eq("equipment_id", device.id)
+    .eq("direction", "write")
+    .eq("show_for_user", true);
 
-  const rows = (mapRows ?? []).filter(
-    (r) => !r.instrument_key.startsWith("tou_slot") && !disabledCategories.has(r.instrument_catalog.category)
-  );
+  const rows = metricRows ?? [];
   if (rows.length === 0) return empty;
 
-  const keys = rows.map((r) => r.instrument_key);
-  const enumRefs = Array.from(new Set(rows.map((r) => r.instrument_catalog.enum_ref).filter((r): r is string => Boolean(r))));
+  const keys = rows.map((r) => r.key_name);
+  const enumRefs = Array.from(new Set(rows.map((r) => r.enum_ref).filter((r): r is string => Boolean(r))));
 
   const [{ data: settingsRows }, enumOptionsByRef] = await Promise.all([
     supabase
-      .from("device_settings")
-      .select("setting_key, setting_value, ts")
-      .eq("device_id", device.id)
-      .in("setting_key", keys)
+      .from("equipment_configs")
+      .select("key_name, setting_value, ts")
+      .eq("equipment_id", device.id)
+      .in("key_name", keys)
       .order("ts", { ascending: true }), // ascending so the last write per key (assigned below) wins.
     fetchEnumOptions(supabase, enumRefs),
   ]);
 
   const currentByKey = new Map<string, string>();
-  for (const row of settingsRows ?? []) currentByKey.set(row.setting_key, row.setting_value);
+  for (const row of settingsRows ?? []) currentByKey.set(row.key_name, row.setting_value);
 
   const fieldsByCategory = new Map<string, SettingField[]>();
   for (const row of rows) {
-    const c = row.instrument_catalog;
+    const t = row.equipment_templates;
     const field: SettingField = {
-      key: row.instrument_key,
-      name: c.name,
-      category: c.category,
-      unit: c.unit,
-      description: c.description,
-      valueKind: c.value_kind,
-      minRole: c.min_role,
-      regulated: c.regulated,
-      enumRef: c.enum_ref,
-      validMin: c.valid_min,
-      validMax: c.valid_max,
-      currentValue: currentByKey.get(row.instrument_key) ?? null,
+      key: row.key_name,
+      name: t.display_name,
+      category: row.category,
+      unit: t.unit,
+      valueKind: t.value_kind ?? "text",
+      enumRef: row.enum_ref,
+      validMin: row.valid_min,
+      validMax: row.valid_max,
+      currentValue: currentByKey.get(row.key_name) ?? null,
     };
-    const list = fieldsByCategory.get(c.category) ?? [];
+    const list = fieldsByCategory.get(row.category) ?? [];
     list.push(field);
-    fieldsByCategory.set(c.category, list);
+    fieldsByCategory.set(row.category, list);
   }
   for (const list of fieldsByCategory.values()) list.sort((a, b) => a.name.localeCompare(b.name));
 
   return { fieldsByCategory, enumOptionsByRef };
 }
 
-/** Every read-direction instrument key this device's own stock model
- *  reports (device_parameter_map, is_enabled) minus whatever this specific
- *  install's device_feature_flags disable — the DB's answer to "what does
- *  this device actually have," used to filter the hand-tuned presentation
- *  field lists in telemetry-catalog.ts/ev-charger-catalog.ts down to what
- *  a given vendor/model genuinely supports, instead of showing a
- *  permanently-blank card for a register a different model doesn't have.
- *  Works for any device_category — nothing solar_inverter-specific here. */
+/** Every read-direction key this device actually reports —
+ *  equipment_metrics rows for this device with show_for_user = true.
+ *  Used to filter the presentation field lists (telemetry-catalog.ts /
+ *  ev-charger-catalog.ts) down to what this specific installation
+ *  genuinely has, the same role fetchReadKeys always played, just backed
+ *  by the per-device table directly instead of a per-model table minus a
+ *  feature-flag subtraction. */
 export async function fetchReadKeys(supabase: SupabaseServerClient, device: CustomerDevice): Promise<Set<string>> {
-  const stockId = device.deviceType?.id;
-  if (!stockId) return new Set();
+  const { data: metricRows } = await supabase
+    .from("equipment_metrics")
+    .select("key_name")
+    .eq("equipment_id", device.id)
+    .eq("direction", "read")
+    .eq("show_for_user", true);
 
-  const [{ data: mapRows }, disabledCategories] = await Promise.all([
-    supabase
-      .from("device_parameter_map")
-      .select("instrument_key, instrument_catalog!inner(category, direction)")
-      .eq("stock_id", stockId)
-      .eq("is_enabled", true)
-      .eq("instrument_catalog.direction", "read"),
-    getDisabledCategories(supabase, device.id),
-  ]);
-
-  return new Set((mapRows ?? []).filter((r) => !disabledCategories.has(r.instrument_catalog.category)).map((r) => r.instrument_key));
+  return new Set((metricRows ?? []).map((r) => r.key_name));
 }
 
 /** Batch enum-code -> label lookup, shared by the Settings form's
- *  dropdowns and any read-side display of an enum-valued reading
- *  (inverter_state, connector_status, error_code, ...) — one place the
- *  code -> label mapping lives, instead of a hardcoded switch per caller. */
+ *  dropdowns and any read-side display of an enum-valued reading. */
 export async function fetchEnumOptions(supabase: SupabaseServerClient, enumRefs: string[]): Promise<Map<string, EnumOption[]>> {
   const enumOptionsByRef = new Map<string, EnumOption[]>();
   if (enumRefs.length === 0) return enumOptionsByRef;
 
-  const { data: enumRows } = await supabase.from("instrument_enum_values").select("enum_ref, code, label").in("enum_ref", enumRefs).order("code");
+  const { data: enumRows } = await supabase.from("equipment_enum").select("enum_ref, code, label").in("enum_ref", enumRefs).order("code");
   for (const row of enumRows ?? []) {
     const list = enumOptionsByRef.get(row.enum_ref) ?? [];
     list.push({ code: row.code, label: row.label });
@@ -158,7 +142,7 @@ export async function fetchEnumOptions(supabase: SupabaseServerClient, enumRefs:
 
 /** Convenience for a single enum_ref — looks up one code's label, falling
  *  back to the raw code string (still better than nothing) if it's
- *  missing from instrument_enum_values or the code itself is unrecognized. */
+ *  missing from equipment_enum or the code itself is unrecognized. */
 export function lookupEnumLabel(options: Map<string, EnumOption[]>, enumRef: string, code: string | number | null): string | null {
   if (code === null) return null;
   const match = (options.get(enumRef) ?? []).find((o) => o.code === String(code));

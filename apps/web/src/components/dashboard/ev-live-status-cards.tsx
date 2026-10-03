@@ -72,39 +72,57 @@ export async function EvLiveStatusCards({ supabase, site }: { supabase: Supabase
   const charger = site.devices.find((d) => d.deviceType?.category === "ev_charger");
   if (!charger) return null;
 
+  // Key names match the real equipment_templates/equipment_metrics
+  // vocabulary now — EV's OCPP fields moved from single W-denominated
+  // readings to kW (power_active_import_kw/power_offered_kw, already in
+  // kW — no /1000 conversion needed below anymore) and per-phase current/
+  // voltage (current_import_l1_a/voltage_l1_n_v — L1 is the representative
+  // reading for the common single-phase residential case, same
+  // "one representative reading" simplification this file already uses
+  // elsewhere). Connector temperature is now connector_temperature_c
+  // (Monitoring > Temperature & Cooling), not a bare temperature_c.
   const [powerSeries, offeredSeries, currentSeries, voltageSeries, tempSeries, customerPlan, todayEnergyKwh, sessionSparkline] =
     await Promise.all([
-      fetchDeviceRecentSeries(supabase, charger.id, "power_active_import_w", SPARK_POINTS),
-      fetchDeviceRecentSeries(supabase, charger.id, "power_offered_w", 1),
-      fetchDeviceRecentSeries(supabase, charger.id, "current_import_a", SPARK_POINTS),
-      fetchDeviceRecentSeries(supabase, charger.id, "voltage_v", 1),
-      fetchDeviceRecentSeries(supabase, charger.id, "temperature_c", SPARK_POINTS),
+      fetchDeviceRecentSeries(supabase, charger.id, "power_active_import_kw", SPARK_POINTS),
+      fetchDeviceRecentSeries(supabase, charger.id, "power_offered_kw", 1),
+      fetchDeviceRecentSeries(supabase, charger.id, "current_import_l1_a", SPARK_POINTS),
+      fetchDeviceRecentSeries(supabase, charger.id, "voltage_l1_n_v", 1),
+      fetchDeviceRecentSeries(supabase, charger.id, "connector_temperature_c", SPARK_POINTS),
       getCustomerPlan(),
       fetchTodayEvEnergyKwh(supabase, [charger.id]),
       fetchTodayEvSessionSparkline(supabase, charger.id, SPARK_POINTS),
     ]);
 
-  const powerW = latestValue(powerSeries);
-  const offeredW = latestValue(offeredSeries);
+  const powerKw = latestValue(powerSeries);
+  const offeredKw = latestValue(offeredSeries);
   const currentA = latestValue(currentSeries);
   const voltageV = latestValue(voltageSeries);
   const tempC = latestValue(tempSeries);
   const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
   const tempWarm = tempC !== null && tempC >= TEMP_WARN_C;
 
-  const charging = powerW !== null && powerW > 0;
+  const charging = powerKw !== null && powerKw > 0;
   const drawing = currentA !== null && currentA > 0;
   const hasEnergyToday = todayEnergyKwh !== null && todayEnergyKwh > 0;
   const costToday = todayEnergyKwh !== null ? todayEnergyKwh * tariffRate : null;
   // Each bucket is either "delivered something in this slice" (green) or
   // "nothing landed here" (gray) — a bucket's own kWh amount doesn't carry
   // a good/bad distinction the way a live draw does.
-  const energySparkline: SparkPoint[] = sessionSparkline.map((p) => ({
-    value: p.value,
-    tone: p.value > 0 ? "green" : "gray",
-    ts: p.ts,
-    display: `${p.value.toFixed(2)} kWh`,
-  }));
+  //
+  // fetchTodayEvSessionSparkline always returns a full bucketCount array
+  // (zero-filled where nothing happened, so a real charging day's gaps
+  // render as genuine gaps) — unlike the other three cards' series, it's
+  // never actually empty. A day with zero sessions at all would otherwise
+  // still render 60 flat gray bars, reading as a fake "flatline" of data
+  // instead of the "no data" the other cards correctly show nothing for.
+  const energySparkline: SparkPoint[] = sessionSparkline.some((p) => p.value > 0)
+    ? sessionSparkline.map((p) => ({
+        value: p.value,
+        tone: p.value > 0 ? "green" : "gray",
+        ts: p.ts,
+        display: `${p.value.toFixed(2)} kWh`,
+      }))
+    : [];
 
   return (
     <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
@@ -112,13 +130,13 @@ export async function EvLiveStatusCards({ supabase, site }: { supabase: Supabase
         icon={Zap}
         iconTone={charging ? "good" : "neutral"}
         title="Charging Power"
-        subtitle={offeredW !== null ? `Power Offered · ${(offeredW / 1000).toFixed(1)} kW` : "Live Charging"}
-        value={powerW !== null ? `${(powerW / 1000).toFixed(2)} kW` : "—"}
-        liveValue={powerW}
+        subtitle={offeredKw !== null ? `Power Offered · ${offeredKw.toFixed(1)} kW` : "Live Charging"}
+        value={powerKw !== null ? `${powerKw.toFixed(2)} kW` : "—"}
+        liveValue={powerKw}
         statusLabel="Status"
         badgeLabel={charging ? "Charging" : "Idle"}
         badgeTone={charging ? "good" : "neutral"}
-        sparkline={toSparkline(powerSeries, drawTone, (v) => `${(v / 1000).toFixed(2)} kW`)}
+        sparkline={toSparkline(powerSeries, drawTone, (v) => `${v.toFixed(2)} kW`)}
         href={`/dashboard/monitoring?device=${charger.id}#hub`}
       />
 

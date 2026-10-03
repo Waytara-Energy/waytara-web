@@ -1,6 +1,7 @@
 import { createClient } from "@waytara/supabase/server";
 import { Input } from "@waytara/ui/input";
 import { Button } from "@waytara/ui/button";
+import { ActionForm } from "@waytara/ui/action-form";
 import { createServicePlan, updateServicePlan, createServiceContract } from "./actions";
 
 interface ServicePlanRow {
@@ -29,12 +30,7 @@ function jsonToText(value: unknown): string {
 // instantiated as a service_contracts row against one device. Individual
 // visits are maintenance_tickets rows tagged with that contract's id
 // (type = 'scheduled_service'), not tracked here.
-export default async function ServicePlansPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string; success?: string }>;
-}) {
-  const { error, success } = await searchParams;
+export default async function ServicePlansPage() {
   const supabase = await createClient();
 
   const [{ data: plans }, { data: devices }] = await Promise.all([
@@ -45,8 +41,8 @@ export default async function ServicePlansPage({
       )
       .order("name"),
     supabase
-      .from("devices")
-      .select("id, label, service_id, device_type:stock(name, serial_number), site:sites(name)")
+      .from("equipment")
+      .select("id, label, service_id, device_type:equipment_inventory(name, serial_number), site:sites(name)")
       .order("created_at", { ascending: false }),
   ]);
 
@@ -60,42 +56,43 @@ export default async function ServicePlansPage({
         </p>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="rounded-lg border border-border bg-primary/10 p-4 text-sm text-primary">Saved.</div>
-      )}
-
       <div className="rounded-lg border border-border bg-card p-5">
         <h2 className="mb-3 text-sm font-semibold">Add a service plan</h2>
-        <form action={createServicePlan} className="space-y-3">
+        <ActionForm action={createServicePlan} loading="Adding plan…" success="Plan added." className="space-y-3">
           <PlanFields />
           <Button type="submit" size="sm">
             Add
           </Button>
-        </form>
+        </ActionForm>
       </div>
 
       <div className="space-y-4">
         {((plans ?? []) as ServicePlanRow[]).map((plan) => (
           <div key={plan.id} className="rounded-lg border border-border bg-card p-5 space-y-3">
             <h3 className="text-sm font-semibold">{plan.name}</h3>
-            <form action={updateServicePlan.bind(null, plan.id)} className="space-y-3">
+            <ActionForm
+              action={updateServicePlan.bind(null, plan.id)}
+              loading="Saving…"
+              success="Saved."
+              className="space-y-3"
+            >
               <PlanFields defaults={plan} />
               <Button type="submit" variant="outline" size="sm">
                 Save
               </Button>
-            </form>
+            </ActionForm>
           </div>
         ))}
       </div>
 
       <div className="rounded-lg border border-border bg-card p-5">
         <h2 className="mb-3 text-sm font-semibold">Attach a plan to a device</h2>
-        <form action={createServiceContract} className="flex flex-wrap items-end gap-2">
+        <ActionForm
+          action={createServiceContract}
+          loading="Attaching…"
+          success="Plan attached."
+          className="flex flex-wrap items-end gap-2"
+        >
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Device</label>
             <select name="deviceId" className={inputClass + " w-64"} required defaultValue="">
@@ -130,7 +127,7 @@ export default async function ServicePlansPage({
           <Button type="submit" size="sm">
             Attach
           </Button>
-        </form>
+        </ActionForm>
         <p className="mt-2 text-xs text-muted-foreground">
           Re-attaching a device to a new plan replaces its active contract — the old one stays as history.
         </p>

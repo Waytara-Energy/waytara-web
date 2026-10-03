@@ -95,12 +95,21 @@ export default async function DashboardLayout({
       <SidebarProvider defaultOpen={sidebarOpen}>
         <SessionWatcher />
         <DashboardSidebar features={features} />
-        {/* h-svh + overflow-hidden caps this to the viewport instead of
+        {/* h-svh + overflow-clip caps this to the viewport instead of
             growing with page content (SidebarProvider's own wrapper is
             only min-h-svh) — that's what turns the <main> below into an
             independent scroll region instead of the whole document
-            scrolling, so the header stays fixed in place above it. */}
-        <SidebarInset className="h-svh overflow-hidden">
+            scrolling, so the header stays fixed in place above it.
+            overflow-clip, not overflow-hidden: `hidden` only blocks
+            user-driven wheel/drag scroll — it still lets the browser's own
+            focus-into-view behavior set a nonzero scrollTop on this
+            element (e.g. a Radix tab trigger or a submit button
+            auto-focusing after a Server Action's redirect), which quietly
+            pushed the header itself off-screen above the viewport since it
+            lives inside this same container. `clip` never becomes a
+            scroll container at all, so no scrollTop can land on it by any
+            path. */}
+        <SidebarInset className="h-svh overflow-clip">
           <DashboardHeader
             fullName={profile?.full_name ?? null}
             email={profile?.email ?? null}

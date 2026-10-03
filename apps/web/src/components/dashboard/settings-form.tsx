@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import {
@@ -17,6 +17,7 @@ import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
 import { Button } from "@/components/ui/button";
 import { ButtonSpinner } from "@/components/ui/spinner";
+import { withPromiseToast } from "@waytara/ui/notify";
 import { updateProfile } from "@/app/dashboard/settings/actions";
 
 const settingsSchema = z.object({
@@ -31,9 +32,9 @@ type SettingsFormValues = z.infer<typeof settingsSchema>;
 /** react-hook-form + zod driving the same `updateProfile` server action and
  *  field names as before — just client-validated first (empty name never
  *  reaches the server), and the two notification checkboxes are now real
- *  Switches. `updateProfile` always ends in a redirect (success or error,
- *  both as query params back on this page), so there's no "then what"
- *  branch after calling it — this component's job ends at the call. */
+ *  Switches. `updateProfile` reports its outcome by resolving or throwing
+ *  (no more redirect-with-a-query-param) — `withPromiseToast` turns that
+ *  into a loading → success/error toast. */
 export function SettingsForm({
   fullName,
   phone,
@@ -53,6 +54,11 @@ export function SettingsForm({
     resolver: zodResolver(settingsSchema),
     defaultValues: { fullName, phone, emailAlerts, emailMaintenanceUpdates },
   });
+  // useWatch, not form.watch() called inline in JSX — a real hook
+  // subscription React Compiler can track, rather than a plain function
+  // call whose return value it has to treat as unmemoizable every render.
+  const watchedEmailAlerts = useWatch({ control: form.control, name: "emailAlerts" });
+  const watchedEmailMaintenanceUpdates = useWatch({ control: form.control, name: "emailMaintenanceUpdates" });
 
   async function onSubmit(data: SettingsFormValues) {
     setIsSubmitting(true);
@@ -61,7 +67,8 @@ export function SettingsForm({
     formData.set("phone", data.phone ?? "");
     if (data.emailAlerts) formData.set("emailAlerts", "on");
     if (data.emailMaintenanceUpdates) formData.set("emailMaintenanceUpdates", "on");
-    await updateProfile(formData);
+    await withPromiseToast(updateProfile, { loading: "Saving…", success: "Settings saved." })(formData);
+    setIsSubmitting(false);
   }
 
   return (
@@ -99,7 +106,7 @@ export function SettingsForm({
           </FieldContent>
           <Switch
             id="emailAlerts"
-            checked={form.watch("emailAlerts")}
+            checked={watchedEmailAlerts}
             onCheckedChange={(checked) => form.setValue("emailAlerts", checked)}
           />
         </Field>
@@ -111,7 +118,7 @@ export function SettingsForm({
           </FieldContent>
           <Switch
             id="emailMaintenanceUpdates"
-            checked={form.watch("emailMaintenanceUpdates")}
+            checked={watchedEmailMaintenanceUpdates}
             onCheckedChange={(checked) => form.setValue("emailMaintenanceUpdates", checked)}
           />
         </Field>

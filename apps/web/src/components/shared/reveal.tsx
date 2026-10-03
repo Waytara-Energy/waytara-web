@@ -110,44 +110,20 @@ interface StaggerContainerProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string;
 }
 
+// threshold is accepted for API parity with Reveal's own prop but unused
+// here — each child gets its own IntersectionObserver via its Reveal
+// wrapper below, so this container doesn't need one of its own.
 export function StaggerContainer({
   children,
   staggerDelay = 100,
   direction = "up",
   duration = 650,
-  threshold = 0.15,
+  threshold: _threshold = 0.15,
   className,
   ...props
 }: StaggerContainerProps) {
-  const ref = React.useRef<HTMLDivElement>(null);
-  const [isVisible, setIsVisible] = React.useState(false);
-
-  React.useEffect(() => {
-    const element = ref.current;
-    if (!element) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsVisible(true);
-          observer.unobserve(element);
-        }
-      },
-      {
-        threshold,
-        rootMargin: "0px 0px -40px 0px",
-      }
-    );
-
-    observer.observe(element);
-
-    return () => {
-      observer.disconnect();
-    };
-  }, [threshold]);
-
   return (
-    <div ref={ref} className={className} {...props}>
+    <div className={className} {...props}>
       {React.Children.map(children, (child, idx) => {
         if (!React.isValidElement(child)) return child;
 

@@ -3,14 +3,15 @@ import { Input } from "@waytara/ui/input";
 import { cn } from "@waytara/ui/cn";
 import { AUTH_INPUT_CLASSNAME } from "@/components/password-input";
 import { SubmitButton } from "@/components/submit-button";
+import { ToastFromSearchParams } from "@/components/toast-from-search-params";
 import { requestPasswordReset } from "./actions";
 
 export default async function ForgotPasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; sent?: string }>;
+  searchParams: Promise<{ sent?: string }>;
 }) {
-  const { error, sent } = await searchParams;
+  const { sent } = await searchParams;
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4 py-16">
@@ -22,11 +23,7 @@ export default async function ForgotPasswordPage({
           </p>
         </div>
 
-        {error ? (
-          <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {error}
-          </div>
-        ) : null}
+        <ToastFromSearchParams />
 
         {sent ? (
           <div className="rounded-lg border border-primary/30 bg-primary/10 px-4 py-3 text-sm text-primary">

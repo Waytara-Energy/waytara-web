@@ -1,24 +1,62 @@
 import "server-only";
 import { createClient } from "@waytara/supabase/server";
 import type { CustomerDevice, CustomerSite } from "./selected-site";
-import { TODAY_ENERGY_FIELDS } from "./telemetry-catalog";
+import { fetchReadKeys } from "./instrument-catalog-data";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
+// Today's day-bucketed energy totals — the equipment_templates equivalent
+// of the old TODAY_ENERGY_FIELDS import (that file/constant is retired —
+// see template-fields.ts). All four genuinely live under the Overview
+// dashboard_section in the new inventory (day_active_energy_kwh/
+// day_reactive_energy_kvarh, which the old list also carried, are
+// Monitoring-section fields now — handled there instead, not duplicated
+// onto Overview).
+const TODAY_ENERGY_KEYS = ["day_pv_energy_kwh", "day_grid_import_energy_kwh", "day_grid_export_energy_kwh", "day_load_energy_kwh"];
+
+// The raw bitmask/code registers active_fault_code used to be a single
+// decoded value for — the new workbook has no single "fault code" register
+// anymore, only per-source bitmasks (see fault-code doc comment below).
+export const FAULT_BITMASK_KEYS = ["fault_message_1", "fault_message_2", "fault_message_3", "fault_message_4", "alarm_status_1", "alarm_status_2"];
+
 // Instruments a device's full detail view needs — filtered explicitly
 // rather than "most recent N readings across every instrument" (the old
-// approach), since the catalog now has 29 instruments and a flat top-50
-// window could miss one that just hasn't reported as often as the others.
+// approach), since the catalog now has hundreds of instruments and a flat
+// top-N window could miss one that just hasn't reported as often as the
+// others. Key names match the real equipment_templates/equipment_metrics
+// vocabulary (not the old instrument_catalog one) — solar generation in
+// particular moved from a single "inverter_power_w" to
+// "inverter_output_power_w" (Monitoring > Inverter > AC output, the
+// closest real per-device register to "combined PV output"); grid/load
+// pick up their Overview-section totals rather than a per-phase Monitoring
+// reading.
 export const OVERVIEW_KEYS = [
-  "inverter_power_w",
+  "inverter_output_power_w",
   "battery_power_w",
-  "grid_power_w",
-  "load_power_w",
+  "grid_total_power_w",
+  "load_total_power_w",
   "battery_soc_pct",
-  "inverter_state",
-  "active_fault_code",
-  ...TODAY_ENERGY_FIELDS.map((f) => f.key),
+  "inverter_run_state",
+  ...FAULT_BITMASK_KEYS,
+  ...TODAY_ENERGY_KEYS,
 ];
+
+/** active_fault_code doesn't exist as its own register anymore — the new
+ *  workbook only carries raw, undocumented bitmasks (fault_message_1-4,
+ *  alarm_status_1-2). deye-fault-codes.ts's getFaultInfo() already handles
+ *  an unrecognized code gracefully (a generic "Fault F{code}, contact
+ *  support" message, not a wrong specific diagnosis) — so rather than
+ *  losing fault detection entirely, the first non-zero bitmask value found
+ *  is passed through as that code. Not a real decoded Deye fault code
+ *  anymore, just "something's flagged, here's the raw register value for
+ *  support to look up" — honest about what it actually is. */
+export function deriveFaultCode(getValue: (key: string) => number | null): number | null {
+  for (const key of FAULT_BITMASK_KEYS) {
+    const v = getValue(key);
+    if (v) return v;
+  }
+  return null;
+}
 
 export interface AlertRow {
   id: string;
@@ -32,9 +70,15 @@ export interface AlertRow {
 export interface DeviceOverviewData {
   get: (key: string) => number | null;
   /** The site's EV charger reading in W, or null when the site has no
-   *  charger at all (distinct from a charger reporting 0 W). */
+   *  charger at all, or has one that hasn't reported yet (distinct from a
+   *  charger actively reporting 0 W). */
   evW: number | null;
   recentAlerts: AlertRow[];
+  /** Read-direction instrument keys this device's own stock model +
+   *  device_feature_flags actually confirm exist (fetchReadKeys) — lets a
+   *  renderer like TodaySoFar drop a field/section instead of showing a
+   *  permanently-blank row for a register this install doesn't have. */
+  enabledKeys: Set<string>;
 }
 
 /** Shared by the site Overview page (for its primary device) and a
@@ -51,6 +95,9 @@ export async function fetchDeviceOverview(supabase: SupabaseServerClient, site: 
   // "one representative reading" simplification as everything else here.
   const evCharger = site.devices.find((d) => d.deviceType?.category === "ev_charger");
 
+  const readKeys = await fetchReadKeys(supabase, device);
+  const overviewKeys = OVERVIEW_KEYS.filter((k) => readKeys.has(k));
+
   // Simplification: takes the most recent readings within a bounded window
   // (per the fixed key list above, not every instrument) rather than a
   // true "latest value per instrument" query (needs a DISTINCT ON not
@@ -58,12 +105,12 @@ export async function fetchDeviceOverview(supabase: SupabaseServerClient, site: 
   // snapshot.
   const [{ data: recentReadings }, { data: recentAlerts }, { data: evReadings }] = await Promise.all([
     supabase
-      .from("device_readings")
-      .select("instrument_key, value, unit, ts")
-      .eq("device_id", device.id)
-      .in("instrument_key", OVERVIEW_KEYS)
+      .from("equipment_telemetry")
+      .select("key_name, value, unit, ts")
+      .eq("equipment_id", device.id)
+      .in("key_name", overviewKeys)
       .order("ts", { ascending: false })
-      .limit(OVERVIEW_KEYS.length * 5),
+      .limit(overviewKeys.length * 5),
     supabase
       .from("alerts")
       .select("id, device_id, severity, message, ts, acknowledged_at")
@@ -73,10 +120,10 @@ export async function fetchDeviceOverview(supabase: SupabaseServerClient, site: 
       .limit(5),
     evCharger
       ? supabase
-          .from("device_readings")
+          .from("equipment_telemetry")
           .select("value, ts")
-          .eq("device_id", evCharger.id)
-          .eq("instrument_key", "power_active_import_w")
+          .eq("equipment_id", evCharger.id)
+          .eq("key_name", "power_active_import_kw")
           .order("ts", { ascending: false })
           .limit(1)
           .maybeSingle()
@@ -85,17 +132,25 @@ export async function fetchDeviceOverview(supabase: SupabaseServerClient, site: 
 
   const latest = new Map<string, number | null>();
   for (const r of recentReadings ?? []) {
-    if (!latest.has(r.instrument_key)) latest.set(r.instrument_key, r.value);
+    if (!latest.has(r.key_name)) latest.set(r.key_name, r.value);
   }
+  const rawGet = (key: string) => latest.get(key) ?? null;
 
   return {
-    get: (key: string) => latest.get(key) ?? null,
-    // Already in W (OCPP's Power.Active.Import measurand) — no unit
-    // conversion needed, unlike the old charging_power_kw key. Null (not
-    // 0) when there's no charger at all, so the diagram knows to leave it
-    // off entirely rather than show a charger reading 0 W.
-    evW: evCharger ? Math.round(evReadings?.value ?? 0) : null,
+    // "active_fault_code" is a synthetic key now (see deriveFaultCode) —
+    // never actually fetched, derived on read from whichever real bitmask
+    // registers are non-zero.
+    get: (key: string) => (key === "active_fault_code" ? deriveFaultCode(rawGet) : rawGet(key)),
+    // power_active_import_kw is in kW (moved from W under the new OCPP
+    // key vocabulary — see ev-live-status-cards.tsx's identical note);
+    // evW is a Watts figure everywhere it's consumed (EnergyFlowDiagram's
+    // fmtW), so ×1000 here. Null when there's no charger at all, or when
+    // the charger exists but has never reported a reading — both cases
+    // read the same to the diagram (leave the wire off) rather than the
+    // second one showing a charger reading a literal, misleading 0 W.
+    evW: evCharger && evReadings?.value != null ? Math.round(evReadings.value * 1000) : null,
     recentAlerts: (recentAlerts ?? []) as AlertRow[],
+    enabledKeys: readKeys,
   };
 }
 
@@ -103,9 +158,9 @@ export async function fetchDeviceOverview(supabase: SupabaseServerClient, site: 
 // each is a flow or a same-day running total, so summing multiple units at
 // one site gives the site's true combined figure. `battery_soc_pct` is
 // deliberately excluded (see below, averaged instead of summed) and
-// `inverter_state`/`active_fault_code` are handled separately too (neither
-// is a number that makes sense to add).
-const SITE_SUM_KEYS = ["inverter_power_w", "battery_power_w", "grid_power_w", "load_power_w", ...TODAY_ENERGY_FIELDS.map((f) => f.key)];
+// `inverter_run_state`/`active_fault_code` are handled separately too
+// (neither is a number that makes sense to add).
+const SITE_SUM_KEYS = ["inverter_output_power_w", "battery_power_w", "grid_total_power_w", "load_total_power_w", ...TODAY_ENERGY_KEYS];
 
 /** The "All" view of Overview's filter — same shape as `fetchDeviceOverview`
  *  (so it drops into DeviceStatusPill/FaultBanner/EnergyFlowDiagram/
@@ -121,15 +176,25 @@ export async function fetchSiteOverview(supabase: SupabaseServerClient, site: Cu
   const inverterIds = inverters.map((d) => d.id);
   const allIds = site.devices.map((d) => d.id);
 
+  // Union across every inverter at the site (usually just one) rather than
+  // a per-device set — a key disabled on one inverter but not another
+  // should still surface the site total, since the aggregation below sums
+  // whichever inverters actually report it.
+  const enabledKeys = new Set<string>();
+  for (const readKeys of await Promise.all(inverters.map((d) => fetchReadKeys(supabase, d)))) {
+    for (const k of readKeys) enabledKeys.add(k);
+  }
+  const overviewKeys = OVERVIEW_KEYS.filter((k) => enabledKeys.has(k));
+
   const [{ data: recentReadings }, { data: recentAlerts }, { data: evReadings }] = await Promise.all([
     inverterIds.length > 0
       ? supabase
-          .from("device_readings")
-          .select("device_id, instrument_key, value, ts")
-          .in("device_id", inverterIds)
-          .in("instrument_key", OVERVIEW_KEYS)
+          .from("equipment_telemetry")
+          .select("equipment_id, key_name, value, ts")
+          .in("equipment_id", inverterIds)
+          .in("key_name", overviewKeys)
           .order("ts", { ascending: false })
-          .limit(OVERVIEW_KEYS.length * inverterIds.length * 5)
+          .limit(overviewKeys.length * inverterIds.length * 5)
       : Promise.resolve({ data: null }),
     allIds.length > 0
       ? supabase
@@ -142,13 +207,13 @@ export async function fetchSiteOverview(supabase: SupabaseServerClient, site: Cu
       : Promise.resolve({ data: null }),
     chargers.length > 0
       ? supabase
-          .from("device_readings")
-          .select("device_id, value, ts")
+          .from("equipment_telemetry")
+          .select("equipment_id, value, ts")
           .in(
-            "device_id",
+            "equipment_id",
             chargers.map((c) => c.id)
           )
-          .eq("instrument_key", "power_active_import_w")
+          .eq("key_name", "power_active_import_kw")
           .order("ts", { ascending: false })
           .limit(chargers.length * 5)
       : Promise.resolve({ data: null }),
@@ -159,7 +224,7 @@ export async function fetchSiteOverview(supabase: SupabaseServerClient, site: Cu
   // into one query.
   const latestByDeviceKey = new Map<string, number | null>();
   for (const r of recentReadings ?? []) {
-    const k = `${r.device_id}:${r.instrument_key}`;
+    const k = `${r.equipment_id}:${r.key_name}`;
     if (!latestByDeviceKey.has(k)) latestByDeviceKey.set(k, r.value);
   }
 
@@ -193,14 +258,18 @@ export async function fetchSiteOverview(supabase: SupabaseServerClient, site: Cu
   }
 
   // A fault anywhere at the site should surface at the top — first
-  // non-zero code wins (same "one representative reading" simplification
-  // fetchDeviceOverview already uses for its EV charger lookup above).
+  // non-zero bitmask across every real fault/alarm register, at any
+  // inverter, wins (same "one representative reading" simplification
+  // fetchDeviceOverview already uses for its EV charger lookup above, and
+  // the same synthetic-key derivation as deriveFaultCode there).
   let faultCode: number | null = null;
-  for (const id of inverterIds) {
-    const v = latestByDeviceKey.get(`${id}:active_fault_code`);
-    if (v) {
-      faultCode = v;
-      break;
+  outer: for (const id of inverterIds) {
+    for (const key of FAULT_BITMASK_KEYS) {
+      const v = latestByDeviceKey.get(`${id}:${key}`);
+      if (v) {
+        faultCode = v;
+        break outer;
+      }
     }
   }
   aggregated.set("active_fault_code", faultCode);
@@ -210,27 +279,32 @@ export async function fetchSiteOverview(supabase: SupabaseServerClient, site: Cu
   // reporting Normal.
   let worstState: number | null = null;
   for (const id of inverterIds) {
-    const v = latestByDeviceKey.get(`${id}:inverter_state`);
+    const v = latestByDeviceKey.get(`${id}:inverter_run_state`);
     if (v === null || v === undefined) continue;
     if (worstState === null || v > worstState) worstState = v;
   }
-  aggregated.set("inverter_state", worstState);
+  aggregated.set("inverter_run_state", worstState);
 
   const latestChargerReading = new Map<string, number | null>();
   for (const r of evReadings ?? []) {
-    if (!latestChargerReading.has(r.device_id)) latestChargerReading.set(r.device_id, r.value);
+    if (!latestChargerReading.has(r.equipment_id)) latestChargerReading.set(r.equipment_id, r.value);
   }
-  // Already in W (OCPP's Power.Active.Import measurand) — no unit
-  // conversion needed, unlike the old charging_power_kw key.
+  // power_active_import_kw is in kW — same ×1000 as fetchDeviceOverview's
+  // own evW above, since this is a Watts figure everywhere it's consumed.
+  // Same "any ? sum : null" convention as the aggregated flow keys above —
+  // null (hide the wire) when not one charger at the site has reported
+  // yet, rather than defaulting every missing one to 0 and showing a
+  // misleadingly precise 0 W total.
   const evW =
-    chargers.length > 0
-      ? Math.round(chargers.reduce((sum, c) => sum + (latestChargerReading.get(c.id) ?? 0), 0))
+    chargers.length > 0 && latestChargerReading.size > 0
+      ? Math.round(chargers.reduce((sum, c) => sum + (latestChargerReading.get(c.id) ?? 0), 0) * 1000)
       : null;
 
   return {
     get: (key: string) => aggregated.get(key) ?? null,
     evW,
     recentAlerts: (recentAlerts ?? []) as AlertRow[],
+    enabledKeys,
   };
 }
 
@@ -253,10 +327,10 @@ export async function fetchDeviceRecentSeries(
   limit: number
 ): Promise<LiveSeriesPoint[]> {
   const { data } = await supabase
-    .from("device_readings")
+    .from("equipment_telemetry")
     .select("value, ts")
-    .eq("device_id", deviceId)
-    .eq("instrument_key", key)
+    .eq("equipment_id", deviceId)
+    .eq("key_name", key)
     .order("ts", { ascending: false })
     .limit(limit);
   return (data ?? []).slice().reverse();
@@ -285,22 +359,22 @@ export async function fetchTodayEvEnergyKwh(supabase: SupabaseServerClient, char
 
   const [{ data: sessions }, { data: latestReadings }] = await Promise.all([
     supabase
-      .from("charging_sessions")
-      .select("device_id, start_energy_kwh, end_energy_kwh, ended_at")
-      .in("device_id", chargerIds)
+      .from("ev_sessions")
+      .select("equipment_id, start_energy_kwh, end_energy_kwh, ended_at")
+      .in("equipment_id", chargerIds)
       .gte("started_at", todayStart.toISOString()),
     supabase
-      .from("device_readings")
-      .select("device_id, value, ts")
-      .in("device_id", chargerIds)
-      .eq("instrument_key", "energy_active_import_register_kwh")
+      .from("equipment_telemetry")
+      .select("equipment_id, value, ts")
+      .in("equipment_id", chargerIds)
+      .eq("key_name", "energy_active_import_register_kwh")
       .order("ts", { ascending: false })
       .limit(chargerIds.length * 5),
   ]);
 
   const latestByDevice = new Map<string, number | null>();
   for (const r of latestReadings ?? []) {
-    if (!latestByDevice.has(r.device_id)) latestByDevice.set(r.device_id, r.value);
+    if (!latestByDevice.has(r.equipment_id)) latestByDevice.set(r.equipment_id, r.value);
   }
 
   let total = 0;
@@ -309,7 +383,7 @@ export async function fetchTodayEvEnergyKwh(supabase: SupabaseServerClient, char
     if (s.start_energy_kwh === null) continue;
     // Still-open session: use its device's latest reading as the running
     // "end" value instead of waiting for the session to actually close.
-    const endEnergy = s.ended_at !== null ? s.end_energy_kwh : (latestByDevice.get(s.device_id) ?? null);
+    const endEnergy = s.ended_at !== null ? s.end_energy_kwh : (latestByDevice.get(s.equipment_id) ?? null);
     if (endEnergy === null) continue;
     total += endEnergy - s.start_energy_kwh;
     any = true;
@@ -348,16 +422,16 @@ export async function fetchTodayEvSessionSparkline(
 
   const [{ data: sessions }, { data: latestRows }] = await Promise.all([
     supabase
-      .from("charging_sessions")
+      .from("ev_sessions")
       .select("started_at, ended_at, start_energy_kwh, end_energy_kwh")
-      .eq("device_id", deviceId)
+      .eq("equipment_id", deviceId)
       .gte("started_at", todayStart.toISOString())
       .order("started_at", { ascending: true }),
     supabase
-      .from("device_readings")
+      .from("equipment_telemetry")
       .select("value, ts")
-      .eq("device_id", deviceId)
-      .eq("instrument_key", "energy_active_import_register_kwh")
+      .eq("equipment_id", deviceId)
+      .eq("key_name", "energy_active_import_register_kwh")
       .order("ts", { ascending: false })
       .limit(1),
   ]);
@@ -429,13 +503,19 @@ export interface ChargingSessionsSummary {
   connectorStatus: number | null;
 }
 
+// Key names match the real equipment_templates/equipment_metrics
+// vocabulary — power moved from W to kW (power_offered_kw/
+// power_active_import_kw, converted back to W below so every downstream
+// consumer's existing "...W" naming/contract stays correct) and current/
+// voltage/temperature moved to their per-phase/connector-specific names
+// (current_import_l1_a/voltage_l1_n_v/connector_temperature_c).
 const LATEST_READING_KEYS = [
   "energy_active_import_register_kwh",
-  "power_offered_w",
-  "power_active_import_w",
-  "current_import_a",
-  "voltage_v",
-  "temperature_c",
+  "power_offered_kw",
+  "power_active_import_kw",
+  "current_import_l1_a",
+  "voltage_l1_n_v",
+  "connector_temperature_c",
   "connector_status",
 ] as const;
 
@@ -453,26 +533,26 @@ export async function fetchTodayChargingSessions(
 
   const [{ data: sessions }, { data: latestRows }] = await Promise.all([
     supabase
-      .from("charging_sessions")
+      .from("ev_sessions")
       .select("id, started_at, ended_at, start_energy_kwh, end_energy_kwh, stop_reason")
-      .eq("device_id", deviceId)
+      .eq("equipment_id", deviceId)
       .gte("started_at", todayStart.toISOString())
       .order("started_at", { ascending: false }),
     // One query for every "latest reading" this needs, reduced to
     // latest-per-key client-side (same pattern the detect-charging-sessions
-    // cron uses) — cheaper than a separate round trip per instrument_key.
+    // cron uses) — cheaper than a separate round trip per key_name.
     supabase
-      .from("device_readings")
-      .select("instrument_key, value, ts")
-      .eq("device_id", deviceId)
-      .in("instrument_key", LATEST_READING_KEYS)
+      .from("equipment_telemetry")
+      .select("key_name, value, ts")
+      .eq("equipment_id", deviceId)
+      .in("key_name", LATEST_READING_KEYS)
       .order("ts", { ascending: false })
       .limit(LATEST_READING_KEYS.length * 5),
   ]);
 
   const latestByKey = new Map<string, number | null>();
   for (const row of latestRows ?? []) {
-    if (!latestByKey.has(row.instrument_key)) latestByKey.set(row.instrument_key, row.value);
+    if (!latestByKey.has(row.key_name)) latestByKey.set(row.key_name, row.value);
   }
   const latestEnergy = latestByKey.get("energy_active_import_register_kwh") ?? null;
 
@@ -483,13 +563,16 @@ export async function fetchTodayChargingSessions(
     return { id: s.id, startedAt: s.started_at, endedAt: s.ended_at, energyKwh, stopReason: s.stop_reason, isOpen };
   });
 
+  const offeredKw = latestByKey.get("power_offered_kw") ?? null;
+  const activeKw = latestByKey.get("power_active_import_kw") ?? null;
+
   return {
     sessions: detailed,
-    ratedPowerW: latestByKey.get("power_offered_w") ?? null,
-    currentPowerW: latestByKey.get("power_active_import_w") ?? null,
-    currentA: latestByKey.get("current_import_a") ?? null,
-    voltageV: latestByKey.get("voltage_v") ?? null,
-    temperatureC: latestByKey.get("temperature_c") ?? null,
+    ratedPowerW: offeredKw !== null ? offeredKw * 1000 : null,
+    currentPowerW: activeKw !== null ? activeKw * 1000 : null,
+    currentA: latestByKey.get("current_import_l1_a") ?? null,
+    voltageV: latestByKey.get("voltage_l1_n_v") ?? null,
+    temperatureC: latestByKey.get("connector_temperature_c") ?? null,
     connectorStatus: latestByKey.get("connector_status") ?? null,
   };
 }
@@ -518,9 +601,9 @@ export async function fetchRecentChargingStats(supabase: SupabaseServerClient, d
   weekStart.setUTCDate(weekStart.getUTCDate() - 7);
 
   const { data } = await supabase
-    .from("charging_sessions")
+    .from("ev_sessions")
     .select("started_at, start_energy_kwh, end_energy_kwh")
-    .eq("device_id", deviceId)
+    .eq("equipment_id", deviceId)
     .gte("started_at", weekStart.toISOString())
     .lt("started_at", todayStart.toISOString());
 

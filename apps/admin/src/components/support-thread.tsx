@@ -8,6 +8,7 @@ import { useRealtimeTable, type RealtimeRowEvent } from "@waytara/ui/realtime-pr
 import { Button } from "@waytara/ui/button";
 import { cn } from "@waytara/ui/cn";
 import { attachmentFileName } from "@/lib/support-attachments";
+import { withPromiseToast } from "@waytara/ui/notify";
 import { sendSupportReply, updateTicketStatus } from "@/app/(dashboard)/support/actions";
 
 const STATUS_OPTIONS = ["open", "in_progress", "resolved", "closed"] as const;
@@ -95,20 +96,27 @@ export function SupportThread({
     formData.set("body", body);
     if (file) formData.set("attachment", file);
 
-    await sendSupportReply(formData);
+    const ok = await withPromiseToast(sendSupportReply, { loading: "Sending…", success: "Reply sent." })(formData);
 
-    setBody("");
-    setFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    // No refetch — the support_messages realtime subscription above will
-    // append this message the same way it does for the customer's.
+    if (ok) {
+      setBody("");
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      // No refetch on success — the support_messages realtime subscription
+      // above will append this message the same way it does for the
+      // customer's. On failure, the typed reply/attachment stay put.
+    }
     setSending(false);
   }
 
   async function handleStatusChange(next: string) {
     const previous = status;
     setStatus(next);
-    await updateTicketStatus(ticket.id, next).catch(() => setStatus(previous));
+    const ok = await withPromiseToast(updateTicketStatus.bind(null, ticket.id), {
+      loading: "Updating status…",
+      success: "Status updated.",
+    })(next);
+    if (!ok) setStatus(previous);
   }
 
   return (

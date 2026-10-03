@@ -1,10 +1,8 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import {
   Sparkles,
-  Bot,
   User,
   Home,
   Building,
@@ -48,7 +46,7 @@ interface QuestionStep {
   options: Array<{
     label: string;
     sub?: string;
-    value: any;
+    value: string | number;
     icon?: React.ElementType;
   }>;
 }
@@ -214,7 +212,10 @@ interface EnergyPlannerProps {
   selectedSegment?: CustomerSegmentId;
 }
 
-export function EnergyPlanner({ selectedSegment }: EnergyPlannerProps) {
+// selectedSegment is accepted for API parity with the other segment-aware
+// sections on the landing page but unused here — this planner runs its
+// own independent question flow regardless of the page's segment pick.
+export function EnergyPlanner({ selectedSegment: _selectedSegment }: EnergyPlannerProps) {
   const sectionRef = React.useRef<HTMLElement>(null);
   const [inView, setInView] = React.useState(false);
   const [typedText, setTypedText] = React.useState("");
@@ -248,10 +249,14 @@ export function EnergyPlanner({ selectedSegment }: EnergyPlannerProps) {
     return () => observer.disconnect();
   }, []);
 
-  // Typewriter effect on initial landing
+  // Typewriter effect on initial landing — the same effect that sets up
+  // the typing interval below also has to reset the flag when we bail out
+  // of it (not a plain mount-sync; this bailout is paired with that
+  // interval subscription).
   React.useEffect(() => {
     if (!inView || currentStepIndex !== 0) {
       if (currentStepIndex !== 0) {
+        // eslint-disable-next-line react-hooks/set-state-in-effect
         setIsTypingFirstQ(false);
       }
       return;
@@ -318,7 +323,7 @@ export function EnergyPlanner({ selectedSegment }: EnergyPlannerProps) {
     }
   };
 
-  const handleSelectOption = (value: any, displayLabel: string) => {
+  const handleSelectOption = (value: string | number, displayLabel: string) => {
     // 1. Immediately set the user's latest answer & save history
     setLastUserAnswer(displayLabel);
     setAnswersHistory((prev) => {
@@ -327,13 +332,16 @@ export function EnergyPlanner({ selectedSegment }: EnergyPlannerProps) {
       return nextArr.slice(0, currentStepIndex + 1);
     });
 
-    // 2. Save choice
-    let updatedConfig = { ...plannerData };
-    if (currentStepIndex === 0) updatedConfig.propertyType = value;
+    // 2. Save choice — each STEPS[currentStepIndex] option's own `value`
+    // literal is already guaranteed to match its target field's union type
+    // (see STEPS above), so these casts reflect real, data-guaranteed
+    // shapes rather than an unchecked assertion.
+    const updatedConfig = { ...plannerData };
+    if (currentStepIndex === 0) updatedConfig.propertyType = value as EnergyPlannerInput["propertyType"];
     if (currentStepIndex === 1) updatedConfig.monthlyBill = Number(value);
-    if (currentStepIndex === 2) updatedConfig.backupNeeds = value;
-    if (currentStepIndex === 3) updatedConfig.evPlans = value;
-    if (currentStepIndex === 4) updatedConfig.roofType = value;
+    if (currentStepIndex === 2) updatedConfig.backupNeeds = value as EnergyPlannerInput["backupNeeds"];
+    if (currentStepIndex === 3) updatedConfig.evPlans = value as EnergyPlannerInput["evPlans"];
+    if (currentStepIndex === 4) updatedConfig.roofType = value as EnergyPlannerInput["roofType"];
     setPlannerData(updatedConfig);
 
     // 3. Briefly show typing indicator and advance to next question

@@ -24,16 +24,17 @@ function HomeContent() {
   // Track customer segment state (defaults to 'home' or reads '?for=...')
   const [selectedSegment, setSelectedSegment] = React.useState<CustomerSegmentId>("home");
 
-  React.useEffect(() => {
-    if (
-      segmentParam &&
-      (segmentParam === "home" ||
-        segmentParam === "commercial" ||
-        segmentParam === "ev_fleet")
-    ) {
+  // Re-synced when `segmentParam` itself changes, but otherwise left alone
+  // so a later in-page segment selection still sticks — adjusting state
+  // directly during render on a prop/hook-value change (React's own
+  // recommended alternative to an effect here).
+  const [prevSegmentParam, setPrevSegmentParam] = React.useState(segmentParam);
+  if (segmentParam !== prevSegmentParam) {
+    setPrevSegmentParam(segmentParam);
+    if (segmentParam === "home" || segmentParam === "commercial" || segmentParam === "ev_fleet") {
       setSelectedSegment(segmentParam);
     }
-  }, [segmentParam]);
+  }
 
   return (
     <div className="flex flex-col min-h-screen bg-theme-bg text-theme-primary">

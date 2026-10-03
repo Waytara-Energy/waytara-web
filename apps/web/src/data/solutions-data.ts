@@ -1,28 +1,3 @@
-import * as React from "react";
-import {
-  Home,
-  Building,
-  Factory,
-  Building2,
-  Truck,
-  Cpu,
-  Sun,
-  BatteryCharging,
-  Zap,
-  TrendingDown,
-  ShieldCheck,
-  CheckCircle2,
-  XCircle,
-  Smartphone,
-  Sliders,
-  DollarSign,
-  Car,
-  FileCheck,
-  Server,
-  Layers,
-  Leaf,
-} from "lucide-react";
-
 export type SegmentSlug =
   | "home"
   | "apartment"

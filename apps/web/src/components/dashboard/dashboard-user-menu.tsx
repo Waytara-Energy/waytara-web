@@ -17,6 +17,7 @@ import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Spinner } from "@/components/ui/spinner";
 import { logout } from "@/app/dashboard/actions";
 import { SECONDARY_NAV_ITEMS } from "./nav-config";
+import { useHasMounted } from "@/hooks/use-has-mounted";
 
 const APPEARANCE_OPTIONS = [
   { value: "light", label: "Light", icon: Sun },
@@ -49,8 +50,7 @@ export function DashboardUserMenu({
   // matchMedia client-side only), so the toggle defaults to "system"
   // (this app's own defaultTheme) until mounted rather than briefly
   // showing the wrong option selected.
-  const [mounted, setMounted] = React.useState(false);
-  React.useEffect(() => setMounted(true), []);
+  const mounted = useHasMounted();
 
   // logout() redirects on completion, so the menu unmounts on its own —
   // this pending state is just so "Sign out" doesn't look unresponsive

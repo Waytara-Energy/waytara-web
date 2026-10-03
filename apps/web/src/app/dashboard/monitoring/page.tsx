@@ -33,7 +33,7 @@ export default async function MonitoringPage({ searchParams }: { searchParams: P
     searchParams,
     getSelectedSite(),
   ]);
-  const device = resolveDeviceInSite(site, deviceIdParam);
+  const device = await resolveDeviceInSite(site, deviceIdParam);
 
   const features = customerPlan?.features ?? {};
   if (!features.monitoring) {
@@ -57,14 +57,14 @@ export default async function MonitoringPage({ searchParams }: { searchParams: P
           {/* The live charts inside MonitoringContent already poll/subscribe
               on their own — this is for everything else on the page (detail
               cards, badges), all snapshot-rendered server-side and not safe
-              to hand-patch from a raw insert payload. device_readings is
+              to hand-patch from a raw insert payload. equipment_telemetry is
               the single busiest table in the app (20-30 inserts per device
               "tick"), and a full-page refresh re-runs every query on the
               page, not just the reading-driven ones — the default 400ms
               debounce meant this was firing near-continuously and competing
               with the charts' own fetches/tab switches for bandwidth, for
               freshness nobody could actually perceive at that cadence. */}
-          <RealtimeRefresh table="device_readings" event="INSERT" filter={`device_id=eq.${device.id}`} debounceMs={2500} />
+          <RealtimeRefresh table="equipment_telemetry" event="INSERT" filter={`equipment_id=eq.${device.id}`} debounceMs={2500} />
           <MonitoringContent supabase={supabase} device={device} devices={site?.devices ?? [device]} />
         </>
       )}

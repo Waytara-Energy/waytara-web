@@ -5,6 +5,7 @@ import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { generateQuotationPdf, type PricingLineItem } from "@waytara/ui/quotation-pdf";
 import { sendQuoteAcceptedEmail } from "@/lib/send-quote-accepted-email";
 import { notifyEmployeeOfQuoteResponse } from "@/lib/notify-employee-of-quote-response";
+import { isExpired } from "@/lib/is-expired";
 
 // Onboarding pipeline redesign, Phase 4: the customer has no session on
 // this page (anon, token-addressable link from an email) — every action
@@ -50,7 +51,7 @@ async function loadRespondableQuotation(token: string) {
     .eq("access_token", token)
     .maybeSingle();
 
-  const expired = !!quotation?.valid_until && new Date(quotation.valid_until).getTime() < Date.now();
+  const expired = !!quotation?.valid_until && isExpired(quotation.valid_until);
   if (!quotation || quotation.status !== "sent" || expired) {
     return { service, quotation: null };
   }

@@ -40,7 +40,9 @@ export function LiveSyncedAgo({ lastTs }: { lastTs: string | null }) {
 
   useEffect(() => {
     if (!lastTs) {
-      setState(null);
+      // No reset needed here — `state` is only ever read from the
+      // lastTs-truthy render branch below; the !lastTs branch above
+      // returns "No data yet" without touching it.
       return;
     }
     const tick = () => {

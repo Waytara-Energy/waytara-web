@@ -9,14 +9,18 @@ import { Button } from "@/components/ui/button";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
+import { selectDevice } from "@/app/dashboard/actions";
 
 /** SiteSwitcher's own combobox pattern, applied to devices within the
- *  currently selected site — device selection is a per-page `?device=`
- *  search param (not a cookie, see DevicePicker's own doc comment: no
- *  single global "current device" since a site can hold more than one),
- *  so picking one here navigates rather than calling a server action.
- *  `usePathname` keeps this reusable on any device-scoped page exactly the
- *  way DevicePicker's relative `?device=` links already are.
+ *  currently selected site. Every device-scoped page reads its own
+ *  `?device=` search param first (see resolveDeviceInSite), so picking one
+ *  here still navigates to `${pathname}?device=${id}` for an immediate,
+ *  same-page update — but it also calls the `selectDevice` server action
+ *  first to persist the choice into SELECTED_DEVICE_COOKIE, so a *later*
+ *  navigation to a different device-scoped page (e.g. the sidebar's
+ *  Performance link, which carries no `?device=` of its own) still resolves
+ *  to this same device instead of silently falling back to the site's
+ *  first one.
  *
  *  The navigation re-runs the target page's async Server Component (a
  *  fresh Supabase fetch for the new device), which can take a beat —
@@ -33,7 +37,8 @@ export function DeviceSwitcher({ devices, selectedId }: { devices: CustomerDevic
   function handleSelect(id: string) {
     setOpen(false);
     if (id === selected?.id) return;
-    startTransition(() => {
+    startTransition(async () => {
+      await selectDevice(id);
       router.push(`${pathname}?device=${id}`);
     });
   }

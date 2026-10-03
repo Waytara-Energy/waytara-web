@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Input } from "@waytara/ui/input";
 import { Button } from "@waytara/ui/button";
+import { ActionForm } from "@waytara/ui/action-form";
 import { createAndSendQuotation } from "./actions";
 
 interface Plan {
@@ -56,7 +57,12 @@ export function QuotationForm({ onboardingId, plans }: { onboardingId: string; p
   );
 
   return (
-    <form action={createAndSendQuotation.bind(null, onboardingId)} className="space-y-4">
+    <ActionForm
+      action={createAndSendQuotation.bind(null, onboardingId)}
+      loading="Generating & sending…"
+      success="Quotation sent."
+      className="space-y-4"
+    >
       <div className="space-y-1.5">
         <label className="text-sm font-medium">Monitoring plan (one-time)</label>
         <select
@@ -160,6 +166,6 @@ export function QuotationForm({ onboardingId, plans }: { onboardingId: string; p
       <Button type="submit" disabled={!planId || hardwareTotal <= 0}>
         Generate &amp; Send Quotation
       </Button>
-    </form>
+    </ActionForm>
   );
 }

@@ -73,11 +73,23 @@ export async function SolarLiveStatusCards({ supabase, site }: { supabase: Supab
   const inverter = site.devices.find((d) => d.deviceType?.category === "solar_inverter");
   if (!inverter) return null;
 
+  // Key names match the real equipment_templates/equipment_metrics
+  // vocabulary — solar generation uses "inverter_output_power_w" (the same
+  // key the Energy Flow Diagram and Monitoring's Main Hub already use for
+  // this). "inverter_dc_input_power_w" was tried here first as "the real
+  // per-device register closest to combined PV output", but it's only
+  // mapped for the String Inverter variants — a Hybrid or Microinverter
+  // install (equipment_templates confirms neither has that key at all)
+  // left this card permanently stuck on "—" even with real telemetry
+  // flowing, while inverter_output_power_w is mapped on every solar
+  // variant. load/grid pick up their Overview-section totals
+  // (load_total_power_w/grid_total_power_w) rather than a per-phase
+  // Monitoring reading.
   const [solarSeries, loadSeries, socSeries, gridSeries, batteryPowerSeries] = await Promise.all([
-    fetchDeviceRecentSeries(supabase, inverter.id, "inverter_power_w", SPARK_POINTS),
-    fetchDeviceRecentSeries(supabase, inverter.id, "load_power_w", SPARK_POINTS),
+    fetchDeviceRecentSeries(supabase, inverter.id, "inverter_output_power_w", SPARK_POINTS),
+    fetchDeviceRecentSeries(supabase, inverter.id, "load_total_power_w", SPARK_POINTS),
     fetchDeviceRecentSeries(supabase, inverter.id, "battery_soc_pct", SPARK_POINTS),
-    fetchDeviceRecentSeries(supabase, inverter.id, "grid_power_w", SPARK_POINTS),
+    fetchDeviceRecentSeries(supabase, inverter.id, "grid_total_power_w", SPARK_POINTS),
     fetchDeviceRecentSeries(supabase, inverter.id, "battery_power_w", SPARK_POINTS),
   ]);
 

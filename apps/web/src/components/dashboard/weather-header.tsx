@@ -68,6 +68,7 @@ export async function WeatherHeader({
               plain <img> renders that fine, next/image would need SVG
               optimization enabled app-wide just for this), so no icon
               component + manual color mapping needed anymore. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={`/images/weather/${condition.icon}.svg`} alt="" width={48} height={48} className="h-12 w-12" />
           <div>
             <p className="text-sm font-medium leading-none text-foreground">{condition.label}</p>

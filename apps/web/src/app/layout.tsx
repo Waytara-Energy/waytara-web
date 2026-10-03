@@ -13,9 +13,13 @@ const poppins = Poppins({
   variable: "--font-poppins",
 });
 
-// Alternative Brand Font: Outfit (swappable with one line toggle)
+// Alternative Brand Font: Outfit (swappable with one line toggle). Outfit is
+// a variable font — no `weight` array here (unlike Poppins above, which
+// isn't variable and needs one): Turbopack's font resolver can't handle a
+// discrete weight array against a variable font ("next/font/google queries
+// have exactly one entry"), even though Webpack tolerated it. Every weight
+// is still available via CSS `font-weight` against the variable axis.
 const outfit = Outfit({
-  weight: ["300", "400", "500", "600", "700"],
   subsets: ["latin"],
   display: "swap",
   variable: "--font-outfit",

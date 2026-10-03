@@ -5,18 +5,13 @@ import { cn } from "@waytara/ui/cn";
 import { AUTH_INPUT_CLASSNAME, PasswordInput } from "@/components/password-input";
 import { SubmitButton } from "@/components/submit-button";
 import { ThemeToggle } from "@/components/theme-toggle";
+import { ToastFromSearchParams } from "@/components/toast-from-search-params";
 import { login } from "./actions";
 
 const HEADER_ICON_CLASS =
   "p-2 rounded-lg text-foreground transition-all duration-200 hover:bg-accent flex items-center justify-center";
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string }>;
-}) {
-  const { error } = await searchParams;
-
+export default function LoginPage() {
   return (
     <div className="flex min-h-screen bg-background">
       {/* Left: hero photo, theme-swapped — hidden below lg so the form gets
@@ -66,11 +61,7 @@ export default async function LoginPage({
               </p>
             </div>
 
-            {error ? (
-              <div className="rounded-lg border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-                {error}
-              </div>
-            ) : null}
+            <ToastFromSearchParams />
 
             <form action={login} className="space-y-4">
               <div className="space-y-1.5">

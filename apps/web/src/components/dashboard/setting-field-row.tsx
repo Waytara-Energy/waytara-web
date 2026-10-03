@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { toast } from "sonner";
+import { withPromiseToast } from "@waytara/ui/notify";
 import { Button } from "@/components/ui/button";
 import { ButtonSpinner, Spinner } from "@/components/ui/spinner";
 import { Field, FieldContent, FieldDescription, FieldLabel } from "@/components/ui/field";
@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import type { SettingField } from "@/lib/instrument-settings-catalog";
-import { updateDeviceSetting } from "@/app/dashboard/devices/[deviceId]/actions";
+import { updateDeviceSetting } from "@/app/dashboard/devices/actions";
 
 /** One row in a device's settings tab (Deye's Basic/Battery/System Work
  *  Mode/Grid/Gen, or an EV charger's OCPP Configuration) —
@@ -24,10 +24,12 @@ export function SettingFieldRow({
   deviceId,
   field,
   currentValue,
+  className,
 }: {
   deviceId: string;
   field: SettingField;
   currentValue: string;
+  className?: string;
 }) {
   const [value, setValue] = React.useState(currentValue);
   const [pending, startTransition] = React.useTransition();
@@ -36,18 +38,16 @@ export function SettingFieldRow({
   function save(nextValue: string) {
     setValue(nextValue);
     startTransition(async () => {
-      const result = await updateDeviceSetting(deviceId, field.key, nextValue);
-      if ("error" in result) {
-        toast.error(result.error);
-      } else {
-        toast.success(`${field.label} saved.`);
-      }
+      await withPromiseToast(updateDeviceSetting.bind(null, deviceId, field.key), {
+        loading: `Saving ${field.label}…`,
+        success: `${field.label} saved.`,
+      })(nextValue);
     });
   }
 
   if (field.readOnly) {
     return (
-      <Field orientation="responsive">
+      <Field orientation="responsive" className={className}>
         <FieldLabel>
           {field.label}
           {field.unit ? ` (${field.unit})` : ""}
@@ -61,7 +61,7 @@ export function SettingFieldRow({
   }
 
   return (
-    <Field orientation="responsive">
+    <Field orientation="responsive" className={className}>
       <FieldLabel htmlFor={fieldId}>
         {field.label}
         {field.unit ? ` (${field.unit})` : ""}

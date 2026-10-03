@@ -12,8 +12,8 @@ export interface MonitoringDevice {
 }
 
 interface ReadingRow {
-  device_id: string;
-  instrument_key: string;
+  equipment_id: string;
+  key_name: string;
   value: number | null;
   unit: string | null;
   ts: string;
@@ -32,7 +32,7 @@ interface MonitoringPanelProps {
 }
 
 // A Postgrest realtime filter can't express "no rows match" directly —
-// this nil UUID is a syntactically valid device_id that can never be a
+// this nil UUID is a syntactically valid equipment_id that can never be a
 // real one, used when `devices` is empty so the subscription hook (which
 // must still be called, same as every render, per the Rules of Hooks)
 // simply never matches anything rather than subscribing unfiltered.
@@ -58,7 +58,7 @@ const NEVER_MATCH_DEVICE_ID = "00000000-0000-0000-0000-000000000000";
  *
  * Realtime rollout: the initial snapshot is still one fetch on mount
  * (Realtime only tells us about *new* rows, not history), but new
- * readings now arrive via a device_readings INSERT subscription instead
+ * readings now arrive via an equipment_telemetry INSERT subscription instead
  * of a poll — RLS (readings_owner / readings_admin_all /
  * readings_employee_active_test_only) already scopes both the initial
  * query and what the subscription is even allowed to deliver for
@@ -91,9 +91,9 @@ export function MonitoringPanel({
       // module (isTestOnly=false) must never show a technician's connection-
       // test readings mixed in with real telemetry, not just "no filter".
       const query = supabase
-        .from("device_readings")
-        .select("device_id, instrument_key, value, unit, ts")
-        .in("device_id", deviceIds)
+        .from("equipment_telemetry")
+        .select("equipment_id, key_name, value, unit, ts")
+        .in("equipment_id", deviceIds)
         .eq("is_test", isTestOnly)
         .order("ts", { ascending: false })
         .limit(200);
@@ -112,25 +112,25 @@ export function MonitoringPanel({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deviceIdsKey, isTestOnly]);
 
-  // postgres_changes filters support one column — device_id here, via the
-  // `in.(...)` operator for the (usually one, occasionally several)
+  // postgres_changes filters support one column — equipment_id here, via
+  // the `in.(...)` operator for the (usually one, occasionally several)
   // devices this panel shows. is_test is checked client-side per event,
-  // same reasoning as the device_id-only filter on live-metric-chart.tsx.
+  // same reasoning as the equipment_id-only filter on live-metric-chart.tsx.
   const deviceFilter =
-    deviceIds.length > 0 ? `device_id=in.(${deviceIds.join(",")})` : `device_id=eq.${NEVER_MATCH_DEVICE_ID}`;
+    deviceIds.length > 0 ? `equipment_id=in.(${deviceIds.join(",")})` : `equipment_id=eq.${NEVER_MATCH_DEVICE_ID}`;
 
   useRealtimeTable<ReadingRow>(
-    "device_readings",
+    "equipment_telemetry",
     "INSERT",
     deviceFilter,
     React.useCallback(
       (payload: RealtimeRowEvent<ReadingRow>) => {
         const row = payload.new;
         if (row.is_test !== isTestOnly) return;
-        if (!deviceIdSet.has(row.device_id)) return;
+        if (!deviceIdSet.has(row.equipment_id)) return;
         // Prepend, not append — readings stays newest-first (the initial
         // fetch is ordered `ts desc`), which is what latestByDevice's
-        // "first match per (device_id, instrument_key) wins" relies on.
+        // "first match per (equipment_id, key_name) wins" relies on.
         setReadings((prev) => [row, ...prev].slice(0, 200));
         setLoading(false);
       },
@@ -138,14 +138,14 @@ export function MonitoringPanel({
     )
   );
 
-  // Latest value per (device_id, instrument_key) — readings are already
+  // Latest value per (equipment_id, key_name) — readings are already
   // ordered newest-first, so the first match for each pair wins.
   const latestByDevice = React.useMemo(() => {
     const map = new Map<string, Map<string, ReadingRow>>();
     for (const r of readings) {
-      if (!map.has(r.device_id)) map.set(r.device_id, new Map());
-      const perDevice = map.get(r.device_id)!;
-      if (!perDevice.has(r.instrument_key)) perDevice.set(r.instrument_key, r);
+      if (!map.has(r.equipment_id)) map.set(r.equipment_id, new Map());
+      const perDevice = map.get(r.equipment_id)!;
+      if (!perDevice.has(r.key_name)) perDevice.set(r.key_name, r);
     }
     return map;
   }, [readings]);
@@ -187,9 +187,9 @@ export function MonitoringPanel({
             ) : (
               <dl className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3">
                 {rows.map((r) => (
-                  <div key={r.instrument_key} title={`Updated ${new Date(r.ts).toLocaleTimeString("en-IN")}`}>
+                  <div key={r.key_name} title={`Updated ${new Date(r.ts).toLocaleTimeString("en-IN")}`}>
                     <dt className="cursor-default text-xs text-neutral-500 underline decoration-dotted decoration-neutral-400 underline-offset-4 dark:text-neutral-400 dark:decoration-neutral-600">
-                      {r.instrument_key.replace(/_/g, " ")}
+                      {r.key_name.replace(/_/g, " ")}
                     </dt>
                     <dd className="text-sm font-medium text-neutral-900 dark:text-neutral-100">
                       {r.value ?? "—"} {r.unit ?? ""}

@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { ActionForm } from "@waytara/ui/action-form";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { payAdvanceAmount, payFullAmount } from "./actions";
 
@@ -27,12 +28,11 @@ const STAGE_COPY: Record<string, { title: string; body: string }> = {
 // not-yet-onboarded customer can see. Reaching this page already
 // onboarded (a stale bookmark, browser back button) sends them on to the
 // real dashboard instead of showing a confusing "in progress" message.
-export default async function OnboardingStatusPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string }>;
-}) {
-  const { error } = await searchParams;
+// payAdvanceAmount/payFullAmount report their outcome by resolving or
+// throwing — each <ActionForm> below turns that into a loading →
+// success/error toast, and a successful payment's own revalidatePath
+// re-renders this page with the new stage in the same response.
+export default async function OnboardingStatusPage() {
   const profile = await getCurrentProfile();
   const supabase = await createClient();
 
@@ -67,15 +67,9 @@ export default async function OnboardingStatusPage({
       <div>
         <h1 className="text-2xl font-semibold text-theme-primary">Your Onboarding</h1>
         <p className="mt-1 text-sm text-theme-muted">
-          Your full dashboard unlocks once installation is complete — here's where things stand.
+          Your full dashboard unlocks once installation is complete — here&apos;s where things stand.
         </p>
       </div>
-
-      {error && (
-        <div className="rounded-lg border border-theme-border bg-theme-alert-subtle px-4 py-3 text-sm text-theme-alert">
-          {error}
-        </div>
-      )}
 
       {!onboarding ? (
         <div className="rounded-xl border border-theme-border bg-theme-surface p-5 text-sm text-theme-muted">
@@ -92,13 +86,18 @@ export default async function OnboardingStatusPage({
           </div>
 
           {quotation?.payment_option === "full" ? (
-            <form action={payFullAmount}>
+            <ActionForm action={payFullAmount} loading="Processing payment…" success="Payment received.">
               <SubmitButton className="w-full" pendingText="Processing payment…">
                 Pay ₹{Number(quotation.total_amount).toLocaleString("en-IN")} now
               </SubmitButton>
-            </form>
+            </ActionForm>
           ) : quotation?.payment_option === "split" ? (
-            <form action={payAdvanceAmount} className="space-y-2">
+            <ActionForm
+              action={payAdvanceAmount}
+              loading="Processing payment…"
+              success="Advance payment received."
+              className="space-y-2"
+            >
               <SubmitButton className="w-full" pendingText="Processing payment…">
                 Pay advance — ₹{Number(quotation.advance_amount ?? 0).toLocaleString("en-IN")} now
               </SubmitButton>
@@ -106,7 +105,7 @@ export default async function OnboardingStatusPage({
                 Balance of ₹{Number(quotation.balance_amount ?? 0).toLocaleString("en-IN")} is due at
                 installation.
               </p>
-            </form>
+            </ActionForm>
           ) : (
             <p className="text-sm text-theme-muted">
               We couldn&apos;t find your chosen payment option. Contact your WayTara advisor.

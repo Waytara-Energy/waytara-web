@@ -40,8 +40,8 @@ export async function GET(req: NextRequest) {
   const thresholdMs = OFFLINE_THRESHOLD_HOURS * 60 * 60 * 1000;
 
   const { data: devices, error: devicesError } = await supabase
-    .from("devices")
-    .select("id, label, device_type:stock(serial_number, model_number)")
+    .from("equipment")
+    .select("id, label, device_type:equipment_inventory(serial_number, model_number)")
     .eq("device_status", "active");
 
   if (devicesError) {
@@ -57,17 +57,17 @@ export async function GET(req: NextRequest) {
   // most recent readings first, reduced client-side to the latest per
   // device, rather than a DISTINCT ON the query builder can't express.
   const { data: readings } = await supabase
-    .from("device_readings")
-    .select("device_id, ts")
-    .in("device_id", deviceIds)
+    .from("equipment_telemetry")
+    .select("equipment_id, ts")
+    .in("equipment_id", deviceIds)
     .eq("is_test", false)
     .order("ts", { ascending: false })
     .limit(2000);
 
   const lastSeenByDevice = new Map<string, number>();
   for (const r of readings ?? []) {
-    if (!lastSeenByDevice.has(r.device_id)) {
-      lastSeenByDevice.set(r.device_id, new Date(r.ts).getTime());
+    if (!lastSeenByDevice.has(r.equipment_id)) {
+      lastSeenByDevice.set(r.equipment_id, new Date(r.ts).getTime());
     }
   }
 

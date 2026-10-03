@@ -3,26 +3,17 @@ import { getCurrentProfile } from "@waytara/supabase/auth";
 import { Input } from "@waytara/ui/input";
 import { Button } from "@waytara/ui/button";
 import { cn } from "@waytara/ui/cn";
+import { ActionForm } from "@waytara/ui/action-form";
 import { sendEmployeeInvite, revokeInvite, changeEmployeeRole, revokeEmployeeAccess, restoreEmployeeAccess } from "./actions";
 import { DeleteEmployeeButton } from "./delete-employee-button";
 
-const SUCCESS_MESSAGES: Record<string, string> = {
-  invited: "Invite sent.",
-  revoked: "Invite revoked.",
-  "role-updated": "Role updated.",
-  "revoked-access": "Access revoked — they can no longer sign in.",
-  "restored-access": "Access restored.",
-  deleted: "Account permanently deleted.",
-};
+function isExpired(expiresAt: string): boolean {
+  return new Date(expiresAt).getTime() < Date.now();
+}
 
 // Admin-only route (enforced in middleware.ts) — staff account management
 // isn't a day-to-day employee task.
-export default async function EmployeesPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string; success?: string }>;
-}) {
-  const { error, success } = await searchParams;
+export default async function EmployeesPage() {
   const currentProfile = await getCurrentProfile();
   const supabase = await createClient();
 
@@ -39,8 +30,6 @@ export default async function EmployeesPage({
       .order("created_at", { ascending: false }),
   ]);
 
-  const now = Date.now();
-
   return (
     <div className="space-y-6">
       <div>
@@ -50,20 +39,14 @@ export default async function EmployeesPage({
         </p>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-          {error}
-        </div>
-      )}
-      {success && SUCCESS_MESSAGES[success] && (
-        <div className="rounded-lg border border-border bg-primary/10 p-4 text-sm text-primary">
-          {SUCCESS_MESSAGES[success]}
-        </div>
-      )}
-
       <div className="rounded-lg border border-border bg-card p-5">
         <h2 className="mb-3 text-sm font-semibold">Invite someone new</h2>
-        <form action={sendEmployeeInvite} className="flex flex-wrap items-end gap-2">
+        <ActionForm
+          action={sendEmployeeInvite}
+          loading="Sending invite…"
+          success="Invite sent."
+          className="flex flex-wrap items-end gap-2"
+        >
           <div className="space-y-1.5">
             <label className="text-xs font-medium text-muted-foreground">Email</label>
             <Input type="email" name="email" placeholder="name@waytaraenergy.com" className="h-9 w-64" required />
@@ -83,7 +66,7 @@ export default async function EmployeesPage({
           <Button type="submit" size="sm">
             Send Invite
           </Button>
-        </form>
+        </ActionForm>
       </div>
 
       {invites && invites.length > 0 && (
@@ -99,7 +82,7 @@ export default async function EmployeesPage({
             </thead>
             <tbody className="divide-y divide-border">
               {invites.map((invite) => {
-                const expired = new Date(invite.expires_at).getTime() < now;
+                const expired = isExpired(invite.expires_at);
                 return (
                   <tr key={invite.id} className="hover:bg-accent/50">
                     <td className="px-4 py-3">{invite.email}</td>
@@ -115,11 +98,11 @@ export default async function EmployeesPage({
                       )}
                     </td>
                     <td className="px-4 py-3 text-right">
-                      <form action={revokeInvite.bind(null, invite.id)}>
+                      <ActionForm action={revokeInvite.bind(null, invite.id)} loading="Revoking…" success="Invite revoked.">
                         <Button type="submit" variant="outline" size="sm">
                           Revoke
                         </Button>
-                      </form>
+                      </ActionForm>
                     </td>
                   </tr>
                 );
@@ -189,7 +172,12 @@ export default async function EmployeesPage({
                     ) : (
                       <div className="flex min-w-[320px] flex-col items-end gap-2">
                         <div className="flex items-center gap-2">
-                          <form action={changeEmployeeRole.bind(null, person.id)} className="flex items-center gap-2">
+                          <ActionForm
+                            action={changeEmployeeRole.bind(null, person.id)}
+                            loading="Updating role…"
+                            success="Role updated."
+                            className="flex items-center gap-2"
+                          >
                             <select
                               name="role"
                               defaultValue={person.role}
@@ -202,19 +190,27 @@ export default async function EmployeesPage({
                             <Button type="submit" variant="outline" size="sm">
                               Update role
                             </Button>
-                          </form>
+                          </ActionForm>
                           {isRevoked ? (
-                            <form action={restoreEmployeeAccess.bind(null, person.id)}>
+                            <ActionForm
+                              action={restoreEmployeeAccess.bind(null, person.id)}
+                              loading="Restoring access…"
+                              success="Access restored."
+                            >
                               <Button type="submit" size="sm">
                                 Restore access
                               </Button>
-                            </form>
+                            </ActionForm>
                           ) : (
-                            <form action={revokeEmployeeAccess.bind(null, person.id)}>
+                            <ActionForm
+                              action={revokeEmployeeAccess.bind(null, person.id)}
+                              loading="Revoking access…"
+                              success="Access revoked — they can no longer sign in."
+                            >
                               <Button type="submit" variant="outline" size="sm">
                                 Revoke access
                               </Button>
-                            </form>
+                            </ActionForm>
                           )}
                         </div>
                         <DeleteEmployeeButton profileId={person.id} currentName={person.full_name ?? person.email} />

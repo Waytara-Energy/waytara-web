@@ -11,10 +11,11 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { ChartEmptyState } from "./chart-empty-state";
 
 interface RealtimeDeviceReadingRow {
-  device_id: string;
-  instrument_key: string;
+  equipment_id: string;
+  key_name: string;
   value: number | null;
   ts: string;
   is_test: boolean;
@@ -151,14 +152,14 @@ function bucketReadings(
   const sums = new Map<string, Record<string, number>>();
   const counts = new Map<string, Record<string, number>>();
   for (const row of rows) {
-    if (row.value === null || !seriesKeys.includes(row.instrument_key)) continue;
+    if (row.value === null || !seriesKeys.includes(row.key_name)) continue;
     const bucket = keyFor(row.ts);
     if (!sums.has(bucket)) {
       sums.set(bucket, Object.fromEntries(seriesKeys.map((k) => [k, 0])));
       counts.set(bucket, Object.fromEntries(seriesKeys.map((k) => [k, 0])));
     }
-    sums.get(bucket)![row.instrument_key] += row.value * (scaleByKey[row.instrument_key] ?? 1);
-    counts.get(bucket)![row.instrument_key] += 1;
+    sums.get(bucket)![row.key_name] += row.value * (scaleByKey[row.key_name] ?? 1);
+    counts.get(bucket)![row.key_name] += 1;
   }
   return { sums, counts };
 }
@@ -229,15 +230,10 @@ export function BarTrendChart({
   const fetchSeriesKeysJoined = fetchSeriesKeys.join(",");
   const scaleByKey = React.useMemo(
     () => Object.fromEntries(series.map((s) => [s.key, s.scale ?? valueScale])),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [series, valueScale]
   );
   const scalesJoined = series.map((s) => s.scale ?? valueScale).join(",");
-  const unitByKey = React.useMemo(
-    () => Object.fromEntries(series.map((s) => [s.key, s.unit ?? unit])),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [series, unit]
-  );
+  const unitByKey = React.useMemo(() => Object.fromEntries(series.map((s) => [s.key, s.unit ?? unit])), [series, unit]);
   // Series sharing a unit share one (hidden) y-axis, scaled to fit them
   // together; a series with its own `unit` gets its own axis so its bars
   // aren't dwarfed by/dwarfing a series on a very different scale (e.g.
@@ -277,9 +273,12 @@ export function BarTrendChart({
 
     // Paint whatever this exact chart last fetched immediately — instant on
     // a tab revisit — then still run fetchData below to pick up anything
-    // that changed since.
+    // that changed since. Deliberately synchronous (not deferred to
+    // fetchData's own setState calls): the whole point is to skip the
+    // loading flash on a tab revisit, which a genuinely async path can't do.
     const cached = chartDataCache.get(cacheKey);
     if (cached) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPoints(cached);
       setLoaded(true);
     }
@@ -389,14 +388,14 @@ export function BarTrendChart({
   // was firing several full refetches (2 queries each) back-to-back for a
   // single logical update.
   useRealtimeTable<RealtimeDeviceReadingRow>(
-    "device_readings",
+    "equipment_telemetry",
     "INSERT",
-    `device_id=eq.${deviceId}`,
+    `equipment_id=eq.${deviceId}`,
     React.useCallback(
       (payload: RealtimeRowEvent<RealtimeDeviceReadingRow>) => {
         const row = payload.new;
         if (row.is_test) return;
-        if (!fetchSeriesKeys.includes(row.instrument_key)) return;
+        if (!fetchSeriesKeys.includes(row.key_name)) return;
         if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
         realtimeDebounceRef.current = setTimeout(() => fetchRef.current(), 500);
       },
@@ -475,7 +474,7 @@ export function BarTrendChart({
           <CardTitle className="text-sm">{title}</CardTitle>
         </CardHeader>
         <CardContent>
-          <p className="py-8 text-center text-sm text-muted-foreground">No live data yet.</p>
+          <ChartEmptyState />
         </CardContent>
       </Card>
     );

@@ -34,7 +34,7 @@ const TAB_VISUALS: Record<string, { icon: LucideIcon; iconClassName: string }> =
  *  shown anywhere else instead. Reads `headlines`/`TAB_VISUALS` by the
  *  current `value` so it's this component's own Radix-driven tab state
  *  deciding which one shows, no group-data/CSS trick needed. */
-function TabHeadlineBar({ tabValue, headline }: { tabValue: string; headline: TabHeadlineInfo }) {
+function TabHeadlineBar({ tabValue, headline, hasLiveData }: { tabValue: string; headline: TabHeadlineInfo; hasLiveData: boolean }) {
   const visual = TAB_VISUALS[tabValue] ?? TAB_VISUALS.hub;
   const Icon = visual.icon;
   return (
@@ -48,10 +48,21 @@ function TabHeadlineBar({ tabValue, headline }: { tabValue: string; headline: Ta
           <p className="text-2xl font-semibold text-theme-primary">{headline.value}</p>
         </div>
       </div>
-      <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-        <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-        Live Active
-      </span>
+      {/* Reflects the same lastTs LiveSyncedAgo reads next to it — this
+          used to say "Live Active" unconditionally, contradicting that
+          indicator's own "No data yet" the moment a device had never
+          reported. */}
+      {hasLiveData ? (
+        <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+          <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
+          Live Active
+        </span>
+      ) : (
+        <span className="flex items-center gap-1 text-xs font-medium text-theme-muted">
+          <span className="size-1.5 rounded-full bg-theme-muted" />
+          No Data
+        </span>
+      )}
     </div>
   );
 }
@@ -72,16 +83,29 @@ function TabHeadlineBar({ tabValue, headline }: { tabValue: string; headline: Ta
 export function MonitoringTabs({
   defaultValue,
   headlines,
+  hasLiveData,
   children,
 }: {
   defaultValue: string;
   headlines: Record<string, TabHeadlineInfo>;
+  /** Whether this device has ever reported a reading (the same signal
+   *  LiveSyncedAgo's own `lastTs` prop is built from) — decides whether
+   *  the headline's own status reads "Live Active" or "No Data" instead
+   *  of always claiming live. */
+  hasLiveData: boolean;
   children: React.ReactNode;
 }) {
   const [value, setValue] = useState(defaultValue);
 
   useEffect(() => {
     const hash = window.location.hash.slice(1);
+    // Deliberately deferred to an effect, not read during the initial
+    // render (e.g. via useState's lazy initializer) — location.hash isn't
+    // available server-side, so reading it during render would mismatch
+    // the SSR-rendered `defaultValue` and trigger a hydration error. This
+    // is exactly the "sync with a browser API unavailable during SSR"
+    // case an effect is for.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (hash) setValue(hash);
   }, []);
 
@@ -93,7 +117,7 @@ export function MonitoringTabs({
         history.replaceState(null, "", `#${next}`);
       }}
     >
-      {headlines[value] && <TabHeadlineBar tabValue={value} headline={headlines[value]} />}
+      {headlines[value] && <TabHeadlineBar tabValue={value} headline={headlines[value]} hasLiveData={hasLiveData} />}
       {children}
     </Tabs>
   );

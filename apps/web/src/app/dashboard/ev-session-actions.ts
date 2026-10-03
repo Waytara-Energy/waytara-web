@@ -8,10 +8,10 @@ import { getCustomerSites } from "@/lib/selected-site";
 
 const ENERGY_KEY = "energy_active_import_register_kwh";
 
-// charging_sessions is read-only via RLS for every role (see its own
+// ev_sessions is read-only via RLS for every role (see its own
 // migration's comment) — nothing but a service-role process is meant to
 // write it, same invariant as the detection cron and the deye-modbus-agent
-// pattern for device_settings. A customer clicking "Start/Stop Charging"
+// pattern for equipment_configs. A customer clicking "Start/Stop Charging"
 // is a new, legitimate writer, but it stays consistent with that
 // invariant by writing through the service-role client from here rather
 // than loosening RLS — the ownership check below (does this device belong
@@ -29,18 +29,18 @@ async function assertOwnCharger(deviceId: string) {
 async function latestEnergyReading(deviceId: string): Promise<number | null> {
   const service = createServiceRoleClient();
   const { data } = await service
-    .from("device_readings")
+    .from("equipment_telemetry")
     .select("value")
-    .eq("device_id", deviceId)
-    .eq("instrument_key", ENERGY_KEY)
+    .eq("equipment_id", deviceId)
+    .eq("key_name", ENERGY_KEY)
     .order("ts", { ascending: false })
     .limit(1)
     .maybeSingle();
   return data?.value ?? null;
 }
 
-/** Opens a new charging_sessions row for this device — the simulator
- *  listens for this (a `charging_sessions` INSERT with no matching device
+/** Opens a new ev_sessions row for this device — the simulator
+ *  listens for this (an `ev_sessions` INSERT with no matching device
  *  reading yet) and starts generating live EV telemetry for it, the same
  *  way real hardware would react to an OCPP RemoteStartTransaction. A
  *  no-op (not an error the UI needs to show) if a session is already open
@@ -51,15 +51,15 @@ export async function startChargingSession(deviceId: string) {
   const service = createServiceRoleClient();
 
   const { data: open } = await service
-    .from("charging_sessions")
+    .from("ev_sessions")
     .select("id")
-    .eq("device_id", deviceId)
+    .eq("equipment_id", deviceId)
     .is("ended_at", null)
     .maybeSingle();
   if (open) return;
 
-  await service.from("charging_sessions").insert({
-    device_id: deviceId,
+  await service.from("ev_sessions").insert({
+    equipment_id: deviceId,
     started_at: new Date().toISOString(),
     start_energy_kwh: await latestEnergyReading(deviceId),
   });
@@ -76,15 +76,15 @@ export async function stopChargingSession(deviceId: string) {
   const service = createServiceRoleClient();
 
   const { data: open } = await service
-    .from("charging_sessions")
+    .from("ev_sessions")
     .select("id")
-    .eq("device_id", deviceId)
+    .eq("equipment_id", deviceId)
     .is("ended_at", null)
     .maybeSingle();
   if (!open) return;
 
   await service
-    .from("charging_sessions")
+    .from("ev_sessions")
     .update({
       ended_at: new Date().toISOString(),
       end_energy_kwh: await latestEnergyReading(deviceId),

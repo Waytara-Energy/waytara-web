@@ -23,9 +23,9 @@ export interface LastSyncInfo {
 export async function getLastSyncInfo(deviceId: string): Promise<LastSyncInfo> {
   const supabase = await createClient();
   const { data } = await supabase
-    .from("device_readings")
+    .from("equipment_telemetry")
     .select("ts")
-    .eq("device_id", deviceId)
+    .eq("equipment_id", deviceId)
     .order("ts", { ascending: false })
     .limit(1)
     .maybeSingle();

@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Paperclip, Plus } from "lucide-react";
 import {
   Dialog,
@@ -17,17 +18,41 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Attachment } from "@/components/ui/attachment";
+import { notify } from "@waytara/ui/notify";
 import { createSupportTicket } from "@/app/dashboard/support/actions";
 
 /** The intake form for a new ticket — subject + first message, optional
  *  attachment. Standing in for "QuestionnaireNew" (no such component
  *  exists in any shadcn registry under that name; this is the closest
- *  real equivalent, per the approved plan's own note on that gap). Same
- *  reopen-on-error behavior as NewMaintenanceTicketDialog. */
-export function NewSupportTicketDialog({ error }: { error?: string }) {
-  const [open, setOpen] = React.useState(!!error);
+ *  real equivalent, per the approved plan's own note on that gap).
+ *
+ *  Submitting shows a loading → success/error toast. Unlike the other
+ *  dialogs' `withPromiseToast`, this one navigates to the new ticket's own
+ *  page on success — so it calls `notify.promise` directly instead, to get
+ *  at the created ticket's id for that navigation (`withPromiseToast`
+ *  only reports whether the call succeeded, not its return value). A
+ *  failed submit leaves the dialog open with what was typed. */
+export function NewSupportTicketDialog() {
+  const router = useRouter();
+  const [open, setOpen] = React.useState(false);
   const [file, setFile] = React.useState<File | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  async function handleSubmit(formData: FormData) {
+    const promise = createSupportTicket(formData);
+    notify.promise(promise, {
+      loading: "Opening ticket…",
+      success: () => "Ticket opened.",
+      error: (e) => (e instanceof Error ? e.message : "Something went wrong."),
+    });
+    try {
+      const { id } = await promise;
+      setOpen(false);
+      router.push(`/dashboard/support/${id}`);
+    } catch {
+      // Already surfaced via the toast above — dialog stays open.
+    }
+  }
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
@@ -43,13 +68,7 @@ export function NewSupportTicketDialog({ error }: { error?: string }) {
           <DialogDescription>Your assigned WayTara advisor will reply here.</DialogDescription>
         </DialogHeader>
 
-        {error && (
-          <p className="rounded-lg border border-destructive/30 bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {error}
-          </p>
-        )}
-
-        <form action={createSupportTicket} className="space-y-4">
+        <form action={handleSubmit} className="space-y-4">
           <FieldGroup>
             <Field>
               <FieldLabel htmlFor="subject">Subject</FieldLabel>

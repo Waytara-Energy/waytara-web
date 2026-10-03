@@ -16,7 +16,7 @@ function isStaffRole(role: string): role is StaffRole {
   return (STAFF_ROLES as readonly string[]).includes(role);
 }
 
-export async function sendEmployeeInvite(formData: FormData) {
+export async function sendEmployeeInvite(formData: FormData): Promise<void> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
@@ -24,14 +24,14 @@ export async function sendEmployeeInvite(formData: FormData) {
   const role = String(formData.get("role") ?? "");
 
   if (!email || !isStaffRole(role)) {
-    redirect(`/employees?error=${encodeURIComponent("Enter a valid email and pick a role.")}`);
+    throw new Error("Enter a valid email and pick a role.");
   }
 
   const supabase = await createClient();
 
   const { data: existingProfile } = await supabase.from("profiles").select("id").eq("email", email).maybeSingle();
   if (existingProfile) {
-    redirect(`/employees?error=${encodeURIComponent("Someone with that email already has an account.")}`);
+    throw new Error("Someone with that email already has an account.");
   }
 
   const token = crypto.randomUUID();
@@ -46,25 +46,23 @@ export async function sendEmployeeInvite(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/employees?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   await sendEmployeeInviteEmail({ to: email, role, token });
 
   revalidatePath("/employees");
-  redirect("/employees?success=invited");
 }
 
-export async function revokeInvite(inviteId: string) {
+export async function revokeInvite(inviteId: string): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase.from("employee_invites").update({ status: "revoked" }).eq("id", inviteId);
 
   if (error) {
-    redirect(`/employees?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   revalidatePath("/employees");
-  redirect("/employees?success=revoked");
 }
 
 // Uses service_role deliberately, per the note left on the profiles
@@ -73,28 +71,27 @@ export async function revokeInvite(inviteId: string) {
 // can update any profile" would also loosen every customer's own
 // self-update surface. This is the one legitimate case for bypassing RLS
 // outright rather than adding a policy.
-export async function changeEmployeeRole(profileId: string, formData: FormData) {
+export async function changeEmployeeRole(profileId: string, formData: FormData): Promise<void> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
   if (profileId === profile.id) {
-    redirect(`/employees?error=${encodeURIComponent("You can't change your own role.")}`);
+    throw new Error("You can't change your own role.");
   }
 
   const newRole = String(formData.get("role") ?? "");
   if (!isStaffRole(newRole)) {
-    redirect(`/employees?error=${encodeURIComponent("Invalid role.")}`);
+    throw new Error("Invalid role.");
   }
 
   const service = createServiceRoleClient();
   const { error } = await service.from("profiles").update({ role: newRole }).eq("id", profileId);
 
   if (error) {
-    redirect(`/employees?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   revalidatePath("/employees");
-  redirect("/employees?success=role-updated");
 }
 
 // Revoke/restore/permanent-delete — same "remove from org, don't erase
@@ -109,29 +106,28 @@ export async function changeEmployeeRole(profileId: string, formData: FormData) 
 // closing the window before an already-issued token would naturally expire.
 const PERMANENT_BAN = "876000h"; // ~100 years — Supabase has no literal "forever"
 
-export async function revokeEmployeeAccess(profileId: string) {
+export async function revokeEmployeeAccess(profileId: string): Promise<void> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
   if (profileId === profile.id) {
-    redirect(`/employees?error=${encodeURIComponent("You can't revoke your own access.")}`);
+    throw new Error("You can't revoke your own access.");
   }
 
   const service = createServiceRoleClient();
   const { error: banError } = await service.auth.admin.updateUserById(profileId, { ban_duration: PERMANENT_BAN });
   if (banError) {
-    redirect(`/employees?error=${encodeURIComponent(banError.message)}`);
+    throw new Error(banError.message);
   }
 
   const { error } = await service.from("profiles").update({ deactivated_at: new Date().toISOString() }).eq("id", profileId);
   if (error) {
-    redirect(`/employees?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   revalidatePath("/employees");
-  redirect("/employees?success=revoked-access");
 }
 
-export async function restoreEmployeeAccess(profileId: string) {
+export async function restoreEmployeeAccess(profileId: string): Promise<void> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
@@ -141,21 +137,20 @@ export async function restoreEmployeeAccess(profileId: string) {
   // the whole point of "permanent". Check before touching the ban.
   const { data: target } = await service.from("profiles").select("deleted_at").eq("id", profileId).maybeSingle();
   if (target?.deleted_at) {
-    redirect(`/employees?error=${encodeURIComponent("This account was permanently deleted and can't be restored.")}`);
+    throw new Error("This account was permanently deleted and can't be restored.");
   }
 
   const { error: banError } = await service.auth.admin.updateUserById(profileId, { ban_duration: "none" });
   if (banError) {
-    redirect(`/employees?error=${encodeURIComponent(banError.message)}`);
+    throw new Error(banError.message);
   }
 
   const { error } = await service.from("profiles").update({ deactivated_at: null }).eq("id", profileId);
   if (error) {
-    redirect(`/employees?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   revalidatePath("/employees");
-  redirect("/employees?success=restored-access");
 }
 
 // Irreversible. displayName is the admin's choice at delete time — left as
@@ -165,22 +160,22 @@ export async function restoreEmployeeAccess(profileId: string) {
 // permanent full_name, and every reference to this profile keeps resolving
 // to it. Email is scrubbed so the real address is free to be invited again
 // as a genuinely new account later.
-export async function permanentlyDeleteEmployee(profileId: string, formData: FormData) {
+export async function permanentlyDeleteEmployee(profileId: string, formData: FormData): Promise<void> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
   if (profileId === profile.id) {
-    redirect(`/employees?error=${encodeURIComponent("You can't delete your own account.")}`);
+    throw new Error("You can't delete your own account.");
   }
 
   const displayName = String(formData.get("displayName") ?? "").trim();
   if (!displayName) {
-    redirect(`/employees?error=${encodeURIComponent("Enter a name to keep on their historical records.")}`);
+    throw new Error("Enter a name to keep on their historical records.");
   }
 
   const service = createServiceRoleClient();
   const { error: banError } = await service.auth.admin.updateUserById(profileId, { ban_duration: PERMANENT_BAN });
   if (banError) {
-    redirect(`/employees?error=${encodeURIComponent(banError.message)}`);
+    throw new Error(banError.message);
   }
 
   const now = new Date().toISOString();
@@ -191,9 +186,8 @@ export async function permanentlyDeleteEmployee(profileId: string, formData: For
     .eq("id", profileId);
 
   if (error) {
-    redirect(`/employees?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   revalidatePath("/employees");
-  redirect("/employees?success=deleted");
 }

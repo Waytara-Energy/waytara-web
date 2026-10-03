@@ -12,7 +12,7 @@ function attachmentPathFor(ticketId: string, file: File): string {
   return `${ticketId}/${Date.now()}-${file.name}`;
 }
 
-export async function createSupportTicket(formData: FormData) {
+export async function createSupportTicket(formData: FormData): Promise<{ id: string }> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
@@ -21,9 +21,7 @@ export async function createSupportTicket(formData: FormData) {
   const attachment = formData.get("attachment");
 
   if (!subject || !message) {
-    redirect(
-      `/dashboard/support?error=${encodeURIComponent("A subject and a first message are required.")}`
-    );
+    throw new Error("A subject and a first message are required.");
   }
 
   const supabase = await createClient();
@@ -35,9 +33,7 @@ export async function createSupportTicket(formData: FormData) {
     .single();
 
   if (ticketError || !ticket) {
-    redirect(
-      `/dashboard/support?error=${encodeURIComponent(ticketError?.message ?? "Couldn't open the ticket.")}`
-    );
+    throw new Error(ticketError?.message ?? "Couldn't open the ticket.");
   }
 
   let attachmentPath: string | null = null;
@@ -58,14 +54,14 @@ export async function createSupportTicket(formData: FormData) {
   });
 
   if (messageError) {
-    redirect(`/dashboard/support?error=${encodeURIComponent(messageError.message)}`);
+    throw new Error(messageError.message);
   }
 
   revalidatePath("/dashboard/support");
-  redirect(`/dashboard/support/${ticket.id}`);
+  return { id: ticket.id };
 }
 
-export async function sendSupportMessage(formData: FormData) {
+export async function sendSupportMessage(formData: FormData): Promise<void> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
@@ -74,7 +70,7 @@ export async function sendSupportMessage(formData: FormData) {
   const attachment = formData.get("attachment");
 
   if (!ticketId || !body) {
-    redirect(`/dashboard/support/${ticketId}?error=${encodeURIComponent("Write a message before sending.")}`);
+    throw new Error("Write a message before sending.");
   }
 
   const supabase = await createClient();
@@ -84,7 +80,7 @@ export async function sendSupportMessage(formData: FormData) {
     const path = attachmentPathFor(ticketId, attachment);
     const { error: uploadError } = await supabase.storage.from("support-attachments").upload(path, attachment);
     if (uploadError) {
-      redirect(`/dashboard/support/${ticketId}?error=${encodeURIComponent(uploadError.message)}`);
+      throw new Error(uploadError.message);
     }
     attachmentPath = path;
   }
@@ -98,7 +94,7 @@ export async function sendSupportMessage(formData: FormData) {
   });
 
   if (error) {
-    redirect(`/dashboard/support/${ticketId}?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   // Bumps updated_at so the ticket list's "Updated ..." sort reflects new
@@ -109,7 +105,7 @@ export async function sendSupportMessage(formData: FormData) {
   revalidatePath("/dashboard/support");
 }
 
-export async function markTicketResolved(ticketId: string) {
+export async function markTicketResolved(ticketId: string): Promise<void> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
@@ -120,7 +116,7 @@ export async function markTicketResolved(ticketId: string) {
     .eq("id", ticketId);
 
   if (error) {
-    redirect(`/dashboard/support/${ticketId}?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   revalidatePath(`/dashboard/support/${ticketId}`);

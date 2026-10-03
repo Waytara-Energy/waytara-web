@@ -1,30 +1,30 @@
 import { TriangleAlert } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import type { CustomerDevice } from "@/lib/selected-site";
-import { getConnectorStatusLabel, getErrorCodeLabel, EV_LIVE_FIELDS, EV_TOTAL_FIELDS, EV_TODAY_DETAIL_FIELDS } from "@/lib/ev-charger-catalog";
-import { fetchReadKeys, fetchEnumOptions } from "@/lib/instrument-catalog-data";
-import { formatValue } from "@/lib/telemetry-catalog";
+import { getConnectorStatusLabel, getErrorCodeLabel } from "@/lib/ev-charger-catalog";
+import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
+import { fetchDashboardFields, fetchFieldValues } from "@/lib/template-fields";
 import { getCustomerPlan } from "@/lib/customer-plan";
-import { fetchTodayEvEnergyKwh } from "@/lib/device-overview";
+import { fetchTodayEvEnergyKwh, fetchTodayChargingSessions } from "@/lib/device-overview";
 import { formatElapsedSince } from "@/lib/format-duration";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { StatusPill } from "./status-pill";
+import { DynamicFieldGroup } from "./dynamic-field-group";
 import { RecentAlerts, type AlertRow } from "./recent-alerts";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
-// Full presentation universe — filtered per device in EvChargerOverview
-// against fetchReadKeys, same reasoning as monitoring-content.tsx's
-// EV_CANDIDATE_KEYS.
-const READ_CANDIDATE_KEYS = [...EV_LIVE_FIELDS, ...EV_TOTAL_FIELDS].map((f) => f.key).concat(["connector_status", "error_code"]);
-
 /** The EV charger's own curated Overview — the charger-category
  *  counterpart to the solar inverter's status pill / fault banner / energy
- *  flow / today-so-far block, built from this device's own OCPP telemetry
- *  (device_parameters + device_readings), not the inverter's fixed key
- *  list. Settings live in their own section on the Devices detail page
- *  (see DeviceOverviewContent), not here — this is telemetry only. */
+ *  flow / today-so-far block. Every `dashboard_section: "Overview"` field
+ *  this device actually has mapped renders somewhere on this page now:
+ *  "Charger Status"/"Connector"/"Energy Meter" (all real OCPP telemetry)
+ *  render through the same DynamicFieldGroup every other dashboard page
+ *  uses; "Platform Analytics" (today's session/revenue/CO2 figures — none
+ *  of them a real register, all computed from ev_sessions) keeps its own
+ *  hand-built tiles below, since that math needs session data + the
+ *  customer's tariff rate, not just a value lookup. */
 export async function EvChargerOverview({
   supabase,
   device,
@@ -34,41 +34,38 @@ export async function EvChargerOverview({
   device: CustomerDevice;
   showAlerts?: boolean;
 }) {
-  const readKeys = await fetchReadKeys(supabase, device);
-  const readCandidateKeys = READ_CANDIDATE_KEYS.filter((k) => readKeys.has(k));
+  const [sections, { data: recentAlerts }, { data: openSession }, customerPlan, todayEnergyKwh, chargingSummary, enumOptions] =
+    await Promise.all([
+      fetchDashboardFields(supabase, device, "Overview"),
+      showAlerts
+        ? supabase
+            .from("alerts")
+            .select("id, device_id, severity, message, ts, acknowledged_at")
+            .eq("device_id", device.id)
+            .is("acknowledged_at", null)
+            .order("ts", { ascending: false })
+            .limit(5)
+        : Promise.resolve({ data: null }),
+      supabase.from("ev_sessions").select("started_at").eq("equipment_id", device.id).is("ended_at", null).maybeSingle(),
+      getCustomerPlan(),
+      fetchTodayEvEnergyKwh(supabase, [device.id]),
+      fetchTodayChargingSessions(supabase, device.id),
+      fetchEnumOptions(supabase, ["connector_status", "error_code"]),
+    ]);
 
-  const [{ data: readings }, { data: recentAlerts }, { data: openSession }, customerPlan, todayEnergyKwh, enumOptions] = await Promise.all([
-    supabase
-      .from("device_readings")
-      .select("instrument_key, value, ts")
-      .eq("device_id", device.id)
-      .in("instrument_key", readCandidateKeys)
-      .order("ts", { ascending: false })
-      .limit(readCandidateKeys.length * 5),
-    showAlerts
-      ? supabase
-          .from("alerts")
-          .select("id, device_id, severity, message, ts, acknowledged_at")
-          .eq("device_id", device.id)
-          .is("acknowledged_at", null)
-          .order("ts", { ascending: false })
-          .limit(5)
-      : Promise.resolve({ data: null }),
-    supabase.from("charging_sessions").select("started_at").eq("device_id", device.id).is("ended_at", null).maybeSingle(),
-    getCustomerPlan(),
-    fetchTodayEvEnergyKwh(supabase, [device.id]),
-    fetchEnumOptions(supabase, ["connector_status", "error_code"]),
-  ]);
+  // "Charger Status"/"Connector"/"Energy Meter" are real telemetry;
+  // "Platform Analytics" is rendered separately below (see this
+  // function's own doc comment) — never fetched from equipment_telemetry
+  // at all, since nothing writes a register for it.
+  const registerSections = sections.filter((s) => s.category !== "Platform Analytics");
+  const registerKeys = registerSections.flatMap((s) => s.groups.flatMap((g) => g.fields.map((f) => f.key)));
+  const values = await fetchFieldValues(supabase, device.id, registerKeys);
+  const get = (key: string) => values.get(key) ?? null;
 
-  const latest = new Map<string, number | null>();
-  for (const r of readings ?? []) {
-    if (!latest.has(r.instrument_key)) latest.set(r.instrument_key, r.value);
-  }
-  const get = (key: string) => latest.get(key) ?? null;
-
-  const status = getConnectorStatusLabel(get("connector_status"), enumOptions.get("connector_status") ?? []);
-  const errorLabel = getErrorCodeLabel(get("error_code"), enumOptions.get("error_code") ?? []);
+  const status = getConnectorStatusLabel(get("connector_status") as number | null, enumOptions.get("connector_status") ?? []);
+  const errorLabel = getErrorCodeLabel(get("error_code") as number | null, enumOptions.get("error_code") ?? []);
   const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
+  const sessionsToday = chargingSummary.sessions.length;
 
   return (
     <div className="space-y-4">
@@ -84,26 +81,43 @@ export async function EvChargerOverview({
         </Alert>
       )}
 
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {EV_LIVE_FIELDS.map((field) => (
-          <Card key={field.key}>
-            <CardContent className="p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{field.label}</p>
-              <p className="mt-1 text-lg font-semibold text-foreground">{formatValue(get(field.key), field)}</p>
-            </CardContent>
-          </Card>
-        ))}
+      {/* Columns, not a grid — see the Devices page's identical note on why
+          (uneven card heights + grid's row-major placement leaves gaps a
+          masonry-style column flow doesn't). */}
+      <div className="columns-1 gap-4 sm:columns-2 [&>*]:mb-4 [&>*]:break-inside-avoid">
+        {registerSections.map((section) =>
+          section.groups.map((group) => (
+            <DynamicFieldGroup
+              key={`${section.category}-${group.groupName ?? ""}`}
+              title={group.groupName ? `${section.category} — ${group.groupName}` : section.category}
+              fields={group.fields}
+              getValue={get}
+              enumOptionsByRef={enumOptions}
+            />
+          ))
+        )}
       </div>
 
+      {/* Platform Analytics — today's session/billing figures, computed
+          from ev_sessions rather than a register. active_sessions_count
+          and sessions_today_count both come from data already fetched
+          above; co2_saved_today_kg and utilization_today_pct have no
+          established formula for a charging session yet (unlike solar's
+          grid-displacement CO2 math) — left off rather than showing an
+          invented number. */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        {EV_TODAY_DETAIL_FIELDS.map((field) => (
-          <Card key={field.key}>
-            <CardContent className="p-4">
-              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{field.label}</p>
-              <p className="mt-1 text-lg font-semibold text-foreground">{formatValue(get(field.key), field)}</p>
-            </CardContent>
-          </Card>
-        ))}
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Active Sessions</p>
+            <p className="mt-1 text-lg font-semibold text-foreground">{openSession ? "1" : "0"}</p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Sessions Today</p>
+            <p className="mt-1 text-lg font-semibold text-foreground">{sessionsToday}</p>
+          </CardContent>
+        </Card>
         {todayEnergyKwh !== null && (
           <>
             <Card>
@@ -114,7 +128,7 @@ export async function EvChargerOverview({
             </Card>
             <Card>
               <CardContent className="p-4">
-                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Cost Today</p>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Revenue Today</p>
                 <p className="mt-1 text-lg font-semibold text-foreground">
                   ₹{(todayEnergyKwh * tariffRate).toLocaleString("en-IN", { maximumFractionDigits: 0 })}
                 </p>

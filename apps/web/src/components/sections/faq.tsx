@@ -55,13 +55,21 @@ export function FAQ({ selectedSegment }: FaqProps) {
   const [activeCategory, setActiveCategory] = React.useState<FaqCategoryType>("solar_battery");
   const [openFaqId, setOpenFaqId] = React.useState<string | null>("sb-1");
 
-  React.useEffect(() => {
+  // Re-derived when `selectedSegment` itself changes, but otherwise left
+  // alone so a sidebar click still sticks — adjusting state directly
+  // during render on a prop change, React's own recommended alternative
+  // to an effect for this exact case (see "Adjusting state when a prop
+  // changes" in the React docs), rather than a render-then-effect-then-
+  // re-render round trip.
+  const [prevSelectedSegment, setPrevSelectedSegment] = React.useState(selectedSegment);
+  if (selectedSegment !== prevSelectedSegment) {
+    setPrevSelectedSegment(selectedSegment);
     if (selectedSegment === "ev_fleet") {
       setActiveCategory("software_hardware");
     } else if (selectedSegment === "commercial") {
       setActiveCategory("money_roi");
     }
-  }, [selectedSegment]);
+  }
 
   const currentCategory =
     FAQ_SIDEBAR_CATEGORIES.find((cat) => cat.id === activeCategory) ||

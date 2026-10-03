@@ -71,29 +71,34 @@ export default async function DashboardOverviewPage() {
     chargerIds.length > 0
       ? fetchEnumOptions(supabase, ["connector_status"]).then((m) => m.get("connector_status") ?? [])
       : Promise.resolve([]),
+    // enum_ref stays "inverter_state" (equipment_enum wasn't reseeded under
+    // the new key name) even though the equipment_templates/equipment_metrics
+    // key itself is now "inverter_run_state" — the enum library and the
+    // field key are two separate names by design (an enum_ref is meant to
+    // be reusable across differently-named fields).
     inverterId ? fetchEnumOptions(supabase, ["inverter_state"]).then((m) => m.get("inverter_state") ?? []) : Promise.resolve([]),
   ]);
   const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
 
   return (
     <div className="space-y-6">
-      {/* device_readings isn't safe to hand-patch here — the energy flow
+      {/* equipment_telemetry isn't safe to hand-patch here — the energy flow
           diagram and the status pill are both derived (latest-per-key,
           summed/averaged across devices) from a raw insert payload, so a
           new reading debounce-refreshes the whole page instead. */}
       {deviceIds.length > 0 && (
-        <RealtimeRefresh table="device_readings" event="INSERT" filter={`device_id=in.(${deviceIds.join(",")})`} />
+        <RealtimeRefresh table="equipment_telemetry" event="INSERT" filter={`equipment_id=in.(${deviceIds.join(",")})`} />
       )}
-      {/* charging_sessions isn't reflected in device_readings at all (it's
+      {/* ev_sessions isn't reflected in equipment_telemetry at all (it's
           a derived table, not a raw reading) — a session opening is an
           INSERT, closing is an UPDATE on that same row, so both need their
           own subscription for "Energy Delivered Today" and the EV cards to
           catch up the moment a session starts or ends, not just whenever
-          the next device_readings tick happens to land. */}
+          the next equipment_telemetry tick happens to land. */}
       {chargerIds.length > 0 && (
         <>
-          <RealtimeRefresh table="charging_sessions" event="INSERT" filter={`device_id=in.(${chargerIds.join(",")})`} />
-          <RealtimeRefresh table="charging_sessions" event="UPDATE" filter={`device_id=in.(${chargerIds.join(",")})`} />
+          <RealtimeRefresh table="ev_sessions" event="INSERT" filter={`equipment_id=in.(${chargerIds.join(",")})`} />
+          <RealtimeRefresh table="ev_sessions" event="UPDATE" filter={`equipment_id=in.(${chargerIds.join(",")})`} />
         </>
       )}
       {/* Weather comes from an external API, not a table this app owns —
@@ -106,7 +111,7 @@ export default async function DashboardOverviewPage() {
         <WeatherHeader address={site.address} siteName={site.name} latitude={site.latitude} longitude={site.longitude} />
         {overview && (
           <DeviceStatusPill
-            inverterState={overview.get("inverter_state")}
+            inverterState={overview.get("inverter_run_state")}
             activeFaultCode={overview.get("active_fault_code")}
             inverterStateOptions={inverterStateOptions}
           />
@@ -128,10 +133,10 @@ export default async function DashboardOverviewPage() {
           <FaultBanner faultCode={overview.get("active_fault_code")} />
 
           <EnergyFlowDiagram
-            solarW={overview.get("inverter_power_w")}
+            solarW={overview.get("inverter_output_power_w")}
             batteryW={overview.get("battery_power_w")}
-            gridW={overview.get("grid_power_w")}
-            loadW={overview.get("load_power_w")}
+            gridW={overview.get("grid_total_power_w")}
+            loadW={overview.get("load_total_power_w")}
             batterySocPct={overview.get("battery_soc_pct")}
             evW={overview.evW}
             powerPackage={site.powerPackage}

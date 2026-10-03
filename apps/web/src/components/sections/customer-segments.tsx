@@ -207,9 +207,12 @@ interface CustomerSegmentsProps {
   onSelectSegment: (segment: CustomerSegmentId) => void;
 }
 
+// selectedSegment/onSelectSegment are accepted for API parity with the
+// other segment-aware sections on this page but unused here — this
+// section renders static content, no per-segment card list to select from.
 export function CustomerSegments({
-  selectedSegment,
-  onSelectSegment,
+  selectedSegment: _selectedSegment,
+  onSelectSegment: _onSelectSegment,
 }: CustomerSegmentsProps) {
   return (
     <section

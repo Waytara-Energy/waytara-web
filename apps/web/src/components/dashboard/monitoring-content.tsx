@@ -2,29 +2,23 @@ import { createClient } from "@waytara/supabase/server";
 import { getSelectedSite, type CustomerDevice } from "@/lib/selected-site";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
-import { fetchReadKeys, fetchEnumOptions } from "@/lib/instrument-catalog-data";
-import { fetchTodayChargingSessions, fetchRecentChargingStats } from "@/lib/device-overview";
+import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
+import { fetchTodayChargingSessions, fetchRecentChargingStats, deriveFaultCode, FAULT_BITMASK_KEYS } from "@/lib/device-overview";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { co2AvoidedKg, treesEquivalent } from "@/lib/environmental-impact";
+import { getConnectorStatusLabel, getErrorCodeLabel } from "@/lib/ev-charger-catalog";
 import {
-  getConnectorStatusLabel,
-  getErrorCodeLabel,
-  EV_LIVE_FIELDS,
-  EV_TOTAL_FIELDS,
-  EV_CONNECTOR_TEMP_WARN_C,
-} from "@/lib/ev-charger-catalog";
-import {
-  TEMPERATURE_FIELDS,
-  BATTERY_DETAIL_FIELDS,
-  BATTERY_HEALTH_FIELDS,
-  INVERTER_DETAIL_FIELDS,
-  GRID_DETAIL_FIELDS,
-  LOAD_DETAIL_FIELDS,
-  TODAY_ENERGY_FIELDS,
-} from "@/lib/telemetry-catalog";
+  fetchDashboardFields,
+  fetchFieldValues,
+  resolveComputedValues,
+  type FieldValue,
+  type TemplateField,
+  type FieldGroup,
+  type CategorySection,
+} from "@/lib/template-fields";
+import { TEMPERATURE_MAX_C } from "@/lib/temperature-thresholds";
 import { Badge } from "@/components/ui/badge";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   TriangleAlert,
@@ -34,7 +28,6 @@ import {
   Home,
   Zap,
   Activity,
-  Percent,
   Gauge,
   Leaf,
   TreePine,
@@ -45,11 +38,15 @@ import {
   Fuel,
   type LucideIcon,
 } from "lucide-react";
-import { cn } from "@/lib/utils";
 import { BarTrendChart, MainHubTrendGroup, BatteryTrendGroup, ChargerTrendGroup } from "./lazy-charts";
-import { PvStringComparison } from "./pv-string-comparison";
-import { TemperatureGauge } from "./temperature-gauge";
-import { MetricListCard } from "./metric-list-card";
+import type { HeatmapRow } from "./temperature-heatmap";
+import { DynamicFieldGroup } from "./dynamic-field-group";
+import { groupByPhase } from "./phase-meter-card";
+import { groupByIndex } from "./indexed-group-card";
+import { LiveReadingsCard } from "./live-readings-card";
+import { EnergyStatCard } from "./energy-stat-card";
+import { SessionReceiptCard, type ReceiptSection } from "./session-receipt-card";
+import type { EnumOption } from "@/lib/instrument-catalog-data";
 import { LiveStatusCard } from "./live-status-card";
 import { StatusPill } from "./status-pill";
 import { DeviceStatusPill } from "./device-status-pill";
@@ -62,52 +59,38 @@ import { DeviceSwitcher } from "./device-switcher";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
-const SOLAR_SNAPSHOT_KEYS = [
-  ...TEMPERATURE_FIELDS.map((f) => f.key),
-  ...BATTERY_DETAIL_FIELDS.map((f) => f.key),
-  ...BATTERY_HEALTH_FIELDS.map((f) => f.key),
-  ...INVERTER_DETAIL_FIELDS.map((f) => f.key),
-  ...GRID_DETAIL_FIELDS.map((f) => f.key),
-  ...LOAD_DETAIL_FIELDS.map((f) => f.key),
-  ...TODAY_ENERGY_FIELDS.map((f) => f.key),
-  "pv1_voltage_v",
-  "pv1_current_a",
-  "pv1_power_w",
-  "pv2_voltage_v",
-  "pv2_current_a",
-  "pv2_power_w",
-  "grid_connected",
-  "inverter_state",
-  "active_fault_code",
-  "total_pv_energy_kwh",
-  "inverter_power_w",
-  "battery_soc_pct",
+// Cross-page reads — real keys, but their own equipment_templates row is
+// tagged dashboard_section: "Overview" (state-of-the-system totals like
+// SOC/site power flow), not "Monitoring". Reused here the same way
+// EnergyFlowDiagram/TodaySoFar already reuse them on Overview — a field's
+// dashboard_section says which screen renders its own full detail, it
+// doesn't forbid a different screen's headline tile from reading the same
+// real value.
+const OVERVIEW_CROSSREF_KEYS = [
   "battery_power_w",
-  "grid_power_w",
-  "load_power_w",
+  "battery_soc_pct",
+  "grid_total_power_w",
+  "load_total_power_w",
+  "inverter_run_state",
+  "day_pv_energy_kwh",
+  "day_grid_import_energy_kwh",
+  "day_grid_export_energy_kwh",
+  "day_load_energy_kwh",
+  ...FAULT_BITMASK_KEYS,
 ];
 
-// This device's own generator readings — kept separate from
-// SOLAR_SNAPSHOT_KEYS rather than folded in, since these are only ever
-// fetched when device_feature_flags says this specific install actually
-// has a generator connected (not every site does).
-const GENERATOR_KEYS = ["gen_power_w", "gen_voltage_v", "gen_frequency_hz"];
-
-// No warnAboveC is defined for environment_temp_c anywhere else in the app
-// (it's an ambient reading, not a component with a manufacturer-stated
-// safe ceiling) — 45°C is just a reasonable "hot day outdoors" reference
-// point for this heatmap's own color scale, not a real alarm threshold.
-const TEMPERATURE_HEATMAP_ROWS = [
-  { key: "inverter_dc_temp_c", label: "DC Transformer", maxC: 75 },
-  { key: "inverter_ac_temp_c", label: "Radiator", maxC: 85 },
-  { key: "environment_temp_c", label: "Ambient", maxC: 45 },
-];
-
-// Voltage/Current/Frequency moved up into Grid Interface's own "Electrical"
-// card, matching Main Hub's — this keeps the fields without a card home.
-const GRID_DETAIL_REMAINING_FIELDS = GRID_DETAIL_FIELDS.filter(
-  (f) => f.key !== "grid_voltage_v" && f.key !== "grid_current_a" && f.key !== "grid_frequency_hz"
-);
+/** Builds a TemperatureHeatmap's `rows` from a CategorySection's own
+ *  fetched fields instead of a hardcoded key/label pair — the label is
+ *  always this device's real equipment_templates.display_name, never
+ *  invented copy that can drift from (or just plain not match) what the
+ *  field actually is. Only picks fields this lookup has a ceiling for, so
+ *  a group with non-temperature fields mixed in (e.g. Battery > Live)
+ *  can't accidentally feed something else into a °C color scale. */
+function temperatureRowsFor(fields: TemplateField[]): HeatmapRow[] {
+  return fields
+    .filter((f) => f.key in TEMPERATURE_MAX_C)
+    .map((f) => ({ key: f.key, label: f.label, maxC: TEMPERATURE_MAX_C[f.key] }));
+}
 
 /** A tab button's own content — icon + label at rest. The active tab
  *  drops its icon (`group-data-[state=active]:hidden`, keyed off the
@@ -152,6 +135,84 @@ export async function MonitoringContent({
   return <DeviceParameterCards parameters={parameters} />;
 }
 
+function groupTitle(category: string, groupName: string | null): string {
+  return groupName ? `${category} — ${groupName}` : category;
+}
+
+// Within-tab ordering — the most urgent/actionable group first, the most
+// reference-y one last (a lifetime energy total can wait; a fault status
+// can't). Only categories whose natural DB order (alphabetical by
+// group_name) doesn't already read that way need an entry here; a
+// category with one group, or already in the right order, is left out.
+const GROUP_PRIORITY: Record<string, string[]> = {
+  Inverter: ["Status", "AC output", "Energy"],
+  "Solar Array": ["Per input (MPPT)", "Energy"],
+  Battery: ["Live", "Battery management system (BMS)", "Battery packs", "Energy"],
+  Grid: ["Status", "Per phase", "Energy meter / CT"],
+  Generator: ["Live", "Energy"],
+};
+
+function sortGroups<T extends { groupName: string | null }>(category: string, groups: T[]): T[] {
+  const order = GROUP_PRIORITY[category];
+  if (!order) return groups;
+  return [...groups].sort((a, b) => {
+    const ai = order.indexOf(a.groupName ?? "");
+    const bi = order.indexOf(b.groupName ?? "");
+    if (ai === -1 && bi === -1) return 0;
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+}
+
+// Pure today/lifetime energy totals (Inverter/Solar Array/Battery/
+// Generator Energy) get the KPI-tile treatment by name, since "every field
+// is a kWh/h figure" is as much a *purpose* match as a shape one. Every
+// other group picks its presentation by field shape: PhaseMeterCard or
+// ComparisonStripCard when DynamicFieldGroup's own shape detection fires
+// (per-phase electrical data, a repeating numbered item), LiveReadingsCard
+// otherwise — the status-chip/meter/stat-tile catch-all for everything
+// that's neither (a fault/connection status, a cluster of live readings,
+// or both at once).
+const ENERGY_GROUP_NAMES = new Set(["Energy"]);
+
+function renderGroup(
+  category: string,
+  group: FieldGroup,
+  getValue: (key: string) => FieldValue,
+  enumOptionsByRef?: Map<string, EnumOption[]>
+) {
+  const title = groupTitle(category, group.groupName);
+  const key = `${category}-${group.groupName ?? ""}`;
+
+  if (group.groupName && ENERGY_GROUP_NAMES.has(group.groupName)) {
+    return <EnergyStatCard key={key} title={title} fields={group.fields} getValue={getValue} />;
+  }
+  if (groupByPhase(group.fields) || (groupByIndex(group.fields)?.items.size ?? 0) > 1) {
+    return <DynamicFieldGroup key={key} title={title} fields={group.fields} getValue={getValue} enumOptionsByRef={enumOptionsByRef} />;
+  }
+  return <LiveReadingsCard key={key} title={title} fields={group.fields} getValue={getValue} enumOptionsByRef={enumOptionsByRef} />;
+}
+
+// EV's own top-level categories (each one group_name: null group) in
+// display priority — safety-relevant state leads, capability/config info
+// (Vehicle DC's ratings) trails, same "most urgent first" reasoning as
+// GROUP_PRIORITY above, just one level up since these sit side by side as
+// whole categories rather than named groups within one.
+const EV_HUB_CATEGORY_PRIORITY = ["Connector & Safety", "DC Output", "Energy Meter", "Vehicle (EV) — DC", "Temperature & Cooling"];
+
+function sortSectionsByCategory(sections: CategorySection[], order: string[]): { category: string; group: FieldGroup }[] {
+  const flat = sections.flatMap((s) => s.groups.map((group) => ({ category: s.category, group })));
+  return flat.sort((a, b) => {
+    const ai = order.indexOf(a.category);
+    const bi = order.indexOf(b.category);
+    if (ai === -1 && bi === -1) return 0;
+    if (ai === -1) return 1;
+    if (bi === -1) return -1;
+    return ai - bi;
+  });
+}
+
 async function SolarInverterMonitoring({
   supabase,
   device,
@@ -161,68 +222,74 @@ async function SolarInverterMonitoring({
   device: CustomerDevice;
   devices: CustomerDevice[];
 }) {
-  // readKeys is this device's own stock model + device_feature_flags —
-  // both "is generator connected at all" (tab visibility) and "which
-  // candidate keys actually exist for this device" (the fetch itself) are
-  // derived from it, so a disabled category's registers are never fetched,
-  // not just hidden after the fact. Same pattern already proven for
-  // EvChargerMonitoring, now safe here too since the key vocabulary
-  // mismatch between the Excel seed and the live simulator (grid_power_w
-  // vs grid_total_power_w, etc.) has been reconciled.
-  const readKeys = await fetchReadKeys(supabase, device);
-  const generatorEnabled = GENERATOR_KEYS.some((k) => readKeys.has(k));
-  // active_fault_code is deliberately excluded from readKeys' filter — it
-  // has no instrument_catalog row at all (deye-fault-codes.ts's own
-  // docstring: this app's fault model doesn't match the real register
-  // structure yet), but FaultBanner and DeviceStatusPill's fault-override
-  // both depend on it being fetched regardless. Everything else genuinely
-  // needs a real register mapping to be worth fetching.
-  const snapshotKeys = [...SOLAR_SNAPSHOT_KEYS, ...GENERATOR_KEYS].filter((k) => readKeys.has(k) || k === "active_fault_code");
+  // sections is this device's own real, DB-driven Monitoring field list —
+  // every group here is something this specific installation's own
+  // equipment_metrics rows confirm exist, replacing the old readKeys-
+  // filtered hardcoded telemetry-catalog.ts constants entirely. Tab
+  // visibility is derived from category presence instead of a separate
+  // key-list "does this tab have anything" check.
+  const sections = await fetchDashboardFields(supabase, device, "Monitoring");
+  const byCategory = new Map(sections.map((s) => [s.category, s.groups]));
 
-  const [{ data: snapshotReadings }, lastSync, inverterStateOptions] = await Promise.all([
-    supabase
-      .from("device_readings")
-      .select("instrument_key, value, ts")
-      .eq("device_id", device.id)
-      .in("instrument_key", snapshotKeys)
-      .order("ts", { ascending: false })
-      .limit(snapshotKeys.length * 5),
+  // The "Temperature" group's own fields are shown exclusively via the
+  // Temperature Today heatmap below (a time-series view suits a sensor
+  // reading far better than one more flat current-value row) — dropped
+  // from the generic group list so they don't also render a second time
+  // as plain stat rows right underneath it.
+  const inverterGroups = (byCategory.get("Inverter") ?? []).filter((g) => g.groupName !== "Temperature");
+  const inverterTemperatureRows = temperatureRowsFor(
+    (byCategory.get("Inverter") ?? []).find((g) => g.groupName === "Temperature")?.fields ?? []
+  );
+  // Battery > Live carries battery_temperature_c alongside unrelated
+  // fields (voltage, current, charge status...), so unlike Inverter >
+  // Temperature this can't drop the whole group — just the one field the
+  // heatmap below already shows.
+  const batteryGroups = (byCategory.get("Battery") ?? []).map((g) =>
+    g.groupName === "Live" ? { ...g, fields: g.fields.filter((f) => f.key !== "battery_temperature_c") } : g
+  );
+  const batteryTemperatureRows = temperatureRowsFor(
+    (byCategory.get("Battery") ?? []).find((g) => g.groupName === "Live")?.fields ?? []
+  );
+  const solarEnabled = byCategory.has("Solar Array");
+  const batteryEnabled = byCategory.has("Battery");
+  const loadEnabled = byCategory.has("Home Load");
+  const gridEnabled = byCategory.has("Grid");
+  const generatorEnabled = byCategory.has("Generator");
+
+  const dynamicFields = sections.flatMap((s) => s.groups.flatMap((g) => g.fields));
+  const monitoringKeys = dynamicFields.map((f) => f.key);
+  const enumRefs = Array.from(new Set(dynamicFields.map((f) => f.enumRef).filter((r): r is string => r !== null)));
+
+  const [rawValues, lastSync, enumOptions] = await Promise.all([
+    fetchFieldValues(supabase, device.id, [...monitoringKeys, ...OVERVIEW_CROSSREF_KEYS]),
     getLastSyncInfo(device.id),
-    fetchEnumOptions(supabase, ["inverter_state"]).then((m) => m.get("inverter_state") ?? []),
+    fetchEnumOptions(supabase, [...enumRefs, "inverter_state"]),
   ]);
+  const values = resolveComputedValues(dynamicFields, rawValues, device);
+  const inverterStateOptions = enumOptions.get("inverter_state") ?? [];
 
-  const latest = new Map<string, number | null>();
-  for (const r of snapshotReadings ?? []) {
-    if (!latest.has(r.instrument_key)) latest.set(r.instrument_key, r.value);
-  }
-  const getValue = (key: string) => latest.get(key) ?? null;
-  const gridConnected = getValue("grid_connected");
+  const getValue = (key: string): FieldValue => values.get(key) ?? null;
+  const getNum = (key: string): number | null => {
+    const v = getValue(key);
+    return typeof v === "number" ? v : null;
+  };
+  const activeFaultCode = deriveFaultCode(getNum);
 
-  const solarToday = getValue("solar_energy_today_kwh");
-  const gridSellToday = getValue("grid_sell_energy_today_kwh");
-  const selfConsumptionPct =
-    solarToday !== null && solarToday > 0
-      ? Math.max(0, Math.min(100, ((solarToday - (gridSellToday ?? 0)) / solarToday) * 100))
-      : null;
-  const selfConsumptionText = selfConsumptionPct !== null ? `${selfConsumptionPct.toFixed(0)}%` : "—";
-  const selfConsumptionTone =
-    selfConsumptionPct === null ? "neutral" : selfConsumptionPct >= 70 ? "good" : selfConsumptionPct >= 40 ? "neutral" : "warn";
-  const selfConsumptionBadge =
-    selfConsumptionPct === null ? "—" : selfConsumptionPct >= 70 ? "Good" : selfConsumptionPct >= 40 ? "Moderate" : "Low";
+  const gridConnected = getNum("grid_relay_status");
 
-  const activeEnergyKwh = getValue("day_active_energy_kwh");
-  const reactiveEnergyKvarh = getValue("day_reactive_energy_kvarh");
+  const activeEnergyKwh = getNum("day_active_energy_kwh");
+  const reactiveEnergyKvarh = getNum("day_reactive_energy_kvarh");
   const activeEnergyText = activeEnergyKwh !== null ? `${activeEnergyKwh.toFixed(1)} kWh` : "—";
   const reactiveEnergyText = reactiveEnergyKvarh !== null ? `${reactiveEnergyKvarh.toFixed(1)} kVarh` : "—";
 
-  const voltageV = getValue("inverter_voltage_v");
-  const currentA = getValue("inverter_current_a");
-  const frequencyHz = getValue("inverter_frequency_hz");
+  const voltageV = getNum("inverter_l1_voltage_v");
+  const currentA = getNum("inverter_l1_current_a");
+  const frequencyHz = getNum("inverter_output_frequency_hz");
   const voltageText = voltageV !== null ? `${voltageV.toFixed(1)} V` : "—";
   const currentText = currentA !== null ? `${currentA.toFixed(2)} A` : "—";
   const frequencyText = frequencyHz !== null ? `${frequencyHz.toFixed(2)} Hz` : "—";
 
-  const lifetimePvKwh = getValue("total_pv_energy_kwh");
+  const lifetimePvKwh = getNum("total_pv_energy_kwh");
   const co2Kg = lifetimePvKwh !== null ? co2AvoidedKg(lifetimePvKwh) : null;
   const trees = co2Kg !== null ? treesEquivalent(co2Kg) : null;
 
@@ -232,87 +299,88 @@ async function SolarInverterMonitoring({
   // live number at a glance, the same way the reference dashboard's
   // expanded tab does.
   const liveOutputKw = (() => {
-    const v = getValue("inverter_power_w");
+    const v = getNum("inverter_output_power_w");
     return v !== null ? `${(v / 1000).toFixed(2)} kW` : "—";
   })();
   const socPctText = (() => {
-    const v = getValue("battery_soc_pct");
+    const v = getNum("battery_soc_pct");
     return v !== null ? `${Math.round(v)}%` : "—";
   })();
+  const solarToday = getNum("day_pv_energy_kwh");
+  const solarTodayText = solarToday !== null ? `${solarToday.toFixed(1)} kWh` : "—";
   const loadTodayText = (() => {
-    const v = getValue("load_energy_today_kwh");
+    const v = getNum("day_load_energy_kwh");
     return v !== null ? `${v.toFixed(1)} kWh` : "—";
   })();
   const gridImportedTodayText = (() => {
-    const v = getValue("grid_buy_energy_today_kwh");
+    const v = getNum("day_grid_import_energy_kwh");
     return v !== null ? `${v.toFixed(1)} kWh` : "—";
   })();
-  const solarTodayText = solarToday !== null ? `${solarToday.toFixed(1)} kWh` : "—";
   const co2Text = co2Kg !== null ? `${co2Kg.toFixed(0)} kg` : "—";
   const treesText = trees !== null ? `${trees.toFixed(1)}/yr` : "—";
 
   // Battery Pack's own 4 cards — live charge/discharge power plus today's
   // two energy totals.
-  const batteryPowerW = getValue("battery_power_w");
+  const batteryPowerW = getNum("battery_power_w");
   const batteryPowerText = batteryPowerW !== null ? `${(Math.abs(batteryPowerW) / 1000).toFixed(2)} kW` : "—";
   const batteryDirection = batteryPowerW === null || batteryPowerW === 0 ? "Idle" : batteryPowerW > 0 ? "Charging" : "Discharging";
   const batteryDirectionTone = batteryPowerW !== null && batteryPowerW > 0 ? "good" : "neutral";
   const dayBatteryChargeText = (() => {
-    const v = getValue("day_battery_charge_kwh");
+    const v = getNum("day_battery_charge_energy_kwh");
     return v !== null ? `${v.toFixed(1)} kWh` : "—";
   })();
   const dayBatteryDischargeText = (() => {
-    const v = getValue("day_battery_discharge_kwh");
+    const v = getNum("day_battery_discharge_energy_kwh");
     return v !== null ? `${v.toFixed(1)} kWh` : "—";
   })();
 
   // Home Load's own 4 cards — live draw plus the L1/L2 split (frequency
   // rides along in the L1 card's subtitle instead of its own card).
-  const loadPowerW = getValue("load_power_w");
+  const loadPowerW = getNum("load_total_power_w");
   const loadLiveText = loadPowerW !== null ? `${(loadPowerW / 1000).toFixed(2)} kW` : "—";
   const load1Text = (() => {
-    const v = getValue("load_l1_power_w");
+    const v = getNum("load_l1_power_w");
     return v !== null ? `${v.toFixed(0)} W` : "—";
   })();
   const load2Text = (() => {
-    const v = getValue("load_l2_power_w");
+    const v = getNum("load_l2_power_w");
     return v !== null ? `${v.toFixed(0)} W` : "—";
   })();
   const loadFrequencyText = (() => {
-    const v = getValue("load_frequency_hz");
+    const v = getNum("load_frequency_hz");
     return v !== null ? `${v.toFixed(2)} Hz` : "—";
   })();
 
   // Grid Interface's own 4 cards — live flow (signed, so it doubles as
   // import/export direction), today's two totals, and the same
   // Voltage/Current/Frequency "Electrical" pattern Main Hub uses.
-  const gridPowerW = getValue("grid_power_w");
+  const gridPowerW = getNum("grid_total_power_w");
   const gridLiveText = gridPowerW !== null ? `${(Math.abs(gridPowerW) / 1000).toFixed(2)} kW` : "—";
   const gridDirection = gridPowerW === null || gridPowerW === 0 ? "Idle" : gridPowerW > 0 ? "Importing" : "Exporting";
   const gridDirectionTone = gridPowerW !== null && gridPowerW > 0 ? "warn" : gridPowerW !== null && gridPowerW < 0 ? "good" : "neutral";
   const gridExportedTodayText = (() => {
-    const v = getValue("grid_sell_energy_today_kwh");
+    const v = getNum("day_grid_export_energy_kwh");
     return v !== null ? `${v.toFixed(1)} kWh` : "—";
   })();
-  const gridVoltageV = getValue("grid_voltage_v");
+  const gridVoltageV = getNum("grid_l1_voltage_v");
   const gridVoltageText = gridVoltageV !== null ? `${gridVoltageV.toFixed(1)} V` : "—";
   const gridCurrentText = (() => {
-    const v = getValue("grid_current_a");
+    const v = getNum("grid_l1_current_a");
     return v !== null ? `${v.toFixed(2)} A` : "—";
   })();
   const gridFrequencyText = (() => {
-    const v = getValue("grid_frequency_hz");
+    const v = getNum("grid_frequency_hz");
     return v !== null ? `${v.toFixed(2)} Hz` : "—";
   })();
 
-  // Generator tab — only ever populated (and only ever fetched, see
-  // snapshotKeys above) when this specific install has one connected.
-  const genPowerW = getValue("gen_power_w");
+  // Generator tab — only ever populated (and only ever fetched) when this
+  // specific install has one connected (generatorEnabled).
+  const genPowerW = getNum("generator_power_w");
   const genLiveText = genPowerW !== null ? `${(genPowerW / 1000).toFixed(2)} kW` : "—";
-  const genVoltageV = getValue("gen_voltage_v");
+  const genVoltageV = getNum("generator_voltage_v");
   const genVoltageText = genVoltageV !== null ? `${genVoltageV.toFixed(1)} V` : "—";
   const genFrequencyText = (() => {
-    const v = getValue("gen_frequency_hz");
+    const v = getNum("generator_frequency_hz");
     return v !== null ? `${v.toFixed(2)} Hz` : "—";
   })();
 
@@ -321,10 +389,10 @@ async function SolarInverterMonitoring({
   // repeated inside each tab button or each panel's own content.
   const tabHeadlines: Record<string, TabHeadlineInfo> = {
     hub: { value: liveOutputKw, label: "Live Output" },
-    solar: { value: solarTodayText, label: "Power Generated" },
-    battery: { value: socPctText, label: "Charge Level" },
-    load: { value: loadTodayText, label: "Consumed Today" },
-    grid: { value: gridImportedTodayText, label: "Imported Today" },
+    ...(solarEnabled ? { solar: { value: solarTodayText, label: "Power Generated" } } : {}),
+    ...(batteryEnabled ? { battery: { value: socPctText, label: "Charge Level" } } : {}),
+    ...(loadEnabled ? { load: { value: loadTodayText, label: "Consumed Today" } } : {}),
+    ...(gridEnabled ? { grid: { value: gridImportedTodayText, label: "Imported Today" } } : {}),
     ...(generatorEnabled ? { generator: { value: genLiveText, label: "Generator Output" } } : {}),
   };
 
@@ -337,8 +405,8 @@ async function SolarInverterMonitoring({
         </div>
         <div className="flex flex-col items-end gap-1.5">
           <DeviceStatusPill
-            inverterState={getValue("inverter_state")}
-            activeFaultCode={getValue("active_fault_code")}
+            inverterState={getNum("inverter_run_state")}
+            activeFaultCode={activeFaultCode}
             inverterStateOptions={inverterStateOptions}
             variant="text"
           />
@@ -350,39 +418,53 @@ async function SolarInverterMonitoring({
           its own tab is selected (Radix Tabs unmounts inactive
           TabsContent), rather than every section's charts/queries all
           living on one long scrolled page at once. */}
-      <MonitoringTabs defaultValue="hub" headlines={tabHeadlines}>
+      {/* Keyed on the device so switching via DeviceSwitcher remounts this
+          fresh (back to the "hub" tab) instead of React reusing the same
+          instance's internal tab-selection state — without this, picking
+          a device that doesn't share the previous one's node (e.g. no
+          "battery" tab) left the panel on a tab that no longer had a
+          trigger to select it. */}
+      <MonitoringTabs key={device.id} defaultValue="hub" headlines={tabHeadlines} hasLiveData={lastSync.lastTs !== null}>
         <TabsList variant="line">
           <TabsTrigger value="hub" variant="line" className="data-[state=active]:border-primary data-[state=active]:text-primary">
             <TabButtonContent icon={Server} label="Main Hub" />
           </TabsTrigger>
-          <TabsTrigger
-            value="solar"
-            variant="line"
-            className="data-[state=active]:border-amber-500 data-[state=active]:text-amber-600 dark:data-[state=active]:text-amber-400"
-          >
-            <TabButtonContent icon={Sun} label="Solar Array" />
-          </TabsTrigger>
-          <TabsTrigger
-            value="battery"
-            variant="line"
-            className="data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400"
-          >
-            <TabButtonContent icon={BatteryCharging} label="Battery Pack" />
-          </TabsTrigger>
-          <TabsTrigger
-            value="load"
-            variant="line"
-            className="data-[state=active]:border-sky-500 data-[state=active]:text-sky-600 dark:data-[state=active]:text-sky-400"
-          >
-            <TabButtonContent icon={Home} label="Home Load" />
-          </TabsTrigger>
-          <TabsTrigger
-            value="grid"
-            variant="line"
-            className="data-[state=active]:border-violet-500 data-[state=active]:text-violet-600 dark:data-[state=active]:text-violet-400"
-          >
-            <TabButtonContent icon={Zap} label="Grid Interface" />
-          </TabsTrigger>
+          {solarEnabled && (
+            <TabsTrigger
+              value="solar"
+              variant="line"
+              className="data-[state=active]:border-amber-500 data-[state=active]:text-amber-600 dark:data-[state=active]:text-amber-400"
+            >
+              <TabButtonContent icon={Sun} label="Solar Array" />
+            </TabsTrigger>
+          )}
+          {batteryEnabled && (
+            <TabsTrigger
+              value="battery"
+              variant="line"
+              className="data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400"
+            >
+              <TabButtonContent icon={BatteryCharging} label="Battery Pack" />
+            </TabsTrigger>
+          )}
+          {loadEnabled && (
+            <TabsTrigger
+              value="load"
+              variant="line"
+              className="data-[state=active]:border-sky-500 data-[state=active]:text-sky-600 dark:data-[state=active]:text-sky-400"
+            >
+              <TabButtonContent icon={Home} label="Home Load" />
+            </TabsTrigger>
+          )}
+          {gridEnabled && (
+            <TabsTrigger
+              value="grid"
+              variant="line"
+              className="data-[state=active]:border-violet-500 data-[state=active]:text-violet-600 dark:data-[state=active]:text-violet-400"
+            >
+              <TabButtonContent icon={Zap} label="Grid Interface" />
+            </TabsTrigger>
+          )}
           {generatorEnabled && (
             <TabsTrigger
               value="generator"
@@ -395,7 +477,7 @@ async function SolarInverterMonitoring({
         </TabsList>
 
         <TabsContent value="hub" className="space-y-4">
-          <FaultBanner faultCode={getValue("active_fault_code")} />
+          <FaultBanner faultCode={activeFaultCode} />
 
           <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <LiveStatusCard
@@ -421,17 +503,6 @@ async function SolarInverterMonitoring({
               sparkline={[]}
             />
             <LiveStatusCard
-              icon={Percent}
-              title="Self-Consumption"
-              subtitle="Solar used on-site"
-              value={selfConsumptionText}
-              liveValue={selfConsumptionPct}
-              statusLabel="Status"
-              badgeLabel={selfConsumptionBadge}
-              badgeTone={selfConsumptionTone}
-              sparkline={[]}
-            />
-            <LiveStatusCard
               icon={Gauge}
               title="Electrical"
               subtitle={`Current · ${currentText}`}
@@ -442,244 +513,276 @@ async function SolarInverterMonitoring({
               badgeTone="neutral"
               sparkline={[]}
             />
-          </div>
-
-          <MainHubTrendGroup
-            deviceId={device.id}
-            powerSeries={[
-              { key: "inverter_power_w", label: "Solar", color: "var(--chart-3)" },
-              { key: "battery_power_w", label: "Battery", color: "var(--chart-1)" },
-              { key: "grid_power_w", label: "Grid", color: "var(--chart-4)" },
-              { key: "load_power_w", label: "Load", color: "var(--chart-2)" },
-            ]}
-            temperatureRows={TEMPERATURE_HEATMAP_ROWS}
-          />
-
-        </TabsContent>
-
-        <TabsContent value="solar" className="space-y-4">
-
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
             <LiveStatusCard
               icon={Sun}
               title="Live Output"
               subtitle="Current power"
               value={liveOutputKw}
-              liveValue={getValue("inverter_power_w")}
+              liveValue={getNum("inverter_output_power_w")}
               statusLabel="Status"
               badgeLabel="Live"
               badgeTone="neutral"
               sparkline={[]}
             />
-            <LiveStatusCard
-              icon={Zap}
-              title="Generated Today"
-              subtitle="So far today"
-              value={solarTodayText}
-              liveValue={solarToday}
-              statusLabel="Status"
-              badgeLabel="Today"
-              badgeTone="neutral"
-              sparkline={[]}
-            />
-            <LiveStatusCard
-              icon={Leaf}
-              title="CO2 Avoided"
-              subtitle="Lifetime estimate"
-              value={co2Text}
-              liveValue={co2Kg}
-              statusLabel="Status"
-              badgeLabel="Lifetime"
-              badgeTone="good"
-              sparkline={[]}
-            />
-            <LiveStatusCard
-              icon={TreePine}
-              title="Trees Equivalent"
-              subtitle="Same CO2 absorbed"
-              value={treesText}
-              liveValue={trees}
-              statusLabel="Status"
-              badgeLabel="Lifetime"
-              badgeTone="good"
-              sparkline={[]}
-            />
           </div>
 
-          <BarTrendChart
+          <MainHubTrendGroup
             deviceId={device.id}
-            title="Solar Power"
-            series={[{ key: "inverter_power_w", label: "Solar", color: "var(--chart-3)" }]}
+            powerSeries={[
+              { key: "inverter_output_power_w", label: "Solar", color: "var(--chart-3)" },
+              { key: "battery_power_w", label: "Battery", color: "var(--chart-1)" },
+              { key: "grid_total_power_w", label: "Grid", color: "var(--chart-4)" },
+              { key: "load_total_power_w", label: "Load", color: "var(--chart-2)" },
+            ]}
+            temperatureRows={inverterTemperatureRows}
           />
 
-          <PvStringComparison getValue={getValue} />
+          {sortGroups("Inverter", inverterGroups).map((group) => renderGroup("Inverter", group, getValue, enumOptions))}
         </TabsContent>
 
-        <TabsContent value="battery" className="space-y-4">
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <LiveStatusCard
-              icon={BatteryCharging}
-              title="Charge Level"
-              subtitle="State of charge"
-              value={socPctText}
-              liveValue={getValue("battery_soc_pct")}
-              statusLabel="Status"
-              badgeLabel="Live"
-              badgeTone="neutral"
-              sparkline={[]}
-            />
-            <LiveStatusCard
-              icon={Zap}
-              title="Battery Power"
-              subtitle={batteryDirection}
-              value={batteryPowerText}
-              liveValue={batteryPowerW}
-              statusLabel="Status"
-              badgeLabel={batteryDirection}
-              badgeTone={batteryDirectionTone}
-              sparkline={[]}
-            />
-            <LiveStatusCard
-              icon={ArrowDownToLine}
-              title="Charged Today"
-              subtitle="Into the battery"
-              value={dayBatteryChargeText}
-              liveValue={getValue("day_battery_charge_kwh")}
-              statusLabel="Status"
-              badgeLabel="Today"
-              badgeTone="neutral"
-              sparkline={[]}
-            />
-            <LiveStatusCard
-              icon={ArrowUpFromLine}
-              title="Discharged Today"
-              subtitle="Out of the battery"
-              value={dayBatteryDischargeText}
-              liveValue={getValue("day_battery_discharge_kwh")}
-              statusLabel="Status"
-              badgeLabel="Today"
-              badgeTone="neutral"
-              sparkline={[]}
-            />
-          </div>
+        {solarEnabled && (
+          <TabsContent value="solar" className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <LiveStatusCard
+                icon={Sun}
+                title="Live Output"
+                subtitle="Current power"
+                value={liveOutputKw}
+                liveValue={getNum("inverter_output_power_w")}
+                statusLabel="Status"
+                badgeLabel="Live"
+                badgeTone="neutral"
+                sparkline={[]}
+              />
+              <LiveStatusCard
+                icon={Zap}
+                title="Generated Today"
+                subtitle="So far today"
+                value={solarTodayText}
+                liveValue={solarToday}
+                statusLabel="Status"
+                badgeLabel="Today"
+                badgeTone="neutral"
+                sparkline={[]}
+              />
+              <LiveStatusCard
+                icon={Leaf}
+                title="CO2 Avoided"
+                subtitle="Lifetime estimate"
+                value={co2Text}
+                liveValue={co2Kg}
+                statusLabel="Status"
+                badgeLabel={co2Kg !== null ? "Lifetime" : "No data"}
+                badgeTone={co2Kg !== null ? "good" : "neutral"}
+                sparkline={[]}
+              />
+              <LiveStatusCard
+                icon={TreePine}
+                title="Trees Equivalent"
+                subtitle="Same CO2 absorbed"
+                value={treesText}
+                liveValue={trees}
+                statusLabel="Status"
+                badgeLabel={trees !== null ? "Lifetime" : "No data"}
+                badgeTone={trees !== null ? "good" : "neutral"}
+                sparkline={[]}
+              />
+            </div>
 
-          <BatteryTrendGroup
-            deviceId={device.id}
-            socSeries={[{ key: "battery_soc_pct", label: "SOC", color: "var(--chart-1)" }]}
-            temperatureRows={[{ key: "battery_temp_c", label: "Battery", maxC: 45 }]}
-          />
-          <MetricListCard title="Battery Detail" fields={BATTERY_DETAIL_FIELDS} getValue={getValue} />
-        </TabsContent>
+            <BarTrendChart
+              deviceId={device.id}
+              title="Solar Power"
+              series={[{ key: "inverter_output_power_w", label: "Solar", color: "var(--chart-3)" }]}
+            />
 
-        <TabsContent value="load" className="space-y-4">
+            {sortGroups("Solar Array", byCategory.get("Solar Array") ?? []).map((group) =>
+              renderGroup("Solar Array", group, getValue, enumOptions)
+            )}
+          </TabsContent>
+        )}
 
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <LiveStatusCard
-              icon={Home}
-              title="Live Draw"
-              subtitle="Current draw"
-              value={loadLiveText}
-              liveValue={loadPowerW}
-              statusLabel="Status"
-              badgeLabel="Live"
-              badgeTone="neutral"
-              sparkline={[]}
-            />
-            <LiveStatusCard
-              icon={Zap}
-              title="Consumed Today"
-              subtitle="So far today"
-              value={loadTodayText}
-              liveValue={getValue("load_energy_today_kwh")}
-              statusLabel="Status"
-              badgeLabel="Today"
-              badgeTone="neutral"
-              sparkline={[]}
-            />
-            <LiveStatusCard
-              icon={Activity}
-              title="L1 Power"
-              subtitle={`Frequency · ${loadFrequencyText}`}
-              value={load1Text}
-              liveValue={getValue("load_l1_power_w")}
-              statusLabel="Status"
-              badgeLabel="Live"
-              badgeTone="neutral"
-              sparkline={[]}
-            />
-            <LiveStatusCard
-              icon={Activity}
-              title="L2 Power"
-              subtitle="Live reading"
-              value={load2Text}
-              liveValue={getValue("load_l2_power_w")}
-              statusLabel="Status"
-              badgeLabel="Live"
-              badgeTone="neutral"
-              sparkline={[]}
-            />
-          </div>
+        {batteryEnabled && (
+          <TabsContent value="battery" className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <LiveStatusCard
+                icon={BatteryCharging}
+                title="Charge Level"
+                subtitle="State of charge"
+                value={socPctText}
+                liveValue={getNum("battery_soc_pct")}
+                statusLabel="Status"
+                badgeLabel="Live"
+                badgeTone="neutral"
+                sparkline={[]}
+              />
+              <LiveStatusCard
+                icon={Zap}
+                title="Battery Power"
+                subtitle={batteryDirection}
+                value={batteryPowerText}
+                liveValue={batteryPowerW}
+                statusLabel="Status"
+                badgeLabel={batteryDirection}
+                badgeTone={batteryDirectionTone}
+                sparkline={[]}
+              />
+              <LiveStatusCard
+                icon={ArrowDownToLine}
+                title="Charged Today"
+                subtitle="Into the battery"
+                value={dayBatteryChargeText}
+                liveValue={getNum("day_battery_charge_energy_kwh")}
+                statusLabel="Status"
+                badgeLabel="Today"
+                badgeTone="neutral"
+                sparkline={[]}
+              />
+              <LiveStatusCard
+                icon={ArrowUpFromLine}
+                title="Discharged Today"
+                subtitle="Out of the battery"
+                value={dayBatteryDischargeText}
+                liveValue={getNum("day_battery_discharge_energy_kwh")}
+                statusLabel="Status"
+                badgeLabel="Today"
+                badgeTone="neutral"
+                sparkline={[]}
+              />
+            </div>
 
-          <BarTrendChart deviceId={device.id} title="Load Power" series={[{ key: "load_power_w", label: "Load", color: "var(--chart-2)" }]} />
-        </TabsContent>
+            <BatteryTrendGroup
+              deviceId={device.id}
+              socSeries={[{ key: "battery_soc_pct", label: "SOC", color: "var(--chart-1)" }]}
+              temperatureRows={batteryTemperatureRows}
+            />
 
-        <TabsContent value="grid" className="space-y-4">
-          <div className="flex items-center gap-2">
-            <Badge variant={gridConnected === 1 ? "default" : gridConnected === 0 ? "alert" : "secondary"}>
-              Grid {gridConnected === 1 ? "Connected" : gridConnected === 0 ? "Disconnected" : "Unknown"}
-            </Badge>
-          </div>
+            {sortGroups("Battery", batteryGroups).map((group) => renderGroup("Battery", group, getValue, enumOptions))}
+          </TabsContent>
+        )}
 
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <LiveStatusCard
-              icon={Zap}
-              title="Live Flow"
-              subtitle={gridDirection}
-              value={gridLiveText}
-              liveValue={gridPowerW}
-              statusLabel="Status"
-              badgeLabel={gridDirection}
-              badgeTone={gridDirectionTone}
-              sparkline={[]}
-            />
-            <LiveStatusCard
-              icon={ArrowDownToLine}
-              title="Imported Today"
-              subtitle="From the grid"
-              value={gridImportedTodayText}
-              liveValue={getValue("grid_buy_energy_today_kwh")}
-              statusLabel="Status"
-              badgeLabel="Today"
-              badgeTone="neutral"
-              sparkline={[]}
-            />
-            <LiveStatusCard
-              icon={ArrowUpFromLine}
-              title="Exported Today"
-              subtitle="Back to the grid"
-              value={gridExportedTodayText}
-              liveValue={getValue("grid_sell_energy_today_kwh")}
-              statusLabel="Status"
-              badgeLabel="Today"
-              badgeTone="neutral"
-              sparkline={[]}
-            />
-            <LiveStatusCard
-              icon={Gauge}
-              title="Electrical"
-              subtitle={`Current · ${gridCurrentText}`}
-              value={gridVoltageText}
-              liveValue={gridVoltageV}
-              statusLabel="Frequency"
-              badgeLabel={gridFrequencyText}
-              badgeTone="neutral"
-              sparkline={[]}
-            />
-          </div>
+        {loadEnabled && (
+          <TabsContent value="load" className="space-y-4">
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <LiveStatusCard
+                icon={Home}
+                title="Live Draw"
+                subtitle="Current draw"
+                value={loadLiveText}
+                liveValue={loadPowerW}
+                statusLabel="Status"
+                badgeLabel="Live"
+                badgeTone="neutral"
+                sparkline={[]}
+              />
+              <LiveStatusCard
+                icon={Zap}
+                title="Consumed Today"
+                subtitle="So far today"
+                value={loadTodayText}
+                liveValue={getNum("day_load_energy_kwh")}
+                statusLabel="Status"
+                badgeLabel="Today"
+                badgeTone="neutral"
+                sparkline={[]}
+              />
+              <LiveStatusCard
+                icon={Activity}
+                title="L1 Power"
+                subtitle={`Frequency · ${loadFrequencyText}`}
+                value={load1Text}
+                liveValue={getNum("load_l1_power_w")}
+                statusLabel="Status"
+                badgeLabel="Live"
+                badgeTone="neutral"
+                sparkline={[]}
+              />
+              <LiveStatusCard
+                icon={Activity}
+                title="L2 Power"
+                subtitle="Live reading"
+                value={load2Text}
+                liveValue={getNum("load_l2_power_w")}
+                statusLabel="Status"
+                badgeLabel="Live"
+                badgeTone="neutral"
+                sparkline={[]}
+              />
+            </div>
 
-          <BarTrendChart deviceId={device.id} title="Grid Power" series={[{ key: "grid_power_w", label: "Grid", color: "var(--chart-4)" }]} />
-          <MetricListCard title="Grid Detail" fields={GRID_DETAIL_REMAINING_FIELDS} getValue={getValue} />
-        </TabsContent>
+            <BarTrendChart
+              deviceId={device.id}
+              title="Load Power"
+              series={[{ key: "load_total_power_w", label: "Load", color: "var(--chart-2)" }]}
+            />
+
+            {(byCategory.get("Home Load") ?? []).map((group) => renderGroup("Home Load", group, getValue, enumOptions))}
+          </TabsContent>
+        )}
+
+        {gridEnabled && (
+          <TabsContent value="grid" className="space-y-4">
+            <div className="flex items-center gap-2">
+              <Badge variant={gridConnected === 1 ? "default" : gridConnected === 0 ? "alert" : "secondary"}>
+                {gridConnected === 1 ? "Grid Connected" : gridConnected === 0 ? "Grid Disconnected" : "Grid status: No data"}
+              </Badge>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+              <LiveStatusCard
+                icon={Zap}
+                title="Live Flow"
+                subtitle={gridDirection}
+                value={gridLiveText}
+                liveValue={gridPowerW}
+                statusLabel="Status"
+                badgeLabel={gridDirection}
+                badgeTone={gridDirectionTone}
+                sparkline={[]}
+              />
+              <LiveStatusCard
+                icon={ArrowDownToLine}
+                title="Imported Today"
+                subtitle="From the grid"
+                value={gridImportedTodayText}
+                liveValue={getNum("day_grid_import_energy_kwh")}
+                statusLabel="Status"
+                badgeLabel="Today"
+                badgeTone="neutral"
+                sparkline={[]}
+              />
+              <LiveStatusCard
+                icon={ArrowUpFromLine}
+                title="Exported Today"
+                subtitle="Back to the grid"
+                value={gridExportedTodayText}
+                liveValue={getNum("day_grid_export_energy_kwh")}
+                statusLabel="Status"
+                badgeLabel="Today"
+                badgeTone="neutral"
+                sparkline={[]}
+              />
+              <LiveStatusCard
+                icon={Gauge}
+                title="Electrical"
+                subtitle={`Current · ${gridCurrentText}`}
+                value={gridVoltageText}
+                liveValue={gridVoltageV}
+                statusLabel="Frequency"
+                badgeLabel={gridFrequencyText}
+                badgeTone="neutral"
+                sparkline={[]}
+              />
+            </div>
+
+            <BarTrendChart
+              deviceId={device.id}
+              title="Grid Power"
+              series={[{ key: "grid_total_power_w", label: "Grid", color: "var(--chart-4)" }]}
+            />
+
+            {sortGroups("Grid", byCategory.get("Grid") ?? []).map((group) => renderGroup("Grid", group, getValue, enumOptions))}
+          </TabsContent>
+        )}
 
         {generatorEnabled && (
           <TabsContent value="generator" className="space-y-4">
@@ -711,7 +814,7 @@ async function SolarInverterMonitoring({
                 title="Frequency"
                 subtitle="Output frequency"
                 value={genFrequencyText}
-                liveValue={getValue("gen_frequency_hz")}
+                liveValue={getNum("generator_frequency_hz")}
                 statusLabel="Status"
                 badgeLabel="Live"
                 badgeTone="neutral"
@@ -719,20 +822,21 @@ async function SolarInverterMonitoring({
               />
             </div>
 
-            <BarTrendChart deviceId={device.id} title="Generator Power" series={[{ key: "gen_power_w", label: "Generator", color: "var(--chart-5)" }]} />
+            <BarTrendChart
+              deviceId={device.id}
+              title="Generator Power"
+              series={[{ key: "generator_power_w", label: "Generator", color: "var(--chart-5)" }]}
+            />
+
+            {sortGroups("Generator", byCategory.get("Generator") ?? []).map((group) =>
+              renderGroup("Generator", group, getValue, enumOptions)
+            )}
           </TabsContent>
         )}
       </MonitoringTabs>
     </>
   );
 }
-
-// The full presentation universe — filtered per device below against
-// what this device's own stock model + device_feature_flags actually
-// confirm exist (fetchReadKeys), so a future charger model missing a
-// register (e.g. no temperature sensor) doesn't query for it and show a
-// permanently-blank card.
-const EV_CANDIDATE_KEYS = [...EV_LIVE_FIELDS, ...EV_TOTAL_FIELDS].map((f) => f.key).concat(["connector_status", "error_code"]);
 
 async function EvChargerMonitoring({
   supabase,
@@ -743,45 +847,89 @@ async function EvChargerMonitoring({
   device: CustomerDevice;
   devices: CustomerDevice[];
 }) {
-  const readKeys = await fetchReadKeys(supabase, device);
-  const snapshotKeys = EV_CANDIDATE_KEYS.filter((k) => readKeys.has(k));
+  const rawSections = await fetchDashboardFields(supabase, device, "Monitoring");
+  const dynamicFields = rawSections.flatMap((s) => s.groups.flatMap((g) => g.fields));
+  const monitoringKeys = dynamicFields.map((f) => f.key);
+  const enumRefs = Array.from(new Set(dynamicFields.map((f) => f.enumRef).filter((r): r is string => r !== null)));
 
-  const [{ data: snapshotReadings }, lastSync, chargingSummary, recentChargingStats, customerPlan, site, enumOptions] =
-    await Promise.all([
-      supabase
-        .from("device_readings")
-        .select("instrument_key, value, ts")
-        .eq("device_id", device.id)
-        .in("instrument_key", snapshotKeys)
-        .order("ts", { ascending: false })
-        .limit(snapshotKeys.length * 5),
-      getLastSyncInfo(device.id),
-      fetchTodayChargingSessions(supabase, device.id),
-      fetchRecentChargingStats(supabase, device.id),
-      getCustomerPlan(),
-      getSelectedSite(),
-      fetchEnumOptions(supabase, ["connector_status", "error_code"]),
-    ]);
+  // connector_temperature_c and current_import_l1_a are each shown
+  // exclusively via a purpose-built chart below (the Temperature Today
+  // heatmap, ChargerTrendGroup's own Current series — same reasoning as the
+  // solar branch's Inverter > Temperature group) — dropped from their
+  // category's generic field list so neither also renders a second time as
+  // a plain stat row.
+  const connectorTemperatureRows = temperatureRowsFor(dynamicFields);
+  const chartedElsewhereKeys = new Set(["current_import_l1_a"]);
+  const sections = rawSections.map((s) => ({
+    ...s,
+    groups: s.groups
+      .map((g) => ({ ...g, fields: g.fields.filter((f) => !(f.key in TEMPERATURE_MAX_C) && !chartedElsewhereKeys.has(f.key)) }))
+      .filter((g) => g.fields.length > 0),
+  }));
+  const currentL1Field = dynamicFields.find((f) => f.key === "current_import_l1_a");
+
+  // "Live Session" is its own dashboard_section (Authorization/Billing/
+  // Session/Vehicle (EV) — DC, 26 fields) — brand new, no existing screen
+  // rendered it before. Its natural home is this same tab's own
+  // "Charging Session" panel, right alongside ChargingSessionsCarousel,
+  // rather than a whole new nav destination for one EV-only section.
+  const liveSessionSections = await fetchDashboardFields(supabase, device, "Live Session");
+  const liveSessionFields = liveSessionSections.flatMap((s) => s.groups.flatMap((g) => g.fields));
+  const liveSessionKeys = liveSessionFields.map((f) => f.key);
+
+  // What's happening right now (Session) leads; who/how it was authorized
+  // and what it's costing trail — same "most urgent/actionable first"
+  // ordering as the Hub tab's own category priority, just for the receipt
+  // card's own sections instead of a row of group cards.
+  const liveSessionByCategory = new Map(liveSessionSections.map((s) => [s.category, s.groups.flatMap((g) => g.fields)]));
+  const LIVE_SESSION_CATEGORY_PRIORITY = ["Session", "Vehicle (EV) — DC", "Authorization", "Billing"];
+  const receiptSections: ReceiptSection[] = LIVE_SESSION_CATEGORY_PRIORITY.map((category) => ({
+    title: category,
+    fields: liveSessionByCategory.get(category) ?? [],
+  })).filter((s) => s.fields.length > 0);
+  for (const s of liveSessionSections) {
+    if (!LIVE_SESSION_CATEGORY_PRIORITY.includes(s.category)) {
+      receiptSections.push({ title: s.category, fields: s.groups.flatMap((g) => g.fields) });
+    }
+  }
+
+  // connector_status/error_code are Overview-owned fields, reused here for
+  // the same charger-hub status pill/fault banner the Overview page shows —
+  // same cross-page reuse convention as the solar branch's
+  // OVERVIEW_CROSSREF_KEYS above.
+  const [{ data: snapshotReadings }, lastSync, chargingSummary, recentChargingStats, customerPlan, site, enumOptions] = await Promise.all([
+    supabase
+      .from("equipment_telemetry")
+      .select("key_name, value, ts")
+      .eq("equipment_id", device.id)
+      .in("key_name", [...monitoringKeys, ...liveSessionKeys, "connector_status", "error_code"])
+      .order("ts", { ascending: false })
+      .limit((monitoringKeys.length + liveSessionKeys.length + 2) * 5),
+    getLastSyncInfo(device.id),
+    fetchTodayChargingSessions(supabase, device.id),
+    fetchRecentChargingStats(supabase, device.id),
+    getCustomerPlan(),
+    getSelectedSite(),
+    fetchEnumOptions(supabase, [...enumRefs, "connector_status", "error_code"]),
+  ]);
 
   const latest = new Map<string, number | null>();
   for (const r of snapshotReadings ?? []) {
-    if (!latest.has(r.instrument_key)) latest.set(r.instrument_key, r.value);
+    if (!latest.has(r.key_name)) latest.set(r.key_name, r.value);
   }
-  const getValue = (key: string) => latest.get(key) ?? null;
-  const status = getConnectorStatusLabel(getValue("connector_status"), enumOptions.get("connector_status") ?? []);
-  const errorLabel = getErrorCodeLabel(getValue("error_code"), enumOptions.get("error_code") ?? []);
+  const getValue = (key: string): FieldValue => latest.get(key) ?? null;
+  const status = getConnectorStatusLabel(getValue("connector_status") as number | null, enumOptions.get("connector_status") ?? []);
+  const errorLabel = getErrorCodeLabel(getValue("error_code") as number | null, enumOptions.get("error_code") ?? []);
 
-  const powerW = getValue("power_active_import_w");
-  const offeredW = getValue("power_offered_w");
-  const utilizationPct =
-    powerW !== null && offeredW !== null && offeredW > 0 ? Math.max(0, Math.min(100, (powerW / offeredW) * 100)) : null;
+  const powerKw = getValue("power_active_import_kw") as number | null;
+  const offeredKw = getValue("power_offered_kw") as number | null;
+  const utilizationPct = powerKw !== null && offeredKw !== null && offeredKw > 0 ? Math.max(0, Math.min(100, (powerKw / offeredKw) * 100)) : null;
 
   const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
   const showCost = site?.propertyType !== "residential_independent_villas";
 
   const sessionsToday = chargingSummary.sessions.length;
   const energyTodayKwh = chargingSummary.sessions.reduce((sum, s) => sum + (s.energyKwh ?? 0), 0);
-  const offeredKw = offeredW !== null ? offeredW / 1000 : null;
 
   return (
     <>
@@ -801,7 +949,7 @@ async function EvChargerMonitoring({
           session history — different questions ("is it healthy right
           now?" vs. "what did it actually deliver?"), so they get their
           own tabs instead of being stacked on one page. */}
-      <MonitoringTabs defaultValue="hub" headlines={{}}>
+      <MonitoringTabs key={device.id} defaultValue="hub" headlines={{}} hasLiveData={lastSync.lastTs !== null}>
         <TabsList variant="line">
           <TabsTrigger value="hub" variant="line">
             <TabButtonContent icon={Plug} label="Charger Hub" />
@@ -851,7 +999,7 @@ async function EvChargerMonitoring({
               liveValue={energyTodayKwh}
               statusLabel="Status"
               badgeLabel="Today"
-              badgeTone="good"
+              badgeTone={energyTodayKwh > 0 ? "good" : "neutral"}
               sparkline={[]}
             />
             <LiveStatusCard
@@ -871,23 +1019,34 @@ async function EvChargerMonitoring({
             deviceId={device.id}
             powerSeries={[
               {
-                key: "power_active_import_w",
+                key: "power_active_import_kw",
                 label: "Power",
                 color: "var(--chart-1)",
-                scale: 0.001,
+                scale: 1,
                 unit: "kW",
                 footerMode: "sum",
                 footerUnit: "kWh",
               },
-              { key: "current_import_a", label: "Current", color: "var(--chart-2)", scale: 1, unit: "A", footerMode: "average" },
+              {
+                key: "current_import_l1_a",
+                label: currentL1Field?.label ?? "Current",
+                color: "var(--chart-2)",
+                scale: 1,
+                unit: "A",
+                footerMode: "average",
+              },
             ]}
             sessionMarkers={chargingSummary.sessions.map((sess) => ({
               startedAt: sess.startedAt,
               endedAt: sess.endedAt,
               energyKwh: sess.energyKwh,
             }))}
-            temperatureRows={[{ key: "temperature_c", label: "Connector", maxC: EV_CONNECTOR_TEMP_WARN_C }]}
+            temperatureRows={connectorTemperatureRows}
           />
+
+          {sortSectionsByCategory(sections, EV_HUB_CATEGORY_PRIORITY).map(({ category, group }) =>
+            renderGroup(category, group, getValue, enumOptions)
+          )}
         </TabsContent>
 
         <TabsContent value="sessions" className="space-y-4">
@@ -905,6 +1064,8 @@ async function EvChargerMonitoring({
             showCost={showCost}
             recentStats={recentChargingStats}
           />
+
+          <SessionReceiptCard title="Charging Session Detail" sections={receiptSections} getValue={getValue} enumOptionsByRef={enumOptions} />
         </TabsContent>
       </MonitoringTabs>
     </>

@@ -44,8 +44,8 @@ interface RealtimeContextValue {
 
 const RealtimeContext = React.createContext<RealtimeContextValue | null>(null);
 
-// One real device tick is ~20-30 individual device_readings INSERTs (one
-// per instrument key) arriving within milliseconds of each other — without
+// One real device tick is ~20-30 individual equipment_telemetry INSERTs (one
+// per key_name) arriving within milliseconds of each other — without
 // coalescing, that's 20-30 UI updates for one logical "new reading" tick.
 // 300ms is short enough that nothing feels delayed, long enough to catch a
 // whole burst on one debounce window.

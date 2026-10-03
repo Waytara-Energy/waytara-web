@@ -2,17 +2,15 @@ import Link from "next/link";
 import { createClient } from "@waytara/supabase/server";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { Button } from "@waytara/ui/button";
+import { ActionForm } from "@waytara/ui/action-form";
 import { assignLead, startOnboarding, acceptLeadAssignment } from "./actions";
 
 export default async function LeadDetailPage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string }>;
 }) {
   const { id } = await params;
-  const { error: actionError } = await searchParams;
   const profile = await getCurrentProfile();
   const supabase = await createClient();
 
@@ -73,12 +71,6 @@ export default async function LeadDetailPage({
         </p>
       </div>
 
-      {actionError && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-          {actionError}
-        </div>
-      )}
-
       <div className="rounded-lg border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Submission</h2>
         <dl className="mt-3 grid grid-cols-1 gap-3 text-sm sm:grid-cols-2">
@@ -127,15 +119,25 @@ export default async function LeadDetailPage({
         </p>
 
         {isAssignedEmployee && !lead.accepted_at && (
-          <form action={acceptLeadAssignment.bind(null, lead.id)} className="mt-3">
+          <ActionForm
+            action={acceptLeadAssignment.bind(null, lead.id)}
+            loading="Accepting…"
+            success="Lead accepted."
+            className="mt-3"
+          >
             <Button type="submit" size="sm">
               Accept this lead
             </Button>
-          </form>
+          </ActionForm>
         )}
 
         {isAdmin && (
-          <form action={assignLead.bind(null, lead.id)} className="mt-3 flex items-center gap-2">
+          <ActionForm
+            action={assignLead.bind(null, lead.id)}
+            loading="Assigning…"
+            success="Lead assigned."
+            className="mt-3 flex items-center gap-2"
+          >
             <select
               name="employeeId"
               defaultValue={lead.assigned_to ?? ""}
@@ -154,7 +156,7 @@ export default async function LeadDetailPage({
             <Button type="submit" size="sm">
               Assign
             </Button>
-          </form>
+          </ActionForm>
         )}
 
         {isAdmin && auditEntries.length > 0 && (
@@ -194,11 +196,16 @@ export default async function LeadDetailPage({
             </Link>
           </p>
         ) : canStartOnboarding ? (
-          <form action={startOnboarding.bind(null, lead.id)} className="mt-2">
+          <ActionForm
+            action={startOnboarding.bind(null, lead.id)}
+            loading="Starting onboarding…"
+            success="Onboarding started."
+            className="mt-2"
+          >
             <Button type="submit" size="sm">
               Start Onboarding
             </Button>
-          </form>
+          </ActionForm>
         ) : (
           <p className="mt-1 text-sm text-muted-foreground">
             {isAssignedEmployee && !lead.accepted_at

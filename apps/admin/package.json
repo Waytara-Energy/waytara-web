@@ -5,20 +5,22 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "start": "next start"
+    "start": "next start",
+    "lint": "eslint ."
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.23",
     "@react-pdf/renderer": "^4.9.0",
-    "class-variance-authority": "^0.7.1",
     "@waytara/supabase": "workspace:*",
     "@waytara/ui": "workspace:*",
+    "class-variance-authority": "^0.7.1",
     "lucide-react": "^1.34.0",
     "next": "16.3.2",
     "next-themes": "^0.4.6",
     "react": "19.2.8",
     "react-dom": "19.2.8",
-    "resend": "^6.25.0"
+    "resend": "^6.25.0",
+    "sonner": "^2.0.8"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
@@ -26,6 +28,8 @@
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "@waytara/config": "workspace:*",
+    "eslint": "^9.39.5",
+    "eslint-config-next": "^16.3.6",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

@@ -21,6 +21,7 @@ import { MessageBubble } from "@/components/ui/message-bubble";
 import { MessageScroller } from "@/components/ui/message-scroller";
 import { Attachment } from "@/components/ui/attachment";
 import { Textarea } from "@/components/ui/textarea";
+import { withPromiseToast } from "@waytara/ui/notify";
 import { attachmentFileName } from "@/lib/support-attachments";
 import { markTicketResolved, sendSupportMessage } from "@/app/dashboard/support/actions";
 
@@ -108,19 +109,29 @@ export function SupportThread({
     formData.set("body", body);
     if (file) formData.set("attachment", file);
 
-    await sendSupportMessage(formData);
+    const ok = await withPromiseToast(sendSupportMessage, {
+      loading: "Sending…",
+      success: "Message sent.",
+    })(formData);
 
-    setBody("");
-    setFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    // No refetch — the support_messages realtime subscription above will
-    // append this message the same way it does for the other party's.
+    if (ok) {
+      setBody("");
+      setFile(null);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      // No refetch on success — the support_messages realtime subscription
+      // above will append this message the same way it does for the other
+      // party's. On failure, the typed message/attachment stay put so the
+      // customer doesn't have to retype them.
+    }
     setSending(false);
   }
 
   async function handleMarkResolved() {
-    await markTicketResolved(ticket.id);
-    setStatus("resolved");
+    const ok = await withPromiseToast(markTicketResolved.bind(null, ticket.id), {
+      loading: "Marking resolved…",
+      success: "Ticket marked resolved.",
+    })();
+    if (ok) setStatus("resolved");
   }
 
   const isResolved = status === "resolved" || status === "closed";

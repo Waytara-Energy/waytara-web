@@ -246,7 +246,16 @@ function IdleSlide({
   energyToday: number;
   recentStats: RecentChargingStats | null;
 }) {
-  const status = getConnectorStatusLabel(connectorStatus, connectorStatusOptions);
+  // This slide only ever renders when there's no open session — if the
+  // charger also has no live connector_status reading yet, the rest of
+  // this slide is already asserting "ready to charge" (rated power, an
+  // enabled Start Charging button), so echoing getConnectorStatusLabel's
+  // generic "No data" right above it read as a flat contradiction. Fall
+  // back to whatever a real Available (code 0) reading would show instead
+  // of the unknown-state message — looked up through the same enum
+  // options rather than hardcoded, in case the label text itself differs.
+  const status =
+    connectorStatus === null ? getConnectorStatusLabel(0, connectorStatusOptions) : getConnectorStatusLabel(connectorStatus, connectorStatusOptions);
   return (
     <div className="flex flex-col gap-6">
       <StatusText label={status.label} tone={status.tone} icon />
@@ -429,8 +438,12 @@ export function ChargingSessionsCarousel({
 
   // A newly-opened or newly-closed session changes what slide 0 even is —
   // snap back to the front rather than leaving the slider pointed at
-  // whatever index used to be there.
+  // whatever index used to be there. Not remounted via `key` instead (the
+  // usual alternative to this pattern) since that would also reset
+  // startVideoRef's own playback below, restarting the charge animation
+  // on every session-list change rather than only when it should loop.
   React.useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setIndex(0);
   }, [openSession?.id, sessions.length]);
 

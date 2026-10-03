@@ -29,8 +29,8 @@ export async function GET(req: NextRequest) {
   const supabase = createServiceRoleClient();
 
   const { data: devices, error: devicesError } = await supabase
-    .from("devices")
-    .select("id, device_type:stock(category)")
+    .from("equipment")
+    .select("id, device_type:equipment_inventory(category)")
     .eq("device_status", "active");
 
   if (devicesError) {
@@ -45,29 +45,29 @@ export async function GET(req: NextRequest) {
   // Same bounded-window "most recent first, reduced to latest per device"
   // simplification the rest of this app already uses for a snapshot read.
   const { data: readings } = await supabase
-    .from("device_readings")
-    .select("device_id, instrument_key, value, ts")
-    .in("device_id", chargerIds)
-    .in("instrument_key", ["connector_status", "energy_active_import_register_kwh"])
+    .from("equipment_telemetry")
+    .select("equipment_id, key_name, value, ts")
+    .in("equipment_id", chargerIds)
+    .in("key_name", ["connector_status", "energy_active_import_register_kwh"])
     .order("ts", { ascending: false })
     .limit(chargerIds.length * 10);
 
   const latestStatus = new Map<string, number | null>();
   const latestEnergy = new Map<string, number | null>();
   for (const r of readings ?? []) {
-    if (r.instrument_key === "connector_status" && !latestStatus.has(r.device_id)) latestStatus.set(r.device_id, r.value);
-    if (r.instrument_key === "energy_active_import_register_kwh" && !latestEnergy.has(r.device_id)) {
-      latestEnergy.set(r.device_id, r.value);
+    if (r.key_name === "connector_status" && !latestStatus.has(r.equipment_id)) latestStatus.set(r.equipment_id, r.value);
+    if (r.key_name === "energy_active_import_register_kwh" && !latestEnergy.has(r.equipment_id)) {
+      latestEnergy.set(r.equipment_id, r.value);
     }
   }
 
   const { data: openSessions } = await supabase
-    .from("charging_sessions")
-    .select("id, device_id, started_at")
-    .in("device_id", chargerIds)
+    .from("ev_sessions")
+    .select("id, equipment_id, started_at")
+    .in("equipment_id", chargerIds)
     .is("ended_at", null);
 
-  const openSessionByDevice = new Map((openSessions ?? []).map((s) => [s.device_id, s]));
+  const openSessionByDevice = new Map((openSessions ?? []).map((s) => [s.equipment_id, s]));
 
   const now = new Date().toISOString();
 
@@ -76,15 +76,15 @@ export async function GET(req: NextRequest) {
   // round-trip per charger. The closing sessions can't share a single
   // `.update().in("id", [...])` the way detect-alerts's resolve-batch
   // does — each one needs its *own* `end_energy_kwh` — so those go through
-  // `.upsert()` by `id` instead, one round trip either way. `device_id`/
+  // `.upsert()` by `id` instead, one round trip either way. `equipment_id`/
   // `started_at` are carried over unchanged (both NOT NULL with no
   // default, so `.upsert()`'s Insert-side typing requires them even
   // though the conflict-update path — the only one ever taken here, since
   // every id already exists — doesn't actually need them).
-  const toOpen: { device_id: string; started_at: string; start_energy_kwh: number | null }[] = [];
+  const toOpen: { equipment_id: string; started_at: string; start_energy_kwh: number | null }[] = [];
   const toClose: {
     id: string;
-    device_id: string;
+    equipment_id: string;
     started_at: string;
     ended_at: string;
     end_energy_kwh: number | null;
@@ -98,11 +98,11 @@ export async function GET(req: NextRequest) {
     const isCharging = status === CHARGING_STATUS;
 
     if (isCharging && !openSession) {
-      toOpen.push({ device_id: deviceId, started_at: now, start_energy_kwh: energy });
+      toOpen.push({ equipment_id: deviceId, started_at: now, start_energy_kwh: energy });
     } else if (!isCharging && openSession) {
       toClose.push({
         id: openSession.id,
-        device_id: openSession.device_id,
+        equipment_id: openSession.equipment_id,
         started_at: openSession.started_at,
         ended_at: now,
         end_energy_kwh: energy,
@@ -112,8 +112,8 @@ export async function GET(req: NextRequest) {
   }
 
   const [insertResult, closeResult] = await Promise.all([
-    toOpen.length > 0 ? supabase.from("charging_sessions").insert(toOpen) : Promise.resolve({ error: null }),
-    toClose.length > 0 ? supabase.from("charging_sessions").upsert(toClose, { onConflict: "id" }) : Promise.resolve({ error: null }),
+    toOpen.length > 0 ? supabase.from("ev_sessions").insert(toOpen) : Promise.resolve({ error: null }),
+    toClose.length > 0 ? supabase.from("ev_sessions").upsert(toClose, { onConflict: "id" }) : Promise.resolve({ error: null }),
   ]);
 
   const opened = insertResult.error ? 0 : toOpen.length;

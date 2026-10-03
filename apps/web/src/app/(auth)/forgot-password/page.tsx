@@ -2,14 +2,15 @@ import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
+import { ToastFromSearchParams } from "@/components/dashboard/toast-from-search-params";
 import { requestPasswordReset } from "./actions";
 
 export default async function ForgotPasswordPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; sent?: string }>;
+  searchParams: Promise<{ sent?: string }>;
 }) {
-  const { error, sent } = await searchParams;
+  const { sent } = await searchParams;
 
   return (
     <div className="fluid-container flex min-h-screen items-center justify-center py-16">
@@ -21,11 +22,7 @@ export default async function ForgotPasswordPage({
           </p>
         </div>
 
-        {error ? (
-          <div className="rounded-lg border border-theme-border bg-theme-alert-subtle px-4 py-3 text-sm text-theme-alert">
-            {error}
-          </div>
-        ) : null}
+        <ToastFromSearchParams />
 
         {sent ? (
           <div className="rounded-lg border border-theme-border bg-theme-highlight-subtle px-4 py-3 text-sm text-theme-highlight">

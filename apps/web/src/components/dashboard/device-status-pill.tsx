@@ -40,7 +40,7 @@ export function DeviceStatusPill({
     return <StatusPill label="Fault" tone="bad" variant={variant} />;
   }
   if (inverterState === null) {
-    return <StatusPill label="Unknown" tone="neutral" variant={variant} />;
+    return <StatusPill label="No data" tone="neutral" variant={variant} />;
   }
   const match = inverterStateOptions.find((o) => o.code === String(inverterState));
   return <StatusPill label={match?.label ?? `State ${inverterState}`} tone={INVERTER_STATE_TONE[inverterState] ?? "neutral"} variant={variant} />;

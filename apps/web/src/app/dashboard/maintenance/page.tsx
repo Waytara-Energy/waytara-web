@@ -1,8 +1,7 @@
 import { Wrench } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { getSelectedSite, resolveDeviceInSite, deviceDisplayId } from "@/lib/selected-site";
-import { DevicePicker } from "@/components/dashboard/device-picker";
-import { DeviceDetailsCard } from "@/components/dashboard/device-details-card";
+import { DeviceSwitcher } from "@/components/dashboard/device-switcher";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -33,10 +32,10 @@ const STATUS_BADGE_VARIANT: Record<string, "alert" | "default" | "secondary"> = 
 export default async function MaintenancePage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; device?: string }>;
+  searchParams: Promise<{ device?: string }>;
 }) {
-  const [{ error, device: deviceIdParam }, site] = await Promise.all([searchParams, getSelectedSite()]);
-  const device = resolveDeviceInSite(site, deviceIdParam);
+  const [{ device: deviceIdParam }, site] = await Promise.all([searchParams, getSelectedSite()]);
+  const device = await resolveDeviceInSite(site, deviceIdParam);
   const supabase = await createClient();
 
   let tickets: { id: string; description: string | null; status: string; type: string; created_at: string }[] | null = null;
@@ -57,45 +56,7 @@ export default async function MaintenancePage({
   }
 
   return (
-    <div className="max-w-2xl space-y-6">
-      {device && (
-        <>
-          {/* Fault status, temperature trends, and last-sync are all
-              derived server-side (fault-episode collapsing, trend deltas)
-              from device_readings — not safe to hand-patch from a raw
-              INSERT payload, so a new reading debounce-refreshes the whole
-              page instead (see RealtimeRefresh's own reasoning). */}
-          <RealtimeRefresh table="device_readings" event="INSERT" filter={`device_id=eq.${device.id}`} />
-          <RealtimeRefresh table="maintenance_tickets" event="UPDATE" filter={`device_id=eq.${device.id}`} />
-        </>
-      )}
-      <div className="flex items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold text-theme-primary">Maintenance</h1>
-          <p className="mt-1 text-sm text-theme-muted">
-            {device
-              ? `Report an issue or request a scheduled visit for ${deviceDisplayId(device)}.`
-              : "Report an issue or request a scheduled visit."}
-          </p>
-        </div>
-        {device && site && (
-          <NewMaintenanceTicketDialog
-            deviceId={device.id}
-            deviceLabel={deviceDisplayId(device)}
-            siteId={site.id}
-            siteName={site.name}
-            error={error}
-          />
-        )}
-      </div>
-
-      {site && device && (
-        <>
-          <DevicePicker devices={site.devices} selectedId={device.id} />
-          <DeviceDetailsCard device={device} />
-        </>
-      )}
-
+    <div className="space-y-6">
       {!device ? (
         <Empty className="border">
           <EmptyHeader>
@@ -108,6 +69,29 @@ export default async function MaintenancePage({
         </Empty>
       ) : (
         <>
+          {/* Fault status, temperature trends, and last-sync are all
+              derived server-side (fault-episode collapsing, trend deltas)
+              from equipment_telemetry — not safe to hand-patch from a raw
+              INSERT payload, so a new reading debounce-refreshes the whole
+              page instead (see RealtimeRefresh's own reasoning). */}
+          <RealtimeRefresh table="equipment_telemetry" event="INSERT" filter={`equipment_id=eq.${device.id}`} />
+          <RealtimeRefresh table="maintenance_tickets" event="UPDATE" filter={`device_id=eq.${device.id}`} />
+
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <DeviceSwitcher devices={site?.devices ?? [device]} selectedId={device.id} />
+              <p className="mt-1 text-sm text-theme-muted">Report an issue or request a scheduled visit for this device.</p>
+            </div>
+            {site && (
+              <NewMaintenanceTicketDialog
+                deviceId={device.id}
+                deviceLabel={deviceDisplayId(device)}
+                siteId={site.id}
+                siteName={site.name}
+              />
+            )}
+          </div>
+
           <div className="space-y-3">
             <h2 className="text-sm font-semibold text-theme-primary">Device Health</h2>
             <DeviceHealthContent supabase={supabase} device={device} />

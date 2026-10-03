@@ -11,12 +11,12 @@ import type { createClient as createServerClient } from "@waytara/supabase/serve
 type AnySupabaseClient = ReturnType<typeof createBrowserClient> | Awaited<ReturnType<typeof createServerClient>>;
 
 export interface DeviceReadingRow {
-  instrument_key: string;
+  key_name: string;
   value: number | null;
   ts: string;
 }
 
-/** Pages through `device_readings` via `.range()` until a page comes back
+/** Pages through `equipment_telemetry` via `.range()` until a page comes back
  *  short of PAGE_SIZE — PostgREST caps a single request at its project's
  *  own max-rows setting (1000 here) no matter what `.limit()` the client
  *  asks for, so a plain single-request fetch for a busy sinceMidnight day
@@ -37,10 +37,10 @@ export async function fetchAllDeviceReadings(
   const rows: DeviceReadingRow[] = [];
   for (let from = 0; from < MAX_ROWS; from += PAGE_SIZE) {
     let query = supabase
-      .from("device_readings")
-      .select("instrument_key, value, ts")
-      .eq("device_id", deviceId)
-      .in("instrument_key", keys)
+      .from("equipment_telemetry")
+      .select("key_name, value, ts")
+      .eq("equipment_id", deviceId)
+      .in("key_name", keys)
       .eq("is_test", false)
       .gte("ts", gte)
       .order("ts", { ascending: true })

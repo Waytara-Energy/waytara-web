@@ -178,6 +178,11 @@ export function EnergyFlowDiagram({
   const showBattery = hasBatteryPackage(powerPackage) && batteryW !== null;
   const showGrid = hasGridSource(powerSourceCategory) && gridW !== null;
   const showEv = hasEvPackage(powerPackage) && evW !== null;
+  // Home was the one wire/label shown unconditionally, on the reasoning
+  // that every site has a load — but with no reading yet, that just drew
+  // a "Home —" label nobody could act on while every other wire correctly
+  // stayed hidden. Same `!== null` gate as the rest now.
+  const showHome = loadW !== null;
 
   const solarActive = (solarW ?? 0) > 0;
   const batteryCharging = (batteryW ?? 0) > 0;
@@ -215,7 +220,7 @@ export function EnergyFlowDiagram({
       ? [{ key: "battery", d: roundedPath(batteryPath, 40), color: FLOW_COLOR[batteryColor], active: batteryCharging || batteryDischarging }]
       : []),
     ...(showGrid ? [{ key: "grid", d: roundedPath(gridPath, 60), color: FLOW_COLOR[gridColor], active: gridImporting || gridExporting }] : []),
-    { key: "home", d: roundedPath(homePath, 50), color: FLOW_COLOR[homeColor], active: loadActive },
+    ...(showHome ? [{ key: "home", d: roundedPath(homePath, 50), color: FLOW_COLOR[homeColor], active: loadActive }] : []),
     ...(showEv ? [{ key: "ev", d: roundedPath(evPath, 45), color: FLOW_COLOR[evColor], active: evActive }] : []),
   ];
 
@@ -254,6 +259,7 @@ export function EnergyFlowDiagram({
           showSolar={showSolar}
           showBattery={showBattery}
           showGrid={showGrid}
+          showHome={showHome}
           showEv={showEv}
           leaderColor="#000000"
           titleColor="#64748b"
@@ -271,6 +277,7 @@ export function EnergyFlowDiagram({
           showSolar={showSolar}
           showBattery={showBattery}
           showGrid={showGrid}
+          showHome={showHome}
           showEv={showEv}
           leaderColor="#f8fafc"
           titleColor="#94a3b8"
@@ -291,6 +298,7 @@ function FlowOverlay({
   showSolar,
   showBattery,
   showGrid,
+  showHome,
   showEv,
   leaderColor,
   titleColor,
@@ -305,6 +313,7 @@ function FlowOverlay({
   showSolar: boolean;
   showBattery: boolean;
   showGrid: boolean;
+  showHome: boolean;
   showEv: boolean;
   leaderColor: string;
   titleColor: string;
@@ -365,17 +374,19 @@ function FlowOverlay({
           valueColor={valueColor}
         />
       )}
-      <FlowLabel
-        anchor={HOME_LABEL_ANCHOR}
-        labelPos={{ x: HOME_LABEL_ANCHOR.x, y: BOTTOM_LABEL_Y }}
-        align="middle"
-        title="Home"
-        value={fmtW(loadW)}
-        valueAbove
-        leaderColor={leaderColor}
-        titleColor={titleColor}
-        valueColor={valueColor}
-      />
+      {showHome && (
+        <FlowLabel
+          anchor={HOME_LABEL_ANCHOR}
+          labelPos={{ x: HOME_LABEL_ANCHOR.x, y: BOTTOM_LABEL_Y }}
+          align="middle"
+          title="Home"
+          value={fmtW(loadW)}
+          valueAbove
+          leaderColor={leaderColor}
+          titleColor={titleColor}
+          valueColor={valueColor}
+        />
+      )}
       {showGrid && (
         <FlowLabel
           anchor={GRID_EXIT}

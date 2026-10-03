@@ -4,7 +4,7 @@ import { Navigation } from "@/components/sections/navigation";
 import { Footer } from "@/components/sections/footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Cpu, Zap, ArrowRight, Layers, ShieldCheck, Activity } from "lucide-react";
+import { Cpu, Zap, ArrowRight, ShieldCheck, Activity } from "lucide-react";
 
 export default function TechnologyPage() {
   return (

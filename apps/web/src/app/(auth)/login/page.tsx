@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
+import { ToastFromSearchParams } from "@/components/dashboard/toast-from-search-params";
 import { login } from "./actions";
 
 const LEGAL_LINKS = [
@@ -18,13 +19,7 @@ const LEGAL_LINKS = [
 const HEADER_ICON_CLASS =
   "p-2 rounded-lg text-theme-primary transition-all duration-200 hover:text-theme-highlight hover:bg-theme-surface flex items-center justify-center";
 
-export default async function LoginPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string }>;
-}) {
-  const { error } = await searchParams;
-
+export default function LoginPage() {
   return (
     <div className="flex min-h-screen bg-theme-bg">
       {/* Left: hero photo, theme-swapped — hidden below lg so the form gets
@@ -78,11 +73,7 @@ export default async function LoginPage({
               </p>
             </div>
 
-            {error ? (
-              <div className="rounded-lg border border-theme-border bg-theme-alert-subtle px-4 py-3 text-sm text-theme-alert">
-                {error}
-              </div>
-            ) : null}
+            <ToastFromSearchParams />
 
             <form action={login} className="space-y-4">
               <div className="space-y-1.5">

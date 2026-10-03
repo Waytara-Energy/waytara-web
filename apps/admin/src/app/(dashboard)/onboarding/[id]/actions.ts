@@ -10,12 +10,13 @@ import { sendQuoteLinkEmail } from "@/lib/send-quote-link-email";
 import { sendCustomerInviteEmail } from "@/lib/send-customer-invite-email";
 import { sendInstallCompleteEmail } from "@/lib/send-install-complete-email";
 import { sendInstallScheduledEmail } from "@/lib/send-install-scheduled-email";
+import { cloneTemplateIntoEquipment, isTemplateVariant } from "@/lib/equipment-templates";
 
 // Onboarding pipeline redesign, Phase 3: generating a quotation no longer
 // creates a PDF or emails one — it creates a public, token-addressable
 // quote the customer can view and respond to themselves (Phase 4). The
 // PDF only gets generated once they actually accept it.
-export async function createAndSendQuotation(onboardingId: string, formData: FormData) {
+export async function createAndSendQuotation(onboardingId: string, formData: FormData): Promise<void> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
@@ -29,9 +30,7 @@ export async function createAndSendQuotation(onboardingId: string, formData: For
   }
 
   if (!planId || pricingBreakdown.length === 0 || !Number.isFinite(gstRate) || gstRate < 0) {
-    redirect(
-      `/onboarding/${onboardingId}?error=${encodeURIComponent("Pick a plan, add at least one pricing line, and set a valid GST rate.")}`
-    );
+    throw new Error("Pick a plan, add at least one pricing line, and set a valid GST rate.");
   }
 
   const supabase = await createClient();
@@ -43,9 +42,7 @@ export async function createAndSendQuotation(onboardingId: string, formData: For
     .single();
 
   if (onboardingError || !onboarding) {
-    redirect(
-      `/onboarding/${onboardingId}?error=${encodeURIComponent("Couldn't load this onboarding record.")}`
-    );
+    throw new Error("Couldn't load this onboarding record.");
   }
 
   const [{ data: lead }, { data: plan }] = await Promise.all([
@@ -79,9 +76,7 @@ export async function createAndSendQuotation(onboardingId: string, formData: For
     .single();
 
   if (insertError || !quotation) {
-    redirect(
-      `/onboarding/${onboardingId}?error=${encodeURIComponent(insertError?.message ?? "Couldn't create the quotation.")}`
-    );
+    throw new Error(insertError?.message ?? "Couldn't create the quotation.");
   }
 
   if (lead?.email) {
@@ -96,14 +91,13 @@ export async function createAndSendQuotation(onboardingId: string, formData: For
   await supabase.from("leads").update({ status: "quoted" }).eq("id", onboarding.lead_id);
 
   revalidatePath(`/onboarding/${onboardingId}`);
-  redirect(`/onboarding/${onboardingId}`);
 }
 
 // Onboarding pipeline redesign, Phase 4 retired recordQuotationAccepted —
 // the customer accepts (and picks a payment option) themselves on the
 // public /quote/[token] page now, not the employee on their behalf.
 
-export async function resendQuoteLinkEmail(onboardingId: string, quotationId: string) {
+export async function resendQuoteLinkEmail(onboardingId: string, quotationId: string): Promise<void> {
   const supabase = await createClient();
 
   const { data: quotation } = await supabase
@@ -113,9 +107,7 @@ export async function resendQuoteLinkEmail(onboardingId: string, quotationId: st
     .single();
 
   if (!quotation || quotation.status !== "sent") {
-    redirect(
-      `/onboarding/${onboardingId}?error=${encodeURIComponent("Nothing to resend — this quote is no longer awaiting a response.")}`
-    );
+    throw new Error("Nothing to resend — this quote is no longer awaiting a response.");
   }
 
   const { data: lead } = await supabase
@@ -134,14 +126,13 @@ export async function resendQuoteLinkEmail(onboardingId: string, quotationId: st
   }
 
   revalidatePath(`/onboarding/${onboardingId}`);
-  redirect(`/onboarding/${onboardingId}`);
 }
 
 export async function recordQuotationRejected(
   quotationId: string,
   onboardingId: string,
   formData: FormData
-) {
+): Promise<void> {
   const action = String(formData.get("action") ?? "");
   const supabase = await createClient();
 
@@ -165,7 +156,6 @@ export async function recordQuotationRejected(
   // create-quotation form again once no active (draft/sent) quotation remains.
 
   revalidatePath(`/onboarding/${onboardingId}`);
-  redirect(`/onboarding/${onboardingId}`);
 }
 
 // Onboarding pipeline redesign, Phase 5: payment now happens after the
@@ -182,7 +172,7 @@ export async function recordQuotationRejected(
 // capture when that's wired up; the RLS policies and stage advancement
 // are already the real thing.
 
-export async function recordFullPayment(onboardingId: string, quotationId: string) {
+export async function recordFullPayment(onboardingId: string, quotationId: string): Promise<void> {
   const supabase = await createClient();
 
   const { data: onboarding } = await supabase
@@ -198,7 +188,7 @@ export async function recordFullPayment(onboardingId: string, quotationId: strin
     .single();
 
   if (!quotation || !onboarding?.customer_id) {
-    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent("Couldn't load this quotation.")}`);
+    throw new Error("Couldn't load this quotation.");
   }
 
   await supabase.from("payments").insert({
@@ -214,14 +204,13 @@ export async function recordFullPayment(onboardingId: string, quotationId: strin
   await supabase.from("customer_onboarding").update({ current_stage: "site_setup" }).eq("id", onboardingId);
 
   revalidatePath(`/onboarding/${onboardingId}`);
-  redirect(`/onboarding/${onboardingId}`);
 }
 
 export async function recordSplitPayment(
   onboardingId: string,
   quotationId: string,
   formData: FormData
-) {
+): Promise<void> {
   const advanceAmount = Number(formData.get("advanceAmount") ?? 0);
   const supabase = await createClient();
 
@@ -240,9 +229,7 @@ export async function recordSplitPayment(
   const totalAmount = quotation ? Number(quotation.total_amount) : 0;
 
   if (!quotation || !onboarding?.customer_id || advanceAmount <= 0 || advanceAmount >= totalAmount) {
-    redirect(
-      `/onboarding/${onboardingId}?error=${encodeURIComponent("Enter an advance amount greater than 0 and less than the total.")}`
-    );
+    throw new Error("Enter an advance amount greater than 0 and less than the total.");
   }
 
   const balanceAmount = totalAmount - advanceAmount;
@@ -282,21 +269,18 @@ export async function recordSplitPayment(
     .eq("id", onboardingId);
 
   revalidatePath(`/onboarding/${onboardingId}`);
-  redirect(`/onboarding/${onboardingId}`);
 }
 
 // Task 8.4: site & device setup.
 
-export async function createSite(onboardingId: string, formData: FormData) {
+export async function createSite(onboardingId: string, formData: FormData): Promise<void> {
   const propertyType = String(formData.get("propertyType") ?? "");
   const powerSourceCategory = String(formData.get("powerSourceCategory") ?? "");
   const powerPackageRaw = String(formData.get("powerPackage") ?? "").trim();
   const siteName = String(formData.get("siteName") ?? "").trim();
 
   if (!propertyType || !powerSourceCategory || !siteName) {
-    redirect(
-      `/onboarding/${onboardingId}?error=${encodeURIComponent("Fill in a site name, property type, and power source.")}`
-    );
+    throw new Error("Fill in a site name, property type, and power source.");
   }
 
   const supabase = await createClient();
@@ -307,9 +291,7 @@ export async function createSite(onboardingId: string, formData: FormData) {
     .single();
 
   if (!onboarding?.customer_id) {
-    redirect(
-      `/onboarding/${onboardingId}?error=${encodeURIComponent("No customer linked to this onboarding yet.")}`
-    );
+    throw new Error("No customer linked to this onboarding yet.");
   }
 
   const { error } = await supabase.from("sites").insert({
@@ -323,11 +305,10 @@ export async function createSite(onboardingId: string, formData: FormData) {
   });
 
   if (error) {
-    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   revalidatePath(`/onboarding/${onboardingId}`);
-  redirect(`/onboarding/${onboardingId}`);
 }
 
 // Warranty years live on the linked stock item's own warranty_info jsonb
@@ -346,12 +327,26 @@ function warrantyYearsFrom(warrantyInfo: unknown): number | null {
   return typeof years === "number" ? years : null;
 }
 
-export async function addDevice(onboardingId: string, siteId: string, formData: FormData) {
+// Registering a device now also instantiates its register set: the chosen
+// `variant` (Hybrid/String/Micro x phase x grid mode, or an EV charging
+// type — the exact ten equipment_templates boolean columns, see
+// equipment-templates.ts) picks which global template rows get cloned into
+// this one physical device's own equipment_metrics, per the onboarding
+// plan ("select the correct template by type... and store this under the
+// device"). Cloned rows start with no address/decode — staff fill those in
+// afterward on the device's own Edit Registers page (reachable from the
+// device list below), same as picking a variant here doesn't itself
+// require every register to be known yet.
+export async function addDevice(onboardingId: string, siteId: string, formData: FormData): Promise<void> {
   const stockId = String(formData.get("stockId") ?? "");
   const label = String(formData.get("label") ?? "").trim() || null;
+  const variant = String(formData.get("variant") ?? "");
 
   if (!stockId) {
-    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent("Pick a device.")}`);
+    throw new Error("Pick a device.");
+  }
+  if (!isTemplateVariant(variant)) {
+    throw new Error("Pick the device's type, phase, and grid mode.");
   }
 
   const supabase = await createClient();
@@ -362,22 +357,30 @@ export async function addDevice(onboardingId: string, siteId: string, formData: 
   // the step that sets the real installed_at for every device at the site
   // at once; warranty is calculated there, from that real date, not this
   // provisional registration moment.
-  const { error } = await supabase.from("devices").insert({
-    site_id: siteId,
-    stock_device_id: stockId,
-    label,
-    device_status: "test",
-  });
+  const { data: device, error } = await supabase
+    .from("equipment")
+    .insert({
+      site_id: siteId,
+      stock_id: stockId,
+      label,
+      device_status: "test",
+    })
+    .select("id")
+    .single();
 
-  if (error) {
-    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
+  if (error || !device) {
+    throw new Error(error?.message ?? "Failed to add device.");
+  }
+
+  const { error: cloneError } = await cloneTemplateIntoEquipment(supabase, device.id, variant);
+  if (cloneError) {
+    throw new Error(`Device added, but registers couldn't be mapped: ${cloneError}`);
   }
 
   revalidatePath(`/onboarding/${onboardingId}`);
-  redirect(`/onboarding/${onboardingId}`);
 }
 
-export async function completeSiteSetup(onboardingId: string) {
+export async function completeSiteSetup(onboardingId: string): Promise<void> {
   const supabase = await createClient();
   await supabase
     .from("customer_onboarding")
@@ -385,14 +388,13 @@ export async function completeSiteSetup(onboardingId: string) {
     .eq("id", onboardingId);
 
   revalidatePath(`/onboarding/${onboardingId}`);
-  redirect(`/onboarding/${onboardingId}`);
 }
 
 // Task 8.3: the pipeline view distinguishes "waiting on customer" (no
 // customer_id yet) from "profile submitted" — this is the resend option for
 // the waiting case. Reuses the existing invite_token rather than minting a
 // new one, so a link the customer may already have open keeps working.
-export async function resendCustomerInviteEmail(onboardingId: string) {
+export async function resendCustomerInviteEmail(onboardingId: string): Promise<void> {
   const supabase = await createClient();
 
   const { data: onboarding } = await supabase
@@ -402,9 +404,7 @@ export async function resendCustomerInviteEmail(onboardingId: string) {
     .single();
 
   if (!onboarding || onboarding.customer_id || !onboarding.invite_token) {
-    redirect(
-      `/onboarding/${onboardingId}?error=${encodeURIComponent("Nothing to resend — the account may already be set up.")}`
-    );
+    throw new Error("Nothing to resend — the account may already be set up.");
   }
 
   const { data: lead } = await supabase
@@ -422,15 +422,14 @@ export async function resendCustomerInviteEmail(onboardingId: string) {
   }
 
   revalidatePath(`/onboarding/${onboardingId}`);
-  redirect(`/onboarding/${onboardingId}`);
 }
 
 // Task 8.5: connection test. test_sessions already existed in the schema
-// (employee_id, site_id, status, data_purged) with a matching device_readings
+// (employee_id, site_id, status, data_purged) with a matching equipment_telemetry
 // SELECT policy scoping is_test reads to a running session the employee
 // owns — it just had no write path until this task's migration added one.
 
-export async function startTestSession(onboardingId: string, siteId: string) {
+export async function startTestSession(onboardingId: string, siteId: string): Promise<void> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
@@ -442,11 +441,10 @@ export async function startTestSession(onboardingId: string, siteId: string) {
   });
 
   if (error) {
-    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   revalidatePath(`/onboarding/${onboardingId}`);
-  redirect(`/onboarding/${onboardingId}`);
 }
 
 // No real hardware/gateway integration exists yet — same "simulate the
@@ -475,7 +473,7 @@ function simulatedValueFor(unit: string | null): number {
   }
 }
 
-export async function sendTestSignal(onboardingId: string, deviceId: string, formData: FormData) {
+export async function sendTestSignal(onboardingId: string, deviceId: string, formData: FormData): Promise<void> {
   const instrumentKeysRaw = String(formData.get("instrumentKeys") ?? "[]");
   let instruments: { key: string; unit: string | null }[] = [];
   try {
@@ -485,15 +483,15 @@ export async function sendTestSignal(onboardingId: string, deviceId: string, for
   }
 
   if (instruments.length === 0) {
-    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent("No instruments to send a signal for.")}`);
+    throw new Error("No instruments to send a signal for.");
   }
 
   const supabase = await createClient();
   const now = new Date().toISOString();
-  const { error } = await supabase.from("device_readings").insert(
+  const { error } = await supabase.from("equipment_telemetry").insert(
     instruments.map((i) => ({
-      device_id: deviceId,
-      instrument_key: i.key,
+      equipment_id: deviceId,
+      key_name: i.key,
       value: simulatedValueFor(i.unit),
       unit: i.unit,
       ts: now,
@@ -502,23 +500,21 @@ export async function sendTestSignal(onboardingId: string, deviceId: string, for
   );
 
   if (error) {
-    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   revalidatePath(`/onboarding/${onboardingId}`);
-  redirect(`/onboarding/${onboardingId}`);
 }
 
-export async function markDeviceVerified(onboardingId: string, deviceId: string) {
+export async function markDeviceVerified(onboardingId: string, deviceId: string): Promise<void> {
   const supabase = await createClient();
-  const { error } = await supabase.from("devices").update({ device_status: "active" }).eq("id", deviceId);
+  const { error } = await supabase.from("equipment").update({ device_status: "active" }).eq("id", deviceId);
 
   if (error) {
-    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   revalidatePath(`/onboarding/${onboardingId}`);
-  redirect(`/onboarding/${onboardingId}`);
 }
 
 // Onboarding pipeline redesign, Phase 7: per-device physical readiness —
@@ -527,7 +523,7 @@ export async function markDeviceVerified(onboardingId: string, deviceId: string)
 // already proves the device reports real values; no new mechanism
 // needed there). One row per device, upserted on every save so the
 // employee can revisit and adjust before scheduling install.
-export async function updateEquipmentCheck(onboardingId: string, deviceId: string, formData: FormData) {
+export async function updateEquipmentCheck(onboardingId: string, deviceId: string, formData: FormData): Promise<void> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
@@ -545,67 +541,18 @@ export async function updateEquipmentCheck(onboardingId: string, deviceId: strin
   );
 
   if (error) {
-    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   revalidatePath(`/onboarding/${onboardingId}`);
-  redirect(`/onboarding/${onboardingId}`);
 }
 
-// Absence of a device_feature_flags row means "enabled" (the common case —
-// most installs have every category the model supports), so this only ever
-// writes rows for categories an installer actually unchecked, and deletes
-// the row the moment a category gets re-checked, rather than maintaining an
-// explicit is_enabled=true row for everything that's just... present.
-export async function updateDeviceFeatureFlags(onboardingId: string, deviceId: string, formData: FormData) {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
-
-  const supabase = await createClient();
-  const allCategories = String(formData.get("allCategories") ?? "")
-    .split(",")
-    .filter(Boolean);
-  const enabledCategories = new Set(formData.getAll("enabledCategories").map(String));
-  const disabledCategories = allCategories.filter((c) => !enabledCategories.has(c));
-
-  const [{ error: deleteError }, { error: upsertError }] = await Promise.all([
-    enabledCategories.size > 0
-      ? supabase
-          .from("device_feature_flags")
-          .delete()
-          .eq("device_id", deviceId)
-          .in("category", Array.from(enabledCategories))
-      : Promise.resolve({ error: null }),
-    disabledCategories.length > 0
-      ? supabase.from("device_feature_flags").upsert(
-          disabledCategories.map((category) => ({
-            device_id: deviceId,
-            category,
-            is_enabled: false,
-            updated_by: profile.id,
-            updated_at: new Date().toISOString(),
-          })),
-          { onConflict: "device_id,category" }
-        )
-      : Promise.resolve({ error: null }),
-  ]);
-
-  if (deleteError || upsertError) {
-    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent((deleteError ?? upsertError)!.message)}`);
-  }
-
-  revalidatePath(`/onboarding/${onboardingId}`);
-  redirect(`/onboarding/${onboardingId}`);
-}
-
-export async function completeConnectionTest(onboardingId: string, sessionId: string, siteId: string) {
+export async function completeConnectionTest(onboardingId: string, sessionId: string, siteId: string): Promise<void> {
   const supabase = await createClient();
 
-  const { data: devices } = await supabase.from("devices").select("id, device_status").eq("site_id", siteId);
+  const { data: devices } = await supabase.from("equipment").select("id, device_status").eq("site_id", siteId);
   if (!devices || devices.length === 0 || devices.some((d) => d.device_status !== "active")) {
-    redirect(
-      `/onboarding/${onboardingId}?error=${encodeURIComponent("Every device needs to be verified before completing the test.")}`
-    );
+    throw new Error("Every device needs to be verified before completing the test.");
   }
 
   // Server-side guard, not just a disabled button — Phase 7's readiness
@@ -624,9 +571,7 @@ export async function completeConnectionTest(onboardingId: string, sessionId: st
     return c?.availability && c?.quality && c?.power_connect;
   });
   if (!allChecksComplete) {
-    redirect(
-      `/onboarding/${onboardingId}?error=${encodeURIComponent("Every device needs Availability, Quality, and Power Connect checked before completing the test.")}`
-    );
+    throw new Error("Every device needs Availability, Quality, and Power Connect checked before completing the test.");
   }
 
   // Purge the simulated test readings — test_sessions.data_purged is the
@@ -635,7 +580,7 @@ export async function completeConnectionTest(onboardingId: string, sessionId: st
   // own_test) only allows this while the session is still 'running', so
   // purge before flipping status.
   const deviceIds = devices.map((d) => d.id);
-  await supabase.from("device_readings").delete().in("device_id", deviceIds).eq("is_test", true);
+  await supabase.from("equipment_telemetry").delete().in("equipment_id", deviceIds).eq("is_test", true);
 
   const { error: sessionError } = await supabase
     .from("test_sessions")
@@ -643,16 +588,15 @@ export async function completeConnectionTest(onboardingId: string, sessionId: st
     .eq("id", sessionId);
 
   if (sessionError) {
-    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(sessionError.message)}`);
+    throw new Error(sessionError.message);
   }
 
   await supabase.from("customer_onboarding").update({ current_stage: "install_scheduled" }).eq("id", onboardingId);
 
   revalidatePath(`/onboarding/${onboardingId}`);
-  redirect(`/onboarding/${onboardingId}`);
 }
 
-export async function failTestSession(onboardingId: string, sessionId: string, formData: FormData) {
+export async function failTestSession(onboardingId: string, sessionId: string, formData: FormData): Promise<void> {
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const supabase = await createClient();
 
@@ -662,11 +606,10 @@ export async function failTestSession(onboardingId: string, sessionId: string, f
     .eq("id", sessionId);
 
   if (error) {
-    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   revalidatePath(`/onboarding/${onboardingId}`);
-  redirect(`/onboarding/${onboardingId}`);
 }
 
 // Task 8.6: install completion — the pipeline's last two stages.
@@ -681,12 +624,12 @@ export async function failTestSession(onboardingId: string, sessionId: string, f
 // reschedule — the message reads correctly either way).
 const VALID_TIME_SLOTS = ["morning", "afternoon", "evening"] as const;
 
-export async function scheduleInstall(onboardingId: string, formData: FormData) {
+export async function scheduleInstall(onboardingId: string, formData: FormData): Promise<void> {
   const scheduledDate = String(formData.get("scheduledDate") ?? "").trim();
   const timeSlot = String(formData.get("timeSlot") ?? "");
 
   if (!scheduledDate || !VALID_TIME_SLOTS.includes(timeSlot as (typeof VALID_TIME_SLOTS)[number])) {
-    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent("Pick a date and a time slot first.")}`);
+    throw new Error("Pick a date and a time slot first.");
   }
 
   const supabase = await createClient();
@@ -701,7 +644,7 @@ export async function scheduleInstall(onboardingId: string, formData: FormData) 
     .single();
 
   if (error) {
-    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   // Same profiles-RLS workaround as resendCustomerInviteEmail/
@@ -725,7 +668,6 @@ export async function scheduleInstall(onboardingId: string, formData: FormData) 
   }
 
   revalidatePath(`/onboarding/${onboardingId}`);
-  redirect(`/onboarding/${onboardingId}`);
 }
 
 // Onboarding pipeline redesign, Phase 9: the balance owed on a split
@@ -741,7 +683,7 @@ export async function recordBalancePayment(
   onboardingId: string,
   paymentId: string,
   method: "upi" | "cash"
-) {
+): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase
     .from("payments")
@@ -749,21 +691,20 @@ export async function recordBalancePayment(
     .eq("id", paymentId);
 
   if (error) {
-    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   revalidatePath(`/onboarding/${onboardingId}`);
-  redirect(`/onboarding/${onboardingId}`);
 }
 
-export async function completeInstallation(onboardingId: string, siteId: string) {
+export async function completeInstallation(onboardingId: string, siteId: string): Promise<void> {
   const supabase = await createClient();
 
   // siteDevices depends only on `siteId`, not on `onboarding` or anything
   // derived from it — fetched alongside it instead of after.
   const [{ data: onboarding }, { data: siteDevices, error: siteDevicesError }] = await Promise.all([
     supabase.from("customer_onboarding").select("lead_id").eq("id", onboardingId).single(),
-    supabase.from("devices").select("id, stock_device_id, stock_device:stock(warranty_info)").eq("site_id", siteId),
+    supabase.from("equipment").select("id, stock_id, stock_device:equipment_inventory(warranty_info)").eq("site_id", siteId),
   ]);
 
   // Server-side guard, not just a hidden/disabled button — same
@@ -789,9 +730,7 @@ export async function completeInstallation(onboardingId: string, siteId: string)
         .maybeSingle();
 
       if (balancePayment && balancePayment.status !== "paid") {
-        redirect(
-          `/onboarding/${onboardingId}?error=${encodeURIComponent("The balance payment is still pending — collect it before completing installation.")}`
-        );
+        throw new Error("The balance payment is still pending — collect it before completing installation.");
       }
     }
   }
@@ -805,7 +744,7 @@ export async function completeInstallation(onboardingId: string, siteId: string)
   const warrantyStartDate = installedAt.toISOString().slice(0, 10);
 
   if (siteDevicesError) {
-    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(siteDevicesError.message)}`);
+    throw new Error(siteDevicesError.message);
   }
 
   // Each device gets its own warranty_end_date (different stock items can
@@ -833,7 +772,7 @@ export async function completeInstallation(onboardingId: string, siteId: string)
       // Postgres, which `.upsert()` can't express ("only touch these
       // columns, leave the rest alone").
       site_id: siteId,
-      stock_device_id: device.stock_device_id,
+      stock_id: device.stock_id,
       installed_at: installedAt.toISOString(),
       warranty_start_date: warrantyStartDate,
       warranty_end_date: warrantyEndDate,
@@ -841,9 +780,9 @@ export async function completeInstallation(onboardingId: string, siteId: string)
   });
 
   if (deviceUpdates.length > 0) {
-    const { error: deviceError } = await supabase.from("devices").upsert(deviceUpdates, { onConflict: "id" });
+    const { error: deviceError } = await supabase.from("equipment").upsert(deviceUpdates, { onConflict: "id" });
     if (deviceError) {
-      redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(deviceError.message)}`);
+      throw new Error(deviceError.message);
     }
   }
 
@@ -853,7 +792,7 @@ export async function completeInstallation(onboardingId: string, siteId: string)
     .eq("id", onboardingId);
 
   if (stageError) {
-    redirect(`/onboarding/${onboardingId}?error=${encodeURIComponent(stageError.message)}`);
+    throw new Error(stageError.message);
   }
 
   // Same profiles-RLS workaround as resendCustomerInviteEmail: an employee
@@ -872,5 +811,4 @@ export async function completeInstallation(onboardingId: string, siteId: string)
   }
 
   revalidatePath(`/onboarding/${onboardingId}`);
-  redirect(`/onboarding/${onboardingId}`);
 }

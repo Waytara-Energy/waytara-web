@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@waytara/supabase/server";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 
-export async function updateProfile(formData: FormData) {
+export async function updateProfile(formData: FormData): Promise<void> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
@@ -15,7 +15,7 @@ export async function updateProfile(formData: FormData) {
   const emailMaintenanceUpdates = formData.get("emailMaintenanceUpdates") === "on";
 
   if (!fullName) {
-    redirect(`/dashboard/settings?error=${encodeURIComponent("Name can't be empty.")}`);
+    throw new Error("Name can't be empty.");
   }
 
   const supabase = await createClient();
@@ -36,9 +36,8 @@ export async function updateProfile(formData: FormData) {
     .eq("id", profile.id);
 
   if (error) {
-    redirect(`/dashboard/settings?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   revalidatePath("/dashboard/settings");
-  redirect("/dashboard/settings?success=1");
 }

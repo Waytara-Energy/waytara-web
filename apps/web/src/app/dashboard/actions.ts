@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@waytara/supabase/server";
 import { getCurrentProfile } from "@waytara/supabase/auth";
-import { SELECTED_SITE_COOKIE } from "@/lib/selected-site";
+import { SELECTED_SITE_COOKIE, SELECTED_DEVICE_COOKIE } from "@/lib/selected-site";
 
 // Called directly from the header's SiteSwitcher (a client component), not
 // via a <form action>. No ownership check on `siteId` here — the cookie is
@@ -21,6 +21,21 @@ export async function selectSite(siteId: string) {
     sameSite: "lax",
   });
   revalidatePath("/dashboard", "layout");
+}
+
+// Called directly from DeviceSwitcher (a client component) right before it
+// navigates — same "UI preference, not an authorization boundary" reasoning
+// as selectSite above, and the same reason there's no ownership check on
+// `deviceId` here: resolveDeviceInSite re-validates it against the
+// requesting customer's own (RLS-scoped) site before ever using it, so a
+// tampered/foreign id just fails to resolve rather than granting access.
+export async function selectDevice(deviceId: string) {
+  const cookieStore = await cookies();
+  cookieStore.set(SELECTED_DEVICE_COOKIE, deviceId, {
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+    sameSite: "lax",
+  });
 }
 
 export async function logout() {

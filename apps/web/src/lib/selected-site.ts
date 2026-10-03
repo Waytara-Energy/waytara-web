@@ -6,6 +6,7 @@ import type { SiteAddress } from "./site-catalog";
 import { deviceDisplayId, type CustomerDevice } from "./device-display";
 
 export const SELECTED_SITE_COOKIE = "selected_site_id";
+export const SELECTED_DEVICE_COOKIE = "selected_device_id";
 
 // CustomerDevice's shape and deviceDisplayId live in device-display.ts (no
 // "server-only" there) so a client component like DeviceSwitcher can import
@@ -40,7 +41,7 @@ export const getCustomerSites = cache(async function getCustomerSites(): Promise
   const { data } = await supabase
     .from("sites")
     .select(
-      "id, name, property_type, power_source_category, power_package, latitude, longitude, address, devices(id, label, device_status, created_at, installed_at, warranty_start_date, warranty_end_date, service_id, device_type:stock(id, category, name, manufacturer, brand, model, serial_number, model_number))"
+      "id, name, property_type, power_source_category, power_package, latitude, longitude, address, equipment(id, label, device_status, created_at, installed_at, warranty_start_date, warranty_end_date, service_id, device_type:equipment_inventory(id, category, name, manufacturer, brand, model, serial_number, model_number))"
     )
     .order("created_at", { ascending: true });
 
@@ -53,7 +54,7 @@ export const getCustomerSites = cache(async function getCustomerSites(): Promise
     latitude: s.latitude,
     longitude: s.longitude,
     address: (s.address as SiteAddress | null) ?? null,
-    devices: (s.devices ?? [])
+    devices: (s.equipment ?? [])
       .slice()
       .sort((a, b) => a.created_at.localeCompare(b.created_at))
       .map((d) => ({
@@ -103,15 +104,28 @@ export async function getSelectedSite(): Promise<CustomerSite | null> {
 
 /** Picks a device out of the *selected site's own* device list — this is
  *  the second, page-local level of selection every device-scoped page
- *  (Analytics, Monitoring, Performance, Instrument Settings, Maintenance)
- *  needs now that a site can have more than one device: each of those
- *  pages reads `?device=` from its own searchParams and resolves it here,
- *  independently of whatever any other page currently has picked — there's
- *  no single global "current device" the way there was before sites could
- *  hold more than one. Falls back to the first device at the site when
- *  `deviceId` is missing or doesn't belong to this site (same
- *  don't-trust-the-id-blindly reasoning as resolveSelectedSite). */
-export function resolveDeviceInSite(site: CustomerSite | null, deviceId: string | undefined): CustomerDevice | null {
+ *  (Devices, Monitoring, Performance, Reports, Maintenance) needs now that
+ *  a site can have more than one device. Priority order:
+ *   1. This page's own `?device=` searchParam, if it belongs to this site
+ *      — an explicit choice made *on this page* always wins.
+ *   2. `SELECTED_DEVICE_COOKIE`, if it belongs to this site — the device
+ *      last picked via DeviceSwitcher on *any* page (DeviceSwitcher's own
+ *      selectDevice action sets it), so navigating over from Monitoring to
+ *      Performance via the sidebar lands on the same device instead of
+ *      silently resetting to the first one.
+ *   3. The site's first device.
+ *  Neither id is ever trusted blindly — both are checked against this
+ *  already-RLS-scoped site's own device list before use, same
+ *  don't-trust-the-id-blindly reasoning as resolveSelectedSite. */
+export async function resolveDeviceInSite(site: CustomerSite | null, deviceId: string | undefined): Promise<CustomerDevice | null> {
   if (!site || site.devices.length === 0) return null;
-  return site.devices.find((d) => d.id === deviceId) ?? site.devices[0];
+  const byParam = site.devices.find((d) => d.id === deviceId);
+  if (byParam) return byParam;
+
+  const cookieStore = await cookies();
+  const cookieDeviceId = cookieStore.get(SELECTED_DEVICE_COOKIE)?.value;
+  const byCookie = site.devices.find((d) => d.id === cookieDeviceId);
+  if (byCookie) return byCookie;
+
+  return site.devices[0];
 }

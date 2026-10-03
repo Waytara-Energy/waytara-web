@@ -1,6 +1,7 @@
 import { createClient } from "@waytara/supabase/server";
 import type { CustomerDevice } from "@/lib/selected-site";
 import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
+import { fetchReadKeys } from "@/lib/instrument-catalog-data";
 import type { DailyPoint } from "./performance-chart";
 import { PerformanceChart } from "./lazy-charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,8 +13,15 @@ import { DeviceParameterCards } from "./device-parameter-cards";
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
 const HISTORY_DAYS = 365;
-const YIELD_INSTRUMENT_KEY = "solar_energy_today_kwh";
-const EXTRA_KEYS = ["grid_buy_energy_today_kwh", "grid_sell_energy_today_kwh"];
+// Current equipment_templates/equipment_metrics vocabulary —
+// "solar_energy_today_kwh"/"grid_buy_energy_today_kwh"/"grid_sell_energy_today_kwh"
+// were the old instrument_catalog names and no device has ever written a
+// row under them, which silently zeroed out every figure in this whole
+// section (Total invested/Saved to date/ROI/cumulative savings chart, plus
+// permanently hid the Grid Cost Estimate card below since its own
+// fetchReadKeys().has(...) check never matched either).
+const YIELD_INSTRUMENT_KEY = "day_pv_energy_kwh";
+const EXTRA_KEYS = ["day_grid_import_energy_kwh", "day_grid_export_energy_kwh"];
 
 function inr(value: number): string {
   return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
@@ -109,31 +117,40 @@ async function SolarInverterAnalytics({
   // per-request row cap easily (ascending order means the *oldest* rows
   // survive the cap, so a year-old account was silently missing its most
   // recent months). fetchAllDeviceReadings pages through the cap instead.
+  const readKeys = await fetchReadKeys(supabase, device);
+  const showGridCost = readKeys.has("day_grid_import_energy_kwh") || readKeys.has("day_grid_export_energy_kwh");
+
+  // No single system-wide cycle-count register exists — only one per
+  // battery pack (battery_pack1_cycle_count .. battery_packN_cycle_count,
+  // up to 15). Pack 1 stands in as the representative reading, same
+  // "one representative reading" simplification this app already uses
+  // elsewhere (e.g. EvChargerOverview picking a site's first charger).
+  const BATTERY_CYCLE_KEY = "battery_pack1_cycle_count";
+
   const [totalInvested, readings, extraRows, { data: latestRows }] = await Promise.all([
     getTotalInvested(supabase),
     fetchAllDeviceReadings(supabase, device.id, [YIELD_INSTRUMENT_KEY], since.toISOString()),
     fetchAllDeviceReadings(supabase, device.id, EXTRA_KEYS, since.toISOString()),
     supabase
-      .from("device_readings")
-      .select("instrument_key, value, ts")
-      .eq("device_id", device.id)
-      .in("instrument_key", ["battery_cycle_count"])
+      .from("equipment_telemetry")
+      .select("key_name, value, ts")
+      .eq("equipment_id", device.id)
+      .in("key_name", [BATTERY_CYCLE_KEY])
       .order("ts", { ascending: false })
       .limit(20),
   ]);
   let batteryCycleCount: number | null = null;
   for (const r of latestRows ?? []) {
-    if (r.instrument_key === "battery_cycle_count" && batteryCycleCount === null) batteryCycleCount = r.value;
+    if (r.key_name === BATTERY_CYCLE_KEY && batteryCycleCount === null) batteryCycleCount = r.value;
   }
 
   const perDeviceDay = maxByDeviceDay(readings.map((r) => ({ device_id: device.id, value: r.value, ts: r.ts })));
   const dailyKwh = sumByDay(perDeviceDay);
 
-  let running = 0;
-  const cumulativeSavings: DailyPoint[] = dailyKwh.map((p) => {
-    running += p.value;
-    return { date: p.date, value: running * tariffRate };
-  });
+  const cumulativeSavings: DailyPoint[] = dailyKwh.reduce<DailyPoint[]>((acc, p) => {
+    const running = (acc[acc.length - 1]?.value ?? 0) / tariffRate + p.value;
+    return [...acc, { date: p.date, value: running * tariffRate }];
+  }, []);
 
   const totalSavedToDate = cumulativeSavings[cumulativeSavings.length - 1]?.value ?? 0;
   const avgDailySaving = dailyKwh.length > 0 ? (dailyKwh.reduce((s, p) => s + p.value, 0) * tariffRate) / dailyKwh.length : 0;
@@ -159,8 +176,8 @@ async function SolarInverterAnalytics({
   // but the register only reports kWh, so this is the same simplification
   // already made for "saved to date".
   const toRawReading = (r: { value: number | null; ts: string }): RawReading => ({ device_id: device.id, value: r.value, ts: r.ts });
-  const gridImportKwh = extraRows.filter((r) => r.instrument_key === "grid_buy_energy_today_kwh").map(toRawReading);
-  const gridExportKwh = extraRows.filter((r) => r.instrument_key === "grid_sell_energy_today_kwh").map(toRawReading);
+  const gridImportKwh = extraRows.filter((r) => r.key_name === "day_grid_import_energy_kwh").map(toRawReading);
+  const gridExportKwh = extraRows.filter((r) => r.key_name === "day_grid_export_energy_kwh").map(toRawReading);
   const totalImportKwh = aggregateDailyYield(gridImportKwh).reduce((s, p) => s + p.value, 0);
   const totalExportKwh = aggregateDailyYield(gridExportKwh).reduce((s, p) => s + p.value, 0);
 
@@ -199,15 +216,17 @@ async function SolarInverterAnalytics({
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Grid Cost Estimate (last {HISTORY_DAYS}d)</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-4">
-          <StatTile label="Grid import cost" value={inr(totalImportKwh * tariffRate)} />
-          <StatTile label="Grid export credit" value={inr(totalExportKwh * tariffRate)} />
-        </CardContent>
-      </Card>
+      {showGridCost && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm">Grid Cost Estimate (last {HISTORY_DAYS}d)</CardTitle>
+          </CardHeader>
+          <CardContent className="grid grid-cols-2 gap-4">
+            <StatTile label="Grid import cost" value={inr(totalImportKwh * tariffRate)} />
+            <StatTile label="Grid export credit" value={inr(totalExportKwh * tariffRate)} />
+          </CardContent>
+        </Card>
+      )}
 
       <Card>
         <CardHeader>
@@ -242,9 +261,9 @@ async function EvChargerAnalytics({
   // every EV charging app (ChargePoint, Wallbox) leads with, unlike the
   // solar side's tariff-per-kWh-generated framing.
   const { data: sessions } = await supabase
-    .from("charging_sessions")
+    .from("ev_sessions")
     .select("started_at, ended_at, start_energy_kwh, end_energy_kwh")
-    .eq("device_id", device.id)
+    .eq("equipment_id", device.id)
     .gte("started_at", since.toISOString())
     .not("ended_at", "is", null);
 

@@ -4,7 +4,7 @@ import { Navigation } from "@/components/sections/navigation";
 import { Footer } from "@/components/sections/footer";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { BookOpen, FileText, ArrowRight, Zap, HelpCircle } from "lucide-react";
+import { ArrowRight, Zap } from "lucide-react";
 
 export default function KnowledgeCentrePage() {
   return (

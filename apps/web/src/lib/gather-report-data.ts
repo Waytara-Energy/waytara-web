@@ -6,7 +6,7 @@ import { maxByDeviceDay, sumByDay, type DailyPoint } from "@/lib/energy-aggregat
 import { getTotalInvested } from "@/lib/total-invested";
 import { fetchAllDeviceReadings } from "@/lib/device-readings-fetch";
 
-const YIELD_INSTRUMENT_KEY = "solar_energy_today_kwh";
+const YIELD_INSTRUMENT_KEY = "day_pv_energy_kwh";
 
 export interface ReportData {
   authorized: boolean;
@@ -59,7 +59,7 @@ export async function gatherReportData(historyDays: number, deviceIdParam?: stri
   // @/lib/customer-plan for the other five. profile and site don't depend
   // on each other, so they run together.
   const [profile, site] = await Promise.all([getRequestProfile(), getSelectedSite()]);
-  const device = resolveDeviceInSite(site, deviceIdParam);
+  const device = await resolveDeviceInSite(site, deviceIdParam);
   if (!profile) return UNAUTHORIZED;
 
   const supabase = await createClient();

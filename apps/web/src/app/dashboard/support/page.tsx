@@ -14,12 +14,7 @@ const STATUS_BADGE_VARIANT: Record<string, "alert" | "default" | "secondary"> = 
   closed: "secondary",
 };
 
-export default async function SupportPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string }>;
-}) {
-  const { error } = await searchParams;
+export default async function SupportPage() {
   const profile = await getRequestProfile();
   const supabase = await createClient();
 
@@ -37,7 +32,7 @@ export default async function SupportPage({
           <h1 className="text-2xl font-semibold text-theme-primary">Support</h1>
           <p className="mt-1 text-sm text-theme-muted">Open a ticket and chat with your assigned WayTara advisor.</p>
         </div>
-        <NewSupportTicketDialog error={error} />
+        <NewSupportTicketDialog />
       </div>
 
       {!tickets || tickets.length === 0 ? (

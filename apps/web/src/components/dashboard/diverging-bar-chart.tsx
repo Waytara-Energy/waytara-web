@@ -9,6 +9,7 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { ChartEmptyState } from "./chart-empty-state";
 
 export interface DivergingPoint {
   date: string; // YYYY-MM-DD
@@ -54,7 +55,7 @@ export function DivergingBarChart({
   } satisfies ChartConfig;
 
   if (data.length === 0) {
-    return <p className="py-8 text-center text-sm text-muted-foreground">No readings yet.</p>;
+    return <ChartEmptyState />;
   }
 
   return (

@@ -13,20 +13,20 @@ import { getCustomerSites } from "@/lib/selected-site";
 // sites/devices (RLS-scoped) before the insert, the same
 // don't-trust-the-client reasoning every other id-bearing action here
 // already follows.
-export async function createMaintenanceTicket(deviceId: string, siteId: string, formData: FormData) {
+export async function createMaintenanceTicket(deviceId: string, siteId: string, formData: FormData): Promise<void> {
   const profile = await getCurrentProfile();
   if (!profile) redirect("/login");
 
   const description = String(formData.get("description") ?? "").trim();
   if (!description) {
-    redirect(`/dashboard/maintenance?error=${encodeURIComponent("Describe the issue before submitting.")}`);
+    throw new Error("Describe the issue before submitting.");
   }
 
   const sites = await getCustomerSites();
   const site = sites.find((s) => s.id === siteId);
   const device = site?.devices.find((d) => d.id === deviceId);
   if (!site || !device) {
-    redirect(`/dashboard/maintenance?error=${encodeURIComponent("Select a device before submitting.")}`);
+    throw new Error("Select a device before submitting.");
   }
 
   const supabase = await createClient();
@@ -40,9 +40,8 @@ export async function createMaintenanceTicket(deviceId: string, siteId: string, 
   });
 
   if (error) {
-    redirect(`/dashboard/maintenance?error=${encodeURIComponent(error.message)}`);
+    throw new Error(error.message);
   }
 
   revalidatePath("/dashboard/maintenance");
-  redirect("/dashboard/maintenance");
 }

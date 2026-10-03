@@ -1,6 +1,7 @@
 import { createClient } from "@waytara/supabase/server";
 import { Input } from "@waytara/ui/input";
 import { Button } from "@waytara/ui/button";
+import { ActionForm } from "@waytara/ui/action-form";
 import { updatePlan } from "./actions";
 
 const FEATURE_LABELS: Record<string, string> = {
@@ -14,12 +15,7 @@ const FEATURE_LABELS: Record<string, string> = {
 // plans.code is a closed enum (basic/pro/advance) — this is an editor for
 // the three existing tiers' pricing and feature gates, not a "create a
 // plan" screen; the schema doesn't support arbitrary new codes.
-export default async function PlansPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string; success?: string }>;
-}) {
-  const { error, success } = await searchParams;
+export default async function PlansPage() {
   const supabase = await createClient();
 
   const { data: plans } = await supabase.from("plans").select("*").order("price_monthly", { ascending: true });
@@ -34,22 +30,15 @@ export default async function PlansPage({
         </p>
       </div>
 
-      {error && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-          {error}
-        </div>
-      )}
-      {success && (
-        <div className="rounded-lg border border-border bg-primary/10 p-4 text-sm text-primary">Saved.</div>
-      )}
-
       <div className="grid gap-4 md:grid-cols-3">
         {(plans ?? []).map((plan) => {
           const features = (plan.features as Record<string, boolean>) ?? {};
           return (
-            <form
+            <ActionForm
               key={plan.id}
               action={updatePlan.bind(null, plan.id)}
+              loading={`Saving ${plan.name}…`}
+              success={`${plan.name} saved.`}
               className="space-y-4 rounded-lg border border-border bg-card p-5"
             >
               <div>
@@ -90,7 +79,7 @@ export default async function PlansPage({
               <Button type="submit" size="sm" className="w-full">
                 Save {plan.name}
               </Button>
-            </form>
+            </ActionForm>
           );
         })}
       </div>

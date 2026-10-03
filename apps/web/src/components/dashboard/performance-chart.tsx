@@ -6,6 +6,7 @@ import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
+import { ChartEmptyState } from "./chart-empty-state";
 
 export interface DailyPoint {
   date: string; // YYYY-MM-DD
@@ -126,7 +127,7 @@ export function PerformanceChart({
       </p>
 
       {points.length === 0 ? (
-        <p className="text-sm text-muted-foreground">No readings yet.</p>
+        <ChartEmptyState />
       ) : (
         <Tabs defaultValue="chart">
           <TabsList className="h-8 p-0.5">

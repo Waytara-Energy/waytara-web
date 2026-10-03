@@ -3,6 +3,7 @@ import { createClient } from "@waytara/supabase/server";
 import { Button } from "@waytara/ui/button";
 import { Input } from "@waytara/ui/input";
 import { MonitoringPanel } from "@waytara/ui/monitoring-panel";
+import { ActionForm } from "@waytara/ui/action-form";
 import { RealtimeRefresh } from "@/components/realtime-refresh";
 import { QuotationForm } from "./quotation-form";
 import {
@@ -18,13 +19,13 @@ import {
   sendTestSignal,
   markDeviceVerified,
   updateEquipmentCheck,
-  updateDeviceFeatureFlags,
   completeConnectionTest,
   failTestSession,
   scheduleInstall,
   recordBalancePayment,
   completeInstallation,
 } from "./actions";
+import { TEMPLATE_VARIANTS } from "@/lib/equipment-templates";
 
 // devices no longer carries its own free-typed device_uid — the linked
 // stock item's own serial/model number is the per-unit identifier now
@@ -70,13 +71,10 @@ const TIME_SLOT_LABELS: Record<string, string> = {
 
 export default async function OnboardingPipelinePage({
   params,
-  searchParams,
 }: {
   params: Promise<{ id: string }>;
-  searchParams: Promise<{ error?: string }>;
 }) {
   const { id } = await params;
-  const { error: actionError } = await searchParams;
   const supabase = await createClient();
 
   // `plans` doesn't depend on `onboarding` at all — fetched alongside it
@@ -135,16 +133,13 @@ export default async function OnboardingPipelinePage({
       name: string;
       serial_number: string | null;
       model_number: string | null;
-      device_parameters: { parameter_key: string; unit: string | null; is_required: boolean }[];
-      availableCategories: string[];
     } | null;
-    disabledCategories: string[];
+    // This device's own read-direction equipment_metrics, cloned in from
+    // whichever variant was picked at addDevice time — what
+    // "Send Test Signal" below simulates values for.
+    readableMetrics: { key_name: string; unit: string | null }[];
   }[] = [];
-  let deviceTypes: {
-    id: string;
-    name: string;
-    device_parameters: { parameter_name: string; unit: string | null; is_required: boolean }[];
-  }[] = [];
+  let deviceTypes: { id: string; name: string }[] = [];
   let testSession: {
     id: string;
     status: string;
@@ -169,71 +164,44 @@ export default async function OnboardingPipelinePage({
       .maybeSingle();
     site = siteRow;
 
-    // device_parameters is retired — reassembled below from
-    // device_parameter_map + instrument_catalog into the exact same flat
-    // shape (parameter_key/parameter_name + unit + is_required) so nothing
-    // past this point (the install checklist below) needs to change.
+    // device_parameters/device_parameter_map/instrument_catalog are
+    // retired — a device's registers now live in its own equipment_metrics
+    // rows (cloned in from equipment_templates at addDevice time, per the
+    // variant picked below), not a shared per-model catalog. There's no
+    // more separate "equipment actually present" toggle either: a category
+    // is simply whatever this device's own rows say it is.
     if (site) {
       const { data: deviceRows } = await supabase
-        .from("devices")
-        .select(
-          "id, label, device_status, installed_at, device_type:stock(name, serial_number, model_number, device_parameter_map(instrument_key, is_required, instrument_catalog(unit, category)))"
-        )
+        .from("equipment")
+        .select("id, label, device_status, installed_at, device_type:equipment_inventory(name, serial_number, model_number)")
         .eq("site_id", site.id)
         .order("created_at", { ascending: false });
 
       const deviceIds = (deviceRows ?? []).map((d) => d.id);
-      // Absence of a row means enabled — only categories an installer has
-      // actually turned off get a row here (see updateDeviceFeatureFlags's
-      // own doc comment). "system"/"diagnostics" aren't real optional
-      // equipment (every model always has them), so they're not offered as
-      // a toggle at all.
-      const { data: flagRows } =
+      const { data: metricRows } =
         deviceIds.length > 0
-          ? await supabase.from("device_feature_flags").select("device_id, category").in("device_id", deviceIds).eq("is_enabled", false)
+          ? await supabase
+              .from("equipment_metrics")
+              .select("equipment_id, key_name, equipment_templates!inner(unit)")
+              .in("equipment_id", deviceIds)
+              .eq("direction", "read")
           : { data: [] };
-      const disabledByDevice = new Map<string, string[]>();
-      for (const f of flagRows ?? []) {
-        disabledByDevice.set(f.device_id, [...(disabledByDevice.get(f.device_id) ?? []), f.category]);
+      const metricsByDevice = new Map<string, { key_name: string; unit: string | null }[]>();
+      for (const m of metricRows ?? []) {
+        const list = metricsByDevice.get(m.equipment_id) ?? [];
+        list.push({ key_name: m.key_name, unit: m.equipment_templates?.unit ?? null });
+        metricsByDevice.set(m.equipment_id, list);
       }
 
       devices = (deviceRows ?? []).map((d) => ({
         ...d,
-        disabledCategories: disabledByDevice.get(d.id) ?? [],
-        device_type: d.device_type
-          ? {
-              ...d.device_type,
-              device_parameters: (d.device_type.device_parameter_map ?? []).map((m) => ({
-                parameter_key: m.instrument_key,
-                unit: m.instrument_catalog?.unit ?? null,
-                is_required: m.is_required,
-              })),
-              availableCategories: Array.from(
-                new Set(
-                  (d.device_type.device_parameter_map ?? [])
-                    .map((m) => m.instrument_catalog?.category)
-                    .filter((c): c is string => !!c && c !== "system" && c !== "diagnostics")
-                )
-              ).sort(),
-            }
-          : null,
+        readableMetrics: metricsByDevice.get(d.id) ?? [],
       }));
     }
 
     if (onboarding.current_stage === "site_setup") {
-      const { data: deviceTypeRows } = await supabase
-        .from("stock")
-        .select("id, name, device_parameter_map(is_required, instrument_catalog(name, unit))")
-        .order("name");
-      deviceTypes = (deviceTypeRows ?? []).map((s) => ({
-        id: s.id,
-        name: s.name,
-        device_parameters: (s.device_parameter_map ?? []).map((m) => ({
-          parameter_name: m.instrument_catalog?.name ?? "",
-          unit: m.instrument_catalog?.unit ?? null,
-          is_required: m.is_required,
-        })),
-      }));
+      const { data: deviceTypeRows } = await supabase.from("equipment_inventory").select("id, name").order("name");
+      deviceTypes = deviceTypeRows ?? [];
     }
 
     if (onboarding.current_stage === "connection_test" && site) {
@@ -287,12 +255,6 @@ export default async function OnboardingPipelinePage({
         </p>
       </div>
 
-      {actionError && (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-          {actionError}
-        </div>
-      )}
-
       {onboarding.current_stage === "payment_pending" ? (
         <div className="rounded-lg border border-border bg-card p-5 space-y-4">
           <div>
@@ -313,14 +275,20 @@ export default async function OnboardingPipelinePage({
 
           {acceptedQuotation && (
             <div className="flex flex-col gap-4 border-t border-border pt-4 sm:flex-row">
-              <form action={recordFullPayment.bind(null, onboarding.id, acceptedQuotation.id)}>
+              <ActionForm
+                action={recordFullPayment.bind(null, onboarding.id, acceptedQuotation.id)}
+                loading="Recording payment…"
+                success="Payment recorded."
+              >
                 <Button type="submit" size="sm">
                   Record Full Payment — ₹{Number(acceptedQuotation.total_amount).toLocaleString("en-IN")}
                 </Button>
-              </form>
+              </ActionForm>
 
-              <form
+              <ActionForm
                 action={recordSplitPayment.bind(null, onboarding.id, acceptedQuotation.id)}
+                loading="Recording payment…"
+                success="Advance payment recorded."
                 className="flex items-center gap-2"
               >
                 <Input
@@ -336,7 +304,7 @@ export default async function OnboardingPipelinePage({
                 <Button type="submit" variant="outline" size="sm">
                   Record Advance (Split)
                 </Button>
-              </form>
+              </ActionForm>
             </div>
           )}
         </div>
@@ -363,11 +331,15 @@ export default async function OnboardingPipelinePage({
                   Invite email sent — they haven&apos;t finished setting up their account yet.
                 </span>
               </div>
-              <form action={resendCustomerInviteEmail.bind(null, onboarding.id)}>
+              <ActionForm
+                action={resendCustomerInviteEmail.bind(null, onboarding.id)}
+                loading="Resending…"
+                success="Invite email resent."
+              >
                 <Button type="submit" variant="outline" size="sm">
                   Resend invite email
                 </Button>
-              </form>
+              </ActionForm>
             </div>
           )}
         </div>
@@ -376,7 +348,12 @@ export default async function OnboardingPipelinePage({
           <h2 className="text-sm font-semibold">Site &amp; Device Setup</h2>
 
           {!site ? (
-            <form action={createSite.bind(null, onboarding.id)} className="space-y-3">
+            <ActionForm
+              action={createSite.bind(null, onboarding.id)}
+              loading="Creating site…"
+              success="Site created."
+              className="space-y-3"
+            >
               <div className="space-y-1.5">
                 <label className="text-sm font-medium">Site name</label>
                 <Input name="siteName" placeholder="e.g. Rajan Residence, Anna Nagar" required />
@@ -435,7 +412,7 @@ export default async function OnboardingPipelinePage({
               <Button type="submit" size="sm">
                 Create Site
               </Button>
-            </form>
+            </ActionForm>
           ) : (
             <>
               <div className="rounded-md border border-border p-3 text-sm">
@@ -451,16 +428,23 @@ export default async function OnboardingPipelinePage({
                 {devices.length > 0 && (
                   <ul className="space-y-2">
                     {devices.map((d) => (
-                      <li key={d.id} className="rounded-md border border-border p-3 text-sm">
-                        <span className="font-medium">{d.device_type?.name ?? "Device"}</span>{" "}
-                        <span className="text-muted-foreground">— {deviceIdentity(d)}</span>
+                      <li key={d.id} className="flex items-center justify-between rounded-md border border-border p-3 text-sm">
+                        <span>
+                          <span className="font-medium">{d.device_type?.name ?? "Device"}</span>{" "}
+                          <span className="text-muted-foreground">— {deviceIdentity(d)}</span>
+                        </span>
+                        <Link href={`/devices/${d.id}/registers`} className="text-xs text-primary hover:underline">
+                          Edit Registers
+                        </Link>
                       </li>
                     ))}
                   </ul>
                 )}
 
-                <form
+                <ActionForm
                   action={addDevice.bind(null, onboarding.id, site.id)}
+                  loading="Adding device…"
+                  success="Device added."
                   className="flex flex-wrap items-end gap-2"
                 >
                   <div className="space-y-1.5">
@@ -482,37 +466,45 @@ export default async function OnboardingPipelinePage({
                     </select>
                   </div>
                   <div className="space-y-1.5">
+                    <label className="text-xs font-medium">Type, phase &amp; grid mode</label>
+                    <select
+                      name="variant"
+                      className="h-9 rounded-md border border-border bg-background px-2 text-sm"
+                      required
+                      defaultValue=""
+                    >
+                      <option value="" disabled>
+                        Select…
+                      </option>
+                      {TEMPLATE_VARIANTS.map((v) => (
+                        <option key={v.value} value={v.value}>
+                          {v.label}
+                        </option>
+                      ))}
+                    </select>
+                    <p className="text-xs text-muted-foreground">Clones the matching register template into this device.</p>
+                  </div>
+                  <div className="space-y-1.5">
                     <label className="text-xs font-medium">Label (optional)</label>
                     <Input name="label" placeholder="e.g. Rooftop Inverter" className="h-9 w-40" />
                   </div>
                   <Button type="submit" size="sm">
                     Add Device
                   </Button>
-                </form>
-
-                {deviceTypes.length > 0 && (
-                  <div className="mt-3 space-y-2">
-                    <p className="text-xs font-medium text-muted-foreground">
-                      Parameter checklist by device type:
-                    </p>
-                    {deviceTypes.map((dt) => (
-                      <div key={dt.id} className="text-xs text-muted-foreground">
-                        <span className="font-medium text-foreground">{dt.name}:</span>{" "}
-                        {dt.device_parameters
-                          .map((i) => `${i.parameter_name}${i.unit ? ` (${i.unit})` : ""}${i.is_required ? "*" : ""}`)
-                          .join(", ")}
-                      </div>
-                    ))}
-                  </div>
-                )}
+                </ActionForm>
               </div>
 
               {devices.length > 0 && (
-                <form action={completeSiteSetup.bind(null, onboarding.id)} className="border-t border-border pt-4">
+                <ActionForm
+                  action={completeSiteSetup.bind(null, onboarding.id)}
+                  loading="Advancing stage…"
+                  success="Site setup complete."
+                  className="border-t border-border pt-4"
+                >
                   <Button type="submit" size="sm">
                     Site Setup Complete → Connection Test
                   </Button>
-                </form>
+                </ActionForm>
               )}
             </>
           )}
@@ -534,11 +526,15 @@ export default async function OnboardingPipelinePage({
                   {testSession.notes ? ` — ${testSession.notes}` : ""}
                 </p>
               )}
-              <form action={startTestSession.bind(null, onboarding.id, site.id)}>
+              <ActionForm
+                action={startTestSession.bind(null, onboarding.id, site.id)}
+                loading="Starting…"
+                success="Connection test started."
+              >
                 <Button type="submit" size="sm">
                   Start Connection Test
                 </Button>
-              </form>
+              </ActionForm>
             </div>
           ) : (
             <>
@@ -561,11 +557,8 @@ export default async function OnboardingPipelinePage({
 
               <div className="space-y-4 border-t border-border pt-4">
                 {devices.map((device) => {
-                  const requiredParameters = (device.device_type?.device_parameters ?? []).filter(
-                    (i) => i.is_required
-                  );
                   const payload = JSON.stringify(
-                    requiredParameters.map((i) => ({ key: i.parameter_key, unit: i.unit }))
+                    device.readableMetrics.map((m) => ({ key: m.key_name, unit: m.unit }))
                   );
                   const check = equipmentChecks[device.id];
                   return (
@@ -586,32 +579,10 @@ export default async function OnboardingPipelinePage({
                         </span>
                       </div>
 
-                      {device.device_type && device.device_type.availableCategories.length > 0 && (
-                        <form
-                          action={updateDeviceFeatureFlags.bind(null, onboarding.id, device.id)}
-                          className="flex flex-wrap items-center gap-4 border-t border-border pt-3"
-                        >
-                          <input type="hidden" name="allCategories" value={device.device_type.availableCategories.join(",")} />
-                          <span className="text-xs font-medium text-muted-foreground">Equipment actually present:</span>
-                          {device.device_type.availableCategories.map((category) => (
-                            <label key={category} className="flex items-center gap-1.5 text-sm capitalize">
-                              <input
-                                type="checkbox"
-                                name="enabledCategories"
-                                value={category}
-                                defaultChecked={!device.disabledCategories.includes(category)}
-                              />
-                              {category}
-                            </label>
-                          ))}
-                          <Button type="submit" variant="outline" size="sm">
-                            Save
-                          </Button>
-                        </form>
-                      )}
-
-                      <form
+                      <ActionForm
                         action={updateEquipmentCheck.bind(null, onboarding.id, device.id)}
+                        loading="Saving…"
+                        success="Readiness checklist saved."
                         className="flex flex-wrap items-center gap-4 border-t border-border pt-3"
                       >
                         <span className="text-xs font-medium text-muted-foreground">Physical readiness:</span>
@@ -634,27 +605,35 @@ export default async function OnboardingPipelinePage({
                         <Button type="submit" variant="outline" size="sm">
                           Save
                         </Button>
-                      </form>
+                      </ActionForm>
 
                       <div className="flex items-center gap-2 border-t border-border pt-3">
                         <span className="text-xs font-medium text-muted-foreground">Data testing:</span>
-                        <form action={sendTestSignal.bind(null, onboarding.id, device.id)}>
+                        <ActionForm
+                          action={sendTestSignal.bind(null, onboarding.id, device.id)}
+                          loading="Sending signal…"
+                          success="Test signal sent."
+                        >
                           <input type="hidden" name="instrumentKeys" value={payload} />
                           <Button
                             type="submit"
                             variant="outline"
                             size="sm"
-                            disabled={requiredParameters.length === 0}
+                            disabled={device.readableMetrics.length === 0}
                           >
                             Send Test Signal
                           </Button>
-                        </form>
+                        </ActionForm>
                         {device.device_status !== "active" && (
-                          <form action={markDeviceVerified.bind(null, onboarding.id, device.id)}>
+                          <ActionForm
+                            action={markDeviceVerified.bind(null, onboarding.id, device.id)}
+                            loading="Marking passed…"
+                            success="Data test passed."
+                          >
                             <Button type="submit" size="sm">
                               Mark Data Test Passed
                             </Button>
-                          </form>
+                          </ActionForm>
                         )}
                       </div>
                     </div>
@@ -668,7 +647,11 @@ export default async function OnboardingPipelinePage({
                   device&apos;s readiness checklist and data test have passed.
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  <form action={completeConnectionTest.bind(null, onboarding.id, testSession.id, site.id)}>
+                  <ActionForm
+                    action={completeConnectionTest.bind(null, onboarding.id, testSession.id, site.id)}
+                    loading="Confirming…"
+                    success="Software test passed."
+                  >
                     <Button
                       type="submit"
                       size="sm"
@@ -679,13 +662,18 @@ export default async function OnboardingPipelinePage({
                     >
                       Confirm Software Test Passed → Schedule Install
                     </Button>
-                  </form>
-                  <form action={failTestSession.bind(null, onboarding.id, testSession.id)} className="flex gap-2">
+                  </ActionForm>
+                  <ActionForm
+                    action={failTestSession.bind(null, onboarding.id, testSession.id)}
+                    loading="Marking failed…"
+                    success="Test session marked failed."
+                    className="flex gap-2"
+                  >
                     <Input name="notes" placeholder="Reason (optional)" className="h-9 w-56" />
                     <Button type="submit" variant="destructive" size="sm">
                       Mark Failed
                     </Button>
-                  </form>
+                  </ActionForm>
                 </div>
               </div>
             </>
@@ -738,7 +726,12 @@ export default async function OnboardingPipelinePage({
                   <p className="text-sm text-muted-foreground">No install date set yet.</p>
                 )}
 
-                <form action={scheduleInstall.bind(null, onboarding.id)} className="mt-3 flex items-end gap-2">
+                <ActionForm
+                  action={scheduleInstall.bind(null, onboarding.id)}
+                  loading="Scheduling…"
+                  success="Install scheduled."
+                  className="mt-3 flex items-end gap-2"
+                >
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium">Install date</label>
                     <Input
@@ -770,7 +763,7 @@ export default async function OnboardingPipelinePage({
                   <Button type="submit" variant="outline" size="sm">
                     {onboarding.install_scheduled_at ? "Reschedule" : "Schedule"}
                   </Button>
-                </form>
+                </ActionForm>
               </div>
 
               {balancePayment && balancePayment.status !== "paid" && (
@@ -786,22 +779,35 @@ export default async function OnboardingPipelinePage({
                       </div>
                       <span>Scan to pay via UPI</span>
                     </div>
-                    <form action={recordBalancePayment.bind(null, onboarding.id, balancePayment.id, "upi")}>
+                    <ActionForm
+                      action={recordBalancePayment.bind(null, onboarding.id, balancePayment.id, "upi")}
+                      loading="Recording…"
+                      success="Balance payment recorded."
+                    >
                       <Button type="submit" size="sm">
                         Simulate UPI success
                       </Button>
-                    </form>
-                    <form action={recordBalancePayment.bind(null, onboarding.id, balancePayment.id, "cash")}>
+                    </ActionForm>
+                    <ActionForm
+                      action={recordBalancePayment.bind(null, onboarding.id, balancePayment.id, "cash")}
+                      loading="Recording…"
+                      success="Balance payment recorded."
+                    >
                       <Button type="submit" variant="outline" size="sm">
                         Mark cash received
                       </Button>
-                    </form>
+                    </ActionForm>
                   </div>
                 </div>
               )}
 
               {onboarding.install_scheduled_at && (
-                <form action={completeInstallation.bind(null, onboarding.id, site.id)} className="border-t border-border pt-4">
+                <ActionForm
+                  action={completeInstallation.bind(null, onboarding.id, site.id)}
+                  loading="Completing…"
+                  success="Installation complete."
+                  className="border-t border-border pt-4"
+                >
                   <Button
                     type="submit"
                     size="sm"
@@ -809,7 +815,7 @@ export default async function OnboardingPipelinePage({
                   >
                     Installation Complete
                   </Button>
-                </form>
+                </ActionForm>
               )}
             </>
           )}
@@ -897,27 +903,35 @@ export default async function OnboardingPipelinePage({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <form action={resendQuoteLinkEmail.bind(null, onboarding.id, activeQuotation.id)}>
+            <ActionForm
+              action={resendQuoteLinkEmail.bind(null, onboarding.id, activeQuotation.id)}
+              loading="Resending…"
+              success="Quote link email resent."
+            >
               <Button type="submit" variant="outline" size="sm">
                 Resend quote link email
               </Button>
-            </form>
-            <form
+            </ActionForm>
+            <ActionForm
               action={recordQuotationRejected.bind(null, activeQuotation.id, onboarding.id)}
+              loading="Saving…"
+              success="Marked rejected."
             >
               <input type="hidden" name="action" value="re-quote" />
               <Button type="submit" variant="outline" size="sm">
                 Mark Rejected — Re-quote
               </Button>
-            </form>
-            <form
+            </ActionForm>
+            <ActionForm
               action={recordQuotationRejected.bind(null, activeQuotation.id, onboarding.id)}
+              loading="Saving…"
+              success="Marked rejected — lead closed."
             >
               <input type="hidden" name="action" value="close" />
               <Button type="submit" variant="destructive" size="sm">
                 Mark Rejected — Close Lead
               </Button>
-            </form>
+            </ActionForm>
           </div>
         </div>
       ) : (

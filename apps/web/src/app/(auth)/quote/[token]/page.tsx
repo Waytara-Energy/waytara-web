@@ -1,4 +1,6 @@
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
+import { isExpired } from "@/lib/is-expired";
+import { ToastFromSearchParams } from "@/components/dashboard/toast-from-search-params";
 import { QuoteResponseForm } from "./quote-response-form";
 
 interface PricingLineItem {
@@ -29,13 +31,10 @@ const RESPONDED_COPY: Record<string, { title: string; body: string }> = {
 // no account and no session.
 export default async function QuotePage({
   params,
-  searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ error?: string }>;
 }) {
   const { token } = await params;
-  const { error } = await searchParams;
 
   const service = createServiceRoleClient();
   const { data: quotation } = await service
@@ -46,7 +45,7 @@ export default async function QuotePage({
     .eq("access_token", token)
     .maybeSingle();
 
-  const expired = !!quotation?.valid_until && new Date(quotation.valid_until).getTime() < Date.now();
+  const expired = !!quotation?.valid_until && isExpired(quotation.valid_until);
   const invalid = !quotation || expired;
   const alreadyResponded = quotation && quotation.status !== "sent" && !expired;
 
@@ -92,11 +91,7 @@ export default async function QuotePage({
           </p>
         </div>
 
-        {error ? (
-          <div className="rounded-lg border border-theme-border bg-theme-alert-subtle px-4 py-3 text-sm text-theme-alert">
-            {error}
-          </div>
-        ) : null}
+        <ToastFromSearchParams />
 
         <div className="rounded-xl border border-theme-border bg-theme-surface p-5">
           <h2 className="text-sm font-semibold text-theme-primary">Hardware &amp; installation</h2>

@@ -13,13 +13,14 @@ import {
   ChartTooltip,
   ChartTooltipContent,
 } from "@/components/ui/chart";
+import { ChartEmptyState } from "./chart-empty-state";
 
 export interface LiveChartSeries {
   key: string;
   label: string;
   color: string;
-  /** Multiplies every raw device_readings value for this series before
-   *  it's plotted — e.g. 0.001 to show a watts-denominated instrument_key
+  /** Multiplies every raw equipment_telemetry value for this series before
+   *  it's plotted — e.g. 0.001 to show a watts-denominated key_name
    *  in kW instead. Defaults to 1 (no conversion), so existing callers
    *  showing a reading in its native unit are unaffected. */
   scale?: number;
@@ -34,8 +35,8 @@ export interface LiveChartSeries {
 type ChartPoint = Record<string, string | number | null> & { __isYesterday?: boolean };
 
 interface DeviceReadingRow {
-  device_id: string;
-  instrument_key: string;
+  equipment_id: string;
+  key_name: string;
   value: number | null;
   unit: string | null;
   ts: string;
@@ -172,7 +173,7 @@ function LiveTooltipContent(props: React.ComponentProps<typeof ChartTooltipConte
 /** Time-series chart for Monitoring (and Overview's "today" charts).
  *  Realtime rollout: the initial window is still one fetch on mount
  *  (realtime only tells us about *new* rows, not history), but new points
- *  now arrive via a device_readings INSERT subscription instead of a 30s
+ *  now arrive via an equipment_telemetry INSERT subscription instead of a 30s
  *  poll — the DB only sends a change when one actually happens. Multiple
  *  series share one time axis: readings from different instruments rarely
  *  land on the exact same timestamp, so points are bucketed to the minute
@@ -253,7 +254,12 @@ export function LiveMetricChart({
   const [points, setPoints] = React.useState<ChartPoint[]>([]);
   const [loaded, setLoaded] = React.useState(false);
   const seriesKeys = series.map((s) => s.key).join(",");
-  const scaleByKey = Object.fromEntries(series.map((s) => [s.key, s.scale ?? 1]));
+  // Memoized (not a plain object literal recomputed every render) so its
+  // reference stays stable across renders that don't actually change the
+  // scale mapping — same pattern BarTrendChart's own scaleByKey uses,
+  // required for it to safely appear in the effect/callback dependency
+  // arrays below without triggering a refetch loop.
+  const scaleByKey = React.useMemo(() => Object.fromEntries(series.map((s) => [s.key, s.scale ?? 1])), [series]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -293,9 +299,9 @@ export function LiveMetricChart({
         }
         const s = yesterdaySums.get(timeOfDay)!;
         const c = yesterdayCounts.get(timeOfDay)!;
-        const scale = scaleByKey[row.instrument_key] ?? 1;
-        s[row.instrument_key] = (s[row.instrument_key] ?? 0) + row.value * scale;
-        c[row.instrument_key] = (c[row.instrument_key] ?? 0) + 1;
+        const scale = scaleByKey[row.key_name] ?? 1;
+        s[row.key_name] = (s[row.key_name] ?? 0) + row.value * scale;
+        c[row.key_name] = (c[row.key_name] ?? 0) + 1;
       }
 
       // Sum + count per bucket per series, not "last reading wins" — with
@@ -315,9 +321,9 @@ export function LiveMetricChart({
         }
         const s = sums.get(bucketKey)!;
         const c = counts.get(bucketKey)!;
-        const scale = scaleByKey[row.instrument_key] ?? 1;
-        s[row.instrument_key] = (s[row.instrument_key] ?? 0) + row.value * scale;
-        c[row.instrument_key] = (c[row.instrument_key] ?? 0) + 1;
+        const scale = scaleByKey[row.key_name] ?? 1;
+        s[row.key_name] = (s[row.key_name] ?? 0) + row.value * scale;
+        c[row.key_name] = (c[row.key_name] ?? 0) + 1;
       }
 
       // sinceMidnight always renders all 24 hours' worth of buckets, not
@@ -374,25 +380,25 @@ export function LiveMetricChart({
     return () => {
       cancelled = true;
     };
-  }, [deviceId, windowMinutes, sinceMidnight, bucketMinutes, axisTickMinutes, compareYesterday, seriesKeys]);
+  }, [deviceId, windowMinutes, sinceMidnight, bucketMinutes, axisTickMinutes, compareYesterday, seriesKeys, scaleByKey]);
 
-  // postgres_changes filters support exactly one column (device_id here) —
-  // instrument_key isn't filterable server-side, so every INSERT for this
+  // postgres_changes filters support exactly one column (equipment_id here) —
+  // key_name isn't filterable server-side, so every INSERT for this
   // device arrives and this component decides for itself whether the row
   // is one of its own series (and skips test-only readings, matching the
   // initial fetch's `is_test=false`). Two LiveMetricChart instances on the
   // same page scoped to the same device (Monitoring's Power Flows + SOC
   // charts) share one underlying channel — see RealtimeProvider.
   useRealtimeTable<DeviceReadingRow>(
-    "device_readings",
+    "equipment_telemetry",
     "INSERT",
-    `device_id=eq.${deviceId}`,
+    `equipment_id=eq.${deviceId}`,
     React.useCallback(
       (payload: RealtimeRowEvent<DeviceReadingRow>) => {
         const row = payload.new;
         if (row.is_test) return;
         const keys = seriesKeys.split(",");
-        if (!keys.includes(row.instrument_key)) return;
+        if (!keys.includes(row.key_name)) return;
 
         // A live update just plots this one new reading into its bucket —
         // it doesn't re-average against whatever else already landed in
@@ -404,7 +410,7 @@ export function LiveMetricChart({
         // chart, which was already averaged from the initial fetch.
         const bucketKey = bucketKeyFor(row.ts, bucketMinutes);
         const windowStartKey = windowStart(sinceMidnight, windowMinutes).toISOString().slice(0, 16);
-        const scaledValue = row.value === null ? null : row.value * (scaleByKey[row.instrument_key] ?? 1);
+        const scaledValue = row.value === null ? null : row.value * (scaleByKey[row.key_name] ?? 1);
 
         setPoints((prev) => {
           // sinceMidnight's array is always the full day's fixed 48 (or
@@ -421,7 +427,7 @@ export function LiveMetricChart({
             // today's own actual data now, so clear the flag along with
             // setting the value (otherwise it'd keep rendering grey).
             const updated: ChartPoint = { ...next[idx] };
-            updated[row.instrument_key] = scaledValue;
+            updated[row.key_name] = scaledValue;
             updated.__isYesterday = false;
             next[idx] = updated;
             return next;
@@ -429,12 +435,12 @@ export function LiveMetricChart({
           const last = prev[prev.length - 1];
           const carried: ChartPoint = { time: bucketKey };
           for (const key of keys) carried[key] = last ? (last[key] ?? null) : null;
-          carried[row.instrument_key] = scaledValue;
+          carried[row.key_name] = scaledValue;
           return [...prev, carried].filter((p) => (p.time as string) >= windowStartKey);
         });
         setLoaded(true);
       },
-      [seriesKeys, windowMinutes, sinceMidnight, bucketMinutes]
+      [seriesKeys, windowMinutes, sinceMidnight, bucketMinutes, scaleByKey]
     )
   );
 
@@ -443,7 +449,7 @@ export function LiveMetricChart({
   ) satisfies ChartConfig;
 
   if (loaded && points.length === 0) {
-    return <p className="py-8 text-center text-sm text-muted-foreground">No live data yet.</p>;
+    return <ChartEmptyState />;
   }
 
   const tooltipFormatter = valueUnit

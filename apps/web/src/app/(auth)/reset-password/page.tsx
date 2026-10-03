@@ -1,16 +1,11 @@
 import { createClient } from "@waytara/supabase/server";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
+import { ToastFromSearchParams } from "@/components/dashboard/toast-from-search-params";
 import { setNewPassword } from "./actions";
 
-export default async function ResetPasswordPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ error?: string }>;
-}) {
-  const { error } = await searchParams;
+export default async function ResetPasswordPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -38,11 +33,7 @@ export default async function ResetPasswordPage({
           <p className="mt-1 text-sm text-theme-muted">Choose a new password for your account.</p>
         </div>
 
-        {error ? (
-          <div className="rounded-lg border border-theme-border bg-theme-alert-subtle px-4 py-3 text-sm text-theme-alert">
-            {error}
-          </div>
-        ) : null}
+        <ToastFromSearchParams />
 
         <form action={setNewPassword} className="space-y-4">
           <div className="space-y-1.5">

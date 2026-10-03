@@ -2,17 +2,19 @@ import Image from "next/image";
 import { Input } from "@waytara/ui/input";
 import { Button } from "@waytara/ui/button";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
+import { ToastFromSearchParams } from "@/components/toast-from-search-params";
 import { acceptEmployeeInvite } from "./actions";
+
+function isExpired(expiresAt: string): boolean {
+  return new Date(expiresAt).getTime() < Date.now();
+}
 
 export default async function EmployeeInvitePage({
   params,
-  searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ error?: string }>;
 }) {
   const { token } = await params;
-  const { error } = await searchParams;
 
   const service = createServiceRoleClient();
   const { data: invite } = await service
@@ -21,7 +23,7 @@ export default async function EmployeeInvitePage({
     .eq("token", token)
     .maybeSingle();
 
-  const expired = !!invite && new Date(invite.expires_at).getTime() < Date.now();
+  const expired = !!invite && isExpired(invite.expires_at);
   const invalid = !invite || invite.status !== "pending" || expired;
 
   if (invalid) {
@@ -49,11 +51,7 @@ export default async function EmployeeInvitePage({
           <p className="mt-1 text-sm text-muted-foreground">{invite.email}</p>
         </div>
 
-        {error ? (
-          <div className="rounded-md border border-destructive/40 bg-destructive/10 px-4 py-3 text-sm text-destructive">
-            {error}
-          </div>
-        ) : null}
+        <ToastFromSearchParams />
 
         <form action={action} className="space-y-4">
           <div className="space-y-1.5">

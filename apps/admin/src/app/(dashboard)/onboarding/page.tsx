@@ -49,7 +49,7 @@ export default async function OnboardingListPage() {
         </div>
       ) : !records || records.length === 0 ? (
         <div className="rounded-lg border border-border bg-card p-6 text-center text-sm text-muted-foreground">
-          No onboarding records yet — they're created from a lead once a quotation goes out.
+          No onboarding records yet — they&apos;re created from a lead once a quotation goes out.
         </div>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-border">

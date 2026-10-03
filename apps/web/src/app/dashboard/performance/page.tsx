@@ -2,9 +2,9 @@ import { redirect } from "next/navigation";
 import { TrendingUp } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { getSelectedSite, resolveDeviceInSite, deviceDisplayId } from "@/lib/selected-site";
-import { DevicePicker } from "@/components/dashboard/device-picker";
-import { DeviceDetailsCard } from "@/components/dashboard/device-details-card";
+import { DeviceSwitcher } from "@/components/dashboard/device-switcher";
 import { PerformanceContent } from "@/components/dashboard/performance-content";
+import { AnalyticsContent } from "@/components/dashboard/analytics-content";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -18,7 +18,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 // diverging comparisons, self-consumption %, and period/lifetime totals;
 // ev_charger gets a cumulative energy trend chart plus a real charging
 // session history (date/duration/energy per session, from the
-// charging_sessions table — the direct WayTara equivalent of ChargePoint/
+// ev_sessions table — the direct WayTara equivalent of ChargePoint/
 // Wallbox's charging history) instead of the inverter's fixed key list.
 export default async function PerformancePage({ searchParams }: { searchParams: Promise<{ device?: string }> }) {
   const supabase = await createClient();
@@ -32,22 +32,20 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
     searchParams,
     getSelectedSite(),
   ]);
-  const device = resolveDeviceInSite(site, deviceIdParam);
+  const device = await resolveDeviceInSite(site, deviceIdParam);
 
   const features = customerPlan?.features ?? {};
   if (!features.performance) {
     redirect("/dashboard");
   }
+  // Analytics merged into this page (was its own sidebar item/route) — its
+  // own feature gate stays a real tier check, just an inline section
+  // instead of a redirect: a Performance-only customer still gets this
+  // whole page, just without the cost/ROI section below.
+  const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
 
   return (
-    <div className="max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-theme-primary">Performance</h1>
-        <p className="mt-1 text-sm text-theme-muted">
-          {device ? `Performance history for ${deviceDisplayId(device)}.` : "Household performance history over time."}
-        </p>
-      </div>
-
+    <div className="space-y-6">
       {!device ? (
         <Empty className="border">
           <EmptyHeader>
@@ -61,13 +59,28 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
       ) : (
         <>
           {/* Every chart/tile below is aggregated server-side (daily
-              buckets, latest-per-key totals) from device_readings — not
+              buckets, latest-per-key totals) from equipment_telemetry — not
               safe to hand-patch, so a new reading debounce-refreshes the
               whole page. */}
-          <RealtimeRefresh table="device_readings" event="INSERT" filter={`device_id=eq.${device.id}`} />
-          {site && <DevicePicker devices={site.devices} selectedId={device.id} />}
-          <DeviceDetailsCard device={device} />
+          <RealtimeRefresh table="equipment_telemetry" event="INSERT" filter={`equipment_id=eq.${device.id}`} />
+          <div className="flex flex-wrap items-start justify-between gap-3">
+            <div>
+              <DeviceSwitcher devices={site?.devices ?? [device]} selectedId={device.id} />
+              <p className="mt-1 text-sm text-theme-muted">Performance history, updated as new readings arrive.</p>
+            </div>
+          </div>
           <PerformanceContent supabase={supabase} device={device} />
+          {features.analytics && (
+            <>
+              <div className="pt-2">
+                <h2 className="text-lg font-semibold text-theme-primary">Cost &amp; Savings Analytics</h2>
+                <p className="mt-1 text-sm text-theme-muted">
+                  {deviceDisplayId(device)}&apos;s cost analytics, estimated at ₹{tariffRate.toFixed(2)}/kWh.
+                </p>
+              </div>
+              <AnalyticsContent supabase={supabase} device={device} tariffRate={tariffRate} />
+            </>
+          )}
         </>
       )}
     </div>
