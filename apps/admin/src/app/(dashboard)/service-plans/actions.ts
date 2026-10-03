@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 
 function toIntOrNull(raw: FormDataEntryValue | null): number | null {
@@ -59,6 +60,7 @@ function readServicePlanFields(formData: FormData) {
 }
 
 export async function createServicePlan(formData: FormData): Promise<void> {
+  await requireAdmin();
   const result = readServicePlanFields(formData);
   if (!result.ok) {
     throw new Error(result.error);
@@ -75,6 +77,7 @@ export async function createServicePlan(formData: FormData): Promise<void> {
 }
 
 export async function updateServicePlan(planId: string, formData: FormData): Promise<void> {
+  await requireAdmin();
   const result = readServicePlanFields(formData);
   if (!result.ok) {
     throw new Error(result.error);
@@ -95,6 +98,7 @@ export async function updateServicePlan(planId: string, formData: FormData): Pro
 // as a plain editable column (same "computed default, not generated"
 // reasoning as equipment.warranty_end_date), not recalculated afterward.
 export async function createServiceContract(formData: FormData): Promise<void> {
+  await requireAdmin();
   const deviceId = String(formData.get("deviceId") ?? "").trim();
   const servicePlanId = String(formData.get("servicePlanId") ?? "").trim();
   const startDateRaw = String(formData.get("startDate") ?? "").trim();

@@ -43,3 +43,17 @@ telemetry insert avg 75 ms/call; 52 of 109 RLS policies use bare `auth.uid()`.
   Known limitation: `script-src` keeps `'unsafe-inline'` (Next's inline bootstrap); a nonce-based CSP would force all
   pages dynamic.
 - **Status:** migration written but NOT yet applied to the production database (apply blocked by the sandbox).
+
+## Phase 2 — Security: hardening
+- **Authorization inside every privileged Server Action** (`requireAdmin` / `requireStaff` / `requireCustomer` in
+  `@waytara/supabase/auth`). Found and fixed a privilege-escalation gap: `changeEmployeeRole`, `revokeEmployeeAccess`,
+  `restoreEmployeeAccess`, `permanentlyDeleteEmployee` (service-role, RLS bypassed) only checked that *someone* was
+  signed in. Page-level redirects/proxy are not access control for Server Actions (they are directly invocable POST
+  endpoints). Guards added to all admin-only (employees, devices, catalog, registers, plans, service plans) and staff
+  (onboarding, leads, support) actions, plus customer actions in apps/web.
+- **Audit log is append-only** (migration `20261003010000_audit_log_append_only.sql`): UPDATE/DELETE/TRUNCATE revoked
+  from every client role.
+- **Local production-shaped database** (`packages/supabase/scripts/local-db.mjs`, `supabase/local/baseline-*.sql`):
+  Docker Supabase built from a read-only dump of production, then every newer migration applied on top. Used to verify
+  the security migrations (anon cannot execute functions; bucket private; limiter blocks the 6th request;
+  pre-converted anonymous lead insert rejected; cron jobs scheduled; cron wrapper no-ops without Vault secrets).

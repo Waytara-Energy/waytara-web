@@ -1,10 +1,9 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@waytara/supabase/server";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
-import { getCurrentProfile } from "@waytara/supabase/auth";
+import { requireAdmin } from "@waytara/supabase/auth";
 import { sendEmployeeInviteEmail } from "@/lib/send-employee-invite-email";
 import type { Database } from "@waytara/supabase";
 
@@ -17,8 +16,7 @@ function isStaffRole(role: string): role is StaffRole {
 }
 
 export async function sendEmployeeInvite(formData: FormData): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const profile = await requireAdmin();
 
   const email = String(formData.get("email") ?? "").trim().toLowerCase();
   const role = String(formData.get("role") ?? "");
@@ -55,6 +53,7 @@ export async function sendEmployeeInvite(formData: FormData): Promise<void> {
 }
 
 export async function revokeInvite(inviteId: string): Promise<void> {
+  await requireAdmin();
   const supabase = await createClient();
   const { error } = await supabase.from("employee_invites").update({ status: "revoked" }).eq("id", inviteId);
 
@@ -72,8 +71,7 @@ export async function revokeInvite(inviteId: string): Promise<void> {
 // self-update surface. This is the one legitimate case for bypassing RLS
 // outright rather than adding a policy.
 export async function changeEmployeeRole(profileId: string, formData: FormData): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const profile = await requireAdmin();
 
   if (profileId === profile.id) {
     throw new Error("You can't change your own role.");
@@ -107,8 +105,7 @@ export async function changeEmployeeRole(profileId: string, formData: FormData):
 const PERMANENT_BAN = "876000h"; // ~100 years — Supabase has no literal "forever"
 
 export async function revokeEmployeeAccess(profileId: string): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const profile = await requireAdmin();
   if (profileId === profile.id) {
     throw new Error("You can't revoke your own access.");
   }
@@ -128,8 +125,7 @@ export async function revokeEmployeeAccess(profileId: string): Promise<void> {
 }
 
 export async function restoreEmployeeAccess(profileId: string): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  await requireAdmin();
 
   const service = createServiceRoleClient();
 
@@ -161,8 +157,7 @@ export async function restoreEmployeeAccess(profileId: string): Promise<void> {
 // to it. Email is scrubbed so the real address is free to be invited again
 // as a genuinely new account later.
 export async function permanentlyDeleteEmployee(profileId: string, formData: FormData): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const profile = await requireAdmin();
   if (profileId === profile.id) {
     throw new Error("You can't delete your own account.");
   }

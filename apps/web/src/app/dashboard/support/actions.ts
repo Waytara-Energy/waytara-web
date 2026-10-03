@@ -1,9 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { createClient } from "@waytara/supabase/server";
-import { getCurrentProfile } from "@waytara/supabase/auth";
+import { requireCustomer } from "@waytara/supabase/auth";
 
 /** `${ticketId}/${Date.now()}-${originalName}` — the timestamp keeps two
  *  same-named uploads from colliding; stripped back off for display by
@@ -13,8 +12,7 @@ function attachmentPathFor(ticketId: string, file: File): string {
 }
 
 export async function createSupportTicket(formData: FormData): Promise<{ id: string }> {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const profile = await requireCustomer();
 
   const subject = String(formData.get("subject") ?? "").trim();
   const message = String(formData.get("message") ?? "").trim();
@@ -62,8 +60,7 @@ export async function createSupportTicket(formData: FormData): Promise<{ id: str
 }
 
 export async function sendSupportMessage(formData: FormData): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const profile = await requireCustomer();
 
   const ticketId = String(formData.get("ticketId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
@@ -106,8 +103,7 @@ export async function sendSupportMessage(formData: FormData): Promise<void> {
 }
 
 export async function markTicketResolved(ticketId: string): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  await requireCustomer();
 
   const supabase = await createClient();
   const { error } = await supabase

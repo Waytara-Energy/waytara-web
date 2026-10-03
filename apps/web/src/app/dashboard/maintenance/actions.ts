@@ -1,9 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { createClient } from "@waytara/supabase/server";
-import { getCurrentProfile } from "@waytara/supabase/auth";
+import { requireCustomer } from "@waytara/supabase/auth";
 import { getCustomerSites } from "@/lib/selected-site";
 
 // A site can have more than one device now, so there's no single
@@ -14,8 +13,7 @@ import { getCustomerSites } from "@/lib/selected-site";
 // don't-trust-the-client reasoning every other id-bearing action here
 // already follows.
 export async function createMaintenanceTicket(deviceId: string, siteId: string, formData: FormData): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const profile = await requireCustomer();
 
   const description = String(formData.get("description") ?? "").trim();
   if (!description) {

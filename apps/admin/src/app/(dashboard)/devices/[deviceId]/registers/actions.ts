@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 import type { Json } from "@waytara/supabase";
 
@@ -27,6 +28,7 @@ function registersPath(equipmentId: string): string {
 // the old stock-scoped editor did; empty/unparseable means "no real
 // register" (a manual/informational field).
 export async function updateEquipmentMetric(equipmentId: string, metricId: string, formData: FormData): Promise<void> {
+  await requireAdmin();
   const registersRaw = String(formData.get("registers") ?? "").trim();
   const registers = registersRaw
     ? registersRaw
@@ -83,6 +85,7 @@ export async function updateEquipmentMetric(equipmentId: string, metricId: strin
 // filling gaps on a fresh device from a known-good twin, not overwriting
 // deltas someone already entered.
 export async function cloneRegistersFromDevice(equipmentId: string, formData: FormData): Promise<string> {
+  await requireAdmin();
   const fromEquipmentId = String(formData.get("fromEquipmentId") ?? "").trim();
   if (!fromEquipmentId) {
     throw new Error("Pick a source device to clone from.");
@@ -148,6 +151,7 @@ export async function cloneRegistersFromDevice(equipmentId: string, formData: Fo
 // only ever created by cloning a template variant, not defined ad hoc).
 // Line format: key_name|registers|scale|offset|signed|bitmask|combine
 export async function bulkUpdateRegisters(equipmentId: string, formData: FormData): Promise<string> {
+  await requireAdmin();
   const raw = String(formData.get("rows") ?? "");
   const lines = raw
     .split("\n")

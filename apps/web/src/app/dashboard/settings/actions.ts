@@ -1,13 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { createClient } from "@waytara/supabase/server";
-import { getCurrentProfile } from "@waytara/supabase/auth";
+import { requireCustomer } from "@waytara/supabase/auth";
 
 export async function updateProfile(formData: FormData): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const profile = await requireCustomer();
 
   const fullName = String(formData.get("fullName") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim() || null;

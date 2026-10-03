@@ -1,10 +1,11 @@
 import "server-only";
 
 import { cache } from "react";
+import { redirect } from "next/navigation";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient as createServerSupabaseClient } from "./client-server";
 import type { Database } from "./types";
-import type { Role } from "./roles";
+import { STAFF_ROLES, type Role } from "./roles";
 
 export type Profile = Database["waytara"]["Tables"]["profiles"]["Row"];
 export type { Role };
@@ -77,3 +78,30 @@ export const getCurrentProfile = cache(async function getCurrentProfile(
 
   return data;
 });
+
+/**
+ * Authorization guard for Server Actions and Route Handlers.
+ *
+ * A page-level redirect or a proxy matcher is NOT an access control for a
+ * Server Action: actions are plain POST endpoints that can be invoked
+ * directly, so every privileged action must prove the caller's role itself,
+ * as its first statement. No session redirects to /login; a signed-in user
+ * with the wrong role gets an error (never a silent no-op).
+ *
+ * Returns the caller's profile so the action doesn't have to fetch it again.
+ */
+export async function requireRole(allowed: readonly Role[]): Promise<Profile> {
+  const profile = await getCurrentProfile();
+  if (!profile) redirect("/login");
+  if (!allowed.includes(profile.role)) {
+    throw new Error("You don't have permission to do that.");
+  }
+  return profile;
+}
+
+/** Admin-only (employee management, catalog, plans, device registers...). */
+export const requireAdmin = () => requireRole(["admin"]);
+/** Any staff account (admin or employee). */
+export const requireStaff = () => requireRole(STAFF_ROLES);
+/** Customer accounts only. */
+export const requireCustomer = () => requireRole(["customer"]);

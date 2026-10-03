@@ -1,9 +1,8 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@waytara/supabase/server";
-import { getCurrentProfile } from "@waytara/supabase/auth";
+import { requireCustomer } from "@waytara/supabase/auth";
 
 // Onboarding pipeline redesign, Phase 5: payment now happens after the
 // customer already has an account and is signed in — mirrors apps/admin's
@@ -30,8 +29,7 @@ async function loadOwnOnboarding(customerId: string) {
 }
 
 export async function payFullAmount(): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const profile = await requireCustomer();
 
   const { supabase, onboarding } = await loadOwnOnboarding(profile.id);
   if (!onboarding || onboarding.current_stage !== "payment_pending" || !onboarding.quotation_id) {
@@ -68,8 +66,7 @@ export async function payFullAmount(): Promise<void> {
 }
 
 export async function payAdvanceAmount(): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const profile = await requireCustomer();
 
   const { supabase, onboarding } = await loadOwnOnboarding(profile.id);
   if (!onboarding || onboarding.current_stage !== "payment_pending" || !onboarding.quotation_id) {

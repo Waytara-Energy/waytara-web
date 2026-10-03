@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 
 // Numeric/date form fields all follow the same "empty string -> null,
@@ -73,6 +74,7 @@ function readStockFields(formData: FormData): ReadStockFieldsResult {
 }
 
 export async function createStockItem(formData: FormData): Promise<void> {
+  await requireAdmin();
   const result = readStockFields(formData);
   if (!result.ok) {
     throw new Error(result.error);
@@ -94,6 +96,7 @@ export async function createStockItem(formData: FormData): Promise<void> {
 }
 
 export async function updateStockItem(stockId: string, formData: FormData): Promise<void> {
+  await requireAdmin();
   const result = readStockFields(formData);
   if (!result.ok) {
     throw new Error(result.error);

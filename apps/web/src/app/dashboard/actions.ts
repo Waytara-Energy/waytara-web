@@ -4,7 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@waytara/supabase/server";
-import { getCurrentProfile } from "@waytara/supabase/auth";
+import { requireCustomer } from "@waytara/supabase/auth";
 import { SELECTED_SITE_COOKIE, SELECTED_DEVICE_COOKIE } from "@/lib/selected-site";
 
 // Called directly from the header's SiteSwitcher (a client component), not
@@ -47,8 +47,7 @@ export async function logout() {
 // Task 12.1: alerts_owner_update scopes this to the customer's own
 // devices — nothing extra to check here beyond having a session at all.
 export async function acknowledgeAlert(alertId: string) {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const profile = await requireCustomer();
 
   const supabase = await createClient();
   await supabase

@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@waytara/supabase/server";
-import { getCurrentProfile } from "@waytara/supabase/auth";
+import { getCurrentProfile, requireStaff } from "@waytara/supabase/auth";
 
 export async function assignLead(leadId: string, formData: FormData): Promise<void> {
+  await requireStaff();
   const profile = await getCurrentProfile();
   if (profile?.role !== "admin") {
     // RLS (leads_admin_update) would block this anyway — this is just a
@@ -35,8 +36,7 @@ export async function assignLead(leadId: string, formData: FormData): Promise<vo
 // (an admin action the employee didn't necessarily see yet). Gates
 // startOnboarding below — see canStartOnboarding on the detail page.
 export async function acceptLeadAssignment(leadId: string): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const profile = await requireStaff();
 
   const supabase = await createClient();
   const { data: lead } = await supabase.from("leads").select("assigned_to").eq("id", leadId).single();
@@ -55,8 +55,7 @@ export async function acceptLeadAssignment(leadId: string): Promise<void> {
 }
 
 export async function startOnboarding(leadId: string): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const profile = await requireStaff();
 
   const supabase = await createClient();
 

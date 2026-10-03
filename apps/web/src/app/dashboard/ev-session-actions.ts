@@ -1,9 +1,8 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
-import { getCurrentProfile } from "@waytara/supabase/auth";
+import { requireCustomer } from "@waytara/supabase/auth";
 import { getCustomerSites } from "@/lib/selected-site";
 
 const ENERGY_KEY = "energy_active_import_register_kwh";
@@ -18,8 +17,7 @@ const ENERGY_KEY = "energy_active_import_register_kwh";
 // to the calling customer?) is what stands in for the RLS policy a normal
 // table would have.
 async function assertOwnCharger(deviceId: string) {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  await requireCustomer();
 
   const sites = await getCustomerSites();
   const owns = sites.some((s) => s.devices.some((d) => d.id === deviceId && d.deviceType?.category === "ev_charger"));

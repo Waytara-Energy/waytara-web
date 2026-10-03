@@ -1,11 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 
 const FEATURE_KEYS = ["monitoring", "performance", "analytics", "reports", "instrument_settings"] as const;
 
 export async function updatePlan(planId: string, formData: FormData): Promise<void> {
+  await requireAdmin();
   const priceMonthly = Number(formData.get("priceMonthly"));
   const priceYearlyRaw = String(formData.get("priceYearly") ?? "").trim();
   const maxDevicesRaw = String(formData.get("maxDevices") ?? "").trim();

@@ -1,9 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { createClient } from "@waytara/supabase/server";
-import { getCurrentProfile } from "@waytara/supabase/auth";
+import { requireCustomer } from "@waytara/supabase/auth";
 import { getCustomerSites, type CustomerDevice } from "@/lib/selected-site";
 import { getSettingFields } from "@/lib/instrument-settings-catalog";
 import { PROPERTY_TYPE_LABELS, POWER_SOURCE_LABELS, POWER_PACKAGE_LABELS, type SiteAddress } from "@/lib/site-catalog";
@@ -31,8 +30,7 @@ async function resolveOwnDevice(deviceId: string): Promise<CustomerDevice | null
 // combined submit rather than ~25 independently-saved fields. ----
 
 export async function updateSiteSetting(deviceId: string, formData: FormData): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  await requireCustomer();
 
   const device = await resolveOwnDevice(deviceId);
   if (!device) {
@@ -114,8 +112,7 @@ export async function updateSiteSetting(deviceId: string, formData: FormData): P
 // pattern from the header switcher. ----
 
 export async function updateDeviceSetting(deviceId: string, settingKey: string, settingValue: string): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) throw new Error("Not signed in.");
+  const profile = await requireCustomer();
 
   const device = await resolveOwnDevice(deviceId);
   if (!device) throw new Error("No device selected.");
@@ -195,8 +192,7 @@ function validateSettingValue(
 }
 
 export async function updateInstrumentSetting(deviceId: string, key: string, value: string): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) throw new Error("Not signed in.");
+  const profile = await requireCustomer();
 
   const device = await resolveOwnDevice(deviceId);
   if (!device) throw new Error("No device selected.");

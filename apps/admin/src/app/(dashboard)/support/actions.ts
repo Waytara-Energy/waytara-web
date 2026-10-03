@@ -1,9 +1,8 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
 import { createClient } from "@waytara/supabase/server";
-import { getCurrentProfile } from "@waytara/supabase/auth";
+import { requireStaff } from "@waytara/supabase/auth";
 
 /** Same naming convention as apps/web's identically-named helper in
  *  dashboard/support/actions.ts — `<ticketId>/<timestamp>-<name>`. */
@@ -12,8 +11,7 @@ function attachmentPathFor(ticketId: string, file: File): string {
 }
 
 export async function sendSupportReply(formData: FormData): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const profile = await requireStaff();
 
   const ticketId = String(formData.get("ticketId") ?? "");
   const body = String(formData.get("body") ?? "").trim();
@@ -59,8 +57,7 @@ export async function sendSupportReply(formData: FormData): Promise<void> {
 }
 
 export async function updateTicketStatus(ticketId: string, status: string): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  await requireStaff();
 
   const supabase = await createClient();
   const { error } = await supabase

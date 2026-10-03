@@ -1,9 +1,8 @@
 "use server";
 
-import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@waytara/supabase/server";
-import { getCurrentProfile } from "@waytara/supabase/auth";
+import { requireStaff } from "@waytara/supabase/auth";
 import type { Json } from "@waytara/supabase";
 import type { PricingLineItem } from "@waytara/ui/quotation-pdf";
 import { sendQuoteLinkEmail } from "@/lib/send-quote-link-email";
@@ -17,8 +16,7 @@ import { cloneTemplateIntoEquipment, isTemplateVariant } from "@/lib/equipment-t
 // quote the customer can view and respond to themselves (Phase 4). The
 // PDF only gets generated once they actually accept it.
 export async function createAndSendQuotation(onboardingId: string, formData: FormData): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const profile = await requireStaff();
 
   const planId = String(formData.get("planId") ?? "");
   const gstRate = Number(formData.get("gstRate") ?? "18");
@@ -98,6 +96,7 @@ export async function createAndSendQuotation(onboardingId: string, formData: For
 // public /quote/[token] page now, not the employee on their behalf.
 
 export async function resendQuoteLinkEmail(onboardingId: string, quotationId: string): Promise<void> {
+  await requireStaff();
   const supabase = await createClient();
 
   const { data: quotation } = await supabase
@@ -133,6 +132,7 @@ export async function recordQuotationRejected(
   onboardingId: string,
   formData: FormData
 ): Promise<void> {
+  await requireStaff();
   const action = String(formData.get("action") ?? "");
   const supabase = await createClient();
 
@@ -173,6 +173,7 @@ export async function recordQuotationRejected(
 // are already the real thing.
 
 export async function recordFullPayment(onboardingId: string, quotationId: string): Promise<void> {
+  await requireStaff();
   const supabase = await createClient();
 
   const { data: onboarding } = await supabase
@@ -211,6 +212,7 @@ export async function recordSplitPayment(
   quotationId: string,
   formData: FormData
 ): Promise<void> {
+  await requireStaff();
   const advanceAmount = Number(formData.get("advanceAmount") ?? 0);
   const supabase = await createClient();
 
@@ -274,6 +276,7 @@ export async function recordSplitPayment(
 // Task 8.4: site & device setup.
 
 export async function createSite(onboardingId: string, formData: FormData): Promise<void> {
+  await requireStaff();
   const propertyType = String(formData.get("propertyType") ?? "");
   const powerSourceCategory = String(formData.get("powerSourceCategory") ?? "");
   const powerPackageRaw = String(formData.get("powerPackage") ?? "").trim();
@@ -338,6 +341,7 @@ function warrantyYearsFrom(warrantyInfo: unknown): number | null {
 // device list below), same as picking a variant here doesn't itself
 // require every register to be known yet.
 export async function addDevice(onboardingId: string, siteId: string, formData: FormData): Promise<void> {
+  await requireStaff();
   const stockId = String(formData.get("stockId") ?? "");
   const label = String(formData.get("label") ?? "").trim() || null;
   const variant = String(formData.get("variant") ?? "");
@@ -381,6 +385,7 @@ export async function addDevice(onboardingId: string, siteId: string, formData: 
 }
 
 export async function completeSiteSetup(onboardingId: string): Promise<void> {
+  await requireStaff();
   const supabase = await createClient();
   await supabase
     .from("customer_onboarding")
@@ -395,6 +400,7 @@ export async function completeSiteSetup(onboardingId: string): Promise<void> {
 // the waiting case. Reuses the existing invite_token rather than minting a
 // new one, so a link the customer may already have open keeps working.
 export async function resendCustomerInviteEmail(onboardingId: string): Promise<void> {
+  await requireStaff();
   const supabase = await createClient();
 
   const { data: onboarding } = await supabase
@@ -430,8 +436,7 @@ export async function resendCustomerInviteEmail(onboardingId: string): Promise<v
 // owns — it just had no write path until this task's migration added one.
 
 export async function startTestSession(onboardingId: string, siteId: string): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const profile = await requireStaff();
 
   const supabase = await createClient();
   const { error } = await supabase.from("test_sessions").insert({
@@ -474,6 +479,7 @@ function simulatedValueFor(unit: string | null): number {
 }
 
 export async function sendTestSignal(onboardingId: string, deviceId: string, formData: FormData): Promise<void> {
+  await requireStaff();
   const instrumentKeysRaw = String(formData.get("instrumentKeys") ?? "[]");
   let instruments: { key: string; unit: string | null }[] = [];
   try {
@@ -507,6 +513,7 @@ export async function sendTestSignal(onboardingId: string, deviceId: string, for
 }
 
 export async function markDeviceVerified(onboardingId: string, deviceId: string): Promise<void> {
+  await requireStaff();
   const supabase = await createClient();
   const { error } = await supabase.from("equipment").update({ device_status: "active" }).eq("id", deviceId);
 
@@ -524,8 +531,7 @@ export async function markDeviceVerified(onboardingId: string, deviceId: string)
 // needed there). One row per device, upserted on every save so the
 // employee can revisit and adjust before scheduling install.
 export async function updateEquipmentCheck(onboardingId: string, deviceId: string, formData: FormData): Promise<void> {
-  const profile = await getCurrentProfile();
-  if (!profile) redirect("/login");
+  const profile = await requireStaff();
 
   const supabase = await createClient();
   const { error } = await supabase.from("equipment_checks").upsert(
@@ -548,6 +554,7 @@ export async function updateEquipmentCheck(onboardingId: string, deviceId: strin
 }
 
 export async function completeConnectionTest(onboardingId: string, sessionId: string, siteId: string): Promise<void> {
+  await requireStaff();
   const supabase = await createClient();
 
   const { data: devices } = await supabase.from("equipment").select("id, device_status").eq("site_id", siteId);
@@ -597,6 +604,7 @@ export async function completeConnectionTest(onboardingId: string, sessionId: st
 }
 
 export async function failTestSession(onboardingId: string, sessionId: string, formData: FormData): Promise<void> {
+  await requireStaff();
   const notes = String(formData.get("notes") ?? "").trim() || null;
   const supabase = await createClient();
 
@@ -625,6 +633,7 @@ export async function failTestSession(onboardingId: string, sessionId: string, f
 const VALID_TIME_SLOTS = ["morning", "afternoon", "evening"] as const;
 
 export async function scheduleInstall(onboardingId: string, formData: FormData): Promise<void> {
+  await requireStaff();
   const scheduledDate = String(formData.get("scheduledDate") ?? "").trim();
   const timeSlot = String(formData.get("timeSlot") ?? "");
 
@@ -684,6 +693,7 @@ export async function recordBalancePayment(
   paymentId: string,
   method: "upi" | "cash"
 ): Promise<void> {
+  await requireStaff();
   const supabase = await createClient();
   const { error } = await supabase
     .from("payments")
@@ -698,6 +708,7 @@ export async function recordBalancePayment(
 }
 
 export async function completeInstallation(onboardingId: string, siteId: string): Promise<void> {
+  await requireStaff();
   const supabase = await createClient();
 
   // siteDevices depends only on `siteId`, not on `onboarding` or anything

@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { requireAdmin } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 
 function toTextOrNull(raw: FormDataEntryValue | null): string | null {
@@ -19,6 +20,7 @@ const CATALOG_PATH = "/devices/catalog";
 // equipment_templates (which enum_ref a field normally uses) is seeded
 // from the label workbooks, not hand-edited here.
 export async function createEnumValue(formData: FormData): Promise<void> {
+  await requireAdmin();
   const enumRef = String(formData.get("enumRef") ?? "").trim();
   const code = String(formData.get("code") ?? "").trim();
   const label = String(formData.get("label") ?? "").trim();
@@ -42,6 +44,7 @@ export async function createEnumValue(formData: FormData): Promise<void> {
 // primary key, so "renaming" one is really create-a-new-row-and-delete-
 // the-old-one, which isn't what an admin fixing a typo in a label wants.
 export async function updateEnumValue(enumRef: string, code: string, formData: FormData): Promise<void> {
+  await requireAdmin();
   const label = String(formData.get("label") ?? "").trim();
   const notes = toTextOrNull(formData.get("notes"));
 
@@ -64,6 +67,7 @@ export async function updateEnumValue(enumRef: string, code: string, formData: F
 }
 
 export async function deleteEnumValue(enumRef: string, code: string): Promise<void> {
+  await requireAdmin();
   const supabase = await createClient();
   const { error } = await supabase.from("equipment_enum").delete().eq("enum_ref", enumRef).eq("code", code);
 
