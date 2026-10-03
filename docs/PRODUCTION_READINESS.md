@@ -78,3 +78,20 @@ telemetry insert avg 75 ms/call; 52 of 109 RLS policies use bare `auth.uid()`.
 
 Lighthouse (mobile, local, noisy because Docker runs alongside): `/` 80 → ~77 (TBT-bound), `/login` 90 → 91,
 `/solutions` 48 → ~65-73, transfer `/` 3.4 → 0.7 MB. Re-measure with `node scripts/first-load-js.mjs <base> <routes...>`.
+
+## Phase 4 — Data layer (migration `20261003020000_performance_data_layer.sql`)
+> **Deploy order matters:** the app now reads `equipment_latest` and calls `telemetry_buckets`. Apply migrations
+> `20261003000000`, `…010000`, `…020000` to production **before** deploying this code.
+- **`equipment_latest`** (one row per device+key, kept current by a *statement-level* trigger — one upsert per ingest
+  batch, not per row; newer-wins, test data excluded; RLS mirrors the telemetry policies; realtime-published). Every
+  "latest value" read (Overview, Monitoring, device pages, catalog, cron jobs, EV session actions) now uses it instead of
+  `ORDER BY ts DESC LIMIT keys×5`. Fixes a correctness bug as well as speed: keys that hadn't reported recently were
+  silently missing, and the offline-alert cron judged "last seen" from the newest 2,000 rows across *all* devices.
+- **`telemetry_buckets()`** (SECURITY INVOKER, so RLS applies; guards bucket size and ≤400-day ranges): `BarTrendChart`
+  fetches a few hundred pre-averaged rows instead of paging 1,000 raw rows at a time.
+- **Composite index** `(equipment_id, key_name, ts desc) where not is_test` for the time-series access pattern.
+- **RLS rewrite**: all `auth.uid()` / `is_admin()` / `is_staff()` calls wrapped as `(select …)` so they run once per
+  query, not per row (65 policies). The pgTAP security suite (39 assertions) passes unchanged on the rewritten policies.
+- **Realtime refresh throttling**: pages that re-render server-side on telemetry now refresh at most every 15 s
+  (`RealtimeRefresh throttleMs`) instead of re-running the whole page every ingest tick.
+- Tests: `02_data_layer.test.sql` (16 assertions: newest-wins trigger, test data ignored, RLS, bucket math, guards).

@@ -62,7 +62,7 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
               buckets, latest-per-key totals) from equipment_telemetry — not
               safe to hand-patch, so a new reading debounce-refreshes the
               whole page. */}
-          <RealtimeRefresh table="equipment_telemetry" event="INSERT" filter={`equipment_id=eq.${device.id}`} />
+          <RealtimeRefresh table="equipment_telemetry" event="INSERT" filter={`equipment_id=eq.${device.id}`} throttleMs={15000} />
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <DeviceSwitcher devices={site?.devices ?? [device]} selectedId={device.id} />

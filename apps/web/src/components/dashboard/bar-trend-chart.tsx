@@ -4,7 +4,6 @@ import * as React from "react";
 import { Bar, ComposedChart, Line, ReferenceArea, ReferenceLine, XAxis, YAxis } from "recharts";
 import { createClient } from "@waytara/supabase/client";
 import { useRealtimeTable, type RealtimeRowEvent } from "@waytara/ui/realtime-provider";
-import { fetchAllDeviceReadings, type DeviceReadingRow } from "@/lib/device-readings-fetch";
 import { INTERVAL_OPTIONS, DEFAULT_INTERVAL_MINUTES, todayMidnight, bucketKeyFor, localBucketDateString, fullDayBucketKeys, formatBucketLabel } from "@/lib/day-buckets";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
@@ -122,29 +121,6 @@ function ChartTick({ x, y, payload }: { x?: string | number; y?: string | number
       </text>
     </g>
   );
-}
-
-/** Sums + counts a set of readings into per-bucket, per-series-key values. */
-function bucketReadings(
-  rows: DeviceReadingRow[],
-  bucketMinutes: number,
-  keyFor: (ts: string) => string,
-  seriesKeys: string[],
-  scaleByKey: Record<string, number>
-) {
-  const sums = new Map<string, Record<string, number>>();
-  const counts = new Map<string, Record<string, number>>();
-  for (const row of rows) {
-    if (row.value === null || !seriesKeys.includes(row.key_name)) continue;
-    const bucket = keyFor(row.ts);
-    if (!sums.has(bucket)) {
-      sums.set(bucket, Object.fromEntries(seriesKeys.map((k) => [k, 0])));
-      counts.set(bucket, Object.fromEntries(seriesKeys.map((k) => [k, 0])));
-    }
-    sums.get(bucket)![row.key_name] += row.value * (scaleByKey[row.key_name] ?? 1);
-    counts.get(bucket)![row.key_name] += 1;
-  }
-  return { sums, counts };
 }
 
 /** The shadcn-style grouped bar chart Overview's Power Generation &
@@ -265,12 +241,37 @@ export function BarTrendChart({
     }
 
     async function fetchData() {
-      const since = todayMidnight().toISOString();
-      const today = await fetchAllDeviceReadings(supabase, deviceId, fetchSeriesKeys, since);
+      // The database does the bucketing (telemetry_buckets): a few hundred
+      // pre-averaged rows come back instead of paging through every raw
+      // reading of the day. Its bucket timestamps render in the same
+      // timezone as raw readings did, so bucketKeyFor() keys them identically.
+      const from = todayMidnight();
+      const to = new Date(from.getTime() + 24 * 60 * 60 * 1000);
+      const { data: bucketRows } = await supabase.rpc("telemetry_buckets", {
+        p_equipment_id: deviceId,
+        p_keys: fetchSeriesKeys,
+        p_from: from.toISOString(),
+        p_to: to.toISOString(),
+        p_bucket_minutes: bucketMinutes,
+      });
       if (cancelled) return;
       setLoaded(true);
 
-      const { sums, counts } = bucketReadings(today, bucketMinutes, (ts) => bucketKeyFor(ts, bucketMinutes), fetchSeriesKeys, scaleByKey);
+      // Same shape the rest of this function already consumes: per-bucket,
+      // per-key sum and count — here one pre-averaged sample per bucket.
+      const sums = new Map<string, Record<string, number>>();
+      const counts = new Map<string, Record<string, number>>();
+      for (const row of bucketRows ?? []) {
+        // avg() is null when every reading in the bucket was null.
+        if ((row.avg_value as number | null) === null) continue;
+        const bk = bucketKeyFor(row.bucket, bucketMinutes);
+        if (!sums.has(bk)) {
+          sums.set(bk, Object.fromEntries(fetchSeriesKeys.map((k) => [k, 0])));
+          counts.set(bk, Object.fromEntries(fetchSeriesKeys.map((k) => [k, 0])));
+        }
+        sums.get(bk)![row.key_name] = row.avg_value * (scaleByKey[row.key_name] ?? 1);
+        counts.get(bk)![row.key_name] = 1;
+      }
 
       const nowBucketKey = bucketKeyFor(localBucketDateString(new Date()), bucketMinutes);
       const carry: Record<string, number | null> = Object.fromEntries(fetchSeriesKeys.map((k) => [k, null]));

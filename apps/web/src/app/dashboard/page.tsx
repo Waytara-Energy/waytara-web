@@ -87,7 +87,7 @@ export default async function DashboardOverviewPage() {
           summed/averaged across devices) from a raw insert payload, so a
           new reading debounce-refreshes the whole page instead. */}
       {deviceIds.length > 0 && (
-        <RealtimeRefresh table="equipment_telemetry" event="INSERT" filter={`equipment_id=in.(${deviceIds.join(",")})`} />
+        <RealtimeRefresh table="equipment_telemetry" event="INSERT" filter={`equipment_id=in.(${deviceIds.join(",")})`} throttleMs={15000} />
       )}
       {/* ev_sessions isn't reflected in equipment_telemetry at all (it's
           a derived table, not a raw reading) — a session opening is an

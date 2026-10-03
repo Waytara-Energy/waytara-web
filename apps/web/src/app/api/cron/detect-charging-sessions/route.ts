@@ -34,15 +34,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ checked: 0, opened: 0, closed: 0 });
   }
 
-  // Same bounded-window "most recent first, reduced to latest per device"
-  // simplification the rest of this app already uses for a snapshot read.
+  // One row per device+key from equipment_latest - exact, not a windowed guess.
   const { data: readings } = await supabase
-    .from("equipment_telemetry")
+    .from("equipment_latest")
     .select("equipment_id, key_name, value, ts")
     .in("equipment_id", chargerIds)
     .in("key_name", ["connector_status", "energy_active_import_register_kwh"])
-    .order("ts", { ascending: false })
-    .limit(chargerIds.length * 10);
+    .order("ts", { ascending: false });
 
   const latestStatus = new Map<string, number | null>();
   const latestEnergy = new Map<string, number | null>();

@@ -27,12 +27,10 @@ async function assertOwnCharger(deviceId: string) {
 async function latestEnergyReading(deviceId: string): Promise<number | null> {
   const service = createServiceRoleClient();
   const { data } = await service
-    .from("equipment_telemetry")
+    .from("equipment_latest")
     .select("value")
     .eq("equipment_id", deviceId)
     .eq("key_name", ENERGY_KEY)
-    .order("ts", { ascending: false })
-    .limit(1)
     .maybeSingle();
   return data?.value ?? null;
 }

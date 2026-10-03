@@ -64,7 +64,7 @@ export default async function MonitoringPage({ searchParams }: { searchParams: P
               debounce meant this was firing near-continuously and competing
               with the charts' own fetches/tab switches for bandwidth, for
               freshness nobody could actually perceive at that cadence. */}
-          <RealtimeRefresh table="equipment_telemetry" event="INSERT" filter={`equipment_id=eq.${device.id}`} debounceMs={2500} />
+          <RealtimeRefresh table="equipment_telemetry" event="INSERT" filter={`equipment_id=eq.${device.id}`} throttleMs={15000} />
           <MonitoringContent supabase={supabase} device={device} devices={site?.devices ?? [device]} />
         </>
       )}

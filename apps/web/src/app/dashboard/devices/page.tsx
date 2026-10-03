@@ -141,7 +141,7 @@ export default async function DevicesPage({
 
   return (
     <div className="space-y-6">
-      <RealtimeRefresh table="equipment_telemetry" event="INSERT" filter={`equipment_id=eq.${device.id}`} />
+      <RealtimeRefresh table="equipment_telemetry" event="INSERT" filter={`equipment_id=eq.${device.id}`} throttleMs={15000} />
       {category === "ev_charger" && (
         // Same reasoning as the site-wide Overview page's own pair of these
         // — ev_sessions is derived, not raw equipment_telemetry, and a

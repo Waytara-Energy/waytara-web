@@ -557,6 +557,38 @@ export type Database = {
         }
         Relationships: []
       }
+      equipment_latest: {
+        Row: {
+          equipment_id: string
+          key_name: string
+          ts: string
+          unit: string | null
+          value: number | null
+        }
+        Insert: {
+          equipment_id: string
+          key_name: string
+          ts: string
+          unit?: string | null
+          value?: number | null
+        }
+        Update: {
+          equipment_id?: string
+          key_name?: string
+          ts?: string
+          unit?: string | null
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_latest_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipment_metrics: {
         Row: {
           address: Json | null
@@ -1515,6 +1547,10 @@ export type Database = {
       consume_rate_limit: {
         Args: { p_bucket: string; p_key: string; p_max: number; p_window_seconds: number }
         Returns: boolean
+      }
+      telemetry_buckets: {
+        Args: { p_bucket_minutes: number; p_equipment_id: string; p_from: string; p_keys: string[]; p_to: string }
+        Returns: { avg_value: number; bucket: string; key_name: string; samples: number }[]
       }
       is_admin: { Args: never; Returns: boolean }
       is_site_engineer_or_admin: { Args: never; Returns: boolean }

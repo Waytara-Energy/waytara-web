@@ -25,6 +25,7 @@ export function RealtimeRefresh({
   event,
   filter,
   debounceMs = 400,
+  throttleMs,
 }: {
   table: string;
   event: PgChangeEvent;
@@ -37,18 +38,44 @@ export function RealtimeRefresh({
    *  window or the full-page refresh fires almost continuously and starves
    *  everything else (chart fetches, tab switches) of bandwidth/CPU. */
   debounceMs?: number;
+  /** For a table that changes *continuously* (equipment_telemetry): refresh
+   *  at most once per `throttleMs`, however many events arrive. A debounce
+   *  is the wrong tool there — it resets on every event, so a steady stream
+   *  either never refreshes or refreshes every quiet gap (i.e. every tick).
+   *  The first event after a quiet period refreshes immediately; events
+   *  inside the window collapse into one trailing refresh. Takes precedence
+   *  over `debounceMs`. */
+  throttleMs?: number;
 }) {
   const router = useRouter();
   const timerRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastRefreshRef = React.useRef(0);
 
   useRealtimeTable(
     table,
     event,
     filter,
     React.useCallback(() => {
+      if (throttleMs) {
+        if (timerRef.current) return; // a trailing refresh is already scheduled
+        const wait = Math.max(0, lastRefreshRef.current + throttleMs - Date.now());
+        timerRef.current = setTimeout(() => {
+          timerRef.current = null;
+          lastRefreshRef.current = Date.now();
+          router.refresh();
+        }, wait);
+        return;
+      }
       if (timerRef.current) clearTimeout(timerRef.current);
       timerRef.current = setTimeout(() => router.refresh(), debounceMs);
-    }, [router, debounceMs])
+    }, [router, debounceMs, throttleMs])
+  );
+
+  React.useEffect(
+    () => () => {
+      if (timerRef.current) clearTimeout(timerRef.current);
+    },
+    []
   );
 
   return null;

@@ -42,16 +42,15 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ checked: 0, newAlerts: 0, resolvedAlerts: 0 });
   }
 
-  // Same bounded-window simplification as the dashboard Overview page:
-  // most recent readings first, reduced client-side to the latest per
-  // device, rather than a DISTINCT ON the query builder can't express.
+  // equipment_latest has one row per device+key, so the newest ts per
+  // device is simply the max over its rows - exact for every device, however
+  // long it has been silent (the old "newest 2000 rows overall" window
+  // silently lost any device that had not reported recently).
   const { data: readings } = await supabase
-    .from("equipment_telemetry")
+    .from("equipment_latest")
     .select("equipment_id, ts")
     .in("equipment_id", deviceIds)
-    .eq("is_test", false)
-    .order("ts", { ascending: false })
-    .limit(2000);
+    .order("ts", { ascending: false });
 
   const lastSeenByDevice = new Map<string, number>();
   for (const r of readings ?? []) {

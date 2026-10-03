@@ -89,13 +89,14 @@ export async function fetchFieldValues(
   const values = new Map<string, FieldValue>();
   if (keys.length === 0) return values;
 
+  // equipment_latest holds exactly one (newest) row per device+key,
+  // maintained by a trigger on equipment_telemetry - no guessing how many
+  // recent raw rows are enough to cover every key.
   const { data: rows } = await supabase
-    .from("equipment_telemetry")
+    .from("equipment_latest")
     .select("key_name, value, ts")
     .eq("equipment_id", deviceId)
-    .in("key_name", keys)
-    .order("ts", { ascending: false })
-    .limit(keys.length * 5);
+    .in("key_name", keys);
 
   for (const row of rows ?? []) {
     if (!values.has(row.key_name)) values.set(row.key_name, row.value);

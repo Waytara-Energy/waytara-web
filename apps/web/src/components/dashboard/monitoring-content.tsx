@@ -899,12 +899,10 @@ async function EvChargerMonitoring({
   // OVERVIEW_CROSSREF_KEYS above.
   const [{ data: snapshotReadings }, lastSync, chargingSummary, recentChargingStats, customerPlan, site, enumOptions] = await Promise.all([
     supabase
-      .from("equipment_telemetry")
+      .from("equipment_latest")
       .select("key_name, value, ts")
       .eq("equipment_id", device.id)
-      .in("key_name", [...monitoringKeys, ...liveSessionKeys, "connector_status", "error_code"])
-      .order("ts", { ascending: false })
-      .limit((monitoringKeys.length + liveSessionKeys.length + 2) * 5),
+      .in("key_name", [...monitoringKeys, ...liveSessionKeys, "connector_status", "error_code"]),
     getLastSyncInfo(device.id),
     fetchTodayChargingSessions(supabase, device.id),
     fetchRecentChargingStats(supabase, device.id),

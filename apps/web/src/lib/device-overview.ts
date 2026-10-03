@@ -98,19 +98,14 @@ export async function fetchDeviceOverview(supabase: SupabaseServerClient, site: 
   const readKeys = await fetchReadKeys(supabase, device);
   const overviewKeys = OVERVIEW_KEYS.filter((k) => readKeys.has(k));
 
-  // Simplification: takes the most recent readings within a bounded window
-  // (per the fixed key list above, not every instrument) rather than a
-  // true "latest value per instrument" query (needs a DISTINCT ON not
-  // easily expressed through the query builder). Fine for an overview
-  // snapshot.
+  // Latest value per instrument comes straight from equipment_latest (one
+  // row per device+key, trigger-maintained) - no windowed guess.
   const [{ data: recentReadings }, { data: recentAlerts }, { data: evReadings }] = await Promise.all([
     supabase
-      .from("equipment_telemetry")
+      .from("equipment_latest")
       .select("key_name, value, unit, ts")
       .eq("equipment_id", device.id)
-      .in("key_name", overviewKeys)
-      .order("ts", { ascending: false })
-      .limit(overviewKeys.length * 5),
+      .in("key_name", overviewKeys),
     supabase
       .from("alerts")
       .select("id, device_id, severity, message, ts, acknowledged_at")
@@ -120,12 +115,10 @@ export async function fetchDeviceOverview(supabase: SupabaseServerClient, site: 
       .limit(5),
     evCharger
       ? supabase
-          .from("equipment_telemetry")
+          .from("equipment_latest")
           .select("value, ts")
           .eq("equipment_id", evCharger.id)
           .eq("key_name", "power_active_import_kw")
-          .order("ts", { ascending: false })
-          .limit(1)
           .maybeSingle()
       : Promise.resolve({ data: null }),
   ]);
@@ -189,12 +182,10 @@ export async function fetchSiteOverview(supabase: SupabaseServerClient, site: Cu
   const [{ data: recentReadings }, { data: recentAlerts }, { data: evReadings }] = await Promise.all([
     inverterIds.length > 0
       ? supabase
-          .from("equipment_telemetry")
+          .from("equipment_latest")
           .select("equipment_id, key_name, value, ts")
           .in("equipment_id", inverterIds)
           .in("key_name", overviewKeys)
-          .order("ts", { ascending: false })
-          .limit(overviewKeys.length * inverterIds.length * 5)
       : Promise.resolve({ data: null }),
     allIds.length > 0
       ? supabase
@@ -207,15 +198,13 @@ export async function fetchSiteOverview(supabase: SupabaseServerClient, site: Cu
       : Promise.resolve({ data: null }),
     chargers.length > 0
       ? supabase
-          .from("equipment_telemetry")
+          .from("equipment_latest")
           .select("equipment_id, value, ts")
           .in(
             "equipment_id",
             chargers.map((c) => c.id)
           )
           .eq("key_name", "power_active_import_kw")
-          .order("ts", { ascending: false })
-          .limit(chargers.length * 5)
       : Promise.resolve({ data: null }),
   ]);
 
@@ -364,12 +353,10 @@ export async function fetchTodayEvEnergyKwh(supabase: SupabaseServerClient, char
       .in("equipment_id", chargerIds)
       .gte("started_at", todayStart.toISOString()),
     supabase
-      .from("equipment_telemetry")
+      .from("equipment_latest")
       .select("equipment_id, value, ts")
       .in("equipment_id", chargerIds)
-      .eq("key_name", "energy_active_import_register_kwh")
-      .order("ts", { ascending: false })
-      .limit(chargerIds.length * 5),
+      .eq("key_name", "energy_active_import_register_kwh"),
   ]);
 
   const latestByDevice = new Map<string, number | null>();
@@ -428,12 +415,10 @@ export async function fetchTodayEvSessionSparkline(
       .gte("started_at", todayStart.toISOString())
       .order("started_at", { ascending: true }),
     supabase
-      .from("equipment_telemetry")
+      .from("equipment_latest")
       .select("value, ts")
       .eq("equipment_id", deviceId)
-      .eq("key_name", "energy_active_import_register_kwh")
-      .order("ts", { ascending: false })
-      .limit(1),
+      .eq("key_name", "energy_active_import_register_kwh"),
   ]);
 
   const latestReading = latestRows?.[0]?.value ?? null;
@@ -538,16 +523,12 @@ export async function fetchTodayChargingSessions(
       .eq("equipment_id", deviceId)
       .gte("started_at", todayStart.toISOString())
       .order("started_at", { ascending: false }),
-    // One query for every "latest reading" this needs, reduced to
-    // latest-per-key client-side (same pattern the detect-charging-sessions
-    // cron uses) — cheaper than a separate round trip per key_name.
+    // One query for every "latest reading" this needs (one row per key).
     supabase
-      .from("equipment_telemetry")
+      .from("equipment_latest")
       .select("key_name, value, ts")
       .eq("equipment_id", deviceId)
-      .in("key_name", LATEST_READING_KEYS)
-      .order("ts", { ascending: false })
-      .limit(LATEST_READING_KEYS.length * 5),
+      .in("key_name", LATEST_READING_KEYS),
   ]);
 
   const latestByKey = new Map<string, number | null>();

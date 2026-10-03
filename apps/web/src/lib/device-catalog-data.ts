@@ -39,12 +39,10 @@ export async function fetchDeviceParameterReadings(supabase: SupabaseServerClien
 
   const keys = parameters.map((p) => p.parameter_key);
   const { data: readings } = await supabase
-    .from("equipment_telemetry")
+    .from("equipment_latest")
     .select("key_name, value, ts")
     .eq("equipment_id", device.id)
-    .in("key_name", keys)
-    .order("ts", { ascending: false })
-    .limit(keys.length * 5);
+    .in("key_name", keys);
 
   const latest = new Map<string, { value: number | null; ts: string }>();
   for (const r of readings ?? []) {
