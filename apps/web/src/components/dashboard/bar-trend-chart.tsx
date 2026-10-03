@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { TrendingDown, TrendingUp } from "lucide-react";
-import { Bar, Cell, ComposedChart, Line, ReferenceArea, ReferenceLine, XAxis, YAxis } from "recharts";
+import { Bar, ComposedChart, Line, ReferenceArea, ReferenceLine, XAxis, YAxis } from "recharts";
 import { createClient } from "@waytara/supabase/client";
 import { useRealtimeTable, type RealtimeRowEvent } from "@waytara/ui/realtime-provider";
 import { fetchAllDeviceReadings, type DeviceReadingRow } from "@/lib/device-readings-fetch";
@@ -70,9 +69,8 @@ export interface BarTrendSeries {
    *  scaled by that bucket's width) — the same integration the footer's
    *  "sum" mode already does, just exposed per-bucket as a line instead
    *  of one final number. Stops (renders nothing further) once elapsed
-   *  time runs out, rather than continuing into the yesterday-borrowed
-   *  future portion of the base series, since energy that hasn't
-   *  happened yet obviously isn't "delivered". `key` still needs to be a
+   *  time runs out, since energy that hasn't happened yet obviously
+   *  isn't "delivered". `key` still needs to be a
    *  value nothing else in `series` uses, since it becomes this series'
    *  own point field and dataKey. */
   cumulativeOf?: string;
@@ -101,7 +99,6 @@ export interface BarTrendSessionMarker {
 
 interface ChartPoint {
   time: string;
-  isYesterday?: boolean;
   [seriesKey: string]: number | string | boolean | null | undefined;
 }
 
@@ -127,21 +124,7 @@ function ChartTick({ x, y, payload }: { x?: string | number; y?: string | number
   );
 }
 
-/** Wraps ChartTooltipContent to render nothing at all while hovering a
- *  yesterday-reference bucket — those grey bars are there to show the
- *  day's shape, not to be inspected value-by-value, so a hover card for
- *  them would just be noise (and its "(yesterday)" labeling made it read
- *  like a real, actionable reading rather than a muted backdrop). Real
- *  buckets still get the normal tooltip. */
-function TrendTooltipContent(props: React.ComponentProps<typeof ChartTooltipContent>) {
-  const point = (props.payload?.[0] as { payload?: ChartPoint } | undefined)?.payload;
-  if (point?.isYesterday) return null;
-  return <ChartTooltipContent {...props} />;
-}
-
-/** Sums + counts a set of readings into per-bucket, per-series-key values —
- *  shared shape for both today's real data and yesterday's reference data
- *  (yesterday keyed by time-of-day only, via `keyFor` stripping the date). */
+/** Sums + counts a set of readings into per-bucket, per-series-key values. */
 function bucketReadings(
   rows: DeviceReadingRow[],
   bucketMinutes: number,
@@ -168,10 +151,8 @@ function bucketReadings(
  *  Consumption chart introduced — generalized to any 1+ instrument keys so
  *  every Monitoring tab can use the exact same pattern for its own node: an
  *  interval picker (15m/30m/1h/2h) driving both bucket width and refetch,
- *  empty future buckets filled with yesterday's own value at the same
- *  time-of-day in muted grey so the day's shape reads as continuous, and a
- *  footer comparing today so far against yesterday. `PowerGenerationChart`
- *  (Overview) is now a thin wrapper around this. */
+ *  today-only data (future buckets stay empty) and a footer with today's
+ *  totals so far. `PowerGenerationChart` (Overview) is now a thin wrapper around this. */
 export function BarTrendChart({
   deviceId,
   title,
@@ -285,24 +266,11 @@ export function BarTrendChart({
 
     async function fetchData() {
       const since = todayMidnight().toISOString();
-      const yesterdayStart = new Date(todayMidnight());
-      yesterdayStart.setDate(yesterdayStart.getDate() - 1);
-
-      const [today, yesterday] = await Promise.all([
-        fetchAllDeviceReadings(supabase, deviceId, fetchSeriesKeys, since),
-        fetchAllDeviceReadings(supabase, deviceId, fetchSeriesKeys, yesterdayStart.toISOString(), since),
-      ]);
+      const today = await fetchAllDeviceReadings(supabase, deviceId, fetchSeriesKeys, since);
       if (cancelled) return;
       setLoaded(true);
 
       const { sums, counts } = bucketReadings(today, bucketMinutes, (ts) => bucketKeyFor(ts, bucketMinutes), fetchSeriesKeys, scaleByKey);
-      const { sums: ySums, counts: yCounts } = bucketReadings(
-        yesterday,
-        bucketMinutes,
-        (ts) => bucketKeyFor(ts, bucketMinutes).slice(11),
-        fetchSeriesKeys,
-        scaleByKey
-      );
 
       const nowBucketKey = bucketKeyFor(localBucketDateString(new Date()), bucketMinutes);
       const carry: Record<string, number | null> = Object.fromEntries(fetchSeriesKeys.map((k) => [k, null]));
@@ -311,34 +279,18 @@ export function BarTrendChart({
         const s = sums.get(bk);
         const c = counts.get(bk);
         const isFuture = bk > nowBucketKey;
-        const timeOfDay = bk.slice(11);
-        const yc = yCounts.get(timeOfDay);
-        const ys = ySums.get(timeOfDay);
         const point: ChartPoint = { time: bk };
-        let usedYesterday = false;
 
         for (const key of fetchSeriesKeys) {
-          // Yesterday's own value at this same time-of-day, kept on every
-          // bucket (not just future ones borrowing it for display) purely
-          // so the footer's trend line can compare today-so-far against
-          // yesterday over the exact same elapsed portion of the day.
-          point[`${key}__yesterday`] = yc && yc[key] && ys ? ys[key] / yc[key] : null;
-
           if (c && c[key]) {
             point[key] = s![key] / c[key];
             carry[key] = point[key] as number;
           } else if (isFuture) {
-            if (yc && yc[key] && ys) {
-              point[key] = ys[key] / yc[key];
-              usedYesterday = true;
-            } else {
-              point[key] = null;
-            }
+            point[key] = null;
           } else {
             point[key] = carry[key];
           }
         }
-        if (usedYesterday) point.isYesterday = true;
         return point;
       });
 
@@ -346,16 +298,14 @@ export function BarTrendChart({
       // base series, elapsed-hours at a time — the exact same math the
       // footer's own "sum" mode uses, just kept per-bucket instead of
       // collapsed into one final number. Stops accumulating (and stops
-      // rendering, via `null`) past "now" — the base series' own future
-      // buckets borrow yesterday's value so its *bars* still read as a
-      // continuous day, but energy that hasn't happened yet can't count
-      // toward a running total.
+      // rendering, via `null`) past "now" — energy that hasn't happened
+      // yet can't count toward a running total.
       const bucketHours = bucketMinutes / 60;
       for (const s of series) {
         if (!s.cumulativeOf) continue;
         let running = 0;
         for (const point of filled) {
-          if (point.isYesterday) {
+          if (point.time > nowBucketKey) {
             point[s.key] = null;
             continue;
           }
@@ -379,7 +329,7 @@ export function BarTrendChart({
   }, [deviceId, bucketMinutes, fetchSeriesKeysJoined, scalesJoined]);
 
   // Any new reading changes the day's shape enough (a fresh real point
-  // replacing a carried-forward or yesterday-borrowed one) that a full
+  // replacing a carried-forward one) that a full
   // refetch is simpler and cheap here. The shared realtime channel already
   // batches rows within a ~300ms window, but still calls this handler once
   // per row in that batch (see realtime-provider.tsx) — one device "tick"
@@ -406,24 +356,6 @@ export function BarTrendChart({
 
   const intervalLabel = INTERVAL_OPTIONS.find((o) => o.minutes === bucketMinutes)?.label ?? `${bucketMinutes} min`;
 
-  // "Trending" line compares today's average of the first series so far
-  // against yesterday's average over that same elapsed portion of the day
-  // — a fair same-point-in-day comparison, not a full-day total (today
-  // isn't over yet, so a full-day total would always read low).
-  const primaryKey = series[0]?.key;
-  const trend = React.useMemo(() => {
-    if (!primaryKey) return null;
-    const yKey = `${primaryKey}__yesterday`;
-    const real = points.filter((p) => !p.isYesterday && p[primaryKey] !== null && p[primaryKey] !== undefined);
-    if (real.length === 0) return null;
-    const todayAvg = real.reduce((sum, p) => sum + ((p[primaryKey] as number) ?? 0), 0) / real.length;
-    const withYesterday = real.filter((p) => p[yKey] !== null && p[yKey] !== undefined);
-    if (withYesterday.length === 0) return null;
-    const yesterdayAvg = withYesterday.reduce((sum, p) => sum + ((p[yKey] as number) ?? 0), 0) / withYesterday.length;
-    if (yesterdayAvg <= 0) return null;
-    return { pct: ((todayAvg - yesterdayAvg) / yesterdayAvg) * 100 };
-  }, [points, primaryKey]);
-
   // Both the "average so far today" and the "integrated over elapsed
   // hours" total, for every series — cheap to compute both regardless of
   // mode, since each series picks its own footer mode/unit below (a
@@ -433,7 +365,7 @@ export function BarTrendChart({
     const bucketHours = bucketMinutes / 60;
     const out: Record<string, { avg: number; sum: number }> = {};
     for (const key of seriesKeys) {
-      const real = points.filter((p) => !p.isYesterday && p[key] !== null && p[key] !== undefined);
+      const real = points.filter((p) => p[key] !== null && p[key] !== undefined);
       const avg = real.length > 0 ? real.reduce((s, p) => s + ((p[key] as number) ?? 0), 0) / real.length : 0;
       const sum = real.reduce((s, p) => s + ((p[key] as number) ?? 0) * bucketHours, 0);
       out[key] = { avg, sum };
@@ -485,7 +417,7 @@ export function BarTrendChart({
       <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
         <div>
           <CardTitle className="text-sm">{title}</CardTitle>
-          <CardDescription>Today, {intervalLabel} average &middot; grey bars are yesterday&apos;s reference</CardDescription>
+          <CardDescription>Today, {intervalLabel} average</CardDescription>
         </div>
         <Select value={String(bucketMinutes)} onValueChange={(v) => setBucketMinutes(Number(v))}>
           <SelectTrigger className="h-8 w-[110px] shrink-0 text-xs">
@@ -517,7 +449,7 @@ export function BarTrendChart({
             <ChartTooltip
               cursor={false}
               content={
-                <TrendTooltipContent
+                <ChartTooltipContent
                   indicator="dashed"
                   labelFormatter={(l) => formatBucketLabel(String(l), bucketMinutes)}
                   formatter={(value, name, item) => (
@@ -570,11 +502,7 @@ export function BarTrendChart({
                   isAnimationActive={false}
                 />
               ) : (
-                <Bar key={s.key} dataKey={s.key} name={s.label} yAxisId={s.unit ?? unit} fill={`var(--color-${s.key})`} radius={4}>
-                  {points.map((p, i) => (
-                    <Cell key={i} fillOpacity={p.isYesterday ? 0.3 : 1} fill={p.isYesterday ? "var(--muted-foreground)" : `var(--color-${s.key})`} />
-                  ))}
-                </Bar>
+                <Bar key={s.key} dataKey={s.key} name={s.label} yAxisId={s.unit ?? unit} fill={`var(--color-${s.key})`} radius={4} />
               )
             )}
             {referenceLines?.map((rl, i) => (
@@ -617,12 +545,6 @@ export function BarTrendChart({
         </ChartContainer>
       </CardContent>
       <CardFooter className="flex-col items-start gap-2 text-sm">
-        {trend && (
-          <div className="flex gap-2 leading-none font-medium">
-            {trend.pct >= 0 ? "Up" : "Down"} {Math.abs(trend.pct).toFixed(1)}% vs. yesterday at this time
-            {trend.pct >= 0 ? <TrendingUp className="h-4 w-4 text-emerald-500" /> : <TrendingDown className="h-4 w-4 text-rose-500" />}
-          </div>
-        )}
         <div className="leading-none text-muted-foreground">
           {series
             // A `cumulativeOf` series is just its base series' own "sum"

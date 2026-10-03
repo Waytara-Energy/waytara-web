@@ -16,8 +16,8 @@ const SERIES = [
 ];
 
 /** "Power Generation & Consumption — Today" — Overview's own instance of
- *  BarTrendChart's grouped bar pattern (interval picker, yesterday-grey
- *  reference bars, trend + totals footer). See bar-trend-chart.tsx for the
+ *  BarTrendChart's grouped bar pattern (interval picker, today-only
+ *  bars, totals footer). See bar-trend-chart.tsx for the
  *  shared mechanics; this file only fixes the two series/labels/colors
  *  Overview has always shown. */
 export function PowerGenerationChart({ deviceId }: { deviceId: string }) {
