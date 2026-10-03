@@ -7,7 +7,9 @@
     "build": "turbo run build",
     "start": "turbo run start",
     "lint": "turbo run lint",
-    "db:types": "pnpm --filter @waytara/supabase db:types"
+    "db:types": "pnpm --filter @waytara/supabase db:types",
+    "typecheck": "turbo run typecheck",
+    "test": "turbo run test"
   },
   "devDependencies": {
     "turbo": "^2.10.12"

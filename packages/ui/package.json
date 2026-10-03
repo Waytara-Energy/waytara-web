@@ -12,7 +12,8 @@
     "./use-session-signed-out": "./src/use-session-signed-out.ts",
     "./realtime-provider": "./src/realtime-provider.tsx",
     "./notify": "./src/notify.ts",
-    "./action-form": "./src/action-form.tsx"
+    "./action-form": "./src/action-form.tsx",
+    "./error-fallback": "./src/error-fallback.tsx"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"
