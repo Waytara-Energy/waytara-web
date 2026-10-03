@@ -57,3 +57,12 @@ telemetry insert avg 75 ms/call; 52 of 109 RLS policies use bare `auth.uid()`.
   Docker Supabase built from a read-only dump of production, then every newer migration applied on top. Used to verify
   the security migrations (anon cannot execute functions; bucket private; limiter blocks the 6th request;
   pre-converted anonymous lead insert rejected; cron jobs scheduled; cron wrapper no-ops without Vault secrets).
+
+## Phase 6 (started early) — Testing foundation
+- **Unit tests (Vitest)**: register codec (decode/encode round-trips, offsets, 32-bit words), field formatting,
+  phase/index grouping, cron auth (fails closed), rate limiter (DB path + in-memory fallback). `pnpm test`.
+- **Database security tests (pgTAP)**: 39 assertions in `supabase/tests/database/01_security.test.sql` run against the
+  production-shaped local DB: anonymous access, customer ↔ customer isolation, privilege-escalation attempts
+  (self-promotion to admin, moving/renaming another customer's device, forging telemetry), employee scoping,
+  audit-log immutability (even for admins), rate limiter, private quotation bucket. `pnpm --filter @waytara/supabase test:db`.
+- CI runs lint, type-check, unit tests, build, dependency audit, CodeQL, and the database suite.
