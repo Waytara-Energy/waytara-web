@@ -20,6 +20,9 @@ export function securityHeaders(options = {}) {
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseHttp = supabaseUrl ? new URL(supabaseUrl).origin : "";
   const supabaseWs = supabaseHttp.replace(/^http/, "ws");
+  // Error reports go to the DSN's ingest host; allow exactly that origin, and only when configured.
+  const sentryDsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
+  const sentryOrigin = sentryDsn ? new URL(sentryDsn).origin : "";
 
   const csp = [
     "default-src 'self'",
@@ -29,7 +32,7 @@ export function securityHeaders(options = {}) {
     `img-src 'self' data: blob: ${supabaseHttp} ${(options.imgSrc ?? []).join(" ")}`.trim(),
     "media-src 'self'",
     "font-src 'self' data:",
-    `connect-src 'self' ${supabaseHttp} ${supabaseWs} ${(options.connectSrc ?? []).join(" ")}`.trim(),
+    `connect-src 'self' ${supabaseHttp} ${supabaseWs} ${sentryOrigin} ${(options.connectSrc ?? []).join(" ")}`.replace(/\s+/g, " ").trim(),
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

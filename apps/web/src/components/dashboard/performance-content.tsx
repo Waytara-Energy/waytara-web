@@ -1,7 +1,7 @@
 import { createClient } from "@waytara/supabase/server";
 import type { CustomerDevice } from "@/lib/selected-site";
 import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
-import { fetchAllDeviceReadings } from "@/lib/device-readings-fetch";
+import { fetchDailyMaxReadings } from "@/lib/device-readings-fetch";
 import { fetchDashboardFields, fetchFieldValues, resolveComputedValues, type FieldValue } from "@/lib/template-fields";
 import { DynamicFieldGroup } from "./dynamic-field-group";
 import { PerformanceChart, DivergingBarChart } from "./lazy-charts";
@@ -84,7 +84,7 @@ async function SolarInverterPerformance({ supabase, device }: { supabase: Supaba
   ];
 
   const [rawRows, rawValues, enumOptions] = await Promise.all([
-    fetchAllDeviceReadings(supabase, device.id, SOLAR_HISTORY_KEYS, since.toISOString()),
+    fetchDailyMaxReadings(supabase, device.id, SOLAR_HISTORY_KEYS, since.toISOString()),
     fetchFieldValues(supabase, device.id, [...dynamicKeys, ...CROSSREF_KEYS]),
     enumRefs.length > 0
       ? supabase
@@ -209,7 +209,7 @@ async function EvChargerPerformance({ supabase, device }: { supabase: SupabaseSe
   // then makes weekly/monthly rollups take that latest value instead of
   // summing it (summing a cumulative series would double-count).
   const [energyRows, { data: sessions }, billingValues] = await Promise.all([
-    fetchAllDeviceReadings(supabase, device.id, ["energy_active_import_register_kwh"], since.toISOString()),
+    fetchDailyMaxReadings(supabase, device.id, ["energy_active_import_register_kwh"], since.toISOString()),
     supabase
       .from("ev_sessions")
       .select("id, started_at, ended_at, start_energy_kwh, end_energy_kwh, stop_reason")

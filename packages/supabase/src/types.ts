@@ -473,6 +473,44 @@ export type Database = {
         }
         Relationships: []
       }
+      equipment_telemetry_hourly: {
+        Row: {
+          avg_value: number | null
+          equipment_id: string
+          hour: string
+          key_name: string
+          max_value: number | null
+          min_value: number | null
+          samples: number
+        }
+        Insert: {
+          avg_value?: number | null
+          equipment_id: string
+          hour: string
+          key_name: string
+          max_value?: number | null
+          min_value?: number | null
+          samples: number
+        }
+        Update: {
+          avg_value?: number | null
+          equipment_id?: string
+          hour?: string
+          key_name?: string
+          max_value?: number | null
+          min_value?: number | null
+          samples?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_telemetry_hourly_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipment_inventory: {
         Row: {
           brand: string | null
@@ -1547,6 +1585,10 @@ export type Database = {
       consume_rate_limit: {
         Args: { p_bucket: string; p_key: string; p_max: number; p_window_seconds: number }
         Returns: boolean
+      }
+      telemetry_daily: {
+        Args: { p_equipment_id: string; p_from: string; p_keys: string[]; p_to: string }
+        Returns: { avg_value: number; day: string; key_name: string; max_value: number; min_value: number; samples: number }[]
       }
       telemetry_buckets: {
         Args: { p_bucket_minutes: number; p_equipment_id: string; p_from: string; p_keys: string[]; p_to: string }

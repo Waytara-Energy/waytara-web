@@ -53,3 +53,44 @@ export async function fetchAllDeviceReadings(
   }
   return rows;
 }
+
+/** Long-range history (Analytics, Performance, report exports: 30–365 days):
+ *  one reading per day per key — the day's MAXIMUM — read from the hourly
+ *  rollup (`telemetry_daily`) instead of paging through raw rows.
+ *
+ *  Why: every long-range consumer ends in "max seen per day" of a cumulative
+ *  daily-energy register (aggregateDailyYield / maxByDeviceDay), and raw
+ *  history is both enormous (~17k readings/day for one key) and eventually
+ *  purged. fetchAllDeviceReadings is capped at 20,000 rows, which is about
+ *  one day of one key, so a 90-day window used to be computed from only the
+ *  first day or two. The returned shape matches fetchAllDeviceReadings
+ *  (`ts` is the IST day's start, `value` its max), so callers are unchanged.
+ *
+ *  Freshness: the rollup is refreshed every 10 minutes by pg_cron, so
+ *  today's figure can lag by up to that. Use fetchAllDeviceReadings for
+ *  intraday charts. */
+export async function fetchDailyMaxReadings(
+  supabase: AnySupabaseClient,
+  deviceId: string,
+  keys: string[],
+  gte: string,
+  lt?: string
+): Promise<DeviceReadingRow[]> {
+  const PAGE_SIZE = 1000; // PostgREST's per-request row cap
+  const MAX_PAGES = 20;
+  const to = lt ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
+  const rows: DeviceReadingRow[] = [];
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const { data } = await supabase
+      .rpc("telemetry_daily", { p_equipment_id: deviceId, p_keys: keys, p_from: gte, p_to: to })
+      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    if (!data || data.length === 0) break;
+    for (const r of data) {
+      // max_value is null only if every sample in the day was null; skip those days.
+      if ((r.max_value as number | null) === null) continue;
+      rows.push({ key_name: r.key_name, value: r.max_value, ts: r.day });
+    }
+    if (data.length < PAGE_SIZE) break;
+  }
+  return rows;
+}

@@ -139,3 +139,45 @@ banner (not added — needs your property ID).
 
 Also fixed: pnpm 11 left `esbuild: set this to true or false` in `pnpm-workspace.yaml`, which makes every
 `pnpm install` / `pnpm exec` exit non-zero (would have failed CI). Approved as `true`.
+
+## Phase 8 — Telemetry at scale (migration `20261003030000_telemetry_rollups_retention.sql`)
+- **Found:** Analytics, Performance and report export (30–365 days) read *raw* readings through a helper capped at
+  20,000 rows (~one day of one key), so their long-range numbers were silently computed from the first day or two.
+- **`equipment_telemetry_hourly`** rollup (min/avg/max/count per device+key+hour, IST-aligned bins so every India
+  midnight is an exact boundary), refreshed every 10 min by pg_cron, backfilled, kept forever, RLS like telemetry.
+- **`telemetry_daily()`** (per-IST-day max/avg/min, SECURITY INVOKER) + `fetchDailyMaxReadings()`; the five long-range
+  call sites now use it (a year of one key ≈ 365 rows instead of millions).
+- **Retention:** `purge_old_telemetry(90)` runs nightly, bounded batches, refuses < 14 days; raw rows older than 90 days
+  go, rollups stay. (Nothing is old enough to delete yet — oldest raw row is from 2026-09-20.)
+- **Not done on purpose:** table partitioning. Plan and trigger (raw rows > ~50M) are in OPERATIONS.md §4.
+- Tests: `03_rollups_retention.test.sql` (18 assertions incl. exact IST day boundaries, RLS, idempotence, retention keeps rollups).
+
+## Phase 9 — Production readiness
+- **Error monitoring:** Sentry wired into both apps (`instrumentation.ts`, `instrumentation-client.ts`, all error
+  boundaries); completely inactive and not downloaded until a DSN is set; no PII, no session replay; CSP extends to the
+  DSN origin automatically.
+- **Docs:** `OPERATIONS.md` (release order, env vars, Vault/cron setup, Supabase Auth checklist, backups, monitoring,
+  telemetry plan, incident cheat-sheet, DPDP data inventory), `CONTRIBUTING.md` (rules learned from real bugs, PR
+  checklist), `SECURITY.md` (model, reporting, remaining gaps). `.env.example` brought up to date.
+- **Tooling fixes found along the way:** pnpm-11 unapproved build scripts (esbuild, @sentry/cli) broke `pnpm install`/`exec`
+  exit codes; ESLint/tsc now ignore the E2E build dir (lint ran out of memory without it).
+
+## Final verification (all on the finished branch)
+| Check | Result |
+|---|---|
+| `pnpm lint` / `typecheck` | clean (both apps + packages) |
+| Unit tests (Vitest) | 46 passed (13 codec + 33 web) |
+| Database tests (pgTAP) | 73 assertions passed |
+| End-to-end (Playwright) | 26 passed |
+| `pnpm build` | both apps build |
+| Lighthouse (mobile, local) | home 83, solutions 85, login 90 (SEO 63 is intentional: `noindex`); first-load JS 188–236 KB gz |
+
+## Still open / needs a human
+1. **Apply the 4 pending migrations to production** (the sandbox blocked me from doing it) — the code requires them.
+2. Set in Vercel: `CRON_SECRET`; create the two Vault secrets (`OPERATIONS.md` §2). Until then scheduled jobs are no-ops.
+3. Supabase dashboard settings that cannot be done by migration (Auth hardening, PITR, SSL) — `OPERATIONS.md` §2.
+4. Founder content/facts (`src/lib/site.ts` REVIEW items; `/technology` and `/knowledge-centre` placeholder copy).
+5. Accessibility debt from axe: colour contrast (login 2, contact 1, solutions 17 nodes).
+6. Home LCP is still ~4 s in the throttled lab (target 2.5 s): next candidates are a poster image + deferred hero video.
+7. GA4 / cookie-consent banner not added (needs a measurement ID); Vercel Speed Insights optional.
+8. MFA for admins deliberately skipped (your decision); nonce-based CSP not done (see `SECURITY.md`).

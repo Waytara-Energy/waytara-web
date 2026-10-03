@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { reportError } from "@/lib/report-error";
 
 // Renders its own <html>/<body> and gets none of the app's global CSS
 // (per the Next docs), so it is deliberately self-contained with inline
@@ -8,6 +9,7 @@ import { useEffect } from "react";
 export default function GlobalError({ error, retry }: { error: Error & { digest?: string }; retry: () => void }) {
   useEffect(() => {
     console.error(error);
+    reportError(error);
   }, [error]);
 
   return (

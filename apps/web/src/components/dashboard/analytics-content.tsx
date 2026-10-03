@@ -7,7 +7,7 @@ import { PerformanceChart } from "./lazy-charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { aggregateDailyYield, maxByDeviceDay, sumByDay, type RawReading } from "@/lib/energy-aggregation";
 import { getTotalInvested } from "@/lib/total-invested";
-import { fetchAllDeviceReadings } from "@/lib/device-readings-fetch";
+import { fetchDailyMaxReadings } from "@/lib/device-readings-fetch";
 import { DeviceParameterCards } from "./device-parameter-cards";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -111,12 +111,10 @@ async function SolarInverterAnalytics({
   // even though the yield/savings chart below is device-scoped — the two
   // figures answer different questions (what you spent on the system vs.
   // what this one device has generated).
-  // HISTORY_DAYS=365 here — the widest date range in the app, and the
-  // first two queries below were plain unpaginated `.from()` calls despite
-  // that, which for any device with regular readings clears PostgREST's
-  // per-request row cap easily (ascending order means the *oldest* rows
-  // survive the cap, so a year-old account was silently missing its most
-  // recent months). fetchAllDeviceReadings pages through the cap instead.
+  // HISTORY_DAYS=365 here — the widest date range in the app. Raw history
+  // for that span is millions of rows, far past any per-request cap (the
+  // oldest rows survived the cap, so recent months silently went missing),
+  // so the two history queries below read the per-day rollup instead.
   const readKeys = await fetchReadKeys(supabase, device);
   const showGridCost = readKeys.has("day_grid_import_energy_kwh") || readKeys.has("day_grid_export_energy_kwh");
 
@@ -129,8 +127,8 @@ async function SolarInverterAnalytics({
 
   const [totalInvested, readings, extraRows, { data: latestRows }] = await Promise.all([
     getTotalInvested(supabase),
-    fetchAllDeviceReadings(supabase, device.id, [YIELD_INSTRUMENT_KEY], since.toISOString()),
-    fetchAllDeviceReadings(supabase, device.id, EXTRA_KEYS, since.toISOString()),
+    fetchDailyMaxReadings(supabase, device.id, [YIELD_INSTRUMENT_KEY], since.toISOString()),
+    fetchDailyMaxReadings(supabase, device.id, EXTRA_KEYS, since.toISOString()),
     supabase
       .from("equipment_telemetry")
       .select("key_name, value, ts")

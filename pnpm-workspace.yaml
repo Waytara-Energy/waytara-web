@@ -4,3 +4,5 @@ packages:
 allowBuilds:
   esbuild: true
   unrs-resolver: true
+  # Only used to upload source maps to Sentry; we do not do that yet.
+  "@sentry/cli": false

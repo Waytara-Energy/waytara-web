@@ -4,7 +4,7 @@ import { getCustomerPlan } from "@/lib/customer-plan";
 import { getRequestProfile } from "@/lib/request-profile";
 import { maxByDeviceDay, sumByDay, type DailyPoint } from "@/lib/energy-aggregation";
 import { getTotalInvested } from "@/lib/total-invested";
-import { fetchAllDeviceReadings } from "@/lib/device-readings-fetch";
+import { fetchDailyMaxReadings } from "@/lib/device-readings-fetch";
 
 const YIELD_INSTRUMENT_KEY = "day_pv_energy_kwh";
 
@@ -93,13 +93,11 @@ export async function gatherReportData(historyDays: number, deviceIdParam?: stri
   since.setUTCDate(since.getUTCDate() - historyDays);
 
   // Independent of each other — one round trip instead of two.
-  // fetchAllDeviceReadings (paginated), not a plain query: `historyDays`
-  // here can be 90-365 days (CSV/PDF export period), which for a single
-  // busy instrument key can still clear PostgREST's per-request row cap —
-  // same silent-truncation risk fetchAllDeviceReadings's own doc comment
-  // describes, just with a smaller blast radius than a multi-key query.
+  // Daily-max rollup, not raw rows: `historyDays` here can be 90-365 days
+  // (CSV/PDF export period) and raw history for even one busy key is far
+  // beyond any per-request cap (see fetchDailyMaxReadings' doc comment).
   const [readings, totalInvested] = await Promise.all([
-    fetchAllDeviceReadings(supabase, device.id, [YIELD_INSTRUMENT_KEY], since.toISOString()),
+    fetchDailyMaxReadings(supabase, device.id, [YIELD_INSTRUMENT_KEY], since.toISOString()),
     getTotalInvested(supabase),
   ]);
 
