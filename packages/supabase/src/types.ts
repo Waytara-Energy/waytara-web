@@ -58,7 +58,7 @@ export type Database = {
             foreignKeyName: "alerts_device_id_fkey"
             columns: ["device_id"]
             isOneToOne: false
-            referencedRelation: "devices"
+            referencedRelation: "equipment"
             referencedColumns: ["id"]
           },
         ]
@@ -100,50 +100,6 @@ export type Database = {
             columns: ["actor_id"]
             isOneToOne: false
             referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      charging_sessions: {
-        Row: {
-          created_at: string
-          device_id: string
-          end_energy_kwh: number | null
-          ended_at: string | null
-          id: string
-          is_test: boolean
-          start_energy_kwh: number | null
-          started_at: string
-          stop_reason: string | null
-        }
-        Insert: {
-          created_at?: string
-          device_id: string
-          end_energy_kwh?: number | null
-          ended_at?: string | null
-          id?: string
-          is_test?: boolean
-          start_energy_kwh?: number | null
-          started_at: string
-          stop_reason?: string | null
-        }
-        Update: {
-          created_at?: string
-          device_id?: string
-          end_energy_kwh?: number | null
-          ended_at?: string | null
-          id?: string
-          is_test?: boolean
-          start_energy_kwh?: number | null
-          started_at?: string
-          stop_reason?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "charging_sessions_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "devices"
             referencedColumns: ["id"]
           },
         ]
@@ -273,284 +229,6 @@ export type Database = {
           },
         ]
       }
-      device_feature_flags: {
-        Row: {
-          category: string
-          device_id: string
-          is_enabled: boolean
-          updated_at: string
-          updated_by: string | null
-        }
-        Insert: {
-          category: string
-          device_id: string
-          is_enabled?: boolean
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Update: {
-          category?: string
-          device_id?: string
-          is_enabled?: boolean
-          updated_at?: string
-          updated_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "device_feature_flags_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "devices"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "device_feature_flags_updated_by_fkey"
-            columns: ["updated_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      device_parameter_map: {
-        Row: {
-          address: Json
-          decode: Json | null
-          id: string
-          instrument_key: string
-          is_enabled: boolean
-          is_required: boolean
-          notes: string | null
-          protocol: string
-          stock_id: string
-          verified: boolean
-        }
-        Insert: {
-          address: Json
-          decode?: Json | null
-          id?: string
-          instrument_key: string
-          is_enabled?: boolean
-          is_required?: boolean
-          notes?: string | null
-          protocol: string
-          stock_id: string
-          verified?: boolean
-        }
-        Update: {
-          address?: Json
-          decode?: Json | null
-          id?: string
-          instrument_key?: string
-          is_enabled?: boolean
-          is_required?: boolean
-          notes?: string | null
-          protocol?: string
-          stock_id?: string
-          verified?: boolean
-        }
-        Relationships: [
-          {
-            foreignKeyName: "device_parameter_map_instrument_key_fkey"
-            columns: ["instrument_key"]
-            isOneToOne: false
-            referencedRelation: "instrument_catalog"
-            referencedColumns: ["instrument_key"]
-          },
-          {
-            foreignKeyName: "device_parameter_map_stock_id_fkey"
-            columns: ["stock_id"]
-            isOneToOne: false
-            referencedRelation: "stock"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      device_readings: {
-        Row: {
-          created_at: string
-          device_id: string
-          id: number
-          instrument_key: string
-          is_test: boolean
-          ts: string
-          unit: string | null
-          value: number | null
-        }
-        Insert: {
-          created_at?: string
-          device_id: string
-          id?: never
-          instrument_key: string
-          is_test?: boolean
-          ts: string
-          unit?: string | null
-          value?: number | null
-        }
-        Update: {
-          created_at?: string
-          device_id?: string
-          id?: never
-          instrument_key?: string
-          is_test?: boolean
-          ts?: string
-          unit?: string | null
-          value?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "device_readings_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "devices"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      device_settings: {
-        Row: {
-          applied_preset_key: string | null
-          device_id: string
-          id: number
-          modbus_register: Json | null
-          notes: string | null
-          previous_value: string | null
-          setting_category: string
-          setting_key: string
-          setting_value: string
-          source: string | null
-          ts: string
-          unit: string | null
-          written_by: string | null
-        }
-        Insert: {
-          applied_preset_key?: string | null
-          device_id: string
-          id?: never
-          modbus_register?: Json | null
-          notes?: string | null
-          previous_value?: string | null
-          setting_category: string
-          setting_key: string
-          setting_value: string
-          source?: string | null
-          ts?: string
-          unit?: string | null
-          written_by?: string | null
-        }
-        Update: {
-          applied_preset_key?: string | null
-          device_id?: string
-          id?: never
-          modbus_register?: Json | null
-          notes?: string | null
-          previous_value?: string | null
-          setting_category?: string
-          setting_key?: string
-          setting_value?: string
-          source?: string | null
-          ts?: string
-          unit?: string | null
-          written_by?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "device_settings_applied_preset_key_fkey"
-            columns: ["applied_preset_key"]
-            isOneToOne: false
-            referencedRelation: "setting_presets"
-            referencedColumns: ["key"]
-          },
-          {
-            foreignKeyName: "device_settings_device_id_fkey"
-            columns: ["device_id"]
-            isOneToOne: false
-            referencedRelation: "devices"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "device_settings_written_by_fkey"
-            columns: ["written_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      devices: {
-        Row: {
-          created_at: string
-          device_status: Database["waytara"]["Enums"]["device_status"]
-          id: string
-          installation_id: string | null
-          installed_at: string | null
-          label: string | null
-          service_id: string | null
-          site_id: string
-          stock_device_id: string
-          updated_at: string
-          warranty_end_date: string | null
-          warranty_start_date: string | null
-        }
-        Insert: {
-          created_at?: string
-          device_status?: Database["waytara"]["Enums"]["device_status"]
-          id?: string
-          installation_id?: string | null
-          installed_at?: string | null
-          label?: string | null
-          service_id?: string | null
-          site_id: string
-          stock_device_id: string
-          updated_at?: string
-          warranty_end_date?: string | null
-          warranty_start_date?: string | null
-        }
-        Update: {
-          created_at?: string
-          device_status?: Database["waytara"]["Enums"]["device_status"]
-          id?: string
-          installation_id?: string | null
-          installed_at?: string | null
-          label?: string | null
-          service_id?: string | null
-          site_id?: string
-          stock_device_id?: string
-          updated_at?: string
-          warranty_end_date?: string | null
-          warranty_start_date?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: "devices_device_type_id_fkey"
-            columns: ["stock_device_id"]
-            isOneToOne: false
-            referencedRelation: "stock"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "devices_installation_id_fkey"
-            columns: ["installation_id"]
-            isOneToOne: false
-            referencedRelation: "installations"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "devices_service_id_fkey"
-            columns: ["service_id"]
-            isOneToOne: false
-            referencedRelation: "service_contracts"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "devices_site_id_fkey"
-            columns: ["site_id"]
-            isOneToOne: false
-            referencedRelation: "sites"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       employee_invites: {
         Row: {
           accepted_at: string | null
@@ -595,6 +273,80 @@ export type Database = {
           },
         ]
       }
+      equipment: {
+        Row: {
+          created_at: string
+          device_status: Database["waytara"]["Enums"]["device_status"]
+          id: string
+          installation_id: string | null
+          installed_at: string | null
+          label: string | null
+          service_id: string | null
+          site_id: string
+          stock_id: string
+          updated_at: string
+          warranty_end_date: string | null
+          warranty_start_date: string | null
+        }
+        Insert: {
+          created_at?: string
+          device_status?: Database["waytara"]["Enums"]["device_status"]
+          id?: string
+          installation_id?: string | null
+          installed_at?: string | null
+          label?: string | null
+          service_id?: string | null
+          site_id: string
+          stock_id: string
+          updated_at?: string
+          warranty_end_date?: string | null
+          warranty_start_date?: string | null
+        }
+        Update: {
+          created_at?: string
+          device_status?: Database["waytara"]["Enums"]["device_status"]
+          id?: string
+          installation_id?: string | null
+          installed_at?: string | null
+          label?: string | null
+          service_id?: string | null
+          site_id?: string
+          stock_id?: string
+          updated_at?: string
+          warranty_end_date?: string | null
+          warranty_start_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "devices_device_type_id_fkey"
+            columns: ["stock_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devices_installation_id_fkey"
+            columns: ["installation_id"]
+            isOneToOne: false
+            referencedRelation: "installations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devices_service_id_fkey"
+            columns: ["service_id"]
+            isOneToOne: false
+            referencedRelation: "service_contracts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "devices_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipment_checks: {
         Row: {
           availability: boolean
@@ -635,7 +387,401 @@ export type Database = {
             foreignKeyName: "equipment_checks_device_id_fkey"
             columns: ["device_id"]
             isOneToOne: true
-            referencedRelation: "devices"
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_configs: {
+        Row: {
+          equipment_id: string
+          id: number
+          key_name: string
+          modbus_register: Json | null
+          notes: string | null
+          previous_value: string | null
+          setting_category: string
+          setting_value: string
+          source: string | null
+          ts: string
+          unit: string | null
+          written_by: string | null
+        }
+        Insert: {
+          equipment_id: string
+          id?: never
+          key_name: string
+          modbus_register?: Json | null
+          notes?: string | null
+          previous_value?: string | null
+          setting_category: string
+          setting_value: string
+          source?: string | null
+          ts?: string
+          unit?: string | null
+          written_by?: string | null
+        }
+        Update: {
+          equipment_id?: string
+          id?: never
+          key_name?: string
+          modbus_register?: Json | null
+          notes?: string | null
+          previous_value?: string | null
+          setting_category?: string
+          setting_value?: string
+          source?: string | null
+          ts?: string
+          unit?: string | null
+          written_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_settings_device_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_settings_written_by_fkey"
+            columns: ["written_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_enum: {
+        Row: {
+          code: string
+          enum_ref: string
+          label: string
+          notes: string | null
+        }
+        Insert: {
+          code: string
+          enum_ref: string
+          label: string
+          notes?: string | null
+        }
+        Update: {
+          code?: string
+          enum_ref?: string
+          label?: string
+          notes?: string | null
+        }
+        Relationships: []
+      }
+      equipment_inventory: {
+        Row: {
+          brand: string | null
+          category: string
+          created_at: string
+          id: string
+          manufacturer: string | null
+          model: string | null
+          model_number: string | null
+          name: string
+          pack_size: number | null
+          phase_count: number | null
+          po_reference: string | null
+          power_capacity_unit: string | null
+          power_capacity_value: number | null
+          primary_uom: string | null
+          purchase_date: string | null
+          purchase_price_amount: number | null
+          quantity: number
+          serial_number: string | null
+          size_unit: string | null
+          size_value: number | null
+          status: Database["waytara"]["Enums"]["stock_status"]
+          supplier: string | null
+          technical_specs: Json | null
+          unit_price: number | null
+          warranty_info: Json | null
+        }
+        Insert: {
+          brand?: string | null
+          category: string
+          created_at?: string
+          id?: string
+          manufacturer?: string | null
+          model?: string | null
+          model_number?: string | null
+          name: string
+          pack_size?: number | null
+          phase_count?: number | null
+          po_reference?: string | null
+          power_capacity_unit?: string | null
+          power_capacity_value?: number | null
+          primary_uom?: string | null
+          purchase_date?: string | null
+          purchase_price_amount?: number | null
+          quantity?: number
+          serial_number?: string | null
+          size_unit?: string | null
+          size_value?: number | null
+          status?: Database["waytara"]["Enums"]["stock_status"]
+          supplier?: string | null
+          technical_specs?: Json | null
+          unit_price?: number | null
+          warranty_info?: Json | null
+        }
+        Update: {
+          brand?: string | null
+          category?: string
+          created_at?: string
+          id?: string
+          manufacturer?: string | null
+          model?: string | null
+          model_number?: string | null
+          name?: string
+          pack_size?: number | null
+          phase_count?: number | null
+          po_reference?: string | null
+          power_capacity_unit?: string | null
+          power_capacity_value?: number | null
+          primary_uom?: string | null
+          purchase_date?: string | null
+          purchase_price_amount?: number | null
+          quantity?: number
+          serial_number?: string | null
+          size_unit?: string | null
+          size_value?: number | null
+          status?: Database["waytara"]["Enums"]["stock_status"]
+          supplier?: string | null
+          technical_specs?: Json | null
+          unit_price?: number | null
+          warranty_info?: Json | null
+        }
+        Relationships: []
+      }
+      equipment_metrics: {
+        Row: {
+          address: Json | null
+          cadence_seconds: number | null
+          category: string
+          decode: Json | null
+          device_category: string
+          direction: string
+          enum_ref: string | null
+          equipment_id: string
+          id: string
+          is_verified: boolean
+          key_name: string
+          notes: string | null
+          show_for_user: boolean
+          valid_max: number | null
+          valid_min: number | null
+        }
+        Insert: {
+          address?: Json | null
+          cadence_seconds?: number | null
+          category: string
+          decode?: Json | null
+          device_category: string
+          direction: string
+          enum_ref?: string | null
+          equipment_id: string
+          id?: string
+          is_verified?: boolean
+          key_name: string
+          notes?: string | null
+          show_for_user?: boolean
+          valid_max?: number | null
+          valid_min?: number | null
+        }
+        Update: {
+          address?: Json | null
+          cadence_seconds?: number | null
+          category?: string
+          decode?: Json | null
+          device_category?: string
+          direction?: string
+          enum_ref?: string | null
+          equipment_id?: string
+          id?: string
+          is_verified?: boolean
+          key_name?: string
+          notes?: string | null
+          show_for_user?: boolean
+          valid_max?: number | null
+          valid_min?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_metrics_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_metrics_template_fkey"
+            columns: ["device_category", "key_name"]
+            isOneToOne: false
+            referencedRelation: "equipment_templates"
+            referencedColumns: ["device_category", "key_name"]
+          },
+        ]
+      }
+      equipment_telemetry: {
+        Row: {
+          created_at: string
+          equipment_id: string
+          id: number
+          is_test: boolean
+          key_name: string
+          ts: string
+          unit: string | null
+          value: number | null
+        }
+        Insert: {
+          created_at?: string
+          equipment_id: string
+          id?: never
+          is_test?: boolean
+          key_name: string
+          ts: string
+          unit?: string | null
+          value?: number | null
+        }
+        Update: {
+          created_at?: string
+          equipment_id?: string
+          id?: never
+          is_test?: boolean
+          key_name?: string
+          ts?: string
+          unit?: string | null
+          value?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_readings_device_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_templates: {
+        Row: {
+          category: string
+          dashboard_section: string
+          device_category: string
+          direction: string
+          display_name: string
+          ev_dc: boolean
+          ev_fast_ac: boolean
+          ev_slow_ac: boolean
+          group_name: string | null
+          hybrid_1p_off_grid: boolean
+          hybrid_1p_on_grid: boolean
+          hybrid_3p_off_grid: boolean
+          hybrid_3p_on_grid: boolean
+          id: string
+          key_name: string
+          micro_1p_on_grid: boolean
+          notes: string | null
+          source: string | null
+          string_1p_on_grid: boolean
+          string_3p_on_grid: boolean
+          unit: string | null
+          value_kind: string | null
+        }
+        Insert: {
+          category: string
+          dashboard_section: string
+          device_category: string
+          direction: string
+          display_name: string
+          ev_dc?: boolean
+          ev_fast_ac?: boolean
+          ev_slow_ac?: boolean
+          group_name?: string | null
+          hybrid_1p_off_grid?: boolean
+          hybrid_1p_on_grid?: boolean
+          hybrid_3p_off_grid?: boolean
+          hybrid_3p_on_grid?: boolean
+          id?: string
+          key_name: string
+          micro_1p_on_grid?: boolean
+          notes?: string | null
+          source?: string | null
+          string_1p_on_grid?: boolean
+          string_3p_on_grid?: boolean
+          unit?: string | null
+          value_kind?: string | null
+        }
+        Update: {
+          category?: string
+          dashboard_section?: string
+          device_category?: string
+          direction?: string
+          display_name?: string
+          ev_dc?: boolean
+          ev_fast_ac?: boolean
+          ev_slow_ac?: boolean
+          group_name?: string | null
+          hybrid_1p_off_grid?: boolean
+          hybrid_1p_on_grid?: boolean
+          hybrid_3p_off_grid?: boolean
+          hybrid_3p_on_grid?: boolean
+          id?: string
+          key_name?: string
+          micro_1p_on_grid?: boolean
+          notes?: string | null
+          source?: string | null
+          string_1p_on_grid?: boolean
+          string_3p_on_grid?: boolean
+          unit?: string | null
+          value_kind?: string | null
+        }
+        Relationships: []
+      }
+      ev_sessions: {
+        Row: {
+          created_at: string
+          end_energy_kwh: number | null
+          ended_at: string | null
+          equipment_id: string
+          id: string
+          is_test: boolean
+          start_energy_kwh: number | null
+          started_at: string
+          stop_reason: string | null
+        }
+        Insert: {
+          created_at?: string
+          end_energy_kwh?: number | null
+          ended_at?: string | null
+          equipment_id: string
+          id?: string
+          is_test?: boolean
+          start_energy_kwh?: number | null
+          started_at: string
+          stop_reason?: string | null
+        }
+        Update: {
+          created_at?: string
+          end_energy_kwh?: number | null
+          ended_at?: string | null
+          equipment_id?: string
+          id?: string
+          is_test?: boolean
+          start_energy_kwh?: number | null
+          started_at?: string
+          stop_reason?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "charging_sessions_device_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
             referencedColumns: ["id"]
           },
         ]
@@ -684,78 +830,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      instrument_catalog: {
-        Row: {
-          cadence_seconds: number | null
-          category: string
-          description: string | null
-          device_category: string
-          direction: string
-          enum_ref: string | null
-          instrument_key: string
-          min_role: Database["waytara"]["Enums"]["user_role"]
-          name: string
-          regulated: boolean
-          unit: string | null
-          valid_max: number | null
-          valid_min: number | null
-          value_kind: string
-        }
-        Insert: {
-          cadence_seconds?: number | null
-          category: string
-          description?: string | null
-          device_category: string
-          direction: string
-          enum_ref?: string | null
-          instrument_key: string
-          min_role?: Database["waytara"]["Enums"]["user_role"]
-          name: string
-          regulated?: boolean
-          unit?: string | null
-          valid_max?: number | null
-          valid_min?: number | null
-          value_kind: string
-        }
-        Update: {
-          cadence_seconds?: number | null
-          category?: string
-          description?: string | null
-          device_category?: string
-          direction?: string
-          enum_ref?: string | null
-          instrument_key?: string
-          min_role?: Database["waytara"]["Enums"]["user_role"]
-          name?: string
-          regulated?: boolean
-          unit?: string | null
-          valid_max?: number | null
-          valid_min?: number | null
-          value_kind?: string
-        }
-        Relationships: []
-      }
-      instrument_enum_values: {
-        Row: {
-          code: string
-          enum_ref: string
-          label: string
-          notes: string | null
-        }
-        Insert: {
-          code: string
-          enum_ref: string
-          label: string
-          notes?: string | null
-        }
-        Update: {
-          code?: string
-          enum_ref?: string
-          label?: string
-          notes?: string | null
-        }
-        Relationships: []
       }
       leads: {
         Row: {
@@ -871,7 +945,7 @@ export type Database = {
             foreignKeyName: "maintenance_tickets_device_id_fkey"
             columns: ["device_id"]
             isOneToOne: false
-            referencedRelation: "devices"
+            referencedRelation: "equipment"
             referencedColumns: ["id"]
           },
           {
@@ -1156,7 +1230,7 @@ export type Database = {
             foreignKeyName: "service_contracts_device_id_fkey"
             columns: ["device_id"]
             isOneToOne: false
-            referencedRelation: "devices"
+            referencedRelation: "equipment"
             referencedColumns: ["id"]
           },
           {
@@ -1210,36 +1284,6 @@ export type Database = {
         }
         Relationships: []
       }
-      setting_presets: {
-        Row: {
-          description: string
-          device_category: string
-          id: string
-          is_active: boolean
-          key: string
-          name: string
-          values: Json
-        }
-        Insert: {
-          description: string
-          device_category: string
-          id?: string
-          is_active?: boolean
-          key: string
-          name: string
-          values: Json
-        }
-        Update: {
-          description?: string
-          device_category?: string
-          id?: string
-          is_active?: boolean
-          key?: string
-          name?: string
-          values?: Json
-        }
-        Relationships: []
-      }
       sites: {
         Row: {
           address: Json | null
@@ -1286,87 +1330,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      stock: {
-        Row: {
-          brand: string | null
-          category: string
-          created_at: string
-          id: string
-          manufacturer: string | null
-          model: string | null
-          model_number: string | null
-          name: string
-          pack_size: number | null
-          po_reference: string | null
-          power_capacity_unit: string | null
-          power_capacity_value: number | null
-          primary_uom: string | null
-          purchase_date: string | null
-          purchase_price_amount: number | null
-          quantity: number
-          serial_number: string | null
-          size_unit: string | null
-          size_value: number | null
-          status: Database["waytara"]["Enums"]["stock_status"]
-          supplier: string | null
-          technical_specs: Json | null
-          unit_price: number | null
-          warranty_info: Json | null
-        }
-        Insert: {
-          brand?: string | null
-          category: string
-          created_at?: string
-          id?: string
-          manufacturer?: string | null
-          model?: string | null
-          model_number?: string | null
-          name: string
-          pack_size?: number | null
-          po_reference?: string | null
-          power_capacity_unit?: string | null
-          power_capacity_value?: number | null
-          primary_uom?: string | null
-          purchase_date?: string | null
-          purchase_price_amount?: number | null
-          quantity?: number
-          serial_number?: string | null
-          size_unit?: string | null
-          size_value?: number | null
-          status?: Database["waytara"]["Enums"]["stock_status"]
-          supplier?: string | null
-          technical_specs?: Json | null
-          unit_price?: number | null
-          warranty_info?: Json | null
-        }
-        Update: {
-          brand?: string | null
-          category?: string
-          created_at?: string
-          id?: string
-          manufacturer?: string | null
-          model?: string | null
-          model_number?: string | null
-          name?: string
-          pack_size?: number | null
-          po_reference?: string | null
-          power_capacity_unit?: string | null
-          power_capacity_value?: number | null
-          primary_uom?: string | null
-          purchase_date?: string | null
-          purchase_price_amount?: number | null
-          quantity?: number
-          serial_number?: string | null
-          size_unit?: string | null
-          size_value?: number | null
-          status?: Database["waytara"]["Enums"]["stock_status"]
-          supplier?: string | null
-          technical_specs?: Json | null
-          unit_price?: number | null
-          warranty_info?: Json | null
-        }
-        Relationships: []
       }
       subscriptions: {
         Row: {

@@ -1,0 +1,16 @@
+-- Real bug, found while verifying the site-split fix (20261001000000):
+-- the Site Setting form's "Device label" field has never actually worked
+-- for a real customer account. The RLS policy allowing it
+-- (devices_customer_update_own_label, from an earlier migration) was
+-- correctly scoped to "only this customer's own device's label" — but the
+-- `authenticated` role was never granted UPDATE on waytara.equipment at
+-- all (only SELECT/INSERT/DELETE), and Postgres checks the table-level
+-- grant before it ever evaluates a row's RLS policy. Every customer
+-- attempt to save a device label hit "permission denied for table
+-- equipment" before RLS even got a say.
+--
+-- Column-scoped (label only), not a blanket table UPDATE grant — matches
+-- what the existing RLS policy's own name already promises, and keeps
+-- every other column (site_id, device_status, service_id, ...) off limits
+-- to a customer even if a future bug loosened that policy's row check.
+grant update (label) on waytara.equipment to authenticated;

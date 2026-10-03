@@ -1,18 +1,18 @@
 #!/usr/bin/env node
 // One-shot sample-data generator for the Plugzmart EV charger — the
 // counterpart to deye-modbus-agent.mjs's --backfill-days for the solar
-// inverter. Unlike the inverter, this device had zero device_readings at
+// inverter. Unlike the inverter, this device had zero equipment_telemetry at
 // all: the dashboard's Start/Stop Charging button only ever writes
-// charging_sessions rows (see the external simulator's README), so
+// ev_sessions rows (see the external simulator's README), so
 // nothing generates the session's actual telemetry unless a listener is
-// running. This backfills both — realistic charging_sessions rows *and*
-// their device_readings ticks — for the trailing week, using the exact
+// running. This backfills both — realistic ev_sessions rows *and*
+// their equipment_telemetry ticks — for the trailing week, using the exact
 // key vocabulary and connector_status/error_code semantics already
 // verified against production this session.
 //
 // Idempotent-ish, not fully resumable like the Python tool: it checks for
-// an existing device_readings row before inserting (per key), and reuses
-// (rather than duplicates) any charging_sessions row already covering a
+// an existing equipment_telemetry row before inserting (per key), and reuses
+// (rather than duplicates) any ev_sessions row already covering a
 // given day. Meant to be run once; safe to re-run without doubling data.
 //
 // Usage: node scripts/ev-charger-backfill.mjs [--device-id=<uuid>] [--days=7]
@@ -151,9 +151,9 @@ function idleTick(ts, energyKwh, ratedPowerW) {
 
 function toReadingRows(deviceId, tick) {
   const { ts, ...values } = tick;
-  return Object.entries(values).map(([instrument_key, value]) => ({
-    device_id: deviceId,
-    instrument_key,
+  return Object.entries(values).map(([key_name, value]) => ({
+    equipment_id: deviceId,
+    key_name,
     value,
     ts: ts.toISOString(),
     is_test: false,
@@ -163,15 +163,15 @@ function toReadingRows(deviceId, tick) {
 async function insertChunked(rows, chunkSize = 1000) {
   for (let i = 0; i < rows.length; i += chunkSize) {
     const chunk = rows.slice(i, i + chunkSize);
-    const { error } = await supabase.from("device_readings").insert(chunk);
-    if (error) throw new Error(`device_readings insert (rows ${i}-${i + chunk.length}) failed: ${error.message}`);
+    const { error } = await supabase.from("equipment_telemetry").insert(chunk);
+    if (error) throw new Error(`equipment_telemetry insert (rows ${i}-${i + chunk.length}) failed: ${error.message}`);
   }
 }
 
 async function main() {
   const { data: device, error: deviceError } = await supabase
-    .from("devices")
-    .select("id, label, device_type:stock(power_capacity_value, power_capacity_unit)")
+    .from("equipment")
+    .select("id, label, device_type:equipment_inventory(power_capacity_value, power_capacity_unit)")
     .eq("id", args.deviceId)
     .maybeSingle();
   if (deviceError || !device) throw new Error(`Device ${args.deviceId} not found: ${deviceError?.message ?? "no row"}`);
@@ -183,23 +183,23 @@ async function main() {
   console.log(`Device: ${device.label} — rated ${ratedPowerW}W`);
 
   const { data: existingSessions } = await supabase
-    .from("charging_sessions")
+    .from("ev_sessions")
     .select("id, started_at, ended_at, start_energy_kwh, end_energy_kwh, stop_reason")
-    .eq("device_id", args.deviceId)
+    .eq("equipment_id", args.deviceId)
     .order("started_at", { ascending: true });
-  console.log(`Existing charging_sessions: ${existingSessions?.length ?? 0}`);
+  console.log(`Existing ev_sessions: ${existingSessions?.length ?? 0}`);
 
   const { count: existingReadingCount } = await supabase
-    .from("device_readings")
+    .from("equipment_telemetry")
     .select("*", { count: "exact", head: true })
-    .eq("device_id", args.deviceId);
+    .eq("equipment_id", args.deviceId);
   if (existingReadingCount > 0) {
-    console.log(`device_readings already has ${existingReadingCount} rows for this device — skipping tick generation for pre-existing sessions, only backfilling new days.`);
+    console.log(`equipment_telemetry already has ${existingReadingCount} rows for this device — skipping tick generation for pre-existing sessions, only backfilling new days.`);
   }
 
   const allTicks = [];
 
-  // Backfill ticks for pre-existing sessions too (only if device_readings
+  // Backfill ticks for pre-existing sessions too (only if equipment_telemetry
   // is currently empty — if it already has data, assume this has been
   // done and don't duplicate).
   if (!existingReadingCount) {
@@ -280,7 +280,7 @@ async function main() {
     const startEnergyKwh = forwardCounter;
     const endEnergyKwh = round(forwardCounter + slot.deltaKwh, 3);
     forwardCounter = endEnergyKwh;
-    newSessions.push({ device_id: args.deviceId, started_at: slot.startedAt.toISOString(), ended_at: slot.endedAt.toISOString(), start_energy_kwh: startEnergyKwh, end_energy_kwh: endEnergyKwh, stop_reason: slot.stopReason, is_test: false });
+    newSessions.push({ equipment_id: args.deviceId, started_at: slot.startedAt.toISOString(), ended_at: slot.endedAt.toISOString(), start_energy_kwh: startEnergyKwh, end_energy_kwh: endEnergyKwh, stop_reason: slot.stopReason, is_test: false });
     allTicks.push(buildSessionTicks({ startedAt: slot.startedAt, endedAt: slot.endedAt, startEnergyKwh, endEnergyKwh, faultCode: slot.faultCode }, ratedPowerW));
     if (slot.faultCode) {
       allTicks.push([{ ts: slot.endedAt, _alert: { device_id: args.deviceId, severity: "critical", message: `Charging session stopped early: ${slot.faultCode === 4 ? "connector over-temperature" : "over-current"} fault detected.`, ts: slot.endedAt.toISOString() } }]);
@@ -312,7 +312,7 @@ async function main() {
     // delivered) — scaling down the overall budget isn't the same thing,
     // so only apply the fault's own truncation on top once, not double it.
     const faultCode = scaledDeltaKwh > 0.05 ? slot.faultCode : null;
-    newSessions.push({ device_id: args.deviceId, started_at: slot.startedAt.toISOString(), ended_at: slot.endedAt.toISOString(), start_energy_kwh: startEnergyKwh, end_energy_kwh: endEnergyKwh, stop_reason: slot.stopReason, is_test: false });
+    newSessions.push({ equipment_id: args.deviceId, started_at: slot.startedAt.toISOString(), ended_at: slot.endedAt.toISOString(), start_energy_kwh: startEnergyKwh, end_energy_kwh: endEnergyKwh, stop_reason: slot.stopReason, is_test: false });
     allTicks.push(buildSessionTicks({ startedAt: slot.startedAt, endedAt: slot.endedAt, startEnergyKwh, endEnergyKwh, faultCode }, ratedPowerW));
     if (faultCode) {
       allTicks.push([{ ts: slot.endedAt, _alert: { device_id: args.deviceId, severity: "critical", message: `Charging session stopped early: ${faultCode === 4 ? "connector over-temperature" : "over-current"} fault detected.`, ts: slot.endedAt.toISOString() } }]);
@@ -368,11 +368,11 @@ async function main() {
     }
   }
 
-  console.log(`Generated ${newSessions.length} new charging_sessions, ${readingRows.length} device_readings rows, ${alertRows.length} alerts.`);
+  console.log(`Generated ${newSessions.length} new ev_sessions, ${readingRows.length} equipment_telemetry rows, ${alertRows.length} alerts.`);
 
   if (newSessions.length > 0) {
-    const { error } = await supabase.from("charging_sessions").insert(newSessions);
-    if (error) throw new Error(`charging_sessions insert failed: ${error.message}`);
+    const { error } = await supabase.from("ev_sessions").insert(newSessions);
+    if (error) throw new Error(`ev_sessions insert failed: ${error.message}`);
   }
   if (readingRows.length > 0) await insertChunked(readingRows);
   if (alertRows.length > 0) {

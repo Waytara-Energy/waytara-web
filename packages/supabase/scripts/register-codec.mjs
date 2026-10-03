@@ -1,4 +1,4 @@
-// Shared decode()/encode() engine — interprets device_parameter_map.decode
+// Shared decode()/encode() engine — interprets equipment_metrics.decode
 // jsonb against a register reading (decode) or an engineering value
 // (encode), driven entirely by what's actually in the DB rather than any
 // hardcoded per-field logic. Every rule here is derived from real seeded
@@ -42,7 +42,7 @@ function toUnsigned(value, bits) {
  * @param {{register: number, raw: number}[]} regReadings - raw register
  *   value(s) exactly as read off the wire, paired with their register
  *   numbers.
- * @param {object|null} decodeSpec - device_parameter_map.decode
+ * @param {object|null} decodeSpec - equipment_metrics.decode
  * @returns {number} the decoded engineering value
  */
 export function decode(regReadings, decodeSpec) {
@@ -77,7 +77,7 @@ export function decode(regReadings, decodeSpec) {
  * own order.
  * @param {number} value - the engineering value to write
  * @param {number[]} registers - address.registers
- * @param {object|null} decodeSpec - device_parameter_map.decode
+ * @param {object|null} decodeSpec - equipment_metrics.decode
  * @returns {{register: number, value: number}[]}
  */
 export function encode(value, registers, decodeSpec) {
