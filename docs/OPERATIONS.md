@@ -19,7 +19,7 @@ Every migration must first pass on the production-shaped local database:
 
 > **Applied to production on 2026-10-04:** `20261003000000_security_hardening`, `…010000_audit_log_append_only`,
 > `…020000_performance_data_layer`, `…030000_telemetry_rollups_retention`. A schema+data backup taken immediately
-> before is in `D:\Manoj-Waytaraackups\` (outside the repo; contains customer data — keep it private).
+> before is in `D:/Manoj-Waytara/backups/` (outside the repo; contains customer data - keep it private).
 > Verified afterwards: anon cannot execute the DB functions, `quotation-pdfs` is private, 5 cron jobs scheduled,
 > `equipment_latest` (1,305 rows) and the hourly rollup (390,205 rows) backfilled, no bare `auth.uid()` left in
 > policies, `audit_log` has no UPDATE/DELETE for any client role, and the REST API serves the new table and RPCs.
