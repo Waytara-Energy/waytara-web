@@ -17,9 +17,12 @@ both on Vercel, one Supabase project (schema `waytara`).
 Every migration must first pass on the production-shaped local database:
 `node scripts/local-db.mjs reset && node scripts/test-db.mjs` (CI does this on every PR).
 
-> Pending at the time of writing: migrations `20261003000000_security_hardening`, `…010000_audit_log_append_only`,
-> `…020000_performance_data_layer`, `…030000_telemetry_rollups_retention`. **The current code requires all four**
-> (it reads `equipment_latest` and calls `telemetry_buckets` / `telemetry_daily`). Apply them before deploying.
+> **Applied to production on 2026-10-04:** `20261003000000_security_hardening`, `…010000_audit_log_append_only`,
+> `…020000_performance_data_layer`, `…030000_telemetry_rollups_retention`. A schema+data backup taken immediately
+> before is in `D:\Manoj-Waytaraackups\` (outside the repo; contains customer data — keep it private).
+> Verified afterwards: anon cannot execute the DB functions, `quotation-pdfs` is private, 5 cron jobs scheduled,
+> `equipment_latest` (1,305 rows) and the hourly rollup (390,205 rows) backfilled, no bare `auth.uid()` left in
+> policies, `audit_log` has no UPDATE/DELETE for any client role, and the REST API serves the new table and RPCs.
 
 ## 2. One-time setup checklist
 

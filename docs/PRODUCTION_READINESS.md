@@ -173,7 +173,7 @@ Also fixed: pnpm 11 left `esbuild: set this to true or false` in `pnpm-workspace
 | Lighthouse (mobile, local) | home 83, solutions 85, login 90 (SEO 63 is intentional: `noindex`); first-load JS 188–236 KB gz |
 
 ## Still open / needs a human
-1. **Apply the 4 pending migrations to production** (the sandbox blocked me from doing it) — the code requires them.
+1. ~~Apply the 4 pending migrations to production~~ **Done 2026-10-04** (backup first, dry-run showed exactly the 4, post-checks passed; see OPERATIONS.md §1).
 2. Set in Vercel: `CRON_SECRET`; create the two Vault secrets (`OPERATIONS.md` §2). Until then scheduled jobs are no-ops.
 3. Supabase dashboard settings that cannot be done by migration (Auth hardening, PITR, SSL) — `OPERATIONS.md` §2.
 4. Founder content/facts (`src/lib/site.ts` REVIEW items; `/technology` and `/knowledge-centre` placeholder copy).

@@ -52,3 +52,6 @@ yarn-error.log*
 next-env.d.ts
 playwright-report/
 test-results/
+
+# per-machine Claude Code permissions
+.claude/settings.local.json
