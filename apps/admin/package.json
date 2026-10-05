@@ -13,6 +13,8 @@
     "@radix-ui/react-dialog": "^1.1.23",
     "@react-pdf/renderer": "^4.9.0",
     "@sentry/nextjs": "^10.76.0",
+    "@vercel/analytics": "^2.0.1",
+    "@vercel/speed-insights": "^2.0.0",
     "@waytara/supabase": "workspace:*",
     "@waytara/ui": "workspace:*",
     "class-variance-authority": "^0.7.1",

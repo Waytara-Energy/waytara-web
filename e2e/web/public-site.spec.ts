@@ -20,16 +20,16 @@ test.describe("public marketing site", () => {
 
   test("underscore segment alias canonicalises to the hyphenated URL", async ({ request }) => {
     const html = await (await request.get(`${WEB_URL}/solutions/ev_fleet`)).text();
-    expect(html).toContain('rel="canonical" href="https://waytaraenergy.com/solutions/ev-fleet"');
+    expect(html).toContain('rel="canonical" href="https://www.waytaraenergy.com/solutions/ev-fleet"');
   });
 
   test("robots.txt, sitemap.xml and llms.txt are served", async ({ request }) => {
     const robots = await (await request.get(`${WEB_URL}/robots.txt`)).text();
     expect(robots).toContain("Disallow: /dashboard");
-    expect(robots).toContain("Sitemap: https://waytaraenergy.com/sitemap.xml");
+    expect(robots).toContain("Sitemap: https://www.waytaraenergy.com/sitemap.xml");
 
     const sitemap = await (await request.get(`${WEB_URL}/sitemap.xml`)).text();
-    expect(sitemap).toContain("<loc>https://waytaraenergy.com/solutions/ev-fleet</loc>");
+    expect(sitemap).toContain("<loc>https://www.waytaraenergy.com/solutions/ev-fleet</loc>");
     expect(sitemap).not.toContain("/dashboard");
     expect(sitemap).not.toContain("/login");
 

@@ -22,9 +22,9 @@ describe("pageMetadata", () => {
 
 describe("site", () => {
   it("builds absolute URLs on the canonical origin, never localhost", () => {
-    expect(SITE.url).toBe("https://waytaraenergy.com");
-    expect(absoluteUrl("/about")).toBe("https://waytaraenergy.com/about");
-    expect(absoluteUrl("about")).toBe("https://waytaraenergy.com/about");
+    expect(SITE.url).toBe("https://www.waytaraenergy.com");
+    expect(absoluteUrl("/about")).toBe("https://www.waytaraenergy.com/about");
+    expect(absoluteUrl("about")).toBe("https://www.waytaraenergy.com/about");
   });
 });
 
@@ -42,7 +42,7 @@ describe("structured data", () => {
       { name: "Solutions", path: "/solutions" },
     ]) as { itemListElement: { position: number; item: string }[] };
     expect(b.itemListElement.map((i) => i.position)).toEqual([1, 2]);
-    expect(b.itemListElement[1].item).toBe("https://waytaraenergy.com/solutions");
+    expect(b.itemListElement[1].item).toBe("https://www.waytaraenergy.com/solutions");
   });
 
   it("maps FAQs to Question/Answer pairs", () => {
@@ -82,6 +82,6 @@ describe("robots", () => {
     const rule = Array.isArray(r.rules) ? r.rules[0] : r.rules;
     expect(rule.allow).toBe("/");
     expect(rule.disallow).toEqual(expect.arrayContaining(["/dashboard", "/api/", "/quote/", "/invite/"]));
-    expect(r.sitemap).toBe("https://waytaraenergy.com/sitemap.xml");
+    expect(r.sitemap).toBe("https://www.waytaraenergy.com/sitemap.xml");
   });
 });

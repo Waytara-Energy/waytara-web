@@ -9,7 +9,7 @@ export const SITE = {
   /** Canonical public origin. Deliberately NOT NEXT_PUBLIC_SITE_URL (that one
    *  is used for e-mail links and is "http://localhost:3000" in local dev) so
    *  a mis-set env var can never leak localhost into canonical URLs. */
-  url: (process.env.NEXT_PUBLIC_CANONICAL_URL ?? "https://waytaraenergy.com").replace(/\/$/, ""),
+  url: (process.env.NEXT_PUBLIC_CANONICAL_URL ?? "https://www.waytaraenergy.com").replace(/\/$/, ""),
   locale: "en_IN",
   tagline: "Intelligent Clean Energy Systems for Home, Business & Fleet",
   description:

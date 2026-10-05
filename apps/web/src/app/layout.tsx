@@ -4,6 +4,8 @@ import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { Toaster } from "@/components/ui/sonner";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import { JsonLd } from "@/components/seo/json-ld";
 import { organizationJsonLd, websiteJsonLd } from "@/lib/seo";
 import { SITE } from "@/lib/site";
@@ -103,6 +105,11 @@ export default function RootLayout({
             <Toaster />
           </TooltipProvider>
         </ThemeProvider>
+        {/* Vercel Web Analytics (cookie-less page views) and Speed Insights
+            (real-user Core Web Vitals). Both load first-party from
+            /_vercel/... on Vercel and are inert on any other host. */}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );

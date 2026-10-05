@@ -31,10 +31,10 @@ Every migration must first pass on the production-shaped local database:
 |---|---|---|---|
 | `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY` | ✔ | ✔ | |
 | `SUPABASE_SERVICE_ROLE_KEY` | ✔ | ✔ | Server-only. Never `NEXT_PUBLIC_`. |
-| `NEXT_PUBLIC_SITE_URL` | `https://waytaraenergy.com` | `https://admin.waytaraenergy.com` | Used for e-mail links. |
-| `NEXT_PUBLIC_CANONICAL_URL` | optional | — | Defaults to `https://waytaraenergy.com`. |
+| `NEXT_PUBLIC_SITE_URL` | `https://www.waytaraenergy.com` | `https://admin.waytaraenergy.com` | Used for e-mail links. |
+| `NEXT_PUBLIC_CANONICAL_URL` | optional | — | Defaults to `https://www.waytaraenergy.com`. |
 | `CRON_SECRET` | ✔ | — | **Required in production**: the cron routes now refuse every request without it. Generate: `openssl rand -hex 32`. |
-| `CUSTOMER_APP_URL` | — | `https://waytaraenergy.com` | |
+| `CUSTOMER_APP_URL` | — | `https://www.waytaraenergy.com` | |
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `LEADS_NOTIFICATION_EMAIL` | ✔ | ✔ | |
 | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` | optional | optional | Error monitoring stays completely off until set. |
 
@@ -42,7 +42,7 @@ Every migration must first pass on the production-shaped local database:
 The migration schedules the jobs, but they do nothing until two Vault secrets exist (run once in the SQL editor;
 use the **same** value as `CRON_SECRET` in Vercel):
 ```sql
-select vault.create_secret('https://waytaraenergy.com', 'app_base_url');
+select vault.create_secret('https://www.waytaraenergy.com', 'app_base_url');
 select vault.create_secret('<the same value as CRON_SECRET>', 'cron_secret');
 ```
 Jobs: `detect-alerts` (15 min), `detect-charging-sessions` (2 min), `rollup-telemetry-hourly` (10 min),
@@ -55,7 +55,7 @@ and for the HTTP calls `select * from net._http_response order by created desc l
 - **Attack protection:** enable *Leaked password protection*; keep CAPTCHA off unless abuse appears (sign-ups are invite-only).
 - **Sessions:** JWT expiry ≤ 1 hour; enable refresh-token rotation (default) and reuse detection.
 - **Rate limits:** keep defaults or lower sign-in / OTP / email limits.
-- **URL configuration:** Site URL `https://waytaraenergy.com`; redirect allow-list only the two production origins
+- **URL configuration:** Site URL `https://www.waytaraenergy.com`; redirect allow-list only the two production origins
   (+ `http://localhost:3000/**`, `http://localhost:3001/**` for development).
 - **SMTP:** use a custom SMTP sender (Resend) for auth e-mails.
 - **Sign-ups:** keep public sign-up disabled (accounts are created from invites).
@@ -68,12 +68,14 @@ and for the HTTP calls `select * from net._http_response order by created desc l
 
 ### DNS / e-mail deliverability
 - SPF, DKIM (from Resend) and a DMARC record (`v=DMARC1; p=quarantine; rua=mailto:hello@waytaraenergy.com`) on `waytaraenergy.com`.
-- Verify both domains in Google Search Console and Bing Webmaster Tools; submit `https://waytaraenergy.com/sitemap.xml`.
+- Verify both domains in Google Search Console and Bing Webmaster Tools; submit `https://www.waytaraenergy.com/sitemap.xml`.
 
 ## 3. Monitoring
 - **Errors:** Sentry (once `SENTRY_DSN` is set). Server and browser errors plus all error-boundary catches.
-- **Real-user performance:** Vercel Speed Insights (cookie-less) can be added with one component when wanted.
-- **Uptime:** point an external monitor at `https://waytaraenergy.com/login` and `https://admin.waytaraenergy.com/login`.
+- **Traffic and real-user performance:** Vercel Web Analytics (page views, cookie-less) and Speed Insights (Core Web Vitals)
+  are installed in both apps. Enable each once per project in the Vercel dashboard (project -> Analytics / Speed Insights -> Enable);
+  data appears after the first deployed visits. Neither sets cookies, so no consent banner is required for them; mention them in the privacy policy.
+- **Uptime:** point an external monitor at `https://www.waytaraenergy.com/login` and `https://admin.waytaraenergy.com/login`.
 - **Database:** Supabase Reports → slow queries; `select * from pg_stat_statements order by total_exec_time desc limit 10;`.
 
 ## 4. Telemetry growth plan

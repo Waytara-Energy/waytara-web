@@ -181,3 +181,12 @@ Also fixed: pnpm 11 left `esbuild: set this to true or false` in `pnpm-workspace
 6. Home LCP is still ~4 s in the throttled lab (target 2.5 s): next candidates are a poster image + deferred hero video.
 7. GA4 / cookie-consent banner not added (needs a measurement ID); Vercel Speed Insights optional.
 8. MFA for admins deliberately skipped (your decision); nonce-based CSP not done (see `SECURITY.md`).
+
+## Update 2026-10-05
+- Canonical host is now **https://www.waytaraenergy.com** (matches the live Vercel redirect apex -> www): `SITE.url`, `llms.txt`,
+  `security.txt`, tests and docs. Override with `NEXT_PUBLIC_CANONICAL_URL` if it ever changes.
+- Added **Vercel Web Analytics** and **Speed Insights** to both apps (root layouts). First-party `/_vercel/...` paths, so the CSP is
+  unchanged in production (dev mode additionally allows `va.vercel-scripts.com`).
+- Security: **Next.js 16.3.2 -> 16.3.8** (3 critical advisories); `pnpm audit` clean.
+- Production DB: migrations applied and verified; Vault secrets `app_base_url` (www) and `cron_secret` present.
+- Still open: Supabase "Allow new users to sign up" reads as ENABLED (re-check the dashboard toggle and save).

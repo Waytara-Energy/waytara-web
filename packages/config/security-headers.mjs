@@ -27,7 +27,7 @@ export function securityHeaders(options = {}) {
   const csp = [
     "default-src 'self'",
     // 'unsafe-eval' only in dev (React refresh / source maps need it).
-    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval'" : ""} ${(options.scriptSrc ?? []).join(" ")}`.trim(),
+    `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval' https://va.vercel-scripts.com" : ""} ${(options.scriptSrc ?? []).join(" ")}`.trim(),
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob: ${supabaseHttp} ${(options.imgSrc ?? []).join(" ")}`.trim(),
     "media-src 'self'",

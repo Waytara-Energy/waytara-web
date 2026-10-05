@@ -3,6 +3,8 @@ import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@waytara/ui/theme-provider";
 import { Toaster } from "@/components/ui/sonner";
+import { Analytics } from "@vercel/analytics/next";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -45,6 +47,9 @@ export default function RootLayout({
           {children}
           <Toaster />
         </ThemeProvider>
+        {/* Vercel Web Analytics + Speed Insights (staff app: page views and real-user performance). */}
+        <Analytics />
+        <SpeedInsights />
       </body>
     </html>
   );
