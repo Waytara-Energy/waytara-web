@@ -70,8 +70,8 @@ function RowEditSheet({ row, equipmentId, open, onOpenChange }: { row: MetricRow
               <Input name="scale" type="number" step="any" placeholder="1" defaultValue={row.decode?.scale ?? ""} className={inputClass} />
             </div>
             <div className="space-y-1.5">
-              <label className="text-xs font-medium text-muted-foreground">Offset</label>
-              <Input name="offset" type="number" step="any" placeholder="-1000" defaultValue={row.decode?.offset ?? ""} className={inputClass} />
+              <label className="text-xs font-medium text-muted-foreground" title="value = raw x scale + offset">Offset</label>
+              <Input name="offset" type="number" step="any" placeholder="-100" title="value = raw x scale + offset. Example: 0.1 C units where raw 1000 = 0 C -> scale 0.1, offset -100." defaultValue={row.decode?.offset ?? ""} className={inputClass} />
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Bitmask</label>

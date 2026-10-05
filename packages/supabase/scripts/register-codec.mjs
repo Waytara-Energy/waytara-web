@@ -5,8 +5,11 @@
 // rows, verified against their own `notes` (the plain-language formula the
 // seed script carried alongside each decode spec):
 //
-//   scale + offset : (raw + offset) * scale
-//     e.g. inverter_dc_temp_c: {scale:0.1, offset:-1000} -> (v-1000)/10
+//   scale + offset : raw * scale + offset   (the SAME formula the live Python
+//     equipment_agent uses - the two must never disagree, see
+//     D:/Manoj-Waytara/inverter script/equipment_agent/codec.py)
+//     e.g. inverter_dc_temperature_c: {scale:0.1, offset:-100} -> raw*0.1 - 100
+//     (the PDF's '+1000 offset': raw 1000 = 0 C, expressed in 0.1 C units)
 //   signed          : 16-bit two's complement (raw >= 32768 ? raw-65536 : raw)
 //     e.g. battery_power_w: {signed:true} -> (v>=32768 ? v-65536 : v)
 //   combine: "low_high_word" + low_word_register
@@ -66,8 +69,8 @@ export function decode(regReadings, decodeSpec) {
   }
 
   let value = raw;
-  if (typeof spec.offset === "number") value += spec.offset;
   if (typeof spec.scale === "number") value *= spec.scale;
+  if (typeof spec.offset === "number") value += spec.offset;
   return value;
 }
 
@@ -83,8 +86,8 @@ export function decode(regReadings, decodeSpec) {
 export function encode(value, registers, decodeSpec) {
   const spec = decodeSpec ?? {};
   let raw = value;
-  if (typeof spec.scale === "number" && spec.scale !== 0) raw = raw / spec.scale;
   if (typeof spec.offset === "number") raw -= spec.offset;
+  if (typeof spec.scale === "number" && spec.scale !== 0) raw = raw / spec.scale;
   raw = Math.round(raw);
 
   if (spec.combine === "low_high_word") {

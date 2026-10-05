@@ -85,6 +85,24 @@ Measured 2026-10: ~207k rows/day for 7 devices (~30k/device/day).
 - **When raw rows exceed ~50M**, convert `equipment_telemetry` to monthly range partitions (retention becomes
   `DROP PARTITION`, indexes stay small) — plan it before, not after. Also batch ingest inserts (50k+ rows per statement).
 
+### Real inverter ingest (measured 2026-10-05) — read this before changing cadence
+- One real Deye inverter read by the Python `equipment_agent` produced ~34k rows/hour (~170 MB/day incl. indexes)
+  at the initial cadences (live 5 s, mid/energy 30 s). That fills the Supabase **Free** 500 MB limit in ~3 days
+  (the project goes read-only above it). Either upgrade to Pro (8 GB) or lower `equipment_metrics.cadence_seconds`
+  (suggested: live 15 s, everything else 60 s, energy counters 300 s) and shorten raw retention
+  (`purge_old_telemetry(30)`).
+- After mass deletes run `VACUUM (FULL, ANALYZE)` on `equipment_telemetry` — plain deletes do not return space
+  (529 MB -> 152 MB on 2026-10-05).
+- **Register decode formula is `value = raw x scale + offset`** (same in `packages/supabase/scripts/register-codec.mjs`,
+  the admin Registers form, and the Python agent's `codec.py`). A Deye temperature in 0.1 C units where raw 1000 = 0 C
+  is `scale 0.1, offset -100`; battery temperature (reg 182) is `scale 0.1` only.
+- The agent reloads metric edits live only if `equipment_metrics` is in the `supabase_realtime` publication
+  (`alter publication supabase_realtime add table waytara.equipment_metrics;`, done in production). A running agent
+  must still be **restarted** once to pick up decode fixes made while it was off that publication.
+- Real hardware is read only by the Python agent. `deye-modbus-agent.mjs --mode=modbus` is disabled (two writers
+  would duplicate readings); its `--mode=simulate` writes fake rows to whatever database `.env.local` points at and
+  now requires an explicit `--device-id`.
+
 ## 5. Incident cheat-sheet
 | Symptom | Check |
 |---|---|

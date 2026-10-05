@@ -87,7 +87,9 @@ function loadEnv() {
 function parseArgs(argv) {
   const args = {
     mode: "simulate",
-    deviceId: "8e307e23-6540-406b-adb9-9c8d209c8ba1",
+    // No default on purpose: the old hard-coded id pointed at a device that no longer exists,
+    // and this script writes to whatever database apps/web/.env.local points at.
+    deviceId: null,
     host: null,
     readOnly: false,
     once: false,
@@ -1326,6 +1328,21 @@ async function seedSettingsMode(deviceId) {
 
 async function main() {
   console.log(`Deye Modbus agent — mode=${args.mode} device=${args.deviceId}${args.readOnly ? " (read-only)" : ""}`);
+
+  if (args.mode === "modbus") {
+    console.error(
+      "[deprecated] --mode=modbus is disabled. Real inverters are read by the Python equipment_agent\n" +
+        "(D:/Manoj-Waytara/inverter script, `python -m equipment_agent`), which decodes offsets, word order,\n" +
+        "bit masks and signed values correctly and verifies writes. Running two writers against one device\n" +
+        "would duplicate readings. Use --mode=simulate here for demo data only."
+    );
+    process.exit(1);
+  }
+
+  if (!args.deviceId) {
+    console.error("Pass --device-id=<equipment uuid> (there is no default; see the comment in parseArgs).");
+    process.exit(1);
+  }
 
   if (args.mode === "codec-test") return codecTest(args.deviceId);
   if (args.mode === "protocol-test") return protocolTest(args.deviceId);

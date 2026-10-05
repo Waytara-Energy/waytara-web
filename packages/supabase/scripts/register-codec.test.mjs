@@ -17,9 +17,11 @@ describe("decode", () => {
     expect(decode([r(190, 1200)], { signed: true })).toBe(1200);
   });
 
-  it("applies the offset before the scale (Deye temperatures: 1000 = 0 C)", () => {
-    expect(decode([r(90, 1505)], { scale: 0.1, offset: -1000 })).toBeCloseTo(50.5);
-    expect(decode([r(90, 438)], { scale: 0.1, offset: -1000 })).toBeCloseTo(-56.2);
+  it("computes raw * scale + offset (Deye temperatures: raw 1000 = 0 C -> scale 0.1, offset -100)", () => {
+    expect(decode([r(90, 1505)], { scale: 0.1, offset: -100 })).toBeCloseTo(50.5);
+    expect(decode([r(90, 438)], { scale: 0.1, offset: -100 })).toBeCloseTo(-56.2);
+    // a plain 0.1 C register with no offset (battery temperature, reg 182)
+    expect(decode([r(182, 300)], { scale: 0.1 })).toBeCloseTo(30);
   });
 
   it("combines low/high words by register number, not array position", () => {
@@ -43,7 +45,7 @@ describe("encode (inverse of decode)", () => {
     { name: "plain", value: 87, registers: [184], spec: null },
     { name: "scaled", value: 52.8, registers: [183], spec: { scale: 0.01 } },
     { name: "signed negative", value: -300, registers: [190], spec: { signed: true } },
-    { name: "offset+scale", value: 50.5, registers: [90], spec: { scale: 0.1, offset: -1000 } },
+    { name: "offset+scale", value: 50.5, registers: [90], spec: { scale: 0.1, offset: -100 } },
     { name: "32-bit words", value: 6554.1, registers: [78, 80], spec: { combine: "low_high_word", low_word_register: 78, scale: 0.1 } },
   ];
 

@@ -68,7 +68,26 @@ const sections: LegalSection[] = [
           <li>With the WayTara employee assigned to your lead, quotation, or installation</li>
           <li>With our payment processor, solely to complete a transaction you initiate</li>
           <li>With our email provider, solely to deliver transactional emails</li>
+          <li>With our hosting, database and monitoring providers (see &quot;Analytics &amp; Error Monitoring&quot;
+            below), who process data on our behalf to run the service</li>
           <li>Where required by law, regulation, or a valid legal request</li>
+        </ul>
+      </>
+    ),
+  },
+  {
+    id: "analytics-monitoring",
+    heading: "Analytics & Error Monitoring",
+    body: (
+      <>
+        <p>To keep the website fast and reliable we use two kinds of service:</p>
+        <ul className="list-disc space-y-1.5 pl-5">
+          <li><span className="text-theme-primary">Vercel Web Analytics &amp; Speed Insights</span> — aggregate
+            page-view and page-speed measurements. They do not use cookies and do not build a profile of you
+            or follow you across other websites.</li>
+          <li><span className="text-theme-primary">Sentry</span> — reports technical errors (the failing page,
+            browser type, and error details) so we can fix faults quickly. We do not record sessions or screen
+            content, and we do not intentionally send personal data to it.</li>
         </ul>
       </>
     ),
@@ -147,7 +166,11 @@ const sections: LegalSection[] = [
     heading: "Contact",
     body: (
       <div className="rounded-xl border border-theme-border bg-theme-surface p-5">
-        <p className="font-medium text-theme-primary">Questions about your data?</p>
+        <p className="font-medium text-theme-primary">Questions or complaints about your data?</p>
+        <p className="mt-1 text-xs text-theme-muted">
+          Write to our grievance contact at the address below and we will acknowledge your request and
+          respond within a reasonable time.
+        </p>
         <p className="mt-1">
           <a href="mailto:hello@waytaraenergy.com" className="text-theme-highlight hover:underline">
             hello@waytaraenergy.com
@@ -173,7 +196,7 @@ export default function PrivacyPage() {
     <LegalPageLayout
       title="Privacy Policy"
       subtitle="What information we collect from your account and your installed devices, and how we look after it."
-      lastUpdated="September 2026"
+      lastUpdated="October 2026"
       sections={sections}
     />
   );
