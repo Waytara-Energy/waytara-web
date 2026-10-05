@@ -1582,6 +1582,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      device_last_seen: {
+        Args: { p_equipment_ids: string[] }
+        Returns: { equipment_id: string; last_ts: string }[]
+      }
       consume_rate_limit: {
         Args: { p_bucket: string; p_key: string; p_max: number; p_window_seconds: number }
         Returns: boolean

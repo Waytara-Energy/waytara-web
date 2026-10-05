@@ -190,3 +190,12 @@ Also fixed: pnpm 11 left `esbuild: set this to true or false` in `pnpm-workspace
 - Security: **Next.js 16.3.2 -> 16.3.8** (3 critical advisories); `pnpm audit` clean.
 - Production DB: migrations applied and verified; Vault secrets `app_base_url` (www) and `cron_secret` present.
 - Still open: Supabase "Allow new users to sign up" reads as ENABLED (re-check the dashboard toggle and save).
+
+## Fix 2026-10-05 — false "never reported" offline alerts
+The first scheduled `detect-alerts` run raised 9 critical alerts, 7 of them wrong ("has never reported" for devices that
+had readings). Cause: the job read every `equipment_latest` row and reduced in JS, but the REST API returns at most 1,000
+rows per request and the table has one row per device+key (1,305), so devices with older readings fell out of the result.
+Fix: migration `20261005000000_device_last_seen.sql` (`device_last_seen(uuid[])`, one row per device, RLS-aware) + the
+route now uses it and returns 500 on error instead of guessing. Regression test `04_device_last_seen.test.sql` (7 assertions,
+includes >1,000 rows). **Rule of thumb: never page or reduce `equipment_latest`/telemetry client-side to answer a per-device
+question — aggregate in SQL.**

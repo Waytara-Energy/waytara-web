@@ -42,21 +42,24 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ checked: 0, newAlerts: 0, resolvedAlerts: 0 });
   }
 
-  // equipment_latest has one row per device+key, so the newest ts per
-  // device is simply the max over its rows - exact for every device, however
-  // long it has been silent (the old "newest 2000 rows overall" window
-  // silently lost any device that had not reported recently).
-  const { data: readings } = await supabase
-    .from("equipment_latest")
-    .select("equipment_id, ts")
-    .in("equipment_id", deviceIds)
-    .order("ts", { ascending: false });
+  // device_last_seen() returns exactly one row per device that has ever
+  // reported, computed in the database. Do NOT replace this with a plain
+  // select on equipment_latest: that table has one row per device+key (1,000+
+  // rows) and the REST API returns at most 1,000 per request, so devices
+  // with older readings silently fell out and were reported as "never
+  // reported" (see migration 20261005000000_device_last_seen.sql).
+  const { data: lastSeenRows, error: lastSeenError } = await supabase.rpc("device_last_seen", {
+    p_equipment_ids: deviceIds,
+  });
+  if (lastSeenError) {
+    // Never guess: treating an error as "nobody has reported" would raise a
+    // critical alert for every device.
+    return NextResponse.json({ error: lastSeenError.message }, { status: 500 });
+  }
 
   const lastSeenByDevice = new Map<string, number>();
-  for (const r of readings ?? []) {
-    if (!lastSeenByDevice.has(r.equipment_id)) {
-      lastSeenByDevice.set(r.equipment_id, new Date(r.ts).getTime());
-    }
+  for (const r of lastSeenRows ?? []) {
+    lastSeenByDevice.set(r.equipment_id, new Date(r.last_ts).getTime());
   }
 
   const { data: openOfflineAlerts } = await supabase
