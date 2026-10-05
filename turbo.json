@@ -8,6 +8,20 @@
       "outputs": [
         ".next/**",
         "!.next/cache/**"
+      ],
+      "env": [
+        "NEXT_PUBLIC_SUPABASE_URL",
+        "NEXT_PUBLIC_SUPABASE_ANON_KEY",
+        "NEXT_PUBLIC_SITE_URL",
+        "NEXT_PUBLIC_CANONICAL_URL",
+        "NEXT_PUBLIC_SENTRY_DSN",
+        "SUPABASE_SERVICE_ROLE_KEY",
+        "SENTRY_DSN",
+        "CRON_SECRET",
+        "RESEND_API_KEY",
+        "RESEND_FROM_EMAIL",
+        "LEADS_NOTIFICATION_EMAIL",
+        "CUSTOMER_APP_URL"
       ]
     },
     "dev": {
