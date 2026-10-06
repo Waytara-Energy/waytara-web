@@ -6,3 +6,8 @@ allowBuilds:
   unrs-resolver: true
   # Only used to upload source maps to Sentry; we do not do that yet.
   "@sentry/cli": false
+# Patched releases of transitive dependencies flagged by `pnpm audit` (source-map-js event-loop DoS,
+# sharp's bundled librsvg). Remove these once the parents (next, @sentry/*) depend on the fixed versions.
+overrides:
+  source-map-js: ">=1.2.2"
+  sharp: ">=0.35.5"
