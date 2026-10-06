@@ -4,11 +4,13 @@ import { getSelectedSite, resolveDeviceInSite, deviceDisplayId } from "@/lib/sel
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { getRequestProfile } from "@/lib/request-profile";
 import { fetchSeriesRows } from "@/lib/device-readings-fetch";
+import { planRange } from "@/lib/telemetry/ranges";
 import {
   REPORT_BUCKET_OPTIONS,
   DEFAULT_REPORT_BUCKET_MINUTES,
-  bucketKeyIst,
-  dayBucketKeys,
+  istBucketKey,
+  windowBucketKeys,
+  MAX_REPORT_DAYS,
   availableReportTypes,
   getReportType,
   resolveReportType,
@@ -34,6 +36,8 @@ export interface DayReport {
   deviceLabel: string | null;
   isSolar: boolean;
   date: string;
+  /** How many consecutive days the report covers, starting on `date` (1 = a single day). */
+  days: number;
   type: ReportType;
   bucketMinutes: number;
   /** True when the day was older than the 15-minute retention and was read from hourly rollups. */
@@ -73,11 +77,18 @@ export function parseBucketMinutes(value: string | null | undefined): number {
 export async function gatherDayReport(params: {
   deviceId?: string;
   date?: string | null;
+  days?: string | null;
   type?: string | null;
   bucketMinutes?: string | null;
 }): Promise<DayReportResult> {
   const date = params.date ?? todayIst();
   if (!isValidReportDate(date)) return { ok: false, status: 400, error: "Pick a valid date that is not in the future." };
+  const daysRaw = params.days ? Number(params.days) : 1;
+  if (!Number.isInteger(daysRaw) || daysRaw < 1 || daysRaw > MAX_REPORT_DAYS) {
+    return { ok: false, status: 400, error: `A report covers 1 to ${MAX_REPORT_DAYS} days.` };
+  }
+  // Never past today: a window that would run into the future is cut at today.
+  const days = Math.min(daysRaw, Math.max(1, Math.round((istDayStart(todayIst()).getTime() - istDayStart(date).getTime()) / 86_400_000) + 1));
 
   const [profile, site] = await Promise.all([getRequestProfile(), getSelectedSite()]);
   if (!profile) return { ok: false, status: 401, error: "Please sign in." };
@@ -98,6 +109,7 @@ export async function gatherDayReport(params: {
     deviceLabel: deviceDisplayId(device),
     isSolar,
     date,
+    days,
   };
 
   if (!isSolar) {
@@ -114,11 +126,12 @@ export async function gatherDayReport(params: {
   if (!type) return { ok: false, status: 404, error: "No report metrics are enabled for this device." };
 
   const dayStart = istDayStart(date);
-  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
-  // 15-minute data is kept for 8 days; older days exist as hourly (and daily) rollups only.
-  const ageDays = (Date.now() - dayStart.getTime()) / (24 * 60 * 60 * 1000);
-  const coarse = ageDays > FINE_RETENTION_DAYS;
-  if (coarse && bucketMinutes < 60) bucketMinutes = 60;
+  const windowEnd = new Date(dayStart.getTime() + days * 24 * 60 * 60 * 1000);
+  // What the database can serve for this window (15-minute data is kept 8 days, at most 750 points per metric):
+  // the requested interval if allowed, else the plan's default for the span.
+  const rangePlan = planRange({ fromMs: dayStart.getTime(), toMs: windowEnd.getTime() }, Date.now());
+  bucketMinutes = rangePlan.options.includes(bucketMinutes) ? bucketMinutes : rangePlan.default;
+  const coarse = bucketMinutes >= 60 && days === 1 && Date.now() - dayStart.getTime() > FINE_RETENTION_DAYS * 86_400_000;
 
   const { sampleKeys, counterKeys } = reportKeys(type);
   const supabase = await createClient();
@@ -126,16 +139,15 @@ export async function gatherDayReport(params: {
   // One request for the day's buckets of every metric the report needs, and one for the inverter's own energy
   // counters (the day's maximum) - in parallel. Both read the rollup tables; nothing here touches raw readings.
   const [bucketRows, counterRows] = await Promise.all([
-    fetchSeriesRows(supabase, device.id, sampleKeys, dayStart.toISOString(), dayEnd.toISOString(), bucketMinutes),
-    counterKeys.length > 0 ? fetchSeriesRows(supabase, device.id, counterKeys, dayStart.toISOString(), dayEnd.toISOString(), 1440) : Promise.resolve([]),
+    fetchSeriesRows(supabase, device.id, sampleKeys, dayStart.toISOString(), windowEnd.toISOString(), bucketMinutes),
+    counterKeys.length > 0 ? fetchSeriesRows(supabase, device.id, counterKeys, dayStart.toISOString(), windowEnd.toISOString(), 1440) : Promise.resolve([]),
   ]);
 
   // bucket key -> metric -> that bucket's figures
   const raw = new Map<string, RawBuckets>();
   const covered = new Map<string, Record<string, number>>();
   for (const r of bucketRows) {
-    const key = bucketKeyIst(r.bucket, date, bucketMinutes);
-    if (key === null) continue;
+    const key = istBucketKey(r.bucket, bucketMinutes);
     const row = raw.get(key) ?? {};
     row[r.key_name] = { avg: r.avg_value, pos: r.pos_avg, neg: r.neg_avg };
     raw.set(key, row);
@@ -145,9 +157,10 @@ export async function gatherDayReport(params: {
   }
 
   const counters: Record<string, number | null> = {};
-  for (const r of counterRows) counters[r.key_name] = r.max_value;
+  // A day's counter value is its highest reading; a window's total is the sum over its days.
+  for (const r of counterRows) if (r.max_value !== null) counters[r.key_name] = (counters[r.key_name] ?? 0) + r.max_value;
 
-  const points: ReportPoint[] = dayBucketKeys(date, bucketMinutes).map((time) => {
+  const points: ReportPoint[] = windowBucketKeys(date, days, bucketMinutes).map((time) => {
     const sample = raw.get(time) ?? {};
     const point: ReportPoint = { time };
     for (const s of type.series) {

@@ -8,6 +8,7 @@ export async function GET(req: NextRequest) {
   const result = await gatherDayReport({
     deviceId: q.get("device") ?? undefined,
     date: q.get("date"),
+    days: q.get("days"),
     type: q.get("type"),
     bucketMinutes: q.get("interval"),
   });

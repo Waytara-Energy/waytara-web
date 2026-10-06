@@ -7,6 +7,7 @@ export async function GET(req: NextRequest) {
   const result = await gatherDayReport({
     deviceId: q.get("device") ?? undefined,
     date: q.get("date"),
+    days: q.get("days"),
     type: q.get("type"),
     bucketMinutes: q.get("interval"),
   });
@@ -16,7 +17,7 @@ export async function GET(req: NextRequest) {
   return new NextResponse(dayReportCsv(report), {
     headers: {
       "Content-Type": "text/csv; charset=utf-8",
-      "Content-Disposition": `attachment; filename="waytara-${report.type.id}-${report.date}.csv"`,
+      "Content-Disposition": `attachment; filename="waytara-${report.type.id}-${report.date}${report.days > 1 ? `-${report.days}d` : ""}.csv"`,
       "Cache-Control": "private, no-store",
     },
   });

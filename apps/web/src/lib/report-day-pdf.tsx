@@ -1,6 +1,6 @@
 import { Document, Page, Text, View, StyleSheet, Svg, Rect, Line, Polyline, renderToBuffer } from "@react-pdf/renderer";
 import type { DayReport } from "@/lib/report-day-data";
-import type { ReportPoint, ReportSeries, ReportSeriesSummary } from "@/lib/report-types";
+import { shiftDate, type ReportPoint, type ReportSeries, type ReportSeriesSummary } from "@/lib/report-types";
 
 // The PDF can't read the dashboard's CSS variables, so each series has a fixed
 // hex of the same hue family as the on-screen chart.
@@ -59,6 +59,29 @@ function fmt(v: number | null, unit: string): string {
   return `${v.toFixed(unit === "kW" ? 2 : 1)} ${unit}`;
 }
 
+
+/** Where the x axis is labelled: every 3 hours for a day, otherwise every day (thinned to about 10 labels). */
+function xTicks(report: DayReport): { i: number; label: string }[] {
+  const n = report.points.length;
+  if (report.days <= 1) {
+    return Array.from({ length: 9 }, (_, k) => ({ i: (k / 8) * n, label: `${String(k * 3).padStart(2, "0")}:00` }));
+  }
+  const perDay = n / report.days;
+  const step = Math.max(1, Math.ceil(report.days / 10));
+  const out: { i: number; label: string }[] = [];
+  for (let d = 0; d < report.days; d += step) {
+    const t = report.points[Math.round(d * perDay)]?.time ?? "";
+    out.push({ i: d * perDay, label: `${t.slice(8, 10)}/${t.slice(5, 7)}` });
+  }
+  return out;
+}
+
+/** "HH:mm" within a day report, "dd/mm HH:mm" for a longer one. */
+function fmtAt(at: string | null, days: number): string {
+  if (!at) return "-";
+  return days <= 1 ? at.slice(11, 16) : `${at.slice(8, 10)}/${at.slice(5, 7)} ${at.slice(11, 16)}`;
+}
+
 function DayChart({ report }: { report: DayReport }) {
   const series = report.type.series;
   const unit = series[0].unit;
@@ -79,7 +102,6 @@ function DayChart({ report }: { report: DayReport }) {
   const barW = Math.max(0.6, (slot * 0.8) / Math.max(barSeries.length, 1));
 
   const ticks = [0, 1, 2, 3, 4].map((i) => lo + ((hi - lo) * i) / 4);
-  const hourStep = 3;
 
   return (
     <View>
@@ -102,14 +124,11 @@ function DayChart({ report }: { report: DayReport }) {
             {unit === "kW" ? t.toFixed(t < 10 && t % 1 !== 0 ? 1 : 0) : t.toFixed(0)}
           </Text>
         ))}
-        {Array.from({ length: 24 / hourStep + 1 }, (_, i) => i * hourStep).map((h) => {
-          const x = M.left + (h / 24) * plotW;
-          return (
-            <Text key={`xl${h}`} x={x} y={CHART_H - 6} style={{ fontSize: 7, fill: "#64748B", textAnchor: h === 24 ? "end" : "middle" }}>
-              {`${String(h).padStart(2, "0")}:00`}
-            </Text>
-          );
-        })}
+        {xTicks(report).map((tick) => (
+          <Text key={`xl${tick.i}`} x={M.left + (tick.i / n) * plotW} y={CHART_H - 6} style={{ fontSize: 7, fill: "#64748B", textAnchor: tick.i >= n ? "end" : "middle" }}>
+            {tick.label}
+          </Text>
+        ))}
         {isBar
           ? pts.flatMap((p, i) =>
               barSeries.map((s, si) => {
@@ -161,7 +180,7 @@ function SummaryTable({ report }: { report: DayReport }) {
           {kw && <Text style={styles.cNum}>{s.counterKwh !== null ? `${s.counterKwh.toFixed(1)} kWh` : "-"}</Text>}
           {kw && <Text style={styles.cNum}>{s.energyKwh !== null ? `${s.energyKwh.toFixed(1)} kWh` : "-"}</Text>}
           <Text style={styles.cNum}>{fmt(s.max, s.unit)}</Text>
-          <Text style={styles.cNum}>{s.maxAt ?? "-"}</Text>
+          <Text style={styles.cNum}>{fmtAt(s.maxAt, report.days)}</Text>
           <Text style={styles.cNum}>{fmt(s.avg, s.unit)}</Text>
           <Text style={styles.cNum}>{fmt(s.min, s.unit)}</Text>
         </View>
@@ -170,15 +189,20 @@ function SummaryTable({ report }: { report: DayReport }) {
   );
 }
 
-function hourlyRows(points: ReportPoint[], series: ReportSeries[]) {
-  return Array.from({ length: 24 }, (_, h) => {
-    const prefix = `T${String(h).padStart(2, "0")}:`;
-    const inHour = points.filter((p) => p.time.slice(10, 13) === prefix);
+function summaryRows(points: ReportPoint[], series: ReportSeries[], days: number) {
+  // A day report lists its 24 hours; a longer one lists its days.
+  const groups = new Map<string, ReportPoint[]>();
+  for (const p of points) {
+    const key = days <= 1 ? p.time.slice(0, 13) : p.time.slice(0, 10);
+    groups.set(key, [...(groups.get(key) ?? []), p]);
+  }
+  return [...groups.entries()].map(([key, pts]) => {
     const cells = series.map((s) => {
-      const vals = inHour.map((p) => p[s.id]).filter((v): v is number => typeof v === "number");
+      const vals = pts.map((p) => p[s.id]).filter((v): v is number => typeof v === "number");
       return vals.length ? vals.reduce((a, b) => a + b, 0) / vals.length : null;
     });
-    return { hour: `${String(h).padStart(2, "0")}:00 - ${String(h).padStart(2, "0")}:59`, cells };
+    const label = days <= 1 ? `${key.slice(11, 13)}:00 - ${key.slice(11, 13)}:59` : `${key.slice(8, 10)}/${key.slice(5, 7)}/${key.slice(0, 4)}`;
+    return { label, cells };
   });
 }
 
@@ -194,7 +218,7 @@ function formatLongDate(date: string): string {
 
 function DayDocument({ report, generatedAt }: { report: DayReport; generatedAt: string }) {
   const series = report.type.series;
-  const rows = hourlyRows(report.points, series);
+  const rows = summaryRows(report.points, series, report.days);
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -208,7 +232,7 @@ function DayDocument({ report, generatedAt }: { report: DayReport; generatedAt: 
 
         <Text style={styles.title}>{report.type.label}</Text>
         <Text style={styles.sub}>
-          {formatLongDate(report.date)} - 00:00 to 23:59 IST - {report.customerName}
+          {report.days > 1 ? `${formatLongDate(report.date)} to ${formatLongDate(shiftDate(report.date, report.days - 1))} (${report.days} days)` : `${formatLongDate(report.date)} - 00:00 to 23:59 IST`} - {report.customerName}
           {report.deviceLabel ? ` - ${report.deviceLabel}` : ""}
         </Text>
 
@@ -217,7 +241,7 @@ function DayDocument({ report, generatedAt }: { report: DayReport; generatedAt: 
           <Text style={styles.note}>
             {report.coarse
               ? "Hourly averages (detailed readings are only kept for 90 days)."
-              : `Each ${report.bucketMinutes < 60 ? `${report.bucketMinutes}-minute` : "1-hour"} interval shows the average over that interval.`}
+              : `Each ${report.bucketMinutes < 60 ? `${report.bucketMinutes}-minute` : report.bucketMinutes >= 1440 ? "1-day" : `${report.bucketMinutes / 60}-hour`} interval shows the average over that interval.`}
           </Text>
         </View>
 
@@ -237,10 +261,10 @@ function DayDocument({ report, generatedAt }: { report: DayReport; generatedAt: 
       </Page>
 
       <Page size="A4" style={styles.page}>
-        <Text style={styles.sectionTitle}>Hourly averages - {report.date}</Text>
+        <Text style={styles.sectionTitle}>{report.days > 1 ? "Daily averages" : `Hourly averages - ${report.date}`}</Text>
         <View style={styles.table}>
           <View style={styles.trHead}>
-            <Text style={styles.cFirst}>Hour</Text>
+            <Text style={styles.cFirst}>{report.days > 1 ? "Day" : "Hour"}</Text>
             {series.map((s) => (
               <Text key={s.id} style={styles.cNum}>
                 {s.label} ({s.unit})
@@ -248,8 +272,8 @@ function DayDocument({ report, generatedAt }: { report: DayReport; generatedAt: 
             ))}
           </View>
           {rows.map((r) => (
-            <View style={styles.tr} key={r.hour} wrap={false}>
-              <Text style={styles.cFirst}>{r.hour}</Text>
+            <View style={styles.tr} key={r.label} wrap={false}>
+              <Text style={styles.cFirst}>{r.label}</Text>
               {r.cells.map((c, i) => (
                 <Text key={series[i].id} style={styles.cNum}>
                   {c === null ? "-" : c.toFixed(series[i].unit === "kW" ? 2 : 1)}

@@ -7,6 +7,7 @@ export async function GET(req: NextRequest) {
   const result = await gatherDayReport({
     deviceId: q.get("device") ?? undefined,
     date: q.get("date"),
+    days: q.get("days"),
     type: q.get("type"),
     bucketMinutes: q.get("interval"),
   });
@@ -17,7 +18,7 @@ export async function GET(req: NextRequest) {
   return new NextResponse(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",
-      "Content-Disposition": `attachment; filename="waytara-${report.type.id}-${report.date}.pdf"`,
+      "Content-Disposition": `attachment; filename="waytara-${report.type.id}-${report.date}${report.days > 1 ? `-${report.days}d` : ""}.pdf"`,
       "Cache-Control": "private, no-store",
     },
   });

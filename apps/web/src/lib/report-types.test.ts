@@ -119,7 +119,7 @@ describe("summarizeSeries", () => {
     expect(s.energyKwh).toBeCloseTo(1.5); // (0+2+4) kW x 0.25 h
     expect(s.counterKwh).toBe(24.9);
     expect(s.max).toBe(4);
-    expect(s.maxAt).toBe("06:30");
+    expect(s.maxAt).toBe("2026-10-05T06:30");
     expect(s.min).toBe(0);
     expect(s.avg).toBeCloseTo(2);
   });

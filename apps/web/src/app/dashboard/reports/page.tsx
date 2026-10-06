@@ -63,6 +63,14 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
       ? toAvailableReports(availableReportTypes(await getEnabledMetricKeys(device.id)))
       : [];
 
+  // The first day with readings: the custom window can't start before it.
+  let firstDay: string | null = null;
+  if (dailyReports.length > 0 && device) {
+    const { data } = await (await createClient()).rpc("device_data_range", { p_equipment_id: device.id });
+    const row = Array.isArray(data) ? data[0] : data;
+    firstDay = (row?.first_day as string | undefined) ?? null;
+  }
+
   return (
     <div className="space-y-6">
       {!device ? (
@@ -80,14 +88,14 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <DeviceSwitcher devices={report.site?.devices ?? [device]} selectedId={device.id} />
-              <p className="mt-1 text-sm text-theme-muted">Pick a report and a date to see that day from 00:00 to 23:59, then download it as CSV or PDF.</p>
+              <p className="mt-1 text-sm text-theme-muted">Pick a report and a day (00:00 to 23:59) or a window of 7, 30, 90 days or up to 30 days from a date you choose, then download it as CSV or PDF.</p>
             </div>
           </div>
 
           {dailyReports.length > 0 && (
             <div className="space-y-3">
               <h2 className="text-sm font-semibold text-theme-primary">Daily report</h2>
-              <DayReport deviceId={device.id} available={dailyReports} />
+              <DayReport deviceId={device.id} available={dailyReports} firstDay={firstDay} />
             </div>
           )}
 

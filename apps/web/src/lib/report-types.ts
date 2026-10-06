@@ -326,7 +326,7 @@ export interface ReportSeriesSummary {
   energyKwh: number | null;
   /** The inverter's own energy counter for the day, when the series has one. */
   counterKwh: number | null;
-  /** Highest / lowest / average bucket value, and when the peak happened ("HH:mm"). */
+  /** Highest / lowest / average bucket value, and when the peak happened (the bucket's "YYYY-MM-DDTHH:mm"). */
   max: number | null;
   min: number | null;
   avg: number | null;
@@ -355,7 +355,7 @@ export function summarizeSeries(
     energySeconds += v * (typeof covered === "number" ? covered : bucketMinutes * 60);
     if (max === null || v > max) {
       max = v;
-      maxAt = p.time.slice(11, 16);
+      maxAt = p.time;
     }
     if (min === null || v < min) min = v;
   }
@@ -453,3 +453,25 @@ export interface AvailableReport {
 
 export const toAvailableReports = (types: ReportType[]): AvailableReport[] =>
   types.map((t) => ({ id: t.id, seriesIds: t.series.map((s) => s.id) }));
+
+/** A calendar date shifted by whole days ("2026-10-05" + 2 = "2026-10-07"). */
+export function shiftDate(date: string, days: number): string {
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Every bucket start of `days` consecutive IST days beginning on `date`. */
+export function windowBucketKeys(date: string, days: number, bucketMinutes: number): string[] {
+  return Array.from({ length: days }, (_, i) => dayBucketKeys(shiftDate(date, i), bucketMinutes)).flat();
+}
+
+/** The bucket key ("YYYY-MM-DDTHH:mm", IST) a timestamp falls in at `bucketMinutes`. */
+export function istBucketKey(ts: string | Date, bucketMinutes: number): string {
+  const size = bucketMinutes * 60_000;
+  const t = new Date(ts).getTime();
+  const start = Math.floor((t + 19_800_000) / size) * size - 19_800_000;
+  return new Date(start + 19_800_000).toISOString().slice(0, 16);
+}
+
+export const MAX_REPORT_DAYS = 90;
