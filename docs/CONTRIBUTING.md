@@ -32,8 +32,9 @@ CI runs all of the above on every pull request.
    Write policies with `(select auth.uid())` / `(select waytara.is_admin())`, not bare calls.
 4. **New functions in `waytara` are not executable by `anon`/`PUBLIC`** (default privileges handle this) — grant only to the
    roles that need them. `SECURITY DEFINER` functions must `set search_path`.
-5. **Don't guess "latest value" from raw telemetry.** Use `equipment_latest`. Long ranges use `telemetry_daily`
-   (`fetchDailyMaxReadings`); short intraday charts use `telemetry_buckets`. Never page raw rows for more than a day.
+5. **Don't guess "latest value" from raw telemetry.** Use `equipment_latest`. Charts read the rollup tiers through the
+   shared telemetry store (`apps/web/src/lib/telemetry`: `useSeriesRange`, `useTodaySeries`, `useLiveNumbers`), never ad-hoc
+   queries; raw readings are not stored (the agent keeps them locally, Go Live reads them on demand).
 6. **Server-render public pages.** No `useSearchParams()` at page level on marketing routes (it blanks the HTML for
    crawlers). New public pages need `pageMetadata()`; private pages need `NO_INDEX`.
 7. **Migrations are additive and tested locally first** (`local-db.mjs reset` + `test:db`). Never edit an applied migration.

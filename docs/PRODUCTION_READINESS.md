@@ -199,3 +199,19 @@ Fix: migration `20261005000000_device_last_seen.sql` (`device_last_seen(uuid[])`
 route now uses it and returns 500 on error instead of guessing. Regression test `04_device_last_seen.test.sql` (7 assertions,
 includes >1,000 rows). **Rule of thumb: never page or reduce `equipment_latest`/telemetry client-side to answer a per-device
 question — aggregate in SQL.**
+
+## Update 2026-10-07 — rollup data layer, live dashboards, range pickers
+- **Data layer:** `20261006000000_rollup_data_layer.sql` (applied to production; 56 pgTAP assertions in `05_rollup_data_layer.test.sql`).
+  15-minute / hourly / daily rollups with exact-combine columns, `ingest_tick`, `device_data_range`, retention and late-data jobs,
+  Realtime channel policies and the `live-snapshots` bucket. No raw rows are stored.
+- **Agent:** `equipment_agent` keeps a local copy of every reading, uploads latest values each interval and finished 15-minute buckets,
+  and answers Go Live. Verified: SQL/agent parity (2,756/2,756 buckets); energy totals within ~1.5% of the inverter's own counters
+  (battery charge differs: 1.18 vs 1.90 kWh, unexplained); local end-to-end Go Live and per-upload broadcast.
+- **Dashboard:** Overview, Monitoring (solar and EV), Performance and Maintenance gauges follow the live channel in place;
+  Monitoring and Performance have the Today/7/30/90/custom picker; Reports export a day, 7/30/90 days or a custom 30-day window
+  as CSV/PDF; Monitoring has **Go Live**. Battery direction fixed (positive = discharging).
+- **Fixed on the way:** EV Monitoring called helpers from a `"use client"` module on the server (would have thrown at runtime).
+- **Dependencies:** `source-map-js` and `sharp` pinned to patched versions (pnpm overrides); `pnpm audit` clean.
+- **Not verified:** a signed-in browser run of the new screens against production, the agent against the real inverter,
+  and production behaviour of the private Realtime channels (policies are applied; first real test is the first live agent run).
+- **Waiting on a human:** dropping the old raw tables/functions/cron jobs (cutover), running the agent on the real inverter, any plan upgrade or move to Tiger/VPS.

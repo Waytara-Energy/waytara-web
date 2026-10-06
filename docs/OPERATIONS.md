@@ -78,12 +78,25 @@ and for the HTTP calls `select * from net._http_response order by created desc l
 - **Uptime:** point an external monitor at `https://www.waytaraenergy.com/login` and `https://admin.waytaraenergy.com/login`.
 - **Database:** Supabase Reports → slow queries; `select * from pg_stat_statements order by total_exec_time desc limit 10;`.
 
-## 4. Telemetry growth plan
-Measured 2026-10: ~207k rows/day for 7 devices (~30k/device/day).
-- Now: raw rows kept 90 days, hourly rollups kept forever (`equipment_telemetry_hourly`); long-range pages read rollups.
-- Rough size of the raw table at steady state: `devices × 30k × 90` rows (100 devices ≈ 270M rows).
-- **When raw rows exceed ~50M**, convert `equipment_telemetry` to monthly range partitions (retention becomes
-  `DROP PARTITION`, indexes stay small) — plan it before, not after. Also batch ingest inserts (50k+ rows per statement).
+## 4. Telemetry data layer (rollups; no raw rows)
+Replaces the old raw-row design (migration `20261006000000_rollup_data_layer.sql`, see `docs/PRODUCTION_READINESS.md`).
+- **The equipment agent keeps every reading in local files** and uploads two things: the latest values/heartbeat every
+  *upload interval* (chosen when the agent is started) and each finished 15-minute bucket at :00/:15/:30/:45 IST, through
+  `ingest_tick(...)`. **No raw reading rows are stored in Supabase.**
+- **Tiers:** `equipment_rollup_15m` (daily partitions, kept 8 days), `equipment_rollup_1h` and `equipment_rollup_1d` (kept forever).
+  30 min / 1 h / 2 h views are combined from the 15-minute buckets in the browser (rollups hold weighted sums, covered
+  seconds, min/max/last, so combining is exact). Late buckets are re-rolled by a watermark job.
+- **Size:** per device roughly 96 buckets x metrics per day for 8 days, plus one hourly and one daily row per metric per
+  day. 60 devices fits the Free tier comfortably; `select pg_size_pretty(pg_total_relation_size('waytara.equipment_rollup_15m'))` to check.
+- **Realtime:** one broadcast per upload on the private channel `device:<equipment_id>` (RLS via `realtime.messages`
+  policies); the dashboard closes the channel when the tab is hidden/closed. **Go Live** (Monitoring) streams every
+  reading of today from the agent's local files over `live:<equipment_id>` + a private storage snapshot
+  (`live-snapshots` bucket), deleted when the last viewer leaves.
+- **Ranges:** Today / 7 / 30 / 90 days / custom (up to 30 days from any day since the first reading). The browser cache
+  (IndexedDB, per user) and in-flight de-duplication keep repeat queries off the database. Redis is deferred until after hosting.
+- **Cutover still pending (needs sign-off):** the old `equipment_telemetry` raw table, `equipment_telemetry_hourly`,
+  `telemetry_buckets`, `telemetry_daily`, `purge_old_telemetry` and their cron jobs are unused by the dashboards but not
+  yet dropped; `equipment_telemetry` remains only for onboarding test signals.
 
 ### Real inverter ingest (measured 2026-10-05) — read this before changing cadence
 - One real Deye inverter read by the Python `equipment_agent` produced ~34k rows/hour (~170 MB/day incl. indexes)
@@ -119,7 +132,7 @@ Measured 2026-10: ~207k rows/day for 7 devices (~30k/device/day).
 | Site address / coordinates | `sites`, `customers.address` | Life of the account |
 | KYC documents | private bucket `customer-kyc` | Life of the contract + statutory period; delete on request when legally allowed |
 | Quotation PDFs (pricing) | private bucket `quotation-pdfs` | 8 years (accounting) |
-| Energy telemetry | `equipment_telemetry` (90 d), `…_hourly` (kept) | As above |
+| Energy telemetry | `equipment_rollup_15m` (8 d), `…_1h` / `…_1d` (kept) | As above |
 | Support messages / attachments | `support_*`, private bucket | 3 years after ticket closure |
 
 Needed to be fully compliant (business/legal, not code): a named grievance officer in the privacy policy, a documented
