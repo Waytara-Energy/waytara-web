@@ -16,7 +16,7 @@ import { TriangleAlert } from "lucide-react";
 import { FaultBanner } from "./fault-banner";
 import { FaultHistory } from "./fault-history";
 import { LastSyncIndicator } from "./last-sync-indicator";
-import { TemperatureGauge } from "./temperature-gauge";
+import { LiveTemperatureGauges } from "./live-temperature-gauges";
 import { StatusPill } from "./status-pill";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -158,15 +158,16 @@ async function SolarInverterHealth({ supabase, device }: { supabase: SupabaseSer
             <CardTitle className="text-sm">Temperature Trends</CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {temperatureGaugeFields.map((field) => (
-              <TemperatureGauge
-                key={field.key}
-                label={field.label}
-                valueC={getNum(field.key)}
-                warnAboveC={field.warnAboveC}
-                previousValueC={previousTemps.get(field.key) ?? null}
-              />
-            ))}
+            <LiveTemperatureGauges
+              deviceId={device.id}
+              gauges={temperatureGaugeFields.map((field) => ({
+                key: field.key,
+                label: field.label,
+                warnAboveC: field.warnAboveC,
+                previousC: previousTemps.get(field.key) ?? null,
+              }))}
+              initial={Object.fromEntries(temperatureGaugeFields.map((field) => [field.key, getNum(field.key)]))}
+            />
           </CardContent>
         </Card>
       )}
