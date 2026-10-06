@@ -91,6 +91,11 @@ function useCtx(): Ctx {
   return ctx;
 }
 
+/** The shared store (for hooks built on top of it). */
+export function useTelemetryStore(): TelemetryStore {
+  return useCtx().store;
+}
+
 /** The newest value of one metric, live. Re-renders only when that value changes. */
 export function useLatest(deviceId: string, key: string): LatestValue | undefined {
   const { store } = useCtx();

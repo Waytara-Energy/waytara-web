@@ -5,10 +5,9 @@ import { getRequestProfile } from "@/lib/request-profile";
 import { fetchSiteOverview, fetchTodayChargingSessions, fetchRecentChargingStats } from "@/lib/device-overview";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { DeviceStatusPill } from "@/components/dashboard/device-status-pill";
 import { WeatherHeader } from "@/components/dashboard/weather-header";
-import { FaultBanner } from "@/components/dashboard/fault-banner";
-import { EnergyFlowDiagram } from "@/components/dashboard/energy-flow-diagram";
+import { LiveChannelKeeper, LiveEnergyFlow, LiveFaultBanner, LiveStatusPill } from "@/components/dashboard/overview-live";
+import { SITE_OVERVIEW_KEYS } from "@/lib/overview-keys";
 import { SolarLiveStatusCards } from "@/components/dashboard/solar-live-status-cards";
 import { EvLiveStatusCards } from "@/components/dashboard/ev-live-status-cards";
 import { PowerGenerationChart } from "@/components/dashboard/lazy-charts";
@@ -79,16 +78,16 @@ export default async function DashboardOverviewPage() {
     inverterId ? fetchEnumOptions(supabase, ["inverter_state"]).then((m) => m.get("inverter_state") ?? []) : Promise.resolve([]),
   ]);
   const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
+  const inverterIds = site.devices.filter((d) => d.deviceType?.category === "solar_inverter").map((d) => d.id);
+  // What the server saw; the live components take it from here (no page refresh).
+  const overviewInitial: Record<string, number | null> = overview ? Object.fromEntries(SITE_OVERVIEW_KEYS.map((k) => [k, overview.get(k)])) : {};
 
   return (
     <div className="space-y-6">
-      {/* equipment_telemetry isn't safe to hand-patch here — the energy flow
-          diagram and the status pill are both derived (latest-per-key,
-          summed/averaged across devices) from a raw insert payload, so a
-          new reading debounce-refreshes the whole page instead. */}
-      {deviceIds.length > 0 && (
-        <RealtimeRefresh table="equipment_telemetry" event="INSERT" filter={`equipment_id=in.(${deviceIds.join(",")})`} throttleMs={15000} />
-      )}
+      {/* Live numbers (status pill, fault banner, energy flow, status cards, charts) update in place from the
+          device's live channel - there is no page refresh on new readings. The channel is only open while this
+          tab is visible. */}
+      <LiveChannelKeeper deviceIds={[...inverterIds, ...chargerIds]} />
       {/* ev_sessions isn't reflected in equipment_telemetry at all (it's
           a derived table, not a raw reading) — a session opening is an
           INSERT, closing is an UPDATE on that same row, so both need their
@@ -109,13 +108,7 @@ export default async function DashboardOverviewPage() {
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <WeatherHeader address={site.address} siteName={site.name} latitude={site.latitude} longitude={site.longitude} />
-        {overview && (
-          <DeviceStatusPill
-            inverterState={overview.get("inverter_run_state")}
-            activeFaultCode={overview.get("active_fault_code")}
-            inverterStateOptions={inverterStateOptions}
-          />
-        )}
+        {overview && <LiveStatusPill inverterIds={inverterIds} initial={overviewInitial} inverterStateOptions={inverterStateOptions} />}
       </div>
 
       {!overview ? (
@@ -130,15 +123,13 @@ export default async function DashboardOverviewPage() {
         </Empty>
       ) : (
         <>
-          <FaultBanner faultCode={overview.get("active_fault_code")} />
+          <LiveFaultBanner inverterIds={inverterIds} initial={overviewInitial} />
 
-          <EnergyFlowDiagram
-            solarW={overview.get("inverter_output_power_w")}
-            batteryW={overview.get("battery_power_w")}
-            gridW={overview.get("grid_total_power_w")}
-            loadW={overview.get("load_total_power_w")}
-            batterySocPct={overview.get("battery_soc_pct")}
-            evW={overview.evW}
+          <LiveEnergyFlow
+            inverterIds={inverterIds}
+            chargerIds={chargerIds}
+            initial={overviewInitial}
+            initialEvW={overview.evW}
             powerPackage={site.powerPackage}
             powerSourceCategory={site.powerSourceCategory}
           />

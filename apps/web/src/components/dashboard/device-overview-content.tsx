@@ -5,10 +5,8 @@ import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
 import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
 import { fetchDashboardFields, fetchFieldValues, resolveComputedValues } from "@/lib/template-fields";
 import { DynamicFieldGroup } from "./dynamic-field-group";
-import { DeviceStatusPill } from "./device-status-pill";
-import { FaultBanner } from "./fault-banner";
-import { EnergyFlowDiagram } from "./energy-flow-diagram";
-import { TodaySoFar } from "./today-so-far";
+import { LiveChannelKeeper, LiveEnergyFlow, LiveFaultBanner, LiveStatusPill, LiveTodaySoFar } from "./overview-live";
+import { SITE_OVERVIEW_KEYS } from "@/lib/overview-keys";
 import { RecentAlerts } from "./recent-alerts";
 import { EvChargerOverview } from "./ev-charger-overview";
 import { DeviceParameterCards } from "./device-parameter-cards";
@@ -85,32 +83,29 @@ export async function DeviceOverviewContent({
     );
     const leftoverValues = resolveComputedValues(leftoverFields, leftoverRawValues, device);
     const getLeftoverValue = (key: string) => leftoverValues.get(key) ?? null;
+    // What the server saw; the live components take it from here (no page refresh).
+    const initial: Record<string, number | null> = Object.fromEntries(SITE_OVERVIEW_KEYS.map((k) => [k, overview.get(k)]));
+    const inverterIds = [device.id];
     return (
       <div className="space-y-4">
+        <LiveChannelKeeper deviceIds={inverterIds} />
         <div className="flex justify-end">
-          <DeviceStatusPill
-            inverterState={overview.get("inverter_run_state")}
-            activeFaultCode={overview.get("active_fault_code")}
-            inverterStateOptions={inverterStateOptions}
-          />
+          <LiveStatusPill inverterIds={inverterIds} initial={initial} inverterStateOptions={inverterStateOptions} />
         </div>
 
-        <FaultBanner faultCode={overview.get("active_fault_code")} />
+        <LiveFaultBanner inverterIds={inverterIds} initial={initial} />
 
         {showEnergyFlowDiagram && (
-          <EnergyFlowDiagram
-            solarW={overview.get("inverter_output_power_w")}
-            batteryW={overview.get("battery_power_w")}
-            gridW={overview.get("grid_total_power_w")}
-            loadW={overview.get("load_total_power_w")}
-            batterySocPct={overview.get("battery_soc_pct")}
-            evW={overview.evW}
+          <LiveEnergyFlow
+            inverterIds={inverterIds}
+            initial={initial}
+            initialEvW={overview.evW}
             powerPackage={site.powerPackage}
             powerSourceCategory={site.powerSourceCategory}
           />
         )}
 
-        <TodaySoFar fields={allOverviewFields} get={overview.get} enabledKeys={overview.enabledKeys} />
+        <LiveTodaySoFar inverterIds={inverterIds} initial={initial} fields={allOverviewFields} enabledKeys={[...overview.enabledKeys]} />
 
         {leftoverGroups.length > 0 && (
           // Columns, not a grid — see the Devices page's identical note on

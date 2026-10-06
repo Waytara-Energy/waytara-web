@@ -2,6 +2,9 @@ import "server-only";
 import { createClient } from "@waytara/supabase/server";
 import type { CustomerDevice, CustomerSite } from "./selected-site";
 import { fetchReadKeys } from "./instrument-catalog-data";
+import { FAULT_BITMASK_KEYS, TODAY_ENERGY_KEYS } from "./overview-keys";
+
+export { FAULT_BITMASK_KEYS };
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -12,12 +15,10 @@ type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 // day_reactive_energy_kvarh, which the old list also carried, are
 // Monitoring-section fields now — handled there instead, not duplicated
 // onto Overview).
-const TODAY_ENERGY_KEYS = ["day_pv_energy_kwh", "day_grid_import_energy_kwh", "day_grid_export_energy_kwh", "day_load_energy_kwh"];
 
 // The raw bitmask/code registers active_fault_code used to be a single
 // decoded value for — the new workbook has no single "fault code" register
 // anymore, only per-source bitmasks (see fault-code doc comment below).
-export const FAULT_BITMASK_KEYS = ["fault_message_1", "fault_message_2", "fault_message_3", "fault_message_4", "alarm_status_1", "alarm_status_2"];
 
 // Instruments a device's full detail view needs — filtered explicitly
 // rather than "most recent N readings across every instrument" (the old

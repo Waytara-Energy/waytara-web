@@ -4,10 +4,9 @@ import type { CustomerDevice } from "./selected-site";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
-export interface EnumOption {
-  code: string;
-  label: string;
-}
+import type { EnumOption } from "./enum-labels";
+export { lookupEnumLabel } from "./enum-labels";
+export type { EnumOption };
 
 export interface SettingField {
   key: string;
@@ -143,8 +142,3 @@ export async function fetchEnumOptions(supabase: SupabaseServerClient, enumRefs:
 /** Convenience for a single enum_ref — looks up one code's label, falling
  *  back to the raw code string (still better than nothing) if it's
  *  missing from equipment_enum or the code itself is unrecognized. */
-export function lookupEnumLabel(options: Map<string, EnumOption[]>, enumRef: string, code: string | number | null): string | null {
-  if (code === null) return null;
-  const match = (options.get(enumRef) ?? []).find((o) => o.code === String(code));
-  return match?.label ?? `Code ${code}`;
-}
