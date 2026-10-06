@@ -4,11 +4,12 @@ import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
 import { fetchDailyMaxReadings } from "@/lib/device-readings-fetch";
 import { fetchDashboardFields, fetchFieldValues, resolveComputedValues, type FieldValue } from "@/lib/template-fields";
 import { LiveDynamicFieldGroup } from "./live-field-group";
+import { SolarPerformanceCharts } from "./performance-range";
 import { enumToObject, valuesFor } from "@/lib/field-values";
-import { PerformanceChart, DivergingBarChart } from "./lazy-charts";
+import { PerformanceChart } from "./lazy-charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { aggregateDailyYield, zipDailySeries, type RawReading } from "@/lib/energy-aggregation";
+import { aggregateDailyYield } from "@/lib/energy-aggregation";
 import { formatDuration } from "@/lib/format-duration";
 import { DeviceParameterCards } from "./device-parameter-cards";
 
@@ -22,14 +23,6 @@ const HISTORY_DAYS = 180;
 // convention as Monitoring's OVERVIEW_CROSSREF_KEYS: a field's
 // dashboard_section says which screen renders its own full detail, not
 // which screens may chart its history.
-const YIELD_KEY = "day_pv_energy_kwh";
-const SOLAR_HISTORY_KEYS = [
-  YIELD_KEY,
-  "day_battery_charge_energy_kwh",
-  "day_battery_discharge_energy_kwh",
-  "day_grid_import_energy_kwh",
-  "day_grid_export_energy_kwh",
-];
 
 /** Picks the right category-specific Performance body — mirrors
  *  DeviceOverviewContent/MonitoringContent's dispatch pattern (Phases 1-3).
@@ -54,9 +47,6 @@ function groupTitle(category: string, groupName: string | null): string {
 }
 
 async function SolarInverterPerformance({ supabase, device }: { supabase: SupabaseServerClient; device: CustomerDevice }) {
-  const since = new Date();
-  since.setUTCDate(since.getUTCDate() - HISTORY_DAYS);
-
   // sections is this device's own real Performance field list (Battery
   // Health, Production, Self Use, Solar Array Comparison) — replaces the
   // old MONTH_TOTAL_FIELDS/YEAR_TOTAL_FIELDS/LIFETIME_TOTAL_FIELDS
@@ -84,8 +74,7 @@ async function SolarInverterPerformance({ supabase, device }: { supabase: Supaba
     "total_pv_energy_kwh",
   ];
 
-  const [rawRows, rawValues, enumOptions] = await Promise.all([
-    fetchDailyMaxReadings(supabase, device.id, SOLAR_HISTORY_KEYS, since.toISOString()),
+  const [rawValues, enumOptions] = await Promise.all([
     fetchFieldValues(supabase, device.id, [...dynamicKeys, ...CROSSREF_KEYS]),
     enumRefs.length > 0
       ? supabase
@@ -111,18 +100,6 @@ async function SolarInverterPerformance({ supabase, device }: { supabase: Supaba
     return typeof v === "number" ? v : null;
   };
 
-  const byKey = (key: string): RawReading[] =>
-    rawRows.filter((r) => r.key_name === key).map((r) => ({ device_id: device.id, value: r.value, ts: r.ts }));
-
-  const daily = aggregateDailyYield(byKey(YIELD_KEY));
-  const batteryCharge = aggregateDailyYield(byKey("day_battery_charge_energy_kwh"));
-  const batteryDischarge = aggregateDailyYield(byKey("day_battery_discharge_energy_kwh"));
-  const gridImport = aggregateDailyYield(byKey("day_grid_import_energy_kwh"));
-  const gridExport = aggregateDailyYield(byKey("day_grid_export_energy_kwh"));
-
-  const batteryDiverging = zipDailySeries(batteryCharge, batteryDischarge);
-  const gridDiverging = zipDailySeries(gridExport, gridImport);
-
   const selfConsumptionPct = getNum("self_consumption_pct");
   const lifetimePvKwh = getNum("total_pv_energy_kwh");
 
@@ -147,27 +124,7 @@ async function SolarInverterPerformance({ supabase, device }: { supabase: Supaba
         </Card>
       </div>
 
-      <div className="rounded-xl border border-theme-border bg-theme-bg p-4">
-        <PerformanceChart daily={daily} unit="kWh" />
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Battery: Charge vs. Discharge</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DivergingBarChart data={batteryDiverging} positiveLabel="Charged" negativeLabel="Discharged" unit="kWh" />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Grid: Export vs. Import</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <DivergingBarChart data={gridDiverging} positiveLabel="Exported" negativeLabel="Imported" unit="kWh" />
-        </CardContent>
-      </Card>
+      <SolarPerformanceCharts deviceId={device.id} />
 
       {sections.map((section) =>
         section.groups.map((group) => (
