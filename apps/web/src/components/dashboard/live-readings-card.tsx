@@ -1,7 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatFieldValue, type TemplateField, type FieldValue } from "@/lib/template-field-format";
-import { lookupEnumLabel, type EnumOption } from "@/lib/instrument-catalog-data";
+import { lookupEnumLabel, type EnumOption } from "@/lib/enum-labels";
 import { Meter } from "./meter";
 import { RadialMeter } from "./radial-meter";
 

@@ -9,7 +9,7 @@ import { Button } from "@/components/ui/button";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { startChargingSession, stopChargingSession } from "@/app/dashboard/ev-session-actions";
 import { getConnectorStatusLabel, type StatusInfo } from "@/lib/ev-charger-catalog";
-import type { EnumOption } from "@/lib/instrument-catalog-data";
+import type { EnumOption } from "@/lib/enum-labels";
 import type { ChargingSessionDetail, RecentChargingStats } from "@/lib/device-overview";
 
 const DEFAULT_RATED_POWER_W = 7400;

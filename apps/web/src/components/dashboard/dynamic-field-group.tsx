@@ -1,5 +1,5 @@
 import type { TemplateField, FieldValue } from "@/lib/template-field-format";
-import type { EnumOption } from "@/lib/instrument-catalog-data";
+import type { EnumOption } from "@/lib/enum-labels";
 import { MetricListCard } from "./metric-list-card";
 import { groupByIndex } from "./indexed-group-card";
 import { ComparisonStripCard } from "./comparison-strip-card";

@@ -1,5 +1,5 @@
 import { StatusPill, type StatusTone } from "./status-pill";
-import type { EnumOption } from "@/lib/instrument-catalog-data";
+import type { EnumOption } from "@/lib/enum-labels";
 
 // Real Deye inverter_state codes (register 59, from instrument_enum_values
 // enum_ref 'inverter_state' — the manual's own enum, not a guess): 0=Standby,

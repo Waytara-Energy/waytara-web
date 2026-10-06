@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatFieldValue, type TemplateField, type FieldValue } from "@/lib/template-field-format";
-import { lookupEnumLabel, type EnumOption } from "@/lib/instrument-catalog-data";
+import { lookupEnumLabel, type EnumOption } from "@/lib/enum-labels";
 
 /** A generic "detail" card — a flat list of label/value rows under one
  *  title, styled after PvStringComparison's row markup. Field-list-source-

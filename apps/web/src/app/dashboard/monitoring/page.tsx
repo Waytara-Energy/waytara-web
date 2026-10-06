@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { Activity } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { MonitoringContent } from "@/components/dashboard/monitoring-content";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
@@ -54,17 +53,8 @@ export default async function MonitoringPage({ searchParams }: { searchParams: P
         </Empty>
       ) : (
         <>
-          {/* The live charts inside MonitoringContent already poll/subscribe
-              on their own — this is for everything else on the page (detail
-              cards, badges), all snapshot-rendered server-side and not safe
-              to hand-patch from a raw insert payload. equipment_telemetry is
-              the single busiest table in the app (20-30 inserts per device
-              "tick"), and a full-page refresh re-runs every query on the
-              page, not just the reading-driven ones — the default 400ms
-              debounce meant this was firing near-continuously and competing
-              with the charts' own fetches/tab switches for bandwidth, for
-              freshness nobody could actually perceive at that cadence. */}
-          <RealtimeRefresh table="equipment_telemetry" event="INSERT" filter={`equipment_id=eq.${device.id}`} throttleMs={15000} />
+          {/* Every number and chart inside MonitoringContent follows the device's live channel in place; there is
+              no page refresh on new readings. */}
           <MonitoringContent supabase={supabase} device={device} devices={site?.devices ?? [device]} />
         </>
       )}

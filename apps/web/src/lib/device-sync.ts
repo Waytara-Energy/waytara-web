@@ -22,18 +22,25 @@ export interface LastSyncInfo {
  *  version of the same idea. */
 export async function getLastSyncInfo(deviceId: string): Promise<LastSyncInfo> {
   const supabase = await createClient();
-  const { data } = await supabase
-    .from("equipment_latest")
-    .select("ts")
-    .eq("equipment_id", deviceId)
-    .order("ts", { ascending: false })
-    .limit(1)
-    .maybeSingle();
+  // The agent's heartbeat is the real "last heard from the device": it is written on every upload, even when no
+  // value changed. Older data (before the heartbeat existed) falls back to the newest reading.
+  const { data: beat } = await supabase.from("equipment_heartbeat").select("last_seen").eq("equipment_id", deviceId).maybeSingle();
+  let lastTs: string | null = beat?.last_seen ?? null;
+  if (!lastTs) {
+    const { data } = await supabase
+      .from("equipment_latest")
+      .select("ts")
+      .eq("equipment_id", deviceId)
+      .order("ts", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    lastTs = data?.ts ?? null;
+  }
 
-  if (!data?.ts) {
+  if (!lastTs) {
     return { lastTs: null, minutesAgo: null, isStale: true };
   }
 
-  const minutesAgo = Math.round((Date.now() - new Date(data.ts).getTime()) / 60000);
-  return { lastTs: data.ts, minutesAgo, isStale: minutesAgo > STALE_AFTER_MINUTES };
+  const minutesAgo = Math.round((Date.now() - new Date(lastTs).getTime()) / 60000);
+  return { lastTs, minutesAgo, isStale: minutesAgo > STALE_AFTER_MINUTES };
 }
