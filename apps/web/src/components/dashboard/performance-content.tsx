@@ -3,7 +3,8 @@ import type { CustomerDevice } from "@/lib/selected-site";
 import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
 import { fetchDailyMaxReadings } from "@/lib/device-readings-fetch";
 import { fetchDashboardFields, fetchFieldValues, resolveComputedValues, type FieldValue } from "@/lib/template-fields";
-import { DynamicFieldGroup } from "./dynamic-field-group";
+import { LiveDynamicFieldGroup } from "./live-field-group";
+import { enumToObject, valuesFor } from "@/lib/field-values";
 import { PerformanceChart, DivergingBarChart } from "./lazy-charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -170,12 +171,12 @@ async function SolarInverterPerformance({ supabase, device }: { supabase: Supaba
 
       {sections.map((section) =>
         section.groups.map((group) => (
-          <DynamicFieldGroup
+          <LiveDynamicFieldGroup deviceId={device.id}
             key={`${section.category}-${group.groupName ?? ""}`}
             title={groupTitle(section.category, group.groupName)}
             fields={group.fields}
-            getValue={getValue}
-            enumOptionsByRef={enumOptions}
+            initial={valuesFor(group.fields, getValue)}
+            enumOptions={enumToObject(enumOptions)}
           />
         ))
       )}
@@ -286,11 +287,11 @@ async function EvChargerPerformance({ supabase, device }: { supabase: SupabaseSe
 
       {[...sections, ...billingSections].map((section) =>
         section.groups.map((group) => (
-          <DynamicFieldGroup
+          <LiveDynamicFieldGroup deviceId={device.id}
             key={`${section.category}-${group.groupName ?? ""}`}
             title={groupTitle(section.category, group.groupName)}
             fields={group.fields}
-            getValue={getValue}
+            initial={valuesFor(group.fields, getValue)}
           />
         ))
       )}

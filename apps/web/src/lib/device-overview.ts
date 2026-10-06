@@ -303,30 +303,6 @@ export interface LiveSeriesPoint {
   ts: string;
 }
 
-/** Last `limit` readings for one instrument key on one device, chronological
- *  (oldest first) — what a sparkline needs. Scoped to a single device
- *  rather than summed across a site's inverters: with (currently) one
- *  inverter per site this is exactly the site total anyway, and a true
- *  multi-inverter sum would need cross-device timestamp alignment a
- *  sparkline doesn't need to get right — same "one representative
- *  reading" simplification already used elsewhere in this file. */
-export async function fetchDeviceRecentSeries(
-  supabase: SupabaseServerClient,
-  deviceId: string,
-  key: string,
-  limit: number
-): Promise<LiveSeriesPoint[]> {
-  const { data } = await supabase
-    .from("equipment_telemetry")
-    .select("value, ts")
-    .eq("equipment_id", deviceId)
-    .eq("key_name", key)
-    .order("ts", { ascending: false })
-    .limit(limit);
-  return (data ?? []).slice().reverse();
-}
-
-
 /** Today's EV charging energy — summed session deltas (end minus start
  *  energy register), not the lifetime cumulative register itself.
  *  Overview is a today/now snapshot (see EvChargerOverview's own comment),

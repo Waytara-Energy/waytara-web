@@ -69,12 +69,8 @@ export default async function MaintenancePage({
         </Empty>
       ) : (
         <>
-          {/* Fault status, temperature trends, and last-sync are all
-              derived server-side (fault-episode collapsing, trend deltas)
-              from equipment_telemetry — not safe to hand-patch from a raw
-              INSERT payload, so a new reading debounce-refreshes the whole
-              page instead (see RealtimeRefresh's own reasoning). */}
-          <RealtimeRefresh table="equipment_telemetry" event="INSERT" filter={`equipment_id=eq.${device.id}`} throttleMs={15000} />
+          {/* Fault status and temperature trends are derived server-side from the rollups; the sync time and the
+              field groups follow the device's live channel. There is no page refresh on new readings. */}
           <RealtimeRefresh table="maintenance_tickets" event="UPDATE" filter={`device_id=eq.${device.id}`} />
 
           <div className="flex flex-wrap items-start justify-between gap-3">

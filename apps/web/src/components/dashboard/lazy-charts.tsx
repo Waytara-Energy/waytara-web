@@ -5,7 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 /**
  * Code-split, deferred versions of the recharts-backed chart components —
- * PerformanceChart, LiveMetricChart, DivergingBarChart, PowerGenerationChart,
+ * PerformanceChart, DivergingBarChart, PowerGenerationChart,
  * BarTrendChart.
  * recharts is a genuinely heavy dependency (cartesian/state/component
  * chunks), and importing these components the normal way bundles all of
@@ -26,11 +26,6 @@ function ChartSkeleton() {
 }
 
 export const PerformanceChart = dynamic(() => import("./performance-chart").then((m) => m.PerformanceChart), {
-  ssr: false,
-  loading: ChartSkeleton,
-});
-
-export const LiveMetricChart = dynamic(() => import("./live-metric-chart").then((m) => m.LiveMetricChart), {
   ssr: false,
   loading: ChartSkeleton,
 });

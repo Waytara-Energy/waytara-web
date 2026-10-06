@@ -8,7 +8,8 @@
 //     each MPPT string). NOT inverter_output_power_w: that is AC output, which
 //     also carries battery discharge and grid power. The day's official energy
 //     is the inverter's own counter day_pv_energy_kwh.
-//   - battery_power_w    : signed, positive = discharging, negative = charging.
+//   - battery_power_w    : signed, positive = discharging, negative = charging (the rollups keep the positive and
+//     negative parts separately, so discharge and charge energy are exact).
 //   - grid_total_power_w : signed, positive = importing (buying), negative =
 //     exporting (selling).
 //   - load_total_power_w : always >= 0.
@@ -30,16 +31,26 @@ export interface ReportSeries {
   counterKey?: string;
   /** Bucket average of the raw keys -> display value (kW, %, °C). Return null
    *  when there is no usable reading. */
-  compute: (raw: Record<string, number | null | undefined>) => number | null;
+  compute: (raw: RawBuckets) => number | null;
 }
 
 const num = (v: number | null | undefined): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
-function sumOfAvailable(raw: Record<string, number | null | undefined>, keys: string[]): number | null {
+/** One metric's figures for one bucket, as telemetry_series returns them: the time-weighted average and, for signed
+ *  metrics (battery and grid power), the average of the positive and of the negative part - so charge and
+ *  discharge, import and export, are exact even when the sign flips inside the bucket. */
+export interface RawBucket {
+  avg: number | null;
+  pos: number | null;
+  neg: number | null;
+}
+export type RawBuckets = Record<string, RawBucket | undefined>;
+
+function sumOfAvailable(raw: RawBuckets, keys: string[]): number | null {
   let total = 0;
   let any = false;
   for (const k of keys) {
-    const v = num(raw[k]);
+    const v = num(raw[k]?.avg);
     if (v !== null) {
       total += v;
       any = true;
@@ -68,7 +79,7 @@ const SERIES: Record<string, ReportSeries> = {
     color: "var(--chart-3)",
     kind: "bar",
     keys: ["pv1_power_w"],
-    compute: (raw) => toKw(num(raw.pv1_power_w)),
+    compute: (raw) => toKw(num(raw.pv1_power_w?.avg)),
   },
   pv2: {
     id: "pv2",
@@ -77,7 +88,7 @@ const SERIES: Record<string, ReportSeries> = {
     color: "var(--chart-1)",
     kind: "bar",
     keys: ["pv2_power_w"],
-    compute: (raw) => toKw(num(raw.pv2_power_w)),
+    compute: (raw) => toKw(num(raw.pv2_power_w?.avg)),
   },
   pv3: {
     id: "pv3",
@@ -86,7 +97,7 @@ const SERIES: Record<string, ReportSeries> = {
     color: "var(--chart-4)",
     kind: "bar",
     keys: ["pv3_power_w"],
-    compute: (raw) => toKw(num(raw.pv3_power_w)),
+    compute: (raw) => toKw(num(raw.pv3_power_w?.avg)),
   },
   batteryCharge: {
     id: "batteryCharge",
@@ -96,10 +107,7 @@ const SERIES: Record<string, ReportSeries> = {
     kind: "bar",
     keys: ["battery_power_w"],
     counterKey: "day_battery_charge_energy_kwh",
-    compute: (raw) => {
-      const w = num(raw.battery_power_w);
-      return w === null ? null : Math.max(0, -w) / 1000;
-    },
+    compute: (raw) => toKw(num(raw.battery_power_w?.neg)),
   },
   batteryDischarge: {
     id: "batteryDischarge",
@@ -109,10 +117,7 @@ const SERIES: Record<string, ReportSeries> = {
     kind: "bar",
     keys: ["battery_power_w"],
     counterKey: "day_battery_discharge_energy_kwh",
-    compute: (raw) => {
-      const w = num(raw.battery_power_w);
-      return w === null ? null : Math.max(0, w) / 1000;
-    },
+    compute: (raw) => toKw(num(raw.battery_power_w?.pos)),
   },
   batterySoc: {
     id: "batterySoc",
@@ -121,7 +126,7 @@ const SERIES: Record<string, ReportSeries> = {
     color: "var(--chart-1)",
     kind: "line",
     keys: ["battery_soc_pct"],
-    compute: (raw) => num(raw.battery_soc_pct),
+    compute: (raw) => num(raw.battery_soc_pct?.avg),
   },
   load: {
     id: "load",
@@ -131,7 +136,7 @@ const SERIES: Record<string, ReportSeries> = {
     kind: "bar",
     keys: ["load_total_power_w"],
     counterKey: "day_load_energy_kwh",
-    compute: (raw) => toKw(num(raw.load_total_power_w)),
+    compute: (raw) => toKw(num(raw.load_total_power_w?.avg)),
   },
   gridImport: {
     id: "gridImport",
@@ -141,10 +146,7 @@ const SERIES: Record<string, ReportSeries> = {
     kind: "bar",
     keys: ["grid_total_power_w"],
     counterKey: "day_grid_import_energy_kwh",
-    compute: (raw) => {
-      const w = num(raw.grid_total_power_w);
-      return w === null ? null : Math.max(0, w) / 1000;
-    },
+    compute: (raw) => toKw(num(raw.grid_total_power_w?.pos)),
   },
   gridExport: {
     id: "gridExport",
@@ -154,10 +156,7 @@ const SERIES: Record<string, ReportSeries> = {
     kind: "bar",
     keys: ["grid_total_power_w"],
     counterKey: "day_grid_export_energy_kwh",
-    compute: (raw) => {
-      const w = num(raw.grid_total_power_w);
-      return w === null ? null : Math.max(0, -w) / 1000;
-    },
+    compute: (raw) => toKw(num(raw.grid_total_power_w?.neg)),
   },
   inverterDcTemp: {
     id: "inverterDcTemp",
@@ -166,7 +165,7 @@ const SERIES: Record<string, ReportSeries> = {
     color: "var(--chart-3)",
     kind: "line",
     keys: ["inverter_dc_temperature_c"],
-    compute: (raw) => num(raw.inverter_dc_temperature_c),
+    compute: (raw) => num(raw.inverter_dc_temperature_c?.avg),
   },
   inverterAcTemp: {
     id: "inverterAcTemp",
@@ -175,7 +174,7 @@ const SERIES: Record<string, ReportSeries> = {
     color: "var(--chart-2)",
     kind: "line",
     keys: ["inverter_ac_temperature_c"],
-    compute: (raw) => num(raw.inverter_ac_temperature_c),
+    compute: (raw) => num(raw.inverter_ac_temperature_c?.avg),
   },
   batteryTemp: {
     id: "batteryTemp",
@@ -184,7 +183,7 @@ const SERIES: Record<string, ReportSeries> = {
     color: "var(--chart-1)",
     kind: "line",
     keys: ["battery_temperature_c"],
-    compute: (raw) => num(raw.battery_temperature_c),
+    compute: (raw) => num(raw.battery_temperature_c?.avg),
   },
 };
 
@@ -297,10 +296,10 @@ export function getReportType(id: string | null | undefined): ReportType {
 }
 
 export const REPORT_BUCKET_OPTIONS = [
-  { minutes: 5, label: "5 min" },
   { minutes: 15, label: "15 min" },
   { minutes: 30, label: "30 min" },
   { minutes: 60, label: "1 hour" },
+  { minutes: 120, label: "2 hours" },
 ] as const;
 
 export const DEFAULT_REPORT_BUCKET_MINUTES = 15;
@@ -315,6 +314,7 @@ export function reportKeys(type: ReportType): { sampleKeys: string[]; counterKey
 export interface ReportPoint {
   /** Bucket start, IST wall clock: "YYYY-MM-DDTHH:mm". */
   time: string;
+  /** Per series: the value, and under "<id>:c" the seconds of the bucket the device actually reported. */
   [seriesId: string]: number | string | null;
 }
 
@@ -344,11 +344,15 @@ export function summarizeSeries(
   let maxAt: string | null = null;
   let sum = 0;
   let n = 0;
+  let energySeconds = 0;
   for (const p of points) {
     const v = p[series.id];
     if (typeof v !== "number") continue;
     sum += v;
     n++;
+    // energy follows the seconds the device reported, so an offline gap is not counted as if it had produced
+    const covered = p[`${series.id}:c`];
+    energySeconds += v * (typeof covered === "number" ? covered : bucketMinutes * 60);
     if (max === null || v > max) {
       max = v;
       maxAt = p.time.slice(11, 16);
@@ -360,7 +364,7 @@ export function summarizeSeries(
     id: series.id,
     label: series.label,
     unit: series.unit,
-    energyKwh: series.unit === "kW" && n > 0 ? (sum * bucketMinutes) / 60 : null,
+    energyKwh: series.unit === "kW" && n > 0 ? energySeconds / 3600 : null,
     counterKwh: counter,
     max,
     min,

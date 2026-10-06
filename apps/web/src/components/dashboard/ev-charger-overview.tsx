@@ -10,7 +10,8 @@ import { formatElapsedSince } from "@/lib/format-duration";
 import { Card, CardContent } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { StatusPill } from "./status-pill";
-import { DynamicFieldGroup } from "./dynamic-field-group";
+import { LiveDynamicFieldGroup } from "./live-field-group";
+import { enumToObject, valuesFor } from "@/lib/field-values";
 import { RecentAlerts, type AlertRow } from "./recent-alerts";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -87,12 +88,12 @@ export async function EvChargerOverview({
       <div className="columns-1 gap-4 sm:columns-2 [&>*]:mb-4 [&>*]:break-inside-avoid">
         {registerSections.map((section) =>
           section.groups.map((group) => (
-            <DynamicFieldGroup
+            <LiveDynamicFieldGroup deviceId={device.id}
               key={`${section.category}-${group.groupName ?? ""}`}
               title={group.groupName ? `${section.category} — ${group.groupName}` : section.category}
               fields={group.fields}
-              getValue={get}
-              enumOptionsByRef={enumOptions}
+              initial={valuesFor(group.fields, get)}
+              enumOptions={enumToObject(enumOptions)}
             />
           ))
         )}

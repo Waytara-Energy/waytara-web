@@ -6,7 +6,6 @@ import { DeviceSwitcher } from "@/components/dashboard/device-switcher";
 import { PerformanceContent } from "@/components/dashboard/performance-content";
 import { AnalyticsContent } from "@/components/dashboard/analytics-content";
 import { getCustomerPlan } from "@/lib/customer-plan";
-import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 
 // Server-side gate, matching Monitoring (Task 10.1) — a Basic-tier customer
@@ -58,11 +57,7 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
         </Empty>
       ) : (
         <>
-          {/* Every chart/tile below is aggregated server-side (daily
-              buckets, latest-per-key totals) from equipment_telemetry — not
-              safe to hand-patch, so a new reading debounce-refreshes the
-              whole page. */}
-          <RealtimeRefresh table="equipment_telemetry" event="INSERT" filter={`equipment_id=eq.${device.id}`} throttleMs={15000} />
+          {/* History is read from the daily rollups when the page loads. */}
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <DeviceSwitcher devices={site?.devices ?? [device]} selectedId={device.id} />

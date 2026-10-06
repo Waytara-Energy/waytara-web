@@ -3,7 +3,8 @@ import { FileText } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { gatherReportData, toWeeklyRows } from "@/lib/gather-report-data";
 import { fetchDashboardFields, fetchFieldValues, resolveComputedValues, type FieldValue } from "@/lib/template-fields";
-import { DynamicFieldGroup } from "@/components/dashboard/dynamic-field-group";
+import { LiveDynamicFieldGroup } from "@/components/dashboard/live-field-group";
+import { valuesFor } from "@/lib/field-values";
 import { ReportControls } from "@/components/dashboard/report-controls";
 import { DayReport } from "@/components/dashboard/day-report";
 import { getEnabledMetricKeys } from "@/lib/report-day-data";
@@ -125,11 +126,11 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
           {reportSections.map((section) =>
             section.groups.map((group) => (
-              <DynamicFieldGroup
+              <LiveDynamicFieldGroup deviceId={device.id}
                 key={`${section.category}-${group.groupName ?? ""}`}
                 title={groupTitle(section.category, group.groupName)}
                 fields={group.fields}
-                getValue={getFieldValue}
+                initial={valuesFor(group.fields, getFieldValue)}
               />
             ))
           )}

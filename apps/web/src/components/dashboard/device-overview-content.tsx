@@ -4,7 +4,8 @@ import { fetchDeviceOverview } from "@/lib/device-overview";
 import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
 import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
 import { fetchDashboardFields, fetchFieldValues, resolveComputedValues } from "@/lib/template-fields";
-import { DynamicFieldGroup } from "./dynamic-field-group";
+import { LiveDynamicFieldGroup } from "./live-field-group";
+import { valuesFor } from "@/lib/field-values";
 import { LiveChannelKeeper, LiveEnergyFlow, LiveFaultBanner, LiveStatusPill, LiveTodaySoFar } from "./overview-live";
 import { SITE_OVERVIEW_KEYS } from "@/lib/overview-keys";
 import { RecentAlerts } from "./recent-alerts";
@@ -113,7 +114,7 @@ export async function DeviceOverviewContent({
           // gaps a masonry-style column flow doesn't).
           <div className="columns-1 gap-4 sm:columns-2 [&>*]:mb-4 [&>*]:break-inside-avoid">
             {leftoverGroups.map((group) => (
-              <DynamicFieldGroup key={group.groupName ?? ""} title={group.groupName ?? "Overview"} fields={group.fields} getValue={getLeftoverValue} />
+              <LiveDynamicFieldGroup key={group.groupName ?? ""} deviceId={device.id} title={group.groupName ?? "Overview"} fields={group.fields} initial={valuesFor(group.fields, getLeftoverValue)} />
             ))}
           </div>
         )}

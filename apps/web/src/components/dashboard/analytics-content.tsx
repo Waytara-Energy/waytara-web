@@ -129,13 +129,7 @@ async function SolarInverterAnalytics({
     getTotalInvested(supabase),
     fetchDailyMaxReadings(supabase, device.id, [YIELD_INSTRUMENT_KEY], since.toISOString()),
     fetchDailyMaxReadings(supabase, device.id, EXTRA_KEYS, since.toISOString()),
-    supabase
-      .from("equipment_telemetry")
-      .select("key_name, value, ts")
-      .eq("equipment_id", device.id)
-      .in("key_name", [BATTERY_CYCLE_KEY])
-      .order("ts", { ascending: false })
-      .limit(20),
+    supabase.from("equipment_latest").select("key_name, value, ts").eq("equipment_id", device.id).in("key_name", [BATTERY_CYCLE_KEY]),
   ]);
   let batteryCycleCount: number | null = null;
   for (const r of latestRows ?? []) {

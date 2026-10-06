@@ -1,13 +1,15 @@
 import { createClient } from "@waytara/supabase/server";
 import type { CustomerDevice } from "@/lib/selected-site";
 import { getLastSyncInfo } from "@/lib/device-sync";
+import { fetchSeriesRows } from "@/lib/device-readings-fetch";
 import { deriveFaultEvents } from "@/lib/deye-fault-codes";
 import { getConnectorStatusLabel, getErrorCodeLabel } from "@/lib/ev-charger-catalog";
 import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
 import { deriveFaultCode, FAULT_BITMASK_KEYS } from "@/lib/device-overview";
 import { fetchDashboardFields, fetchFieldValues, type FieldValue, type TemplateField } from "@/lib/template-fields";
 import { TEMPERATURE_MAX_C } from "@/lib/temperature-thresholds";
-import { DynamicFieldGroup } from "./dynamic-field-group";
+import { LiveDynamicFieldGroup } from "./live-field-group";
+import { valuesFor } from "@/lib/field-values";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TriangleAlert } from "lucide-react";
@@ -104,35 +106,23 @@ async function SolarInverterHealth({ supabase, device }: { supabase: SupabaseSer
   const faultSince = hoursAgo(0);
   faultSince.setUTCDate(faultSince.getUTCDate() - FAULT_HISTORY_DAYS);
 
-  const [rawValues, { data: faultRows }, { data: pastRows }, lastSync] = await Promise.all([
+  // Fault history and "24 hours ago" temperatures come from the rollups (raw readings are not stored): the fault
+  // bitmasks as the highest value in each 2-hour slot (two calls of 45 days keep each under the 750-point cap),
+  // the temperatures as 15-minute averages around this time yesterday.
+  const faultMid = new Date(faultSince.getTime() + 45 * 24 * 3600 * 1000);
+  const [rawValues, faultFirst, faultSecond, pastBuckets, lastSync] = await Promise.all([
     fetchFieldValues(supabase, device.id, [...dynamicKeys, ...tempKeys]),
-    // Fault *history*, not just the current state. active_fault_code no
-    // longer exists as its own register (see deriveFaultCode's own doc
-    // comment) — every reading of any of the 6 raw bitmask registers in
-    // the window stands in for it instead, merged into one chronological
-    // stream and collapsed into discrete episodes (deriveFaultEvents) the
-    // same way a single active_fault_code series used to be. Ascending
-    // order: the collapse walk needs to see readings in the order they
-    // actually happened.
-    supabase
-      .from("equipment_telemetry")
-      .select("value, ts")
-      .eq("equipment_id", device.id)
-      .in("key_name", FAULT_BITMASK_KEYS)
-      .gte("ts", faultSince.toISOString())
-      .order("ts", { ascending: true })
-      .limit(2000),
-    supabase
-      .from("equipment_telemetry")
-      .select("key_name, value, ts")
-      .eq("equipment_id", device.id)
-      .in("key_name", tempKeys)
-      .gte("ts", windowStart)
-      .lte("ts", windowEnd)
-      .order("ts", { ascending: true })
-      .limit(50),
+    fetchSeriesRows(supabase, device.id, FAULT_BITMASK_KEYS, faultSince.toISOString(), faultMid.toISOString(), 120),
+    fetchSeriesRows(supabase, device.id, FAULT_BITMASK_KEYS, faultMid.toISOString(), new Date().toISOString(), 120),
+    fetchSeriesRows(supabase, device.id, tempKeys, windowStart, windowEnd, 15),
     getLastSyncInfo(device.id),
   ]);
+  // Ascending order: the collapse walk needs to see readings in the order they actually happened.
+  const faultRows = [...faultFirst, ...faultSecond]
+    .filter((r) => r.max_value !== null)
+    .map((r) => ({ value: r.max_value as number, ts: r.bucket }))
+    .sort((a, b) => a.ts.localeCompare(b.ts));
+  const pastRows = pastBuckets.filter((r) => r.avg_value !== null).map((r) => ({ key_name: r.key_name, value: r.avg_value, ts: r.bucket }));
 
   const getValue = (key: string): FieldValue => rawValues.get(key) ?? null;
   const getNum = (key: string): number | null => {
@@ -142,10 +132,10 @@ async function SolarInverterHealth({ supabase, device }: { supabase: SupabaseSer
   const activeFaultCode = deriveFaultCode(getNum);
 
   const previousTemps = new Map<string, number | null>();
-  for (const r of pastRows ?? []) {
+  for (const r of pastRows) {
     if (!previousTemps.has(r.key_name)) previousTemps.set(r.key_name, r.value);
   }
-  const faultEvents = deriveFaultEvents(faultRows ?? []);
+  const faultEvents = deriveFaultEvents(faultRows);
 
   return (
     <>
@@ -183,11 +173,11 @@ async function SolarInverterHealth({ supabase, device }: { supabase: SupabaseSer
 
       {sections.map((section) =>
         section.groups.map((group) => (
-          <DynamicFieldGroup
+          <LiveDynamicFieldGroup deviceId={device.id}
             key={`${section.category}-${group.groupName ?? ""}`}
             title={groupTitle(section.category, group.groupName)}
             fields={group.fields}
-            getValue={getValue}
+            initial={valuesFor(group.fields, getValue)}
           />
         ))
       )}
@@ -244,11 +234,11 @@ async function EvChargerHealth({ supabase, device }: { supabase: SupabaseServerC
 
       {sections.map((section) =>
         section.groups.map((group) => (
-          <DynamicFieldGroup
+          <LiveDynamicFieldGroup deviceId={device.id}
             key={`${section.category}-${group.groupName ?? ""}`}
             title={groupTitle(section.category, group.groupName)}
             fields={group.fields}
-            getValue={getValue}
+            initial={valuesFor(group.fields, getValue)}
           />
         ))
       )}

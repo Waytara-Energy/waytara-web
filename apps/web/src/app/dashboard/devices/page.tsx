@@ -5,7 +5,8 @@ import { getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
 import { getSettingFields, getSettingFieldsByCategory } from "@/lib/instrument-settings-catalog";
 import { fetchDeviceSettingFields, categoryLabel } from "@/lib/instrument-catalog-data";
 import { fetchDashboardFields, fetchFieldValues } from "@/lib/template-fields";
-import { DynamicFieldGroup } from "@/components/dashboard/dynamic-field-group";
+import { LiveDynamicFieldGroup } from "@/components/dashboard/live-field-group";
+import { valuesFor } from "@/lib/field-values";
 import { PROPERTY_TYPE_OPTIONS, POWER_SOURCE_OPTIONS, POWER_PACKAGE_OPTIONS } from "@/lib/site-catalog";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -141,7 +142,6 @@ export default async function DevicesPage({
 
   return (
     <div className="space-y-6">
-      <RealtimeRefresh table="equipment_telemetry" event="INSERT" filter={`equipment_id=eq.${device.id}`} throttleMs={15000} />
       {category === "ev_charger" && (
         // Same reasoning as the site-wide Overview page's own pair of these
         // — ev_sessions is derived, not raw equipment_telemetry, and a
@@ -181,11 +181,11 @@ export default async function DevicesPage({
           <div className="columns-1 gap-4 lg:columns-2 [&>*]:mb-4 [&>*]:break-inside-avoid">
             {deviceInfoSections.map((section) =>
               section.groups.map((group) => (
-                <DynamicFieldGroup
+                <LiveDynamicFieldGroup deviceId={device.id}
                   key={`${section.category}-${group.groupName ?? ""}`}
                   title={group.groupName ? `${section.category} — ${group.groupName}` : section.category}
                   fields={group.fields}
-                  getValue={getDeviceInfoValue}
+                  initial={valuesFor(group.fields, getDeviceInfoValue)}
                 />
               ))
             )}

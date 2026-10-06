@@ -10,8 +10,13 @@ import {
   reportKeys,
   summarizeSeries,
   todayIst,
+  type RawBuckets,
   type ReportPoint,
 } from "./report-types";
+
+/** Bucket figures as the database returns them for a bucket holding one steady value. */
+const r = (values: Record<string, number>): RawBuckets =>
+  Object.fromEntries(Object.entries(values).map(([k, v]) => [k, { avg: v, pos: Math.max(v, 0), neg: Math.max(-v, 0) }]));
 
 const seriesOf = (typeId: string, seriesId: string) => getReportType(typeId).series.find((s) => s.id === seriesId)!;
 
@@ -20,29 +25,29 @@ describe("report series maths (real Deye keys)", () => {
     const solar = seriesOf("solar", "solar");
     expect(solar.keys).toEqual(["pv1_power_w", "pv2_power_w", "pv3_power_w"]);
     expect(solar.counterKey).toBe("day_pv_energy_kwh");
-    expect(solar.compute({ pv1_power_w: 3183, pv2_power_w: 3127, pv3_power_w: 0 })).toBeCloseTo(6.31);
+    expect(solar.compute(r({ pv1_power_w: 3183, pv2_power_w: 3127, pv3_power_w: 0 }))).toBeCloseTo(6.31);
     // a string with no reading doesn't null out the others
-    expect(solar.compute({ pv1_power_w: 1000 })).toBeCloseTo(1);
+    expect(solar.compute(r({ pv1_power_w: 1000 }))).toBeCloseTo(1);
     expect(solar.compute({})).toBeNull();
   });
 
   it("splits the signed battery register: positive = discharging, negative = charging", () => {
     const charge = seriesOf("battery_both", "batteryCharge");
     const discharge = seriesOf("battery_both", "batteryDischarge");
-    expect(charge.compute({ battery_power_w: -2500 })).toBeCloseTo(2.5);
-    expect(discharge.compute({ battery_power_w: -2500 })).toBe(0);
-    expect(discharge.compute({ battery_power_w: 132 })).toBeCloseTo(0.132);
-    expect(charge.compute({ battery_power_w: 132 })).toBe(0);
+    expect(charge.compute(r({ battery_power_w: -2500 }))).toBeCloseTo(2.5);
+    expect(discharge.compute(r({ battery_power_w: -2500 }))).toBe(0);
+    expect(discharge.compute(r({ battery_power_w: 132 }))).toBeCloseTo(0.132);
+    expect(charge.compute(r({ battery_power_w: 132 }))).toBe(0);
     expect(charge.compute({})).toBeNull();
   });
 
   it("splits the signed grid register: positive = import, negative = export", () => {
     const imp = seriesOf("grid_both", "gridImport");
     const exp = seriesOf("grid_both", "gridExport");
-    expect(exp.compute({ grid_total_power_w: -6332 })).toBeCloseTo(6.332);
-    expect(imp.compute({ grid_total_power_w: -6332 })).toBe(0);
-    expect(imp.compute({ grid_total_power_w: 800 })).toBeCloseTo(0.8);
-    expect(exp.compute({ grid_total_power_w: 800 })).toBe(0);
+    expect(exp.compute(r({ grid_total_power_w: -6332 }))).toBeCloseTo(6.332);
+    expect(imp.compute(r({ grid_total_power_w: -6332 }))).toBe(0);
+    expect(imp.compute(r({ grid_total_power_w: 800 }))).toBeCloseTo(0.8);
+    expect(exp.compute(r({ grid_total_power_w: 800 }))).toBe(0);
   });
 
   it("every report has at least one series and only lists keys it actually uses", () => {
@@ -119,6 +124,14 @@ describe("summarizeSeries", () => {
     expect(s.avg).toBeCloseTo(2);
   });
 
+  it("energy follows the seconds the device reported, not the bucket width", () => {
+    const withGap: ReportPoint[] = [
+      { time: "2026-10-05T06:00", solar: 4, "solar:c": 900 },
+      { time: "2026-10-05T06:15", solar: 4, "solar:c": 450 }, // the device was offline for half of this bucket
+    ];
+    expect(summarizeSeries(solar, withGap, 15, {}).energyKwh).toBeCloseTo(4 * 900 / 3600 + 4 * 450 / 3600);
+  });
+
   it("gaps are ignored, not counted as zero; an all-empty day has no figures", () => {
     const s = summarizeSeries(solar, [{ time: "2026-10-05T00:00", solar: null }], 15, {});
     expect(s.energyKwh).toBeNull();
@@ -148,7 +161,7 @@ describe("reports follow the device's enabled metrics (equipment_metrics read + 
     expect(solar.keys).toEqual(["pv1_power_w", "pv2_power_w"]);
     expect(reportKeys(resolveReportType(getReportType("solar"), enabled)!).sampleKeys).not.toContain("pv3_power_w");
     // even if a stray pv3 reading existed it can't leak in: only fetched keys reach compute
-    expect(solar.compute({ pv1_power_w: 3183, pv2_power_w: 3127 })).toBeCloseTo(6.31);
+    expect(solar.compute(r({ pv1_power_w: 3183, pv2_power_w: 3127 }))).toBeCloseTo(6.31);
   });
 
   it("drops a string that isn't enabled from the per-string report", () => {

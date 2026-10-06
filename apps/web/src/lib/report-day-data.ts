@@ -3,6 +3,7 @@ import { createClient } from "@waytara/supabase/server";
 import { getSelectedSite, resolveDeviceInSite, deviceDisplayId } from "@/lib/selected-site";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { getRequestProfile } from "@/lib/request-profile";
+import { fetchSeriesRows } from "@/lib/device-readings-fetch";
 import {
   REPORT_BUCKET_OPTIONS,
   DEFAULT_REPORT_BUCKET_MINUTES,
@@ -16,17 +17,14 @@ import {
   reportKeys,
   summarizeSeries,
   todayIst,
+  type RawBuckets,
   type ReportPoint,
   type ReportSeriesSummary,
   type ReportType,
 } from "@/lib/report-types";
 
-// Raw readings are purged after 90 days (purge_old_telemetry); the hourly
-// rollup is kept. Dates close to or past that limit are served from the rollup
-// at one-hour resolution rather than showing an empty chart.
-const RAW_RETENTION_SAFE_DAYS = 85;
-const PAGE_SIZE = 1000; // PostgREST's per-request row cap
-const MAX_PAGES = 40;
+// 15-minute rollups are kept for 8 days (older days exist as hourly and daily rollups only).
+const FINE_RETENTION_DAYS = 7.5;
 
 export interface DayReport {
   authorized: boolean;
@@ -38,7 +36,7 @@ export interface DayReport {
   date: string;
   type: ReportType;
   bucketMinutes: number;
-  /** True when the day was older than raw retention and was read from hourly averages. */
+  /** True when the day was older than the 15-minute retention and was read from hourly rollups. */
   coarse: boolean;
   points: ReportPoint[];
   summaries: ReportSeriesSummary[];
@@ -117,71 +115,47 @@ export async function gatherDayReport(params: {
 
   const dayStart = istDayStart(date);
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
+  // 15-minute data is kept for 8 days; older days exist as hourly (and daily) rollups only.
   const ageDays = (Date.now() - dayStart.getTime()) / (24 * 60 * 60 * 1000);
-  const coarse = ageDays > RAW_RETENTION_SAFE_DAYS;
-  if (coarse) bucketMinutes = 60;
+  const coarse = ageDays > FINE_RETENTION_DAYS;
+  if (coarse && bucketMinutes < 60) bucketMinutes = 60;
 
   const { sampleKeys, counterKeys } = reportKeys(type);
   const supabase = await createClient();
 
-  // bucket key -> raw key -> bucket average
-  const raw = new Map<string, Record<string, number>>();
-  const put = (key: string | null, name: string, value: number | null) => {
-    if (key === null || value === null) return;
-    let row = raw.get(key);
-    if (!row) raw.set(key, (row = {}));
-    row[name] = value;
-  };
+  // One request for the day's buckets of every metric the report needs, and one for the inverter's own energy
+  // counters (the day's maximum) - in parallel. Both read the rollup tables; nothing here touches raw readings.
+  const [bucketRows, counterRows] = await Promise.all([
+    fetchSeriesRows(supabase, device.id, sampleKeys, dayStart.toISOString(), dayEnd.toISOString(), bucketMinutes),
+    counterKeys.length > 0 ? fetchSeriesRows(supabase, device.id, counterKeys, dayStart.toISOString(), dayEnd.toISOString(), 1440) : Promise.resolve([]),
+  ]);
 
-  if (coarse) {
-    for (let page = 0; page < MAX_PAGES; page++) {
-      const { data } = await supabase
-        .from("equipment_telemetry_hourly")
-        .select("key_name, hour, avg_value")
-        .eq("equipment_id", device.id)
-        .in("key_name", sampleKeys)
-        .gte("hour", dayStart.toISOString())
-        .lt("hour", dayEnd.toISOString())
-        .order("hour", { ascending: true })
-        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-      if (!data || data.length === 0) break;
-      for (const r of data) put(bucketKeyIst(r.hour, date, 60), r.key_name, r.avg_value);
-      if (data.length < PAGE_SIZE) break;
-    }
-  } else {
-    // 5-minute buckets x several keys is well over 1,000 rows, so page through
-    // the (deterministically ordered) RPC result instead of taking the first page.
-    for (let page = 0; page < MAX_PAGES; page++) {
-      const { data } = await supabase
-        .rpc("telemetry_buckets", {
-          p_equipment_id: device.id,
-          p_keys: sampleKeys,
-          p_from: dayStart.toISOString(),
-          p_to: dayEnd.toISOString(),
-          p_bucket_minutes: bucketMinutes,
-        })
-        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
-      if (!data || data.length === 0) break;
-      for (const r of data) put(bucketKeyIst(r.bucket, date, bucketMinutes), r.key_name, r.avg_value as number | null);
-      if (data.length < PAGE_SIZE) break;
-    }
+  // bucket key -> metric -> that bucket's figures
+  const raw = new Map<string, RawBuckets>();
+  const covered = new Map<string, Record<string, number>>();
+  for (const r of bucketRows) {
+    const key = bucketKeyIst(r.bucket, date, bucketMinutes);
+    if (key === null) continue;
+    const row = raw.get(key) ?? {};
+    row[r.key_name] = { avg: r.avg_value, pos: r.pos_avg, neg: r.neg_avg };
+    raw.set(key, row);
+    const c = covered.get(key) ?? {};
+    c[r.key_name] = r.covered_s ?? 0;
+    covered.set(key, c);
   }
 
   const counters: Record<string, number | null> = {};
-  if (counterKeys.length > 0) {
-    const { data } = await supabase.rpc("telemetry_daily", {
-      p_equipment_id: device.id,
-      p_keys: counterKeys,
-      p_from: dayStart.toISOString(),
-      p_to: dayEnd.toISOString(),
-    });
-    for (const r of data ?? []) counters[r.key_name] = r.max_value as number | null;
-  }
+  for (const r of counterRows) counters[r.key_name] = r.max_value;
 
   const points: ReportPoint[] = dayBucketKeys(date, bucketMinutes).map((time) => {
     const sample = raw.get(time) ?? {};
     const point: ReportPoint = { time };
-    for (const s of type.series) point[s.id] = Object.keys(sample).length > 0 ? s.compute(sample) : null;
+    for (const s of type.series) {
+      const has = Object.keys(sample).length > 0;
+      point[s.id] = has ? s.compute(sample) : null;
+      // the seconds this series was actually reported: the most any of its metrics covered
+      point[`${s.id}:c`] = has ? Math.max(0, ...s.keys.map((k) => covered.get(time)?.[k] ?? 0)) : null;
+    }
     return point;
   });
 
