@@ -5,6 +5,7 @@ import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { SessionWatcher } from "@/components/dashboard/session-watcher";
 import { RealtimeProvider } from "@waytara/ui/realtime-provider";
+import { TelemetryProvider } from "@/lib/telemetry/react";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { getCustomerSites, resolveSelectedSite, SELECTED_SITE_COOKIE } from "@/lib/selected-site";
 import { getCustomerPlan } from "@/lib/customer-plan";
@@ -96,6 +97,7 @@ export default async function DashboardLayout({
 
   return (
     <RealtimeProvider>
+      <TelemetryProvider userId={profile?.id ?? "unknown"}>
       <SidebarProvider defaultOpen={sidebarOpen}>
         <SessionWatcher />
         <DashboardSidebar features={features} />
@@ -139,6 +141,7 @@ export default async function DashboardLayout({
           </main>
         </SidebarInset>
       </SidebarProvider>
+      </TelemetryProvider>
     </RealtimeProvider>
   );
 }

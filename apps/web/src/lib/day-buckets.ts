@@ -10,7 +10,7 @@ export const INTERVAL_OPTIONS = [
   { minutes: 120, label: "2 hours" },
 ] as const;
 
-export const DEFAULT_INTERVAL_MINUTES = 60;
+export const DEFAULT_INTERVAL_MINUTES = 15;
 
 export function todayMidnight(): Date {
   const d = new Date();

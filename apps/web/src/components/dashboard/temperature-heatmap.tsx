@@ -1,15 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { createClient } from "@waytara/supabase/client";
-import { useRealtimeTable, type RealtimeRowEvent } from "@waytara/ui/realtime-provider";
-import { fetchAllDeviceReadings } from "@/lib/device-readings-fetch";
-import { INTERVAL_OPTIONS, todayMidnight, bucketKeyFor, fullDayBucketKeys, formatBucketLabel } from "@/lib/day-buckets";
+import { INTERVAL_OPTIONS, formatBucketLabel } from "@/lib/day-buckets";
+import { istSlotKey } from "@/lib/telemetry/combine";
+import { useTodaySeries } from "@/lib/telemetry/react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { ChartEmptyState } from "./chart-empty-state";
+import { ChartErrorCard } from "./chart-states";
+import { useDelayedLoading } from "./use-delayed-loading";
 
 export interface HeatmapRow {
   key: string;
@@ -19,28 +20,6 @@ export interface HeatmapRow {
    *  elsewhere on this page, so a cell that reads red here means the same
    *  thing a red gauge would. */
   maxC: number;
-}
-
-interface RealtimeDeviceReadingRow {
-  equipment_id: string;
-  key_name: string;
-  value: number | null;
-  ts: string;
-  is_test: boolean;
-}
-
-// Same reasoning as BarTrendChart's own module-level cache: this component
-// remounts (and would otherwise refetch from a blank skeleton) every time
-// its tab is reselected, since Radix unmounts inactive TabsContent.
-const HEATMAP_CACHE_MAX = 24;
-const heatmapCache = new Map<string, Map<string, Record<string, number | null>>>();
-function cacheHeatmapBuckets(key: string, buckets: Map<string, Record<string, number | null>>) {
-  heatmapCache.delete(key);
-  heatmapCache.set(key, buckets);
-  if (heatmapCache.size > HEATMAP_CACHE_MAX) {
-    const oldest = heatmapCache.keys().next().value;
-    if (oldest !== undefined) heatmapCache.delete(oldest);
-  }
 }
 
 /** Green (cool) through amber to red (at/above `maxC`) — a continuous
@@ -85,114 +64,32 @@ export function TemperatureHeatmap({
   showRowLabels?: boolean;
 }) {
   const rowKeys = React.useMemo(() => rows.map((r) => r.key), [rows]);
-  const rowKeysJoined = rowKeys.join(",");
-  const [bucketed, setBucketed] = React.useState<Map<string, Record<string, number | null>>>(new Map());
-  const [loaded, setLoaded] = React.useState(false);
-  const fetchRef = React.useRef<() => void>(() => {});
-  const realtimeDebounceRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
-
-  React.useEffect(() => {
-    let cancelled = false;
-    const supabase = createClient();
-    const cacheKey = `${deviceId}|${rowKeysJoined}|${bucketMinutes}`;
-
-    // Same instant-repaint-on-revisit reasoning as BarTrendChart's own
-    // cache-hit fast path — deliberately synchronous, not deferred.
-    const cached = heatmapCache.get(cacheKey);
-    if (cached) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setBucketed(cached);
-      setLoaded(true);
-    }
-
-    async function fetchData() {
-      const since = todayMidnight().toISOString();
-      const readings = await fetchAllDeviceReadings(supabase, deviceId, rowKeys, since);
-      if (cancelled) return;
-      setLoaded(true);
-
-      const sums = new Map<string, Record<string, number>>();
-      const counts = new Map<string, Record<string, number>>();
-      for (const r of readings) {
-        if (r.value === null) continue;
-        const bucket = bucketKeyFor(r.ts, bucketMinutes);
-        if (!sums.has(bucket)) {
-          sums.set(bucket, Object.fromEntries(rowKeys.map((k) => [k, 0])));
-          counts.set(bucket, Object.fromEntries(rowKeys.map((k) => [k, 0])));
-        }
-        sums.get(bucket)![r.key_name] += r.value;
-        counts.get(bucket)![r.key_name] += 1;
-      }
-
-      // Always every bucket of the full day, not just up through "now" —
-      // the rest of the day still renders as empty cells (no reading yet)
-      // rather than the grid itself shrinking, and never borrows
-      // yesterday's values to fill them the way BarTrendChart's future
-      // buckets do.
-      const merged = new Map<string, Record<string, number | null>>();
-      for (const bk of fullDayBucketKeys(bucketMinutes)) {
-        const s = sums.get(bk);
-        const c = counts.get(bk);
-        const vals: Record<string, number | null> = {};
-        for (const k of rowKeys) vals[k] = c && c[k] ? s![k] / c[k] : null;
-        merged.set(bk, vals);
-      }
-      setBucketed(merged);
-      cacheHeatmapBuckets(cacheKey, merged);
-    }
-
-    fetchRef.current = () => {
-      fetchData();
-    };
-    fetchData();
-    return () => {
-      cancelled = true;
-    };
-  }, [deviceId, rowKeysJoined, rowKeys, bucketMinutes]);
-
-  // See BarTrendChart's identical comment — one device "tick" can insert
-  // several rows matching this heatmap's own keys, so this needs its own
-  // debounce on top of the shared realtime channel's ~300ms batching or a
-  // single tick fires several uncollapsed refetches back-to-back.
-  useRealtimeTable<RealtimeDeviceReadingRow>(
-    "equipment_telemetry",
-    "INSERT",
-    `equipment_id=eq.${deviceId}`,
-    React.useCallback(
-      (payload: RealtimeRowEvent<RealtimeDeviceReadingRow>) => {
-        const row = payload.new;
-        if (row.is_test) return;
-        if (!rowKeys.includes(row.key_name)) return;
-        if (realtimeDebounceRef.current) clearTimeout(realtimeDebounceRef.current);
-        realtimeDebounceRef.current = setTimeout(() => fetchRef.current(), 500);
-      },
-      [rowKeys]
-    )
-  );
-
-  const buckets = Array.from(bucketed.keys()).sort();
+  // The shared store: one request per page, the interval combined locally, live ticks applied in place.
+  const state = useTodaySeries(deviceId, rowKeys, bucketMinutes);
+  const buckets = React.useMemo(() => state.axis.map((t) => istSlotKey(t)), [state.axis]);
+  const valueAt = (key: string, i: number): number | null => state.byKey[key]?.[i]?.avg ?? null;
   const intervalLabel = INTERVAL_OPTIONS.find((o) => o.minutes === bucketMinutes)?.label ?? `${bucketMinutes} min`;
 
-  // Same shell-stays-put approach as BarTrendChart's own !loaded branch —
-  // this component remounts (and refetches) every time its tab is
-  // reselected, since Radix unmounts inactive TabsContent, so this isn't
-  // just a first-visit state.
-  if (!loaded) {
+  const loading = state.status === "loading";
+  const { showSkeleton } = useDelayedLoading(loading);
+
+  // Same shell-stays-put approach as the other charts: the card keeps its size while loading.
+  if (loading || showSkeleton) {
     return (
       <Card>
         <CardHeader className="space-y-1.5">
           <div className="flex flex-row items-center justify-between gap-4">
             <CardTitle className="text-sm">{title}</CardTitle>
-            <Skeleton className="h-2 w-20 rounded-full" />
+            {showSkeleton ? <Skeleton className="h-2 w-20 rounded-full" /> : <div className="h-2 w-20" />}
           </div>
-          <Skeleton className="h-4 w-64 max-w-full" />
+          {showSkeleton ? <Skeleton className="h-4 w-64 max-w-full" /> : <div className="h-4" />}
         </CardHeader>
         <CardContent>
           <div className="space-y-2">
             {rows.map((row) => (
               <div key={row.key} className="flex items-center gap-2">
-                {showRowLabels ? <Skeleton className="h-3 w-20 shrink-0" /> : null}
-                <Skeleton className="h-5 flex-1 rounded-[3px]" />
+                {showRowLabels ? showSkeleton ? <Skeleton className="h-3 w-20 shrink-0" /> : <div className="h-3 w-20 shrink-0" /> : null}
+                {showSkeleton ? <Skeleton className="h-5 flex-1 rounded-[3px]" /> : <div className="h-5 flex-1" />}
               </div>
             ))}
           </div>
@@ -200,8 +97,9 @@ export function TemperatureHeatmap({
       </Card>
     );
   }
+  if (state.status === "error") return <ChartErrorCard title={title} message={state.error} onRetry={state.retry} height={80} />;
 
-  if (loaded && buckets.length === 0) {
+  if (!rowKeys.some((k) => state.byKey[k]?.some((p) => p !== null))) {
     return (
       <Card>
         <CardHeader>
@@ -240,8 +138,8 @@ export function TemperatureHeatmap({
                 <span className="w-28 shrink-0 truncate text-xs text-muted-foreground">{row.label}</span>
               ) : null}
               <div className="flex flex-1 gap-1">
-                {buckets.map((bk) => {
-                  const v = bucketed.get(bk)?.[row.key] ?? null;
+                {buckets.map((bk, i) => {
+                  const v = valueAt(row.key, i);
                   return (
                     <Tooltip key={bk}>
                       <TooltipTrigger asChild>

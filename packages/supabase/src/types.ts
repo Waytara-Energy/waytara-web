@@ -473,39 +473,33 @@ export type Database = {
         }
         Relationships: []
       }
-      equipment_telemetry_hourly: {
+      equipment_heartbeat: {
         Row: {
-          avg_value: number | null
+          agent_ts: string | null
+          agent_version: string | null
           equipment_id: string
-          hour: string
-          key_name: string
-          max_value: number | null
-          min_value: number | null
-          samples: number
+          last_seen: string
+          upload_interval_s: number | null
         }
         Insert: {
-          avg_value?: number | null
+          agent_ts?: string | null
+          agent_version?: string | null
           equipment_id: string
-          hour: string
-          key_name: string
-          max_value?: number | null
-          min_value?: number | null
-          samples: number
+          last_seen: string
+          upload_interval_s?: number | null
         }
         Update: {
-          avg_value?: number | null
+          agent_ts?: string | null
+          agent_version?: string | null
           equipment_id?: string
-          hour?: string
-          key_name?: string
-          max_value?: number | null
-          min_value?: number | null
-          samples?: number
+          last_seen?: string
+          upload_interval_s?: number | null
         }
         Relationships: [
           {
-            foreignKeyName: "equipment_telemetry_hourly_equipment_id_fkey"
+            foreignKeyName: "equipment_heartbeat_equipment_id_fkey"
             columns: ["equipment_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "equipment"
             referencedColumns: ["id"]
           },
@@ -696,6 +690,839 @@ export type Database = {
           },
         ]
       }
+      equipment_open_bucket: {
+        Row: {
+          bucket: string
+          covered_s: number
+          equipment_id: string
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          updated_at: string
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          equipment_id: string
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          updated_at?: string
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          equipment_id?: string
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          updated_at?: string
+          wsum?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_open_bucket_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_rollup_15m: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_rollup_15m_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_rollup_15m_p20260928: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20260929: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20260930: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20261001: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20261002: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20261003: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20261004: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20261005: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20261006: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20261007: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20261008: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_1d: {
+        Row: {
+          covered_s: number
+          day: string
+          equipment_id: string
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          updated_at: string
+          wsum: number
+        }
+        Insert: {
+          covered_s: number
+          day: string
+          equipment_id: string
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          updated_at?: string
+          wsum: number
+        }
+        Update: {
+          covered_s?: number
+          day?: string
+          equipment_id?: string
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          updated_at?: string
+          wsum?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_rollup_1d_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_rollup_1h: {
+        Row: {
+          covered_s: number
+          equipment_id: string
+          hour: string
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          updated_at: string
+          wsum: number
+        }
+        Insert: {
+          covered_s: number
+          equipment_id: string
+          hour: string
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          updated_at?: string
+          wsum: number
+        }
+        Update: {
+          covered_s?: number
+          equipment_id?: string
+          hour?: string
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          updated_at?: string
+          wsum?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_rollup_1h_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_rollup_1h_p202610: {
+        Row: {
+          covered_s: number
+          equipment_id: string
+          hour: string
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          updated_at: string
+          wsum: number
+        }
+        Insert: {
+          covered_s: number
+          equipment_id: string
+          hour: string
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          updated_at?: string
+          wsum: number
+        }
+        Update: {
+          covered_s?: number
+          equipment_id?: string
+          hour?: string
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          updated_at?: string
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_1h_p202611: {
+        Row: {
+          covered_s: number
+          equipment_id: string
+          hour: string
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          updated_at: string
+          wsum: number
+        }
+        Insert: {
+          covered_s: number
+          equipment_id: string
+          hour: string
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          updated_at?: string
+          wsum: number
+        }
+        Update: {
+          covered_s?: number
+          equipment_id?: string
+          hour?: string
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          updated_at?: string
+          wsum?: number
+        }
+        Relationships: []
+      }
       equipment_telemetry: {
         Row: {
           created_at: string
@@ -730,6 +1557,44 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "device_readings_device_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_telemetry_hourly: {
+        Row: {
+          avg_value: number | null
+          equipment_id: string
+          hour: string
+          key_name: string
+          max_value: number | null
+          min_value: number | null
+          samples: number
+        }
+        Insert: {
+          avg_value?: number | null
+          equipment_id: string
+          hour: string
+          key_name: string
+          max_value?: number | null
+          min_value?: number | null
+          samples: number
+        }
+        Update: {
+          avg_value?: number | null
+          equipment_id?: string
+          hour?: string
+          key_name?: string
+          max_value?: number | null
+          min_value?: number | null
+          samples?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_telemetry_hourly_equipment_id_fkey"
             columns: ["equipment_id"]
             isOneToOne: false
             referencedRelation: "equipment"
@@ -1270,6 +2135,42 @@ export type Database = {
           },
         ]
       }
+      rate_limit_events: {
+        Row: {
+          bucket: string
+          created_at: string
+          id: number
+          key_hash: string
+        }
+        Insert: {
+          bucket: string
+          created_at?: string
+          id?: never
+          key_hash: string
+        }
+        Update: {
+          bucket?: string
+          created_at?: string
+          id?: never
+          key_hash?: string
+        }
+        Relationships: []
+      }
+      rollup_state: {
+        Row: {
+          name: string
+          watermark: string
+        }
+        Insert: {
+          name: string
+          watermark: string
+        }
+        Update: {
+          name?: string
+          watermark?: string
+        }
+        Relationships: []
+      }
       service_contracts: {
         Row: {
           created_at: string
@@ -1582,25 +2483,127 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      device_last_seen: {
-        Args: { p_equipment_ids: string[] }
-        Returns: { equipment_id: string; last_ts: string }[]
+      backfill_rollup_15m: {
+        Args: { p_equipment_id: string; p_from: string; p_to: string }
+        Returns: number
       }
+      can_view_equipment: { Args: { p_equipment_id: string }; Returns: boolean }
       consume_rate_limit: {
-        Args: { p_bucket: string; p_key: string; p_max: number; p_window_seconds: number }
+        Args: {
+          p_bucket: string
+          p_key: string
+          p_max: number
+          p_window_seconds: number
+        }
         Returns: boolean
       }
-      telemetry_daily: {
-        Args: { p_equipment_id: string; p_from: string; p_keys: string[]; p_to: string }
-        Returns: { avg_value: number; day: string; key_name: string; max_value: number; min_value: number; samples: number }[]
+      device_data_range: {
+        Args: { p_equipment_id: string }
+        Returns: {
+          first_day: string
+          last_day: string
+        }[]
       }
-      telemetry_buckets: {
-        Args: { p_bucket_minutes: number; p_equipment_id: string; p_from: string; p_keys: string[]; p_to: string }
-        Returns: { avg_value: number; bucket: string; key_name: string; samples: number }[]
+      device_last_seen: {
+        Args: { p_equipment_ids: string[] }
+        Returns: {
+          equipment_id: string
+          last_ts: string
+        }[]
       }
+      drop_old_rollup_15m_partitions: {
+        Args: { p_keep_days?: number; p_now?: string }
+        Returns: number
+      }
+      ensure_rollup_15m_partition: {
+        Args: { p_ts: string }
+        Returns: undefined
+      }
+      ensure_rollup_1h_partition: { Args: { p_ts: string }; Returns: undefined }
+      ensure_rollup_partitions: { Args: { p_now?: string }; Returns: undefined }
+      ingest_tick: {
+        Args: {
+          p_agent?: Json
+          p_closed?: Json
+          p_equipment_id: string
+          p_open?: Json
+          p_ts: string
+          p_values?: Json
+        }
+        Returns: Json
+      }
+      invoke_cron_route: { Args: { p_path: string }; Returns: undefined }
       is_admin: { Args: never; Returns: boolean }
       is_site_engineer_or_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
+      purge_old_telemetry: {
+        Args: {
+          p_batch?: number
+          p_max_batches?: number
+          p_retain_days?: number
+        }
+        Returns: number
+      }
+      rollup_days: { Args: { p_days: string[] }; Returns: number }
+      rollup_hours: { Args: { p_hours: string[] }; Returns: number }
+      rollup_telemetry_hourly: {
+        Args: { p_since?: string; p_until?: string }
+        Returns: number
+      }
+      run_rollups: { Args: { p_now?: string }; Returns: Json }
+      telemetry_buckets: {
+        Args: {
+          p_bucket_minutes: number
+          p_equipment_id: string
+          p_from: string
+          p_keys: string[]
+          p_to: string
+        }
+        Returns: {
+          avg_value: number
+          bucket: string
+          key_name: string
+          samples: number
+        }[]
+      }
+      telemetry_daily: {
+        Args: {
+          p_equipment_id: string
+          p_from: string
+          p_keys: string[]
+          p_to: string
+        }
+        Returns: {
+          avg_value: number
+          day: string
+          key_name: string
+          max_value: number
+          min_value: number
+          samples: number
+        }[]
+      }
+      telemetry_series: {
+        Args: {
+          p_equipment_id: string
+          p_from: string
+          p_interval_minutes: number
+          p_keys: string[]
+          p_to: string
+        }
+        Returns: {
+          avg_value: number
+          bucket: string
+          covered_s: number
+          key_name: string
+          last_value: number
+          max_value: number
+          min_value: number
+          n_samples: number
+          neg_avg: number
+          pos_avg: number
+        }[]
+      }
+      try_uuid: { Args: { p: string }; Returns: string }
       update_device_site: {
         Args: {
           p_address: Json
