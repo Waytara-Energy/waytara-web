@@ -8,7 +8,9 @@ import {
   DEFAULT_REPORT_BUCKET_MINUTES,
   bucketKeyIst,
   dayBucketKeys,
+  availableReportTypes,
   getReportType,
+  resolveReportType,
   isValidReportDate,
   istDayStart,
   reportKeys,
@@ -45,6 +47,19 @@ export interface DayReport {
 
 export type DayReportResult = { ok: true; report: DayReport } | { ok: false; status: number; error: string };
 
+/** The keys this device's equipment_metrics enables for customers: direction 'read'
+ *  and show_for_user. RLS lets a customer read only their own devices' rows. */
+export async function getEnabledMetricKeys(deviceId: string): Promise<Set<string>> {
+  const supabase = await createClient();
+  const { data } = await supabase
+    .from("equipment_metrics")
+    .select("key_name")
+    .eq("equipment_id", deviceId)
+    .eq("direction", "read")
+    .eq("show_for_user", true);
+  return new Set((data ?? []).map((r) => r.key_name));
+}
+
 export function parseBucketMinutes(value: string | null | undefined): number {
   const n = Number(value);
   return REPORT_BUCKET_OPTIONS.some((o) => o.minutes === n) ? n : DEFAULT_REPORT_BUCKET_MINUTES;
@@ -74,7 +89,6 @@ export async function gatherDayReport(params: {
   const device = await resolveDeviceInSite(site, params.deviceId);
   if (!device) return { ok: false, status: 404, error: "No device found." };
 
-  const type = getReportType(params.type);
   let bucketMinutes = parseBucketMinutes(params.bucketMinutes);
   const isSolar = device.deviceType?.category === "solar_inverter";
 
@@ -86,15 +100,20 @@ export async function gatherDayReport(params: {
     deviceLabel: deviceDisplayId(device),
     isSolar,
     date,
-    type,
   };
 
   if (!isSolar) {
     return {
       ok: true,
-      report: { ...base, bucketMinutes, coarse: false, points: [], summaries: [], hasData: false },
+      report: { ...base, type: getReportType(params.type), bucketMinutes, coarse: false, points: [], summaries: [], hasData: false },
     };
   }
+
+  // Only what this device's equipment_metrics enables (read + show_for_user). A requested
+  // report the device can't draw, or an unknown id, falls back to the first one it can.
+  const enabled = await getEnabledMetricKeys(device.id);
+  const type = resolveReportType(getReportType(params.type), enabled) ?? availableReportTypes(enabled)[0];
+  if (!type) return { ok: false, status: 404, error: "No report metrics are enabled for this device." };
 
   const dayStart = istDayStart(date);
   const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000);
@@ -169,5 +188,5 @@ export async function gatherDayReport(params: {
   const summaries = type.series.map((s) => summarizeSeries(s, points, bucketMinutes, counters));
   const hasData = points.some((p) => type.series.some((s) => typeof p[s.id] === "number"));
 
-  return { ok: true, report: { ...base, bucketMinutes, coarse, points, summaries, hasData } };
+  return { ok: true, report: { ...base, type, bucketMinutes, coarse, points, summaries, hasData } };
 }

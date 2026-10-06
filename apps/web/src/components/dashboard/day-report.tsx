@@ -10,6 +10,7 @@ import {
   DEFAULT_REPORT_TYPE,
   REPORT_TYPES,
   getReportType,
+  type AvailableReport,
   todayIst,
   type ReportPoint,
   type ReportSeriesSummary,
@@ -55,9 +56,9 @@ function formatValue(v: number | null, unit: string): string {
   return `${v.toFixed(unit === "kW" ? 2 : 1)} ${unit}`;
 }
 
-export function DayReport({ deviceId }: { deviceId: string }) {
+export function DayReport({ deviceId, available }: { deviceId: string; available: AvailableReport[] }) {
   const today = todayIst();
-  const [typeId, setTypeId] = React.useState<string>(DEFAULT_REPORT_TYPE);
+  const [typeId, setTypeId] = React.useState<string>(available.some((a) => a.id === DEFAULT_REPORT_TYPE) ? DEFAULT_REPORT_TYPE : available[0].id);
   const [date, setDate] = React.useState<string>(today);
   const [interval, setIntervalMinutes] = React.useState<number>(DEFAULT_REPORT_BUCKET_MINUTES);
   // Keyed by the query it answers, so "loading" is simply "the answer on screen is for a
@@ -67,6 +68,8 @@ export function DayReport({ deviceId }: { deviceId: string }) {
   const [csvPending, triggerCsvPending] = useDownloadPending();
   const [pdfPending, triggerPdfPending] = useDownloadPending();
 
+  // Only the reports, and within them only the series, this device's equipment_metrics enables.
+  const enabledSeries = new Set(available.find((a) => a.id === typeId)?.seriesIds);
   const type = getReportType(typeId);
   const query = `device=${deviceId}&type=${typeId}&date=${date}&interval=${interval}`;
 
@@ -105,8 +108,9 @@ export function DayReport({ deviceId }: { deviceId: string }) {
   const data = result?.data ?? null;
   const error = loading ? null : result?.error ?? null;
 
-  const grouped = GROUP_ORDER.map((g) => ({ group: g, items: REPORT_TYPES.filter((t) => t.group === g) })).filter((g) => g.items.length > 0);
-  const series = type.series;
+  const availableIds = new Set(available.map((a) => a.id));
+  const grouped = GROUP_ORDER.map((g) => ({ group: g, items: REPORT_TYPES.filter((t) => t.group === g && availableIds.has(t.id)) })).filter((g) => g.items.length > 0);
+  const series = type.series.filter((s) => enabledSeries.has(s.id));
   const unit = series[0].unit;
   const drawAsLines = series.length > 2;
   const bucketMinutes = data?.bucketMinutes ?? interval;

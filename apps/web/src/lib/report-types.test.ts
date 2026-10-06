@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
   REPORT_TYPES,
+  availableReportTypes,
+  resolveReportType,
   bucketKeyIst,
   dayBucketKeys,
   getReportType,
@@ -129,5 +131,51 @@ describe("summarizeSeries", () => {
     const s = summarizeSeries(soc, [{ time: "2026-10-05T00:00", batterySoc: 98 }], 15, {});
     expect(s.energyKwh).toBeNull();
     expect(s.avg).toBe(98);
+  });
+});
+
+describe("reports follow the device's enabled metrics (equipment_metrics read + show_for_user)", () => {
+  // The live inverter: two MPPT inputs, so no pv3; all other keys below are enabled.
+  const enabled = new Set([
+    "pv1_power_w", "pv2_power_w", "battery_power_w", "battery_soc_pct", "grid_total_power_w", "load_total_power_w",
+    "day_pv_energy_kwh", "day_load_energy_kwh", "day_grid_import_energy_kwh", "day_grid_export_energy_kwh",
+    "day_battery_charge_energy_kwh", "day_battery_discharge_energy_kwh",
+    "inverter_dc_temperature_c", "inverter_ac_temperature_c", "battery_temperature_c",
+  ]);
+
+  it("solar generation sums only the enabled strings", () => {
+    const solar = resolveReportType(getReportType("solar"), enabled)!.series[0];
+    expect(solar.keys).toEqual(["pv1_power_w", "pv2_power_w"]);
+    expect(reportKeys(resolveReportType(getReportType("solar"), enabled)!).sampleKeys).not.toContain("pv3_power_w");
+    // even if a stray pv3 reading existed it can't leak in: only fetched keys reach compute
+    expect(solar.compute({ pv1_power_w: 3183, pv2_power_w: 3127 })).toBeCloseTo(6.31);
+  });
+
+  it("drops a string that isn't enabled from the per-string report", () => {
+    const strings = resolveReportType(getReportType("solar_strings"), enabled)!;
+    expect(strings.series.map((s) => s.id)).toEqual(["pv1", "pv2"]);
+  });
+
+  it("drops reports whose metrics are not enabled and offers none for an empty device", () => {
+    expect(resolveReportType(getReportType("battery_soc"), new Set(["pv1_power_w"]))).toBeNull();
+    expect(availableReportTypes(new Set())).toEqual([]);
+    const onlyPv = availableReportTypes(new Set(["pv1_power_w"]));
+    // every report that survives was cut down to the one enabled key
+    expect(onlyPv.map((t) => t.id).sort()).toEqual(["energy_balance", "solar", "solar_strings", "solar_vs_load"]);
+    expect(onlyPv.every((t) => t.series.every((s) => s.keys.every((k) => k === "pv1_power_w")))).toBe(true);
+  });
+
+  it("only uses an energy counter when that counter is enabled", () => {
+    const noCounter = new Set([...enabled].filter((k) => k !== "day_pv_energy_kwh"));
+    const solar = resolveReportType(getReportType("solar"), noCounter)!;
+    expect(solar.series[0].counterKey).toBeUndefined();
+    expect(reportKeys(solar).counterKeys).toEqual([]);
+    expect(resolveReportType(getReportType("solar"), enabled)!.series[0].counterKey).toBe("day_pv_energy_kwh");
+  });
+
+  it("a mixed report keeps the series that exist (balance without grid export keeps the rest)", () => {
+    const noGrid = new Set([...enabled].filter((k) => k !== "grid_total_power_w"));
+    const balance = resolveReportType(getReportType("energy_balance"), noGrid)!;
+    expect(balance.series.map((s) => s.id)).toEqual(["solar", "load", "batteryCharge", "batteryDischarge"]);
   });
 });

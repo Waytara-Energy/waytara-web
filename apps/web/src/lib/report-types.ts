@@ -413,3 +413,39 @@ export function bucketKeyIst(ts: string | Date, date: string, bucketMinutes: num
   const m = offsetMin - (offsetMin % bucketMinutes);
   return `${date}T${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`;
 }
+
+// ---------------------------------------------------------------------------
+// Per-device resolution. A report may only use metrics this device actually has
+// in equipment_metrics with direction = 'read' AND show_for_user = true (the
+// same rule every other customer page and the Python agent follow: a hidden or
+// missing metric is never read, so it must never be charted or exported).
+// ---------------------------------------------------------------------------
+
+/** The report narrowed to the device's enabled metrics, or null when none of its
+ *  series can be drawn. Series with no enabled key are dropped (e.g. PV3 on a
+ *  2-input inverter); a series that has some of its keys keeps just those
+ *  (solar generation = the enabled PV strings only); an energy counter that
+ *  isn't enabled is simply not used. */
+export function resolveReportType(type: ReportType, enabled: ReadonlySet<string>): ReportType | null {
+  const series = type.series
+    .map((s): ReportSeries | null => {
+      const keys = s.keys.filter((k) => enabled.has(k));
+      if (keys.length === 0) return null;
+      return { ...s, keys, counterKey: s.counterKey && enabled.has(s.counterKey) ? s.counterKey : undefined };
+    })
+    .filter((s): s is ReportSeries => s !== null);
+  return series.length > 0 ? { ...type, series } : null;
+}
+
+export function availableReportTypes(enabled: ReadonlySet<string>): ReportType[] {
+  return REPORT_TYPES.map((t) => resolveReportType(t, enabled)).filter((t): t is ReportType => t !== null);
+}
+
+/** Serializable form for passing to the client (the series carry functions). */
+export interface AvailableReport {
+  id: string;
+  seriesIds: string[];
+}
+
+export const toAvailableReports = (types: ReportType[]): AvailableReport[] =>
+  types.map((t) => ({ id: t.id, seriesIds: t.series.map((s) => s.id) }));

@@ -6,6 +6,8 @@ import { fetchDashboardFields, fetchFieldValues, resolveComputedValues, type Fie
 import { DynamicFieldGroup } from "@/components/dashboard/dynamic-field-group";
 import { ReportControls } from "@/components/dashboard/report-controls";
 import { DayReport } from "@/components/dashboard/day-report";
+import { getEnabledMetricKeys } from "@/lib/report-day-data";
+import { availableReportTypes, toAvailableReports } from "@/lib/report-types";
 import { DeviceSwitcher } from "@/components/dashboard/device-switcher";
 import { ChartEmptyState } from "@/components/dashboard/chart-empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -53,6 +55,13 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
     getFieldValue = (key) => (key === "savings_amount" ? report.totalSaved : (values.get(key) ?? null));
   }
 
+  // Daily-report choices come from this device's own equipment_metrics (read + show_for_user),
+  // so a metric that isn't enabled for it (e.g. PV3 on a 2-input inverter) is never offered.
+  const dailyReports =
+    device && device.deviceType?.category === "solar_inverter"
+      ? toAvailableReports(availableReportTypes(await getEnabledMetricKeys(device.id)))
+      : [];
+
   return (
     <div className="space-y-6">
       {!device ? (
@@ -74,10 +83,10 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             </div>
           </div>
 
-          {device.deviceType?.category === "solar_inverter" && (
+          {dailyReports.length > 0 && (
             <div className="space-y-3">
               <h2 className="text-sm font-semibold text-theme-primary">Daily report</h2>
-              <DayReport deviceId={device.id} />
+              <DayReport deviceId={device.id} available={dailyReports} />
             </div>
           )}
 

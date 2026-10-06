@@ -14,5 +14,5 @@ export async function GET(req: NextRequest) {
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   // `type` carries compute functions the client already has; send just its id.
   const { type, ...rest } = result.report;
-  return NextResponse.json({ ...rest, typeId: type.id }, { headers: { "Cache-Control": "private, no-store" } });
+  return NextResponse.json({ ...rest, typeId: type.id, seriesIds: type.series.map((s) => s.id) }, { headers: { "Cache-Control": "private, no-store" } });
 }
