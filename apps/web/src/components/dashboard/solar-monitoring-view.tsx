@@ -23,6 +23,7 @@ import { TabButtonContent, renderGroup, sortGroups } from "./monitoring-shared";
 import { useLiveLastSync } from "./use-live-last-sync";
 import { RangeProvider } from "./range-context";
 import { RangeBar } from "./range-bar";
+import { GoLiveButton, GoLiveProvider } from "./go-live";
 
 /** The first non-zero fault/alarm bitmask, passed on as the fault code (see deriveFaultCode in device-overview). */
 function faultCodeFrom(get: (key: string) => number | null): number | null {
@@ -48,6 +49,8 @@ export interface SolarMonitoringProps {
   batteryTemperatureRows: HeatmapRow[];
   enumOptions: Record<string, EnumOption[]>;
   lastSyncTs: string | null;
+  /** How often the device agent says it uploads, in seconds (null if it has not said). */
+  heartbeatIntervalS: number | null;
 }
 
 /** The solar inverter's Monitoring screen. Every number follows the device's live channel in place - there is no
@@ -64,6 +67,7 @@ export function SolarMonitoringView({
   batteryTemperatureRows,
   enumOptions: enumOptionsObj,
   lastSyncTs,
+  heartbeatIntervalS,
 }: SolarMonitoringProps) {
   const enumOptions = React.useMemo(() => new Map(Object.entries(enumOptionsObj)), [enumOptionsObj]);
   const solarEnabled = "Solar Array" in categories;
@@ -91,6 +95,13 @@ export function SolarMonitoringView({
   };
   const activeFaultCode = faultCodeFrom(getNum);
   const sync = useLiveLastSync(deviceId, lastSyncTs);
+  // The agent counts as online while its heartbeat is newer than three upload intervals (at least 90 s).
+  const [clock, setClock] = React.useState(() => Date.now());
+  React.useEffect(() => {
+    const id = setInterval(() => setClock(Date.now()), 15_000);
+    return () => clearInterval(id);
+  }, []);
+  const agentOnline = sync !== null && clock - new Date(sync).getTime() < Math.max(90_000, 3 * (heartbeatIntervalS ?? 60) * 1000);
 
   const gridConnected = getNum("grid_relay_status");
 
@@ -215,6 +226,7 @@ export function SolarMonitoringView({
 
   return (
     <RangeProvider deviceId={deviceId}>
+      <GoLiveProvider deviceId={deviceId} agentOnline={agentOnline}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <DeviceSwitcher devices={devices} selectedId={deviceId} />
@@ -231,7 +243,10 @@ export function SolarMonitoringView({
         </div>
       </div>
 
-      <RangeBar />
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <RangeBar />
+        <GoLiveButton />
+      </div>
 
       {/* Real tab panels — each node's content only exists in the DOM while
           its own tab is selected (Radix Tabs unmounts inactive
@@ -653,6 +668,7 @@ export function SolarMonitoringView({
           </TabsContent>
         )}
       </MonitoringTabs>
+      </GoLiveProvider>
     </RangeProvider>
   );
 }

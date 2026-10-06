@@ -13,6 +13,7 @@ import { ChartErrorCard, ChartLoadingCard, StaleDot } from "./chart-states";
 import { useDelayedLoading } from "./use-delayed-loading";
 import { useRange } from "./range-context";
 import { RangeTrendChart } from "./range-trend-chart";
+import { LiveRawChart, useGoLive } from "./go-live";
 
 export interface BarTrendSeries {
   key: string;
@@ -402,6 +403,11 @@ export type BarTrendChartProps = React.ComponentProps<typeof TodayBarTrendChart>
  *  the chosen range - today's 15-minute bars, or a 7 / 30 / 90-day or custom window; elsewhere it shows today. */
 export function BarTrendChart(props: BarTrendChartProps) {
   const range = useRange();
+  const goLive = useGoLive();
+  // Go Live (every reading of today as the device reports it) replaces the chart while it is on.
+  if (goLive?.active) {
+    return <LiveRawChart title={props.title} series={props.series} valueScale={props.valueScale} unit={props.unit} />;
+  }
   if (range && range.preset !== "today") {
     return (
       <RangeTrendChart
