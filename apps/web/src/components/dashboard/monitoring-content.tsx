@@ -19,17 +19,16 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import {
   TriangleAlert,
-  Zap,
-  Gauge,
-  ArrowDownToLine,
   Plug,
   History,
 } from "lucide-react";
 import { ChargerTrendGroup } from "./lazy-charts";
 import { SolarMonitoringView } from "./solar-monitoring-view";
-import { TabButtonContent, renderGroup, temperatureRowsFor } from "./monitoring-shared";
+import { TabButtonContent } from "./monitoring-shared";
+import { EvHubCards, EvHubGroups } from "./ev-hub-live";
+import { temperatureRowsFor } from "@/lib/temperature-rows";
+import { valuesFor, enumToObject } from "@/lib/field-values";
 import { SessionReceiptCard, type ReceiptSection } from "./session-receipt-card";
-import { LiveStatusCard } from "./live-status-card";
 import { StatusPill } from "./status-pill";
 import { DeviceParameterCards } from "./device-parameter-cards";
 import { ChargingSessionsCarousel } from "./charging-sessions-carousel";
@@ -271,7 +270,6 @@ async function EvChargerMonitoring({
 
   const powerKw = getValue("power_active_import_kw") as number | null;
   const offeredKw = getValue("power_offered_kw") as number | null;
-  const utilizationPct = powerKw !== null && offeredKw !== null && offeredKw > 0 ? Math.max(0, Math.min(100, (powerKw / offeredKw) * 100)) : null;
 
   const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
   const showCost = site?.propertyType !== "residential_independent_villas";
@@ -316,52 +314,12 @@ async function EvChargerMonitoring({
             </Alert>
           ) : null}
 
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-            <LiveStatusCard
-              icon={Zap}
-              title="Power Offered"
-              subtitle="Max charger output"
-              value={offeredKw !== null ? `${offeredKw.toFixed(1)} kW` : "—"}
-              liveValue={offeredKw}
-              statusLabel="Status"
-              badgeLabel="Live"
-              badgeTone="neutral"
-              sparkline={[]}
-            />
-            <LiveStatusCard
-              icon={Plug}
-              title="Sessions"
-              subtitle="Started today"
-              value={String(sessionsToday)}
-              liveValue={sessionsToday}
-              statusLabel="Status"
-              badgeLabel="Today"
-              badgeTone="neutral"
-              sparkline={[]}
-            />
-            <LiveStatusCard
-              icon={ArrowDownToLine}
-              title="Energy Delivered"
-              subtitle="Total today"
-              value={`${energyTodayKwh.toFixed(1)} kWh`}
-              liveValue={energyTodayKwh}
-              statusLabel="Status"
-              badgeLabel="Today"
-              badgeTone={energyTodayKwh > 0 ? "good" : "neutral"}
-              sparkline={[]}
-            />
-            <LiveStatusCard
-              icon={Gauge}
-              title="Power Utilization"
-              subtitle="Of max output"
-              value={utilizationPct !== null ? `${utilizationPct.toFixed(0)}%` : "—"}
-              liveValue={utilizationPct}
-              statusLabel="Status"
-              badgeLabel="Live"
-              badgeTone="neutral"
-              sparkline={[]}
-            />
-          </div>
+          <EvHubCards
+            deviceId={device.id}
+            initial={{ power_active_import_kw: powerKw, power_offered_kw: offeredKw }}
+            sessionsToday={sessionsToday}
+            energyTodayKwh={energyTodayKwh}
+          />
 
           <ChargerTrendGroup
             deviceId={device.id}
@@ -392,9 +350,12 @@ async function EvChargerMonitoring({
             temperatureRows={connectorTemperatureRows}
           />
 
-          {sortSectionsByCategory(sections, EV_HUB_CATEGORY_PRIORITY).map(({ category, group }) =>
-            renderGroup(category, group, getValue, enumOptions)
-          )}
+          <EvHubGroups
+            deviceId={device.id}
+            groups={sortSectionsByCategory(sections, EV_HUB_CATEGORY_PRIORITY)}
+            initial={valuesFor(sections.flatMap((x) => x.groups.flatMap((g) => g.fields)), getValue)}
+            enumOptions={enumToObject(enumOptions) ?? {}}
+          />
         </TabsContent>
 
         <TabsContent value="sessions" className="space-y-4">

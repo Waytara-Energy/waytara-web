@@ -3,29 +3,14 @@
 // Presentation helpers shared by the solar and EV Monitoring views (no server-only imports).
 
 import type { LucideIcon } from "lucide-react";
-import { TEMPERATURE_MAX_C } from "@/lib/temperature-thresholds";
-import type { FieldValue, TemplateField } from "@/lib/template-field-format";
+import type { FieldValue } from "@/lib/template-field-format";
 import type { EnumOption } from "@/lib/enum-labels";
 import type { FieldGroup } from "@/lib/template-fields";
-import type { HeatmapRow } from "./temperature-heatmap";
 import { DynamicFieldGroup } from "./dynamic-field-group";
 import { groupByPhase } from "./phase-meter-card";
 import { groupByIndex } from "./indexed-group-card";
 import { LiveReadingsCard } from "./live-readings-card";
 import { EnergyStatCard } from "./energy-stat-card";
-
-/** Builds a TemperatureHeatmap's `rows` from a CategorySection's own
- *  fetched fields instead of a hardcoded key/label pair — the label is
- *  always this device's real equipment_templates.display_name, never
- *  invented copy that can drift from (or just plain not match) what the
- *  field actually is. Only picks fields this lookup has a ceiling for, so
- *  a group with non-temperature fields mixed in (e.g. Battery > Live)
- *  can't accidentally feed something else into a °C color scale. */
-export function temperatureRowsFor(fields: TemplateField[]): HeatmapRow[] {
-  return fields
-    .filter((f) => f.key in TEMPERATURE_MAX_C)
-    .map((f) => ({ key: f.key, label: f.label, maxC: TEMPERATURE_MAX_C[f.key] }));
-}
 
 /** A tab button's own content — icon + label at rest. The active tab
  *  drops its icon (`group-data-[state=active]:hidden`, keyed off the
