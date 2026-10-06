@@ -11,6 +11,7 @@ import { cn } from "@/lib/utils";
 import { ChartEmptyState } from "./chart-empty-state";
 import { ChartErrorCard } from "./chart-states";
 import { useDelayedLoading } from "./use-delayed-loading";
+import { useRange } from "./range-context";
 
 export interface HeatmapRow {
   key: string;
@@ -72,6 +73,9 @@ export function TemperatureHeatmap({
 
   const loading = state.status === "loading";
   const { showSkeleton } = useDelayedLoading(loading);
+  const range = useRange();
+  // The heatmap is a picture of today; it steps aside when a longer range is chosen.
+  if (range && range.preset !== "today") return null;
 
   // Same shell-stays-put approach as the other charts: the card keeps its size while loading.
   if (loading || showSkeleton) {

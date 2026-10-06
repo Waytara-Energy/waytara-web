@@ -21,6 +21,8 @@ import { LiveSyncedAgo } from "./live-synced-ago";
 import { DeviceSwitcher } from "./device-switcher";
 import { TabButtonContent, renderGroup, sortGroups } from "./monitoring-shared";
 import { useLiveLastSync } from "./use-live-last-sync";
+import { RangeProvider } from "./range-context";
+import { RangeBar } from "./range-bar";
 
 /** The first non-zero fault/alarm bitmask, passed on as the fault code (see deriveFaultCode in device-overview). */
 function faultCodeFrom(get: (key: string) => number | null): number | null {
@@ -212,7 +214,7 @@ export function SolarMonitoringView({
   };
 
   return (
-    <>
+    <RangeProvider deviceId={deviceId}>
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <DeviceSwitcher devices={devices} selectedId={deviceId} />
@@ -228,6 +230,8 @@ export function SolarMonitoringView({
           <LiveSyncedAgo lastTs={sync} />
         </div>
       </div>
+
+      <RangeBar />
 
       {/* Real tab panels — each node's content only exists in the DOM while
           its own tab is selected (Radix Tabs unmounts inactive
@@ -649,6 +653,6 @@ export function SolarMonitoringView({
           </TabsContent>
         )}
       </MonitoringTabs>
-    </>
+    </RangeProvider>
   );
 }

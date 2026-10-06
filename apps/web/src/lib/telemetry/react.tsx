@@ -8,6 +8,7 @@ import * as React from "react";
 import { createClient } from "@waytara/supabase/client";
 import { idbKV, PersistentCache } from "./cache";
 import { binStart, combineBuckets, dayAxis, istDayStart, toDisplay } from "./combine";
+import { planRange, type RangePlan, type RangeWindow } from "./ranges";
 import { loadLatest, loadOpen } from "./loaders";
 import { DeviceLiveManager, type LiveEnv } from "./live-manager";
 import { fetchSeries } from "./series";
@@ -209,5 +210,96 @@ export function useTodaySeries(deviceId: string, keys: string[], minutes: number
     error,
     retry: React.useCallback(() => setAttempt((n) => n + 1), []),
     nowMs,
+  };
+}
+
+export interface RangeSeriesState extends Omit<SeriesState, "retry"> {
+  plan: RangePlan;
+  /** The interval actually shown: the user's choice if the range allows it, else the plan's default. */
+  minutes: number;
+  retry: () => void;
+}
+
+/**
+ * Buckets for any window (7 / 30 / 90 days, custom, or today) at the chosen interval. The database is asked once,
+ * at the finest interval the window allows (`plan.base`); every coarser interval is combined locally, so changing
+ * the interval costs no call. Results are cached in memory and in this browser (older, final windows for good).
+ */
+export function useSeriesRange(deviceId: string, keys: string[], w: RangeWindow, requestedMinutes: number | null): RangeSeriesState {
+  const { store, live } = useCtx();
+  const keysSig = keys.join("|");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const stableKeys = React.useMemo(() => keys, [keysSig]);
+
+  const [nowMs, setNowMs] = React.useState(() => Date.now());
+  React.useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 60_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const plan = React.useMemo(() => planRange(w, nowMs), [w, nowMs]);
+  const minutes = requestedMinutes !== null && plan.options.includes(requestedMinutes) ? requestedMinutes : plan.default;
+  const range = React.useMemo<SeriesRange>(() => ({ fromMs: w.fromMs, toMs: w.toMs, minutes: plan.base }), [w, plan.base]);
+
+  const [attempt, setAttempt] = React.useState(0);
+  const [failure, setFailure] = React.useState<{ id: string; message: string } | null>(null);
+  const requestId = `${deviceId}|${keysSig}|${range.fromMs}|${range.toMs}|${range.minutes}|${attempt}`;
+
+  React.useEffect(() => {
+    let cancelled = false;
+    const release = store.watch(deviceId, stableKeys);
+    const releaseLive = live.acquire(deviceId);
+    store
+      .ensureSeries(deviceId, stableKeys, range, { force: attempt > 0 })
+      .catch((e: unknown) => {
+        if (!cancelled) setFailure({ id: requestId, message: e instanceof Error ? e.message : "Could not load this chart." });
+      });
+    return () => {
+      cancelled = true;
+      release();
+      releaseLive();
+    };
+  }, [store, live, deviceId, stableKeys, range, attempt, requestId]);
+
+  const rev = React.useSyncExternalStore(store.subscribe, () => store.getRev(deviceId), () => 0);
+
+  const derived = React.useMemo(() => {
+    void rev;
+    const size = minutes * 60_000;
+    const first = binStart(w.fromMs, minutes);
+    const axis: number[] = [];
+    for (let t = first; t < w.toMs; t += size) axis.push(t);
+    const byKey: Record<string, (DisplayPoint | null)[]> = {};
+    let loaded = true;
+    let stale = false;
+    for (const key of stableKeys) {
+      const base = store.getBuckets(deviceId, key, range);
+      if (!base) {
+        loaded = false;
+        byKey[key] = axis.map(() => null);
+        continue;
+      }
+      if (store.isStale(deviceId, key, range)) stale = true;
+      const combined = minutes === plan.base ? base : combineBuckets(base, minutes);
+      const at = new Map(combined.map((b) => [binStart(b.t, minutes), toDisplay(b)]));
+      byKey[key] = axis.map((t) => {
+        const p = at.get(t);
+        return p && p.covered > 0 ? p : null;
+      });
+    }
+    return { axis, byKey, loaded, stale };
+  }, [rev, store, deviceId, stableKeys, minutes, w, range, plan.base]);
+
+  const error = failure && failure.id === requestId ? failure.message : null;
+  return {
+    axis: derived.axis,
+    byKey: derived.byKey,
+    status: derived.loaded ? "ready" : error ? "error" : "loading",
+    stale: derived.stale,
+    error,
+    retry: React.useCallback(() => setAttempt((n) => n + 1), []),
+    nowMs,
+    plan,
+    minutes,
   };
 }

@@ -11,6 +11,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ChartEmptyState } from "./chart-empty-state";
 import { ChartErrorCard, ChartLoadingCard, StaleDot } from "./chart-states";
 import { useDelayedLoading } from "./use-delayed-loading";
+import { useRange } from "./range-context";
+import { RangeTrendChart } from "./range-trend-chart";
 
 export interface BarTrendSeries {
   key: string;
@@ -103,7 +105,7 @@ function slotKeyFor(iso: string, minutes: number): string {
  *  a footer of totals. Data comes from the shared telemetry store - one request per page for every
  *  chart's metrics, coarser intervals combined locally (no call), live updates applied in place, never
  *  a refetch. `PowerGenerationChart` (Overview) is a thin wrapper around this. */
-export function BarTrendChart({
+function TodayBarTrendChart({
   deviceId,
   title,
   series,
@@ -392,4 +394,26 @@ export function BarTrendChart({
       </CardFooter>
     </Card>
   );
+}
+
+export type BarTrendChartProps = React.ComponentProps<typeof TodayBarTrendChart>;
+
+/** The trend chart every Monitoring / Overview tab uses. Inside a page with a range picker (RangeProvider) it follows
+ *  the chosen range - today's 15-minute bars, or a 7 / 30 / 90-day or custom window; elsewhere it shows today. */
+export function BarTrendChart(props: BarTrendChartProps) {
+  const range = useRange();
+  if (range && range.preset !== "today") {
+    return (
+      <RangeTrendChart
+        deviceId={props.deviceId}
+        title={props.title}
+        series={props.series}
+        valueScale={props.valueScale}
+        unit={props.unit}
+        footerMode={props.footerMode}
+        footerUnit={props.footerUnit}
+      />
+    );
+  }
+  return <TodayBarTrendChart {...props} />;
 }
