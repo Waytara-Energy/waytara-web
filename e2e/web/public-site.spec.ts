@@ -74,6 +74,13 @@ test.describe("access control (logged out)", () => {
     expect([302, 307, 401, 403]).toContain(res.status());
   });
 
+  test("the daily report endpoints (JSON, CSV, PDF) refuse anonymous callers", async ({ request }) => {
+    for (const path of ["day", "day.csv", "day.pdf"]) {
+      const res = await request.get(`${WEB_URL}/api/reports/${path}?date=2026-10-05&type=solar`, { maxRedirects: 0 });
+      expect([302, 307, 401, 403], `/api/reports/${path}`).toContain(res.status());
+    }
+  });
+
   test("a made-up quotation token cannot fetch a PDF", async ({ request }) => {
     const res = await request.get(`${WEB_URL}/quote/00000000-0000-4000-8000-000000000000/pdf`, { maxRedirects: 0 });
     expect(res.status()).toBe(404);

@@ -5,6 +5,7 @@ import { gatherReportData, toWeeklyRows } from "@/lib/gather-report-data";
 import { fetchDashboardFields, fetchFieldValues, resolveComputedValues, type FieldValue } from "@/lib/template-fields";
 import { DynamicFieldGroup } from "@/components/dashboard/dynamic-field-group";
 import { ReportControls } from "@/components/dashboard/report-controls";
+import { DayReport } from "@/components/dashboard/day-report";
 import { DeviceSwitcher } from "@/components/dashboard/device-switcher";
 import { ChartEmptyState } from "@/components/dashboard/chart-empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -69,11 +70,19 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
               <DeviceSwitcher devices={report.site?.devices ?? [device]} selectedId={device.id} />
-              <p className="mt-1 text-sm text-theme-muted">Export this device&apos;s energy and savings data as CSV or PDF.</p>
+              <p className="mt-1 text-sm text-theme-muted">Pick a report and a date to see that day from 00:00 to 23:59, then download it as CSV or PDF.</p>
             </div>
           </div>
 
+          {device.deviceType?.category === "solar_inverter" && (
+            <div className="space-y-3">
+              <h2 className="text-sm font-semibold text-theme-primary">Daily report</h2>
+              <DayReport deviceId={device.id} />
+            </div>
+          )}
+
           <div className="rounded-xl border border-theme-border bg-theme-bg p-4">
+            <h2 className="mb-3 text-sm font-semibold text-theme-primary">Long-range yield export</h2>
             <ReportControls defaultDays={DEFAULT_DAYS} deviceId={report.deviceId} />
           </div>
 

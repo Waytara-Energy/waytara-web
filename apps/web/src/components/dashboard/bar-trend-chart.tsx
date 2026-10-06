@@ -104,7 +104,7 @@ interface ChartPoint {
 /** Custom XAxis tick: every hour boundary gets a full-height tick + its
  *  "12 AM"-style label; every other bucket (only exists once the selected
  *  interval is finer than an hour) gets a short, unlabeled tick mark. */
-function ChartTick({ x, y, payload }: { x?: string | number; y?: string | number; payload?: { value: string } }) {
+export function ChartTick({ x, y, payload }: { x?: string | number; y?: string | number; payload?: { value: string } }) {
   if (x === undefined || y === undefined || !payload) return null;
   const nx = Number(x);
   const ny = Number(y);

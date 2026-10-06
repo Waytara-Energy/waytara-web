@@ -17,7 +17,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
  *  couple of seconds after the click (these routes render server-side in
  *  well under that), long enough to confirm "yes, that worked" without
  *  claiming to know exactly when the file finished downloading. */
-function useDownloadPending(durationMs = 2200) {
+export function useDownloadPending(durationMs = 2200) {
   const [pending, setPending] = React.useState(false);
   const timeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const trigger = React.useCallback(() => {
