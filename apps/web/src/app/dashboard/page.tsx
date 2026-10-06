@@ -13,10 +13,7 @@ import { EvLiveStatusCards } from "@/components/dashboard/ev-live-status-cards";
 import { PowerGenerationChart } from "@/components/dashboard/lazy-charts";
 import { ChargingSessionsCarousel } from "@/components/dashboard/charging-sessions-carousel";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
-import { IntervalRefresh } from "@/components/dashboard/interval-refresh";
 import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
-
-const WEATHER_REFRESH_MS = 30 * 60 * 1000;
 
 // Site-centric redesign: Overview is now the selected *site*'s overview —
 // a customer can have several sites, and each site can have several
@@ -100,12 +97,6 @@ export default async function DashboardOverviewPage() {
           <RealtimeRefresh table="ev_sessions" event="UPDATE" filter={`equipment_id=in.(${chargerIds.join(",")})`} />
         </>
       )}
-      {/* Weather comes from an external API, not a table this app owns —
-          nothing to subscribe to, so it's kept current on a plain timer
-          instead (see WEATHER_REFRESH_MS / getCurrentWeather's own cache
-          window in @/lib/weather). */}
-      <IntervalRefresh intervalMs={WEATHER_REFRESH_MS} />
-
       <div className="flex flex-wrap items-center justify-between gap-3">
         <WeatherHeader address={site.address} siteName={site.name} latitude={site.latitude} longitude={site.longitude} />
         {overview && <LiveStatusPill inverterIds={inverterIds} initial={overviewInitial} inverterStateOptions={inverterStateOptions} />}

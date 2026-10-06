@@ -81,6 +81,11 @@ test.describe("access control (logged out)", () => {
     }
   });
 
+  test("the weather endpoint is not an open proxy", async ({ request }) => {
+    const res = await request.get(`${WEB_URL}/api/weather?lat=13&lon=80`, { maxRedirects: 0 });
+    expect([302, 307, 401, 403]).toContain(res.status());
+  });
+
   test("a made-up quotation token cannot fetch a PDF", async ({ request }) => {
     const res = await request.get(`${WEB_URL}/quote/00000000-0000-4000-8000-000000000000/pdf`, { maxRedirects: 0 });
     expect(res.status()).toBe(404);

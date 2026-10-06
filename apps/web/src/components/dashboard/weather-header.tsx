@@ -1,5 +1,6 @@
 import Link from "next/link";
-import { geocodeCity, getCurrentWeather, describeWeatherCode } from "@/lib/weather";
+import { geocodeCity, getCurrentWeather } from "@/lib/weather";
+import { WeatherLive } from "./weather-live";
 import type { SiteAddress } from "@/lib/site-catalog";
 
 // City names get typed in all kinds of casing ("CHENNAI", "chennai") —
@@ -53,31 +54,5 @@ export async function WeatherHeader({
     );
   }
 
-  const condition = describeWeatherCode(weather.code, weather.isDay);
-  const now = new Date();
-  const timeLabel = new Intl.DateTimeFormat("en-US", { hour: "numeric", minute: "2-digit", hour12: true, timeZone: weather.timezone }).format(now);
-  const dateLabel = new Intl.DateTimeFormat("en-US", { month: "short", day: "numeric", timeZone: weather.timezone }).format(now);
-
-  return (
-    <div>
-      <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{heading}</p>
-      <div className="mt-1 flex items-center gap-3">
-        <span className="text-3xl font-semibold leading-none text-foreground">{weather.tempC}°C</span>
-        <div className="flex items-center gap-1.5">
-          {/* Meteocons' own art is already fully colored (and animated —
-              plain <img> renders that fine, next/image would need SVG
-              optimization enabled app-wide just for this), so no icon
-              component + manual color mapping needed anymore. */}
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={`/images/weather/${condition.icon}.svg`} alt="" width={48} height={48} className="h-12 w-12" />
-          <div>
-            <p className="text-sm font-medium leading-none text-foreground">{condition.label}</p>
-            <p className="mt-1 text-xs leading-none text-muted-foreground">
-              {timeLabel} · {dateLabel}
-            </p>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return <WeatherLive heading={heading} latitude={location.latitude} longitude={location.longitude} initial={weather} />;
 }
