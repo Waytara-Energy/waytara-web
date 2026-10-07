@@ -10,6 +10,7 @@ import {
   ChartTooltipContent,
 } from "@/components/ui/chart";
 import { ChartEmptyState } from "./chart-empty-state";
+import { useBarHover } from "./bar-hover";
 
 export interface DivergingPoint {
   date: string; // YYYY-MM-DD
@@ -43,6 +44,7 @@ export function DivergingBarChart({
   positiveColor?: string;
   negativeColor?: string;
 }) {
+  const hover = useBarHover();
   const chartData = data.map((d) => ({
     label: formatLabel(d.date),
     positive: d.positive,
@@ -60,7 +62,7 @@ export function DivergingBarChart({
 
   return (
     <ChartContainer config={chartConfig} className="aspect-auto h-[220px] w-full">
-      <BarChart data={chartData} margin={{ left: 4, right: 4, top: 8 }}>
+      <BarChart data={chartData} {...hover.chartProps} margin={{ left: 4, right: 4, top: 8 }}>
         <CartesianGrid vertical={false} />
         <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} />
         <YAxis
@@ -75,8 +77,12 @@ export function DivergingBarChart({
           content={<ChartTooltipContent formatter={(value) => `${Math.abs(Number(value)).toFixed(1)} ${unit}`} />}
         />
         <ChartLegend content={<ChartLegendContent />} />
-        <Bar dataKey="positive" fill="var(--color-positive)" radius={[3, 3, 0, 0]} />
-        <Bar dataKey="negative" fill="var(--color-negative)" radius={[0, 0, 3, 3]} />
+        <Bar dataKey="positive" fill="var(--color-positive)" radius={[3, 3, 0, 0]}>
+          {hover.cells(chartData.length, "var(--color-positive)", (i) => chartData[i].positive !== 0)}
+        </Bar>
+        <Bar dataKey="negative" fill="var(--color-negative)" radius={[0, 0, 3, 3]}>
+          {hover.cells(chartData.length, "var(--color-negative)", (i) => chartData[i].negative !== 0)}
+        </Bar>
       </BarChart>
     </ChartContainer>
   );

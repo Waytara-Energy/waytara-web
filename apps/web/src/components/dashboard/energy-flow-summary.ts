@@ -11,7 +11,7 @@ export function lineWidth(watts: number): number {
   return 1.5 + 3 * Math.min(1, Math.max(0, watts) / 10_000);
 }
 
-export type FlowMode = "Exporting" | "Importing" | "Solar" | "Battery" | "Idle" | "Offline";
+export type FlowMode = "Exporting" | "Importing" | "Solar" | "Battery" | "Idle";
 
 export interface Summary {
   mode: FlowMode;
@@ -20,8 +20,7 @@ export interface Summary {
 
 /** What the site is doing overall, in a word (for the centre of the diagram) and a sentence (below it).
  *  `batteryW` is positive while charging, negative while discharging; `gridW` positive = importing. */
-export function summarize(solarW: number | null, batteryW: number | null, gridW: number | null, loadW: number | null, offline = false): Summary {
-  if (offline) return { mode: "Offline", text: "Device offline - no live readings" };
+export function summarize(solarW: number | null, batteryW: number | null, gridW: number | null, loadW: number | null): Summary {
   const solar = Math.max(0, solarW ?? 0);
   const load = Math.max(0, loadW ?? 0);
   const discharging = batteryW !== null && batteryW < 0 ? -batteryW : 0;

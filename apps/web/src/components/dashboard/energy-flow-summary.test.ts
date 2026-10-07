@@ -21,10 +21,6 @@ describe("lineWidth", () => {
 });
 
 describe("summarize", () => {
-  it("says so when the device is offline, whatever the last readings were", () => {
-    expect(summarize(6500, 129, -6400, 93, true)).toEqual({ mode: "Offline", text: "Device offline - no live readings" });
-  });
-
   it("exporting to the grid", () => {
     expect(summarize(6500, 129, -6400, 93)).toEqual({ mode: "Exporting", text: "Exporting 6.40 kW to the grid · Solar covers 100% of load" });
   });

@@ -14,6 +14,7 @@ import { DivergingBarChart, PerformanceChart } from "./lazy-charts";
 import { RangeBar } from "./range-bar";
 import { RangeProvider, useRange } from "./range-context";
 import { useDelayedLoading } from "./use-delayed-loading";
+import { useBarHover } from "./bar-hover";
 
 // The inverter's own "today" energy counters. A day's value is the counter's highest reading of that day.
 const YIELD_KEY = "day_pv_energy_kwh";
@@ -48,6 +49,7 @@ function hourlyOf(axis: number[], pts: (Pt | null)[] | undefined): { label: stri
 }
 
 function HourlyBars({ title, series }: { title: string; series: { key: string; label: string; color: string; data: { label: string; value: number }[] }[] }) {
+  const hover = useBarHover();
   const labels = Array.from(new Set(series.flatMap((s) => s.data.map((d) => d.label)))).sort();
   const rows = labels.map((label) => ({ label, ...Object.fromEntries(series.map((s) => [s.key, s.data.find((d) => d.label === label)?.value ?? 0])) }));
   const config = Object.fromEntries(series.map((s) => [s.key, { label: s.label, color: s.color }])) satisfies ChartConfig;
@@ -61,13 +63,15 @@ function HourlyBars({ title, series }: { title: string; series: { key: string; l
           <ChartEmptyState />
         ) : (
           <ChartContainer config={config} className="aspect-auto h-[220px] w-full">
-            <BarChart data={rows} margin={{ left: 4, right: 4, top: 8 }}>
+            <BarChart data={rows} {...hover.chartProps} margin={{ left: 4, right: 4, top: 8 }}>
               <CartesianGrid vertical={false} />
               <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} />
               <YAxis hide />
               <ChartTooltip content={<ChartTooltipContent formatter={(v, n) => <span>{String(n)}: {Number(v).toFixed(2)} kWh</span>} />} />
               {series.map((s) => (
-                <Bar key={s.key} dataKey={s.key} name={s.label} fill={`var(--color-${s.key})`} radius={3} isAnimationActive={false} />
+                <Bar key={s.key} dataKey={s.key} name={s.label} fill={`var(--color-${s.key})`} radius={3} isAnimationActive={false}>
+                  {hover.cells(rows.length, `var(--color-${s.key})`)}
+                </Bar>
               ))}
             </BarChart>
           </ChartContainer>

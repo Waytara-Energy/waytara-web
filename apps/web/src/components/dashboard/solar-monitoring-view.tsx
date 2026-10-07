@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Server, Sun, BatteryCharging, Home, Zap, Activity, Gauge, Leaf, TreePine, ArrowDownToLine, ArrowUpFromLine, Fuel } from "lucide-react";
+import { Server, Sun, Thermometer, BatteryCharging, Home, Zap, Activity, Gauge, Leaf, TreePine, ArrowDownToLine, ArrowUpFromLine, Fuel } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { CustomerDevice } from "@/lib/device-display";
@@ -21,7 +21,7 @@ import { LiveSyncedAgo } from "./live-synced-ago";
 import { DeviceSwitcher } from "./device-switcher";
 import { TabButtonContent, renderGroup, sortGroups } from "./monitoring-shared";
 import { useDeviceState } from "./use-device-state";
-import { DeviceOfflineNotice } from "./overview-live";
+import { pvPowerKeys, solarGenerationW } from "@/lib/solar-generation";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { RangeProvider } from "./range-context";
 import { RangeBar } from "./range-bar";
@@ -101,9 +101,7 @@ export function SolarMonitoringView({
   const gridConnected = getNum("grid_relay_status");
 
   const activeEnergyKwh = getNum("day_active_energy_kwh");
-  const reactiveEnergyKvarh = getNum("day_reactive_energy_kvarh");
   const activeEnergyText = activeEnergyKwh !== null ? `${activeEnergyKwh.toFixed(1)} kWh` : "—";
-  const reactiveEnergyText = reactiveEnergyKvarh !== null ? `${reactiveEnergyKvarh.toFixed(1)} kVarh` : "—";
 
   const voltageV = getNum("inverter_l1_voltage_v");
   const currentA = getNum("inverter_l1_current_a");
@@ -116,6 +114,15 @@ export function SolarMonitoringView({
   const co2Kg = lifetimePvKwh !== null ? co2AvoidedKg(lifetimePvKwh) : null;
   const trees = co2Kg !== null ? treesEquivalent(co2Kg) : null;
 
+  // The hottest inverter sensor, against its own ceiling (the same one the temperature gauges use).
+  let hottest: { label: string; c: number; maxC: number } | null = null;
+  for (const row of inverterTemperatureRows) {
+    const c = getNum(row.key);
+    if (c !== null && (hottest === null || c / row.maxC > hottest.c / hottest.maxC)) hottest = { label: row.label, c, maxC: row.maxC };
+  }
+  const tempRatio = hottest ? hottest.c / hottest.maxC : 0;
+  const tempBadge = !hottest ? "No data" : tempRatio >= 1 ? "Hot" : tempRatio >= 0.85 ? "Warm" : "Normal";
+
   // One headline figure per tab — shown only on the active card (see
   // TabsTrigger's `card` variant, which reveals this block via
   // group-data-[state=active]) so switching tabs surfaces that node's own
@@ -123,6 +130,13 @@ export function SolarMonitoringView({
   // expanded tab does.
   const liveOutputKw = (() => {
     const v = getNum("inverter_output_power_w");
+    return v !== null ? `${(v / 1000).toFixed(2)} kW` : "—";
+  })();
+  // The Solar Array tab's live output is the solar generation itself: the device's PV inputs added together (the Main
+  // Hub's own "Live Output" stays the inverter's AC output, which also carries battery discharge).
+  const pvKeys = pvPowerKeys(liveKeys);
+  const solarGenerationText = (() => {
+    const v = solarGenerationW(Object.fromEntries(pvKeys.concat("inverter_output_power_w").map((k) => [k, getNum(k)])), pvKeys);
     return v !== null ? `${(v / 1000).toFixed(2)} kW` : "—";
   })();
   const socPctText = (() => {
@@ -211,7 +225,7 @@ export function SolarMonitoringView({
   // itself (keyed by the currently selected tab's value) rather than
   // repeated inside each tab button or each panel's own content.
   const tabHeadlines: Record<string, TabHeadlineInfo> = {
-    hub: { value: liveOutputKw, label: "Live Output" },
+    hub: { value: liveOutputKw, label: "Output Power" },
     ...(solarEnabled ? { solar: { value: solarTodayText, label: "Power Generated" } } : {}),
     ...(batteryEnabled ? { battery: { value: socPctText, label: "Charge Level" } } : {}),
     ...(loadEnabled ? { load: { value: loadTodayText, label: "Consumed Today" } } : {}),
@@ -233,13 +247,11 @@ export function SolarMonitoringView({
             activeFaultCode={activeFaultCode}
             inverterStateOptions={inverterStateOptions}
             variant="text"
-            offline={offline}
+            lastKnown={offline}
           />
-          <LiveSyncedAgo lastTs={lastReadAt} />
+          <LiveSyncedAgo lastTs={lastReadAt} label={offline ? "Last reading" : "Updated"} />
         </div>
       </div>
-
-      <DeviceOfflineNotice deviceId={deviceId} sync={sync} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <RangeBar />
@@ -311,23 +323,14 @@ export function SolarMonitoringView({
         <TabsContent value="hub" className="space-y-4">
           <FaultBanner faultCode={activeFaultCode} />
 
-          <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${inverterTemperatureRows.length > 0 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
             <LiveStatusCard
-              icon={Zap}
-              title="Active Energy"
-              subtitle="Real energy used"
-              value={activeEnergyText}
+              icon={Sun}
+              title="Output Power"
+              subtitle="Current power"
+              value={liveOutputKw}
               statusLabel="Status"
-              badgeLabel="Today"
-              badgeTone="neutral"
-            />
-            <LiveStatusCard
-              icon={Activity}
-              title="Reactive Energy"
-              subtitle="Non-working energy"
-              value={reactiveEnergyText}
-              statusLabel="Status"
-              badgeLabel="Today"
+              badgeLabel="Live"
               badgeTone="neutral"
             />
             <LiveStatusCard
@@ -340,28 +343,61 @@ export function SolarMonitoringView({
               badgeTone="neutral"
             />
             <LiveStatusCard
-              icon={Sun}
-              title="Live Output"
-              subtitle="Current power"
-              value={liveOutputKw}
+              icon={Zap}
+              title="AC Output"
+              subtitle="Energy today"
+              value={activeEnergyText}
               statusLabel="Status"
-              badgeLabel="Live"
+              badgeLabel="Today"
               badgeTone="neutral"
             />
+            {inverterTemperatureRows.length > 0 && (
+              <LiveStatusCard
+                icon={Thermometer}
+                iconTone={tempRatio >= 0.85 ? "warn" : "neutral"}
+                title="Temperature"
+                subtitle={hottest ? `Hottest · ${hottest.label}` : "Inverter sensors"}
+                value={hottest ? `${hottest.c.toFixed(1)} °C` : "—"}
+                statusLabel="Status"
+                badgeLabel={tempBadge}
+                badgeTone={!hottest ? "neutral" : tempRatio >= 0.85 ? "warn" : "good"}
+              />
+            )}
           </div>
 
           <MainHubTrendGroup
             deviceId={deviceId}
             powerSeries={[
               { key: "inverter_output_power_w", label: "Solar", color: "var(--chart-3)" },
-              { key: "battery_power_w", label: "Battery", color: "var(--chart-1)" },
-              { key: "grid_total_power_w", label: "Grid", color: "var(--chart-4)" },
               { key: "load_total_power_w", label: "Load", color: "var(--chart-2)" },
+              {
+                key: "grid_total_power_w",
+                label: "Grid",
+                color: "#f97316",
+                signed: {
+                  positive: { color: "#f97316", label: "Importing", footer: "imported" },
+                  negative: { color: "#3b82f6", label: "Exporting", footer: "exported" },
+                },
+              },
+              {
+                key: "battery_power_w",
+                label: "Battery",
+                color: "#10b981",
+                // The inverter reports discharging as positive; the chart draws charging upward (as Overview does).
+                scale: -0.001,
+                signed: {
+                  positive: { color: "#10b981", label: "Charging", footer: "charged" },
+                  negative: { color: "#f97316", label: "Discharging", footer: "discharged" },
+                },
+              },
             ]}
-            temperatureRows={inverterTemperatureRows}
           />
 
-          {sortGroups("Inverter", inverterGroups).map((group) => renderGroup("Inverter", group, getValue, enumOptions))}
+          {/* The AC output and Energy groups are covered by the cards and charts above; AC Output Total lives on Performance. */}
+          {sortGroups(
+            "Inverter",
+            inverterGroups.filter((g) => g.groupName !== "AC output" && g.groupName !== "Energy")
+          ).map((group) => renderGroup("Inverter", group, getValue, enumOptions))}
         </TabsContent>
 
         {solarEnabled && (
@@ -371,7 +407,7 @@ export function SolarMonitoringView({
                 icon={Sun}
                 title="Live Output"
                 subtitle="Current power"
-                value={liveOutputKw}
+                value={solarGenerationText}
                 statusLabel="Status"
                 badgeLabel="Live"
                 badgeTone="neutral"

@@ -2,35 +2,62 @@
 
 import * as React from "react";
 import { BarTrendChart, type BarTrendSeries } from "./bar-trend-chart";
-import { TemperatureHeatmap, type HeatmapRow } from "./temperature-heatmap";
-import { DEFAULT_INTERVAL_MINUTES } from "@/lib/day-buckets";
+import { useRange } from "./range-context";
+import { useGoLive } from "./go-live";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DEFAULT_INTERVAL_MINUTES, INTERVAL_OPTIONS } from "@/lib/day-buckets";
 
-/** Owns the one interval (15m/30m/1h/2h) both Main Hub charts share —
- *  Power Flows' own Select drives it (passed through as a controlled
- *  prop), and TemperatureHeatmap just reads the same value, so changing
- *  the interval on one rebuckets both instead of the two silently
- *  showing different granularities side by side. */
+/** Main Hub's trends: one power chart each for solar, load, grid and battery in a 2x2 grid, each showing the whole
+ *  day. One interval picker (15m/30m/1h/2h) rebuckets all four. */
 export function MainHubTrendGroup({
   deviceId,
   powerSeries,
-  temperatureRows,
 }: {
   deviceId: string;
   powerSeries: BarTrendSeries[];
-  temperatureRows: HeatmapRow[];
 }) {
   const [bucketMinutes, setBucketMinutes] = React.useState(DEFAULT_INTERVAL_MINUTES);
+  const range = useRange();
+  const goLive = useGoLive();
+  // The picker is for today's bars; a longer range or Go Live brings its own charts.
+  const showPicker = !goLive?.active && (!range || range.preset === "today");
 
   return (
     <>
-      <BarTrendChart
-        deviceId={deviceId}
-        title="Power Flows"
-        series={powerSeries}
-        bucketMinutes={bucketMinutes}
-        onBucketMinutesChange={setBucketMinutes}
-      />
-      <TemperatureHeatmap deviceId={deviceId} rows={temperatureRows} bucketMinutes={bucketMinutes} />
+      <div className="space-y-3">
+        {showPicker && (
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-sm font-medium text-foreground">Power Flows</h3>
+            <Select value={String(bucketMinutes)} onValueChange={(v) => setBucketMinutes(Number(v))}>
+              <SelectTrigger className="h-8 w-[110px] shrink-0 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {INTERVAL_OPTIONS.map((o) => (
+                  <SelectItem key={o.minutes} value={String(o.minutes)}>
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        )}
+        <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          {powerSeries.map((s) => (
+            <BarTrendChart
+              key={s.key}
+              deviceId={deviceId}
+              title={`${s.label} power`}
+              series={[s]}
+              bucketMinutes={bucketMinutes}
+              hideIntervalSelect
+              showYAxis
+              hideFooter
+              fromFirstData
+            />
+          ))}
+        </div>
+      </div>
     </>
   );
 }

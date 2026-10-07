@@ -10,6 +10,7 @@ import type { BarTrendSeries } from "./bar-trend-chart";
 import { ChartEmptyState } from "./chart-empty-state";
 import { ChartErrorCard, ChartLoadingCard, StaleDot } from "./chart-states";
 import { useRange } from "./range-context";
+import { useBarHover } from "./bar-hover";
 import { useDelayedLoading } from "./use-delayed-loading";
 
 const INTERVAL_LABEL: Record<number, string> = { 15: "15 min", 30: "30 min", 60: "1 hour", 120: "2 hours", 1440: "1 day" };
@@ -45,6 +46,7 @@ export function RangeTrendChart({
 }) {
   const range = useRange();
   const [requested, setRequested] = React.useState<number | null>(null);
+  const hover = useBarHover();
   const fetchKeys = React.useMemo(() => series.filter((s) => !s.cumulativeOf).map((s) => s.key), [series]);
   const scaleByKey = React.useMemo(() => Object.fromEntries(series.map((s) => [s.key, s.scale ?? valueScale])), [series, valueScale]);
   const unitByKey = React.useMemo(() => Object.fromEntries(series.map((s) => [s.key, s.unit ?? unit])), [series, unit]);
@@ -125,7 +127,7 @@ export function RangeTrendChart({
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="aspect-auto h-[240px] w-full">
-          <ComposedChart accessibilityLayer data={points} margin={{ left: 4, right: 4, top: 8 }}>
+          <ComposedChart accessibilityLayer data={points} {...hover.chartProps} margin={{ left: 4, right: 4, top: 8 }}>
             <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={32} interval="preserveStartEnd" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} />
             <ChartTooltip
               cursor={false}
@@ -155,7 +157,9 @@ export function RangeTrendChart({
                 s.chartType === "line" || state.axis.length > 200 ? (
                   <Line key={s.key} type="monotone" dataKey={s.key} name={s.label} yAxisId={s.unit ?? unit} stroke={`var(--color-${s.key})`} strokeWidth={2} dot={false} connectNulls={false} isAnimationActive={false} />
                 ) : (
-                  <Bar key={s.key} dataKey={s.key} name={s.label} yAxisId={s.unit ?? unit} fill={`var(--color-${s.key})`} radius={state.axis.length > 60 ? 1 : 3} isAnimationActive={false} />
+                  <Bar key={s.key} dataKey={s.key} name={s.label} yAxisId={s.unit ?? unit} fill={`var(--color-${s.key})`} radius={state.axis.length > 60 ? 1 : 3} isAnimationActive={false}>
+                    {hover.cells(points.length, `var(--color-${s.key})`, (i) => typeof points[i]?.[s.key] === "number")}
+                  </Bar>
                 )
               )}
           </ComposedChart>

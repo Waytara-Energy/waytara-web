@@ -213,7 +213,10 @@ function ChartTooltipContent({
                 )}
               >
                 {formatter && item?.value !== undefined && item.name ? (
-                  formatter(item.value, item.name, item, index, item.payload)
+                  <div className="grid w-full gap-1.5">
+                    {nestLabel ? tooltipLabel : null}
+                    {formatter(item.value, item.name, item, index, item.payload)}
+                  </div>
                 ) : (
                   <>
                     {itemConfig?.icon ? (

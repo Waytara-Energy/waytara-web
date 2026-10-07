@@ -22,5 +22,5 @@ export function siteAgg(key: string): "sum" | "avg" | "max" {
 
 /** Every metric the Overview shows (the energy flow, the status row, today-so-far): what it asks the device for while Go Live is on. */
 export const OVERVIEW_LIVE_KEYS: string[] = [
-  ...new Set<string>([...SITE_OVERVIEW_KEYS, "inverter_output_power_w", "load_total_power_w", "battery_soc_pct", "grid_total_power_w", "battery_power_w"]),
+  ...new Set<string>([...SITE_OVERVIEW_KEYS, "inverter_output_power_w", "load_total_power_w", "battery_soc_pct", "grid_total_power_w", "battery_power_w", "day_battery_charge_energy_kwh", "day_battery_discharge_energy_kwh"]),
 ];

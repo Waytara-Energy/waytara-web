@@ -15,11 +15,14 @@ export function EvLiveCards({
   initial,
   todayEnergyKwh,
   tariffRate,
+  which,
 }: {
   chargerId: string;
   initial: Record<string, number | null>;
   todayEnergyKwh: number | null;
   tariffRate: number;
+  /** Overview puts two cards on each side of the energy flow: Charging Power + Current on the left, Temperature + Energy on the right. */
+  which: "left" | "right";
 }) {
   const n = useLiveNumbers([chargerId], KEYS, initial);
 
@@ -35,9 +38,10 @@ export function EvLiveCards({
   const hasEnergyToday = todayEnergyKwh !== null && todayEnergyKwh > 0;
   const costToday = todayEnergyKwh !== null ? todayEnergyKwh * tariffRate : null;
 
-  return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+  return which === "left" ? (
+    <>
       <LiveStatusCard
+        compact
         icon={Zap}
         iconTone={charging ? "good" : "neutral"}
         title="Charging Power"
@@ -49,7 +53,9 @@ export function EvLiveCards({
         href={`/dashboard/monitoring?device=${chargerId}#hub`}
       />
 
+
       <LiveStatusCard
+        compact
         icon={Gauge}
         iconTone={drawing ? "good" : "neutral"}
         title="Current"
@@ -61,7 +67,11 @@ export function EvLiveCards({
         href={`/dashboard/monitoring?device=${chargerId}#hub`}
       />
 
+    </>
+  ) : (
+    <>
       <LiveStatusCard
+        compact
         icon={Thermometer}
         iconTone={tempC === null ? "neutral" : tempWarm ? "warn" : "good"}
         title="Connector Temperature"
@@ -73,7 +83,9 @@ export function EvLiveCards({
         href={`/dashboard/monitoring?device=${chargerId}#hub`}
       />
 
+
       <LiveStatusCard
+        compact
         icon={BatteryCharging}
         iconTone={hasEnergyToday ? "good" : "neutral"}
         title="Energy Delivered Today"
@@ -84,6 +96,6 @@ export function EvLiveCards({
         badgeTone={hasEnergyToday ? "good" : "neutral"}
         href={`/dashboard/monitoring?device=${chargerId}#hub`}
       />
-    </div>
+    </>
   );
 }

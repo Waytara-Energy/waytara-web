@@ -192,7 +192,6 @@ export function GoLiveButton() {
         {state.status === "error" ? "Try Go Live again" : "Go Live"}
       </Button>
       {state.status === "error" && state.error && <span className="max-w-xs text-xs text-destructive">{state.error}</span>}
-      {!agentOnline && state.status !== "error" && <span className="text-xs text-theme-muted">Device offline</span>}
     </div>
   );
 }

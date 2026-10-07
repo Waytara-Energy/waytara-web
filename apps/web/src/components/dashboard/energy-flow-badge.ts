@@ -15,8 +15,6 @@ export interface StateBadge {
 /** Where the home's power is coming from right now. */
 export type HomeSource = "solar" | "grid" | "battery" | "idle";
 
-export const OFFLINE_BADGE: StateBadge = { label: "Offline", description: "The device is not answering, so there is no live reading.", tone: "idle" };
-
 const IDLE: StateBadge = { label: "Idle", description: "Not exchanging any power right now.", tone: "idle" };
 
 /** Which source is covering the load: grid import wins outright (it costs money), otherwise whichever of solar

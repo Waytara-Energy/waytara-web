@@ -6,13 +6,13 @@ import { fetchSiteOverview, fetchTodayChargingSessions, fetchRecentChargingStats
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { WeatherHeader } from "@/components/dashboard/weather-header";
-import { DeviceOfflineNotice, LiveChannelKeeper, LiveEnergyFlow, LiveFaultBanner } from "@/components/dashboard/overview-live";
+import { LiveChannelKeeper, LiveFaultBanner } from "@/components/dashboard/overview-live";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { OverviewStatus } from "@/components/dashboard/overview-go-live";
 import { SITE_OVERVIEW_KEYS } from "@/lib/overview-keys";
-import { SolarLiveStatusCards } from "@/components/dashboard/solar-live-status-cards";
-import { EvLiveStatusCards } from "@/components/dashboard/ev-live-status-cards";
-import { PowerGenerationChart } from "@/components/dashboard/lazy-charts";
+import { fetchSolarCardsProps } from "@/components/dashboard/solar-live-status-cards";
+import { fetchEvCardsProps } from "@/components/dashboard/ev-live-status-cards";
+import { OverviewBoard } from "@/components/dashboard/overview-board";
 import { ChargingSessionsCarousel } from "@/components/dashboard/charging-sessions-carousel";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
@@ -82,10 +82,14 @@ export default async function DashboardOverviewPage() {
   const inverterIds = site.devices.filter((d) => d.deviceType?.category === "solar_inverter").map((d) => d.id);
   // What the server saw; the live components take it from here (no page refresh).
   const syncInit: DeviceSyncInit = inverterSync ?? { lastTs: null, agentSeenTs: null, deviceOnline: null, intervalS: null };
-  const overviewInitial: Record<string, number | null> = overview ? Object.fromEntries(SITE_OVERVIEW_KEYS.map((k) => [k, overview.get(k)])) : {};
+  const pvKeys = overview?.pvKeys ?? [];
+  const overviewInitial: Record<string, number | null> = overview ? Object.fromEntries([...SITE_OVERVIEW_KEYS, ...pvKeys].map((k) => [k, overview.get(k)])) : {};
+
+  // The first numbers of the cards beside the energy flow (the live channel keeps them current afterwards).
+  const [solarCards, evCards] = await Promise.all([fetchSolarCardsProps(supabase, site, syncInit, pvKeys), fetchEvCardsProps(supabase, site)]);
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-4">
       {/* Live numbers (status pill, fault banner, energy flow, status cards, charts) update in place from the
           device's live channel - there is no page refresh on new readings. The channel is only open while this
           tab is visible. */}
@@ -108,6 +112,7 @@ export default async function DashboardOverviewPage() {
           <OverviewStatus
             inverterIds={inverterIds}
             initial={overviewInitial}
+            pvKeys={pvKeys}
             inverterStateOptions={inverterStateOptions}
             sync={syncInit}
           />
@@ -126,25 +131,21 @@ export default async function DashboardOverviewPage() {
         </Empty>
       ) : (
         <>
-          {inverterId && <DeviceOfflineNotice deviceId={inverterId} sync={syncInit} />}
-
           <LiveFaultBanner inverterIds={inverterIds} initial={overviewInitial} />
 
-          <LiveEnergyFlow
-            inverterIds={inverterIds}
-            chargerIds={chargerIds}
-            initial={overviewInitial}
-            initialEvW={overview.evW}
-            powerPackage={site.powerPackage}
-            powerSourceCategory={site.powerSourceCategory}
-            sync={inverterId ? syncInit : undefined}
+          <OverviewBoard
+            solar={solarCards}
+            ev={evCards}
+            flow={{
+              inverterIds,
+              chargerIds,
+              initial: overviewInitial,
+              initialEvW: overview.evW,
+              powerPackage: site.powerPackage,
+              powerSourceCategory: site.powerSourceCategory,
+              pvKeys,
+            }}
           />
-
-          <SolarLiveStatusCards supabase={supabase} site={site} sync={syncInit} />
-
-          <EvLiveStatusCards supabase={supabase} site={site} />
-
-          {inverterId && <PowerGenerationChart deviceId={inverterId} />}
 
           {chargerIds.length > 0 && (
             <ChargingSessionsCarousel

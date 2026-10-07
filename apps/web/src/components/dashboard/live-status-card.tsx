@@ -30,6 +30,7 @@ export function LiveStatusCard({
   badgeLabel,
   badgeTone,
   href,
+  compact = false,
 }: {
   icon: LucideIcon;
   iconTone?: StatusTone;
@@ -43,10 +44,12 @@ export function LiveStatusCard({
    *  device + section (e.g. `/dashboard/monitoring?device=<id>#power`) —
    *  omit for a card with nowhere to drill into. */
   href?: string;
+  /** Tighter padding and a smaller value, for screens that must fit without scrolling (Overview). */
+  compact?: boolean;
 }) {
   const card = (
-    <Card className={cn(href && "transition-colors hover:border-primary/40")}>
-      <CardContent className="p-5">
+    <Card className={cn(compact && "h-full", href && "transition-colors hover:border-primary/40")}>
+      <CardContent className={compact ? "p-3.5" : "p-5"}>
         <div className="flex items-center gap-2">
           <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-full", ICON_TONE_CLASS[iconTone])}>
             <Icon className="size-4" />
@@ -57,7 +60,7 @@ export function LiveStatusCard({
           </div>
         </div>
 
-        <p className="mt-3 text-2xl font-semibold text-foreground">{value}</p>
+        <p className={cn("font-semibold text-foreground", compact ? "mt-2 text-xl" : "mt-3 text-2xl")}>{value}</p>
         <div className="mt-1 flex items-center justify-between gap-2 text-xs">
           <span className="text-muted-foreground">{statusLabel}</span>
           <span className={cn("font-medium", BADGE_TONE_CLASS[badgeTone])}>{badgeLabel}</span>

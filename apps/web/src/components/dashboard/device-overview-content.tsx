@@ -7,7 +7,7 @@ import { fetchDashboardFields, fetchFieldValues, resolveComputedValues } from "@
 import { LiveDynamicFieldGroup } from "./live-field-group";
 import { valuesFor } from "@/lib/field-values";
 import { getLastSyncInfo } from "@/lib/device-sync";
-import { DeviceOfflineNotice, LiveChannelKeeper, LiveEnergyFlow, LiveFaultBanner, LiveTodaySoFar } from "./overview-live";
+import { LiveChannelKeeper, LiveEnergyFlow, LiveFaultBanner, LiveTodaySoFar } from "./overview-live";
 import { OverviewStatus } from "./overview-go-live";
 import { SITE_OVERVIEW_KEYS } from "@/lib/overview-keys";
 import { RecentAlerts } from "./recent-alerts";
@@ -88,16 +88,14 @@ export async function DeviceOverviewContent({
     const leftoverValues = resolveComputedValues(leftoverFields, leftoverRawValues, device);
     const getLeftoverValue = (key: string) => leftoverValues.get(key) ?? null;
     // What the server saw; the live components take it from here (no page refresh).
-    const initial: Record<string, number | null> = Object.fromEntries(SITE_OVERVIEW_KEYS.map((k) => [k, overview.get(k)]));
+    const initial: Record<string, number | null> = Object.fromEntries([...SITE_OVERVIEW_KEYS, ...overview.pvKeys].map((k) => [k, overview.get(k)]));
     const inverterIds = [device.id];
     return (
       <div className="space-y-4">
         <LiveChannelKeeper deviceIds={inverterIds} />
         <div className="flex justify-end">
-          <OverviewStatus inverterIds={inverterIds} initial={initial} inverterStateOptions={inverterStateOptions} sync={lastSync} />
+          <OverviewStatus inverterIds={inverterIds} initial={initial} inverterStateOptions={inverterStateOptions} sync={lastSync} pvKeys={overview.pvKeys} />
         </div>
-
-        <DeviceOfflineNotice deviceId={device.id} sync={lastSync} />
 
         <LiveFaultBanner inverterIds={inverterIds} initial={initial} />
 
@@ -108,7 +106,7 @@ export async function DeviceOverviewContent({
             initialEvW={overview.evW}
             powerPackage={site.powerPackage}
             powerSourceCategory={site.powerSourceCategory}
-            sync={lastSync}
+            pvKeys={overview.pvKeys}
           />
         )}
 

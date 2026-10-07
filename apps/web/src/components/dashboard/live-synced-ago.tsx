@@ -34,7 +34,7 @@ function formatAgo(ms: number): { text: string; minutesAgo: number } {
  *  Clicking swaps the relative text for the exact clock time (and back) —
  *  the relative text is the quick-glance signal, the exact time is there
  *  for whoever actually needs to know precisely when. */
-export function LiveSyncedAgo({ lastTs }: { lastTs: string | null }) {
+export function LiveSyncedAgo({ lastTs, label = "Updated" }: { lastTs: string | null; label?: string }) {
   const [state, setState] = useState<{ text: string; isStale: boolean } | null>(null);
   const [showExact, setShowExact] = useState(false);
 
@@ -76,7 +76,7 @@ export function LiveSyncedAgo({ lastTs }: { lastTs: string | null }) {
       )}
     >
       <RefreshCw className="size-3.5" />
-      {!state ? "Syncing…" : showExact ? `Updated at ${exactTime}` : `Updated ${state.text}`}
+      {!state ? "Syncing…" : showExact ? `${label} at ${exactTime}` : `${label} ${state.text}`}
     </button>
   );
 }

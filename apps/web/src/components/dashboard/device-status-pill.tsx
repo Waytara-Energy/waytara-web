@@ -27,7 +27,7 @@ export function DeviceStatusPill({
   activeFaultCode,
   inverterStateOptions,
   variant,
-  offline = false,
+  lastKnown = false,
 }: {
   inverterState: number | null;
   activeFaultCode?: number | null;
@@ -36,18 +36,15 @@ export function DeviceStatusPill({
    *  not the whole enum Map, so this stays a pure presentational component. */
   inverterStateOptions: EnumOption[];
   variant?: "badge" | "text";
-  /** The device is not reporting: whatever state it last had is out of date, so say so instead. */
-  offline?: boolean;
+  /** The device is not answering, so this is the state it reported last, not the state it is in now: shown muted with
+   *  a "Last:" prefix so an old "Normal" never reads as current. */
+  lastKnown?: boolean;
 }) {
-  if (offline) {
-    return <StatusPill label="Offline" tone="bad" variant={variant} />;
-  }
-  if (activeFaultCode) {
-    return <StatusPill label="Fault" tone="bad" variant={variant} />;
-  }
-  if (inverterState === null) {
+  if (inverterState === null && !activeFaultCode) {
     return <StatusPill label="No data" tone="neutral" variant={variant} />;
   }
-  const match = inverterStateOptions.find((o) => o.code === String(inverterState));
-  return <StatusPill label={match?.label ?? `State ${inverterState}`} tone={INVERTER_STATE_TONE[inverterState] ?? "neutral"} variant={variant} />;
+  const match = inverterState === null ? undefined : inverterStateOptions.find((o) => o.code === String(inverterState));
+  const label = activeFaultCode ? "Fault" : (match?.label ?? `State ${inverterState}`);
+  const tone: StatusTone = activeFaultCode ? "bad" : INVERTER_STATE_TONE[inverterState ?? -1] ?? "neutral";
+  return <StatusPill label={lastKnown ? `Last: ${label}` : label} tone={lastKnown ? "neutral" : tone} variant={variant} />;
 }

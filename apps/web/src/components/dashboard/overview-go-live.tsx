@@ -12,14 +12,15 @@ import { useDeviceState } from "./use-device-state";
 /** While Go Live is on, feeds every reading the device sends (at its own rate) into the same live store the Overview
  *  already reads, so the energy flow, status row and numbers follow them in place. When it is paused or stops, nothing
  *  more arrives from here and the page simply keeps following the saved updates from Supabase. */
-function OverviewLiveBridge({ deviceId }: { deviceId: string }) {
+function OverviewLiveBridge({ deviceId, pvKeys }: { deviceId: string; pvKeys: string[] }) {
   const live = useGoLive();
   const store = useTelemetryStore();
   const register = live?.register;
   const state = live?.state;
   const seen = React.useRef(new Map<string, number>());
 
-  React.useEffect(() => (register ? register(OVERVIEW_LIVE_KEYS) : undefined), [register]);
+  const keys = React.useMemo(() => [...OVERVIEW_LIVE_KEYS, ...pvKeys], [pvKeys]);
+  React.useEffect(() => (register ? register(keys) : undefined), [register, keys]);
 
   React.useEffect(() => {
     if (!state || state.status !== "live") {
@@ -47,23 +48,26 @@ export function OverviewStatus({
   initial,
   inverterStateOptions,
   sync,
+  pvKeys = [],
 }: {
   inverterIds: string[];
   initial: Record<string, number | null>;
   inverterStateOptions: EnumOption[];
   sync: DeviceSyncInit;
+  /** The device's PV power keys, which solar generation is made of. */
+  pvKeys?: string[];
 }) {
   const deviceId = inverterIds[0];
   const status = <LiveStatusPill inverterIds={inverterIds} initial={initial} inverterStateOptions={inverterStateOptions} sync={sync} />;
   if (!deviceId) return status;
   return (
-    <WithGoLive deviceId={deviceId} sync={sync}>
+    <WithGoLive deviceId={deviceId} sync={sync} pvKeys={pvKeys}>
       {status}
     </WithGoLive>
   );
 }
 
-function WithGoLive({ deviceId, sync, children }: { deviceId: string; sync: DeviceSyncInit; children: React.ReactNode }) {
+function WithGoLive({ deviceId, sync, pvKeys, children }: { deviceId: string; sync: DeviceSyncInit; pvKeys: string[]; children: React.ReactNode }) {
   // Go Live needs the device to be answering: with the device off there is nothing to stream.
   const { offline } = useDeviceState(deviceId, sync);
   return (
@@ -72,7 +76,7 @@ function WithGoLive({ deviceId, sync, children }: { deviceId: string; sync: Devi
         <GoLiveButton />
         {children}
       </div>
-      <OverviewLiveBridge deviceId={deviceId} />
+      <OverviewLiveBridge deviceId={deviceId} pvKeys={pvKeys} />
     </GoLiveProvider>
   );
 }

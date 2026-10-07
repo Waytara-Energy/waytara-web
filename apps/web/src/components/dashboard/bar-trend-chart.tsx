@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Bar, ComposedChart, Line, ReferenceArea, ReferenceLine, XAxis, YAxis } from "recharts";
+import { Bar, CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceLine, XAxis, YAxis } from "recharts";
 import { INTERVAL_OPTIONS, DEFAULT_INTERVAL_MINUTES, formatBucketLabel } from "@/lib/day-buckets";
 import { istSlotKey } from "@/lib/telemetry/combine";
 import { useTodaySeries } from "@/lib/telemetry/react";
@@ -14,6 +14,7 @@ import { useDelayedLoading } from "./use-delayed-loading";
 import { useRange } from "./range-context";
 import { RangeTrendChart } from "./range-trend-chart";
 import { LiveRawChart, useGoLive } from "./go-live";
+import { useBarHover } from "./bar-hover";
 
 export interface BarTrendSeries {
   key: string;
@@ -45,6 +46,12 @@ export interface BarTrendSeries {
    *  each slot actually covered. Stops once the day has not reached a slot yet. `key` still
    *  needs to be unique in `series`, since it becomes this series' own field and dataKey. */
   cumulativeOf?: string;
+  /** For a signed series (grid, battery): bars above zero and below zero get their own colour and name, and the footer
+   *  totals each direction separately ("13.5 kWh exported · 0.2 kWh imported"). */
+  signed?: {
+    positive: { color: string; label: string; footer: string };
+    negative: { color: string; label: string; footer: string };
+  };
 }
 
 export interface BarTrendReferenceLine {
@@ -73,17 +80,34 @@ interface ChartPoint {
   [seriesKey: string]: number | string | null | undefined;
 }
 
-/** Custom XAxis tick: every hour boundary gets a full-height tick + its
- *  "12 AM"-style label; every other bucket (only exists once the selected
- *  interval is finer than an hour) gets a short, unlabeled tick mark. */
-export function ChartTick({ x, y, payload }: { x?: string | number; y?: string | number; payload?: { value: string } }) {
+/** Custom XAxis tick: every `labelEveryHours`-th hour boundary (every hour by default) gets a full-height tick + its
+ *  "12 AM"-style label; with a wider spacing the hours in between get a short tick and no label; every other bucket
+ *  (only exists once the selected interval is finer than an hour) gets a faint tick mark. */
+export function ChartTick({
+  x,
+  y,
+  payload,
+  labelEveryHours = 1,
+  showMinor = true,
+}: {
+  x?: string | number;
+  y?: string | number;
+  payload?: { value: string };
+  labelEveryHours?: number;
+  /** Draw the faint in-between marks (off when the chart is too tight for them). */
+  showMinor?: boolean;
+}) {
   if (x === undefined || y === undefined || !payload) return null;
   const nx = Number(x);
   const ny = Number(y);
   const bucketKey = payload.value;
   const isHourMark = bucketKey.slice(14, 16) === "00";
   if (!isHourMark) {
-    return <line x1={nx} y1={ny} x2={nx} y2={ny + 5} stroke="var(--muted-foreground)" strokeWidth={1} opacity={0.5} />;
+    if (!showMinor) return null;
+    return <line x1={nx} y1={ny} x2={nx} y2={ny + 4} stroke="var(--muted-foreground)" strokeWidth={1} opacity={0.3} />;
+  }
+  if (Number(bucketKey.slice(11, 13)) % labelEveryHours !== 0) {
+    return <line x1={nx} y1={ny} x2={nx} y2={ny + 6} stroke="var(--muted-foreground)" strokeWidth={1} opacity={0.6} />;
   }
   return (
     <g>
@@ -118,6 +142,11 @@ function TodayBarTrendChart({
   onBucketMinutesChange,
   referenceLines,
   sessionMarkers,
+  hideIntervalSelect = false,
+  labelEveryHours = 1,
+  showYAxis = false,
+  hideFooter = false,
+  fromFirstData = false,
 }: {
   deviceId: string;
   title: string;
@@ -154,6 +183,17 @@ function TodayBarTrendChart({
    *  BarTrendSessionMarker. Independent of `series`/fetching entirely;
    *  just drawn over whatever's already there. */
   sessionMarkers?: BarTrendSessionMarker[];
+  /** Hide this chart's own interval picker, for a caller that offers one picker for several charts. */
+  hideIntervalSelect?: boolean;
+  /** Label every n-th hour on the time axis (1 = every hour) - raise it for a narrow card so the labels stay apart. */
+  labelEveryHours?: number;
+  /** Draw the value axis (with faint guide lines) on the right instead of hiding it. */
+  showYAxis?: boolean;
+  /** Leave out the "so far today" totals under the chart. */
+  hideFooter?: boolean;
+  /** Plot from the day's first reading up to now instead of the whole 24 hours, with the time labels spaced to fit the
+   *  card's width (so it reads well on a phone). */
+  fromFirstData?: boolean;
 }) {
   const [internalBucketMinutes, setInternalBucketMinutes] = React.useState<number>(DEFAULT_INTERVAL_MINUTES);
   const bucketMinutes = controlledBucketMinutes ?? internalBucketMinutes;
@@ -168,19 +208,31 @@ function TodayBarTrendChart({
   const axisIds = React.useMemo(() => Array.from(new Set(series.map((s) => s.unit ?? unit))), [series, unit]);
 
   const state = useTodaySeries(deviceId, fetchKeys, bucketMinutes);
+  const hover = useBarHover();
+  // The chart's own width, so the time labels can be spaced to fit it.
+  const [box, setBox] = React.useState<HTMLDivElement | null>(null);
+  const [boxWidth, setBoxWidth] = React.useState(0);
+  React.useEffect(() => {
+    if (!box) return;
+    const ro = new ResizeObserver(([entry]) => setBoxWidth(Math.round(entry.contentRect.width)));
+    ro.observe(box);
+    return () => ro.disconnect();
+  }, [box]);
 
   const { points, totals } = React.useMemo(() => {
     const nowMs = state.nowMs;
     const pts: ChartPoint[] = state.axis.map((t) => ({ time: istSlotKey(t) }));
-    const tot: Record<string, { sum: number; wsum: number; covered: number }> = {};
+    const tot: Record<string, { sum: number; wsum: number; covered: number; pos: number; neg: number }> = {};
     for (const key of fetchKeys) {
       const scale = scaleByKey[key] ?? 1;
-      const t = { sum: 0, wsum: 0, covered: 0 };
+      const t = { sum: 0, wsum: 0, covered: 0, pos: 0, neg: 0 };
       state.byKey[key]?.forEach((p, i) => {
         if (p && p.avg !== null) {
           const v = p.avg * scale;
           pts[i][key] = v;
           t.sum += (v * p.covered) / 3600; // kW x hours actually covered = kWh
+          if (v >= 0) t.pos += (v * p.covered) / 3600;
+          else t.neg += (-v * p.covered) / 3600;
           t.wsum += v * p.covered;
           t.covered += p.covered;
         } else {
@@ -241,6 +293,33 @@ function TodayBarTrendChart({
     );
   }
 
+  // The slots to draw: the whole day, or from the first reading up to the newest slot (never fewer than a few bars).
+  let first = 0;
+  let last = points.length - 1;
+  if (fromFirstData) {
+    const hasValue = (p: ChartPoint) => seriesKeys.some((k) => p[k] !== null && p[k] !== undefined);
+    first = Math.max(0, points.findIndex(hasValue));
+    const nowIdx = state.axis.filter((t) => t <= state.nowMs).length - 1;
+    last = Math.max(first, Math.min(last, nowIdx));
+    first = Math.min(first, Math.max(0, last - 3));
+  }
+  const shown = fromFirstData ? points.slice(first, last + 1) : points;
+
+  // Time labels: as many whole hours apart as the width needs so none touch (a phone gets fewer than a desktop); the
+  // faint in-between marks only while each bar still has room for one.
+  const plotWidth = Math.max(0, boxWidth - (showYAxis ? 48 : 8));
+  const bucketHours = Math.max(1, bucketMinutes / 60);
+  const spanHours = (shown.length * bucketMinutes) / 60;
+  const maxLabels = Math.max(2, Math.floor(plotWidth / 58));
+  const hourStep = fromFirstData
+    ? ([1, 2, 3, 4, 6, 12, 24].find((h) => h % bucketHours === 0 && spanHours / h <= maxLabels) ?? 24)
+    : labelEveryHours;
+  const showMinor = !fromFirstData || (plotWidth > 0 && plotWidth / shown.length >= 7);
+  // Value-axis decimals: enough that neighbouring ticks never read the same.
+  let maxAbs = 0;
+  for (const p of shown) for (const k of seriesKeys) if (typeof p[k] === "number") maxAbs = Math.max(maxAbs, Math.abs(p[k] as number));
+  const decimals = maxAbs < 1 ? 2 : maxAbs < 10 ? 1 : 0;
+
   return (
     <Card>
       <CardHeader className="flex flex-row items-start justify-between gap-4 space-y-0">
@@ -249,9 +328,11 @@ function TodayBarTrendChart({
             {title}
             <StaleDot show={state.stale} label="Showing saved data, refreshing" />
           </CardTitle>
-          <CardDescription>Today, {intervalLabel} average</CardDescription>
+          <CardDescription>
+            {fromFirstData ? "Today so far" : "Today"}, {intervalLabel} average{showYAxis ? ` · ${unit}` : ""}
+          </CardDescription>
         </div>
-        <Select value={String(bucketMinutes)} onValueChange={(v) => setBucketMinutes(Number(v))}>
+        {!hideIntervalSelect && <Select value={String(bucketMinutes)} onValueChange={(v) => setBucketMinutes(Number(v))}>
           <SelectTrigger className="h-8 w-[110px] shrink-0 text-xs">
             <SelectValue />
           </SelectTrigger>
@@ -262,11 +343,25 @@ function TodayBarTrendChart({
               </SelectItem>
             ))}
           </SelectContent>
-        </Select>
+        </Select>}
       </CardHeader>
       <CardContent>
+        {series.map(
+          (s) =>
+            s.signed && (
+              <div key={`legend-${s.key}`} className="mb-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                {[s.signed.positive, s.signed.negative].map((d) => (
+                  <span key={d.label} className="flex items-center gap-1.5">
+                    <span className="size-2 rounded-[2px]" style={{ backgroundColor: d.color }} />
+                    {d.label}
+                  </span>
+                ))}
+              </div>
+            )
+        )}
+        <div ref={setBox}>
         <ChartContainer config={chartConfig} className="aspect-auto h-[240px] w-full">
-          <ComposedChart accessibilityLayer data={points} margin={{ left: 4, right: 4, top: 8 }}>
+          <ComposedChart accessibilityLayer data={shown} {...hover.chartProps} margin={{ left: showYAxis ? 14 : 4, right: 4, top: 8 }}>
             <XAxis
               xAxisId={0}
               dataKey="time"
@@ -275,7 +370,7 @@ function TodayBarTrendChart({
               tickMargin={0}
               interval={0}
               tick={(props: { x?: string | number; y?: string | number; payload?: { value: string } }) => (
-                <ChartTick x={props.x} y={props.y} payload={props.payload} />
+                <ChartTick x={props.x} y={props.y} payload={props.payload} labelEveryHours={hourStep} showMinor={showMinor} />
               )}
             />
             <ChartTooltip
@@ -284,23 +379,42 @@ function TodayBarTrendChart({
                 <ChartTooltipContent
                   indicator="dashed"
                   labelFormatter={(l) => formatBucketLabel(String(l), bucketMinutes)}
-                  formatter={(value, name, item) => (
-                    <span className="flex w-full items-center justify-between gap-3">
-                      <span className="flex items-center gap-1.5 text-muted-foreground">
-                        <span className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: item.color }} />
-                        {String(name)}
+                  formatter={(value, name, item) => {
+                    // A signed series is named and coloured by the direction this slot went.
+                    const sg = series.find((x) => x.key === item.dataKey)?.signed;
+                    const dir = sg && typeof value === "number" ? (value < 0 ? sg.negative : sg.positive) : null;
+                    return (
+                      <span className="flex w-full items-center justify-between gap-3">
+                        <span className="flex items-center gap-1.5 text-muted-foreground">
+                          <span className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: dir?.color ?? item.color }} />
+                          {dir?.label ?? String(name)}
+                        </span>
+                        <span className="font-medium text-foreground tabular-nums">
+                          {typeof value === "number" ? Math.abs(value).toFixed(2) : String(value)} {unitByKey[item.dataKey as string] ?? unit}
+                        </span>
                       </span>
-                      <span className="font-medium text-foreground tabular-nums">
-                        {typeof value === "number" ? value.toFixed(2) : String(value)} {unitByKey[item.dataKey as string] ?? unit}
-                      </span>
-                    </span>
-                  )}
+                    );
+                  }}
                 />
               }
             />
-            {axisIds.map((id) => (
-              <YAxis key={id} yAxisId={id} hide domain={["auto", "auto"]} />
+            {showYAxis && <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />}
+            {axisIds.map((id, n) => (
+              <YAxis
+                key={id}
+                yAxisId={id}
+                orientation="right"
+                hide={!showYAxis || n > 0}
+                width={34}
+                tickCount={4}
+                tickLine={false}
+                axisLine={false}
+                domain={["auto", "auto"]}
+                tickFormatter={(v: number) => v.toFixed(decimals)}
+                tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
+              />
             ))}
+            {showYAxis && <ReferenceLine yAxisId={axisIds[0]} y={0} stroke="var(--border)" />}
             {sessionRanges.map(
               (r, i) =>
                 r.endKey && (
@@ -334,7 +448,17 @@ function TodayBarTrendChart({
                   isAnimationActive={false}
                 />
               ) : (
-                <Bar key={s.key} dataKey={s.key} name={s.label} yAxisId={s.unit ?? unit} fill={`var(--color-${s.key})`} radius={4} isAnimationActive={false} />
+                <Bar key={s.key} dataKey={s.key} name={s.label} yAxisId={s.unit ?? unit} fill={`var(--color-${s.key})`} radius={4} isAnimationActive={false}>
+                  {hover.cells(
+                    shown.length,
+                    (i) => {
+                      const v = shown[i][s.key];
+                      if (!s.signed) return `var(--color-${s.key})`;
+                      return typeof v === "number" && v < 0 ? s.signed.negative.color : s.signed.positive.color;
+                    },
+                    (i) => typeof shown[i][s.key] === "number"
+                  )}
+                </Bar>
               )
             )}
             {referenceLines?.map((rl, i) => (
@@ -375,8 +499,9 @@ function TodayBarTrendChart({
             ))}
           </ComposedChart>
         </ChartContainer>
+        </div>
       </CardContent>
-      <CardFooter className="flex-col items-start gap-2 text-sm">
+      {!hideFooter && <CardFooter className="flex-col items-start gap-2 text-sm">
         <div className="leading-none text-muted-foreground">
           {series
             // A `cumulativeOf` series is just its base series' own "sum" total, replotted per slot —
@@ -384,7 +509,12 @@ function TodayBarTrendChart({
             .filter((s) => !s.cumulativeOf)
             .map((s) => {
               const mode = s.footerMode ?? footerMode;
-              const t = totals[s.key] ?? { sum: 0, wsum: 0, covered: 0 };
+              const t = totals[s.key] ?? { sum: 0, wsum: 0, covered: 0, pos: 0, neg: 0 };
+              if (s.signed && mode === "sum") {
+                return [s.signed.positive, s.signed.negative]
+                  .map((d, i) => `${(i === 0 ? t.pos : t.neg).toFixed(1)} ${s.footerUnit ?? footerUnit} ${d.footer}`)
+                  .join(" · ");
+              }
               return mode === "average"
                 ? `${(t.covered > 0 ? t.wsum / t.covered : 0).toFixed(1)} ${s.unit ?? unit} avg ${s.label.toLowerCase()}`
                 : `${t.sum.toFixed(1)} ${s.footerUnit ?? footerUnit} ${s.label.toLowerCase()}`;
@@ -392,7 +522,7 @@ function TodayBarTrendChart({
             .join(" · ")}{" "}
           so far today
         </div>
-      </CardFooter>
+      </CardFooter>}
     </Card>
   );
 }

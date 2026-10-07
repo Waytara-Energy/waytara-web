@@ -72,6 +72,7 @@ async function SolarInverterPerformance({ supabase, device }: { supabase: Supaba
     "day_battery_charge_energy_kwh",
     "day_battery_discharge_energy_kwh",
     "total_pv_energy_kwh",
+    "total_active_energy_kwh",
   ];
 
   const [rawValues, enumOptions] = await Promise.all([
@@ -102,10 +103,11 @@ async function SolarInverterPerformance({ supabase, device }: { supabase: Supaba
 
   const selfConsumptionPct = getNum("self_consumption_pct");
   const lifetimePvKwh = getNum("total_pv_energy_kwh");
+  const acOutputTotalKwh = getNum("total_active_energy_kwh");
 
   return (
     <>
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
         <Card>
           <CardContent className="p-4">
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Self-consumption (today)</p>
@@ -119,6 +121,14 @@ async function SolarInverterPerformance({ supabase, device }: { supabase: Supaba
             <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total PV energy (lifetime)</p>
             <p className="mt-1 text-lg font-semibold text-foreground">
               {lifetimePvKwh !== null ? `${lifetimePvKwh.toLocaleString("en-IN")} kWh` : "No data yet"}
+            </p>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="p-4">
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">AC output (total)</p>
+            <p className="mt-1 text-lg font-semibold text-foreground">
+              {acOutputTotalKwh !== null ? `${acOutputTotalKwh.toLocaleString("en-IN")} kWh` : "No data yet"}
             </p>
           </CardContent>
         </Card>

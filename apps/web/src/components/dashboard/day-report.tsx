@@ -24,6 +24,7 @@ import { ButtonSpinner } from "@/components/ui/spinner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartEmptyState } from "./chart-empty-state";
 import { ChartTick } from "./bar-trend-chart";
+import { useBarHover } from "./bar-hover";
 import { planRange } from "@/lib/telemetry/ranges";
 import { useDownloadPending } from "./report-controls";
 
@@ -91,6 +92,7 @@ export function DayReport({ deviceId, available, firstDay }: { deviceId: string;
   // different query" - no setState needed in the effect body.
   const [result, setResult] = React.useState<{ key: string; data: DayReportResponse | null; error: string | null } | null>(null);
   const [calendarOpen, setCalendarOpen] = React.useState(false);
+  const hover = useBarHover();
   const [customOpen, setCustomOpen] = React.useState(false);
   const [csvPending, triggerCsvPending] = useDownloadPending();
   const [pdfPending, triggerPdfPending] = useDownloadPending();
@@ -326,7 +328,7 @@ export function DayReport({ deviceId, available, firstDay }: { deviceId: string;
             <ChartEmptyState label={days > 1 ? "No readings in this period" : `No readings on ${fmtDay(date)}`} />
           ) : (
             <ChartContainer config={chartConfig} className={cn("aspect-auto h-[280px] w-full transition-opacity", loading && "opacity-60")}>
-              <ComposedChart accessibilityLayer data={data.points} margin={{ left: 0, right: 4, top: 8 }}>
+              <ComposedChart accessibilityLayer data={data.points} {...hover.chartProps} margin={{ left: 0, right: 4, top: 8 }}>
                 {days > 1 ? (
                   <XAxis
                     dataKey="time"
@@ -401,7 +403,9 @@ export function DayReport({ deviceId, available, firstDay }: { deviceId: string;
                       isAnimationActive={false}
                     />
                   ) : (
-                    <Bar key={s.id} dataKey={s.id} name={s.label} fill={`var(--color-${s.id})`} radius={bucketMinutes <= 15 ? 2 : 4} isAnimationActive={false} />
+                    <Bar key={s.id} dataKey={s.id} name={s.label} fill={`var(--color-${s.id})`} radius={bucketMinutes <= 15 ? 2 : 4} isAnimationActive={false}>
+                      {hover.cells(data.points.length, `var(--color-${s.id})`, (i) => typeof (data.points[i] as unknown as Record<string, unknown>)?.[s.id] === "number")}
+                    </Bar>
                   )
                 )}
               </ComposedChart>

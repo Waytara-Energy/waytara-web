@@ -1,9 +1,11 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { BatteryCharging, Fuel, Home, Plug, Server, ShieldCheck, Sun, Zap, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { badgeFor, homeSourceOf, OFFLINE_BADGE, type StateBadge } from "./energy-flow-badge";
+import { badgeFor, homeSourceOf, type StateBadge } from "./energy-flow-badge";
+import { insightFor, type FlowReadings } from "./energy-flow-insight";
 import { curvePath, HUB_R, layoutFlow, NODE_R, type NodeKind } from "./energy-flow-layout";
 import { fmtKw, lineWidth, summarize } from "./energy-flow-summary";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -69,11 +71,8 @@ function makeNode(
   label: string,
   watts: number | null,
   socPct: number | null = null,
-  homeSource: Parameters<typeof badgeFor>[2] = "idle",
-  offline = false
+  homeSource: Parameters<typeof badgeFor>[2] = "idle"
 ): FlowNode {
-  // A device that is not answering has no current reading: show a dash, nothing flowing.
-  if (offline) return { id, kind, label, value: "—", soc: null, badge: OFFLINE_BADGE, tone: "idle", dir: "none", watts: 0 };
   const w = watts ?? 0;
   let tone: Tone = "idle";
   let dir: FlowNode["dir"] = "none";
@@ -127,7 +126,10 @@ export function EnergyFlowDiagram({
   powerPackage = null,
   powerSourceCategory = null,
   extras = [],
-  offline = false,
+  fit = false,
+  pvInputs = [],
+  inverterId,
+  chargerId,
 }: {
   solarW: number | null;
   /** positive = charging, negative = discharging */
@@ -144,31 +146,57 @@ export function EnergyFlowDiagram({
   powerSourceCategory?: string | null;
   /** More batteries / chargers, a generator or a UPS; each one gets its own node and line. */
   extras?: ExtraFlowNode[];
-  /** The device is not reporting: every circle shows "—" and "Offline", no line carries energy. */
-  offline?: boolean;
+  /** Size the drawing to the screen's height so the whole Overview fits without scrolling. */
+  fit?: boolean;
+  /** The solar inputs one by one (PV1, PV2 ...), for the solar circle's tooltip. */
+  pvInputs?: { label: string; watts: number | null }[];
+  /** Where a click on a circle goes: the matching tab of that device's Monitoring page. Without them circles don't link. */
+  inverterId?: string;
+  chargerId?: string;
 }) {
+  const router = useRouter();
   const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
   // Tapping or hovering a circle lights its line up and dims the rest.
   const [focus, setFocus] = React.useState<string | null>(null);
 
   const nodes: FlowNode[] = [
-    ...(hasSolarPackage(powerPackage) && solarW !== null ? [makeNode("solar", "solar", "Solar", solarW, null, "idle", offline)] : []),
-    ...(hasGridSource(powerSourceCategory) && gridW !== null ? [makeNode("grid", "grid", "Grid", gridW, null, "idle", offline)] : []),
-    ...(hasBatteryPackage(powerPackage) && batteryW !== null ? [makeNode("battery", "battery", "Battery", batteryW, batterySocPct, "idle", offline)] : []),
-    ...(loadW !== null ? [makeNode("home", "home", "Load", loadW, null, homeSourceOf(loadW, solarW, batteryW, gridW), offline)] : []),
-    ...(hasEvPackage(powerPackage) && evW !== null ? [makeNode("ev", "ev", "EV Charger", evW, null, "idle", offline)] : []),
-    ...extras.map((x) => makeNode(x.id, x.kind, x.label || DEFAULT_LABEL[x.kind], x.watts, x.socPct ?? null, "idle", offline)),
+    ...(hasSolarPackage(powerPackage) && solarW !== null ? [makeNode("solar", "solar", "Solar", solarW)] : []),
+    ...(hasGridSource(powerSourceCategory) && gridW !== null ? [makeNode("grid", "grid", "Grid", gridW)] : []),
+    ...(hasBatteryPackage(powerPackage) && batteryW !== null ? [makeNode("battery", "battery", "Battery", batteryW, batterySocPct)] : []),
+    ...(loadW !== null ? [makeNode("home", "home", "Load", loadW, null, homeSourceOf(loadW, solarW, batteryW, gridW))] : []),
+    ...(hasEvPackage(powerPackage) && evW !== null ? [makeNode("ev", "ev", "EV Charger", evW)] : []),
+    ...extras.map((x) => makeNode(x.id, x.kind, x.label || DEFAULT_LABEL[x.kind], x.watts, x.socPct ?? null)),
   ];
 
   const layout = layoutFlow(nodes, (n) => n.kind);
   const { width: W, height: H, hub } = layout;
   const pctX = (x: number) => `${(x / W) * 100}%`;
   const pctY = (y: number) => `${(y / H) * 100}%`;
-  const summary = summarize(solarW, batteryW, gridW, loadW, offline);
+  const summary = summarize(solarW, batteryW, gridW, loadW);
+  // Each circle opens its own tab on the Monitoring page (the charger's circle opens the charger's page).
+  const TAB: Record<NodeKind, string> = { solar: "solar", battery: "battery", ups: "battery", home: "load", grid: "grid", generator: "generator", ev: "hub" };
+  const hrefFor = (kind: NodeKind | "hub"): string | null => {
+    const device = kind === "ev" ? chargerId : inverterId;
+    if (!device) return null;
+    return `/dashboard/monitoring?device=${device}#${kind === "hub" ? "hub" : TAB[kind]}`;
+  };
+  const go = (href: string | null) => {
+    if (href) router.push(href);
+  };
+  const readings: FlowReadings = { solarW, batteryW, gridW, loadW, evW, pvInputs };
+  const primary = new Set(["solar", "grid", "battery", "home", "ev"]);
 
   return (
-    <div className="mx-auto w-full max-w-xl" role="group" aria-label="Energy flow">
-      <div className="@container relative w-full" style={{ aspectRatio: `${W} / ${H}` }} onPointerLeave={() => setFocus(null)}>
+    <div className={cn("mx-auto w-full", !fit && "max-w-xl")} role="group" aria-label="Energy flow">
+      <div
+        className="@container relative mx-auto w-full"
+        style={{
+          aspectRatio: `${W} / ${H}`,
+          // fit: as large as the column allows, but never taller than the board (less room for this drawing's colour key).
+          ...(fit ? { width: `min(100%, calc((max(100svh - 14rem, 26rem) - 3.5rem) * ${W / H}))` } : {}),
+        }}
+        onPointerLeave={() => setFocus(null)}
+      >
         <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 h-full w-full" aria-hidden="true">
           <defs>
             <linearGradient id={`${uid}-off`} x1="0" y1="0" x2="1" y2="1">
@@ -235,15 +263,21 @@ export function EnergyFlowDiagram({
           <TooltipTrigger asChild>
             <div
               tabIndex={0}
+              onClick={() => go(hrefFor("hub"))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  go(hrefFor("hub"));
+                }
+              }}
               aria-label={`Inverter: ${summary.text}`}
-              className={cn(
-                "absolute flex aspect-square -translate-x-1/2 -translate-y-1/2 cursor-default flex-col items-center justify-center rounded-full border-2 bg-theme-surface outline-none focus-visible:ring-2 focus-visible:ring-theme-highlight",
-                offline ? "border-theme-border" : "border-theme-active"
-              )}
+              className="absolute flex aspect-square -translate-x-1/2 -translate-y-1/2 cursor-default flex-col items-center justify-center rounded-full border-2 bg-theme-surface outline-none focus-visible:ring-2 focus-visible:ring-theme-highlight border-theme-active"
               style={{ left: pctX(hub.x), top: pctY(hub.y), width: `${((2 * HUB_R) / W) * 100}%` }}
             >
               <Server className="size-[38%] text-theme-secondary @md:size-[32%]" strokeWidth={1.75} />
-              <span className="mt-0.5 hidden text-[9px] font-medium leading-none text-theme-secondary @md:block">{summary.mode}</span>
+              <span className="mt-0.5 hidden font-medium leading-none text-theme-secondary @md:block" style={{ fontSize: "clamp(8px, 1.3cqw, 11px)" }}>
+                {summary.mode}
+              </span>
             </div>
           </TooltipTrigger>
           <TooltipContent side="bottom" className="max-w-64">
@@ -258,9 +292,21 @@ export function EnergyFlowDiagram({
           const idle = item.tone === "idle";
           const labelAbove = side === "top";
           const dim = focus !== null && focus !== item.id;
+          // A mouse lights the line only while it is over this circle or its label; a finger taps to light / unlight it.
           const handlers = {
-            onPointerEnter: () => setFocus(item.id),
-            onClick: () => setFocus((f) => (f === item.id ? null : item.id)),
+            onPointerEnter: (e: React.PointerEvent) => {
+              if (e.pointerType === "mouse") setFocus(item.id);
+            },
+            onPointerLeave: (e: React.PointerEvent) => {
+              if (e.pointerType === "mouse") setFocus((f) => (f === item.id ? null : f));
+            },
+            onClick: () => go(hrefFor(item.kind)),
+            onKeyDown: (e: React.KeyboardEvent) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                go(hrefFor(item.kind));
+              }
+            },
           };
           return (
             <React.Fragment key={item.id}>
@@ -288,39 +334,46 @@ export function EnergyFlowDiagram({
                     <Icon className={cn("size-[46%]", idle && "text-theme-muted")} style={idle ? undefined : { color }} strokeWidth={1.75} />
                       </div>
                 </TooltipTrigger>
-                <TooltipContent side={labelAbove ? "top" : "bottom"} className="max-w-60">
-                  <span className="block font-medium">
-                    {item.label} · {item.badge.label}
-                  </span>
-                  <span className="block opacity-80">{item.badge.description}</span>
-                  <span className="mt-1 block tabular-nums">
-                    Power: {item.value}
-                    {item.soc !== null && ` · Charge: ${item.soc}%`}
-                  </span>
+                <TooltipContent side={labelAbove ? "top" : "bottom"} className="max-w-64">
+                  {/* What the circle does for the rest of the site; its power and state are already written beside it. */}
+                  {(() => {
+                    const insight = primary.has(item.id) ? insightFor(item.kind, readings) : { headline: item.badge.description, rows: [] };
+                    return (
+                      <>
+                        <span className="block font-medium">{insight.headline}</span>
+                        {insight.rows.length > 0 && (
+                          <span className="mt-1 block space-y-0.5">
+                            {insight.rows.map((row) => (
+                              <span key={row.label} className="flex justify-between gap-6 tabular-nums opacity-80">
+                                <span>{row.label}</span>
+                                <span>{row.value}</span>
+                              </span>
+                            ))}
+                          </span>
+                        )}
+                      </>
+                    );
+                  })()}
                 </TooltipContent>
               </Tooltip>
               <div
-                className={cn(
-                  "absolute flex -translate-x-1/2 cursor-pointer items-center whitespace-nowrap text-center transition-opacity",
-                  labelAbove ? "flex-col-reverse" : "flex-col",
-                  dim && "opacity-30"
-                )}
+                className={cn("absolute flex -translate-x-1/2 cursor-pointer flex-col items-center whitespace-nowrap text-center transition-opacity", dim && "opacity-30")}
                 style={{
                   left: pctX(center.x),
                   ...(labelAbove ? { bottom: pctY(H - (center.y - NODE_R - 6)) } : { top: pctY(center.y + NODE_R + 6) }),
                 }}
                 {...handlers}
               >
-                <span className="whitespace-nowrap text-[11px] leading-tight sm:text-[12px]">
-                  <span className="font-semibold tabular-nums text-theme-primary">{item.value}</span>
+                <span className="font-semibold leading-tight tabular-nums text-theme-primary" style={{ fontSize: "clamp(11px, 2.1cqw, 17px)" }}>
+                  {item.value}
+                  {item.soc !== null && ` · ${item.soc}%`}
+                </span>
+                <span className="leading-tight text-theme-muted" style={{ fontSize: "clamp(10px, 1.7cqw, 14px)" }}>
+                  {item.label}
                   <span className="hidden font-medium @md:inline" style={{ color: idle ? "var(--text-muted)" : color }}>
                     {" · "}
                     {item.badge.label}
                   </span>
-                </span>
-                <span className="text-[10px] leading-tight text-theme-muted sm:text-[11px]">
-                  {item.label}
-                  {item.soc !== null && ` · ${item.soc}%`}
                 </span>
               </div>
             </React.Fragment>
@@ -328,7 +381,7 @@ export function EnergyFlowDiagram({
         })}
       </div>
 
-      <ul className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-[11px] text-theme-muted">
+      <ul className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-theme-muted">
         {LEGEND.map((l) => (
           <li key={l.tone} className="flex items-center gap-1.5">
             <span className="h-[3px] w-4 rounded-full" style={{ background: `linear-gradient(90deg, ${COLOR[l.tone]}, ${COLOR[l.tone]}1a)` }} />

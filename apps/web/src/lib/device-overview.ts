@@ -3,6 +3,7 @@ import { createClient } from "@waytara/supabase/server";
 import type { CustomerDevice, CustomerSite } from "./selected-site";
 import { fetchReadKeys } from "./instrument-catalog-data";
 import { FAULT_BITMASK_KEYS, TODAY_ENERGY_KEYS } from "./overview-keys";
+import { pvPowerKeys } from "./solar-generation";
 
 export { FAULT_BITMASK_KEYS };
 
@@ -80,6 +81,8 @@ export interface DeviceOverviewData {
    *  renderer like TodaySoFar drop a field/section instead of showing a
    *  permanently-blank row for a register this install doesn't have. */
   enabledKeys: Set<string>;
+  /** This device's (or the site's) enabled PV power keys - the inputs that make up solar generation. */
+  pvKeys: string[];
 }
 
 /** Shared by the site Overview page (for its primary device) and a
@@ -97,7 +100,8 @@ export async function fetchDeviceOverview(supabase: SupabaseServerClient, site: 
   const evCharger = site.devices.find((d) => d.deviceType?.category === "ev_charger");
 
   const readKeys = await fetchReadKeys(supabase, device);
-  const overviewKeys = OVERVIEW_KEYS.filter((k) => readKeys.has(k));
+  const pvKeys = pvPowerKeys(readKeys);
+  const overviewKeys = [...OVERVIEW_KEYS.filter((k) => readKeys.has(k)), ...pvKeys];
 
   // Latest value per instrument comes straight from equipment_latest (one
   // row per device+key, trigger-maintained) - no windowed guess.
@@ -145,6 +149,7 @@ export async function fetchDeviceOverview(supabase: SupabaseServerClient, site: 
     evW: evCharger && evReadings?.value != null ? Math.round(evReadings.value * 1000) : null,
     recentAlerts: (recentAlerts ?? []) as AlertRow[],
     enabledKeys: readKeys,
+    pvKeys,
   };
 }
 
@@ -178,7 +183,8 @@ export async function fetchSiteOverview(supabase: SupabaseServerClient, site: Cu
   for (const readKeys of await Promise.all(inverters.map((d) => fetchReadKeys(supabase, d)))) {
     for (const k of readKeys) enabledKeys.add(k);
   }
-  const overviewKeys = OVERVIEW_KEYS.filter((k) => enabledKeys.has(k));
+  const pvKeys = pvPowerKeys(enabledKeys);
+  const overviewKeys = [...OVERVIEW_KEYS.filter((k) => enabledKeys.has(k)), ...pvKeys];
 
   const [{ data: recentReadings }, { data: recentAlerts }, { data: evReadings }] = await Promise.all([
     inverterIds.length > 0
@@ -219,7 +225,7 @@ export async function fetchSiteOverview(supabase: SupabaseServerClient, site: Cu
   }
 
   const aggregated = new Map<string, number | null>();
-  for (const key of SITE_SUM_KEYS) {
+  for (const key of [...SITE_SUM_KEYS, ...pvKeys]) {
     let sum = 0;
     let any = false;
     for (const id of inverterIds) {
@@ -295,6 +301,7 @@ export async function fetchSiteOverview(supabase: SupabaseServerClient, site: Cu
     evW,
     recentAlerts: (recentAlerts ?? []) as AlertRow[],
     enabledKeys,
+    pvKeys,
   };
 }
 

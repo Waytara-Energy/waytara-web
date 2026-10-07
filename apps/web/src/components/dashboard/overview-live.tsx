@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import type { ComponentProps } from "react";
 import { useDeviceLive } from "@/lib/telemetry/react";
 import { useLiveNumbers, type Agg } from "@/lib/telemetry/live-values";
 import { FAULT_BITMASK_KEYS_LIVE, SITE_OVERVIEW_KEYS, siteAgg } from "@/lib/overview-keys";
@@ -11,16 +10,17 @@ import { DeviceStatusPill } from "./device-status-pill";
 import { LiveSyncedAgo } from "./live-synced-ago";
 import { useDeviceState } from "./use-device-state";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
-import { WifiOff } from "lucide-react";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { solarGenerationW } from "@/lib/solar-generation";
 import { EnergyFlowDiagram } from "./energy-flow-diagram";
 import { FaultBanner } from "./fault-banner";
 import { TodaySoFar } from "./today-so-far";
 
 /** Overview's numbers for a set of inverters (one device, or every inverter at a site), live. `initial` is what the
  *  server rendered; each live message then updates the figures in place - no page refresh, no refetch. */
-function useSiteNumbers(inverterIds: string[], initial: Record<string, number | null>) {
-  const keys = React.useMemo(() => [...SITE_OVERVIEW_KEYS], []);
+function useSiteNumbers(inverterIds: string[], initial: Record<string, number | null>, pvKeys: string[] = []) {
+  const pvSig = pvKeys.join("|");
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const keys = React.useMemo(() => [...SITE_OVERVIEW_KEYS, ...pvKeys], [pvSig]);
   return useLiveNumbers(inverterIds, keys, initial, (k) => siteAgg(k) as Agg);
 }
 
@@ -44,8 +44,7 @@ function Keeper({ deviceId }: { deviceId: string }) {
   return null;
 }
 
-/** The top-right status of Overview: the inverter's state as a coloured word ("Offline" when the device is not
- *  reporting) with "updated X ago" under it - the time of the device's last reading, not of the agent's last upload. */
+/** The top-right status of Overview: the inverter's state as a coloured word with "updated X ago" under it - the time of the device's last reading, not of the agent's last upload. */
 export function LiveStatusPill({
   inverterIds,
   initial,
@@ -85,27 +84,9 @@ function StatusWithAgo({
   const { lastReadAt, offline } = useDeviceState(deviceId, sync);
   return (
     <>
-      <DeviceStatusPill inverterState={state} activeFaultCode={faultCode} inverterStateOptions={options} variant="text" offline={offline} />
-      <LiveSyncedAgo lastTs={lastReadAt} />
+      <DeviceStatusPill inverterState={state} activeFaultCode={faultCode} inverterStateOptions={options} variant="text" lastKnown={offline} />
+      <LiveSyncedAgo lastTs={lastReadAt} label={offline ? "Last reading" : "Updated"} />
     </>
-  );
-}
-
-/** A line under the header while the device is not reporting: what is shown is the last it said. */
-export function DeviceOfflineNotice({ deviceId, sync }: { deviceId: string; sync: DeviceSyncInit }) {
-  const { offline, agentOnline, lastReadAt } = useDeviceState(deviceId, sync);
-  if (!offline) return null;
-  return (
-    <Alert variant="destructive">
-      <WifiOff />
-      <AlertTitle>Device offline</AlertTitle>
-      <AlertDescription>
-        {agentOnline
-          ? "The agent is running but the device is not answering (is it switched on and reachable?)."
-          : "Nothing has been received from the device agent recently."}{" "}
-        {lastReadAt ? `The numbers below are from the last reading, ${new Date(lastReadAt).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}.` : "No reading has been received yet."}
-      </AlertDescription>
-    </Alert>
   );
 }
 
@@ -123,7 +104,8 @@ export function LiveEnergyFlow({
   initialEvW,
   powerPackage,
   powerSourceCategory,
-  sync,
+  pvKeys = [],
+  fit = false,
 }: {
   inverterIds: string[];
   chargerIds?: string[];
@@ -131,15 +113,17 @@ export function LiveEnergyFlow({
   initialEvW: number | null;
   powerPackage: string | null;
   powerSourceCategory: string | null;
-  /** When given, the picture goes to its "offline" look while the device is not reporting. */
-  sync?: DeviceSyncInit;
+  /** The device's enabled PV power keys: solar generation is their sum (not the inverter's AC output). */
+  pvKeys?: string[];
+  /** Size the drawing to the screen's height (the Overview board). */
+  fit?: boolean;
 }) {
-  const n = useSiteNumbers(inverterIds, initial);
+  const n = useSiteNumbers(inverterIds, initial, pvKeys);
   const ev = useLiveNumbers(chargerIds, ["power_active_import_kw"], { power_active_import_kw: initialEvW === null ? null : initialEvW / 1000 }, () => "sum");
   const evKw = ev.power_active_import_kw;
   const batteryRaw = n.battery_power_w ?? null;
   const flow = {
-    solarW: n.inverter_output_power_w ?? null,
+    solarW: solarGenerationW(n, pvKeys),
     batteryW: batteryRaw === null ? null : -batteryRaw,
     gridW: n.grid_total_power_w ?? null,
     loadW: n.load_total_power_w ?? null,
@@ -147,13 +131,12 @@ export function LiveEnergyFlow({
     evW: evKw === null || evKw === undefined ? null : Math.round(evKw * 1000),
     powerPackage,
     powerSourceCategory,
+    fit,
+    inverterId: inverterIds[0],
+    chargerId: chargerIds[0],
+    pvInputs: pvKeys.map((k) => ({ label: `PV${/^pv(\d+)_/.exec(k)?.[1] ?? ""}`, watts: n[k] ?? null })),
   };
-  return sync && inverterIds[0] ? <OfflineAwareFlow deviceId={inverterIds[0]} sync={sync} flow={flow} /> : <EnergyFlowDiagram {...flow} />;
-}
-
-function OfflineAwareFlow({ deviceId, sync, flow }: { deviceId: string; sync: DeviceSyncInit; flow: ComponentProps<typeof EnergyFlowDiagram> }) {
-  const { offline } = useDeviceState(deviceId, sync);
-  return <EnergyFlowDiagram {...flow} offline={offline} />;
+  return <EnergyFlowDiagram {...flow} />;
 }
 
 export function LiveTodaySoFar({
