@@ -121,6 +121,24 @@ Replaces the old raw-row design (migration `20261006000000_rollup_data_layer.sql
   would duplicate readings); its `--mode=simulate` writes fake rows to whatever database `.env.local` points at and
   now requires an explicit `--device-id`.
 
+### Device alerts and e-mails (detect-alerts, every 5 minutes)
+The cron route opens an **alert** (bell and Recent Alerts) and **e-mails the customer through Resend** when a device
+goes offline, reports a fault (`fault_message_N`) or an alarm (`alarm_status_N`), and again (briefly) when it clears.
+- *Offline* = the agent says the device does not answer (`equipment_heartbeat.device_online = false`, with the agent's
+  reason in `device_error`), or the agent itself has been silent for three upload intervals (at least 10 minutes) - the
+  unit lost power or internet. The two read differently in the alert and the e-mail. Devices with no heartbeat are judged
+  slowly (6 h) and are **not** e-mailed.
+- One open alert (`resolved_at is null`) per device and kind: the first e-mail goes out when it opens, not on every run.
+- **Reminders:** a critical alert (offline, a serious fault) that is still open and **not acknowledged** is e-mailed again
+  every 3 hours (`alerts.last_notified_at`, `notified_count`). Pressing *Acknowledge* in the dashboard stops the reminders
+  but leaves the alert open, so it is not raised a second time; when the condition clears the alert is closed
+  (`resolved_at`) and a short "cleared" e-mail is sent. Warnings (alarms, minor faults) are e-mailed once.
+- Customers can switch these e-mails off under Settings > Application Settings (`notification_preferences.email_alerts`).
+- Needs `RESEND_API_KEY` (and optionally `RESEND_FROM_EMAIL`, `CUSTOMER_APP_URL`) in the Vercel environment. Set
+  `DEVICE_ALERT_EMAILS=off` to stop the e-mails without a deploy; the alerts keep being created.
+- The dashboard does not write "Offline" on the page: it shows the last known state muted ("Last: Normal") and "Last
+  reading 1h 55m ago"; the alert is how an offline device is reported.
+
 ## 5. Incident cheat-sheet
 | Symptom | Check |
 |---|---|
