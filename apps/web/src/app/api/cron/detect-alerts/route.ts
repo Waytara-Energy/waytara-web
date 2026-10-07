@@ -126,7 +126,7 @@ export async function GET(req: NextRequest) {
       const wanted = want.get(kind);
       if (wanted && !existing) toOpen.push(wanted);
       else if (!wanted && existing && !(kind !== "offline" && offline.offline)) toClose.push({ id: existing.id, deviceId: device.id, kind, emailed: existing.notified_count > 0 });
-      else if (wanted && existing && !existing.acknowledged_at && needsReminder(existing.severity) && reminderDue(existing.last_notified_at, now)) {
+      else if (wanted && existing && offline.monitored && !existing.acknowledged_at && needsReminder(existing.severity) && reminderDue(existing.last_notified_at, now)) {
         toRemind.push({ alert: existing, kind, message: wanted.message });
       }
     }
