@@ -214,4 +214,5 @@ question — aggregate in SQL.**
 - **Dependencies:** `source-map-js` and `sharp` pinned to patched versions (pnpm overrides); `pnpm audit` clean.
 - **Not verified:** a signed-in browser run of the new screens against production, the agent against the real inverter,
   and production behaviour of the private Realtime channels (policies are applied; first real test is the first live agent run).
-- **Waiting on a human:** dropping the old raw tables/functions/cron jobs (cutover), running the agent on the real inverter, any plan upgrade or move to Tiger/VPS.
+- **Cutover done (approved 2026-10-07):** old raw rows, hourly rollup table, old read/purge functions and their cron jobs are gone (see OPERATIONS.md section 4); database is 26 MB.
+- **Waiting on a human:** running the agent on the real inverter, any plan upgrade or move to Tiger/VPS.

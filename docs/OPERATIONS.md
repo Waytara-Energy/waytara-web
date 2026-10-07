@@ -94,9 +94,14 @@ Replaces the old raw-row design (migration `20261006000000_rollup_data_layer.sql
   (`live-snapshots` bucket), deleted when the last viewer leaves.
 - **Ranges:** Today / 7 / 30 / 90 days / custom (up to 30 days from any day since the first reading). The browser cache
   (IndexedDB, per user) and in-flight de-duplication keep repeat queries off the database. Redis is deferred until after hosting.
-- **Cutover still pending (needs sign-off):** the old `equipment_telemetry` raw table, `equipment_telemetry_hourly`,
-  `telemetry_buckets`, `telemetry_daily`, `purge_old_telemetry` and their cron jobs are unused by the dashboards but not
-  yet dropped; `equipment_telemetry` remains only for onboarding test signals.
+- **Cutover done 2026-10-07** (`20261007000000_retire_raw_telemetry.sql`): dropped `equipment_telemetry_hourly`,
+  `telemetry_buckets`, `telemetry_daily`, `purge_old_telemetry`, `rollup_telemetry_hourly` and the `purge-old-telemetry` /
+  `rollup-telemetry-hourly` cron jobs, and deleted every real row of `equipment_telemetry` (database 368 MB -> 26 MB after
+  `VACUUM FULL`). The table remains only for the admin onboarding connection test (`is_test` rows, realtime INSERTs).
+  Before the delete, the last raw readings (6 Oct 13:00-15:07) were folded into the rollups with `backfill_rollup_15m`.
+  A CSV export of the raw 5 Oct readings is in `D:\Manoj-Waytara\Documents\equipment_telemetry_rows.csv`.
+  Do not write real readings to `equipment_telemetry` again (the `ev-charger-backfill.mjs` / `deye-modbus-agent.mjs --mode=simulate`
+  scripts still do; run them only against a throwaway database).
 
 ### Real inverter ingest (measured 2026-10-05) — read this before changing cadence
 - One real Deye inverter read by the Python `equipment_agent` produced ~34k rows/hour (~170 MB/day incl. indexes)
