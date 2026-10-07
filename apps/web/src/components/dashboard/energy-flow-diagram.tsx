@@ -3,9 +3,9 @@ import { BatteryCharging, Fuel, Home, Plug, Server, ShieldCheck, Sun, Zap, type 
 import { cn } from "@/lib/utils";
 import { curvePath, HUB_R, layoutFlow, NODE_R, type NodeKind } from "./energy-flow-layout";
 
-/** Colors encode *direction*, not identity: green = flowing toward self-sufficiency (solar producing, battery
- *  charging, exporting surplus), amber = drawing on a source (grid import, battery discharging, generator), blue =
- *  consuming (home, EV charger), slate = idle. */
+/** Colors encode *direction*, not identity: green = producing or storing (solar producing, battery charging),
+ *  amber = drawing on a source (grid import, battery discharging, generator), blue = energy leaving to a consumer
+ *  (home, EV charger, exporting to the grid), slate = idle. */
 const COLOR = {
   producing: "#10b981", // emerald-500
   drawing: "#f59e0b", // amber-500
@@ -73,7 +73,7 @@ function makeNode(
   let dir: FlowNode["dir"] = "none";
   if (kind === "solar" && w > 0) [tone, dir] = ["producing", "in"];
   else if (kind === "grid" && w > 0) [tone, dir] = ["drawing", "in"];
-  else if (kind === "grid" && w < 0) [tone, dir] = ["producing", "out"];
+  else if (kind === "grid" && w < 0) [tone, dir] = ["consuming", "out"];
   else if (kind === "generator" && w > 0) [tone, dir] = ["drawing", "in"];
   else if ((kind === "battery" || kind === "ups") && w > 0) [tone, dir] = ["producing", "out"];
   else if ((kind === "battery" || kind === "ups") && w < 0) [tone, dir] = ["drawing", "in"];
@@ -105,9 +105,9 @@ function hasGridSource(category: string | null): boolean {
 const CROSS = 8;
 
 const LEGEND: { tone: Tone; label: string }[] = [
-  { tone: "producing", label: "Producing · charging · exporting" },
+  { tone: "producing", label: "Producing · charging" },
   { tone: "drawing", label: "Importing · discharging" },
-  { tone: "consuming", label: "Consuming" },
+  { tone: "consuming", label: "Consuming · exporting" },
 ];
 
 export function EnergyFlowDiagram({
