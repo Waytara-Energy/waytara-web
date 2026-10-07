@@ -25,7 +25,10 @@ interface Ctx {
 const TelemetryContext = React.createContext<Ctx | null>(null);
 
 function browserEnv(sb: Sb): LiveEnv {
-  const listen = (target: Window | Document, events: string[], cb: () => void) => {
+  // The provider's state initializer also runs while the page is rendered on the server, where there is no
+  // document/window: listening is then a no-op (nothing ever acquires a channel on the server).
+  const listen = (target: Window | Document | undefined, events: string[], cb: () => void) => {
+    if (!target) return () => {};
     events.forEach((e) => target.addEventListener(e, cb));
     return () => events.forEach((e) => target.removeEventListener(e, cb));
   };
@@ -41,11 +44,11 @@ function browserEnv(sb: Sb): LiveEnv {
         });
       return { close: () => void sb.removeChannel(channel) };
     },
-    isVisible: () => document.visibilityState === "visible",
-    isOnline: () => navigator.onLine,
-    onVisibility: (cb) => listen(document, ["visibilitychange"], cb),
-    onPageHide: (cb) => listen(window, ["pagehide"], cb),
-    onConnectivity: (cb) => listen(window, ["online", "offline"], cb),
+    isVisible: () => typeof document !== "undefined" && document.visibilityState === "visible",
+    isOnline: () => typeof navigator === "undefined" || navigator.onLine,
+    onVisibility: (cb) => listen(typeof document === "undefined" ? undefined : document, ["visibilitychange"], cb),
+    onPageHide: (cb) => listen(typeof window === "undefined" ? undefined : window, ["pagehide"], cb),
+    onConnectivity: (cb) => listen(typeof window === "undefined" ? undefined : window, ["online", "offline"], cb),
     setTimer: (fn, ms) => setTimeout(fn, ms),
     clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
   };
