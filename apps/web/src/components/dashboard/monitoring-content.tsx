@@ -158,8 +158,7 @@ async function SolarInverterMonitoring({
       inverterTemperatureRows={inverterTemperatureRows}
       batteryTemperatureRows={batteryTemperatureRows}
       enumOptions={Object.fromEntries(enumOptions)}
-      lastSyncTs={lastSync.lastTs}
-      heartbeatIntervalS={lastSync.intervalS}
+      sync={lastSync}
     />
   );
 }

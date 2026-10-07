@@ -32,6 +32,14 @@ export function SettingFieldRow({
   className?: string;
 }) {
   const [value, setValue] = React.useState(currentValue);
+  // The device reports a new value (the agent's start-up read, or a change made elsewhere): show it. Only a change
+  // of the server's value replaces what is on screen, so a refresh that brings nothing new leaves a half-typed
+  // entry alone.
+  const [seen, setSeen] = React.useState(currentValue);
+  if (currentValue !== seen) {
+    setSeen(currentValue);
+    setValue(currentValue);
+  }
   const [pending, startTransition] = React.useTransition();
   const fieldId = `setting-${field.key}`;
 

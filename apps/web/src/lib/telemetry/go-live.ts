@@ -17,6 +17,7 @@ export interface RawSeries {
 }
 
 export interface SnapshotMeta {
+  /** Empty when the agent had no history to send (nobody asked for it). */
   path: string;
   session: string;
   bucket: string;
@@ -45,8 +46,8 @@ export interface GoLiveHandlers {
 }
 
 export interface ChannelHandle {
-  /** Tell the agent what this viewer needs. */
-  track(payload: { keys: string[]; viewer: string }): void;
+  /** Tell the agent what this viewer needs. `history: false` = only the readings from now on (no download of today). */
+  track(payload: { keys: string[]; viewer: string; history: boolean }): void;
   leave(): void;
 }
 
@@ -70,6 +71,8 @@ export interface GoLiveState {
 
 export const WAIT_FOR_AGENT_MS = 20_000;
 export const MAX_POINTS_PER_SERIES = 100_000;
+/** A viewer that only follows the latest readings keeps just a short tail of each series. */
+const LIVE_ONLY_POINTS = 120;
 const MAX_BUFFERED_TICKS = 5_000;
 
 export class GoLiveSession {
@@ -81,6 +84,7 @@ export class GoLiveSession {
   private snapshotTo = -Infinity;
   private buffered: TickMessage[] = [];
   private generation = 0;
+  private history = true;
 
   constructor(private readonly env: GoLiveEnv) {}
 
@@ -126,9 +130,10 @@ export class GoLiveSession {
   }
 
   /** Begin (or restart) Go Live for these metrics. */
-  async start(deviceId: string, keys: string[]): Promise<void> {
+  async start(deviceId: string, keys: string[], opts: { history?: boolean } = {}): Promise<void> {
     if (this.state.status !== "off" && this.state.status !== "error") return;
     const gen = ++this.generation;
+    this.history = opts.history ?? true;
     this.deviceId = deviceId;
     this.snapshotTo = -Infinity;
     this.buffered = [];
@@ -143,7 +148,7 @@ export class GoLiveSession {
           // The agent ended the stream (no viewers in its eyes): ask again.
           this.set({ status: "waiting" });
           this.armWait();
-          this.handle?.track({ keys: this.state.keys, viewer: this.env.viewerId() });
+          this.handle?.track({ keys: this.state.keys, viewer: this.env.viewerId(), history: this.history });
         },
         onStatus: (s) => {
           if (gen !== this.generation) return;
@@ -158,7 +163,7 @@ export class GoLiveSession {
         return;
       }
       this.handle = handle;
-      handle.track({ keys, viewer: this.env.viewerId() });
+      handle.track({ keys, viewer: this.env.viewerId(), history: this.history });
       if ((this.state.status as GoLiveStatus) === "connecting") this.set({ status: "waiting" });
     } catch (e) {
       this.leave();
@@ -171,7 +176,7 @@ export class GoLiveSession {
     const same = keys.length === this.state.keys.length && keys.every((k) => this.state.keys.includes(k));
     if (same || this.state.status === "off" || this.state.status === "error") return;
     this.set({ keys: [...keys] });
-    this.handle?.track({ keys, viewer: this.env.viewerId() });
+    this.handle?.track({ keys, viewer: this.env.viewerId(), history: this.history });
   }
 
   /** Leave the channel; the agent stops streaming once no viewer is left. */
@@ -188,7 +193,9 @@ export class GoLiveSession {
     this.disarmWait();
     this.set({ status: "loading" });
     try {
-      const file = await this.env.download(meta);
+      // No history wanted (or none sent): start from the readings that arrive from now on.
+      const file: SnapshotFile =
+        this.history && meta.path ? await this.env.download(meta) : { from_ms: meta.from_ms, to_ms: meta.to_ms, series: {} };
       if (gen !== this.generation) return;
       const series = new Map(this.state.series);
       for (const [key, pts] of Object.entries(file.series)) {
@@ -225,7 +232,7 @@ export class GoLiveSession {
         if (typeof value !== "number" || !Number.isFinite(value)) continue;
         const cur = next.get(key) ?? { t: [], v: [] };
         if (cur.t.length > 0 && m.t <= cur.t[cur.t.length - 1]) continue; // strictly increasing time
-        const over = cur.t.length + 1 - MAX_POINTS_PER_SERIES;
+        const over = cur.t.length + 1 - (this.history ? MAX_POINTS_PER_SERIES : LIVE_ONLY_POINTS);
         next.set(key, {
           t: [...(over > 0 ? cur.t.slice(over) : cur.t), m.t],
           v: [...(over > 0 ? cur.v.slice(over) : cur.v), value],

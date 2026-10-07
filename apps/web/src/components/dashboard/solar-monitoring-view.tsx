@@ -20,7 +20,9 @@ import { MonitoringTabs, type TabHeadlineInfo } from "./monitoring-tabs";
 import { LiveSyncedAgo } from "./live-synced-ago";
 import { DeviceSwitcher } from "./device-switcher";
 import { TabButtonContent, renderGroup, sortGroups } from "./monitoring-shared";
-import { useLiveLastSync } from "./use-live-last-sync";
+import { useDeviceState } from "./use-device-state";
+import { DeviceOfflineNotice } from "./overview-live";
+import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { RangeProvider } from "./range-context";
 import { RangeBar } from "./range-bar";
 import { GoLiveButton, GoLiveProvider } from "./go-live";
@@ -48,9 +50,8 @@ export interface SolarMonitoringProps {
   inverterTemperatureRows: HeatmapRow[];
   batteryTemperatureRows: HeatmapRow[];
   enumOptions: Record<string, EnumOption[]>;
-  lastSyncTs: string | null;
-  /** How often the device agent says it uploads, in seconds (null if it has not said). */
-  heartbeatIntervalS: number | null;
+  /** What the server knows about the device's connection (last reading, agent heartbeat, upload interval). */
+  sync: DeviceSyncInit;
 }
 
 /** The solar inverter's Monitoring screen. Every number follows the device's live channel in place - there is no
@@ -66,8 +67,7 @@ export function SolarMonitoringView({
   inverterTemperatureRows,
   batteryTemperatureRows,
   enumOptions: enumOptionsObj,
-  lastSyncTs,
-  heartbeatIntervalS,
+  sync,
 }: SolarMonitoringProps) {
   const enumOptions = React.useMemo(() => new Map(Object.entries(enumOptionsObj)), [enumOptionsObj]);
   const solarEnabled = "Solar Array" in categories;
@@ -94,14 +94,9 @@ export function SolarMonitoringView({
     return typeof v === "number" ? v : null;
   };
   const activeFaultCode = faultCodeFrom(getNum);
-  const sync = useLiveLastSync(deviceId, lastSyncTs);
-  // The agent counts as online while its heartbeat is newer than three upload intervals (at least 90 s).
-  const [clock, setClock] = React.useState(() => Date.now());
-  React.useEffect(() => {
-    const id = setInterval(() => setClock(Date.now()), 15_000);
-    return () => clearInterval(id);
-  }, []);
-  const agentOnline = sync !== null && clock - new Date(sync).getTime() < Math.max(90_000, 3 * (heartbeatIntervalS ?? 60) * 1000);
+  // Is the device really reporting? (The agent can be running while the device is switched off.)
+  const { lastReadAt, offline } = useDeviceState(deviceId, sync);
+  const agentOnline = !offline;
 
   const gridConnected = getNum("grid_relay_status");
 
@@ -238,10 +233,13 @@ export function SolarMonitoringView({
             activeFaultCode={activeFaultCode}
             inverterStateOptions={inverterStateOptions}
             variant="text"
+            offline={offline}
           />
-          <LiveSyncedAgo lastTs={sync} />
+          <LiveSyncedAgo lastTs={lastReadAt} />
         </div>
       </div>
+
+      <DeviceOfflineNotice deviceId={deviceId} sync={sync} />
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <RangeBar />
@@ -258,7 +256,7 @@ export function SolarMonitoringView({
           a device that doesn't share the previous one's node (e.g. no
           "battery" tab) left the panel on a tab that no longer had a
           trigger to select it. */}
-      <MonitoringTabs key={deviceId} defaultValue="hub" headlines={tabHeadlines} hasLiveData={sync !== null}>
+      <MonitoringTabs key={deviceId} defaultValue="hub" headlines={tabHeadlines} hasLiveData={lastReadAt !== null}>
         <TabsList variant="line">
           <TabsTrigger value="hub" variant="line" className="data-[state=active]:border-primary data-[state=active]:text-primary">
             <TabButtonContent icon={Server} label="Main Hub" />
@@ -319,44 +317,36 @@ export function SolarMonitoringView({
               title="Active Energy"
               subtitle="Real energy used"
               value={activeEnergyText}
-              liveValue={activeEnergyKwh}
               statusLabel="Status"
               badgeLabel="Today"
               badgeTone="neutral"
-              sparkline={[]}
             />
             <LiveStatusCard
               icon={Activity}
               title="Reactive Energy"
               subtitle="Non-working energy"
               value={reactiveEnergyText}
-              liveValue={reactiveEnergyKvarh}
               statusLabel="Status"
               badgeLabel="Today"
               badgeTone="neutral"
-              sparkline={[]}
             />
             <LiveStatusCard
               icon={Gauge}
               title="Electrical"
               subtitle={`Current · ${currentText}`}
               value={voltageText}
-              liveValue={voltageV}
               statusLabel="Frequency"
               badgeLabel={frequencyText}
               badgeTone="neutral"
-              sparkline={[]}
             />
             <LiveStatusCard
               icon={Sun}
               title="Live Output"
               subtitle="Current power"
               value={liveOutputKw}
-              liveValue={getNum("inverter_output_power_w")}
               statusLabel="Status"
               badgeLabel="Live"
               badgeTone="neutral"
-              sparkline={[]}
             />
           </div>
 
@@ -382,44 +372,36 @@ export function SolarMonitoringView({
                 title="Live Output"
                 subtitle="Current power"
                 value={liveOutputKw}
-                liveValue={getNum("inverter_output_power_w")}
                 statusLabel="Status"
                 badgeLabel="Live"
                 badgeTone="neutral"
-                sparkline={[]}
               />
               <LiveStatusCard
                 icon={Zap}
                 title="Generated Today"
                 subtitle="So far today"
                 value={solarTodayText}
-                liveValue={solarToday}
                 statusLabel="Status"
                 badgeLabel="Today"
                 badgeTone="neutral"
-                sparkline={[]}
               />
               <LiveStatusCard
                 icon={Leaf}
                 title="CO2 Avoided"
                 subtitle="Lifetime estimate"
                 value={co2Text}
-                liveValue={co2Kg}
                 statusLabel="Status"
                 badgeLabel={co2Kg !== null ? "Lifetime" : "No data"}
                 badgeTone={co2Kg !== null ? "good" : "neutral"}
-                sparkline={[]}
               />
               <LiveStatusCard
                 icon={TreePine}
                 title="Trees Equivalent"
                 subtitle="Same CO2 absorbed"
                 value={treesText}
-                liveValue={trees}
                 statusLabel="Status"
                 badgeLabel={trees !== null ? "Lifetime" : "No data"}
                 badgeTone={trees !== null ? "good" : "neutral"}
-                sparkline={[]}
               />
             </div>
 
@@ -443,44 +425,36 @@ export function SolarMonitoringView({
                 title="Charge Level"
                 subtitle="State of charge"
                 value={socPctText}
-                liveValue={getNum("battery_soc_pct")}
                 statusLabel="Status"
                 badgeLabel="Live"
                 badgeTone="neutral"
-                sparkline={[]}
               />
               <LiveStatusCard
                 icon={Zap}
                 title="Battery Power"
                 subtitle={batteryDirection}
                 value={batteryPowerText}
-                liveValue={batteryPowerW}
                 statusLabel="Status"
                 badgeLabel={batteryDirection}
                 badgeTone={batteryDirectionTone}
-                sparkline={[]}
               />
               <LiveStatusCard
                 icon={ArrowDownToLine}
                 title="Charged Today"
                 subtitle="Into the battery"
                 value={dayBatteryChargeText}
-                liveValue={getNum("day_battery_charge_energy_kwh")}
                 statusLabel="Status"
                 badgeLabel="Today"
                 badgeTone="neutral"
-                sparkline={[]}
               />
               <LiveStatusCard
                 icon={ArrowUpFromLine}
                 title="Discharged Today"
                 subtitle="Out of the battery"
                 value={dayBatteryDischargeText}
-                liveValue={getNum("day_battery_discharge_energy_kwh")}
                 statusLabel="Status"
                 badgeLabel="Today"
                 badgeTone="neutral"
-                sparkline={[]}
               />
             </div>
 
@@ -502,44 +476,36 @@ export function SolarMonitoringView({
                 title="Live Draw"
                 subtitle="Current draw"
                 value={loadLiveText}
-                liveValue={loadPowerW}
                 statusLabel="Status"
                 badgeLabel="Live"
                 badgeTone="neutral"
-                sparkline={[]}
               />
               <LiveStatusCard
                 icon={Zap}
                 title="Consumed Today"
                 subtitle="So far today"
                 value={loadTodayText}
-                liveValue={getNum("day_load_energy_kwh")}
                 statusLabel="Status"
                 badgeLabel="Today"
                 badgeTone="neutral"
-                sparkline={[]}
               />
               <LiveStatusCard
                 icon={Activity}
                 title="L1 Power"
                 subtitle={`Frequency · ${loadFrequencyText}`}
                 value={load1Text}
-                liveValue={getNum("load_l1_power_w")}
                 statusLabel="Status"
                 badgeLabel="Live"
                 badgeTone="neutral"
-                sparkline={[]}
               />
               <LiveStatusCard
                 icon={Activity}
                 title="L2 Power"
                 subtitle="Live reading"
                 value={load2Text}
-                liveValue={getNum("load_l2_power_w")}
                 statusLabel="Status"
                 badgeLabel="Live"
                 badgeTone="neutral"
-                sparkline={[]}
               />
             </div>
 
@@ -567,44 +533,36 @@ export function SolarMonitoringView({
                 title="Live Flow"
                 subtitle={gridDirection}
                 value={gridLiveText}
-                liveValue={gridPowerW}
                 statusLabel="Status"
                 badgeLabel={gridDirection}
                 badgeTone={gridDirectionTone}
-                sparkline={[]}
               />
               <LiveStatusCard
                 icon={ArrowDownToLine}
                 title="Imported Today"
                 subtitle="From the grid"
                 value={gridImportedTodayText}
-                liveValue={getNum("day_grid_import_energy_kwh")}
                 statusLabel="Status"
                 badgeLabel="Today"
                 badgeTone="neutral"
-                sparkline={[]}
               />
               <LiveStatusCard
                 icon={ArrowUpFromLine}
                 title="Exported Today"
                 subtitle="Back to the grid"
                 value={gridExportedTodayText}
-                liveValue={getNum("day_grid_export_energy_kwh")}
                 statusLabel="Status"
                 badgeLabel="Today"
                 badgeTone="neutral"
-                sparkline={[]}
               />
               <LiveStatusCard
                 icon={Gauge}
                 title="Electrical"
                 subtitle={`Current · ${gridCurrentText}`}
                 value={gridVoltageText}
-                liveValue={gridVoltageV}
                 statusLabel="Frequency"
                 badgeLabel={gridFrequencyText}
                 badgeTone="neutral"
-                sparkline={[]}
               />
             </div>
 
@@ -626,33 +584,27 @@ export function SolarMonitoringView({
                 title="Live Output"
                 subtitle="Generator power"
                 value={genLiveText}
-                liveValue={genPowerW}
                 statusLabel="Status"
                 badgeLabel={genPowerW && genPowerW > 0 ? "Running" : "Idle"}
                 badgeTone={genPowerW && genPowerW > 0 ? "good" : "neutral"}
-                sparkline={[]}
               />
               <LiveStatusCard
                 icon={Gauge}
                 title="Voltage"
                 subtitle="Output voltage"
                 value={genVoltageText}
-                liveValue={genVoltageV}
                 statusLabel="Frequency"
                 badgeLabel={genFrequencyText}
                 badgeTone="neutral"
-                sparkline={[]}
               />
               <LiveStatusCard
                 icon={Activity}
                 title="Frequency"
                 subtitle="Output frequency"
                 value={genFrequencyText}
-                liveValue={getNum("generator_frequency_hz")}
                 statusLabel="Status"
                 badgeLabel="Live"
                 badgeTone="neutral"
-                sparkline={[]}
               />
             </div>
 

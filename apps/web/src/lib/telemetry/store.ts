@@ -45,7 +45,16 @@ interface Entry {
 }
 
 const NOTIFY_MS = 150;
-const IDLE: { status: LiveStatus; lastTickAt: number | null } = { status: "idle", lastTickAt: null };   // one shared object: a stable snapshot for React
+export interface DeviceLiveStatus {
+  status: LiveStatus;
+  /** When this browser last heard from the agent (any live message). */
+  lastTickAt: number | null;
+  /** When the device last answered a reading (epoch ms), as far as the live messages say. */
+  lastReadAt: number | null;
+  /** Whether the device is answering the agent; null = not said yet. */
+  deviceOnline: boolean | null;
+}
+const IDLE: DeviceLiveStatus = { status: "idle", lastTickAt: null, lastReadAt: null, deviceOnline: null };   // one shared object: a stable snapshot for React
 
 export function todayRange(now: number, minutes = 15): SeriesRange {
   const from = istDayStart(now);
@@ -60,7 +69,7 @@ export class TelemetryStore {
   private inflight = new Map<string, Promise<void>>();
   private latest = new Map<string, Map<string, LatestValue>>();
   private open = new Map<string, Map<string, Bucket>>();
-  private status = new Map<string, { status: LiveStatus; lastTickAt: number | null }>();
+  private status = new Map<string, DeviceLiveStatus>();
   private rev = new Map<string, number>();
   private listeners = new Set<() => void>();
   private keyListeners = new Map<string, Set<() => void>>();
@@ -247,7 +256,20 @@ export class TelemetryStore {
         touched.push(key);
       }
     }
-    this.status.set(deviceId, { status: "live", lastTickAt: this.now() });
+    const prev = this.status.get(deviceId) ?? IDLE;
+    let lastReadAt = prev.lastReadAt;
+    let deviceOnline = prev.deviceOnline;
+    if (tick.agent) {
+      if (typeof tick.agent.device_online === "boolean") deviceOnline = tick.agent.device_online;
+      const lr = tick.agent.last_read_at ? new Date(tick.agent.last_read_at).getTime() : NaN;
+      if (Number.isFinite(lr)) lastReadAt = Math.max(lastReadAt ?? 0, lr);
+    }
+    if (Object.keys(values).length > 0) {
+      // Values only ever arrive when the device was just read, so it is answering.
+      lastReadAt = Math.max(lastReadAt ?? 0, ts);
+      deviceOnline = true;
+    }
+    this.status.set(deviceId, { status: "live", lastTickAt: this.now(), lastReadAt, deviceOnline });
     this.touch(deviceId, touched);
   }
 
@@ -269,12 +291,12 @@ export class TelemetryStore {
     this.touch(deviceId, Object.keys(open));
   }
 
-  getStatus = (deviceId: string): { status: LiveStatus; lastTickAt: number | null } => this.status.get(deviceId) ?? IDLE;
+  getStatus = (deviceId: string): DeviceLiveStatus => this.status.get(deviceId) ?? IDLE;
 
   setStatus(deviceId: string, status: LiveStatus): void {
     const cur = this.status.get(deviceId);
     if (cur?.status === status) return;
-    this.status.set(deviceId, { status, lastTickAt: cur?.lastTickAt ?? null });
+    this.status.set(deviceId, { ...(cur ?? IDLE), status });
     this.touch(deviceId);
   }
 

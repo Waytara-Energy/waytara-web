@@ -27,6 +27,7 @@ export function DeviceStatusPill({
   activeFaultCode,
   inverterStateOptions,
   variant,
+  offline = false,
 }: {
   inverterState: number | null;
   activeFaultCode?: number | null;
@@ -35,7 +36,12 @@ export function DeviceStatusPill({
    *  not the whole enum Map, so this stays a pure presentational component. */
   inverterStateOptions: EnumOption[];
   variant?: "badge" | "text";
+  /** The device is not reporting: whatever state it last had is out of date, so say so instead. */
+  offline?: boolean;
 }) {
+  if (offline) {
+    return <StatusPill label="Offline" tone="bad" variant={variant} />;
+  }
   if (activeFaultCode) {
     return <StatusPill label="Fault" tone="bad" variant={variant} />;
   }

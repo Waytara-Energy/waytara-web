@@ -6,7 +6,9 @@ import { fetchSiteOverview, fetchTodayChargingSessions, fetchRecentChargingStats
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { WeatherHeader } from "@/components/dashboard/weather-header";
-import { LiveChannelKeeper, LiveEnergyFlow, LiveFaultBanner, LiveStatusPill } from "@/components/dashboard/overview-live";
+import { DeviceOfflineNotice, LiveChannelKeeper, LiveEnergyFlow, LiveFaultBanner } from "@/components/dashboard/overview-live";
+import type { DeviceSyncInit } from "@/lib/device-sync-types";
+import { OverviewStatus } from "@/components/dashboard/overview-go-live";
 import { SITE_OVERVIEW_KEYS } from "@/lib/overview-keys";
 import { SolarLiveStatusCards } from "@/components/dashboard/solar-live-status-cards";
 import { EvLiveStatusCards } from "@/components/dashboard/ev-live-status-cards";
@@ -14,6 +16,7 @@ import { PowerGenerationChart } from "@/components/dashboard/lazy-charts";
 import { ChargingSessionsCarousel } from "@/components/dashboard/charging-sessions-carousel";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
+import { getLastSyncInfo } from "@/lib/device-sync";
 
 // Site-centric redesign: Overview is now the selected *site*'s overview —
 // a customer can have several sites, and each site can have several
@@ -59,7 +62,7 @@ export default async function DashboardOverviewPage() {
   const deviceIds = site.devices.map((d) => d.id);
   const chargerIds = site.devices.filter((d) => d.deviceType?.category === "ev_charger").map((d) => d.id);
   const inverterId = site.devices.find((d) => d.deviceType?.category === "solar_inverter")?.id;
-  const [overview, chargingSummary, recentChargingStats, customerPlan, connectorStatusOptions, inverterStateOptions] = await Promise.all([
+  const [overview, chargingSummary, recentChargingStats, customerPlan, connectorStatusOptions, inverterStateOptions, inverterSync] = await Promise.all([
     deviceIds.length > 0 ? fetchSiteOverview(supabase, site) : Promise.resolve(null),
     chargerIds.length > 0 ? fetchTodayChargingSessions(supabase, chargerIds[0]) : Promise.resolve(null),
     chargerIds.length > 0 ? fetchRecentChargingStats(supabase, chargerIds[0]) : Promise.resolve(null),
@@ -73,10 +76,12 @@ export default async function DashboardOverviewPage() {
     // field key are two separate names by design (an enum_ref is meant to
     // be reusable across differently-named fields).
     inverterId ? fetchEnumOptions(supabase, ["inverter_state"]).then((m) => m.get("inverter_state") ?? []) : Promise.resolve([]),
+    inverterId ? getLastSyncInfo(inverterId) : Promise.resolve(null),
   ]);
   const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
   const inverterIds = site.devices.filter((d) => d.deviceType?.category === "solar_inverter").map((d) => d.id);
   // What the server saw; the live components take it from here (no page refresh).
+  const syncInit: DeviceSyncInit = inverterSync ?? { lastTs: null, agentSeenTs: null, deviceOnline: null, intervalS: null };
   const overviewInitial: Record<string, number | null> = overview ? Object.fromEntries(SITE_OVERVIEW_KEYS.map((k) => [k, overview.get(k)])) : {};
 
   return (
@@ -99,7 +104,14 @@ export default async function DashboardOverviewPage() {
       )}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <WeatherHeader address={site.address} siteName={site.name} latitude={site.latitude} longitude={site.longitude} />
-        {overview && <LiveStatusPill inverterIds={inverterIds} initial={overviewInitial} inverterStateOptions={inverterStateOptions} />}
+        {overview && (
+          <OverviewStatus
+            inverterIds={inverterIds}
+            initial={overviewInitial}
+            inverterStateOptions={inverterStateOptions}
+            sync={syncInit}
+          />
+        )}
       </div>
 
       {!overview ? (
@@ -114,6 +126,8 @@ export default async function DashboardOverviewPage() {
         </Empty>
       ) : (
         <>
+          {inverterId && <DeviceOfflineNotice deviceId={inverterId} sync={syncInit} />}
+
           <LiveFaultBanner inverterIds={inverterIds} initial={overviewInitial} />
 
           <LiveEnergyFlow
@@ -123,9 +137,10 @@ export default async function DashboardOverviewPage() {
             initialEvW={overview.evW}
             powerPackage={site.powerPackage}
             powerSourceCategory={site.powerSourceCategory}
+            sync={inverterId ? syncInit : undefined}
           />
 
-          <SolarLiveStatusCards supabase={supabase} site={site} />
+          <SolarLiveStatusCards supabase={supabase} site={site} sync={syncInit} />
 
           <EvLiveStatusCards supabase={supabase} site={site} />
 

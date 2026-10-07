@@ -34,11 +34,11 @@ export const HUB_R = 38;
 const HUB_X = VIEW_W / 2;
 const SIDE_X = 92; // centre of the left column (the right column mirrors it)
 const ROW_GAP = 124; // between nodes stacked on the left / right
-const COL_GAP = 120; // between nodes side by side on the top / bottom
-const MAX_PER_ROW = 4; // more than this wraps onto another row
+const COL_GAP = 158; // between nodes side by side on the top / bottom
+const MAX_PER_ROW = 3; // more than this wraps onto another row
 const ROW_PITCH = 104; // between wrapped rows
 const TOP_BOTTOM_DIST = 150; // hub centre to the first top / bottom row
-const TEXT_BELOW = 46; // room for a node's value + label under its circle
+const TEXT_BELOW = 46; // room for a node's value line and label under its circle
 const TEXT_ABOVE = 46;
 const EDGE_PAD = 8;
 

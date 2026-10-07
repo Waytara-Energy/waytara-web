@@ -1,5 +1,6 @@
 import "server-only";
 import { createClient } from "@waytara/supabase/server";
+import type { DeviceSyncInit } from "./device-sync-types";
 
 /** Threshold for Maintenance's "connection may be down" indicator — much
  *  shorter than the offline-detection cron's 6-hour alert threshold
@@ -9,26 +10,26 @@ import { createClient } from "@waytara/supabase/server";
  *  the connection," not "the inverter reported a problem." */
 const STALE_AFTER_MINUTES = 30;
 
-export interface LastSyncInfo {
-  lastTs: string | null;
-  /** How often the agent says it uploads (seconds), when it has said. */
-  intervalS: number | null;
+export interface LastSyncInfo extends DeviceSyncInit {
   minutesAgo: number | null;
   isStale: boolean;
 }
 
-/** One lightweight MAX(ts) query for the selected device — no persisted
- *  "last sync" column exists anywhere (confirmed: the offline cron
- *  computes its own version of this transiently, for a different,
- *  alert-worthy threshold). This is a separate, cheaper, page-local
- *  version of the same idea. */
+/** The selected device's connection: when it last ANSWERED (not merely when the agent last uploaded), whether the agent
+ *  says it is answering, and when the agent was last heard from. Without this distinction a switched-off device looked
+ *  "updated a minute ago" and "Normal" for as long as the agent kept running. */
 export async function getLastSyncInfo(deviceId: string): Promise<LastSyncInfo> {
   const supabase = await createClient();
-  // The agent's heartbeat is the real "last heard from the device": it is written on every upload, even when no
-  // value changed. Older data (before the heartbeat existed) falls back to the newest reading.
-  const { data: beat } = await supabase.from("equipment_heartbeat").select("last_seen, upload_interval_s").eq("equipment_id", deviceId).maybeSingle();
-  let lastTs: string | null = beat?.last_seen ?? null;
-  if (!lastTs) {
+  const { data: beat } = await supabase
+    .from("equipment_heartbeat")
+    .select("last_seen, upload_interval_s, device_online, last_read_at")
+    .eq("equipment_id", deviceId)
+    .maybeSingle();
+
+  const deviceOnline = beat?.device_online ?? null;
+  let lastTs: string | null = beat?.last_read_at ?? null;
+  if (!lastTs && deviceOnline === null) {
+    // An agent that does not report connectivity: the newest stored reading is the best answer.
     const { data } = await supabase
       .from("equipment_latest")
       .select("ts")
@@ -36,13 +37,16 @@ export async function getLastSyncInfo(deviceId: string): Promise<LastSyncInfo> {
       .order("ts", { ascending: false })
       .limit(1)
       .maybeSingle();
-    lastTs = data?.ts ?? null;
+    lastTs = data?.ts ?? beat?.last_seen ?? null;
   }
 
-  if (!lastTs) {
-    return { lastTs: null, intervalS: null, minutesAgo: null, isStale: true };
-  }
-
-  const minutesAgo = Math.round((Date.now() - new Date(lastTs).getTime()) / 60000);
-  return { lastTs, intervalS: beat?.upload_interval_s ?? null, minutesAgo, isStale: minutesAgo > STALE_AFTER_MINUTES };
+  const minutesAgo = lastTs ? Math.round((Date.now() - new Date(lastTs).getTime()) / 60000) : null;
+  return {
+    lastTs,
+    agentSeenTs: beat?.last_seen ?? null,
+    deviceOnline,
+    intervalS: beat?.upload_interval_s ?? null,
+    minutesAgo,
+    isStale: minutesAgo === null || minutesAgo > STALE_AFTER_MINUTES || deviceOnline === false,
+  };
 }

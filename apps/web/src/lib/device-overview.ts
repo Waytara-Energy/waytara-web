@@ -355,69 +355,6 @@ export async function fetchTodayEvEnergyKwh(supabase: SupabaseServerClient, char
   return any ? total : null;
 }
 
-/** Today's energy delivered, bucketed into `bucketCount` even time-slices
- *  from midnight to now — matching the fixed bar count (and real,
- *  evenly-spaced time meaning) every other card's sparkline in this row
- *  has, unlike a plain per-session staircase whose bar count and spacing
- *  vary with however many sessions happened. A bucket a session didn't
- *  touch stays 0 ("continuing", nothing changed); the bucket containing
- *  when a session actually delivered its energy (its end time, or now for
- *  one still open) gets that session's full delta.
- *
- *  Deliberately NOT built from raw device_readings, even though that's
- *  the obvious way to get a "trend": this charger's connector keeps
- *  getting re-polled/re-reported on a fixed interval independent of
- *  whether anything is actually happening, and those repeat readings
- *  aren't guaranteed to reflect the true value at that moment — they can
- *  legitimately lag behind a session that's already progressed further,
- *  which turns a plain reading-by-reading sparkline into a misleading
- *  zigzag instead of a clean trend. charging_sessions' own start/end
- *  energy values are the trustworthy boundary of "what actually
- *  happened," free of that noise — the same source fetchTodayEvEnergyKwh
- *  already uses for the headline number this sparkline sits under. */
-export async function fetchTodayEvSessionSparkline(
-  supabase: SupabaseServerClient,
-  deviceId: string,
-  bucketCount = 20
-): Promise<{ value: number; ts: string }[]> {
-  const todayStart = new Date();
-  todayStart.setUTCHours(0, 0, 0, 0);
-  const now = new Date();
-
-  const [{ data: sessions }, { data: latestRows }] = await Promise.all([
-    supabase
-      .from("ev_sessions")
-      .select("started_at, ended_at, start_energy_kwh, end_energy_kwh")
-      .eq("equipment_id", deviceId)
-      .gte("started_at", todayStart.toISOString())
-      .order("started_at", { ascending: true }),
-    supabase
-      .from("equipment_latest")
-      .select("value, ts")
-      .eq("equipment_id", deviceId)
-      .eq("key_name", "energy_active_import_register_kwh"),
-  ]);
-
-  const latestReading = latestRows?.[0]?.value ?? null;
-  const buckets = new Array(bucketCount).fill(0);
-  const dayMs = Math.max(1, now.getTime() - todayStart.getTime());
-
-  for (const s of sessions ?? []) {
-    if (s.start_energy_kwh === null) continue;
-    const endEnergy = s.ended_at !== null ? s.end_energy_kwh : latestReading;
-    if (endEnergy === null) continue;
-    const delta = endEnergy - s.start_energy_kwh;
-
-    const landedAt = s.ended_at !== null ? new Date(s.ended_at) : now;
-    const elapsedMs = landedAt.getTime() - todayStart.getTime();
-    const bucketIndex = Math.min(bucketCount - 1, Math.max(0, Math.floor((elapsedMs / dayMs) * bucketCount)));
-    buckets[bucketIndex] += delta;
-  }
-
-  const bucketMs = dayMs / bucketCount;
-  return buckets.map((value, i) => ({ value, ts: new Date(todayStart.getTime() + i * bucketMs).toISOString() }));
-}
-
 /** Today's energy delivered, bucketed into the 24 literal clock hours
  *  (0 = 12am-1am ... 23 = 11pm-midnight) rather than fetchTodayEvSessionSparkline's
  *  even time-slices-of-elapsed-day — that one deliberately keeps a fixed

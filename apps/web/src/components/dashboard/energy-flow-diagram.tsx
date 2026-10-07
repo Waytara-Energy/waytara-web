@@ -1,11 +1,16 @@
+"use client";
+
 import * as React from "react";
 import { BatteryCharging, Fuel, Home, Plug, Server, ShieldCheck, Sun, Zap, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { badgeFor, homeSourceOf, OFFLINE_BADGE, type StateBadge } from "./energy-flow-badge";
 import { curvePath, HUB_R, layoutFlow, NODE_R, type NodeKind } from "./energy-flow-layout";
+import { fmtKw, lineWidth, summarize } from "./energy-flow-summary";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 /** Colors encode *direction*, not identity: green = producing or storing (solar producing, battery charging),
  *  amber = drawing on a source (grid import, battery discharging, generator), blue = energy leaving to a consumer
- *  (home, EV charger, exporting to the grid), slate = idle. */
+ *  (load, EV charger, exporting to the grid), slate = idle. */
 const COLOR = {
   producing: "#10b981", // emerald-500
   drawing: "#f59e0b", // amber-500
@@ -14,7 +19,7 @@ const COLOR = {
 } as const;
 type Tone = keyof typeof COLOR;
 
-// The same icons the Monitoring tabs use for these things.
+// The same icons the Monitoring tabs use for these things (the load keeps the Home Load tab's icon).
 const ICON: Record<NodeKind, LucideIcon> = {
   solar: Sun,
   grid: Zap,
@@ -30,11 +35,11 @@ const DEFAULT_LABEL: Record<NodeKind, string> = {
   generator: "Generator",
   battery: "Battery",
   ups: "UPS",
-  home: "Home",
+  home: "Load",
   ev: "EV Charger",
 };
 
-/** Something beyond the primary solar / battery / grid / home / EV set: more batteries or chargers, a generator, a UPS. */
+/** Something beyond the primary solar / battery / grid / load / EV set: more batteries or chargers, a generator, a UPS. */
 export interface ExtraFlowNode {
   id: string;
   kind: "battery" | "ups" | "generator" | "ev";
@@ -49,16 +54,13 @@ interface FlowNode {
   kind: NodeKind;
   label: string;
   value: string;
+  /** Battery / UPS charge, shown after the label. */
+  soc: number | null;
+  badge: StateBadge;
   tone: Tone;
   /** Which way energy moves relative to the inverter: "in" = into it, "out" = away from it. */
   dir: "in" | "out" | "none";
   watts: number;
-}
-
-function fmtW(value: number | null): string {
-  if (value === null) return "—";
-  const w = Math.abs(value);
-  return w >= 1000 ? `${(w / 1000).toFixed(w >= 10_000 ? 1 : 2)} kW` : `${Math.round(w)} W`;
 }
 
 function makeNode(
@@ -66,8 +68,12 @@ function makeNode(
   kind: NodeKind,
   label: string,
   watts: number | null,
-  socPct: number | null = null
+  socPct: number | null = null,
+  homeSource: Parameters<typeof badgeFor>[2] = "idle",
+  offline = false
 ): FlowNode {
+  // A device that is not answering has no current reading: show a dash, nothing flowing.
+  if (offline) return { id, kind, label, value: "—", soc: null, badge: OFFLINE_BADGE, tone: "idle", dir: "none", watts: 0 };
   const w = watts ?? 0;
   let tone: Tone = "idle";
   let dir: FlowNode["dir"] = "none";
@@ -78,9 +84,8 @@ function makeNode(
   else if ((kind === "battery" || kind === "ups") && w > 0) [tone, dir] = ["producing", "out"];
   else if ((kind === "battery" || kind === "ups") && w < 0) [tone, dir] = ["drawing", "in"];
   else if ((kind === "home" || kind === "ev") && w > 0) [tone, dir] = ["consuming", "out"];
-  const base = fmtW(watts);
-  const value = (kind === "battery" || kind === "ups") && socPct !== null ? `${base} · ${Math.round(socPct)}%` : base;
-  return { id, kind, label, value, tone, dir, watts: Math.abs(w) };
+  const soc = (kind === "battery" || kind === "ups") && socPct !== null ? Math.round(socPct) : null;
+  return { id, kind, label, value: fmtKw(watts), soc, badge: badgeFor(kind, watts, homeSource), tone, dir, watts: Math.abs(w) };
 }
 
 // power_package says which equipment a site actually has — a null value (not yet configured for an existing site)
@@ -103,6 +108,8 @@ function hasGridSource(category: string | null): boolean {
 
 /** Half-length of the "not in use" cross, in drawing units. */
 const CROSS = 8;
+/** How many dots travel along an active line. */
+const DOTS = 3;
 
 const LEGEND: { tone: Tone; label: string }[] = [
   { tone: "producing", label: "Producing · charging" },
@@ -120,6 +127,7 @@ export function EnergyFlowDiagram({
   powerPackage = null,
   powerSourceCategory = null,
   extras = [],
+  offline = false,
 }: {
   solarW: number | null;
   /** positive = charging, negative = discharging */
@@ -136,26 +144,31 @@ export function EnergyFlowDiagram({
   powerSourceCategory?: string | null;
   /** More batteries / chargers, a generator or a UPS; each one gets its own node and line. */
   extras?: ExtraFlowNode[];
+  /** The device is not reporting: every circle shows "—" and "Offline", no line carries energy. */
+  offline?: boolean;
 }) {
   const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
+  // Tapping or hovering a circle lights its line up and dims the rest.
+  const [focus, setFocus] = React.useState<string | null>(null);
 
   const nodes: FlowNode[] = [
-    ...(hasSolarPackage(powerPackage) && solarW !== null ? [makeNode("solar", "solar", "Solar", solarW)] : []),
-    ...(hasGridSource(powerSourceCategory) && gridW !== null ? [makeNode("grid", "grid", "Grid", gridW)] : []),
-    ...(hasBatteryPackage(powerPackage) && batteryW !== null ? [makeNode("battery", "battery", "Battery", batteryW, batterySocPct)] : []),
-    ...(loadW !== null ? [makeNode("home", "home", "Home", loadW)] : []),
-    ...(hasEvPackage(powerPackage) && evW !== null ? [makeNode("ev", "ev", "EV Charger", evW)] : []),
-    ...extras.map((x) => makeNode(x.id, x.kind, x.label || DEFAULT_LABEL[x.kind], x.watts, x.socPct ?? null)),
+    ...(hasSolarPackage(powerPackage) && solarW !== null ? [makeNode("solar", "solar", "Solar", solarW, null, "idle", offline)] : []),
+    ...(hasGridSource(powerSourceCategory) && gridW !== null ? [makeNode("grid", "grid", "Grid", gridW, null, "idle", offline)] : []),
+    ...(hasBatteryPackage(powerPackage) && batteryW !== null ? [makeNode("battery", "battery", "Battery", batteryW, batterySocPct, "idle", offline)] : []),
+    ...(loadW !== null ? [makeNode("home", "home", "Load", loadW, null, homeSourceOf(loadW, solarW, batteryW, gridW), offline)] : []),
+    ...(hasEvPackage(powerPackage) && evW !== null ? [makeNode("ev", "ev", "EV Charger", evW, null, "idle", offline)] : []),
+    ...extras.map((x) => makeNode(x.id, x.kind, x.label || DEFAULT_LABEL[x.kind], x.watts, x.socPct ?? null, "idle", offline)),
   ];
 
   const layout = layoutFlow(nodes, (n) => n.kind);
   const { width: W, height: H, hub } = layout;
   const pctX = (x: number) => `${(x / W) * 100}%`;
   const pctY = (y: number) => `${(y / H) * 100}%`;
+  const summary = summarize(solarW, batteryW, gridW, loadW, offline);
 
   return (
     <div className="mx-auto w-full max-w-xl" role="group" aria-label="Energy flow">
-      <div className="relative w-full" style={{ aspectRatio: `${W} / ${H}` }}>
+      <div className="@container relative w-full" style={{ aspectRatio: `${W} / ${H}` }} onPointerLeave={() => setFocus(null)}>
         <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 h-full w-full" aria-hidden="true">
           <defs>
             <linearGradient id={`${uid}-off`} x1="0" y1="0" x2="1" y2="1">
@@ -181,10 +194,19 @@ export function EnergyFlowDiagram({
             const from = item.dir === "out" ? hubAnchor : anchor;
             const to = item.dir === "out" ? anchor : hubAnchor;
             const d = curvePath(from, to, side === "top" || side === "bottom");
-            const dur = `${Math.min(5, Math.max(1.6, 5 - item.watts / 3000)).toFixed(1)}s`;
+            const durS = Math.min(5, Math.max(1.6, 5 - item.watts / 3000));
+            const dur = `${durS.toFixed(1)}s`;
+            const dim = focus !== null && focus !== item.id;
+            const lit = focus === item.id;
             return (
-              <g key={item.id}>
-                <path d={d} fill="none" stroke={`url(#${uid}-${item.id})`} strokeWidth={2} strokeLinecap="round" />
+              <g key={item.id} className="transition-opacity" opacity={dim ? 0.2 : 1}>
+                <path
+                  d={d}
+                  fill="none"
+                  stroke={`url(#${uid}-${item.id})`}
+                  strokeWidth={item.dir === "none" ? 2 : lineWidth(item.watts) + (lit ? 1 : 0)}
+                  strokeLinecap="round"
+                />
                 {item.dir === "none" && (
                   // Not in use: a red cross on the line, at its midpoint (a symmetric curve passes through the average of its ends).
                   <g transform={`translate(${(from.x + to.x) / 2} ${(from.y + to.y) / 2})`} style={{ filter: "drop-shadow(0 0 3px rgba(239,68,68,0.55))" }}>
@@ -192,54 +214,114 @@ export function EnergyFlowDiagram({
                     <path d={`M -${CROSS} -${CROSS} L ${CROSS} ${CROSS} M -${CROSS} ${CROSS} L ${CROSS} -${CROSS}`} stroke={`url(#${uid}-off)`} strokeWidth={3} strokeLinecap="round" fill="none" />
                   </g>
                 )}
-                {item.dir !== "none" && (
-                  <circle r={3} fill={COLOR[item.tone]} className="motion-reduce:hidden">
-                    <animateMotion dur={dur} repeatCount="indefinite" path={d} />
-                    <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.75;1" dur={dur} repeatCount="indefinite" />
-                  </circle>
-                )}
+                {item.dir !== "none" &&
+                  // Dots streaming the way the energy moves; faster for more power.
+                  Array.from({ length: DOTS }, (_, i) => {
+                    const begin = `${(-(i * durS) / DOTS).toFixed(2)}s`;
+                    return (
+                      <circle key={i} r={2.6} fill={COLOR[item.tone]} className="motion-reduce:hidden">
+                        <animateMotion dur={dur} begin={begin} repeatCount="indefinite" path={d} />
+                        <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.8;1" dur={dur} begin={begin} repeatCount="indefinite" />
+                      </circle>
+                    );
+                  })}
               </g>
             );
           })}
         </svg>
 
-        {/* The hub: the inverter every line meets. */}
-        <div
-          className="absolute flex aspect-square -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 border-theme-active bg-theme-surface"
-          style={{ left: pctX(hub.x), top: pctY(hub.y), width: `${((2 * HUB_R) / W) * 100}%` }}
-          title="Inverter"
-        >
-          <Server className="size-[42%] text-theme-secondary" strokeWidth={1.75} />
-        </div>
+        {/* The hub: the inverter every line meets, with the site's overall mode at larger sizes. */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div
+              tabIndex={0}
+              aria-label={`Inverter: ${summary.text}`}
+              className={cn(
+                "absolute flex aspect-square -translate-x-1/2 -translate-y-1/2 cursor-default flex-col items-center justify-center rounded-full border-2 bg-theme-surface outline-none focus-visible:ring-2 focus-visible:ring-theme-highlight",
+                offline ? "border-theme-border" : "border-theme-active"
+              )}
+              style={{ left: pctX(hub.x), top: pctY(hub.y), width: `${((2 * HUB_R) / W) * 100}%` }}
+            >
+              <Server className="size-[38%] text-theme-secondary @md:size-[32%]" strokeWidth={1.75} />
+              <span className="mt-0.5 hidden text-[9px] font-medium leading-none text-theme-secondary @md:block">{summary.mode}</span>
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="bottom" className="max-w-64">
+            <span className="block font-medium">Inverter</span>
+            <span className="block opacity-80">{summary.text}</span>
+          </TooltipContent>
+        </Tooltip>
 
         {layout.nodes.map(({ item, side, center }) => {
           const Icon = ICON[item.kind];
           const color = COLOR[item.tone];
           const idle = item.tone === "idle";
           const labelAbove = side === "top";
+          const dim = focus !== null && focus !== item.id;
+          const handlers = {
+            onPointerEnter: () => setFocus(item.id),
+            onClick: () => setFocus((f) => (f === item.id ? null : item.id)),
+          };
           return (
             <React.Fragment key={item.id}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <div
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`${item.label}: ${item.value}, ${item.badge.label}`}
+                    onFocus={() => setFocus(item.id)}
+                    onBlur={() => setFocus(null)}
+                    {...handlers}
+                    className={cn(
+                      "absolute flex aspect-square -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-2 bg-theme-surface outline-none transition-opacity focus-visible:ring-2 focus-visible:ring-theme-highlight",
+                      dim && "opacity-30"
+                    )}
+                    style={{
+                      left: pctX(center.x),
+                      top: pctY(center.y),
+                      width: `${((2 * NODE_R) / W) * 100}%`,
+                      borderColor: idle ? "var(--border)" : color,
+                      boxShadow: idle ? undefined : `0 0 16px ${color}33`,
+                    }}
+                  >
+                    <Icon className={cn("size-[46%]", idle && "text-theme-muted")} style={idle ? undefined : { color }} strokeWidth={1.75} />
+                      </div>
+                </TooltipTrigger>
+                <TooltipContent side={labelAbove ? "top" : "bottom"} className="max-w-60">
+                  <span className="block font-medium">
+                    {item.label} · {item.badge.label}
+                  </span>
+                  <span className="block opacity-80">{item.badge.description}</span>
+                  <span className="mt-1 block tabular-nums">
+                    Power: {item.value}
+                    {item.soc !== null && ` · Charge: ${item.soc}%`}
+                  </span>
+                </TooltipContent>
+              </Tooltip>
               <div
-                className="absolute flex aspect-square -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full border-2 bg-theme-surface"
-                style={{
-                  left: pctX(center.x),
-                  top: pctY(center.y),
-                  width: `${((2 * NODE_R) / W) * 100}%`,
-                  borderColor: idle ? "var(--border)" : color,
-                  boxShadow: idle ? undefined : `0 0 16px ${color}33`,
-                }}
-              >
-                <Icon className={cn("size-[46%]", idle && "text-theme-muted")} style={idle ? undefined : { color }} strokeWidth={1.75} />
-              </div>
-              <div
-                className={cn("absolute flex -translate-x-1/2 items-center whitespace-nowrap text-center", labelAbove ? "flex-col-reverse" : "flex-col")}
+                className={cn(
+                  "absolute flex -translate-x-1/2 cursor-pointer items-center whitespace-nowrap text-center transition-opacity",
+                  labelAbove ? "flex-col-reverse" : "flex-col",
+                  dim && "opacity-30"
+                )}
                 style={{
                   left: pctX(center.x),
                   ...(labelAbove ? { bottom: pctY(H - (center.y - NODE_R - 6)) } : { top: pctY(center.y + NODE_R + 6) }),
                 }}
+                {...handlers}
               >
-                <span className="text-[12px] sm:text-[13px] font-semibold leading-tight tabular-nums text-theme-primary">{item.value}</span>
-                <span className="text-[10px] sm:text-[11px] leading-tight text-theme-muted">{item.label}</span>
+                <span className="whitespace-nowrap text-[11px] leading-tight sm:text-[12px]">
+                  <span className="font-semibold tabular-nums text-theme-primary">{item.value}</span>
+                  <span className="hidden font-medium @md:inline" style={{ color: idle ? "var(--text-muted)" : color }}>
+                    {" · "}
+                    {item.badge.label}
+                  </span>
+                </span>
+                <span className="text-[10px] leading-tight text-theme-muted sm:text-[11px]">
+                  {item.label}
+                  {item.soc !== null && ` · ${item.soc}%`}
+                </span>
               </div>
             </React.Fragment>
           );

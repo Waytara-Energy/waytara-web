@@ -12,7 +12,7 @@ import { planRange, type RangePlan, type RangeWindow } from "./ranges";
 import { loadLatest, loadOpen } from "./loaders";
 import { DeviceLiveManager, type LiveEnv } from "./live-manager";
 import { fetchSeries } from "./series";
-import { TelemetryStore, type LatestValue, type LiveStatus, type SeriesRange } from "./store";
+import { TelemetryStore, type DeviceLiveStatus, type LatestValue, type SeriesRange } from "./store";
 import type { DisplayPoint, TickPayload } from "./types";
 
 type Sb = ReturnType<typeof createClient>;
@@ -111,7 +111,7 @@ export function useLatest(deviceId: string, key: string): LatestValue | undefine
 }
 
 /** Keeps the device's live channel open while the calling component is mounted (ref-counted, tab-aware). */
-export function useDeviceLive(deviceId: string): { status: LiveStatus; lastTickAt: number | null } {
+export function useDeviceLive(deviceId: string): DeviceLiveStatus {
   const { store, live } = useCtx();
   React.useEffect(() => live.acquire(deviceId), [live, deviceId]);
   return React.useSyncExternalStore(

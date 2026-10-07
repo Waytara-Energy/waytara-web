@@ -89,6 +89,27 @@ describe("live ticks", () => {
     expect(store.getStatus("d").status).toBe("live");
   });
 
+  it("remembers whether the device is answering and when it last did, from the agent's own report", () => {
+    const { store } = setup();
+    // values arrive: the device was just read
+    store.applyTick("d", tick("2026-10-06T04:30:00Z", { p: 1 }));
+    expect(store.getStatus("d")).toMatchObject({ deviceOnline: true, lastReadAt: Date.parse("2026-10-06T04:30:00Z") });
+    // the device goes off: the agent still uploads, with no values and the time of the last real reading
+    store.applyTick("d", { ts: "2026-10-06T04:45:00Z", values: {}, agent: { device_online: false, last_read_at: "2026-10-06T04:30:00Z" } });
+    expect(store.getStatus("d")).toMatchObject({ deviceOnline: false, lastReadAt: Date.parse("2026-10-06T04:30:00Z") });
+    expect(store.getStatus("d").lastTickAt).not.toBeNull();          // but the agent itself was heard from
+    // back again
+    store.applyTick("d", { ts: "2026-10-06T05:00:00Z", values: { p: 2 }, agent: { device_online: true, last_read_at: "2026-10-06T05:00:00Z" } });
+    expect(store.getStatus("d")).toMatchObject({ deviceOnline: true, lastReadAt: Date.parse("2026-10-06T05:00:00Z") });
+  });
+
+  it("an older last_read_at never moves the last reading back", () => {
+    const { store } = setup();
+    store.applyTick("d", { ts: "2026-10-06T05:00:00Z", values: {}, agent: { device_online: true, last_read_at: "2026-10-06T05:00:00Z" } });
+    store.applyTick("d", { ts: "2026-10-06T05:01:00Z", values: {}, agent: { device_online: true, last_read_at: "2026-10-06T04:00:00Z" } });
+    expect(store.getStatus("d").lastReadAt).toBe(Date.parse("2026-10-06T05:00:00Z"));
+  });
+
   it("merges the open bucket into today's chart and closes it when the next one starts", async () => {
     const { store } = setup();
     await store.ensureSeries("d", ["p"], range);

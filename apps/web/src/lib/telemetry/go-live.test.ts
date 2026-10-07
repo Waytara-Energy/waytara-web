@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { GoLiveSession, WAIT_FOR_AGENT_MS, decimateMinMax, type ChannelHandle, type GoLiveEnv, type GoLiveHandlers, type SnapshotFile, type SnapshotMeta } from "./go-live";
 
 function setup(file: SnapshotFile = { from_ms: 0, to_ms: 1000, series: { p: [[100, 1], [1000, 2]] } }) {
-  const tracked: { keys: string[]; viewer: string }[] = [];
+  let downloads = 0;
+  const tracked: { keys: string[]; viewer: string; history: boolean }[] = [];
   let handlers!: GoLiveHandlers;
   let left = 0;
   let release!: () => void;
@@ -15,6 +16,7 @@ function setup(file: SnapshotFile = { from_ms: 0, to_ms: 1000, series: { p: [[10
       return handle;
     },
     download: async () => {
+      downloads++;
       if (hold) await gate;
       return file;
     },
@@ -24,7 +26,7 @@ function setup(file: SnapshotFile = { from_ms: 0, to_ms: 1000, series: { p: [[10
   };
   const session = new GoLiveSession(env);
   const meta: SnapshotMeta = { path: "d/s.json.gz", session: "s", bucket: "live-snapshots", from_ms: 0, to_ms: 1000, keys: ["p"], points: 2 };
-  return { session, tracked, meta, handlers: () => handlers, left: () => left, holdDownload: () => (hold = true), release: () => release() };
+  return { session, tracked, meta, downloads: () => downloads, handlers: () => handlers, left: () => left, holdDownload: () => (hold = true), release: () => release() };
 }
 
 const flush = () => vi.advanceTimersByTimeAsync(0);
@@ -36,7 +38,7 @@ describe("GoLiveSession", () => {
     const t = setup();
     await t.session.start("d", ["p"]);
     expect(t.session.getState().status).toBe("waiting");
-    expect(t.tracked[0]).toEqual({ keys: ["p"], viewer: "viewer-1" });
+    expect(t.tracked[0]).toEqual({ keys: ["p"], viewer: "viewer-1", history: true });
 
     t.handlers().onSnapshot(t.meta);
     await flush();
@@ -45,6 +47,29 @@ describe("GoLiveSession", () => {
 
     t.handlers().onTick({ t: 2000, v: { p: 3, other: 9 } });
     expect(t.session.getState().series.get("p")).toEqual({ t: [100, 1000, 2000], v: [1, 2, 3] });
+  });
+
+  it("without history it asks for none, downloads nothing and just follows the readings from now on", async () => {
+    const t = setup();
+    await t.session.start("d", ["p"], { history: false });
+    expect(t.tracked[0]).toEqual({ keys: ["p"], viewer: "viewer-1", history: false });
+    t.handlers().onSnapshot({ ...t.meta, path: "" });
+    await flush();
+    expect(t.session.getState().status).toBe("live");
+    expect(t.downloads()).toBe(0);
+    expect(t.session.getState().series.size).toBe(0);
+    t.handlers().onTick({ t: 2000, v: { p: 3 } });
+    t.handlers().onTick({ t: 3000, v: { p: 4 } });
+    expect(t.session.getState().series.get("p")).toEqual({ t: [2000, 3000], v: [3, 4] });
+  });
+
+  it("a viewer without history never downloads even if the agent did publish a file", async () => {
+    const t = setup();
+    await t.session.start("d", ["p"], { history: false });
+    t.handlers().onSnapshot(t.meta); // has a path (another viewer wanted history)
+    await flush();
+    expect(t.downloads()).toBe(0);
+    expect(t.session.getState().status).toBe("live");
   });
 
   it("ticks that arrive while the file downloads are kept only if newer than the file", async () => {

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Line, LineChart, XAxis, YAxis } from "recharts";
-import { Radio, RotateCcw, Square } from "lucide-react";
+import { Pause, Radio, RotateCcw } from "lucide-react";
 import { createClient } from "@waytara/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -83,7 +83,18 @@ const HIDDEN_GRACE_MS = 10_000;
 /** Go Live for a device's Monitoring screen. While it is on, the screen's trend charts show today's readings at the
  *  device's own rate (from the agent's local files) instead of 15-minute averages. It switches itself off when the
  *  tab is hidden for 10 s, the page closes, or the browser goes offline - and the page falls back to the saved data. */
-export function GoLiveProvider({ deviceId, agentOnline, children }: { deviceId: string; agentOnline: boolean; children: React.ReactNode }) {
+export function GoLiveProvider({
+  deviceId,
+  agentOnline,
+  history = true,
+  children,
+}: {
+  deviceId: string;
+  agentOnline: boolean;
+  /** false = follow the readings from now on only; the agent doesn't send today's data (Overview). */
+  history?: boolean;
+  children: React.ReactNode;
+}) {
   const [session] = React.useState(() => new GoLiveSession(browserEnv(createClient())));
   const state = React.useSyncExternalStore(session.subscribe, session.getState, session.getState);
   const registered = React.useRef(new Map<number, string[]>());
@@ -104,7 +115,7 @@ export function GoLiveProvider({ deviceId, agentOnline, children }: { deviceId: 
     [session, union]
   );
 
-  const start = React.useCallback(() => void session.start(deviceId, union()), [session, deviceId, union]);
+  const start = React.useCallback(() => void session.start(deviceId, union(), { history }), [session, deviceId, union, history]);
   const stop = React.useCallback(() => session.stop(), [session]);
 
   React.useEffect(() => {
@@ -146,10 +157,16 @@ export function GoLiveButton() {
 
   if (state.status === "live") {
     return (
-      <Button size="sm" variant="outline" onClick={stop} className="gap-1.5 border-emerald-500/50 text-emerald-600 dark:text-emerald-400">
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={stop}
+        title="Pause live readings (the page keeps updating from the saved data)"
+        className="gap-1.5 border-emerald-500/50 text-emerald-600 dark:text-emerald-400"
+      >
         <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
         Live
-        <Square className="size-3" />
+        <Pause className="size-3" />
       </Button>
     );
   }
@@ -168,14 +185,14 @@ export function GoLiveButton() {
         variant="outline"
         onClick={start}
         disabled={!agentOnline}
-        title={agentOnline ? "Show every reading from the device as it arrives" : "The device agent is offline"}
+        title={agentOnline ? "Show every reading from the device as it arrives" : "The device is offline"}
         className="gap-1.5"
       >
         {state.status === "error" ? <RotateCcw className="size-3.5" /> : <Radio className="size-3.5" />}
         {state.status === "error" ? "Try Go Live again" : "Go Live"}
       </Button>
       {state.status === "error" && state.error && <span className="max-w-xs text-xs text-destructive">{state.error}</span>}
-      {!agentOnline && state.status !== "error" && <span className="text-xs text-theme-muted">Device agent offline</span>}
+      {!agentOnline && state.status !== "error" && <span className="text-xs text-theme-muted">Device offline</span>}
     </div>
   );
 }

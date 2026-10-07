@@ -6,7 +6,9 @@ import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
 import { fetchDashboardFields, fetchFieldValues, resolveComputedValues } from "@/lib/template-fields";
 import { LiveDynamicFieldGroup } from "./live-field-group";
 import { valuesFor } from "@/lib/field-values";
-import { LiveChannelKeeper, LiveEnergyFlow, LiveFaultBanner, LiveStatusPill, LiveTodaySoFar } from "./overview-live";
+import { getLastSyncInfo } from "@/lib/device-sync";
+import { DeviceOfflineNotice, LiveChannelKeeper, LiveEnergyFlow, LiveFaultBanner, LiveTodaySoFar } from "./overview-live";
+import { OverviewStatus } from "./overview-go-live";
 import { SITE_OVERVIEW_KEYS } from "@/lib/overview-keys";
 import { RecentAlerts } from "./recent-alerts";
 import { EvChargerOverview } from "./ev-charger-overview";
@@ -69,10 +71,11 @@ export async function DeviceOverviewContent({
   if (category === "solar_inverter") {
     // enum_ref stays "inverter_state" even though the field's own key is
     // now "inverter_run_state" — see dashboard/page.tsx's identical note.
-    const [overview, inverterStateOptions, leftoverSections] = await Promise.all([
+    const [overview, inverterStateOptions, leftoverSections, lastSync] = await Promise.all([
       fetchDeviceOverview(supabase, site, device),
       fetchEnumOptions(supabase, ["inverter_state"]).then((m) => m.get("inverter_state") ?? []),
       fetchDashboardFields(supabase, device, "Overview"),
+      getLastSyncInfo(device.id),
     ]);
     const allOverviewFields = leftoverSections.flatMap((s) => s.groups.flatMap((g) => g.fields));
     const leftoverGroups = leftoverSections.flatMap((s) => s.groups).filter((g) => SOLAR_OVERVIEW_LEFTOVER_GROUPS.has(g.groupName ?? ""));
@@ -91,8 +94,10 @@ export async function DeviceOverviewContent({
       <div className="space-y-4">
         <LiveChannelKeeper deviceIds={inverterIds} />
         <div className="flex justify-end">
-          <LiveStatusPill inverterIds={inverterIds} initial={initial} inverterStateOptions={inverterStateOptions} />
+          <OverviewStatus inverterIds={inverterIds} initial={initial} inverterStateOptions={inverterStateOptions} sync={lastSync} />
         </div>
+
+        <DeviceOfflineNotice deviceId={device.id} sync={lastSync} />
 
         <LiveFaultBanner inverterIds={inverterIds} initial={initial} />
 
@@ -103,6 +108,7 @@ export async function DeviceOverviewContent({
             initialEvW={overview.evW}
             powerPackage={site.powerPackage}
             powerSourceCategory={site.powerSourceCategory}
+            sync={lastSync}
           />
         )}
 

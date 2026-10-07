@@ -35,44 +35,36 @@ export function EvHubCards({
         title="Power Offered"
         subtitle="Max charger output"
         value={offeredKw !== null ? `${offeredKw.toFixed(1)} kW` : "—"}
-        liveValue={offeredKw}
         statusLabel="Status"
         badgeLabel="Live"
         badgeTone="neutral"
-        sparkline={[]}
       />
       <LiveStatusCard
         icon={Plug}
         title="Sessions"
         subtitle="Started today"
         value={String(sessionsToday)}
-        liveValue={sessionsToday}
         statusLabel="Status"
         badgeLabel="Today"
         badgeTone="neutral"
-        sparkline={[]}
       />
       <LiveStatusCard
         icon={ArrowDownToLine}
         title="Energy Delivered"
         subtitle="Total today"
         value={`${energyTodayKwh.toFixed(1)} kWh`}
-        liveValue={energyTodayKwh}
         statusLabel="Status"
         badgeLabel="Today"
         badgeTone={energyTodayKwh > 0 ? "good" : "neutral"}
-        sparkline={[]}
       />
       <LiveStatusCard
         icon={Gauge}
         title="Power Utilization"
         subtitle="Of max output"
         value={utilizationPct !== null ? `${utilizationPct.toFixed(0)}%` : "—"}
-        liveValue={utilizationPct}
         statusLabel="Status"
         badgeLabel="Live"
         badgeTone="neutral"
-        sparkline={[]}
       />
     </div>
   );
