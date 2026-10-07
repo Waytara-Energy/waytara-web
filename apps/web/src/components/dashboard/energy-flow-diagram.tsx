@@ -31,7 +31,8 @@ function fmtW(value: number | null): string {
 // crops of the actual photo (canvas-drawn crop + a coordinate grid overlaid
 // every 10–100px, cross-checked by overlaying the traced path back onto the
 // source pixels), not eyeballed.
-const IMAGE_SRC = "/images/energy-flow-house-2.jpg";
+// A transparent cut-out of the original photo (same 2000x2076 frame, so every coordinate below still applies).
+const IMAGE_SRC = "/images/energy-flow-house-cutout.webp";
 const IMAGE_ALT =
   "Isometric illustration of a house with rooftop solar, a wall-mounted battery and inverter, and an attached EV charging bay";
 const VIEW_W = 3850;
@@ -228,22 +229,8 @@ export function EnergyFlowDiagram({
 
   return (
     <div className="relative mx-auto w-full max-w-lg" style={{ aspectRatio: `${VIEW_W} / ${VIEW_H}` }}>
-      {/* The source photo is an opaque JPEG with its own flat, non-uniform
-          light background (it has a vignette and a darker border near the
-          edges, which ruled out a clean color-threshold or clip-path
-          silhouette trace). This radial mask feathers its edges to
-          transparent well inside the frame instead, so the flat backdrop
-          dissolves into the dashboard's background — light or dark — rather
-          than reading as a hard-edged box. */}
-      <div
-        className="absolute inset-0"
-        style={{
-          maskImage: "radial-gradient(ellipse at center, #fff 72%, transparent 100%)",
-          WebkitMaskImage: "radial-gradient(ellipse at center, #fff 72%, transparent 100%)",
-        }}
-      >
-        <Image src={IMAGE_SRC} alt={IMAGE_ALT} fill sizes="(min-width: 1024px) 32rem, 100vw" className="object-contain pointer-events-none select-none" priority />
-      </div>
+      {/* The house is a transparent cut-out, so it sits directly on the dashboard background in light and dark. */}
+      <Image src={IMAGE_SRC} alt={IMAGE_ALT} fill sizes="(min-width: 1024px) 32rem, 100vw" className="object-contain pointer-events-none select-none" priority />
 
       {/* Same geometry rendered twice — only the leader-line and label
           colors differ — so the pointer/value colors switch with the
