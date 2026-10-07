@@ -118,7 +118,7 @@ async function SolarInverterPerformance({ supabase, device }: { supabase: Supaba
         </Card>
         <Card>
           <CardContent className="p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Total PV energy (lifetime)</p>
+            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Solar production (total)</p>
             <p className="mt-1 text-lg font-semibold text-foreground">
               {lifetimePvKwh !== null ? `${lifetimePvKwh.toLocaleString("en-IN")} kWh` : "No data yet"}
             </p>

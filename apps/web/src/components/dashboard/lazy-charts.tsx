@@ -49,9 +49,8 @@ export const MainHubTrendGroup = dynamic(() => import("./main-hub-trend-group").
   loading: ChartSkeleton,
 });
 
-// Battery Pack's SOC trend chart + its own temperature heatmap, sharing one
-// interval picker — same reasoning as MainHubTrendGroup above.
-export const BatteryTrendGroup = dynamic(() => import("./battery-trend-group").then((m) => m.BatteryTrendGroup), {
+// Solar Array's solar power chart and one chart per PV input, sharing one interval picker.
+export const SolarTrendGroup = dynamic(() => import("./solar-trend-group").then((m) => m.SolarTrendGroup), {
   ssr: false,
   loading: ChartSkeleton,
 });

@@ -1,17 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { Server, Sun, Thermometer, BatteryCharging, Home, Zap, Activity, Gauge, Leaf, TreePine, ArrowDownToLine, ArrowUpFromLine, Fuel } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { Server, Sun, Thermometer, BatteryCharging, Home, Zap, Activity, Gauge, ArrowDownToLine, ArrowUpFromLine, Fuel } from "lucide-react";
 import { TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { CustomerDevice } from "@/lib/device-display";
 import type { EnumOption } from "@/lib/enum-labels";
-import { co2AvoidedKg, treesEquivalent } from "@/lib/environmental-impact";
 import { FAULT_BITMASK_KEYS } from "@/lib/overview-keys";
+import { TEMPERATURE_MAX_C } from "@/lib/temperature-thresholds";
 import type { FieldValue } from "@/lib/template-field-format";
 import type { FieldGroup } from "@/lib/template-fields";
 import { useLiveNumbers } from "@/lib/telemetry/live-values";
-import { BarTrendChart, MainHubTrendGroup, BatteryTrendGroup } from "./lazy-charts";
+import { BarTrendChart, MainHubTrendGroup, SolarTrendGroup } from "./lazy-charts";
 import type { HeatmapRow } from "./temperature-heatmap";
 import { LiveStatusCard } from "./live-status-card";
 import { DeviceStatusPill } from "./device-status-pill";
@@ -48,7 +47,6 @@ export interface SolarMonitoringProps {
   inverterGroups: FieldGroup[];
   batteryGroups: FieldGroup[];
   inverterTemperatureRows: HeatmapRow[];
-  batteryTemperatureRows: HeatmapRow[];
   enumOptions: Record<string, EnumOption[]>;
   /** What the server knows about the device's connection (last reading, agent heartbeat, upload interval). */
   sync: DeviceSyncInit;
@@ -65,7 +63,6 @@ export function SolarMonitoringView({
   inverterGroups,
   batteryGroups,
   inverterTemperatureRows,
-  batteryTemperatureRows,
   enumOptions: enumOptionsObj,
   sync,
 }: SolarMonitoringProps) {
@@ -110,10 +107,6 @@ export function SolarMonitoringView({
   const currentText = currentA !== null ? `${currentA.toFixed(2)} A` : "—";
   const frequencyText = frequencyHz !== null ? `${frequencyHz.toFixed(2)} Hz` : "—";
 
-  const lifetimePvKwh = getNum("total_pv_energy_kwh");
-  const co2Kg = lifetimePvKwh !== null ? co2AvoidedKg(lifetimePvKwh) : null;
-  const trees = co2Kg !== null ? treesEquivalent(co2Kg) : null;
-
   // The hottest inverter sensor, against its own ceiling (the same one the temperature gauges use).
   let hottest: { label: string; c: number; maxC: number } | null = null;
   for (const row of inverterTemperatureRows) {
@@ -139,6 +132,19 @@ export function SolarMonitoringView({
     const v = solarGenerationW(Object.fromEntries(pvKeys.concat("inverter_output_power_w").map((k) => [k, getNum(k)])), pvKeys);
     return v !== null ? `${(v / 1000).toFixed(2)} kW` : "—";
   })();
+  // One card per PV input the device really has: its power, with voltage and current alongside.
+  const pvInputs = pvKeys.map((key) => {
+    const n = Number(/^pv(\d+)_/.exec(key)?.[1] ?? 0);
+    const power = getNum(key);
+    const volts = getNum(`pv${n}_voltage_v`);
+    const amps = getNum(`pv${n}_current_a`);
+    return {
+      n,
+      powerText: power !== null ? `${(power / 1000).toFixed(2)} kW` : "—",
+      voltageText: volts !== null ? `${volts.toFixed(1)} V` : "—",
+      currentText: amps !== null ? `${amps.toFixed(2)} A` : "—",
+    };
+  });
   const socPctText = (() => {
     const v = getNum("battery_soc_pct");
     return v !== null ? `${Math.round(v)}%` : "—";
@@ -153,8 +159,6 @@ export function SolarMonitoringView({
     const v = getNum("day_grid_import_energy_kwh");
     return v !== null ? `${v.toFixed(1)} kWh` : "—";
   })();
-  const co2Text = co2Kg !== null ? `${co2Kg.toFixed(0)} kg` : "—";
-  const treesText = trees !== null ? `${trees.toFixed(1)}/yr` : "—";
 
   // Battery Pack's own 4 cards — live charge/discharge power plus today's
   // two energy totals.
@@ -162,6 +166,13 @@ export function SolarMonitoringView({
   const batteryPowerText = batteryPowerW !== null ? `${(Math.abs(batteryPowerW) / 1000).toFixed(2)} kW` : "—";
   const batteryDirection = batteryPowerW === null || batteryPowerW === 0 ? "Idle" : batteryPowerW < 0 ? "Charging" : "Discharging";
   const batteryDirectionTone = batteryPowerW !== null && batteryPowerW < 0 ? "good" : "neutral";
+  const batteryVoltageV = getNum("battery_voltage_v");
+  const batteryVoltageText = batteryVoltageV !== null ? `${batteryVoltageV.toFixed(2)} V` : "—";
+  const batteryCurrentA = getNum("battery_current_a");
+  const batteryCurrentText = batteryCurrentA !== null ? `${Math.abs(batteryCurrentA).toFixed(2)} A` : "—";
+  const batteryTempC = getNum("battery_temperature_c");
+  const batteryTempText = batteryTempC !== null ? `${batteryTempC.toFixed(1)} °C` : "—";
+  const batteryTempWarm = batteryTempC !== null && batteryTempC >= TEMPERATURE_MAX_C.battery_temperature_c;
   const dayBatteryChargeText = (() => {
     const v = getNum("day_battery_charge_energy_kwh");
     return v !== null ? `${v.toFixed(1)} kWh` : "—";
@@ -171,18 +182,17 @@ export function SolarMonitoringView({
     return v !== null ? `${v.toFixed(1)} kWh` : "—";
   })();
 
-  // Home Load's own 4 cards — live draw plus the L1/L2 split (frequency
-  // rides along in the L1 card's subtitle instead of its own card).
+  // Load's own 4 cards — live draw, today's total, the L1 power and an Electrical card (voltage, current, frequency).
   const loadPowerW = getNum("load_total_power_w");
   const loadLiveText = loadPowerW !== null ? `${(loadPowerW / 1000).toFixed(2)} kW` : "—";
   const load1Text = (() => {
     const v = getNum("load_l1_power_w");
     return v !== null ? `${v.toFixed(0)} W` : "—";
   })();
-  const load2Text = (() => {
-    const v = getNum("load_l2_power_w");
-    return v !== null ? `${v.toFixed(0)} W` : "—";
-  })();
+  const loadVoltageV = getNum("load_l1_voltage_v");
+  const loadVoltageText = loadVoltageV !== null ? `${loadVoltageV.toFixed(1)} V` : "—";
+  const loadCurrentA = getNum("load_l1_current_a");
+  const loadCurrentText = loadCurrentA !== null ? `${loadCurrentA.toFixed(2)} A` : "—";
   const loadFrequencyText = (() => {
     const v = getNum("load_frequency_hz");
     return v !== null ? `${v.toFixed(2)} Hz` : "—";
@@ -195,10 +205,20 @@ export function SolarMonitoringView({
   const gridLiveText = gridPowerW !== null ? `${(Math.abs(gridPowerW) / 1000).toFixed(2)} kW` : "—";
   const gridDirection = gridPowerW === null || gridPowerW === 0 ? "Idle" : gridPowerW > 0 ? "Importing" : "Exporting";
   const gridDirectionTone = gridPowerW !== null && gridPowerW > 0 ? "warn" : gridPowerW !== null && gridPowerW < 0 ? "good" : "neutral";
-  const gridExportedTodayText = (() => {
-    const v = getNum("day_grid_export_energy_kwh");
-    return v !== null ? `${v.toFixed(1)} kWh` : "—";
-  })();
+  // Today's energy as plain numbers (the card shows "imported / exported kWh").
+  const kwhNumber = (key: string) => {
+    const v = getNum(key);
+    return v !== null ? v.toFixed(1) : "—";
+  };
+  const gridImportedKwhText = kwhNumber("day_grid_import_energy_kwh");
+  const gridExportedKwhText = kwhNumber("day_grid_export_energy_kwh");
+  // The grid CT clamp: total power, L1 power and L1 current.
+  const ctTotalW = getNum("grid_ct_total_power_w");
+  const gridCtTotalText = ctTotalW !== null ? `${(ctTotalW / 1000).toFixed(2)} kW` : "—";
+  const ctPowerW = getNum("grid_ct_l1_power_w");
+  const gridCtPowerText = ctPowerW !== null ? `${ctPowerW.toFixed(0)} W` : "—";
+  const ctCurrentA = getNum("grid_ct_l1_current_a");
+  const gridCtCurrentText = ctCurrentA !== null ? `${ctCurrentA.toFixed(2)} A` : "—";
   const gridVoltageV = getNum("grid_l1_voltage_v");
   const gridVoltageText = gridVoltageV !== null ? `${gridVoltageV.toFixed(1)} V` : "—";
   const gridCurrentText = (() => {
@@ -227,7 +247,7 @@ export function SolarMonitoringView({
   const tabHeadlines: Record<string, TabHeadlineInfo> = {
     hub: { value: liveOutputKw, label: "Output Power" },
     ...(solarEnabled ? { solar: { value: solarTodayText, label: "Power Generated" } } : {}),
-    ...(batteryEnabled ? { battery: { value: socPctText, label: "Charge Level" } } : {}),
+    ...(batteryEnabled ? { battery: { value: socPctText, label: "Battery Level" } } : {}),
     ...(loadEnabled ? { load: { value: loadTodayText, label: "Consumed Today" } } : {}),
     ...(gridEnabled ? { grid: { value: gridImportedTodayText, label: "Imported Today" } } : {}),
     ...(generatorEnabled ? { generator: { value: genLiveText, label: "Generator Output" } } : {}),
@@ -297,7 +317,7 @@ export function SolarMonitoringView({
               variant="line"
               className="data-[state=active]:border-sky-500 data-[state=active]:text-sky-600 dark:data-[state=active]:text-sky-400"
             >
-              <TabButtonContent icon={Home} label="Home Load" />
+              <TabButtonContent icon={Home} label="Load" />
             </TabsTrigger>
           )}
           {gridEnabled && (
@@ -327,7 +347,7 @@ export function SolarMonitoringView({
             <LiveStatusCard
               icon={Sun}
               title="Output Power"
-              subtitle="Current power"
+              subtitle="Inverter output power"
               value={liveOutputKw}
               statusLabel="Status"
               badgeLabel="Live"
@@ -421,35 +441,27 @@ export function SolarMonitoringView({
                 badgeLabel="Today"
                 badgeTone="neutral"
               />
-              <LiveStatusCard
-                icon={Leaf}
-                title="CO2 Avoided"
-                subtitle="Lifetime estimate"
-                value={co2Text}
-                statusLabel="Status"
-                badgeLabel={co2Kg !== null ? "Lifetime" : "No data"}
-                badgeTone={co2Kg !== null ? "good" : "neutral"}
-              />
-              <LiveStatusCard
-                icon={TreePine}
-                title="Trees Equivalent"
-                subtitle="Same CO2 absorbed"
-                value={treesText}
-                statusLabel="Status"
-                badgeLabel={trees !== null ? "Lifetime" : "No data"}
-                badgeTone={trees !== null ? "good" : "neutral"}
-              />
+              {pvInputs.map((pv) => (
+                <LiveStatusCard
+                  key={pv.n}
+                  icon={Sun}
+                  title={`PV${pv.n}`}
+                  subtitle={`${pv.voltageText} · ${pv.currentText}`}
+                  value={pv.powerText}
+                  statusLabel="Status"
+                  badgeLabel="Live"
+                  badgeTone="neutral"
+                />
+              ))}
             </div>
 
-            <BarTrendChart
-              deviceId={deviceId}
-              title="Solar Power"
-              series={[{ key: "inverter_output_power_w", label: "Solar", color: "var(--chart-3)" }]}
-            />
+            <SolarTrendGroup deviceId={deviceId} pvKeys={pvKeys} />
 
-            {sortGroups("Solar Array", categories["Solar Array"] ?? []).map((group) =>
-              renderGroup("Solar Array", group, getValue, enumOptions)
-            )}
+            {/* The per-input readings are the PV cards and charts above; Solar Production Total lives on Performance. */}
+            {sortGroups(
+              "Solar Array",
+              (categories["Solar Array"] ?? []).filter((g) => g.groupName !== "Per input (MPPT)" && g.groupName !== "Energy")
+            ).map((group) => renderGroup("Solar Array", group, getValue, enumOptions))}
           </TabsContent>
         )}
 
@@ -458,17 +470,17 @@ export function SolarMonitoringView({
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               <LiveStatusCard
                 icon={BatteryCharging}
-                title="Charge Level"
+                title="Battery Level"
                 subtitle="State of charge"
                 value={socPctText}
-                statusLabel="Status"
-                badgeLabel="Live"
-                badgeTone="neutral"
+                statusLabel="Temperature"
+                badgeLabel={batteryTempText}
+                badgeTone={batteryTempWarm ? "warn" : "neutral"}
               />
               <LiveStatusCard
                 icon={Zap}
                 title="Battery Power"
-                subtitle={batteryDirection}
+                subtitle={`${batteryVoltageText} · ${batteryCurrentText}`}
                 value={batteryPowerText}
                 statusLabel="Status"
                 badgeLabel={batteryDirection}
@@ -494,13 +506,20 @@ export function SolarMonitoringView({
               />
             </div>
 
-            <BatteryTrendGroup
+            <BarTrendChart
               deviceId={deviceId}
-              socSeries={[{ key: "battery_soc_pct", label: "SOC", color: "var(--chart-1)" }]}
-              temperatureRows={batteryTemperatureRows}
+              title="Battery SOC Trend"
+              series={[{ key: "battery_soc_pct", label: "SOC", color: "var(--chart-1)" }]}
+              unit="%"
+              valueScale={1}
+              footerMode="average"
             />
 
-            {sortGroups("Battery", batteryGroups).map((group) => renderGroup("Battery", group, getValue, enumOptions))}
+            {/* Live, BMS and Energy are covered by the cards and charts above; only the per-pack readings remain. */}
+            {sortGroups(
+              "Battery",
+              batteryGroups.filter((g) => !["Live", "Battery management system (BMS)", "Energy"].includes(g.groupName ?? ""))
+            ).map((group) => renderGroup("Battery", group, getValue, enumOptions))}
           </TabsContent>
         )}
 
@@ -528,19 +547,19 @@ export function SolarMonitoringView({
               <LiveStatusCard
                 icon={Activity}
                 title="L1 Power"
-                subtitle={`Frequency · ${loadFrequencyText}`}
+                subtitle="Phase L1"
                 value={load1Text}
                 statusLabel="Status"
                 badgeLabel="Live"
                 badgeTone="neutral"
               />
               <LiveStatusCard
-                icon={Activity}
-                title="L2 Power"
-                subtitle="Live reading"
-                value={load2Text}
-                statusLabel="Status"
-                badgeLabel="Live"
+                icon={Gauge}
+                title="Electrical"
+                subtitle={`Current · ${loadCurrentText}`}
+                value={loadVoltageText}
+                statusLabel="Frequency"
+                badgeLabel={loadFrequencyText}
                 badgeTone="neutral"
               />
             </div>
@@ -550,19 +569,11 @@ export function SolarMonitoringView({
               title="Load Power"
               series={[{ key: "load_total_power_w", label: "Load", color: "var(--chart-2)" }]}
             />
-
-            {(categories["Home Load"] ?? []).map((group) => renderGroup("Home Load", group, getValue, enumOptions))}
           </TabsContent>
         )}
 
         {gridEnabled && (
           <TabsContent value="grid" className="space-y-4">
-            <div className="flex items-center gap-2">
-              <Badge variant={gridConnected === 1 ? "default" : gridConnected === 0 ? "alert" : "secondary"}>
-                {gridConnected === 1 ? "Grid Connected" : gridConnected === 0 ? "Grid Disconnected" : "Grid status: No data"}
-              </Badge>
-            </div>
-
             <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
               <LiveStatusCard
                 icon={Zap}
@@ -570,23 +581,14 @@ export function SolarMonitoringView({
                 subtitle={gridDirection}
                 value={gridLiveText}
                 statusLabel="Status"
-                badgeLabel={gridDirection}
-                badgeTone={gridDirectionTone}
+                badgeLabel={gridConnected === 0 ? "Not connected" : gridDirection}
+                badgeTone={gridConnected === 0 ? "warn" : gridDirectionTone}
               />
               <LiveStatusCard
                 icon={ArrowDownToLine}
-                title="Imported Today"
-                subtitle="From the grid"
-                value={gridImportedTodayText}
-                statusLabel="Status"
-                badgeLabel="Today"
-                badgeTone="neutral"
-              />
-              <LiveStatusCard
-                icon={ArrowUpFromLine}
-                title="Exported Today"
-                subtitle="Back to the grid"
-                value={gridExportedTodayText}
+                title="Energy Today"
+                subtitle="Imported / Exported"
+                value={`${gridImportedKwhText} / ${gridExportedKwhText} kWh`}
                 statusLabel="Status"
                 badgeLabel="Today"
                 badgeTone="neutral"
@@ -600,6 +602,15 @@ export function SolarMonitoringView({
                 badgeLabel={gridFrequencyText}
                 badgeTone="neutral"
               />
+              <LiveStatusCard
+                icon={Activity}
+                title="CT Meter"
+                subtitle={`Current · ${gridCtCurrentText}`}
+                value={gridCtTotalText}
+                statusLabel="CT power"
+                badgeLabel={gridCtPowerText}
+                badgeTone="neutral"
+              />
             </div>
 
             <BarTrendChart
@@ -607,8 +618,6 @@ export function SolarMonitoringView({
               title="Grid Power"
               series={[{ key: "grid_total_power_w", label: "Grid", color: "var(--chart-4)" }]}
             />
-
-            {sortGroups("Grid", categories["Grid"] ?? []).map((group) => renderGroup("Grid", group, getValue, enumOptions))}
           </TabsContent>
         )}
 

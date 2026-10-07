@@ -6,7 +6,7 @@ import { useSeriesRange } from "@/lib/telemetry/react";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { BarTrendSeries } from "./bar-trend-chart";
+import { fetchKeysOf, type BarTrendSeries } from "./bar-trend-chart";
 import { ChartEmptyState } from "./chart-empty-state";
 import { ChartErrorCard, ChartLoadingCard, StaleDot } from "./chart-states";
 import { useRange } from "./range-context";
@@ -47,8 +47,11 @@ export function RangeTrendChart({
   const range = useRange();
   const [requested, setRequested] = React.useState<number | null>(null);
   const hover = useBarHover();
-  const fetchKeys = React.useMemo(() => series.filter((s) => !s.cumulativeOf).map((s) => s.key), [series]);
-  const scaleByKey = React.useMemo(() => Object.fromEntries(series.map((s) => [s.key, s.scale ?? valueScale])), [series, valueScale]);
+  const fetchKeys = React.useMemo(() => fetchKeysOf(series), [series]);
+  const scaleByKey = React.useMemo(
+    () => Object.fromEntries(series.flatMap((s) => (s.sumOf ?? [s.key]).map((k) => [k, s.scale ?? valueScale]).concat([[s.key, s.scale ?? valueScale]]))),
+    [series, valueScale]
+  );
   const unitByKey = React.useMemo(() => Object.fromEntries(series.map((s) => [s.key, s.unit ?? unit])), [series, unit]);
   const axisIds = React.useMemo(() => Array.from(new Set(series.map((s) => s.unit ?? unit))), [series, unit]);
 
@@ -74,8 +77,33 @@ export function RangeTrendChart({
       });
       tot[key] = t;
     }
+    // Summed series: the total of their parts at each slot.
+    for (const s of series) {
+      if (!s.sumOf) continue;
+      const t = { sum: 0, wsum: 0, covered: 0 };
+      state.axis.forEach((_, i) => {
+        let v = 0;
+        let covered = 0;
+        let any = false;
+        for (const part of s.sumOf!) {
+          const p = state.byKey[part]?.[i];
+          if (p && p.avg !== null) {
+            v += p.avg * (scaleByKey[part] ?? 1);
+            covered = Math.max(covered, p.covered);
+            any = true;
+          }
+        }
+        pts[i][s.key] = any ? v : null;
+        if (any) {
+          t.sum += (v * covered) / 3600;
+          t.wsum += v * covered;
+          t.covered += covered;
+        }
+      });
+      tot[s.key] = t;
+    }
     return { points: pts, totals: tot };
-  }, [state.axis, state.byKey, state.minutes, fetchKeys, scaleByKey]);
+  }, [state.axis, state.byKey, state.minutes, fetchKeys, scaleByKey, series]);
 
   const chartConfig = React.useMemo(
     () => Object.fromEntries(series.map((s) => [s.key, { label: s.label, color: s.color }])) satisfies ChartConfig,
@@ -87,7 +115,7 @@ export function RangeTrendChart({
   if (loading || showSkeleton) return <ChartLoadingCard title={title} />;
   if (state.status === "error") return <ChartErrorCard title={title} message={state.error} onRetry={state.retry} />;
 
-  if (points.every((p) => fetchKeys.every((k) => p[k] === null || p[k] === undefined))) {
+  if (points.every((p) => series.every((s) => p[s.key] === null || p[s.key] === undefined))) {
     return (
       <Card>
         <CardHeader>

@@ -122,11 +122,7 @@ async function SolarInverterMonitoring({
   // view suits a sensor reading far better than one more flat current-value row).
   const inverterGroups = (byCategory.get("Inverter") ?? []).filter((g) => g.groupName !== "Temperature");
   const inverterTemperatureRows = temperatureRowsFor((byCategory.get("Inverter") ?? []).find((g) => g.groupName === "Temperature")?.fields ?? []);
-  // Battery > Live carries battery_temperature_c alongside unrelated fields, so only that one field is dropped.
-  const batteryGroups = (byCategory.get("Battery") ?? []).map((g) =>
-    g.groupName === "Live" ? { ...g, fields: g.fields.filter((f) => f.key !== "battery_temperature_c") } : g
-  );
-  const batteryTemperatureRows = temperatureRowsFor((byCategory.get("Battery") ?? []).find((g) => g.groupName === "Live")?.fields ?? []);
+  const batteryGroups = byCategory.get("Battery") ?? [];
 
   const dynamicFields = sections.flatMap((s) => s.groups.flatMap((g) => g.fields));
   const monitoringKeys = dynamicFields.map((f) => f.key);
@@ -156,7 +152,6 @@ async function SolarInverterMonitoring({
       inverterGroups={inverterGroups}
       batteryGroups={batteryGroups}
       inverterTemperatureRows={inverterTemperatureRows}
-      batteryTemperatureRows={batteryTemperatureRows}
       enumOptions={Object.fromEntries(enumOptions)}
       sync={lastSync}
     />

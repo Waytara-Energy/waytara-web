@@ -52,6 +52,25 @@ export interface BarTrendSeries {
     positive: { color: string; label: string; footer: string };
     negative: { color: string; label: string; footer: string };
   };
+  /** Marks this series as the SUM of other keys (e.g. a device's PV inputs added together): its value at each slot is
+   *  the total of those keys' values, which are what is actually fetched. `key` only names the derived series. */
+  sumOf?: string[];
+}
+
+const PART_COLORS = ["var(--chart-3)", "var(--chart-1)", "var(--chart-2)", "var(--chart-4)", "var(--chart-5)"];
+
+/** The keys to fetch for these series: each series' own key, or the keys it adds together; none for a cumulative one. */
+export function fetchKeysOf(series: BarTrendSeries[]): string[] {
+  return Array.from(new Set(series.flatMap((s) => (s.cumulativeOf ? [] : (s.sumOf ?? [s.key])))));
+}
+
+/** The raw-reading view (Go Live) cannot add readings that arrive at different instants, so a sum is shown as its parts. */
+export function expandSums(series: BarTrendSeries[]): BarTrendSeries[] {
+  return series.flatMap((s) =>
+    s.sumOf
+      ? s.sumOf.map((key, i) => ({ key, label: /^pv(\d+)_/.exec(key) ? `PV${/^pv(\d+)_/.exec(key)![1]}` : key, color: PART_COLORS[i % PART_COLORS.length], scale: s.scale, unit: s.unit }))
+      : [s]
+  );
 }
 
 export interface BarTrendReferenceLine {
@@ -200,8 +219,11 @@ function TodayBarTrendChart({
   const setBucketMinutes = onBucketMinutesChange ?? setInternalBucketMinutes;
 
   const seriesKeys = React.useMemo(() => series.map((s) => s.key), [series]);
-  const fetchKeys = React.useMemo(() => series.filter((s) => !s.cumulativeOf).map((s) => s.key), [series]);
-  const scaleByKey = React.useMemo(() => Object.fromEntries(series.map((s) => [s.key, s.scale ?? valueScale])), [series, valueScale]);
+  const fetchKeys = React.useMemo(() => fetchKeysOf(series), [series]);
+  const scaleByKey = React.useMemo(
+    () => Object.fromEntries(series.flatMap((s) => (s.sumOf ?? [s.key]).map((k) => [k, s.scale ?? valueScale]).concat([[s.key, s.scale ?? valueScale]]))),
+    [series, valueScale]
+  );
   const unitByKey = React.useMemo(() => Object.fromEntries(series.map((s) => [s.key, s.unit ?? unit])), [series, unit]);
   // Series sharing a unit share one (hidden) y-axis, scaled to fit them together; a series with its own
   // `unit` gets its own axis so its bars aren't dwarfed by/dwarfing a series on a very different scale.
@@ -240,6 +262,33 @@ function TodayBarTrendChart({
         }
       });
       tot[key] = t;
+    }
+    // Derived (summed) series: the total of their parts at each slot, nothing if no part has a reading.
+    for (const s of series) {
+      if (!s.sumOf) continue;
+      const t = { sum: 0, wsum: 0, covered: 0, pos: 0, neg: 0 };
+      state.axis.forEach((_, i) => {
+        let v = 0;
+        let covered = 0;
+        let any = false;
+        for (const part of s.sumOf!) {
+          const p = state.byKey[part]?.[i];
+          if (p && p.avg !== null) {
+            v += p.avg * (scaleByKey[part] ?? 1);
+            covered = Math.max(covered, p.covered);
+            any = true;
+          }
+        }
+        pts[i][s.key] = any ? v : null;
+        if (any) {
+          t.sum += (v * covered) / 3600;
+          if (v >= 0) t.pos += (v * covered) / 3600;
+          else t.neg += (-v * covered) / 3600;
+          t.wsum += v * covered;
+          t.covered += covered;
+        }
+      });
+      tot[s.key] = t;
     }
     // Derived (cumulative) series: the running integral of their base series, over the time each slot covered.
     for (const s of series) {
@@ -536,7 +585,7 @@ export function BarTrendChart(props: BarTrendChartProps) {
   const goLive = useGoLive();
   // Go Live (every reading of today as the device reports it) replaces the chart while it is on.
   if (goLive?.active) {
-    return <LiveRawChart title={props.title} series={props.series} valueScale={props.valueScale} unit={props.unit} />;
+    return <LiveRawChart title={props.title} series={expandSums(props.series)} valueScale={props.valueScale} unit={props.unit} />;
   }
   if (range && range.preset !== "today") {
     return (

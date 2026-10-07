@@ -6,8 +6,7 @@ import { TemperatureHeatmap, type HeatmapRow } from "./temperature-heatmap";
 import { DEFAULT_INTERVAL_MINUTES } from "@/lib/day-buckets";
 
 /** Owns the one interval Charging Power & Current chart and its own
- *  connector-temperature heatmap share — same pattern as MainHubTrendGroup
- *  and BatteryTrendGroup. */
+ *  connector-temperature heatmap share. */
 export function ChargerTrendGroup({
   deviceId,
   powerSeries,
