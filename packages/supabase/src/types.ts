@@ -477,21 +477,27 @@ export type Database = {
         Row: {
           agent_ts: string | null
           agent_version: string | null
+          device_online: boolean | null
           equipment_id: string
+          last_read_at: string | null
           last_seen: string
           upload_interval_s: number | null
         }
         Insert: {
           agent_ts?: string | null
           agent_version?: string | null
+          device_online?: boolean | null
           equipment_id: string
+          last_read_at?: string | null
           last_seen: string
           upload_interval_s?: number | null
         }
         Update: {
           agent_ts?: string | null
           agent_version?: string | null
+          device_online?: boolean | null
           equipment_id?: string
+          last_read_at?: string | null
           last_seen?: string
           upload_interval_s?: number | null
         }
