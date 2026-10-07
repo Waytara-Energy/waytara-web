@@ -101,11 +101,13 @@ function hasGridSource(category: string | null): boolean {
   return category !== "off_grid";
 }
 
+/** Half-length of the "not in use" cross, in drawing units. */
+const CROSS = 8;
+
 const LEGEND: { tone: Tone; label: string }[] = [
   { tone: "producing", label: "Producing · charging · exporting" },
   { tone: "drawing", label: "Importing · discharging" },
   { tone: "consuming", label: "Consuming" },
-  { tone: "idle", label: "Idle" },
 ];
 
 export function EnergyFlowDiagram({
@@ -156,6 +158,11 @@ export function EnergyFlowDiagram({
       <div className="relative w-full" style={{ aspectRatio: `${W} / ${H}` }}>
         <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 h-full w-full" aria-hidden="true">
           <defs>
+            <linearGradient id={`${uid}-off`} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stopColor="#fca5a5" />
+              <stop offset="0.5" stopColor="#ef4444" />
+              <stop offset="1" stopColor="#b91c1c" />
+            </linearGradient>
             {layout.nodes.map(({ item, anchor, hubAnchor }) => {
               const from = item.dir === "out" ? hubAnchor : anchor;
               const to = item.dir === "out" ? anchor : hubAnchor;
@@ -178,6 +185,13 @@ export function EnergyFlowDiagram({
             return (
               <g key={item.id}>
                 <path d={d} fill="none" stroke={`url(#${uid}-${item.id})`} strokeWidth={2} strokeLinecap="round" />
+                {item.dir === "none" && (
+                  // Not in use: a red cross on the line, at its midpoint (a symmetric curve passes through the average of its ends).
+                  <g transform={`translate(${(from.x + to.x) / 2} ${(from.y + to.y) / 2})`} style={{ filter: "drop-shadow(0 0 3px rgba(239,68,68,0.55))" }}>
+                    <title>{`${item.label}: not in use`}</title>
+                    <path d={`M -${CROSS} -${CROSS} L ${CROSS} ${CROSS} M -${CROSS} ${CROSS} L ${CROSS} -${CROSS}`} stroke={`url(#${uid}-off)`} strokeWidth={3} strokeLinecap="round" fill="none" />
+                  </g>
+                )}
                 {item.dir !== "none" && (
                   <circle r={3} fill={COLOR[item.tone]} className="motion-reduce:hidden">
                     <animateMotion dur={dur} repeatCount="indefinite" path={d} />
@@ -239,6 +253,19 @@ export function EnergyFlowDiagram({
             {l.label}
           </li>
         ))}
+        <li className="flex items-center gap-1.5">
+          <svg viewBox="-6 -6 12 12" className="size-3" aria-hidden="true">
+            <defs>
+              <linearGradient id={`${uid}-offl`} x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stopColor="#fca5a5" />
+                <stop offset="0.5" stopColor="#ef4444" />
+                <stop offset="1" stopColor="#b91c1c" />
+              </linearGradient>
+            </defs>
+            <path d="M -4 -4 L 4 4 M -4 4 L 4 -4" stroke={`url(#${uid}-offl)`} strokeWidth={2.4} strokeLinecap="round" fill="none" />
+          </svg>
+          Not in use
+        </li>
       </ul>
     </div>
   );
