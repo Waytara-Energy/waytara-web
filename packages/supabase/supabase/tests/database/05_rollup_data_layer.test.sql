@@ -5,7 +5,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public, waytara;
 
-select plan(56);
+select plan(59);
 
 \set c1 '''11111111-1111-1111-1111-111111111111'''
 \set c2 '''22222222-2222-2222-2222-222222222222'''
@@ -199,6 +199,22 @@ select throws_ok($$ select count(*) from waytara.equipment_rollup_15m $$, '42501
 reset role;
 
 select ok(exists (select 1 from storage.buckets where id = 'live-snapshots' and not public), 'the live-snapshots bucket exists and is private');
+
+-- partitions are internal: a customer must not reach them directly (RLS on the parent does not cover that)
+select waytara.ensure_rollup_15m_partition(timestamptz '2031-03-04 12:00:00+05:30');
+select waytara.ensure_rollup_1h_partition(timestamptz '2031-03-04 12:00:00+05:30');
+select is(
+  (select count(*)::int from pg_inherits i join pg_class c on c.oid = i.inhrelid
+    where i.inhparent in ('waytara.equipment_rollup_15m'::regclass, 'waytara.equipment_rollup_1h'::regclass) and not c.relrowsecurity),
+  0, 'every rollup partition (including new ones) has row-level security enabled');
+select is(
+  (select count(*)::int from pg_inherits i
+    where i.inhparent in ('waytara.equipment_rollup_15m'::regclass, 'waytara.equipment_rollup_1h'::regclass)
+      and (has_table_privilege('authenticated', i.inhrelid, 'select') or has_table_privilege('authenticated', i.inhrelid, 'insert') or has_table_privilege('anon', i.inhrelid, 'select'))),
+  0, 'no rollup partition is readable or writable by anon / authenticated');
+set local role authenticated;
+select throws_ok($$ select count(*) from waytara.equipment_rollup_15m_p20310304 $$, '42501', null, 'a signed-in role cannot read a partition directly');
+reset role;
 
 select * from finish();
 rollback;
