@@ -24,7 +24,10 @@ export type Database = {
           acknowledged_by: string | null
           device_id: string
           id: string
+          last_notified_at: string | null
           message: string
+          notified_count: number
+          resolved_at: string | null
           severity: string
           ts: string
         }
@@ -33,7 +36,10 @@ export type Database = {
           acknowledged_by?: string | null
           device_id: string
           id?: string
+          last_notified_at?: string | null
           message: string
+          notified_count?: number
+          resolved_at?: string | null
           severity?: string
           ts?: string
         }
@@ -42,7 +48,10 @@ export type Database = {
           acknowledged_by?: string | null
           device_id?: string
           id?: string
+          last_notified_at?: string | null
           message?: string
+          notified_count?: number
+          resolved_at?: string | null
           severity?: string
           ts?: string
         }
@@ -477,6 +486,7 @@ export type Database = {
         Row: {
           agent_ts: string | null
           agent_version: string | null
+          device_error: string | null
           device_online: boolean | null
           equipment_id: string
           last_read_at: string | null
@@ -486,6 +496,7 @@ export type Database = {
         Insert: {
           agent_ts?: string | null
           agent_version?: string | null
+          device_error?: string | null
           device_online?: boolean | null
           equipment_id: string
           last_read_at?: string | null
@@ -495,6 +506,7 @@ export type Database = {
         Update: {
           agent_ts?: string | null
           agent_version?: string | null
+          device_error?: string | null
           device_online?: boolean | null
           equipment_id?: string
           last_read_at?: string | null
