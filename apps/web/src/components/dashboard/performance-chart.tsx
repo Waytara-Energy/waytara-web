@@ -114,11 +114,14 @@ export function PerformanceChart({
   const shownIdx = hover !== null && hover < chartData.length ? hover : chartData.length - 1;
   const shownPoint = chartData[shownIdx];
   const parts = (v: number) => (valueFormat === "inr" ? { num: `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`, unit: "" } : { num: v.toFixed(1), unit });
+  const pointAt = (state: { activeTooltipIndex?: unknown }) => {
+    const i = Number(state.activeTooltipIndex);
+    setHover(state.activeTooltipIndex === undefined || state.activeTooltipIndex === null || Number.isNaN(i) ? null : i);
+  };
   const handlers = {
-    onMouseMove: (state: { activeTooltipIndex?: unknown }) => {
-      const i = Number(state.activeTooltipIndex);
-      setHover(state.activeTooltipIndex === undefined || state.activeTooltipIndex === null || Number.isNaN(i) ? null : i);
-    },
+    onMouseMove: pointAt,
+    // A finger dragged across the chart moves the readout the same way (the page still scrolls up and down).
+    onTouchMove: pointAt,
     onMouseLeave: () => setHover(null),
   };
 

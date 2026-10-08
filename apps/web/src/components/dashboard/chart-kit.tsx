@@ -117,11 +117,14 @@ export function ChartCore({
     );
   }
 
+  const pointAt = (state: { activeTooltipIndex?: unknown }) => {
+    const i = Number(state.activeTooltipIndex);
+    setHover(state.activeTooltipIndex === undefined || state.activeTooltipIndex === null || Number.isNaN(i) ? null : i);
+  };
   const handlers = {
-    onMouseMove: (state: { activeTooltipIndex?: unknown }) => {
-      const i = Number(state.activeTooltipIndex);
-      setHover(state.activeTooltipIndex === undefined || state.activeTooltipIndex === null || Number.isNaN(i) ? null : i);
-    },
+    onMouseMove: pointAt,
+    // A finger dragged across the chart moves the readout the same way (the page still scrolls up and down).
+    onTouchMove: pointAt,
     onMouseLeave: () => setHover(null),
   };
   const margin = { left: 4, right: 4, top: 6, bottom: 0 };

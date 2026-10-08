@@ -1,12 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from "recharts";
 import { Pause, Radio, RotateCcw } from "lucide-react";
 import { createClient } from "@waytara/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartReadout, type ReadoutItem } from "./chart-kit";
+import { CHART_CURSOR } from "./chart-cursor";
 import { ChartConfig, ChartContainer } from "@/components/ui/chart";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
@@ -279,6 +280,8 @@ export function LiveRawChart({
 }) {
   const live = useGoLive();
   const [dayStart] = React.useState(() => istDayStart(Date.now()));
+  // The moment pointed at (mouse or finger) along the day; null = follow the newest reading.
+  const [pointedT, setPointedT] = React.useState<number | null>(null);
   const keys = React.useMemo(() => series.filter((s) => !s.cumulativeOf).map((s) => s.key), [series]);
   const register = live?.register;
   React.useEffect(() => (register ? register(keys) : undefined), [register, keys]);
@@ -319,10 +322,27 @@ export function LiveRawChart({
   const total = data.reduce((n, d) => n + d.count, 0);
   const lastMs = Math.max(0, ...data.map((d) => d.last ?? 0));
   // The newest reading of each series, written big under the title (it moves with every reading that arrives).
+  // The reading at (or just before) the moment pointed at, else the newest one.
+  const readingAt = (points: { t: number; v: number }[]) => {
+    if (pointedT === null) return points[points.length - 1];
+    let found: { t: number; v: number } | undefined;
+    for (const p of points) {
+      if (p.t > pointedT) break;
+      found = p;
+    }
+    return found;
+  };
+  const pointedAt = pointedT === null ? null : data.reduce<number | null>((t, d) => Math.max(t ?? 0, readingAt(d.points)?.t ?? 0) || t, null);
   const readoutItems: ReadoutItem[] = data.map(({ s, points }) => {
-    const newest = points[points.length - 1];
-    return { key: s.key, label: s.label, color: `var(--color-${s.key})`, value: newest ? { num: newest.v.toFixed(2), unit: s.unit ?? unit } : null };
+    const shown = readingAt(points);
+    return { key: s.key, label: s.label, color: `var(--color-${s.key})`, value: shown ? { num: shown.v.toFixed(2), unit: s.unit ?? unit } : null };
   });
+  // A finger or the mouse over the chart picks the moment; the plot spans the width less the chart's 4 px margins.
+  const pointAt = (e: React.PointerEvent<HTMLDivElement>) => {
+    const box = e.currentTarget.getBoundingClientRect();
+    const fraction = Math.min(1, Math.max(0, (e.clientX - box.left - 4) / Math.max(1, box.width - 8)));
+    setPointedT(dayStart + fraction * 86_400_000);
+  };
 
   return (
     <Card>
@@ -334,10 +354,10 @@ export function LiveRawChart({
             Live
           </span>
         </CardTitle>
-        <ChartReadout when={lastMs ? `Latest reading · ${ist(lastMs)}` : null} items={readoutItems} />
+        <ChartReadout when={pointedT !== null ? (pointedAt ? ist(pointedAt) : null) : lastMs ? `Latest reading · ${ist(lastMs)}` : null} items={readoutItems} />
       </CardHeader>
       <CardContent>
-        <ChartContainer config={chartConfig} className="aspect-auto h-[240px] w-full">
+        <ChartContainer config={chartConfig} className="aspect-auto h-[240px] w-full" onPointerDown={pointAt} onPointerMove={pointAt} onPointerLeave={(e) => e.pointerType === "mouse" && setPointedT(null)}>
           <AreaChart accessibilityLayer margin={{ left: 4, right: 4, top: 8 }}>
             <defs>
               {data.map(({ s }) => (
@@ -359,6 +379,7 @@ export function LiveRawChart({
               tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
             />
             <YAxis hide domain={["auto", "auto"]} />
+            {pointedAt !== null && <ReferenceLine x={pointedAt} stroke={CHART_CURSOR.stroke} strokeWidth={CHART_CURSOR.strokeWidth} strokeOpacity={CHART_CURSOR.strokeOpacity} strokeLinecap="round" />}
             {data.map(({ s, points }) => (
               <Area key={s.key} data={points} dataKey="v" name={s.label} type="stepAfter" stroke={`var(--color-${s.key})`} strokeWidth={1.75} fill={`url(#live-${s.key})`} baseValue="dataMin" dot={false} isAnimationActive={false} />
             ))}

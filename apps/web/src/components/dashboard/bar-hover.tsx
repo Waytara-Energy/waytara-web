@@ -7,11 +7,14 @@ import { Cell } from "recharts";
  *  `chartProps` on the chart and give each `<Bar>` `cells(count, fill)` as its children. */
 export function useBarHover() {
   const [index, setIndex] = React.useState<number | null>(null);
+  const pointAt = (state: { activeTooltipIndex?: unknown }) => {
+    const i = Number(state.activeTooltipIndex);
+    setIndex(state.activeTooltipIndex === undefined || state.activeTooltipIndex === null || Number.isNaN(i) ? null : i);
+  };
+  // Touch too: a finger dragged across the chart moves the readout (the page still scrolls up and down).
   const chartProps = {
-    onMouseMove: (state: { activeTooltipIndex?: unknown }) => {
-      const i = Number(state.activeTooltipIndex);
-      setIndex(state.activeTooltipIndex === undefined || state.activeTooltipIndex === null || Number.isNaN(i) ? null : i);
-    },
+    onMouseMove: pointAt,
+    onTouchMove: pointAt,
     onMouseLeave: () => setIndex(null),
   };
   /** One `<Cell>` per column; `fill` is one colour or a colour for each column. `hasBar(i)` says whether column i has a
