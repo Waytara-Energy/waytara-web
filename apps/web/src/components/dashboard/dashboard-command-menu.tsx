@@ -15,7 +15,6 @@ import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
 import { useSidebar } from "@/components/ui/sidebar";
 import { visibleNavItems, SECONDARY_NAV_ITEMS } from "./nav-config";
-import { isPeeking, setPeeking } from "./sidebar-peek";
 
 const ACCOUNT_GROUP_ITEMS = SECONDARY_NAV_ITEMS;
 
@@ -44,12 +43,9 @@ export function DashboardCommandMenu({ features = {}, variant = "header" }: { fe
 
   function go(href: string) {
     setOpen(false);
-    // Going to a page closes a sidebar that was only peeked at.
+    // Going to a page closes the sidebar (it lies over the page).
     if (isMobile) setOpenMobile(false);
-    else if (isPeeking()) {
-      setPeeking(false);
-      setSidebarOpen(false);
-    }
+    else setSidebarOpen(false);
     router.push(href);
   }
 

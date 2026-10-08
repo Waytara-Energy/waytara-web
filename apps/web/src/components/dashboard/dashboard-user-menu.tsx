@@ -9,7 +9,6 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { logout } from "@/app/dashboard/actions";
 import { cn } from "@/lib/utils";
 import { SECONDARY_NAV_ITEMS } from "./nav-config";
-import { isPeeking, setPeeking } from "./sidebar-peek";
 
 function initials(name: string | null, email: string | null): string {
   if (name?.trim()) {
@@ -49,10 +48,7 @@ export function DashboardUserMenu({
   function handleNavigate() {
     setOpen(false);
     if (isMobile) setOpenMobile(false);
-    else if (isPeeking()) {
-      setPeeking(false);
-      setSidebarOpen(false);
-    }
+    else setSidebarOpen(false);
   }
 
   return (

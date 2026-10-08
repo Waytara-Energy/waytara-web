@@ -24,7 +24,6 @@ import { DashboardCommandMenu } from "./dashboard-command-menu";
 import { DashboardUserMenu } from "./dashboard-user-menu";
 import { visibleNavItems } from "./nav-config";
 import { useDeviceState } from "./use-device-state";
-import { isPeeking, setPeeking } from "./sidebar-peek";
 
 export interface SidebarDevice {
   id: string;
@@ -70,22 +69,15 @@ export function DashboardSidebar({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const navItems = visibleNavItems(features).filter((i) => i.href !== "/dashboard/devices");
-  const { isMobile, setOpenMobile, setOpen, open } = useSidebar();
+  const { isMobile, setOpenMobile, setOpen } = useSidebar();
   const openDevice = searchParams.get("device");
 
-  // The sidebar lies over the page (a sheet on a phone): picking a page closes it, unless it was opened with a click (then it stays).
-  // Its collapse icon, or a click outside it, closes it otherwise.
+  // The sidebar lies over the page (a sheet on a phone): picking a page closes it. Its collapse icon, or a click outside it, closes
+  // it too.
   function handleNavClick() {
     if (isMobile) setOpenMobile(false);
-    else if (isPeeking()) {
-      setPeeking(false);
-      setOpen(false);
-    }
+    else setOpen(false);
   }
-  // Once it is closed it is no longer a peek.
-  React.useEffect(() => {
-    if (!open) setPeeking(false);
-  }, [open]);
 
   return (
     <Sidebar collapsible="offcanvas" variant="overlay">

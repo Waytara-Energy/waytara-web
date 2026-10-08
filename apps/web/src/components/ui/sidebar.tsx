@@ -219,7 +219,7 @@ function Sidebar({
     >
       {/* An overlay sidebar dims the page behind it, and closes when you click anywhere outside it. */}
       {variant === "overlay" && state === "expanded" && (
-        <div aria-hidden data-slot="sidebar-click-away" className="fixed inset-0 z-30 bg-black/50 animate-in fade-in duration-300" onClick={() => setOpen(false)} />
+        <div aria-hidden data-slot="sidebar-click-away" className="fixed inset-0 z-30 bg-white/60 backdrop-blur-[2px] animate-in dark:bg-black/50 dark:backdrop-blur-none fade-in duration-300" onClick={() => setOpen(false)} />
       )}
       {/* This is what handles the sidebar gap on desktop */}
       <div

@@ -181,7 +181,7 @@ export function NotificationCenter({
         createPortal(
           <>
             {/* The page behind is dimmed, and a click anywhere outside closes the panel. */}
-            <div aria-hidden className={cn("fixed inset-0 z-[60] bg-black/50 transition-opacity duration-300 animate-in fade-in", phase === "closing" && "opacity-0")} onClick={close} />
+            <div aria-hidden className={cn("fixed inset-0 z-[60] bg-white/60 backdrop-blur-[2px] transition-opacity dark:bg-black/50 dark:backdrop-blur-none duration-300 animate-in fade-in", phase === "closing" && "opacity-0")} onClick={close} />
             <aside
               role="dialog"
               aria-label="Notifications"

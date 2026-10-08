@@ -6,7 +6,6 @@ import { LogoMark } from "@/components/shared/logo";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
-import { setPeeking } from "./sidebar-peek";
 
 /** How long the pointer rests on the icon before the sidebar opens. */
 const HOVER_OPEN_MS = 1000;
@@ -30,18 +29,15 @@ export function SidebarBrandToggle({ floating = false, className }: { floating?:
       <TooltipTrigger asChild>
         <button
           type="button"
-          // Resting on the icon for a second opens the sidebar for a peek (it closes again when a page is chosen); a click opens it
-          // at once and keeps it open.
+          // Resting on the icon for a second opens the sidebar; a click opens it at once.
           onClick={() => {
             cancelHover();
-            setPeeking(false);
             toggleSidebar();
           }}
           onMouseEnter={() => {
             if (!collapsed || isMobile) return;
             cancelHover();
             timer.current = window.setTimeout(() => {
-              setPeeking(true);
               setOpen(true);
             }, HOVER_OPEN_MS);
           }}
