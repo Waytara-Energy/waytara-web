@@ -1,12 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { Line, LineChart, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Pause, Radio, RotateCcw } from "lucide-react";
 import { createClient } from "@waytara/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { ChartReadout, type ReadoutItem } from "./chart-kit";
+import { ChartConfig, ChartContainer } from "@/components/ui/chart";
 import { Spinner } from "@/components/ui/spinner";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
@@ -317,6 +318,11 @@ export function LiveRawChart({
 
   const total = data.reduce((n, d) => n + d.count, 0);
   const lastMs = Math.max(0, ...data.map((d) => d.last ?? 0));
+  // The newest reading of each series, written big under the title (it moves with every reading that arrives).
+  const readoutItems: ReadoutItem[] = data.map(({ s, points }) => {
+    const newest = points[points.length - 1];
+    return { key: s.key, label: s.label, color: `var(--color-${s.key})`, value: newest ? { num: newest.v.toFixed(2), unit: s.unit ?? unit } : null };
+  });
 
   return (
     <Card>
@@ -328,11 +334,20 @@ export function LiveRawChart({
             Live
           </span>
         </CardTitle>
-        <CardDescription>Today, every reading as the device reports it</CardDescription>
+        <ChartReadout when={lastMs ? `Latest reading · ${ist(lastMs)}` : null} items={readoutItems} />
       </CardHeader>
       <CardContent>
         <ChartContainer config={chartConfig} className="aspect-auto h-[240px] w-full">
-          <LineChart accessibilityLayer margin={{ left: 4, right: 4, top: 8 }}>
+          <AreaChart accessibilityLayer margin={{ left: 4, right: 4, top: 8 }}>
+            <defs>
+              {data.map(({ s }) => (
+                <linearGradient key={s.key} id={`live-${s.key}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={`var(--color-${s.key})`} stopOpacity={0.32} />
+                  <stop offset="100%" stopColor={`var(--color-${s.key})`} stopOpacity={0.02} />
+                </linearGradient>
+              ))}
+            </defs>
+            <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
             <XAxis
               type="number"
               dataKey="t"
@@ -344,31 +359,12 @@ export function LiveRawChart({
               tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
             />
             <YAxis hide domain={["auto", "auto"]} />
-            <ChartTooltip
-              cursor={false}
-              content={
-                <ChartTooltipContent
-                  indicator="dashed"
-                  labelFormatter={(_, payload) => (payload?.[0]?.payload?.t ? ist(payload[0].payload.t) : "")}
-                  formatter={(value, name, item) => (
-                    <span className="flex w-full items-center justify-between gap-3">
-                      <span className="flex items-center gap-1.5 text-muted-foreground">
-                        <span className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: item.color }} />
-                        {String(name)}
-                      </span>
-                      <span className="font-medium text-foreground tabular-nums">
-                        {typeof value === "number" ? value.toFixed(2) : String(value)} {unit}
-                      </span>
-                    </span>
-                  )}
-                />
-              }
-            />
             {data.map(({ s, points }) => (
-              <Line key={s.key} data={points} dataKey="v" name={s.label} type="stepAfter" stroke={`var(--color-${s.key})`} strokeWidth={1.75} dot={false} isAnimationActive={false} />
+              <Area key={s.key} data={points} dataKey="v" name={s.label} type="stepAfter" stroke={`var(--color-${s.key})`} strokeWidth={1.75} fill={`url(#live-${s.key})`} baseValue="dataMin" dot={false} isAnimationActive={false} />
             ))}
-          </LineChart>
+          </AreaChart>
         </ChartContainer>
+        <CardDescription className="mt-2 text-xs">Today, every reading as the device reports it</CardDescription>
       </CardContent>
       <CardFooter className="text-xs text-muted-foreground">
         {total.toLocaleString("en-IN")} readings today{lastMs ? ` · last at ${ist(lastMs)}` : ""}

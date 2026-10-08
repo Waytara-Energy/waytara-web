@@ -114,6 +114,7 @@ const LEGEND: { tone: Tone; label: string }[] = [
   { tone: "producing", label: "Producing · charging" },
   { tone: "drawing", label: "Importing · discharging" },
   { tone: "consuming", label: "Consuming · exporting" },
+  { tone: "idle", label: "Idle" },
 ];
 
 export function EnergyFlowDiagram({

@@ -3,7 +3,7 @@
 import * as React from "react";
 import { BarTrendChart, type BarTrendSeries, type BarTrendSessionMarker } from "./bar-trend-chart";
 import { TemperatureHeatmap, type HeatmapRow } from "./temperature-heatmap";
-import { DEFAULT_INTERVAL_MINUTES } from "@/lib/day-buckets";
+import { useSharedInterval } from "./interval-context";
 
 /** Owns the one interval Charging Power & Current chart and its own
  *  connector-temperature heatmap share. */
@@ -18,7 +18,7 @@ export function ChargerTrendGroup({
   sessionMarkers: BarTrendSessionMarker[];
   temperatureRows: HeatmapRow[];
 }) {
-  const [bucketMinutes, setBucketMinutes] = React.useState(DEFAULT_INTERVAL_MINUTES);
+  const [bucketMinutes, setBucketMinutes] = useSharedInterval();
 
   return (
     <>

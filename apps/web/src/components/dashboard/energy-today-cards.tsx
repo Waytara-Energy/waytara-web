@@ -1,16 +1,17 @@
 "use client";
 
 import * as React from "react";
-import { areaPoints, deltaPct, fmtKwh, peakOf, slotIndex, TODAY_COUNTER_KEYS as K } from "@/lib/energy-today";
+import { areaPoints, deltaPct, fmtKwh, recentPoints, RECENT_WINDOW_MS, peakOf, slotIndex, TODAY_COUNTER_KEYS as K } from "@/lib/energy-today";
 import { istDayStart } from "@/lib/telemetry/combine";
 import { useLiveNumbers } from "@/lib/telemetry/live-values";
 import { useSeriesRange, useTodaySeries } from "@/lib/telemetry/react";
 import { TodayStatCard } from "./today-stat-card";
+import { FLOW } from "./flow-colors";
 
 const DAY_MS = 86_400_000;
-const GREEN = "#10b981";
-const AMBER = "#f59e0b";
-const BLUE = "#3b82f6";
+const GREEN: string = FLOW.producing;
+const AMBER: string = FLOW.drawing;
+const BLUE: string = FLOW.consuming;
 
 /** Yesterday's counters at this time of day (the slot that contains "now minus 24 hours"), from the 15-minute rollups. */
 function useYesterdayAtThisTime(deviceId: string, keys: string[], nowMs: number): Record<string, number | null> {
@@ -49,22 +50,30 @@ export function EnergyTodayCards({
   const n = useLiveNumbers([inverterId], counterKeys, initial);
   const series = useTodaySeries(inverterId, powerKeys, 15);
   const yesterday = useYesterdayAtThisTime(inverterId, [K.solar, K.load], series.nowMs);
+  // Early in the day the last two hours reach back before midnight, so yesterday's evening readings are read too (only then).
+  const dayStart = istDayStart(series.nowMs);
+  const earlyInDay = series.nowMs - dayStart < RECENT_WINDOW_MS;
+  const yesterdayWindow = React.useMemo(() => ({ fromMs: dayStart - DAY_MS, toMs: dayStart }), [dayStart]);
+  const evening = useSeriesRange(inverterId, earlyInDay ? powerKeys : [], yesterdayWindow, 15);
 
-  // Today's curve of one or more power keys (summed), scaled to kW, oldest first.
+  // The curve of one or more power keys (summed), scaled to kW, oldest first: today's slots, with yesterday's in front of them when
+  // the last two hours reach back across midnight.
   const curve = (keys: string[], sign: 1 | -1 = 1) => {
-    const values = series.axis.map((_, i) => {
+    const sumAt = (byKey: typeof series.byKey, i: number) => {
       let sum = 0;
       let any = false;
       for (const k of keys) {
-        const v = series.byKey[k]?.[i]?.avg;
+        const v = byKey[k]?.[i]?.avg;
         if (v !== null && v !== undefined) {
           sum += v;
           any = true;
         }
       }
       return any ? sum * sign : null;
-    });
-    return areaPoints(series.axis, values, series.nowMs, 0.001);
+    };
+    const axis = [...evening.axis, ...series.axis];
+    const values = axis.map((_, i) => (i < evening.axis.length ? sumAt(evening.byKey, i) : sumAt(series.byKey, i - evening.axis.length)));
+    return areaPoints(axis, values, series.nowMs, 0.001);
   };
 
   const solarCurve = curve(solarKeys);
@@ -75,7 +84,7 @@ export function EnergyTodayCards({
   // What sits under a total: the comparison with yesterday at this time when there is one, otherwise today's peak.
   const versus = (today: number | null, yest: number | null, curveOf: ReturnType<typeof curve>, higherIsGood: boolean) => {
     const d = deltaPct(today, yest);
-    const peak = peakOf(curveOf);
+    const peak = peakOf(curveOf.filter((p) => p.t >= dayStart)); // today's peak only
     const detail = d !== null ? `${Math.abs(Math.round(d))}% ${d >= 0 ? "more" : "less"} than yesterday` : peak ? `Peak ${peak.v.toFixed(1)} kW at ${istClock(peak.t)}` : "No readings yet";
     return { detail, trend: d === null ? null : { direction: d >= 0 ? ("up" as const) : ("down" as const), good: (d >= 0) === higherIsGood } };
   };
@@ -86,7 +95,6 @@ export function EnergyTodayCards({
   const stored = n[K.charged] !== null && n[K.discharged] !== null ? n[K.charged]! - n[K.discharged]! : null;
   const exported = n[K.exported] !== null && n[K.imported] !== null ? n[K.exported]! - n[K.imported]! : null;
   const monitoring = (tab: string) => `/dashboard/monitoring?device=${inverterId}#${tab}`;
-  const dayStart = istDayStart(series.nowMs);
 
   const solarCard = (
       <TodayStatCard
@@ -96,9 +104,9 @@ export function EnergyTodayCards({
         unit="kWh"
         trend={solar.trend}
         detail={solar.detail}
-        points={solarCurve}
-        dayStart={dayStart}
-        posColor="var(--chart-3)"
+        points={recentPoints(solarCurve, series.nowMs)}
+        now={series.nowMs}
+        posColor={FLOW.producing}
         posLabel="Solar"
       />
   );
@@ -111,8 +119,8 @@ export function EnergyTodayCards({
         unit="kWh"
         trend={exported === null ? null : { direction: exported >= 0 ? "up" : "down", good: exported >= 0 }}
         detail={`Net ${exported !== null && exported < 0 ? "import" : "export"} · ${fmtKwh(n[K.exported])} out, ${fmtKwh(n[K.imported])} in`}
-        points={gridCurve}
-        dayStart={dayStart}
+        points={recentPoints(gridCurve, series.nowMs)}
+        now={series.nowMs}
         posColor={AMBER}
         negColor={BLUE}
         posLabel="Importing"
@@ -128,9 +136,9 @@ export function EnergyTodayCards({
         unit="kWh"
         trend={load.trend}
         detail={load.detail}
-        points={loadCurve}
-        dayStart={dayStart}
-        posColor="var(--chart-2)"
+        points={recentPoints(loadCurve, series.nowMs)}
+        now={series.nowMs}
+        posColor={FLOW.consuming}
         posLabel="Load"
       />
   );
@@ -143,8 +151,8 @@ export function EnergyTodayCards({
         unit="kWh"
         trend={stored === null ? null : { direction: stored >= 0 ? "up" : "down", good: stored >= 0 }}
         detail={`Net ${stored !== null && stored < 0 ? "used" : "stored"} · ${fmtKwh(n[K.charged])} in, ${fmtKwh(n[K.discharged])} out`}
-        points={batteryCurve}
-        dayStart={dayStart}
+        points={recentPoints(batteryCurve, series.nowMs)}
+        now={series.nowMs}
         posColor={GREEN}
         negColor={AMBER}
         posLabel="Charging"

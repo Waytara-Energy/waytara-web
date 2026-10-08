@@ -7,7 +7,7 @@ import { useLiveNumbers } from "@/lib/telemetry/live-values";
 import { PERFORMANCE_LIVE_KEYS, pvInputKeys } from "@/lib/performance-metrics";
 import type { BatteryProfile } from "@/lib/battery-health";
 import { periodText } from "./perf-data";
-import { RangeBar, LONG_PRESETS } from "./range-bar";
+import { PerformanceHeadline } from "./perf-headline";
 import { RangeProvider, useRange } from "./range-context";
 import { SolarSection } from "./perf-solar";
 import { BatterySection, GridSection, InverterSection, LoadSection } from "./perf-sections";
@@ -20,7 +20,17 @@ const subscribeHash = (cb: () => void) => {
   window.addEventListener("hashchange", cb);
   return () => window.removeEventListener("hashchange", cb);
 };
-const readHash = () => window.location.hash.replace("#", "");
+const LAST_SECTION_KEY = "performance_section";
+/** The tab named in the address, else the one last opened in this browser tab (so coming back to the page lands on it), else "". */
+const readHash = () => {
+  const fromAddress = window.location.hash.replace("#", "");
+  if (fromAddress) return fromAddress;
+  try {
+    return window.sessionStorage.getItem(LAST_SECTION_KEY) ?? "";
+  } catch {
+    return "";
+  }
+};
 
 // The five sections, as line tabs (same look as the Monitoring tabs, each with its own accent colour).
 const SECTION_TABS: { id: PerformanceSectionId; label: string; icon: LucideIcon; active: string }[] = [
@@ -58,7 +68,7 @@ function Board({ deviceId, initial, pvKeys, tariff, batteryProfile, solarKwp, ex
   const keys = React.useMemo(() => [...PERFORMANCE_LIVE_KEYS, ...pvInputKeys(pvKeys)], [pvKeys]);
   const live = useLiveNumbers([deviceId], keys, initial);
   const hash = React.useSyncExternalStore(subscribeHash, readHash, () => "");
-  const section: PerformanceSectionId = (SECTION_IDS as string[]).includes(hash) ? (hash as PerformanceSectionId) : "solar";
+  const section: PerformanceSectionId = (SECTION_IDS as string[]).includes(hash) ? (hash as PerformanceSectionId) : SECTION_IDS[0];
   // The days every chart below follows: the range picker (Today by default, 7 / 30 / 90 days, 1 / 2 years, or a custom start).
   const range = useRange();
   const fromMs = range?.window.fromMs ?? 0;
@@ -66,6 +76,11 @@ function Board({ deviceId, initial, pvKeys, tariff, batteryProfile, solarKwp, ex
   const span = React.useMemo(() => ({ fromMs, toMs }), [fromMs, toMs]);
   const period = range ? periodText(range.preset, span) : "";
   const open = (id: PerformanceSectionId) => {
+    try {
+      window.sessionStorage.setItem(LAST_SECTION_KEY, id);
+    } catch {
+      // storage can be blocked; the address still carries the tab
+    }
     window.location.hash = id;
   };
 
@@ -73,21 +88,18 @@ function Board({ deviceId, initial, pvKeys, tariff, batteryProfile, solarKwp, ex
 
   return (
     <div className="space-y-5">
+      <PerformanceHeadline deviceId={deviceId} span={span} periodText={period} live={live} section={section} />
+
       <Tabs value={section} onValueChange={(v) => open(v as PerformanceSectionId)}>
         <TabsList variant="line">
           {SECTION_TABS.map((t) => (
             <TabsTrigger key={t.id} value={t.id} variant="line" className={t.active}>
-              <t.icon className="size-4 shrink-0" />
+              <t.icon className="size-4 shrink-0 group-data-[state=active]:hidden" />
               <span className="text-sm font-medium">{t.label}</span>
             </TabsTrigger>
           ))}
         </TabsList>
       </Tabs>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-foreground capitalize">{section} in detail</h2>
-        <RangeBar presets={LONG_PRESETS} />
-      </div>
 
       <div key={section}>
         {section === "solar" && <SolarSection {...props} kwp={solarKwp} extras={extras.solar} />}

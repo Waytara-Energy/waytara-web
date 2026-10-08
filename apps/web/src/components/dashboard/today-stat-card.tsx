@@ -9,7 +9,7 @@ import { TodayAreaChart } from "./today-area-chart";
 export type Trend = { direction: "up" | "down"; good: boolean };
 
 /** One of Overview's four "today" cards: a title with a round arrow button, the big total (with a small up / down
- *  arrow), a line of detail under it and today's line graph filling the rest. The whole card opens `href`. */
+ *  arrow), a line of detail under it and the last two hours' graph filling the rest. The whole card opens `href`. */
 export function TodayStatCard({
   title,
   href,
@@ -18,7 +18,7 @@ export function TodayStatCard({
   trend,
   detail,
   points,
-  dayStart,
+  now,
   posColor,
   negColor,
   posLabel,
@@ -30,9 +30,10 @@ export function TodayStatCard({
   unit: string;
   trend?: Trend | null;
   detail: string;
-  /** Today's readings in kW, oldest first. */
+  /** The last two hours' readings in kW (15-minute slots), oldest first. */
   points: AreaPoint[];
-  dayStart: number;
+  /** The moment the graph ends at (epoch ms). */
+  now: number;
   posColor: string;
   /** Present for a signed series (battery, grid): the colour below zero. */
   negColor?: string;
@@ -60,7 +61,7 @@ export function TodayStatCard({
         <p className="mt-2 text-xs text-muted-foreground">{detail}</p>
       </div>
       <div className="min-h-28 flex-1">
-        <TodayAreaChart points={points} dayStart={dayStart} posColor={posColor} negColor={negColor} posLabel={posLabel} negLabel={negLabel} />
+        <TodayAreaChart points={points} now={now} posColor={posColor} negColor={negColor} posLabel={posLabel} negLabel={negLabel} />
       </div>
     </Link>
   );

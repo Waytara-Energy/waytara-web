@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { areaPoints, axisTicks, deltaPct, fmtDelta, fmtKwh, peakOf, slotIndex, SLOT_MS } from "./energy-today";
+import { areaPoints, axisTicks, deltaPct, fmtDelta, fmtKwh, recentAxis, recentPoints, peakOf, slotIndex, SLOT_MS } from "./energy-today";
 
 describe("fmtKwh", () => {
   it("one decimal, none for large values, a dash for nothing", () => {
@@ -64,5 +64,37 @@ describe("axisTicks", () => {
     expect(axisTicks(0, 6 * H)).toEqual([0, 2 * H, 4 * H, 6 * H]);
     expect(axisTicks(0, 15 * H).map((t) => t / H)).toEqual([0, 3, 6, 9, 12, 15]);
     expect(axisTicks(0, 24 * H).map((t) => t / H)).toEqual([0, 3, 6, 9, 12, 15, 18, 21, 24]);
+  });
+});
+
+describe("the recent two hours", () => {
+  const H = 3_600_000;
+  const now = 10 * H + 7 * 60_000; // 10:07
+  const points = Array.from({ length: 41 }, (_, i) => ({ t: i * SLOT_MS, v: i }));
+
+  it("keeps the slots that overlap the two hours before now, up to the one being filled", () => {
+    const recent = recentPoints(points, now);
+    // 8:07-10:07 overlaps the slots starting 8:00, 8:15 ... 10:00
+    expect(recent.map((p) => p.t / SLOT_MS)).toEqual([32, 33, 34, 35, 36, 37, 38, 39, 40]);
+    expect(recent.every((p) => p.t <= now)).toBe(true);
+  });
+
+  it("reaches back across midnight when the points include the evening before", () => {
+    const early = 20 * 60_000; // 00:20 of the next day, with the previous evening's slots in front of the day's
+    const evening = [{ t: -3 * SLOT_MS, v: 1 }, { t: -2 * SLOT_MS, v: 2 }, { t: -SLOT_MS, v: 3 }, { t: 0, v: 4 }];
+    expect(recentPoints(evening, early).map((p) => p.v)).toEqual([1, 2, 3, 4]);
+  });
+
+  it("is empty when nothing reported in that time", () => {
+    expect(recentPoints([{ t: 0, v: 1 }], now)).toEqual([]);
+  });
+
+  it("draws from two hours before now (or its first slot's start) to now, with five marks", () => {
+    const axis = recentAxis(recentPoints(points, now), now);
+    expect(axis.end).toBe(now);
+    expect(axis.start).toBe(8 * H); // the 8:00 slot starts before 8:07
+    expect(axis.ticks).toHaveLength(5);
+    expect(axis.ticks[0]).toBe(axis.start);
+    expect(axis.ticks[4]).toBe(now);
   });
 });

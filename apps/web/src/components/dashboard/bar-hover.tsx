@@ -22,5 +22,5 @@ export function useBarHover() {
       <Cell key={i} fill={typeof fill === "string" ? fill : fill(i)} fillOpacity={active !== null && active !== i ? 0.3 : 1} />
     ));
   };
-  return { chartProps, cells };
+  return { chartProps, cells, index };
 }

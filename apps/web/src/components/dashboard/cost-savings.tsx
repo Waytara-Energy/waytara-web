@@ -6,6 +6,7 @@ import type { ResolvedTariff } from "@/lib/tariff";
 import { CATEGORY_LABEL } from "@/lib/tariff";
 import { fmtDate, inr, paybackMonths, type Bill, type MonthRow } from "@/lib/savings";
 import { freeUnitsFor } from "@/lib/tariff-schedule";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Panel, StatTile, StackedDailyBars } from "./perf-kit";
 
 const COLORS = { avoided: "#10b981", export: "#3b82f6", without: "#f97316", with: "#10b981" };
@@ -14,41 +15,81 @@ const COLORS = { avoided: "#10b981", export: "#3b82f6", without: "#f97316", with
 function TariffDetail({ tariff }: { tariff: ResolvedTariff }) {
   const s = tariff.schedule;
   const period = s.billingMonths === 2 ? "two months" : "month";
+  const where = tariff.state ? `${tariff.state}, ${CATEGORY_LABEL[tariff.category]}` : CATEGORY_LABEL[tariff.category];
   const bands = s.slabs.map((b, i) => {
     const prevTop = i === 0 ? 0 : (s.slabs[i - 1].upTo ?? 0);
-    const label = b.upTo === null ? `above ${prevTop}` : `${i === 0 ? 0 : prevTop + 1}-${b.upTo}`;
+    const label = b.upTo === null ? `Above ${prevTop} units` : `${i === 0 ? 0 : prevTop + 1} to ${b.upTo} units`;
     return { label, rate: b.rate };
   });
   const free = freeUnitsFor(s, 0);
+  const heading = "text-xs font-semibold uppercase tracking-wide text-muted-foreground";
   return (
-    <details className="mt-2 group">
-      <summary className="cursor-pointer text-primary hover:underline">How your bill is worked out</summary>
-      <div className="mt-2 space-y-2 rounded-lg bg-muted/40 p-3">
-        {s.freeUnits > 0 && (
-          <p>
-            <span className="font-medium text-foreground">{free} units free every {period}</span>
-            {s.freeUnitsCap !== null ? ` while you use up to ${s.freeUnitsCap} units; above that ${s.freeUnitsOverCap > 0 ? `only ${s.freeUnitsOverCap} are free` : "the whole bill is charged"}` : ""}. State scheme - it may need registration or a qualifying connection.
-          </p>
-        )}
-        <p className="font-medium text-foreground">Energy charge per unit, for each {period} of use</p>
-        <ul className="grid gap-x-6 gap-y-0.5 sm:grid-cols-2">
-          {bands.map((b) => (
-            <li key={b.label} className="flex justify-between gap-3">
-              <span>{b.label} units</span>
-              <span className="tabular-nums text-foreground">₹{b.rate.toFixed(2)}</span>
-            </li>
-          ))}
-        </ul>
-        {(s.dutyPct > 0 || s.surchargePerKwh > 0) && (
-          <p>
-            {s.surchargePerKwh > 0 ? `Plus ₹${s.surchargePerKwh.toFixed(2)} per unit (fuel adjustment / wheeling)` : ""}
-            {s.surchargePerKwh > 0 && s.dutyPct > 0 ? " and " : ""}
-            {s.dutyPct > 0 ? `${s.surchargePerKwh > 0 ? "" : "Plus "}${s.dutyPct}% electricity duty` : ""}.
-          </p>
-        )}
-        <p>{tariff.netMetering ? "Energy you send to the grid is set against what you buy, and any surplus carries to the next month until the financial year ends." : `Energy you send to the grid is paid at ₹${tariff.exportRate.toFixed(2)} per unit.`}</p>
-      </div>
-    </details>
+    <Dialog>
+      <DialogTrigger asChild>
+        <button type="button" className="mt-2 block text-primary hover:underline">
+          How your bill is worked out
+        </button>
+      </DialogTrigger>
+      <DialogContent className="max-h-[85svh] overflow-y-auto sm:max-w-3xl">
+        <DialogHeader>
+          <DialogTitle>How your bill is worked out</DialogTitle>
+          <DialogDescription>
+            {where} tariff{tariff.effectiveFrom ? `, in force since ${fmtDate(tariff.effectiveFrom)}` : ""}. Each month is billed on its own.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-5 text-sm text-muted-foreground">
+          <div className="grid gap-5 md:grid-cols-2 md:gap-8">
+            <div className="space-y-5">
+          {s.freeUnits > 0 && (
+            <section className="space-y-1">
+              <h3 className={heading}>Free units</h3>
+              <p>
+                <span className="font-medium text-foreground">
+                  {free} units free every {period}
+                </span>
+                {s.freeUnitsCap !== null ? ` while you use up to ${s.freeUnitsCap} units; above that ${s.freeUnitsOverCap > 0 ? `only ${s.freeUnitsOverCap} are free` : "the whole bill is charged"}` : ""}. A state scheme: it may need registration or a qualifying connection.
+              </p>
+            </section>
+          )}
+
+          {(s.dutyPct > 0 || s.surchargePerKwh > 0) && (
+            <section className="space-y-1">
+              <h3 className={heading}>Added on top</h3>
+              <ul className="space-y-1">
+                {s.surchargePerKwh > 0 && <li>₹{s.surchargePerKwh.toFixed(2)} per unit for fuel adjustment / wheeling</li>}
+                {s.dutyPct > 0 && <li>{s.dutyPct}% electricity duty</li>}
+              </ul>
+            </section>
+          )}
+
+          <section className="space-y-1">
+            <h3 className={heading}>Energy you send to the grid</h3>
+            <p>{tariff.netMetering ? "It is set against the units you buy, and any surplus carries to the next month until the financial year ends." : `It is paid at ₹${tariff.exportRate.toFixed(2)} per unit.`}</p>
+          </section>
+
+            </div>
+            <div className="space-y-5">
+          <section className="space-y-2">
+            <h3 className={heading}>Energy charge for each {period} of use</h3>
+            <ul className="divide-y rounded-lg border">
+              {bands.map((b) => (
+                <li key={b.label} className="flex items-center justify-between gap-3 px-3 py-2">
+                  <span>{b.label}</span>
+                  <span className="font-medium tabular-nums text-foreground">₹{b.rate.toFixed(2)} per unit</span>
+                </li>
+              ))}
+            </ul>
+            {bands.length > 1 && <p className="text-xs">Each band is charged only for the units that fall inside it.</p>}
+          </section>
+
+            </div>
+          </div>
+
+          <p className="rounded-lg bg-muted/50 p-3 text-xs">Fixed charges and meter rent are left out: they are the same with or without solar, so they do not change what you save.</p>
+        </div>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -210,7 +251,7 @@ export function CostSavings({
       )}
 
       {monthRows.length > 0 && (
-        <Panel title="Savings month by month" description="Each month is worked out at the rate that applied in that month.">
+        <Panel chart title="Savings month by month" description="Each month is worked out at the rate that applied in that month.">
           <StackedDailyBars
             rows={monthRows}
             series={[

@@ -1,12 +1,15 @@
 "use client";
 
 import * as React from "react";
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis } from "recharts";
+import { ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { ChartEmptyState } from "./chart-empty-state";
+import { ChartReadout } from "./chart-kit";
+import { useChartStyle } from "./chart-style";
+import { CHART_CURSOR } from "./chart-cursor";
 
 export interface DailyPoint {
   date: string; // YYYY-MM-DD
@@ -89,6 +92,8 @@ export function PerformanceChart({
   totalLabel?: string;
 }) {
   const [granularity, setGranularity] = React.useState<Granularity>("daily");
+  const asBars = useChartStyle() === "bar"; // Application Settings: bars for every chart (lines and the default keep this filled line)
+  const [hover, setHover] = React.useState<number | null>(null);
 
   const points = React.useMemo(
     () => aggregate(daily, granularity, aggregationMode),
@@ -105,6 +110,17 @@ export function PerformanceChart({
       : (points[points.length - 1]?.value ?? 0);
 
   const chartData = points.map((p) => ({ label: formatLabel(p.date, granularity), value: p.value }));
+  // The value being pointed at (or the newest), written big above the chart instead of in a floating tooltip.
+  const shownIdx = hover !== null && hover < chartData.length ? hover : chartData.length - 1;
+  const shownPoint = chartData[shownIdx];
+  const parts = (v: number) => (valueFormat === "inr" ? { num: `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`, unit: "" } : { num: v.toFixed(1), unit });
+  const handlers = {
+    onMouseMove: (state: { activeTooltipIndex?: unknown }) => {
+      const i = Number(state.activeTooltipIndex);
+      setHover(state.activeTooltipIndex === undefined || state.activeTooltipIndex === null || Number.isNaN(i) ? null : i);
+    },
+    onMouseLeave: () => setHover(null),
+  };
 
   return (
     <div className="space-y-3">
@@ -126,6 +142,8 @@ export function PerformanceChart({
         {totalLabel}: <span className="font-medium text-foreground">{fmt(total)}</span>
       </p>
 
+      {points.length > 0 && shownPoint && <ChartReadout when={shownPoint.label} items={[{ key: "value", label: totalLabel === "Total this period" ? "Value" : "Delivered", color: "var(--chart-1)", value: parts(shownPoint.value) }]} />}
+
       {points.length === 0 ? (
         <ChartEmptyState />
       ) : (
@@ -141,7 +159,15 @@ export function PerformanceChart({
 
           <TabsContent value="chart">
             <ChartContainer config={chartConfig} className="aspect-auto h-[220px] w-full">
-              <AreaChart data={chartData} margin={{ left: 4, right: 4, top: 8 }}>
+              {asBars ? (
+              <BarChart data={chartData} margin={{ left: 4, right: 4, top: 8 }} {...handlers}>
+                <CartesianGrid vertical={false} />
+                <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} />
+                <ChartTooltip content={() => null} cursor={asBars ? false : CHART_CURSOR} isAnimationActive={false} />
+                <Bar dataKey="value" fill="var(--color-value)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
+              </BarChart>
+              ) : (
+              <AreaChart data={chartData} margin={{ left: 4, right: 4, top: 8 }} {...handlers}>
                 <defs>
                   <linearGradient id="performanceFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="var(--color-value)" stopOpacity={0.3} />
@@ -150,18 +176,7 @@ export function PerformanceChart({
                 </defs>
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} />
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  tickMargin={8}
-                  width={44}
-                  tickFormatter={(v: number) =>
-                    valueFormat === "inr" ? `₹${(v / 1000).toFixed(0)}k` : v.toLocaleString("en-IN")
-                  }
-                />
-                <ChartTooltip
-                  content={<ChartTooltipContent indicator="line" formatter={(value) => fmt(Number(value))} />}
-                />
+                <ChartTooltip content={() => null} cursor={asBars ? false : CHART_CURSOR} isAnimationActive={false} />
                 <Area
                   dataKey="value"
                   type="monotone"
@@ -170,6 +185,7 @@ export function PerformanceChart({
                   strokeWidth={2}
                 />
               </AreaChart>
+              )}
             </ChartContainer>
           </TabsContent>
 

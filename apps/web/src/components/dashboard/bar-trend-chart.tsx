@@ -1,20 +1,24 @@
 "use client";
 
 import * as React from "react";
-import { Bar, CartesianGrid, ComposedChart, Line, ReferenceArea, ReferenceLine, XAxis, YAxis } from "recharts";
-import { INTERVAL_OPTIONS, DEFAULT_INTERVAL_MINUTES, formatBucketLabel } from "@/lib/day-buckets";
+import { Area, Bar, CartesianGrid, ComposedChart, ReferenceArea, ReferenceLine, XAxis, YAxis } from "recharts";
+import { INTERVAL_OPTIONS, formatBucketLabel } from "@/lib/day-buckets";
 import { istSlotKey } from "@/lib/telemetry/combine";
 import { useTodaySeries } from "@/lib/telemetry/react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ChartEmptyState } from "./chart-empty-state";
+import { ChartReadout, type ReadoutItem } from "./chart-kit";
+import { useSharedInterval } from "./interval-context";
 import { ChartErrorCard, ChartLoadingCard, StaleDot } from "./chart-states";
 import { useDelayedLoading } from "./use-delayed-loading";
 import { useRange } from "./range-context";
 import { RangeTrendChart } from "./range-trend-chart";
 import { LiveRawChart, useGoLive } from "./go-live";
 import { useBarHover } from "./bar-hover";
+import { useChartStyle } from "./chart-style";
+import { CHART_CURSOR } from "./chart-cursor";
 
 export interface BarTrendSeries {
   key: string;
@@ -214,9 +218,9 @@ function TodayBarTrendChart({
    *  card's width (so it reads well on a phone). */
   fromFirstData?: boolean;
 }) {
-  const [internalBucketMinutes, setInternalBucketMinutes] = React.useState<number>(DEFAULT_INTERVAL_MINUTES);
-  const bucketMinutes = controlledBucketMinutes ?? internalBucketMinutes;
-  const setBucketMinutes = onBucketMinutesChange ?? setInternalBucketMinutes;
+  const [sharedBucketMinutes, setSharedBucketMinutes] = useSharedInterval();
+  const bucketMinutes = controlledBucketMinutes ?? sharedBucketMinutes;
+  const setBucketMinutes = onBucketMinutesChange ?? setSharedBucketMinutes;
 
   const seriesKeys = React.useMemo(() => series.map((s) => s.key), [series]);
   const fetchKeys = React.useMemo(() => fetchKeysOf(series), [series]);
@@ -224,13 +228,15 @@ function TodayBarTrendChart({
     () => Object.fromEntries(series.flatMap((s) => (s.sumOf ?? [s.key]).map((k) => [k, s.scale ?? valueScale]).concat([[s.key, s.scale ?? valueScale]]))),
     [series, valueScale]
   );
-  const unitByKey = React.useMemo(() => Object.fromEntries(series.map((s) => [s.key, s.unit ?? unit])), [series, unit]);
   // Series sharing a unit share one (hidden) y-axis, scaled to fit them together; a series with its own
   // `unit` gets its own axis so its bars aren't dwarfed by/dwarfing a series on a very different scale.
   const axisIds = React.useMemo(() => Array.from(new Set(series.map((s) => s.unit ?? unit))), [series, unit]);
 
   const state = useTodaySeries(deviceId, fetchKeys, bucketMinutes);
   const hover = useBarHover();
+  const gradientId = React.useId().replace(/[^a-zA-Z0-9]/g, "");
+  // The chart style chosen in Application Settings overrides a series' own line/bar choice (automatic keeps it).
+  const chartStyle = useChartStyle();
   // The chart's own width, so the time labels can be spaced to fit it.
   const [box, setBox] = React.useState<HTMLDivElement | null>(null);
   const [boxWidth, setBoxWidth] = React.useState(0);
@@ -322,7 +328,6 @@ function TodayBarTrendChart({
     [sessionMarkers, bucketMinutes]
   );
 
-  const intervalLabel = INTERVAL_OPTIONS.find((o) => o.minutes === bucketMinutes)?.label ?? `${bucketMinutes} min`;
 
   const loading = state.status === "loading";
   const { showSkeleton } = useDelayedLoading(loading);
@@ -354,9 +359,28 @@ function TodayBarTrendChart({
   }
   const shown = fromFirstData ? points.slice(first, last + 1) : points;
 
+  // The value being pointed at (or the newest reading), written big under the title instead of in a floating tooltip.
+  let newestShown = -1;
+  shown.forEach((p, i) => {
+    if (seriesKeys.some((k) => typeof p[k] === "number")) newestShown = i;
+  });
+  const readIdx = hover.index !== null && hover.index < shown.length ? hover.index : newestShown;
+  const readRow = readIdx >= 0 ? shown[readIdx] : null;
+  const readoutItems: ReadoutItem[] = series.map((s) => {
+    const v = readRow ? readRow[s.key] : null;
+    const num = typeof v === "number" ? v : null;
+    const dir = s.signed && num !== null ? (num < 0 ? s.signed.negative : s.signed.positive) : null;
+    return {
+      key: s.key,
+      label: dir?.label ?? s.label,
+      color: dir?.color ?? s.color,
+      value: num === null ? null : { num: Math.abs(num).toFixed(2), unit: s.unit ?? unit },
+    };
+  });
+
   // Time labels: as many whole hours apart as the width needs so none touch (a phone gets fewer than a desktop); the
   // faint in-between marks only while each bar still has room for one.
-  const plotWidth = Math.max(0, boxWidth - (showYAxis ? 48 : 8));
+  const plotWidth = Math.max(0, boxWidth - 8);
   const bucketHours = Math.max(1, bucketMinutes / 60);
   const spanHours = (shown.length * bucketMinutes) / 60;
   const maxLabels = Math.max(2, Math.floor(plotWidth / 58));
@@ -377,9 +401,7 @@ function TodayBarTrendChart({
             {title}
             <StaleDot show={state.stale} label="Showing saved data, refreshing" />
           </CardTitle>
-          <CardDescription>
-            {fromFirstData ? "Today so far" : "Today"}, {intervalLabel} average{showYAxis ? ` · ${unit}` : ""}
-          </CardDescription>
+          <ChartReadout when={readRow ? formatBucketLabel(String(readRow.time), bucketMinutes) : null} items={readoutItems} />
         </div>
         {!hideIntervalSelect && <Select value={String(bucketMinutes)} onValueChange={(v) => setBucketMinutes(Number(v))}>
           <SelectTrigger className="h-8 w-[110px] shrink-0 text-xs">
@@ -410,7 +432,15 @@ function TodayBarTrendChart({
         )}
         <div ref={setBox}>
         <ChartContainer config={chartConfig} className="aspect-auto h-[240px] w-full">
-          <ComposedChart accessibilityLayer data={shown} {...hover.chartProps} margin={{ left: showYAxis ? 14 : 4, right: 4, top: 8 }}>
+          <ComposedChart accessibilityLayer data={shown} {...hover.chartProps} margin={{ left: 4, right: 4, top: 8 }}>
+            <defs>
+              {series.map((s) => (
+                <linearGradient key={s.key} id={`${gradientId}-${s.key}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={`var(--color-${s.key})`} stopOpacity={0.32} />
+                  <stop offset="100%" stopColor={`var(--color-${s.key})`} stopOpacity={0.02} />
+                </linearGradient>
+              ))}
+            </defs>
             <XAxis
               xAxisId={0}
               dataKey="time"
@@ -422,38 +452,15 @@ function TodayBarTrendChart({
                 <ChartTick x={props.x} y={props.y} payload={props.payload} labelEveryHours={hourStep} showMinor={showMinor} />
               )}
             />
-            <ChartTooltip
-              cursor={false}
-              content={
-                <ChartTooltipContent
-                  indicator="dashed"
-                  labelFormatter={(l) => formatBucketLabel(String(l), bucketMinutes)}
-                  formatter={(value, name, item) => {
-                    // A signed series is named and coloured by the direction this slot went.
-                    const sg = series.find((x) => x.key === item.dataKey)?.signed;
-                    const dir = sg && typeof value === "number" ? (value < 0 ? sg.negative : sg.positive) : null;
-                    return (
-                      <span className="flex w-full items-center justify-between gap-3">
-                        <span className="flex items-center gap-1.5 text-muted-foreground">
-                          <span className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: dir?.color ?? item.color }} />
-                          {dir?.label ?? String(name)}
-                        </span>
-                        <span className="font-medium text-foreground tabular-nums">
-                          {typeof value === "number" ? Math.abs(value).toFixed(2) : String(value)} {unitByKey[item.dataKey as string] ?? unit}
-                        </span>
-                      </span>
-                    );
-                  }}
-                />
-              }
-            />
-            {showYAxis && <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />}
-            {axisIds.map((id, n) => (
+            {/* The pointer position only; the value is written under the title. */}
+            <ChartTooltip cursor={chartStyle === "bar" ? false : CHART_CURSOR} content={() => null} isAnimationActive={false} />
+            <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
+            {axisIds.map((id) => (
               <YAxis
                 key={id}
                 yAxisId={id}
                 orientation="right"
-                hide={!showYAxis || n > 0}
+                hide
                 width={34}
                 tickCount={4}
                 tickLine={false}
@@ -483,8 +490,8 @@ function TodayBarTrendChart({
                 )
             )}
             {series.map((s) =>
-              s.chartType === "line" ? (
-                <Line
+              (chartStyle === "auto" ? s.chartType === "line" : chartStyle === "line") ? (
+                <Area
                   key={s.key}
                   type="monotone"
                   dataKey={s.key}
@@ -492,6 +499,8 @@ function TodayBarTrendChart({
                   yAxisId={s.unit ?? unit}
                   stroke={`var(--color-${s.key})`}
                   strokeWidth={2}
+                  fill={`url(#${gradientId}-${s.key})`}
+                  baseValue="dataMin"
                   dot={false}
                   connectNulls={false}
                   isAnimationActive={false}

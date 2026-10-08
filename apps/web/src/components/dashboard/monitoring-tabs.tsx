@@ -34,35 +34,21 @@ const TAB_VISUALS: Record<string, { icon: LucideIcon; iconClassName: string }> =
  *  shown anywhere else instead. Reads `headlines`/`TAB_VISUALS` by the
  *  current `value` so it's this component's own Radix-driven tab state
  *  deciding which one shows, no group-data/CSS trick needed. */
-function TabHeadlineBar({ tabValue, headline, hasLiveData }: { tabValue: string; headline: TabHeadlineInfo; hasLiveData: boolean }) {
+function TabHeadlineBar({ tabValue, headline, actions }: { tabValue: string; headline: TabHeadlineInfo; actions?: React.ReactNode }) {
   const visual = TAB_VISUALS[tabValue] ?? TAB_VISUALS.hub;
   const Icon = visual.icon;
   return (
-    <div className="mb-1 flex flex-wrap items-center justify-between gap-3">
-      <div className="flex items-center gap-3">
-        <span className={cn("flex size-10 shrink-0 items-center justify-center rounded-full", visual.iconClassName)}>
-          <Icon className="size-5" />
+    <div className="mb-2 flex flex-wrap items-center justify-between gap-3">
+      <div className="flex items-center gap-4">
+        <span className={cn("flex size-14 shrink-0 items-center justify-center rounded-full", visual.iconClassName)}>
+          <Icon className="size-7" />
         </span>
         <div>
-          <p className="text-xs font-medium text-theme-muted">{headline.label}</p>
-          <p className="text-2xl font-semibold text-theme-primary">{headline.value}</p>
+          <p className="text-sm font-medium text-theme-muted">{headline.label}</p>
+          <p className="text-4xl font-semibold leading-tight tracking-tight text-theme-primary">{headline.value}</p>
         </div>
       </div>
-      {/* Reflects the same lastTs LiveSyncedAgo reads next to it — this
-          used to say "Live Active" unconditionally, contradicting that
-          indicator's own "No data yet" the moment a device had never
-          reported. */}
-      {hasLiveData ? (
-        <span className="flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
-          <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-          Live Active
-        </span>
-      ) : (
-        <span className="flex items-center gap-1 text-xs font-medium text-theme-muted">
-          <span className="size-1.5 rounded-full bg-theme-muted" />
-          No Data
-        </span>
-      )}
+      {actions}
     </div>
   );
 }
@@ -83,16 +69,13 @@ function TabHeadlineBar({ tabValue, headline, hasLiveData }: { tabValue: string;
 export function MonitoringTabs({
   defaultValue,
   headlines,
-  hasLiveData,
+  actions,
   children,
 }: {
   defaultValue: string;
   headlines: Record<string, TabHeadlineInfo>;
-  /** Whether this device has ever reported a reading (the same signal
-   *  LiveSyncedAgo's own `lastTs` prop is built from) — decides whether
-   *  the headline's own status reads "Live Active" or "No Data" instead
-   *  of always claiming live. */
-  hasLiveData: boolean;
+  /** Shown at the right of the headline, in line with its number (the period picker). */
+  actions?: React.ReactNode;
   children: React.ReactNode;
 }) {
   const [value, setValue] = useState(defaultValue);
@@ -117,7 +100,7 @@ export function MonitoringTabs({
         history.replaceState(null, "", `#${next}`);
       }}
     >
-      {headlines[value] && <TabHeadlineBar tabValue={value} headline={headlines[value]} hasLiveData={hasLiveData} />}
+      {headlines[value] && <TabHeadlineBar tabValue={value} headline={headlines[value]} actions={actions} />}
       {children}
     </Tabs>
   );

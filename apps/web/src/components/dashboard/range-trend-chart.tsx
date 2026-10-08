@@ -1,17 +1,21 @@
 "use client";
 
 import * as React from "react";
-import { Bar, ComposedChart, Line, XAxis, YAxis } from "recharts";
+import { Area, Bar, CartesianGrid, ComposedChart, XAxis, YAxis } from "recharts";
 import { useSeriesRange } from "@/lib/telemetry/react";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { fetchKeysOf, type BarTrendSeries } from "./bar-trend-chart";
 import { ChartEmptyState } from "./chart-empty-state";
+import { ChartReadout, type ReadoutItem } from "./chart-kit";
 import { ChartErrorCard, ChartLoadingCard, StaleDot } from "./chart-states";
 import { useRange } from "./range-context";
+import { useSharedInterval } from "./interval-context";
 import { useBarHover } from "./bar-hover";
+import { useChartStyle } from "./chart-style";
 import { useDelayedLoading } from "./use-delayed-loading";
+import { CHART_CURSOR } from "./chart-cursor";
 
 const INTERVAL_LABEL: Record<number, string> = { 15: "15 min", 30: "30 min", 60: "1 hour", 120: "2 hours", 1440: "1 day" };
 
@@ -45,8 +49,11 @@ export function RangeTrendChart({
   footerUnit?: string;
 }) {
   const range = useRange();
-  const [requested, setRequested] = React.useState<number | null>(null);
+  // The interval is shared by every chart on the page (15 min unless the period is too long for it).
+  const [requested, setRequested] = useSharedInterval();
   const hover = useBarHover();
+  const chartStyle = useChartStyle();
+  const gradientId = React.useId().replace(/[^a-zA-Z0-9]/g, "");
   const fetchKeys = React.useMemo(() => fetchKeysOf(series), [series]);
   const scaleByKey = React.useMemo(
     () => Object.fromEntries(series.flatMap((s) => (s.sumOf ?? [s.key]).map((k) => [k, s.scale ?? valueScale]).concat([[s.key, s.scale ?? valueScale]]))),
@@ -110,6 +117,19 @@ export function RangeTrendChart({
     [series]
   );
 
+  // The value being pointed at (or the newest reading), written big under the title instead of in a floating tooltip.
+  const visibleSeries = series.filter((s) => !s.cumulativeOf);
+  let newest = -1;
+  points.forEach((p, i) => {
+    if (visibleSeries.some((s) => typeof p[s.key] === "number")) newest = i;
+  });
+  const readIdx = hover.index !== null && hover.index < points.length ? hover.index : newest;
+  const readRow = readIdx >= 0 ? points[readIdx] : null;
+  const readoutItems: ReadoutItem[] = visibleSeries.map((s) => {
+    const v = readRow ? readRow[s.key] : null;
+    return { key: s.key, label: s.label, color: s.color, value: typeof v === "number" ? { num: v.toFixed(2), unit: unitByKey[s.key] ?? unit } : null };
+  });
+
   const loading = state.status === "loading";
   const { showSkeleton } = useDelayedLoading(loading);
   if (loading || showSkeleton) return <ChartLoadingCard title={title} />;
@@ -136,7 +156,7 @@ export function RangeTrendChart({
             {title}
             <StaleDot show={state.stale} label="Showing saved data, refreshing" />
           </CardTitle>
-          <CardDescription>{INTERVAL_LABEL[state.minutes] ?? `${state.minutes} min`} average</CardDescription>
+          <ChartReadout when={readRow ? String(readRow.label) : null} items={readoutItems} />
         </div>
         {state.plan.options.length > 1 && (
           <Select value={String(state.minutes)} onValueChange={(v) => setRequested(Number(v))}>
@@ -156,34 +176,26 @@ export function RangeTrendChart({
       <CardContent>
         <ChartContainer config={chartConfig} className="aspect-auto h-[240px] w-full">
           <ComposedChart accessibilityLayer data={points} {...hover.chartProps} margin={{ left: 4, right: 4, top: 8 }}>
+            <defs>
+              {visibleSeries.map((s) => (
+                <linearGradient key={s.key} id={`${gradientId}-${s.key}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor={`var(--color-${s.key})`} stopOpacity={0.32} />
+                  <stop offset="100%" stopColor={`var(--color-${s.key})`} stopOpacity={0.02} />
+                </linearGradient>
+              ))}
+            </defs>
+            <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
             <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={32} interval="preserveStartEnd" tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} />
-            <ChartTooltip
-              cursor={false}
-              content={
-                <ChartTooltipContent
-                  indicator="dashed"
-                  formatter={(value, name, item) => (
-                    <span className="flex w-full items-center justify-between gap-3">
-                      <span className="flex items-center gap-1.5 text-muted-foreground">
-                        <span className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: item.color }} />
-                        {String(name)}
-                      </span>
-                      <span className="font-medium text-foreground tabular-nums">
-                        {typeof value === "number" ? value.toFixed(2) : String(value)} {unitByKey[item.dataKey as string] ?? unit}
-                      </span>
-                    </span>
-                  )}
-                />
-              }
-            />
+            {/* The pointer position only; the value is written under the title. */}
+            <ChartTooltip cursor={chartStyle === "bar" ? false : CHART_CURSOR} content={() => null} isAnimationActive={false} />
             {axisIds.map((id) => (
               <YAxis key={id} yAxisId={id} hide domain={["auto", "auto"]} />
             ))}
             {series
               .filter((s) => !s.cumulativeOf)
               .map((s) =>
-                s.chartType === "line" || state.axis.length > 200 ? (
-                  <Line key={s.key} type="monotone" dataKey={s.key} name={s.label} yAxisId={s.unit ?? unit} stroke={`var(--color-${s.key})`} strokeWidth={2} dot={false} connectNulls={false} isAnimationActive={false} />
+                (chartStyle === "auto" ? s.chartType === "line" : chartStyle === "line") || state.axis.length > 200 ? (
+                  <Area key={s.key} type="monotone" dataKey={s.key} name={s.label} yAxisId={s.unit ?? unit} stroke={`var(--color-${s.key})`} strokeWidth={2} fill={`url(#${gradientId}-${s.key})`} baseValue="dataMin" dot={false} connectNulls={false} isAnimationActive={false} />
                 ) : (
                   <Bar key={s.key} dataKey={s.key} name={s.label} yAxisId={s.unit ?? unit} fill={`var(--color-${s.key})`} radius={state.axis.length > 60 ? 1 : 3} isAnimationActive={false}>
                     {hover.cells(points.length, `var(--color-${s.key})`, (i) => typeof points[i]?.[s.key] === "number")}

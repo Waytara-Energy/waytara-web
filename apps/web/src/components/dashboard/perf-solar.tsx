@@ -9,8 +9,8 @@ import { DAY_MS, windowFor, type RangeWindow } from "@/lib/telemetry/ranges";
 import { ChartErrorCard } from "./chart-states";
 import { dayLabel, LONG_SPAN_DAYS, scaleCurve, useDailyHistory, useDayCurves, untilNow, usePeriodSeries } from "./perf-data";
 import { DailyBars, DonutShare, fmtKwhText, InsightList, Panel, RangeLines, StackedDailyBars, StatTile } from "./perf-kit";
+import { FLOW, PV_SHADES } from "./flow-colors";
 
-const PV_COLORS = ["var(--chart-1)", "var(--chart-2)", "var(--chart-4)", "var(--chart-5)"];
 
 /** Adds several curves slot by slot (null where none of them has a reading). */
 export function sumCurves(curves: (number | null)[][]): (number | null)[] {
@@ -55,7 +55,7 @@ export function SolarSection({
   kwp: number | null;
   extras?: React.ReactNode;
 }) {
-  const inputs = pvKeys.map((key, i) => ({ key, n: inputNumber(key), color: PV_COLORS[i % PV_COLORS.length], volt: `pv${inputNumber(key)}_voltage_v`, amp: `pv${inputNumber(key)}_current_a` }));
+  const inputs = pvKeys.map((key, i) => ({ key, n: inputNumber(key), color: PV_SHADES[i % PV_SHADES.length], volt: `pv${inputNumber(key)}_voltage_v`, amp: `pv${inputNumber(key)}_current_a` }));
   const curveKeys = inputs.flatMap((p) => [p.key, p.volt, p.amp]);
   const keys = curveKeys.length > 0 ? curveKeys : ["inverter_output_power_w"];
   const curves = useDayCurves(deviceId, keys);
@@ -134,27 +134,27 @@ export function SolarSection({
         <InsightList insights={insights} />
       </Panel>
 
-      <Panel title={`Production · ${when}`} description={`Total of your PV inputs${peak ? `, peaking at ${peak.v.toFixed(2)} kW ${period.minutes >= 1440 ? `on ${dateOf(peak.t)}` : `at ${isToday ? clock(peak.t) : `${dateOf(peak.t)} ${clock(peak.t)}`}`}` : isToday ? ", waiting for the sun" : ""}.${isToday ? " The dashed line is yesterday." : ""}`}>
+      <Panel chart title={`Production · ${when}`} description={`Total of your PV inputs${peak ? `, peaking at ${peak.v.toFixed(2)} kW ${period.minutes >= 1440 ? `on ${dateOf(peak.t)}` : `at ${isToday ? clock(peak.t) : `${dateOf(peak.t)} ${clock(peak.t)}`}`}` : isToday ? ", waiting for the sun" : ""}.${isToday ? " The dashed line is yesterday." : ""}`}>
         <RangeLines
           isToday={isToday}
           todayAxis={curves.axis}
           todaySeries={[
-            { key: "today", label: "Today", color: "var(--chart-3)", values: untilNow(totalToday, curves.axis, curves.nowMs) },
-            { key: "yesterday", label: "Yesterday", color: "var(--chart-3)", values: totalYesterday, dashed: true },
+            { key: "today", label: "Today", color: FLOW.producing, values: untilNow(totalToday, curves.axis, curves.nowMs) },
+            { key: "yesterday", label: "Yesterday", color: FLOW.producing, values: totalYesterday, dashed: true },
           ]}
-          period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "pv", label: "Solar", color: "var(--chart-3)", values: totalPeriod }] }}
+          period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "pv", label: "Solar", color: FLOW.producing, values: totalPeriod }] }}
           unit="kW"
         />
       </Panel>
 
       {!isToday && (
-        <Panel title="Daily production" description={`Energy produced each day over ${periodText}.`}>
-          <DailyBars daily={daily} label="Produced" color="var(--chart-3)" />
+        <Panel chart title="Daily production" description={`Energy produced each day over ${periodText}.`}>
+          <DailyBars daily={daily} label="Produced" color={FLOW.producing} />
         </Panel>
       )}
 
       {kwp !== null && !isToday && (
-        <Panel
+        <Panel chart
           title="Yield per kWp"
           description={`Energy per kW of panels each day, so any size of system can be compared - ${kwp.toFixed(2)} kWp installed.${yieldPerDay !== null ? ` Average ${yieldPerDay.toFixed(2)} kWh/kWp a day over ${periodText}` : ""}${lifetime !== null && lifetime !== undefined ? `, ${(lifetime / kwp).toFixed(0)} kWh/kWp since commissioning` : ""}. 4-5 is typical for a good day in India.`}
         >
@@ -172,7 +172,7 @@ export function SolarSection({
       )}
 
       {inputs.length > 0 && (
-        <Panel title={`PV power · ${when}`} description="What each input is delivering. The two should follow the same shape unless the panels face different ways.">
+        <Panel chart title={`PV power · ${when}`} description="What each input is delivering. The two should follow the same shape unless the panels face different ways.">
           <RangeLines
             isToday={isToday}
             todayAxis={curves.axis}
@@ -186,7 +186,7 @@ export function SolarSection({
 
       {inputs.length > 0 && (
         <div className="grid gap-4 lg:grid-cols-2">
-          <Panel title={`PV voltage · ${when}`} description="A steady curve is healthy; sudden drops can mean shading.">
+          <Panel chart title={`PV voltage · ${when}`} description="A steady curve is healthy; sudden drops can mean shading.">
             <RangeLines
               isToday={isToday}
               todayAxis={curves.axis}
@@ -196,7 +196,7 @@ export function SolarSection({
               digits={0}
             />
           </Panel>
-          <Panel title={`PV current · ${when}`} description="Current follows the sunlight; both inputs should rise and fall together.">
+          <Panel chart title={`PV current · ${when}`} description="Current follows the sunlight; both inputs should rise and fall together.">
             <RangeLines
               isToday={isToday}
               todayAxis={curves.axis}

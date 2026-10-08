@@ -5,7 +5,7 @@ import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
 import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
 import { fetchTodayChargingSessions, fetchRecentChargingStats, FAULT_BITMASK_KEYS } from "@/lib/device-overview";
 import { getLastSyncInfo } from "@/lib/device-sync";
-import { getConnectorStatusLabel, getErrorCodeLabel } from "@/lib/ev-charger-catalog";
+import { getErrorCodeLabel } from "@/lib/ev-charger-catalog";
 import {
   fetchDashboardFields,
   fetchFieldValues,
@@ -24,17 +24,15 @@ import {
 } from "lucide-react";
 import { ChargerTrendGroup } from "./lazy-charts";
 import { SolarMonitoringView } from "./solar-monitoring-view";
+import { FLOW } from "./flow-colors";
 import { TabButtonContent } from "./monitoring-shared";
 import { EvHubCards, EvHubGroups } from "./ev-hub-live";
 import { temperatureRowsFor } from "@/lib/temperature-rows";
 import { valuesFor, enumToObject } from "@/lib/field-values";
 import { SessionReceiptCard, type ReceiptSection } from "./session-receipt-card";
-import { StatusPill } from "./status-pill";
 import { DeviceParameterCards } from "./device-parameter-cards";
 import { ChargingSessionsCarousel } from "./charging-sessions-carousel";
 import { MonitoringTabs } from "./monitoring-tabs";
-import { LiveSyncedAgo } from "./live-synced-ago";
-import { DeviceSwitcher } from "./device-switcher";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -63,22 +61,14 @@ const OVERVIEW_CROSSREF_KEYS = [
  *  Monitoring's live-polling charts instead of the static Overview
  *  snapshot. A category without one yet falls back to the same generic
  *  parameter cards every other unhandled category gets elsewhere. */
-export async function MonitoringContent({
-  supabase,
-  device,
-  devices,
-}: {
-  supabase: SupabaseServerClient;
-  device: CustomerDevice;
-  devices: CustomerDevice[];
-}) {
+export async function MonitoringContent({ supabase, device }: { supabase: SupabaseServerClient; device: CustomerDevice }) {
   const category = device.deviceType?.category;
 
   if (category === "solar_inverter") {
-    return <SolarInverterMonitoring supabase={supabase} device={device} devices={devices} />;
+    return <SolarInverterMonitoring supabase={supabase} device={device} />;
   }
   if (category === "ev_charger") {
-    return <EvChargerMonitoring supabase={supabase} device={device} devices={devices} />;
+    return <EvChargerMonitoring supabase={supabase} device={device} />;
   }
 
   const parameters = await fetchDeviceParameterReadings(supabase, device);
@@ -104,15 +94,7 @@ function sortSectionsByCategory(sections: CategorySection[], order: string[]): {
   });
 }
 
-async function SolarInverterMonitoring({
-  supabase,
-  device,
-  devices,
-}: {
-  supabase: SupabaseServerClient;
-  device: CustomerDevice;
-  devices: CustomerDevice[];
-}) {
+async function SolarInverterMonitoring({ supabase, device }: { supabase: SupabaseServerClient; device: CustomerDevice }) {
   // sections is this device's own real, DB-driven Monitoring field list - every group here is something this
   // specific installation's own equipment_metrics rows confirm exist.
   const sections = await fetchDashboardFields(supabase, device, "Monitoring");
@@ -145,7 +127,6 @@ async function SolarInverterMonitoring({
   return (
     <SolarMonitoringView
       deviceId={device.id}
-      devices={devices}
       initialValues={initialValues}
       liveKeys={liveKeys}
       categories={Object.fromEntries(byCategory)}
@@ -181,15 +162,7 @@ const MONITORING_EXTRA_KEYS = [
   "generator_frequency_hz",
 ];
 
-async function EvChargerMonitoring({
-  supabase,
-  device,
-  devices,
-}: {
-  supabase: SupabaseServerClient;
-  device: CustomerDevice;
-  devices: CustomerDevice[];
-}) {
+async function EvChargerMonitoring({ supabase, device }: { supabase: SupabaseServerClient; device: CustomerDevice }) {
   const rawSections = await fetchDashboardFields(supabase, device, "Monitoring");
   const dynamicFields = rawSections.flatMap((s) => s.groups.flatMap((g) => g.fields));
   const monitoringKeys = dynamicFields.map((f) => f.key);
@@ -240,13 +213,12 @@ async function EvChargerMonitoring({
   // the same charger-hub status pill/fault banner the Overview page shows —
   // same cross-page reuse convention as the solar branch's
   // OVERVIEW_CROSSREF_KEYS above.
-  const [{ data: snapshotReadings }, lastSync, chargingSummary, recentChargingStats, customerPlan, site, enumOptions] = await Promise.all([
+  const [{ data: snapshotReadings }, chargingSummary, recentChargingStats, customerPlan, site, enumOptions] = await Promise.all([
     supabase
       .from("equipment_latest")
       .select("key_name, value, ts")
       .eq("equipment_id", device.id)
       .in("key_name", [...monitoringKeys, ...liveSessionKeys, "connector_status", "error_code"]),
-    getLastSyncInfo(device.id),
     fetchTodayChargingSessions(supabase, device.id),
     fetchRecentChargingStats(supabase, device.id),
     getCustomerPlan(),
@@ -259,7 +231,6 @@ async function EvChargerMonitoring({
     if (!latest.has(r.key_name)) latest.set(r.key_name, r.value);
   }
   const getValue = (key: string): FieldValue => latest.get(key) ?? null;
-  const status = getConnectorStatusLabel(getValue("connector_status") as number | null, enumOptions.get("connector_status") ?? []);
   const errorLabel = getErrorCodeLabel(getValue("error_code") as number | null, enumOptions.get("error_code") ?? []);
 
   const powerKw = getValue("power_active_import_kw") as number | null;
@@ -273,23 +244,12 @@ async function EvChargerMonitoring({
 
   return (
     <>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <DeviceSwitcher devices={devices} selectedId={device.id} />
-          <p className="mt-1 text-sm text-theme-muted">Live readings for this charger, updated in real time.</p>
-        </div>
-        <div className="flex flex-col items-end gap-1.5">
-          <StatusPill label={status.label} tone={status.tone} variant="text" />
-          <LiveSyncedAgo lastTs={lastSync.lastTs} />
-        </div>
-      </div>
-
       {/* Two panels rather than one long scroll: the charger's own live
           detail (power/current/temperature/OCPP fields) versus its
           session history — different questions ("is it healthy right
           now?" vs. "what did it actually deliver?"), so they get their
           own tabs instead of being stacked on one page. */}
-      <MonitoringTabs key={device.id} defaultValue="hub" headlines={{}} hasLiveData={lastSync.lastTs !== null}>
+      <MonitoringTabs key={device.id} defaultValue="hub" headlines={{}}>
         <TabsList variant="line">
           <TabsTrigger value="hub" variant="line">
             <TabButtonContent icon={Plug} label="Charger Hub" />
@@ -321,7 +281,7 @@ async function EvChargerMonitoring({
               {
                 key: "power_active_import_kw",
                 label: "Power",
-                color: "var(--chart-1)",
+                color: FLOW.consuming,
                 scale: 1,
                 unit: "kW",
                 footerMode: "sum",

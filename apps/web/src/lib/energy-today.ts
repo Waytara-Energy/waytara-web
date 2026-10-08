@@ -54,6 +54,21 @@ export function areaPoints(axis: number[], values: (number | null)[], nowMs: num
   return out;
 }
 
+/** How far back the Overview cards' graphs reach. */
+export const RECENT_WINDOW_MS = 2 * 3_600_000;
+
+/** The recent readings: every 15-minute slot that overlaps the `windowMs` before `nowMs` (two hours), the slot being filled now included. */
+export function recentPoints(points: AreaPoint[], nowMs: number, windowMs = RECENT_WINDOW_MS): AreaPoint[] {
+  return points.filter((p) => p.t <= nowMs && p.t + SLOT_MS > nowMs - windowMs);
+}
+
+/** The x range of the recent-readings graph (from `windowMs` before `nowMs`, or the start of its first slot, to now) and five marks along it. */
+export function recentAxis(points: AreaPoint[], nowMs: number, windowMs = RECENT_WINDOW_MS): { start: number; end: number; ticks: number[] } {
+  const start = Math.min(points[0]?.t ?? nowMs - windowMs, nowMs - windowMs);
+  const end = nowMs;
+  return { start, end, ticks: Array.from({ length: 5 }, (_, i) => start + ((end - start) * i) / 4) };
+}
+
 /** The biggest reading of the day so far (zero or below does not count as a peak). */
 export function peakOf(points: AreaPoint[]): { v: number; t: number } | null {
   let best: { v: number; t: number } | null = null;

@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Bar, ComposedChart, Line, XAxis, YAxis } from "recharts";
+import { Area, Bar, CartesianGrid, ComposedChart, XAxis, YAxis } from "recharts";
 import { CalendarIcon, ChevronLeft, ChevronRight } from "lucide-react";
 import { cn } from "@/lib/utils";
 import {
@@ -16,17 +16,20 @@ import {
 } from "@/lib/report-types";
 import { Button } from "@/components/ui/button";
 import { Calendar } from "@/components/ui/calendar";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ButtonSpinner } from "@/components/ui/spinner";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartEmptyState } from "./chart-empty-state";
+import { ChartReadout, type ReadoutItem } from "./chart-kit";
+import { useChartStyle } from "./chart-style";
 import { ChartTick } from "./bar-trend-chart";
 import { useBarHover } from "./bar-hover";
 import { planRange } from "@/lib/telemetry/ranges";
 import { useDownloadPending } from "./report-controls";
+import { CHART_CURSOR } from "./chart-cursor";
 
 interface DayReportResponse {
   date: string;
@@ -93,6 +96,8 @@ export function DayReport({ deviceId, available, firstDay }: { deviceId: string;
   const [result, setResult] = React.useState<{ key: string; data: DayReportResponse | null; error: string | null } | null>(null);
   const [calendarOpen, setCalendarOpen] = React.useState(false);
   const hover = useBarHover();
+  const chartStyle = useChartStyle();
+  const gradientId = React.useId().replace(/[^a-zA-Z0-9]/g, "");
   const [customOpen, setCustomOpen] = React.useState(false);
   const [csvPending, triggerCsvPending] = useDownloadPending();
   const [pdfPending, triggerPdfPending] = useDownloadPending();
@@ -143,16 +148,38 @@ export function DayReport({ deviceId, available, firstDay }: { deviceId: string;
   const unit = series[0].unit;
   const drawAsLines = series.length > 2;
   const bucketMinutes = data?.bucketMinutes ?? shownInterval;
+  // The style chosen in Application Settings overrides a series' own line/bar choice (automatic keeps it).
+  const isLine = (s: (typeof series)[number]) => (chartStyle === "auto" ? s.kind === "line" || drawAsLines : chartStyle === "line");
 
   const chartConfig = React.useMemo(
     () => Object.fromEntries(series.map((s) => [s.id, { label: s.label, color: s.color }])) satisfies ChartConfig,
     [series]
   );
 
-  const unitById = Object.fromEntries(series.map((s) => [s.id, s.unit]));
   const domain: [number | "auto", number | "auto"] = unit === "%" ? [0, 100] : unit === "kW" ? [0, "auto"] : ["auto", "auto"];
   const longDate = stringToDate(date).toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long", year: "numeric" });
   const isToday = date === today;
+  // The value being pointed at (or the newest reading), written big under the title instead of in a floating tooltip.
+  const points = (data?.points ?? []) as unknown as Record<string, unknown>[];
+  let newestPoint = -1;
+  points.forEach((p, i) => {
+    if (series.some((s) => typeof p[s.id] === "number")) newestPoint = i;
+  });
+  const readIdx = hover.index !== null && hover.index < points.length ? hover.index : newestPoint;
+  const readRow = readIdx >= 0 ? points[readIdx] : null;
+  const readoutItems: ReadoutItem[] = series.map((s) => {
+    const v = readRow ? readRow[s.id] : null;
+    return { key: s.id, label: s.label, color: s.color, value: typeof v === "number" ? { num: v.toFixed(s.unit === "kW" ? 2 : 1), unit: s.unit } : null };
+  });
+  const readWhen = (() => {
+    if (!readRow) return null;
+    const t = String(readRow.time);
+    if (bucketMinutes >= 1440) return fmtDay(t.slice(0, 10));
+    const h = Number(t.slice(11, 13)) * 60 + Number(t.slice(14, 16)) + bucketMinutes;
+    const end = `${String(Math.floor((h % 1440) / 60)).padStart(2, "0")}:${String(h % 60).padStart(2, "0")}`;
+    const day = days > 1 ? `${t.slice(8, 10)}/${t.slice(5, 7)} ` : "";
+    return `${day}${t.slice(11, 16)} – ${end}`;
+  })();
   const windowText = days > 1 ? `${fmtDay(start)} – ${fmtDay(endDay)} (${days} days)` : `${longDate}, 00:00–23:59`;
 
   return (
@@ -182,29 +209,33 @@ export function DayReport({ deviceId, available, firstDay }: { deviceId: string;
         <div className="space-y-1">
           <label className="text-xs font-medium text-theme-muted">Period</label>
           <div className="flex flex-wrap items-center gap-1">
-            <div className="flex gap-1 rounded-lg border border-theme-border p-1">
-              {MODES.map((m) => (
-                <button
-                  key={m.id}
-                  type="button"
-                  onClick={() => setMode(m.id)}
-                  className={cn(
-                    "rounded-md px-3 py-1 text-xs font-medium transition-colors",
-                    mode === m.id ? "bg-theme-surface-hover text-theme-highlight" : "text-theme-muted hover:text-theme-primary"
-                  )}
-                >
-                  {m.label}
-                </button>
-              ))}
-            </div>
             <Popover open={customOpen} onOpenChange={setCustomOpen}>
               <PopoverTrigger asChild>
-                <Button variant="outline" size="sm" className={cn("h-9 gap-1.5", mode === "custom" && "border-theme-highlight text-theme-highlight")}>
+                <Button variant="outline" size="sm" className="h-9 gap-1.5">
                   <CalendarIcon className="size-3.5" />
-                  {mode === "custom" ? `From ${fmtDay(customStart)}` : "Custom"}
+                  {mode === "custom" ? `From ${fmtDay(customStart)}` : (MODES.find((m) => m.id === mode)?.label ?? "Day")}
                 </Button>
               </PopoverTrigger>
-              <PopoverContent className="w-auto p-0" align="start">
+              <PopoverContent className="w-auto max-w-[calc(100vw-2rem)] p-0" align="start">
+                <div className="flex flex-col sm:flex-row">
+                  <div className="flex flex-wrap gap-1 border-b border-theme-border p-2 sm:order-2 sm:w-32 sm:flex-col sm:flex-nowrap sm:border-b-0 sm:border-l">
+                    {MODES.map((m) => (
+                      <button
+                        key={m.id}
+                        type="button"
+                        onClick={() => {
+                          setMode(m.id);
+                          setCustomOpen(false);
+                        }}
+                        className={cn(
+                          "rounded-md px-3 py-1.5 text-left text-xs font-medium transition-colors",
+                          mode === m.id ? "bg-theme-surface-hover text-theme-highlight" : "text-theme-muted hover:bg-theme-surface-hover/60 hover:text-theme-primary"
+                        )}
+                      >
+                        {m.label}
+                      </button>
+                    ))}
+                  </div>
                 <Calendar
                   mode="single"
                   selected={stringToDate(customStart)}
@@ -218,9 +249,7 @@ export function DayReport({ deviceId, available, firstDay }: { deviceId: string;
                   }}
                   disabled={[{ after: stringToDate(today) }, ...(firstDay ? [{ before: stringToDate(firstDay) }] : [])]}
                 />
-                <p className="border-t border-theme-border px-3 py-2 text-xs text-theme-muted">
-                  Pick the first day; the report covers up to 30 days from it{firstDay ? `, no earlier than ${fmtDay(firstDay)} (first reading)` : ""}.
-                </p>
+                </div>
               </PopoverContent>
             </Popover>
           </div>
@@ -310,12 +339,7 @@ export function DayReport({ deviceId, available, firstDay }: { deviceId: string;
       <Card>
         <CardHeader>
           <CardTitle className="text-sm">{type.label}</CardTitle>
-          <CardDescription>
-            {windowText} ·{" "}
-            {data?.coarse ? "hourly averages (older than 8 days)" : `${INTERVAL_LABELS[bucketMinutes] ?? `${bucketMinutes} min`} average`}
-            {" · "}
-            {type.description}
-          </CardDescription>
+          {data?.hasData && data.isSolar && <ChartReadout when={readWhen} items={readoutItems} />}
         </CardHeader>
         <CardContent>
           {loading && !data ? (
@@ -328,7 +352,16 @@ export function DayReport({ deviceId, available, firstDay }: { deviceId: string;
             <ChartEmptyState label={days > 1 ? "No readings in this period" : `No readings on ${fmtDay(date)}`} />
           ) : (
             <ChartContainer config={chartConfig} className={cn("aspect-auto h-[280px] w-full transition-opacity", loading && "opacity-60")}>
-              <ComposedChart accessibilityLayer data={data.points} {...hover.chartProps} margin={{ left: 0, right: 4, top: 8 }}>
+              <ComposedChart accessibilityLayer data={data.points} {...hover.chartProps} margin={{ left: 4, right: 4, top: 8 }}>
+                <defs>
+                  {series.map((s) => (
+                    <linearGradient key={s.id} id={`${gradientId}-${s.id}`} x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="0%" stopColor={`var(--color-${s.id})`} stopOpacity={0.32} />
+                      <stop offset="100%" stopColor={`var(--color-${s.id})`} stopOpacity={0.02} />
+                    </linearGradient>
+                  ))}
+                </defs>
+                <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
                 {days > 1 ? (
                   <XAxis
                     dataKey="time"
@@ -352,52 +385,20 @@ export function DayReport({ deviceId, available, firstDay }: { deviceId: string;
                     )}
                   />
                 )}
-                <YAxis
-                  width={44}
-                  tickLine={false}
-                  axisLine={false}
-                  domain={domain}
-                  tick={{ fontSize: 10, fill: "var(--muted-foreground)" }}
-                  tickFormatter={(v: number) => `${Number.isInteger(v) ? v : v.toFixed(1)}`}
-                  label={{ value: unit, position: "insideTopLeft", offset: 0, fontSize: 10, fill: "var(--muted-foreground)" }}
-                />
-                <ChartTooltip
-                  cursor={false}
-                  content={
-                    <ChartTooltipContent
-                      indicator="dashed"
-                      labelFormatter={(l) => {
-                        const t = String(l);
-                        if (bucketMinutes >= 1440) return fmtDay(t.slice(0, 10));
-                        const h = Number(t.slice(11, 13)) * 60 + Number(t.slice(14, 16)) + bucketMinutes;
-                        const end = `${String(Math.floor((h % 1440) / 60)).padStart(2, "0")}:${String(h % 60).padStart(2, "0")}`;
-                        const day = days > 1 ? `${t.slice(8, 10)}/${t.slice(5, 7)} ` : "";
-                        return `${day}${t.slice(11, 16)} – ${end}`;
-                      }}
-                      formatter={(value, name, item) => (
-                        <span className="flex w-full items-center justify-between gap-3">
-                          <span className="flex items-center gap-1.5 text-muted-foreground">
-                            <span className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: item.color }} />
-                            {String(name)}
-                          </span>
-                          <span className="font-medium text-foreground tabular-nums">
-                            {typeof value === "number" ? value.toFixed(unitById[item.dataKey as string] === "kW" ? 2 : 1) : String(value)}{" "}
-                            {unitById[item.dataKey as string]}
-                          </span>
-                        </span>
-                      )}
-                    />
-                  }
-                />
+                <YAxis hide domain={domain} />
+                {/* The pointer position only; the value is written under the title. */}
+                <ChartTooltip cursor={chartStyle === "bar" ? false : CHART_CURSOR} content={() => null} isAnimationActive={false} />
                 {series.map((s) =>
-                  s.kind === "line" || drawAsLines ? (
-                    <Line
+                  isLine(s) ? (
+                    <Area
                       key={s.id}
                       type="monotone"
                       dataKey={s.id}
                       name={s.label}
                       stroke={`var(--color-${s.id})`}
                       strokeWidth={2}
+                      fill={`url(#${gradientId}-${s.id})`}
+                      baseValue="dataMin"
                       dot={false}
                       connectNulls={false}
                       isAnimationActive={false}
@@ -412,15 +413,11 @@ export function DayReport({ deviceId, available, firstDay }: { deviceId: string;
             </ChartContainer>
           )}
 
-          {data?.hasData && series.length > 1 && (
-            <div className="mt-3 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
-              {series.map((s) => (
-                <span key={s.id} className="flex items-center gap-1.5">
-                  <span className="size-2 rounded-[2px]" style={{ backgroundColor: s.color }} />
-                  {s.label}
-                </span>
-              ))}
-            </div>
+
+          {data?.hasData && data.isSolar && (
+            <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+              {windowText} · {data.coarse ? "hourly averages (older than 8 days)" : `${INTERVAL_LABELS[bucketMinutes] ?? `${bucketMinutes} min`} average`} · {type.description}
+            </p>
           )}
         </CardContent>
       </Card>

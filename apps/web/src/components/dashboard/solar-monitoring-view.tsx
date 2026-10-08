@@ -3,7 +3,6 @@
 import * as React from "react";
 import { Server, Sun, Thermometer, BatteryCharging, Home, Zap, Activity, Gauge, ArrowDownToLine, ArrowUpFromLine, Fuel } from "lucide-react";
 import { TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import type { CustomerDevice } from "@/lib/device-display";
 import type { EnumOption } from "@/lib/enum-labels";
 import { FAULT_BITMASK_KEYS } from "@/lib/overview-keys";
 import { TEMPERATURE_MAX_C } from "@/lib/temperature-thresholds";
@@ -13,18 +12,17 @@ import { useLiveNumbers } from "@/lib/telemetry/live-values";
 import { BarTrendChart, MainHubTrendGroup, SolarTrendGroup } from "./lazy-charts";
 import type { HeatmapRow } from "./temperature-heatmap";
 import { LiveStatusCard } from "./live-status-card";
-import { DeviceStatusPill } from "./device-status-pill";
 import { FaultBanner } from "./fault-banner";
 import { MonitoringTabs, type TabHeadlineInfo } from "./monitoring-tabs";
-import { LiveSyncedAgo } from "./live-synced-ago";
-import { DeviceSwitcher } from "./device-switcher";
 import { TabButtonContent, renderGroup, sortGroups } from "./monitoring-shared";
 import { useDeviceState } from "./use-device-state";
 import { pvPowerKeys, solarGenerationW } from "@/lib/solar-generation";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { RangeProvider } from "./range-context";
 import { RangeBar } from "./range-bar";
-import { GoLiveButton, GoLiveProvider } from "./go-live";
+import { GoLiveProvider } from "./go-live";
+import { IntervalProvider } from "./interval-context";
+import { FLOW } from "./flow-colors";
 
 /** The first non-zero fault/alarm bitmask, passed on as the fault code (see deriveFaultCode in device-overview). */
 function faultCodeFrom(get: (key: string) => number | null): number | null {
@@ -37,7 +35,6 @@ function faultCodeFrom(get: (key: string) => number | null): number | null {
 
 export interface SolarMonitoringProps {
   deviceId: string;
-  devices: CustomerDevice[];
   /** What the server rendered, for every key on this screen. */
   initialValues: Record<string, FieldValue>;
   /** The keys that follow the device live. */
@@ -56,7 +53,6 @@ export interface SolarMonitoringProps {
  *  page refresh and no refetch; the server only supplies the first values. Battery power is positive = discharging. */
 export function SolarMonitoringView({
   deviceId,
-  devices,
   initialValues,
   liveKeys,
   categories,
@@ -73,7 +69,6 @@ export function SolarMonitoringView({
   const gridEnabled = "Grid" in categories;
   const generatorEnabled = "Generator" in categories;
 
-  const inverterStateOptions = enumOptions.get("inverter_state") ?? [];
 
   // Every number on this screen is the device's live value once one arrives, the server's value until then.
   const initialNumbers = React.useMemo(() => {
@@ -92,7 +87,7 @@ export function SolarMonitoringView({
   };
   const activeFaultCode = faultCodeFrom(getNum);
   // Is the device really reporting? (The agent can be running while the device is switched off.)
-  const { lastReadAt, offline, status } = useDeviceState(deviceId, sync);
+  const { offline } = useDeviceState(deviceId, sync);
   const agentOnline = !offline;
 
   const gridConnected = getNum("grid_relay_status");
@@ -255,40 +250,20 @@ export function SolarMonitoringView({
 
   return (
     <RangeProvider deviceId={deviceId}>
+      <IntervalProvider>
       <GoLiveProvider deviceId={deviceId} agentOnline={agentOnline}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <DeviceSwitcher devices={devices} selectedId={deviceId} />
-          <p className="mt-1 text-sm text-theme-muted">Live readings for this inverter, updated in real time.</p>
-        </div>
-        <div className="flex flex-col items-end gap-1.5">
-          <DeviceStatusPill
-            inverterState={getNum("inverter_run_state")}
-            activeFaultCode={activeFaultCode}
-            inverterStateOptions={inverterStateOptions}
-            variant="text"
-            connection={status}
-          />
-          <LiveSyncedAgo lastTs={lastReadAt} label={offline ? "Last reading" : "Updated"} />
-        </div>
-      </div>
-
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <RangeBar />
-        <GoLiveButton />
-      </div>
 
       {/* Real tab panels — each node's content only exists in the DOM while
           its own tab is selected (Radix Tabs unmounts inactive
           TabsContent), rather than every section's charts/queries all
           living on one long scrolled page at once. */}
-      {/* Keyed on the device so switching via DeviceSwitcher remounts this
+      {/* Keyed on the device so switching via the device icons in the header remounts this
           fresh (back to the "hub" tab) instead of React reusing the same
           instance's internal tab-selection state — without this, picking
           a device that doesn't share the previous one's node (e.g. no
           "battery" tab) left the panel on a tab that no longer had a
           trigger to select it. */}
-      <MonitoringTabs key={deviceId} defaultValue="hub" headlines={tabHeadlines} hasLiveData={lastReadAt !== null}>
+      <MonitoringTabs key={deviceId} defaultValue="hub" headlines={tabHeadlines} actions={<RangeBar />}>
         <TabsList variant="line">
           <TabsTrigger value="hub" variant="line" className="data-[state=active]:border-primary data-[state=active]:text-primary">
             <TabButtonContent icon={Server} label="Main Hub" />
@@ -388,26 +363,26 @@ export function SolarMonitoringView({
           <MainHubTrendGroup
             deviceId={deviceId}
             powerSeries={[
-              { key: "inverter_output_power_w", label: "Solar", color: "var(--chart-3)" },
-              { key: "load_total_power_w", label: "Load", color: "var(--chart-2)" },
+              { key: "inverter_output_power_w", label: "Solar", color: FLOW.producing },
+              { key: "load_total_power_w", label: "Load", color: FLOW.consuming },
               {
                 key: "grid_total_power_w",
                 label: "Grid",
-                color: "#f97316",
+                color: FLOW.drawing,
                 signed: {
-                  positive: { color: "#f97316", label: "Importing", footer: "imported" },
-                  negative: { color: "#3b82f6", label: "Exporting", footer: "exported" },
+                  positive: { color: FLOW.drawing, label: "Importing", footer: "imported" },
+                  negative: { color: FLOW.consuming, label: "Exporting", footer: "exported" },
                 },
               },
               {
                 key: "battery_power_w",
                 label: "Battery",
-                color: "#10b981",
+                color: FLOW.producing,
                 // The inverter reports discharging as positive; the chart draws charging upward (as Overview does).
                 scale: -0.001,
                 signed: {
-                  positive: { color: "#10b981", label: "Charging", footer: "charged" },
-                  negative: { color: "#f97316", label: "Discharging", footer: "discharged" },
+                  positive: { color: FLOW.producing, label: "Charging", footer: "charged" },
+                  negative: { color: FLOW.drawing, label: "Discharging", footer: "discharged" },
                 },
               },
             ]}
@@ -509,7 +484,7 @@ export function SolarMonitoringView({
             <BarTrendChart
               deviceId={deviceId}
               title="Battery SOC Trend"
-              series={[{ key: "battery_soc_pct", label: "SOC", color: "var(--chart-1)" }]}
+              series={[{ key: "battery_soc_pct", label: "SOC", color: FLOW.producing }]}
               unit="%"
               valueScale={1}
               footerMode="average"
@@ -567,7 +542,7 @@ export function SolarMonitoringView({
             <BarTrendChart
               deviceId={deviceId}
               title="Load Power"
-              series={[{ key: "load_total_power_w", label: "Load", color: "var(--chart-2)" }]}
+              series={[{ key: "load_total_power_w", label: "Load", color: FLOW.consuming }]}
             />
           </TabsContent>
         )}
@@ -616,7 +591,7 @@ export function SolarMonitoringView({
             <BarTrendChart
               deviceId={deviceId}
               title="Grid Power"
-              series={[{ key: "grid_total_power_w", label: "Grid", color: "var(--chart-4)" }]}
+              series={[{ key: "grid_total_power_w", label: "Grid", color: FLOW.drawing }]}
             />
           </TabsContent>
         )}
@@ -656,7 +631,7 @@ export function SolarMonitoringView({
             <BarTrendChart
               deviceId={deviceId}
               title="Generator Power"
-              series={[{ key: "generator_power_w", label: "Generator", color: "var(--chart-5)" }]}
+              series={[{ key: "generator_power_w", label: "Generator", color: FLOW.producing }]}
             />
 
             {sortGroups("Generator", categories["Generator"] ?? []).map((group) =>
@@ -666,6 +641,7 @@ export function SolarMonitoringView({
         )}
       </MonitoringTabs>
       </GoLiveProvider>
+      </IntervalProvider>
     </RangeProvider>
   );
 }

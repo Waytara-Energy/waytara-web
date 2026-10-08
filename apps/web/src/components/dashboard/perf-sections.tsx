@@ -13,6 +13,7 @@ import { dayLabel, scaleCurve, untilNow, useDailyHistory, useDayCurves, usePerio
 import { HeartPulse } from "lucide-react";
 import { DailyBars, fmtKwhText, fmtNum, fmtPct, Panel, RangeLines, SplitBar, StatTile } from "./perf-kit";
 import { sumCurves } from "./perf-solar";
+import { FLOW } from "./flow-colors";
 
 export interface SectionProps {
   deviceId: string;
@@ -32,9 +33,15 @@ const dateOf = (t: number) => new Date(t + 19_800_000).toLocaleDateString("en-IN
 const whenText = (t: number, isToday: boolean, minutes: number) => (isToday ? clock(t) : minutes >= 1440 ? dateOf(t) : `${dateOf(t)} ${clock(t)}`);
 const spanDaysOf = (w: RangeWindow) => (w.toMs - w.fromMs) / DAY_MS;
 
-const GREEN = "#10b981";
+const GREEN: string = FLOW.producing;
 const ORANGE = "#f97316";
-const BLUE = "#3b82f6";
+const BLUE: string = FLOW.consuming;
+// Charts that are not an energy flow keep neutral colours, so the green / amber / blue of the flow key means one thing.
+const SOC = "var(--chart-1)";
+const TEMP = "var(--chart-4)";
+const VOLT = "var(--chart-1)";
+const FREQ = "var(--chart-5)";
+const EFF = "var(--chart-2)";
 
 /** The day-by-day pairs the diverging bars need, from two daily counters. */
 function pairByDay(days: string[], positive: { date: string; value: number }[], negative: { date: string; value: number }[]) {
@@ -109,30 +116,30 @@ export function BatterySection({ deviceId, span, periodText, isToday, live, prof
         {profile && health ? <HealthPanel profile={profile} health={health} /> : <p className="text-sm text-muted-foreground">Your battery&apos;s size has not been entered yet. Once your installer adds its datasheet numbers (usable capacity and rated cycles), the cycle count, estimated health and remaining life show here.</p>}
       </Panel>
 
-      <Panel title={`Charge level · ${when}`} description={isToday ? "State of charge through the day. The dashed line is yesterday." : "State of charge over the period (average of each point)."}>
+      <Panel chart title={`Charge level · ${when}`} description={isToday ? "State of charge through the day. The dashed line is yesterday." : "State of charge over the period (average of each point)."}>
         <RangeLines
           isToday={isToday}
           todayAxis={curves.axis}
           todaySeries={[
-            { key: "today", label: "Today", color: GREEN, values: untilNow(curves.today.battery_soc_pct ?? [], curves.axis, curves.nowMs) },
-            { key: "yesterday", label: "Yesterday", color: GREEN, values: curves.yesterday.battery_soc_pct ?? [], dashed: true },
+            { key: "today", label: "Today", color: SOC, values: untilNow(curves.today.battery_soc_pct ?? [], curves.axis, curves.nowMs) },
+            { key: "yesterday", label: "Yesterday", color: SOC, values: curves.yesterday.battery_soc_pct ?? [], dashed: true },
           ]}
-          period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "soc", label: "Charge level", color: GREEN, values: soc }] }}
+          period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "soc", label: "Charge level", color: SOC, values: soc }] }}
           unit="%"
           digits={0}
         />
       </Panel>
 
       {(isToday || showPower) && (
-        <Panel title={`Battery power · ${when}`} description="Above zero the battery is charging, below zero it is discharging.">
+        <Panel chart title={`Battery power · ${when}`} description="Above zero the battery is charging, below zero it is discharging.">
           <RangeLines
             isToday={isToday}
             todayAxis={curves.axis}
             todaySeries={[
-              { key: "today", label: "Today", color: GREEN, values: untilNow(power(curves.today), curves.axis, curves.nowMs) },
-              { key: "yesterday", label: "Yesterday", color: GREEN, values: power(curves.yesterday), dashed: true },
+              { key: "today", label: "Today", color: FLOW.producing, values: untilNow(power(curves.today), curves.axis, curves.nowMs) },
+              { key: "yesterday", label: "Yesterday", color: FLOW.producing, values: power(curves.yesterday), dashed: true },
             ]}
-            period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "p", label: "Battery power", color: GREEN, values: scaleCurve(period.avg("battery_power_w"), -0.001) }] }}
+            period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "p", label: "Battery power", color: FLOW.producing, values: scaleCurve(period.avg("battery_power_w"), -0.001) }] }}
             unit="kW"
             zeroLine
           />
@@ -140,27 +147,27 @@ export function BatterySection({ deviceId, span, periodText, isToday, live, prof
       )}
 
       {!isToday && (
-        <Panel title="Charged vs discharged" description={`Each day, over ${periodText}: ${periodCharged.toFixed(1)} kWh in, ${periodDischarged.toFixed(1)} kWh out.`}>
+        <Panel chart title="Charged vs discharged" description={`Each day, over ${periodText}: ${periodCharged.toFixed(1)} kWh in, ${periodDischarged.toFixed(1)} kWh out.`}>
           <DivergingBarChart data={diverging} positiveLabel="Charged" negativeLabel="Discharged" unit="kWh" />
         </Panel>
       )}
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Panel title={`Temperature · ${when}`} description="Batteries last longest when kept cool.">
+        <Panel chart title={`Temperature · ${when}`} description="Batteries last longest when kept cool.">
           <RangeLines
             isToday={isToday}
             todayAxis={curves.axis}
-            todaySeries={[{ key: "t", label: "Battery", color: ORANGE, values: untilNow(curves.today.battery_temperature_c ?? [], curves.axis, curves.nowMs) }]}
-            period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "t", label: "Battery", color: ORANGE, values: period.avg("battery_temperature_c") }] }}
+            todaySeries={[{ key: "t", label: "Battery", color: TEMP, values: untilNow(curves.today.battery_temperature_c ?? [], curves.axis, curves.nowMs) }]}
+            period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "t", label: "Battery", color: TEMP, values: period.avg("battery_temperature_c") }] }}
             unit="°C"
           />
         </Panel>
-        <Panel title={`Battery voltage · ${when}`} description="Rises while charging, falls while discharging.">
+        <Panel chart title={`Battery voltage · ${when}`} description="Rises while charging, falls while discharging.">
           <RangeLines
             isToday={isToday}
             todayAxis={curves.axis}
-            todaySeries={[{ key: "v", label: "Voltage", color: BLUE, values: untilNow(curves.today.battery_voltage_v ?? [], curves.axis, curves.nowMs) }]}
-            period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "v", label: "Voltage", color: BLUE, values: period.avg("battery_voltage_v") }] }}
+            todaySeries={[{ key: "v", label: "Voltage", color: VOLT, values: untilNow(curves.today.battery_voltage_v ?? [], curves.axis, curves.nowMs) }]}
+            period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "v", label: "Voltage", color: VOLT, values: period.avg("battery_voltage_v") }] }}
             unit="V"
           />
         </Panel>
@@ -266,56 +273,56 @@ export function InverterSection({ deviceId, span, periodText, isToday, live, pvK
         <StatTile label={`Grid frequency · ${when}`} value={fLow === null || fHigh === null ? "—" : `${fLow.toFixed(2)}–${fHigh.toFixed(2)} Hz`} hint={fOut ? "Outside 50 ± 0.5 Hz" : "Stable"} tone={fOut ? "warn" : "neutral"} />
       </div>
 
-      <Panel title={`Inverter output · ${when}`} description={isToday ? "Power the inverter is delivering. The dashed line is yesterday." : "Power the inverter delivered (average of each point)."}>
+      <Panel chart title={`Inverter output · ${when}`} description={isToday ? "Power the inverter is delivering. The dashed line is yesterday." : "Power the inverter delivered (average of each point)."}>
         <RangeLines
           isToday={isToday}
           todayAxis={curves.axis}
           todaySeries={[
-            { key: "today", label: "Today", color: "var(--chart-1)", values: untilNow(acToday, curves.axis, curves.nowMs) },
-            { key: "yesterday", label: "Yesterday", color: "var(--chart-1)", values: kw(curves.yesterday.inverter_output_power_w ?? []), dashed: true },
+            { key: "today", label: "Today", color: FLOW.producing, values: untilNow(acToday, curves.axis, curves.nowMs) },
+            { key: "yesterday", label: "Yesterday", color: FLOW.producing, values: kw(curves.yesterday.inverter_output_power_w ?? []), dashed: true },
           ]}
-          period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "ac", label: "AC output", color: "var(--chart-1)", values: acPeriod }] }}
+          period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "ac", label: "AC output", color: FLOW.producing, values: acPeriod }] }}
           unit="kW"
         />
       </Panel>
 
-      <Panel title={`Conversion efficiency · ${when}`} description="How much of the DC power from the panels and battery comes out as AC. Shown while the inverter is working above 0.3 kW.">
+      <Panel chart title={`Conversion efficiency · ${when}`} description="How much of the DC power from the panels and battery comes out as AC. Shown while the inverter is working above 0.3 kW.">
         <RangeLines
           isToday={isToday}
           todayAxis={curves.axis}
-          todaySeries={[{ key: "e", label: "Efficiency", color: GREEN, values: untilNow(effToday.perSlot, curves.axis, curves.nowMs) }]}
-          period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "e", label: "Efficiency", color: GREEN, values: effPeriod.perSlot }] }}
+          todaySeries={[{ key: "e", label: "Efficiency", color: EFF, values: untilNow(effToday.perSlot, curves.axis, curves.nowMs) }]}
+          period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "e", label: "Efficiency", color: EFF, values: effPeriod.perSlot }] }}
           unit="%"
           digits={0}
         />
       </Panel>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Panel title={`Inverter temperature · ${when}`} description="Heat sinks run warmer under load; a steady climb means poor airflow.">
+        <Panel chart title={`Inverter temperature · ${when}`} description="Heat sinks run warmer under load; a steady climb means poor airflow.">
           <RangeLines
             isToday={isToday}
             todayAxis={curves.axis}
             todaySeries={[
-              { key: "ac", label: "AC side", color: ORANGE, values: untilNow(curves.today.inverter_ac_temperature_c ?? [], curves.axis, curves.nowMs) },
-              { key: "dc", label: "DC side", color: BLUE, values: untilNow(curves.today.inverter_dc_temperature_c ?? [], curves.axis, curves.nowMs) },
+              { key: "ac", label: "AC side", color: "var(--chart-4)", values: untilNow(curves.today.inverter_ac_temperature_c ?? [], curves.axis, curves.nowMs) },
+              { key: "dc", label: "DC side", color: "var(--chart-5)", values: untilNow(curves.today.inverter_dc_temperature_c ?? [], curves.axis, curves.nowMs) },
             ]}
             period={{
               axis: period.axis,
               minutes: period.minutes,
               series: [
-                { key: "ac", label: "AC side", color: ORANGE, values: period.avg("inverter_ac_temperature_c") },
-                { key: "dc", label: "DC side", color: BLUE, values: period.avg("inverter_dc_temperature_c") },
+                { key: "ac", label: "AC side", color: "var(--chart-4)", values: period.avg("inverter_ac_temperature_c") },
+                { key: "dc", label: "DC side", color: "var(--chart-5)", values: period.avg("inverter_dc_temperature_c") },
               ],
             }}
             unit="°C"
           />
         </Panel>
-        <Panel title={`Grid frequency · ${when}`} description="Should stay within 50 ± 0.5 Hz.">
+        <Panel chart title={`Grid frequency · ${when}`} description="Should stay within 50 ± 0.5 Hz.">
           <RangeLines
             isToday={isToday}
             todayAxis={curves.axis}
-            todaySeries={[{ key: "f", label: "Frequency", color: BLUE, values: untilNow(curves.today.grid_frequency_hz ?? [], curves.axis, curves.nowMs) }]}
-            period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "f", label: "Frequency", color: BLUE, values: period.avg("grid_frequency_hz") }] }}
+            todaySeries={[{ key: "f", label: "Frequency", color: FREQ, values: untilNow(curves.today.grid_frequency_hz ?? [], curves.axis, curves.nowMs) }]}
+            period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "f", label: "Frequency", color: FREQ, values: period.avg("grid_frequency_hz") }] }}
             unit="Hz"
             digits={2}
           />
@@ -323,8 +330,8 @@ export function InverterSection({ deviceId, span, periodText, isToday, live, pvK
       </div>
 
       {!isToday && (
-        <Panel title="Daily AC output" description={`Energy the inverter delivered each day over ${periodText}.`}>
-          <DailyBars daily={acDaily} label="AC output" color="var(--chart-1)" />
+        <Panel chart title="Daily AC output" description={`Energy the inverter delivered each day over ${periodText}.`}>
+          <DailyBars daily={acDaily} label="AC output" color={FLOW.producing} />
         </Panel>
       )}
       {extras}
@@ -372,23 +379,23 @@ export function LoadSection({ deviceId, span, periodText, isToday, live, extras 
         <StatTile label={`Self-sufficiency · ${when}`} value={fmtPct(sufficiency)} hint="Share not taken from the grid" tone={sufficiency !== null && sufficiency >= 50 ? "good" : "neutral"} />
       </div>
 
-      <Panel title={`Load · ${when}`} description={`Power your home is using${peak ? `, peaking at ${peakKw.toFixed(2)} kW ${period.minutes >= 1440 ? `on ${dateOf(peak.t)}` : `at ${whenText(peak.t, isToday, period.minutes)}`}` : ""}.${isToday ? " The dashed line is yesterday." : ""}`}>
+      <Panel chart title={`Load · ${when}`} description={`Power your home is using${peak ? `, peaking at ${peakKw.toFixed(2)} kW ${period.minutes >= 1440 ? `on ${dateOf(peak.t)}` : `at ${whenText(peak.t, isToday, period.minutes)}`}` : ""}.${isToday ? " The dashed line is yesterday." : ""}`}>
         <RangeLines
           isToday={isToday}
           todayAxis={curves.axis}
           todaySeries={[
-            { key: "today", label: "Today", color: "var(--chart-2)", values: untilNow(kw(curves.today.load_total_power_w ?? []), curves.axis, curves.nowMs) },
-            { key: "yesterday", label: "Yesterday", color: "var(--chart-2)", values: kw(curves.yesterday.load_total_power_w ?? []), dashed: true },
+            { key: "today", label: "Today", color: FLOW.consuming, values: untilNow(kw(curves.today.load_total_power_w ?? []), curves.axis, curves.nowMs) },
+            { key: "yesterday", label: "Yesterday", color: FLOW.consuming, values: kw(curves.yesterday.load_total_power_w ?? []), dashed: true },
           ]}
-          period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "load", label: "Load", color: "var(--chart-2)", values: loadKw }] }}
+          period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "load", label: "Load", color: FLOW.consuming, values: loadKw }] }}
           unit="kW"
           digits={2}
         />
       </Panel>
 
       {!isToday && (
-        <Panel title="Daily consumption" description={`Energy used each day over ${periodText}.`}>
-          <DailyBars daily={loadDaily} label="Used" color="var(--chart-2)" />
+        <Panel chart title="Daily consumption" description={`Energy used each day over ${periodText}.`}>
+          <DailyBars daily={loadDaily} label="Used" color={FLOW.consuming} />
         </Panel>
       )}
 
@@ -406,22 +413,22 @@ export function LoadSection({ deviceId, span, periodText, isToday, live, extras 
       </Panel>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Panel title={`Voltage at your loads · ${when}`} description="Dips below about 215 V under heavy use can stress motors.">
+        <Panel chart title={`Voltage at your loads · ${when}`} description="Dips below about 215 V under heavy use can stress motors.">
           <RangeLines
             isToday={isToday}
             todayAxis={curves.axis}
-            todaySeries={[{ key: "v", label: "Voltage", color: BLUE, values: untilNow(curves.today.load_l1_voltage_v ?? [], curves.axis, curves.nowMs) }]}
-            period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "v", label: "Voltage", color: BLUE, values: period.avg("load_l1_voltage_v") }] }}
+            todaySeries={[{ key: "v", label: "Voltage", color: VOLT, values: untilNow(curves.today.load_l1_voltage_v ?? [], curves.axis, curves.nowMs) }]}
+            period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "v", label: "Voltage", color: VOLT, values: period.avg("load_l1_voltage_v") }] }}
             unit="V"
             digits={0}
           />
         </Panel>
-        <Panel title={`Frequency · ${when}`} description="Should stay within 50 ± 0.5 Hz.">
+        <Panel chart title={`Frequency · ${when}`} description="Should stay within 50 ± 0.5 Hz.">
           <RangeLines
             isToday={isToday}
             todayAxis={curves.axis}
-            todaySeries={[{ key: "f", label: "Frequency", color: BLUE, values: untilNow(curves.today.load_frequency_hz ?? [], curves.axis, curves.nowMs) }]}
-            period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "f", label: "Frequency", color: BLUE, values: period.avg("load_frequency_hz") }] }}
+            todaySeries={[{ key: "f", label: "Frequency", color: FREQ, values: untilNow(curves.today.load_frequency_hz ?? [], curves.axis, curves.nowMs) }]}
+            period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "f", label: "Frequency", color: FREQ, values: period.avg("load_frequency_hz") }] }}
             unit="Hz"
             digits={2}
           />
@@ -476,15 +483,15 @@ export function GridSection({ deviceId, span, periodText, isToday, live, tariff,
         />
       </div>
 
-      <Panel title={`Grid power · ${when}`} description={`Above zero you are buying from the grid; below zero you are selling to it.${isToday ? " The dashed line is yesterday." : ""}`}>
+      <Panel chart title={`Grid power · ${when}`} description={`Above zero you are buying from the grid; below zero you are selling to it.${isToday ? " The dashed line is yesterday." : ""}`}>
         <RangeLines
           isToday={isToday}
           todayAxis={curves.axis}
           todaySeries={[
-            { key: "today", label: "Today", color: ORANGE, values: untilNow(power(curves.today), curves.axis, curves.nowMs) },
-            { key: "yesterday", label: "Yesterday", color: ORANGE, values: power(curves.yesterday), dashed: true },
+            { key: "today", label: "Today", color: FLOW.drawing, values: untilNow(power(curves.today), curves.axis, curves.nowMs) },
+            { key: "yesterday", label: "Yesterday", color: FLOW.drawing, values: power(curves.yesterday), dashed: true },
           ]}
-          period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "g", label: "Grid power", color: ORANGE, values: scaleCurve(period.avg("grid_total_power_w"), 0.001) }] }}
+          period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "g", label: "Grid power", color: FLOW.drawing, values: scaleCurve(period.avg("grid_total_power_w"), 0.001) }] }}
           unit="kW"
           digits={2}
           zeroLine
@@ -492,8 +499,8 @@ export function GridSection({ deviceId, span, periodText, isToday, live, tariff,
       </Panel>
 
       {!isToday && (
-        <Panel title="Exported vs imported" description={`Each day, over ${periodText}: ${periodExport.toFixed(1)} kWh sold, ${periodImport.toFixed(1)} kWh bought.`}>
-          <DivergingBarChart data={diverging} positiveLabel="Exported" negativeLabel="Imported" unit="kWh" />
+        <Panel chart title="Exported vs imported" description={`Each day, over ${periodText}: ${periodExport.toFixed(1)} kWh sold, ${periodImport.toFixed(1)} kWh bought.`}>
+          <DivergingBarChart data={diverging} positiveLabel="Exported" negativeLabel="Imported" unit="kWh" positiveColor={FLOW.consuming} negativeColor={FLOW.drawing} />
         </Panel>
       )}
 
@@ -511,22 +518,22 @@ export function GridSection({ deviceId, span, periodText, isToday, live, tariff,
       </Panel>
 
       <div className="grid gap-4 lg:grid-cols-2">
-        <Panel title={`Grid voltage · ${when}`} description="Mains voltage at your inverter.">
+        <Panel chart title={`Grid voltage · ${when}`} description="Mains voltage at your inverter.">
           <RangeLines
             isToday={isToday}
             todayAxis={curves.axis}
-            todaySeries={[{ key: "v", label: "Voltage", color: BLUE, values: untilNow(curves.today.grid_l1_voltage_v ?? [], curves.axis, curves.nowMs) }]}
-            period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "v", label: "Voltage", color: BLUE, values: period.avg("grid_l1_voltage_v") }] }}
+            todaySeries={[{ key: "v", label: "Voltage", color: VOLT, values: untilNow(curves.today.grid_l1_voltage_v ?? [], curves.axis, curves.nowMs) }]}
+            period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "v", label: "Voltage", color: VOLT, values: period.avg("grid_l1_voltage_v") }] }}
             unit="V"
             digits={0}
           />
         </Panel>
-        <Panel title={`Grid frequency · ${when}`} description="Should stay within 50 ± 0.5 Hz.">
+        <Panel chart title={`Grid frequency · ${when}`} description="Should stay within 50 ± 0.5 Hz.">
           <RangeLines
             isToday={isToday}
             todayAxis={curves.axis}
-            todaySeries={[{ key: "f", label: "Frequency", color: BLUE, values: untilNow(curves.today.grid_frequency_hz ?? [], curves.axis, curves.nowMs) }]}
-            period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "f", label: "Frequency", color: BLUE, values: period.avg("grid_frequency_hz") }] }}
+            todaySeries={[{ key: "f", label: "Frequency", color: FREQ, values: untilNow(curves.today.grid_frequency_hz ?? [], curves.axis, curves.nowMs) }]}
+            period={{ axis: period.axis, minutes: period.minutes, series: [{ key: "f", label: "Frequency", color: FREQ, values: period.avg("grid_frequency_hz") }] }}
             unit="Hz"
             digits={2}
           />
