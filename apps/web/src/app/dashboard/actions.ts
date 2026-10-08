@@ -57,3 +57,20 @@ export async function acknowledgeAlert(alertId: string) {
 
   revalidatePath("/dashboard");
 }
+
+/** Marks every one of these alerts as read (the notification panel's "Mark all read"). The same row-level policy as above limits
+ *  it to the customer's own devices; only alerts still unread are touched. */
+export async function acknowledgeAllAlerts(alertIds: string[]) {
+  const profile = await requireCustomer();
+  const ids = [...new Set(alertIds.filter((id) => typeof id === "string" && id.length > 0))].slice(0, 200);
+  if (ids.length === 0) return;
+
+  const supabase = await createClient();
+  await supabase
+    .from("alerts")
+    .update({ acknowledged_at: new Date().toISOString(), acknowledged_by: profile.id })
+    .in("id", ids)
+    .is("acknowledged_at", null);
+
+  revalidatePath("/dashboard");
+}

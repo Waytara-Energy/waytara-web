@@ -5,10 +5,11 @@ import { getRequestProfile } from "@/lib/request-profile";
 import { fetchSiteOverview, fetchTodayChargingSessions, fetchRecentChargingStats } from "@/lib/device-overview";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { WeatherHeader } from "@/components/dashboard/weather-header";
-import { LiveChannelKeeper, LiveFaultBanner } from "@/components/dashboard/overview-live";
+import { LiveChannelKeeper } from "@/components/dashboard/overview-live";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { OverviewStatus } from "@/components/dashboard/overview-go-live";
+import { ConnectionNotice } from "@/components/dashboard/connection-notice";
+import { HeaderSlot } from "@/components/dashboard/header-slot";
 import { SITE_OVERVIEW_KEYS } from "@/lib/overview-keys";
 import { fetchSolarCardsProps } from "@/components/dashboard/solar-live-status-cards";
 import { fetchEvCardsProps } from "@/components/dashboard/ev-live-status-cards";
@@ -106,18 +107,13 @@ export default async function DashboardOverviewPage() {
           <RealtimeRefresh table="ev_sessions" event="UPDATE" filter={`equipment_id=in.(${chargerIds.join(",")})`} />
         </>
       )}
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <WeatherHeader address={site.address} siteName={site.name} latitude={site.latitude} longitude={site.longitude} />
-        {overview && (
-          <OverviewStatus
-            inverterIds={inverterIds}
-            initial={overviewInitial}
-            pvKeys={pvKeys}
-            inverterStateOptions={inverterStateOptions}
-            sync={syncInit}
-          />
-        )}
-      </div>
+      {/* The status (with Go Live in front of it) lives in the page header, top right; an offline device is announced by a toast at the top. */}
+      {overview && (
+        <HeaderSlot>
+          <OverviewStatus inverterIds={inverterIds} initial={overviewInitial} pvKeys={pvKeys} inverterStateOptions={inverterStateOptions} sync={syncInit} />
+        </HeaderSlot>
+      )}
+      {inverterId && <ConnectionNotice deviceId={inverterId} sync={syncInit} />}
 
       {!overview ? (
         <Empty className="border">
@@ -131,8 +127,6 @@ export default async function DashboardOverviewPage() {
         </Empty>
       ) : (
         <>
-          <LiveFaultBanner inverterIds={inverterIds} initial={overviewInitial} />
-
           <OverviewBoard
             solar={solarCards}
             ev={evCards}

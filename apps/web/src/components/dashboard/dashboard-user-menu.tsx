@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { Home, LogOut, Monitor, MessageSquare, Moon, Sun } from "lucide-react";
+import { ChevronsUpDown, Home, LogOut, Monitor, MessageSquare, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -38,7 +38,10 @@ export function DashboardUserMenu({
   email,
   avatarUrl,
   planName,
+  variant = "avatar",
 }: {
+  /** "avatar": just the round avatar (a header). "sidebar": avatar, name and plan in a row that opens upward. */
+  variant?: "avatar" | "sidebar";
   fullName: string | null;
   email: string | null;
   avatarUrl: string | null;
@@ -67,13 +70,27 @@ export function DashboardUserMenu({
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <Avatar className="h-8 w-8 border-0">
-          {avatarUrl && <AvatarImage src={avatarUrl} alt={fullName ?? "Account"} />}
-          <AvatarFallback className="text-xs">{initials(fullName, email)}</AvatarFallback>
-        </Avatar>
-      </DropdownMenuTrigger>
-      <DropdownMenuContent align="end" className="w-64">
+      {variant === "sidebar" ? (
+        <DropdownMenuTrigger className="flex w-full items-center gap-2.5 rounded-lg p-2 text-left outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring data-[state=open]:bg-sidebar-accent">
+          <Avatar className="h-8 w-8 shrink-0 border-0">
+            {avatarUrl && <AvatarImage src={avatarUrl} alt={fullName ?? "Account"} />}
+            <AvatarFallback className="text-xs">{initials(fullName, email)}</AvatarFallback>
+          </Avatar>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium leading-tight text-sidebar-foreground">{fullName ?? "Your account"}</span>
+            <span className="block truncate text-xs leading-tight text-sidebar-foreground/60">{planName ?? email}</span>
+          </span>
+          <ChevronsUpDown className="size-4 shrink-0 text-sidebar-foreground/60" />
+        </DropdownMenuTrigger>
+      ) : (
+        <DropdownMenuTrigger className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <Avatar className="h-8 w-8 border-0">
+            {avatarUrl && <AvatarImage src={avatarUrl} alt={fullName ?? "Account"} />}
+            <AvatarFallback className="text-xs">{initials(fullName, email)}</AvatarFallback>
+          </Avatar>
+        </DropdownMenuTrigger>
+      )}
+      <DropdownMenuContent align={variant === "sidebar" ? "start" : "end"} side={variant === "sidebar" ? "top" : "bottom"} className="w-64">
         <DropdownMenuLabel className="font-normal">
           <p className="flex items-center gap-1.5 truncate text-sm font-medium text-foreground">
             <span className="truncate">{fullName ?? "Your account"}</span>

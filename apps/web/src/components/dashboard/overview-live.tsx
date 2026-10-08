@@ -50,17 +50,20 @@ export function LiveStatusPill({
   initial,
   inverterStateOptions,
   sync,
+  wrapStatus,
 }: {
   inverterIds: string[];
   initial: Record<string, number | null>;
   inverterStateOptions: EnumOption[];
   sync: DeviceSyncInit;
+  /** Wraps the status word (the Overview puts the Go Live icon in front of it and makes the pair one control). */
+  wrapStatus?: (status: React.ReactNode) => React.ReactNode;
 }) {
   const n = useSiteNumbers(inverterIds, initial);
   return (
-    <div className="flex flex-col items-end gap-1.5">
+    <div className="flex flex-col items-end gap-0.5 text-right">
       {inverterIds[0] ? (
-        <StatusWithAgo deviceId={inverterIds[0]} sync={sync} state={n.inverter_run_state ?? null} faultCode={faultCodeOf(n)} options={inverterStateOptions} />
+        <StatusWithAgo deviceId={inverterIds[0]} sync={sync} state={n.inverter_run_state ?? null} faultCode={faultCodeOf(n)} options={inverterStateOptions} wrapStatus={wrapStatus} />
       ) : (
         <DeviceStatusPill inverterState={null} inverterStateOptions={inverterStateOptions} variant="text" />
       )}
@@ -74,18 +77,21 @@ function StatusWithAgo({
   state,
   faultCode,
   options,
+  wrapStatus,
 }: {
   deviceId: string;
   sync: DeviceSyncInit;
   state: number | null;
   faultCode: number | null;
   options: EnumOption[];
+  wrapStatus?: (status: React.ReactNode) => React.ReactNode;
 }) {
   const { lastReadAt, offline, status } = useDeviceState(deviceId, sync);
+  const pill = <DeviceStatusPill inverterState={state} activeFaultCode={faultCode} inverterStateOptions={options} variant="text" connection={status} />;
   return (
     <>
-      <DeviceStatusPill inverterState={state} activeFaultCode={faultCode} inverterStateOptions={options} variant="text" connection={status} />
-      <LiveSyncedAgo lastTs={lastReadAt} label={offline ? "Last reading" : "Updated"} />
+      {wrapStatus ? wrapStatus(pill) : pill}
+      <LiveSyncedAgo lastTs={lastReadAt} label={offline ? "Last reading" : "Updated"} icon={false} />
     </>
   );
 }

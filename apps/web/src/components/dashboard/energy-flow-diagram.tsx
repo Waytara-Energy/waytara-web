@@ -155,7 +155,7 @@ export function EnergyFlowDiagram({
   inverterId?: string;
   chargerId?: string;
   /** The monitoring unit is offline / has lost the device: nothing flows, so the drawing stops (last readings, no moving
-   *  dots, muted) and says why, and picks up again by itself when readings return. */
+   *  dots, muted) and picks up again by itself when readings return. The page says why in a notice at the top (ConnectionNotice). */
   frozen?: "offline" | "connection_lost" | null;
 }) {
   const router = useRouter();
@@ -196,8 +196,9 @@ export function EnergyFlowDiagram({
         className="@container relative mx-auto w-full"
         style={{
           aspectRatio: `${W} / ${H}`,
-          // fit: as large as the column allows, but never taller than the board (less room for this drawing's colour key).
-          ...(fit ? { width: `min(100%, calc((max(100svh - 14rem, 26rem) - 3.5rem) * ${W / H}))` } : {}),
+          // fit: as large as the column allows, but never taller than the room the board leaves (--flow-h, set by the board; less
+          // room for this drawing's colour key).
+          ...(fit ? { width: `min(100%, calc(var(--flow-h, calc(max(100svh - 14rem, 26rem) - 3.5rem)) * ${W / H}))` } : {}),
         }}
         onPointerLeave={() => setFocus(null)}
       >
@@ -261,13 +262,6 @@ export function EnergyFlowDiagram({
             );
           })}
         </svg>
-        {frozen && (
-          <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
-            <span className="rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1 text-xs font-medium text-red-600 dark:text-red-400">
-              {frozen === "offline" ? "Offline" : "Connection lost"} · showing the last readings
-            </span>
-          </div>
-        )}
 
         {/* The hub: the inverter every line meets, with the site's overall mode at larger sizes. */}
         <Tooltip>

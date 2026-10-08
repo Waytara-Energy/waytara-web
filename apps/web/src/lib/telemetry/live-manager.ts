@@ -1,7 +1,8 @@
 // Keeps ONE live channel per device open only while it is useful:
 //   - opened when the first component needs it and the tab is visible and online;
-//   - closed 10 s after the tab is hidden (so a tab left in the background stops costing messages),
-//     immediately when the page is closed or the browser goes offline, and when the last user releases it;
+//   - closed the moment the tab becomes inactive (hidden, so a tab left in the background stops costing messages), when the
+//     page is closed or the browser goes offline, and when the last user releases it (the user left the page). No timer ever
+//     ends an open connection;
 //   - reopened when the tab is visible again, followed by one parallel catch-up of what was missed;
 //   - retried with backoff if the channel drops by itself.
 // Everything environmental is injected, so the rules are tested without a browser.
@@ -30,7 +31,6 @@ export interface LiveEnv {
   clearTimer(handle: unknown): void;
 }
 
-export const HIDDEN_GRACE_MS = 10_000;
 /** While a screen is open and visible, the connection state is re-read from the database this often (the live channel can miss it). */
 export const HEARTBEAT_POLL_MS = 60_000;
 const BACKOFF_MS = [2_000, 4_000, 8_000, 16_000, 32_000, 60_000];
@@ -41,7 +41,6 @@ interface DeviceState {
   opening: boolean;
   everOpened: boolean;
   closedByUs: boolean;
-  hideTimer: unknown;
   retryTimer: unknown;
   beatTimer: unknown;
   attempt: number;
@@ -67,7 +66,7 @@ export class DeviceLiveManager {
   acquire(deviceId: string): () => void {
     let s = this.devices.get(deviceId);
     if (!s) {
-      s = { refs: 0, handle: null, opening: false, everOpened: false, closedByUs: false, hideTimer: null, retryTimer: null, beatTimer: null, attempt: 0 };
+      s = { refs: 0, handle: null, opening: false, everOpened: false, closedByUs: false, retryTimer: null, beatTimer: null, attempt: 0 };
       this.devices.set(deviceId, s);
     }
     s.refs++;
@@ -180,10 +179,6 @@ export class DeviceLiveManager {
   private close(deviceId: string, status: "paused" | "idle" | "offline"): void {
     const s = this.devices.get(deviceId);
     if (!s) return;
-    if (s.hideTimer) {
-      this.env.clearTimer(s.hideTimer);
-      s.hideTimer = null;
-    }
     if (s.retryTimer) {
       this.env.clearTimer(s.retryTimer);
       s.retryTimer = null;
@@ -211,19 +206,12 @@ export class DeviceLiveManager {
   private onVisibility(): void {
     for (const [id, s] of this.devices) {
       if (this.env.isVisible()) {
-        if (s.hideTimer) {
-          this.env.clearTimer(s.hideTimer);
-          s.hideTimer = null;
-        }
         if (!s.handle && !s.opening) {
           s.attempt = 0;
           void this.ensureOpen(id);
         }
-      } else if (!s.hideTimer && s.handle) {
-        s.hideTimer = this.env.setTimer(() => {
-          s.hideTimer = null;
-          this.close(id, "paused");
-        }, HIDDEN_GRACE_MS);
+      } else if (s.handle) {
+        this.close(id, "paused"); // the tab went inactive: let go now, catch up when it is back
       }
     }
   }

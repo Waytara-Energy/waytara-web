@@ -23,7 +23,7 @@ const ACCOUNT_GROUP_ITEMS = SECONDARY_NAV_ITEMS;
 // reach). Also surfaces the account-menu pages (Support, Billing, Settings)
 // — none of them have a sidebar row, but they're still reachable, so
 // power-users can still jump straight there.
-export function DashboardCommandMenu({ features = {} }: { features?: Record<string, boolean> }) {
+export function DashboardCommandMenu({ features = {}, variant = "header" }: { features?: Record<string, boolean>; variant?: "header" | "sidebar" }) {
   const [open, setOpen] = React.useState(false);
   const router = useRouter();
   const navItems = visibleNavItems(features);
@@ -46,17 +46,23 @@ export function DashboardCommandMenu({ features = {} }: { features?: Record<stri
 
   return (
     <>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        className="h-8 gap-2 text-muted-foreground"
-        onClick={() => setOpen(true)}
-      >
-        <Search className="h-3.5 w-3.5" />
-        <span className="hidden lg:inline">Quick nav…</span>
-        <Kbd className="hidden lg:inline-flex">⌘K</Kbd>
-      </Button>
+      {variant === "sidebar" ? (
+        <button
+          type="button"
+          onClick={() => setOpen(true)}
+          className="flex h-8 w-full items-center gap-2 rounded-lg border border-sidebar-foreground/15 bg-sidebar-accent/60 px-2.5 text-xs text-sidebar-foreground/80 outline-none transition-colors hover:border-sidebar-foreground/25 hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+        >
+          <Search className="size-3.5 shrink-0" />
+          <span className="flex-1 text-left">Search…</span>
+          <Kbd className="h-4 min-w-4 px-1 text-[10px] max-md:hidden">⌘K</Kbd>
+        </button>
+      ) : (
+        <Button type="button" variant="outline" size="sm" className="h-8 gap-2 text-muted-foreground" onClick={() => setOpen(true)}>
+          <Search className="h-3.5 w-3.5" />
+          <span className="hidden lg:inline">Quick nav…</span>
+          <Kbd className="hidden lg:inline-flex">⌘K</Kbd>
+        </Button>
+      )}
       <CommandDialog open={open} onOpenChange={setOpen} title="Quick navigation" description="Jump to a dashboard page">
         <CommandInput placeholder="Where do you want to go?" />
         <CommandList>

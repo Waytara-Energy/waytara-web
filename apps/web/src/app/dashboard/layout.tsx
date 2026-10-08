@@ -3,14 +3,17 @@ import { createClient } from "@waytara/supabase/server";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
+import { HeaderSlotProvider } from "@/components/dashboard/header-slot";
+import { SidebarBrandToggle } from "@/components/dashboard/sidebar-brand-toggle";
 import { SessionWatcher } from "@/components/dashboard/session-watcher";
 import { RealtimeProvider } from "@waytara/ui/realtime-provider";
 import { TelemetryProvider } from "@/lib/telemetry/react";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { getCustomerSites, resolveSelectedSite, SELECTED_SITE_COOKIE } from "@/lib/selected-site";
+import { deviceDisplayId, getCustomerSites, resolveSelectedSite, SELECTED_SITE_COOKIE } from "@/lib/selected-site";
+import { getLastSyncInfo } from "@/lib/device-sync";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { getRequestProfile, isRequestOnboarded } from "@/lib/request-profile";
-import { fetchCustomerAlerts } from "@/lib/device-overview";
+import { fetchActiveFaultCodes, fetchCustomerAlerts } from "@/lib/device-overview";
 import { logout } from "./actions";
 import { NO_INDEX } from "@/lib/seo";
 
@@ -81,11 +84,12 @@ export default async function DashboardLayout({
   // is what makes a collapsed sidebar stay collapsed across a reload
   // instead of springing back open. Runs alongside the alerts fetch below
   // since neither depends on the other.
-  const [cookieStore, initialAlerts] = await Promise.all([
+  const [cookieStore, initialAlerts, initialFaults] = await Promise.all([
     cookies(),
     createClient().then((supabase) => fetchCustomerAlerts(supabase, allDeviceIds)),
+    createClient().then((supabase) => fetchActiveFaultCodes(supabase, allDeviceIds)),
   ]);
-  const sidebarOpen = cookieStore.get("sidebar_state")?.value !== "false";
+  const sidebarOpen = cookieStore.get("sidebar_state")?.value === "true";
 
   // Site is the dashboard's navigation root now — every site-scoped page
   // resolves its own selection via getSelectedSite() (same cookie,
@@ -95,12 +99,27 @@ export default async function DashboardLayout({
   // `profile`) purely for the header switcher's list.
   const selectedSite = resolveSelectedSite(sites, cookieStore.get(SELECTED_SITE_COOKIE)?.value);
 
+  // The sidebar lists the selected site's devices, each with a status dot: what the server knows of every device's connection
+  // (the dots then follow the live channel themselves).
+  const sidebarDevices = await Promise.all(
+    (selectedSite?.devices ?? []).map(async (d) => {
+      const { lastTs, agentSeenTs, deviceOnline, intervalS, heartbeatS } = await getLastSyncInfo(d.id);
+      return { id: d.id, name: deviceDisplayId(d), sync: { lastTs, agentSeenTs, deviceOnline, intervalS, heartbeatS } };
+    })
+  );
+
   return (
     <RealtimeProvider>
       <TelemetryProvider userId={profile?.id ?? "unknown"}>
       <SidebarProvider defaultOpen={sidebarOpen}>
+      <HeaderSlotProvider>
         <SessionWatcher />
-        <DashboardSidebar features={features} />
+        <SidebarBrandToggle floating />
+        <DashboardSidebar
+          features={features}
+          devices={sidebarDevices}
+          account={{ fullName: profile?.full_name ?? null, email: profile?.email ?? null, avatarUrl: profile?.avatar_url ?? null, planName: customerPlan?.planName ?? null }}
+        />
         {/* h-svh + overflow-clip caps this to the viewport instead of
             growing with page content (SidebarProvider's own wrapper is
             only min-h-svh) — that's what turns the <main> below into an
@@ -117,29 +136,19 @@ export default async function DashboardLayout({
             path. */}
         <SidebarInset className="h-svh overflow-clip">
           <DashboardHeader
-            fullName={profile?.full_name ?? null}
-            email={profile?.email ?? null}
-            avatarUrl={profile?.avatar_url ?? null}
-            planName={customerPlan?.planName ?? null}
-            features={features}
             sites={sites.map((s) => ({ id: s.id, name: s.name, deviceCount: s.devices.length }))}
             selectedSiteId={selectedSite?.id ?? null}
             alertDeviceIds={allDeviceIds}
+            devices={sites.flatMap((s) => s.devices.map((d) => ({ id: d.id, name: deviceDisplayId(d) })))}
             initialAlerts={initialAlerts}
+            initialFaults={initialFaults}
           />
-          <main className="flex-1 overflow-y-auto">
-            {/* Fades scrolled content as it passes under the header edge —
-                sticky to the top of this scroll region (not the header
-                itself, which is a separate element now that content and
-                header no longer share a scroll context), painted in the
-                page's own background color so content visibly dissolves
-                rather than a shadow/line sitting in the gap. The `-mb-6`
-                cancels its own flow height so the padded content below
-                isn't pushed down by it. */}
-            <div className="pointer-events-none sticky top-0 z-10 -mb-6 h-6 bg-gradient-to-b from-background to-transparent" />
-            <div className="p-6">{children}</div>
+          {/* The header floats over this scroll region (transparent, fading what scrolls under it), so the content starts below it. */}
+          <main className="flex-1 overflow-y-auto pt-[clamp(3.5rem,4.5vw,4.25rem)]">
+            <div className="p-6 pt-3">{children}</div>
           </main>
         </SidebarInset>
+      </HeaderSlotProvider>
       </SidebarProvider>
       </TelemetryProvider>
     </RealtimeProvider>

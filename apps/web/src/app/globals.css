@@ -380,3 +380,21 @@ body {
     animation: none;
   }
 }
+
+/* The notification panel sliding in from, and out to, the right. */
+@keyframes panel-in-right {
+  from {
+    transform: translateX(100%);
+  }
+  to {
+    transform: translateX(0);
+  }
+}
+@keyframes panel-out-right {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}

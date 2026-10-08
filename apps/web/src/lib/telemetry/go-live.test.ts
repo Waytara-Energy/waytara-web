@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { GoLiveSession, WAIT_FOR_AGENT_MS, decimateMinMax, type ChannelHandle, type GoLiveEnv, type GoLiveHandlers, type SnapshotFile, type SnapshotMeta } from "./go-live";
+import { GoLiveSession, decimateMinMax, type ChannelHandle, type GoLiveEnv, type GoLiveHandlers, type SnapshotFile, type SnapshotMeta } from "./go-live";
 
 function setup(file: SnapshotFile = { from_ms: 0, to_ms: 1000, series: { p: [[100, 1], [1000, 2]] } }) {
   let downloads = 0;
@@ -20,8 +20,6 @@ function setup(file: SnapshotFile = { from_ms: 0, to_ms: 1000, series: { p: [[10
       if (hold) await gate;
       return file;
     },
-    setTimer: (fn, ms) => setTimeout(fn, ms),
-    clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
     viewerId: () => "viewer-1",
   };
   const session = new GoLiveSession(env);
@@ -86,13 +84,23 @@ describe("GoLiveSession", () => {
     expect(t.session.getState().series.get("p")).toEqual({ t: [100, 1000, 1500], v: [1, 2, 4] });
   });
 
-  it("gives up with a clear message if the agent never answers", async () => {
+  it("keeps waiting for an agent that is offline - no timer ends it - and goes live when the agent answers", async () => {
     const t = setup();
     await t.session.start("d", ["p"]);
-    await vi.advanceTimersByTimeAsync(WAIT_FOR_AGENT_MS + 10);
-    expect(t.session.getState().status).toBe("error");
-    expect(t.session.getState().error).toMatch(/agent/i);
-    expect(t.left()).toBe(1);                                  // and it left the channel
+    await vi.advanceTimersByTimeAsync(60 * 60 * 1000);          // an hour with no answer
+    expect(t.session.getState().status).toBe("waiting");
+    expect(t.left()).toBe(0);                                   // still on the channel
+    t.handlers().onSnapshot(t.meta);                            // the agent comes back
+    await flush();
+    expect(t.session.getState().status).toBe("live");
+  });
+
+  it("ends only when the viewer leaves", async () => {
+    const t = setup();
+    await t.session.start("d", ["p"]);
+    t.session.stop();
+    expect(t.session.getState().status).toBe("off");
+    expect(t.left()).toBe(1);
   });
 
   it("asking for more metrics re-announces; the new snapshot fills them in", async () => {
@@ -131,7 +139,7 @@ describe("GoLiveSession", () => {
 
   it("a failed download is an error the viewer can retry", async () => {
     const t = setup();
-    const broken = new GoLiveSession({ ...({} as GoLiveEnv), join: async (_i, h) => { void h; return { track() {}, leave() {} }; }, download: async () => { throw new Error("no file"); }, setTimer: (f, m) => setTimeout(f, m), clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>), viewerId: () => "v" });
+    const broken = new GoLiveSession({ ...({} as GoLiveEnv), join: async (_i, h) => { void h; return { track() {}, leave() {} }; }, download: async () => { throw new Error("no file"); }, viewerId: () => "v" });
     let h!: GoLiveHandlers;
     (broken as unknown as { env: GoLiveEnv }).env.join = async (_i, handlers) => { h = handlers; return { track() {}, leave() {} }; };
     await broken.start("d", ["p"]);

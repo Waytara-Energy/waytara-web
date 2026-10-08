@@ -3,6 +3,7 @@ import { createClient } from "@waytara/supabase/server";
 import type { CustomerDevice, CustomerSite } from "./selected-site";
 import { fetchReadKeys } from "./instrument-catalog-data";
 import { FAULT_BITMASK_KEYS, TODAY_ENERGY_KEYS } from "./overview-keys";
+import { faultCodeOf } from "./notification-items";
 import { pvPowerKeys } from "./solar-generation";
 
 export { FAULT_BITMASK_KEYS };
@@ -539,6 +540,22 @@ export async function fetchRecentChargingStats(supabase: SupabaseServerClient, d
  *  (unlike the Overview "Recent Alerts" card, which only ever showed
  *  unacknowledged ones) so the bell can offer an "All" view alongside
  *  "Unread" rather than only ever showing a shrinking list. */
+/** The fault each device reports right now (null = none), read from its latest fault and alarm registers - the first value the
+ *  notification panel shows before the live channel takes over. */
+export async function fetchActiveFaultCodes(supabase: SupabaseServerClient, deviceIds: string[]): Promise<Record<string, number | null>> {
+  const codes: Record<string, number | null> = Object.fromEntries(deviceIds.map((id) => [id, null]));
+  if (deviceIds.length === 0) return codes;
+  const { data } = await supabase.from("equipment_latest").select("equipment_id, key_name, value").in("equipment_id", deviceIds).in("key_name", FAULT_BITMASK_KEYS);
+  const byDevice = new Map<string, Record<string, number | null>>();
+  for (const r of data ?? []) {
+    const values = byDevice.get(r.equipment_id) ?? {};
+    values[r.key_name] = r.value;
+    byDevice.set(r.equipment_id, values);
+  }
+  for (const [id, values] of byDevice) codes[id] = faultCodeOf(values);
+  return codes;
+}
+
 export async function fetchCustomerAlerts(supabase: SupabaseServerClient, deviceIds: string[], limit = 30): Promise<AlertRow[]> {
   if (deviceIds.length === 0) return [];
   const { data } = await supabase

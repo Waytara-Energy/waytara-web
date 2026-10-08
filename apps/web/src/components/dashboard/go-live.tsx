@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartConfig, ChartContainer, ChartTooltip, ChartTooltipContent } from "@/components/ui/chart";
 import { Spinner } from "@/components/ui/spinner";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { istDayStart } from "@/lib/telemetry/combine";
 import {
@@ -28,8 +30,6 @@ function browserEnv(sb: Sb): GoLiveEnv {
   const viewer = Math.random().toString(36).slice(2, 10);
   return {
     viewerId: () => viewer,
-    setTimer: (fn, ms) => setTimeout(fn, ms),
-    clearTimer: (h) => clearTimeout(h as ReturnType<typeof setTimeout>),
     join: async (deviceId, handlers) => {
       await sb.realtime.setAuth(); // the signed-in session's token: the channel is private
       const channel = sb.channel(`live:${deviceId}`, { config: { private: true, presence: { key: viewer } } });
@@ -78,11 +78,11 @@ interface GoLiveContextValue {
 }
 
 const GoLiveContext = React.createContext<GoLiveContextValue | null>(null);
-const HIDDEN_GRACE_MS = 10_000;
 
-/** Go Live for a device's Monitoring screen. While it is on, the screen's trend charts show today's readings at the
- *  device's own rate (from the agent's local files) instead of 15-minute averages. It switches itself off when the
- *  tab is hidden for 10 s, the page closes, or the browser goes offline - and the page falls back to the saved data. */
+/** Go Live for a device's screen. While it is on, the screen shows the device's readings as they arrive (the agent sends every
+ *  reading for the first minute, then thins them out) instead of the regular 15-minute updates. No timer ever ends it: it closes
+ *  when the tab goes inactive (hidden), the page is left or closed, or the browser goes offline - and the page falls back to the
+ *  regular 15-minute live updates and saved data. It starts again by itself when the tab is active again. */
 export function GoLiveProvider({
   deviceId,
   agentOnline,
@@ -118,16 +118,23 @@ export function GoLiveProvider({
   const start = React.useCallback(() => void session.start(deviceId, union(), { history }), [session, deviceId, union, history]);
   const stop = React.useCallback(() => session.stop(), [session]);
 
+  // Was it on when the tab went inactive? Then it comes back with the tab.
+  const resumeRef = React.useRef(false);
   React.useEffect(() => {
-    let timer: ReturnType<typeof setTimeout> | null = null;
     const onVisibility = () => {
-      if (document.visibilityState === "hidden") timer = setTimeout(() => session.stop(), HIDDEN_GRACE_MS);
-      else if (timer) {
-        clearTimeout(timer);
-        timer = null;
+      if (document.visibilityState === "hidden") {
+        const status = session.getState().status;
+        resumeRef.current = status !== "off" && status !== "error";
+        session.stop();
+      } else if (resumeRef.current) {
+        resumeRef.current = false;
+        void session.start(deviceId, union(), { history });
       }
     };
-    const leave = () => session.stop();
+    const leave = () => {
+      resumeRef.current = false;
+      session.stop();
+    };
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("pagehide", leave);
     window.addEventListener("offline", leave);
@@ -135,10 +142,9 @@ export function GoLiveProvider({
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("pagehide", leave);
       window.removeEventListener("offline", leave);
-      if (timer) clearTimeout(timer);
       session.stop(); // leaving the screen leaves the channel
     };
-  }, [session]);
+  }, [session, deviceId, union, history]);
 
   const active = state.status !== "off" && state.status !== "error";
   const value = React.useMemo(() => ({ state, active, agentOnline, start, stop, register }), [state, active, agentOnline, start, stop, register]);
@@ -193,6 +199,64 @@ export function GoLiveButton() {
       </Button>
       {state.status === "error" && state.error && <span className="max-w-xs text-xs text-destructive">{state.error}</span>}
     </div>
+  );
+}
+
+/** The status in the page header with Go Live in front of it: one control, icon then the status word (`children`). Clicking it - even
+ *  when the status says Offline - tries a live connection to the equipment agent and shows the readings as they arrive; clicking
+ *  again lets go. It is orange and animated while it connects (and keeps waiting for as long as the page is open - no timeout),
+ *  green while live, red when it fails, and a muted red icon when the device is offline and nothing has been tried yet. */
+export function GoLiveStatusButton({ children, onStart }: { children: React.ReactNode; onStart?: () => void }) {
+  const live = useGoLive();
+  if (!live) return <>{children}</>;
+  const { state, active, agentOnline, start, stop } = live;
+
+  const isLive = state.status === "live";
+  const connecting = active && !isLive;
+  const failed = state.status === "error";
+
+  let label = "Go Live: show every reading as it arrives";
+  let tone = "text-muted-foreground group-hover/golive:text-foreground";
+  let onClick: () => void = () => {
+    start();
+    onStart?.();
+  };
+  if (isLive) {
+    label = "Live - click to pause (the page keeps updating with the regular 15-minute updates)";
+    tone = "text-emerald-600 dark:text-emerald-400";
+    onClick = stop;
+  } else if (connecting) {
+    label = state.status === "loading" ? "Loading… click to cancel" : "Connecting to the device… it keeps trying while you stay on this page. Click to cancel";
+    tone = "text-orange-600 dark:text-orange-400";
+    onClick = stop;
+  } else if (failed) {
+    label = `${state.error || "Couldn't go live"} - click to try again`;
+    tone = "text-red-600 dark:text-red-400";
+  } else if (!agentOnline) {
+    label = "Offline - click to try a live connection to the device";
+    tone = "text-red-500/80 group-hover/golive:text-red-500";
+  }
+
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          type="button"
+          aria-label={label}
+          onClick={onClick}
+          className="group/golive flex cursor-pointer items-center gap-2 rounded-full py-0.5 pl-0.5 pr-2 outline-none transition-colors hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <span className={cn("relative flex size-6 shrink-0 items-center justify-center rounded-full", tone)}>
+            {(isLive || connecting) && <span className={cn("absolute inset-0 rounded-full border-2 opacity-60 motion-safe:animate-ping", isLive ? "border-emerald-500" : "border-orange-500")} />}
+            <Radio className={cn("relative size-4", connecting && "motion-safe:animate-pulse")} />
+          </span>
+          {children}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="bottom" className="max-w-64">
+        {label}
+      </TooltipContent>
+    </Tooltip>
   );
 }
 

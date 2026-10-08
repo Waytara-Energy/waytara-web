@@ -1,61 +1,37 @@
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { DashboardBreadcrumb } from "./dashboard-breadcrumb";
-import { DashboardCommandMenu } from "./dashboard-command-menu";
-import { DashboardUserMenu } from "./dashboard-user-menu";
-import { NotificationCenter } from "./notification-center";
-import { SiteSwitcher, type SwitcherSite } from "./site-switcher";
+import { HeaderLeft } from "./header-left";
+import { HeaderSlotTarget } from "./header-slot";
+import { NotificationCenter, type NotificationDevice } from "./notification-center";
+import type { SwitcherSite } from "./site-switcher";
 import type { AlertRow } from "./recent-alerts";
 
-// `minmax(0,1fr) auto minmax(0,1fr)` centers the breadcrumb on the
-// header's true midpoint regardless of how wide the flanking clusters are
-// — a bare `1fr` track still gets an implicit content-based minimum
-// width, so an unequal pair would out-grow one another and drag the
-// "centered" column off-center; `minmax(0, 1fr)` forces both flanking
-// tracks to actually split the remaining space evenly. The breadcrumb and
-// both clusters get an explicit `col-start-*` for the same reason
-// auto-placement can't be trusted here.
+// No bar and no line: it is the page's own colour, and the content that scrolls up under it fades out over a thin strip at its
+// bottom edge (the `after` gradient) instead of meeting a border. The site switcher is at the top left (after the brand button on a phone,
+// or after the floating one when the sidebar is closed); the top right holds whatever the page puts in the header slot - the
+// Overview's Go Live and connection status - then the notification bell. Search and the account live in the sidebar.
 export function DashboardHeader({
-  fullName,
-  email,
-  avatarUrl,
-  planName,
-  features,
   sites,
   selectedSiteId,
   alertDeviceIds,
+  devices,
   initialAlerts,
+  initialFaults,
 }: {
-  fullName: string | null;
-  email: string | null;
-  avatarUrl: string | null;
-  planName: string | null;
-  features: Record<string, boolean>;
   sites: SwitcherSite[];
   selectedSiteId: string | null;
-  /** Every device across every one of the customer's sites — the
-   *  notification bell isn't scoped to whichever site is selected, since
-   *  it's mounted once here in the layout, not per-page. */
+  /** Every device across every one of the customer's sites - the bell isn't scoped to the selected site. */
   alertDeviceIds: string[];
+  /** Their names, for the notification panel. */
+  devices: NotificationDevice[];
   initialAlerts: AlertRow[];
+  /** The fault each device reports right now (null = none). */
+  initialFaults: Record<string, number | null>;
 }) {
   return (
-    <header className="grid h-[clamp(3.5rem,4.5vw,4.25rem)] shrink-0 grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2 bg-background px-4">
-      <div className="col-start-1 flex min-w-0 items-center gap-2">
-        {/* The sidebar's own toggle lives in its logo row, but on mobile
-            that sidebar is an off-canvas Sheet that starts closed — with no
-            trigger reachable outside it, there was no way to open it at
-            all. This is the only way in on mobile — hidden at md+ since
-            desktop already has its own toggle in the sidebar itself. */}
-        <SidebarTrigger className="md:hidden [&_svg]:h-[clamp(17px,1.15vw,19.5px)] [&_svg]:w-[clamp(17px,1.15vw,19.5px)]" />
-        <SiteSwitcher sites={sites} selectedId={selectedSiteId} />
-      </div>
-      <div className="col-start-2 min-w-0">
-        <DashboardBreadcrumb />
-      </div>
-      <div className="col-start-3 flex items-center justify-end gap-2">
-        <NotificationCenter deviceIds={alertDeviceIds} initialAlerts={initialAlerts} />
-        <DashboardCommandMenu features={features} />
-        <DashboardUserMenu fullName={fullName} email={email} avatarUrl={avatarUrl} planName={planName} />
+    <header className="absolute inset-x-0 top-0 z-20 flex h-[clamp(3.5rem,4.5vw,4.25rem)] items-center justify-between gap-3 bg-background px-4 after:pointer-events-none after:absolute after:inset-x-0 after:top-full after:h-3 after:bg-gradient-to-b after:from-background after:to-transparent">
+      <HeaderLeft sites={sites} selectedSiteId={selectedSiteId} />
+      <div className="flex min-w-0 items-center justify-end gap-3">
+        <HeaderSlotTarget className="flex min-w-0 items-center" />
+        <NotificationCenter deviceIds={alertDeviceIds} devices={devices} initialAlerts={initialAlerts} initialFaults={initialFaults} />
       </div>
     </header>
   );

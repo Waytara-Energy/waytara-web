@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DeviceLiveManager, HEARTBEAT_POLL_MS, HIDDEN_GRACE_MS, type LiveEnv } from "./live-manager";
+import { DeviceLiveManager, HEARTBEAT_POLL_MS, type LiveEnv } from "./live-manager";
 import { TelemetryStore } from "./store";
 import type { TickPayload } from "./types";
 
@@ -53,15 +53,12 @@ describe("DeviceLiveManager", () => {
     expect(store.getStatus("d").status).toBe("idle");
   });
 
-  it("closes 10 s after the tab is hidden, and reopens with a catch-up when it is visible again", async () => {
+  it("closes the moment the tab is hidden (no timer), and reopens with a catch-up when it is visible again", async () => {
     const { manager, opened, state, cbs, store, catchUp } = setup();
     manager.acquire("d");
     await flush();
     state.visible = false;
     cbs.visibility.forEach((f) => f());
-    await vi.advanceTimersByTimeAsync(HIDDEN_GRACE_MS - 1);
-    expect(opened[0].closed).toBe(false);                       // still in the grace period
-    await vi.advanceTimersByTimeAsync(2);
     expect(opened[0].closed).toBe(true);
     expect(store.getStatus("d").status).toBe("paused");
     expect(catchUp).not.toHaveBeenCalled();
@@ -73,16 +70,11 @@ describe("DeviceLiveManager", () => {
     expect(catchUp).toHaveBeenCalledWith("d");
   });
 
-  it("a quick tab switch inside the grace period keeps the same channel", async () => {
-    const { manager, opened, state, cbs, catchUp } = setup();
+  it("never closes an open channel on a timer: a visible tab on the page keeps it for as long as it stays", async () => {
+    const { manager, opened, catchUp } = setup();
     manager.acquire("d");
     await flush();
-    state.visible = false;
-    cbs.visibility.forEach((f) => f());
-    await vi.advanceTimersByTimeAsync(3000);
-    state.visible = true;
-    cbs.visibility.forEach((f) => f());
-    await vi.advanceTimersByTimeAsync(HIDDEN_GRACE_MS * 2);
+    await vi.advanceTimersByTimeAsync(6 * 60 * 60 * 1000);       // six hours
     expect(opened).toHaveLength(1);
     expect(opened[0].closed).toBe(false);
     expect(catchUp).not.toHaveBeenCalled();
@@ -184,7 +176,6 @@ describe("DeviceLiveManager", () => {
     await flush();
     state.visible = false;
     cbs.visibility.forEach((f) => f());
-    await vi.advanceTimersByTimeAsync(HIDDEN_GRACE_MS + 1);
     refresh.mockClear();
     state.visible = true;
     cbs.visibility.forEach((f) => f());

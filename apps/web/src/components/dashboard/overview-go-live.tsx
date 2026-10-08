@@ -5,7 +5,7 @@ import { OVERVIEW_LIVE_KEYS } from "@/lib/overview-keys";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { useTelemetryStore } from "@/lib/telemetry/react";
 import type { EnumOption } from "@/lib/enum-labels";
-import { GoLiveButton, GoLiveProvider, useGoLive } from "./go-live";
+import { GoLiveProvider, GoLiveStatusButton, useGoLive } from "./go-live";
 import { LiveStatusPill } from "./overview-live";
 import { useDeviceState } from "./use-device-state";
 
@@ -42,7 +42,7 @@ function OverviewLiveBridge({ deviceId, pvKeys }: { deviceId: string; pvKeys: st
   return null;
 }
 
-/** Top right of Overview: the Go Live button, then the inverter's status. */
+/** The Overview's status for the page header (top right): the inverter's state with the Go Live icon in front of it, and the time of its last reading under it. */
 export function OverviewStatus({
   inverterIds,
   initial,
@@ -58,24 +58,34 @@ export function OverviewStatus({
   pvKeys?: string[];
 }) {
   const deviceId = inverterIds[0];
-  const status = <LiveStatusPill inverterIds={inverterIds} initial={initial} inverterStateOptions={inverterStateOptions} sync={sync} />;
-  if (!deviceId) return status;
+  if (!deviceId) return <LiveStatusPill inverterIds={inverterIds} initial={initial} inverterStateOptions={inverterStateOptions} sync={sync} />;
   return (
     <WithGoLive deviceId={deviceId} sync={sync} pvKeys={pvKeys}>
-      {status}
+      <LiveStatusPill
+        inverterIds={inverterIds}
+        initial={initial}
+        inverterStateOptions={inverterStateOptions}
+        sync={sync}
+        wrapStatus={(pill) => <GoLiveFromStatus deviceId={deviceId}>{pill}</GoLiveFromStatus>}
+      />
     </WithGoLive>
   );
 }
 
+/** The Go Live icon in front of the status word, as one button. Starting it also re-reads the device's connection from the server,
+ *  so the time under the status is current straight away. */
+function GoLiveFromStatus({ deviceId, children }: { deviceId: string; children: React.ReactNode }) {
+  const store = useTelemetryStore();
+  const refreshConnection = React.useCallback(() => void store.refreshHeartbeat(deviceId), [store, deviceId]);
+  return <GoLiveStatusButton onStart={refreshConnection}>{children}</GoLiveStatusButton>;
+}
+
 function WithGoLive({ deviceId, sync, pvKeys, children }: { deviceId: string; sync: DeviceSyncInit; pvKeys: string[]; children: React.ReactNode }) {
-  // Go Live needs the device to be answering: with the device off there is nothing to stream.
+  // Whether the device is answering only tints the icon: clicking it always tries a live connection, even when it says Offline.
   const { offline } = useDeviceState(deviceId, sync);
   return (
     <GoLiveProvider deviceId={deviceId} agentOnline={!offline} history={false}>
-      <div className="flex flex-wrap items-center justify-end gap-3">
-        <GoLiveButton />
-        {children}
-      </div>
+      <div className="flex items-center justify-end">{children}</div>
       <OverviewLiveBridge deviceId={deviceId} pvKeys={pvKeys} />
     </GoLiveProvider>
   );

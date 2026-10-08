@@ -5,8 +5,9 @@
 // uploads today's data for them to a private storage file and broadcasts `snapshot`, then streams one `tick` per
 // poll. When the last viewer leaves, the agent stops and deletes the file. Nothing raw is written to a table.
 //
-// This module is the state machine only - every environmental piece (channel, download, timers) is injected, so the
-// rules are tested without a browser.
+// This module is the state machine only - every environmental piece (channel, download) is injected, so the rules are
+// tested without a browser. No timer ends a session: it waits for the agent for as long as the viewer stays (the agent may be
+// offline and come back), and it ends only when the viewer leaves, the channel drops, or the agent says goodbye.
 
 export type GoLiveStatus = "off" | "connecting" | "waiting" | "loading" | "live" | "error";
 
@@ -54,8 +55,6 @@ export interface ChannelHandle {
 export interface GoLiveEnv {
   join(deviceId: string, handlers: GoLiveHandlers): Promise<ChannelHandle>;
   download(meta: SnapshotMeta): Promise<SnapshotFile>;
-  setTimer(fn: () => void, ms: number): unknown;
-  clearTimer(handle: unknown): void;
   viewerId(): string;
 }
 
@@ -69,7 +68,6 @@ export interface GoLiveState {
   rev: number;
 }
 
-export const WAIT_FOR_AGENT_MS = 20_000;
 export const MAX_POINTS_PER_SERIES = 100_000;
 /** A viewer that only follows the latest readings keeps just a short tail of each series. */
 const LIVE_ONLY_POINTS = 120;
@@ -80,7 +78,6 @@ export class GoLiveSession {
   private listeners = new Set<() => void>();
   private handle: ChannelHandle | null = null;
   private deviceId: string | null = null;
-  private waitTimer: unknown = null;
   private snapshotTo = -Infinity;
   private buffered: TickMessage[] = [];
   private generation = 0;
@@ -100,26 +97,7 @@ export class GoLiveSession {
     this.listeners.forEach((fn) => fn());
   }
 
-  private armWait(): void {
-    this.disarmWait();
-    this.waitTimer = this.env.setTimer(() => {
-      this.waitTimer = null;
-      if (this.state.status === "waiting" || this.state.status === "connecting") {
-        this.set({ status: "error", error: "The device didn't respond. Check that the equipment agent is running and online." });
-        this.leave();
-      }
-    }, WAIT_FOR_AGENT_MS);
-  }
-
-  private disarmWait(): void {
-    if (this.waitTimer) {
-      this.env.clearTimer(this.waitTimer);
-      this.waitTimer = null;
-    }
-  }
-
   private leave(): void {
-    this.disarmWait();
     this.generation++;
     try {
       this.handle?.leave();
@@ -138,7 +116,6 @@ export class GoLiveSession {
     this.snapshotTo = -Infinity;
     this.buffered = [];
     this.set({ status: "connecting", error: null, keys: [...keys], series: new Map() });
-    this.armWait();
     try {
       const handle = await this.env.join(deviceId, {
         onSnapshot: (meta) => void this.handleSnapshot(meta, gen),
@@ -147,7 +124,6 @@ export class GoLiveSession {
           if (gen !== this.generation || this.state.status === "off") return;
           // The agent ended the stream (no viewers in its eyes): ask again.
           this.set({ status: "waiting" });
-          this.armWait();
           this.handle?.track({ keys: this.state.keys, viewer: this.env.viewerId(), history: this.history });
         },
         onStatus: (s) => {
@@ -190,7 +166,6 @@ export class GoLiveSession {
 
   private async handleSnapshot(meta: SnapshotMeta, gen: number): Promise<void> {
     if (gen !== this.generation) return;
-    this.disarmWait();
     this.set({ status: "loading" });
     try {
       // No history wanted (or none sent): start from the readings that arrive from now on.

@@ -28,11 +28,11 @@ export interface Point {
   y: number;
 }
 
-export const VIEW_W = 640;
+export const VIEW_W = 440;
 export const NODE_R = 30;
 export const HUB_R = 38;
 const HUB_X = VIEW_W / 2;
-const SIDE_X = 92; // centre of the left column (the right column mirrors it)
+const SIDE_X = 70; // centre of the left column (the right column mirrors it): the hub-to-node line is as long as the solar one
 const ROW_GAP = 124; // between nodes stacked on the left / right
 const COL_GAP = 158; // between nodes side by side on the top / bottom
 const MAX_PER_ROW = 3; // more than this wraps onto another row
@@ -105,7 +105,7 @@ export function layoutFlow<T>(items: T[], kindOf: (item: T) => NodeKind): Layout
         const sign = side === "top" ? -1 : 1;
         const row = Math.floor(i / MAX_PER_ROW);
         const inRow = Math.min(MAX_PER_ROW, n - row * MAX_PER_ROW);
-        const colGap = Math.min(COL_GAP, (HUB_X - SIDE_X - NODE_R - 40) / Math.max(1, (inRow - 1) / 2));
+        const colGap = Math.min(COL_GAP, (HUB_X - NODE_R - EDGE_PAD) / Math.max(1, (inRow - 1) / 2));
         center = { x: HUB_X + spread(inRow, i - row * MAX_PER_ROW, colGap), y: hub.y + sign * (firstRowDist + row * ROW_PITCH) };
         anchor = { x: center.x, y: center.y - sign * NODE_R };
         hubAnchor = { x: hub.x + fan, y: hub.y + sign * Math.sqrt(HUB_R ** 2 - fan ** 2) };
