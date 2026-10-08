@@ -13,7 +13,9 @@ import {
 } from "@/components/ui/command";
 import { Button } from "@/components/ui/button";
 import { Kbd } from "@/components/ui/kbd";
+import { useSidebar } from "@/components/ui/sidebar";
 import { visibleNavItems, SECONDARY_NAV_ITEMS } from "./nav-config";
+import { isPeeking, setPeeking } from "./sidebar-peek";
 
 const ACCOUNT_GROUP_ITEMS = SECONDARY_NAV_ITEMS;
 
@@ -26,6 +28,7 @@ const ACCOUNT_GROUP_ITEMS = SECONDARY_NAV_ITEMS;
 export function DashboardCommandMenu({ features = {}, variant = "header" }: { features?: Record<string, boolean>; variant?: "header" | "sidebar" }) {
   const [open, setOpen] = React.useState(false);
   const router = useRouter();
+  const { isMobile, setOpen: setSidebarOpen, setOpenMobile } = useSidebar();
   const navItems = visibleNavItems(features);
 
   React.useEffect(() => {
@@ -41,6 +44,12 @@ export function DashboardCommandMenu({ features = {}, variant = "header" }: { fe
 
   function go(href: string) {
     setOpen(false);
+    // Going to a page closes a sidebar that was only peeked at.
+    if (isMobile) setOpenMobile(false);
+    else if (isPeeking()) {
+      setPeeking(false);
+      setSidebarOpen(false);
+    }
     router.push(href);
   }
 

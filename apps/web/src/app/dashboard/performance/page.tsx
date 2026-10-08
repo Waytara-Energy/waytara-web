@@ -2,7 +2,6 @@ import { redirect } from "next/navigation";
 import { TrendingUp } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { getSelectedSite, resolveDeviceInSite, deviceDisplayId } from "@/lib/selected-site";
-import { DeviceSwitcher } from "@/components/dashboard/device-switcher";
 import { PerformanceContent } from "@/components/dashboard/performance-content";
 import { AnalyticsContent } from "@/components/dashboard/analytics-content";
 import { getCustomerPlan } from "@/lib/customer-plan";
@@ -61,12 +60,6 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
       ) : (
         <>
           {/* History is read from the daily rollups when the page loads. */}
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <DeviceSwitcher devices={site?.devices ?? [device]} selectedId={device.id} />
-              <p className="mt-1 text-sm text-theme-muted">Performance history, updated as new readings arrive.</p>
-            </div>
-          </div>
           <PerformanceContent supabase={supabase} device={device} tariffRate={tariffRate} />
           {features.analytics && (
             <>

@@ -7,9 +7,7 @@ import { getCustomerPlan } from "@/lib/customer-plan";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { LiveChannelKeeper } from "@/components/dashboard/overview-live";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
-import { OverviewStatus } from "@/components/dashboard/overview-go-live";
 import { ConnectionNotice } from "@/components/dashboard/connection-notice";
-import { HeaderSlot } from "@/components/dashboard/header-slot";
 import { SITE_OVERVIEW_KEYS } from "@/lib/overview-keys";
 import { fetchSolarCardsProps } from "@/components/dashboard/solar-live-status-cards";
 import { fetchEvCardsProps } from "@/components/dashboard/ev-live-status-cards";
@@ -63,7 +61,7 @@ export default async function DashboardOverviewPage() {
   const deviceIds = site.devices.map((d) => d.id);
   const chargerIds = site.devices.filter((d) => d.deviceType?.category === "ev_charger").map((d) => d.id);
   const inverterId = site.devices.find((d) => d.deviceType?.category === "solar_inverter")?.id;
-  const [overview, chargingSummary, recentChargingStats, customerPlan, connectorStatusOptions, inverterStateOptions, inverterSync] = await Promise.all([
+  const [overview, chargingSummary, recentChargingStats, customerPlan, connectorStatusOptions, inverterSync] = await Promise.all([
     deviceIds.length > 0 ? fetchSiteOverview(supabase, site) : Promise.resolve(null),
     chargerIds.length > 0 ? fetchTodayChargingSessions(supabase, chargerIds[0]) : Promise.resolve(null),
     chargerIds.length > 0 ? fetchRecentChargingStats(supabase, chargerIds[0]) : Promise.resolve(null),
@@ -71,12 +69,6 @@ export default async function DashboardOverviewPage() {
     chargerIds.length > 0
       ? fetchEnumOptions(supabase, ["connector_status"]).then((m) => m.get("connector_status") ?? [])
       : Promise.resolve([]),
-    // enum_ref stays "inverter_state" (equipment_enum wasn't reseeded under
-    // the new key name) even though the equipment_templates/equipment_metrics
-    // key itself is now "inverter_run_state" — the enum library and the
-    // field key are two separate names by design (an enum_ref is meant to
-    // be reusable across differently-named fields).
-    inverterId ? fetchEnumOptions(supabase, ["inverter_state"]).then((m) => m.get("inverter_state") ?? []) : Promise.resolve([]),
     inverterId ? getLastSyncInfo(inverterId) : Promise.resolve(null),
   ]);
   const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
@@ -107,12 +99,7 @@ export default async function DashboardOverviewPage() {
           <RealtimeRefresh table="ev_sessions" event="UPDATE" filter={`equipment_id=in.(${chargerIds.join(",")})`} />
         </>
       )}
-      {/* The status (with Go Live in front of it) lives in the page header, top right; an offline device is announced by a toast at the top. */}
-      {overview && (
-        <HeaderSlot>
-          <OverviewStatus inverterIds={inverterIds} initial={overviewInitial} pvKeys={pvKeys} inverterStateOptions={inverterStateOptions} sync={syncInit} />
-        </HeaderSlot>
-      )}
+      {/* The device status icons (each one a live connection) are in the page header on every page; an offline device is announced by a toast at the top. */}
       {inverterId && <ConnectionNotice deviceId={inverterId} sync={syncInit} />}
 
       {!overview ? (

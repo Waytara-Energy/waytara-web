@@ -1,5 +1,7 @@
 import { HeaderLeft } from "./header-left";
 import { HeaderSlotTarget } from "./header-slot";
+import type { StatusDevice } from "./device-status-icons";
+import { OverviewHeaderStatus } from "./overview-go-live";
 import { NotificationCenter, type NotificationDevice } from "./notification-center";
 import type { SwitcherSite } from "./site-switcher";
 import type { AlertRow } from "./recent-alerts";
@@ -8,11 +10,16 @@ import type { AlertRow } from "./recent-alerts";
 // bottom edge (the `after` gradient) instead of meeting a border. The site switcher is at the top left (after the brand button on a phone,
 // or after the floating one when the sidebar is closed); the top right holds whatever the page puts in the header slot - the
 // Overview's Go Live and connection status - then the notification bell. Search and the account live in the sidebar.
+// The inverter's PV power keys, so a live connection from any page also brings the solar inputs.
+const PV_KEYS = ["pv1_power_w", "pv2_power_w", "pv3_power_w", "pv4_power_w"];
+
 export function DashboardHeader({
   sites,
   selectedSiteId,
   alertDeviceIds,
   devices,
+  statusDevices,
+  selectedDeviceId,
   initialAlerts,
   initialFaults,
 }: {
@@ -22,6 +29,10 @@ export function DashboardHeader({
   alertDeviceIds: string[];
   /** Their names, for the notification panel. */
   devices: NotificationDevice[];
+  /** The selected site's inverters and EV chargers, for the status icons. */
+  statusDevices: StatusDevice[];
+  /** The device last picked (the cookie): the one a page without its own ?device= shows. */
+  selectedDeviceId: string | null;
   initialAlerts: AlertRow[];
   /** The fault each device reports right now (null = none). */
   initialFaults: Record<string, number | null>;
@@ -31,6 +42,7 @@ export function DashboardHeader({
       <HeaderLeft sites={sites} selectedSiteId={selectedSiteId} />
       <div className="flex min-w-0 items-center justify-end gap-3">
         <HeaderSlotTarget className="flex min-w-0 items-center" />
+        <OverviewHeaderStatus devices={statusDevices} pvKeys={PV_KEYS} defaultSelectedId={selectedDeviceId} />
         <NotificationCenter deviceIds={alertDeviceIds} devices={devices} initialAlerts={initialAlerts} initialFaults={initialFaults} />
       </div>
     </header>

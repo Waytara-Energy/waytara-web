@@ -9,7 +9,7 @@ import { ReportControls } from "@/components/dashboard/report-controls";
 import { DayReport } from "@/components/dashboard/day-report";
 import { getEnabledMetricKeys } from "@/lib/report-day-data";
 import { availableReportTypes, toAvailableReports } from "@/lib/report-types";
-import { DeviceSwitcher } from "@/components/dashboard/device-switcher";
+import { DeviceTitle } from "@/components/dashboard/device-title";
 import { ChartEmptyState } from "@/components/dashboard/chart-empty-state";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -87,7 +87,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
         <>
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <DeviceSwitcher devices={report.site?.devices ?? [device]} selectedId={device.id} />
+              <DeviceTitle devices={report.site?.devices ?? [device]} selectedId={device.id} />
               <p className="mt-1 text-sm text-theme-muted">Pick a report and a day (00:00 to 23:59) or a window of 7, 30, 90 days or up to 30 days from a date you choose, then download it as CSV or PDF.</p>
             </div>
           </div>

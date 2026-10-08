@@ -1,7 +1,7 @@
 import { Wrench } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { getSelectedSite, resolveDeviceInSite, deviceDisplayId } from "@/lib/selected-site";
-import { DeviceSwitcher } from "@/components/dashboard/device-switcher";
+import { DeviceTitle } from "@/components/dashboard/device-title";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -75,7 +75,7 @@ export default async function MaintenancePage({
 
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div>
-              <DeviceSwitcher devices={site?.devices ?? [device]} selectedId={device.id} />
+              <DeviceTitle devices={site?.devices ?? [device]} selectedId={device.id} />
               <p className="mt-1 text-sm text-theme-muted">Report an issue or request a scheduled visit for this device.</p>
             </div>
             {site && (

@@ -1,25 +1,51 @@
 "use client";
 
+import * as React from "react";
 import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { LogoMark } from "@/components/shared/logo";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
+import { setPeeking } from "./sidebar-peek";
 
-/** The brand mark in a circle that opens the sidebar: at rest it is the logo, on hover (or focus) it turns into the open icon. On a
+/** How long the pointer rests on the icon before the sidebar opens. */
+const HOVER_OPEN_MS = 1000;
+
+/** The brand mark in a circle that opens the sidebar: at rest it is the logo, pointing at it opens the sidebar (and it turns into the open icon). On a
  *  phone it stays the logo and opens the sidebar sheet. `floating` pins it to the top left of the window (desktop) and shows it only
  *  while the sidebar is closed - open, the sidebar has the full logo and its own collapse icon. */
 export function SidebarBrandToggle({ floating = false, className }: { floating?: boolean; className?: string }) {
-  const { toggleSidebar, state, isMobile } = useSidebar();
+  const { toggleSidebar, setOpen, state, isMobile } = useSidebar();
   const collapsed = state === "collapsed" && !isMobile;
+  const timer = React.useRef<number | null>(null);
+  const cancelHover = () => {
+    if (timer.current !== null) window.clearTimeout(timer.current);
+    timer.current = null;
+  };
+  React.useEffect(() => () => cancelHover(), []);
   const Icon = collapsed ? PanelLeftOpen : PanelLeftClose;
-  const label = isMobile ? "Open menu" : collapsed ? "Open sidebar" : "Close sidebar";
+  const label = isMobile ? "Open menu" : collapsed ? "Show sidebar" : "Hide sidebar";
   return (
     <Tooltip>
       <TooltipTrigger asChild>
         <button
           type="button"
-          onClick={toggleSidebar}
+          // Resting on the icon for a second opens the sidebar for a peek (it closes again when a page is chosen); a click opens it
+          // at once and keeps it open.
+          onClick={() => {
+            cancelHover();
+            setPeeking(false);
+            toggleSidebar();
+          }}
+          onMouseEnter={() => {
+            if (!collapsed || isMobile) return;
+            cancelHover();
+            timer.current = window.setTimeout(() => {
+              setPeeking(true);
+              setOpen(true);
+            }, HOVER_OPEN_MS);
+          }}
+          onMouseLeave={cancelHover}
           aria-label={label}
           className={cn(
             "group/brand relative flex size-9 shrink-0 cursor-pointer items-center justify-center rounded-full border border-border/60 bg-sidebar-accent/70 outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring",
@@ -32,8 +58,10 @@ export function SidebarBrandToggle({ floating = false, className }: { floating?:
           <Icon className="absolute size-[18px] scale-75 text-sidebar-foreground opacity-0 transition-all duration-200 group-hover/brand:scale-100 group-hover/brand:opacity-100 group-focus-visible/brand:scale-100 group-focus-visible/brand:opacity-100 max-md:hidden" />
         </button>
       </TooltipTrigger>
-      <TooltipContent side="right" hidden={isMobile}>
-        {label}
+      {/* Like Claude desktop's: the action and its shortcut in a small dark label under the icon. */}
+      <TooltipContent side="bottom" align="start" sideOffset={8} hidden={isMobile} className="flex items-center gap-3 border border-border bg-popover px-2.5 py-1.5 text-sm text-popover-foreground shadow-md [&>svg]:hidden">
+        <span>{collapsed ? "Show sidebar" : "Hide sidebar"}</span>
+        <span className="text-xs text-muted-foreground">Ctrl+B</span>
       </TooltipContent>
     </Tooltip>
   );

@@ -24,6 +24,7 @@ import { DashboardCommandMenu } from "./dashboard-command-menu";
 import { DashboardUserMenu } from "./dashboard-user-menu";
 import { visibleNavItems } from "./nav-config";
 import { useDeviceState } from "./use-device-state";
+import { isPeeking, setPeeking } from "./sidebar-peek";
 
 export interface SidebarDevice {
   id: string;
@@ -69,13 +70,22 @@ export function DashboardSidebar({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const navItems = visibleNavItems(features).filter((i) => i.href !== "/dashboard/devices");
-  const { isMobile, setOpenMobile } = useSidebar();
+  const { isMobile, setOpenMobile, setOpen, open } = useSidebar();
   const openDevice = searchParams.get("device");
 
-  // On a phone the sidebar is a sheet over the page: picking something closes it.
+  // The sidebar lies over the page (a sheet on a phone): picking a page closes it, unless it was opened with a click (then it stays).
+  // Its collapse icon, or a click outside it, closes it otherwise.
   function handleNavClick() {
     if (isMobile) setOpenMobile(false);
+    else if (isPeeking()) {
+      setPeeking(false);
+      setOpen(false);
+    }
   }
+  // Once it is closed it is no longer a peek.
+  React.useEffect(() => {
+    if (!open) setPeeking(false);
+  }, [open]);
 
   return (
     <Sidebar collapsible="offcanvas" variant="overlay">
@@ -136,7 +146,7 @@ export function DashboardSidebar({
       <SidebarFooter className="relative px-2 pb-3 pt-1">
         {/* The list fades out above the account row instead of being cut by a line. */}
         <div className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-gradient-to-t from-sidebar to-transparent" />
-        <DashboardUserMenu fullName={account.fullName} email={account.email} avatarUrl={account.avatarUrl} planName={account.planName} variant="sidebar" />
+        <DashboardUserMenu fullName={account.fullName} email={account.email} avatarUrl={account.avatarUrl} planName={account.planName} />
       </SidebarFooter>
     </Sidebar>
   );

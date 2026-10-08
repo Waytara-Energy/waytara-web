@@ -1,4 +1,5 @@
 import "server-only";
+import { cache } from "react";
 import { createClient } from "@waytara/supabase/server";
 import type { DeviceSyncInit } from "./device-sync-types";
 
@@ -18,7 +19,7 @@ export interface LastSyncInfo extends DeviceSyncInit {
 /** The selected device's connection: when it last ANSWERED (not merely when the agent last uploaded), whether the agent
  *  says it is answering, and when the agent was last heard from. Without this distinction a switched-off device looked
  *  "updated a minute ago" and "Normal" for as long as the agent kept running. */
-export async function getLastSyncInfo(deviceId: string): Promise<LastSyncInfo> {
+export const getLastSyncInfo = cache(async function getLastSyncInfo(deviceId: string): Promise<LastSyncInfo> {
   const supabase = await createClient();
   const { data: beat } = await supabase
     .from("equipment_heartbeat")
@@ -50,4 +51,4 @@ export async function getLastSyncInfo(deviceId: string): Promise<LastSyncInfo> {
     minutesAgo,
     isStale: minutesAgo === null || minutesAgo > STALE_AFTER_MINUTES || deviceOnline === false,
   };
-}
+});

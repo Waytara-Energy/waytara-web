@@ -16,7 +16,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { DeviceSwitcher } from "@/components/dashboard/device-switcher";
+import { DeviceTitle } from "@/components/dashboard/device-title";
 import { DeviceIdentityCard } from "@/components/dashboard/device-identity-card";
 import { DeviceOverviewContent } from "@/components/dashboard/device-overview-content";
 import { SettingFieldRow } from "@/components/dashboard/setting-field-row";
@@ -25,7 +25,7 @@ import { EnableLocationButton } from "@/components/dashboard/enable-location-but
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { updateSiteSetting } from "./actions";
 
-// The Devices module — same `?device=` + DeviceSwitcher pattern as
+// The Devices module — same `?device=` + the device icons in the header pattern as
 // Monitoring/Performance/Reports/Maintenance (a card grid you clicked
 // through to a separate per-device route used to live here; that extra
 // step was the odd one out against every other device-scoped page, so it's
@@ -160,7 +160,7 @@ export default async function DevicesPage({
       )}
 
       <div>
-        <DeviceSwitcher devices={site.devices} selectedId={device.id} />
+        <DeviceTitle devices={site.devices} selectedId={device.id} />
         <p className="mt-1 text-sm text-theme-muted">Device identity, live status, and settings.</p>
       </div>
 

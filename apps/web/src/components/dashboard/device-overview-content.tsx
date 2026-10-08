@@ -2,13 +2,11 @@ import { createClient } from "@waytara/supabase/server";
 import type { CustomerDevice, CustomerSite } from "@/lib/selected-site";
 import { fetchDeviceOverview } from "@/lib/device-overview";
 import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
-import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
 import { fetchDashboardFields, fetchFieldValues, resolveComputedValues } from "@/lib/template-fields";
 import { LiveDynamicFieldGroup } from "./live-field-group";
 import { valuesFor } from "@/lib/field-values";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { LiveChannelKeeper, LiveEnergyFlow, LiveFaultBanner, LiveTodaySoFar } from "./overview-live";
-import { OverviewStatus } from "./overview-go-live";
 import { SITE_OVERVIEW_KEYS } from "@/lib/overview-keys";
 import { RecentAlerts } from "./recent-alerts";
 import { EvChargerOverview } from "./ev-charger-overview";
@@ -69,11 +67,8 @@ export async function DeviceOverviewContent({
   const category = device.deviceType?.category;
 
   if (category === "solar_inverter") {
-    // enum_ref stays "inverter_state" even though the field's own key is
-    // now "inverter_run_state" — see dashboard/page.tsx's identical note.
-    const [overview, inverterStateOptions, leftoverSections, lastSync] = await Promise.all([
+    const [overview, leftoverSections, lastSync] = await Promise.all([
       fetchDeviceOverview(supabase, site, device),
-      fetchEnumOptions(supabase, ["inverter_state"]).then((m) => m.get("inverter_state") ?? []),
       fetchDashboardFields(supabase, device, "Overview"),
       getLastSyncInfo(device.id),
     ]);
@@ -93,9 +88,6 @@ export async function DeviceOverviewContent({
     return (
       <div className="space-y-4">
         <LiveChannelKeeper deviceIds={inverterIds} />
-        <div className="flex justify-end">
-          <OverviewStatus inverterIds={inverterIds} initial={initial} inverterStateOptions={inverterStateOptions} sync={lastSync} pvKeys={overview.pvKeys} />
-        </div>
 
         <LiveFaultBanner inverterIds={inverterIds} initial={initial} />
 

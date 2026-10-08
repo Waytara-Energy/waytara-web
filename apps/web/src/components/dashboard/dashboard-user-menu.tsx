@@ -2,28 +2,14 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ChevronsUpDown, Home, LogOut, Monitor, MessageSquare, Moon, Sun } from "lucide-react";
-import { useTheme } from "next-themes";
+import { ChevronUp, Home, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { Spinner } from "@/components/ui/spinner";
+import { useSidebar } from "@/components/ui/sidebar";
 import { logout } from "@/app/dashboard/actions";
+import { cn } from "@/lib/utils";
 import { SECONDARY_NAV_ITEMS } from "./nav-config";
-import { useHasMounted } from "@/hooks/use-has-mounted";
-
-const APPEARANCE_OPTIONS = [
-  { value: "light", label: "Light", icon: Sun },
-  { value: "dark", label: "Dark", icon: Moon },
-  { value: "system", label: "System", icon: Monitor },
-] as const;
+import { isPeeking, setPeeking } from "./sidebar-peek";
 
 function initials(name: string | null, email: string | null): string {
   if (name?.trim()) {
@@ -33,116 +19,90 @@ function initials(name: string | null, email: string | null): string {
   return (email?.[0] ?? "?").toUpperCase();
 }
 
+const ROW = "flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-sm text-sidebar-foreground/90 outline-none transition-colors hover:bg-sidebar-accent hover:text-sidebar-foreground focus-visible:ring-2 focus-visible:ring-sidebar-ring [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:text-sidebar-foreground/60";
+
+/** The account row at the foot of the sidebar. Opening it unfolds the account details inside the sidebar, above the row (no floating
+ *  popup): the account pages, Home and sign out. */
 export function DashboardUserMenu({
   fullName,
   email,
   avatarUrl,
   planName,
-  variant = "avatar",
 }: {
-  /** "avatar": just the round avatar (a header). "sidebar": avatar, name and plan in a row that opens upward. */
-  variant?: "avatar" | "sidebar";
   fullName: string | null;
   email: string | null;
   avatarUrl: string | null;
   planName?: string | null;
 }) {
-  const { theme, setTheme } = useTheme();
-  // Same hydration-safety gate the old standalone ThemeToggle used —
-  // `theme` is unknown on the server (next-themes reads localStorage/
-  // matchMedia client-side only), so the toggle defaults to "system"
-  // (this app's own defaultTheme) until mounted rather than briefly
-  // showing the wrong option selected.
-  const mounted = useHasMounted();
+  const { isMobile, setOpenMobile, setOpen: setSidebarOpen } = useSidebar();
+  const [open, setOpen] = React.useState(false);
 
-  // logout() redirects on completion, so the menu unmounts on its own —
-  // this pending state is just so "Sign out" doesn't look unresponsive
-  // for however long that takes. preventDefault keeps Radix from closing
-  // the menu the instant the item is selected, so the spinner is actually
-  // visible rather than flashing behind the closing animation.
+  // logout() redirects on completion, so this only shows the sign-out as busy until the page leaves.
   const [loggingOut, startLogoutTransition] = React.useTransition();
-  function handleLogout(event: Event) {
-    event.preventDefault();
+  function handleLogout() {
     startLogoutTransition(() => {
       void logout();
     });
   }
 
+  // Going to a page folds the details away, and on a phone closes the sidebar sheet too.
+  function handleNavigate() {
+    setOpen(false);
+    if (isMobile) setOpenMobile(false);
+    else if (isPeeking()) {
+      setPeeking(false);
+      setSidebarOpen(false);
+    }
+  }
+
   return (
-    <DropdownMenu>
-      {variant === "sidebar" ? (
-        <DropdownMenuTrigger className="flex w-full items-center gap-2.5 rounded-lg p-2 text-left outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring data-[state=open]:bg-sidebar-accent">
-          <Avatar className="h-8 w-8 shrink-0 border-0">
-            {avatarUrl && <AvatarImage src={avatarUrl} alt={fullName ?? "Account"} />}
-            <AvatarFallback className="text-xs">{initials(fullName, email)}</AvatarFallback>
-          </Avatar>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-medium leading-tight text-sidebar-foreground">{fullName ?? "Your account"}</span>
-            <span className="block truncate text-xs leading-tight text-sidebar-foreground/60">{planName ?? email}</span>
-          </span>
-          <ChevronsUpDown className="size-4 shrink-0 text-sidebar-foreground/60" />
-        </DropdownMenuTrigger>
-      ) : (
-        <DropdownMenuTrigger className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <Avatar className="h-8 w-8 border-0">
-            {avatarUrl && <AvatarImage src={avatarUrl} alt={fullName ?? "Account"} />}
-            <AvatarFallback className="text-xs">{initials(fullName, email)}</AvatarFallback>
-          </Avatar>
-        </DropdownMenuTrigger>
-      )}
-      <DropdownMenuContent align={variant === "sidebar" ? "start" : "end"} side={variant === "sidebar" ? "top" : "bottom"} className="w-64">
-        <DropdownMenuLabel className="font-normal">
-          <p className="flex items-center gap-1.5 truncate text-sm font-medium text-foreground">
-            <span className="truncate">{fullName ?? "Your account"}</span>
-            {planName && <span className="shrink-0 text-xs font-normal text-muted-foreground">· {planName}</span>}
-          </p>
-          <p className="truncate text-xs text-muted-foreground">{email}</p>
-        </DropdownMenuLabel>
-        <DropdownMenuSeparator />
-        <div className="flex items-center justify-between gap-2 px-2 py-1.5">
-          <span className="text-sm text-foreground">Appearance</span>
-          <ToggleGroup
-            type="single"
-            variant="outline"
-            size="sm"
-            value={mounted ? (theme ?? "system") : "system"}
-            onValueChange={(value) => value && setTheme(value)}
-          >
-            {APPEARANCE_OPTIONS.map(({ value, label, icon: Icon }) => (
-              <ToggleGroupItem key={value} value={value} aria-label={label} title={label} className="px-2">
-                <Icon className="size-3.5" />
-              </ToggleGroupItem>
-            ))}
-          </ToggleGroup>
+    <div>
+      <div className={cn("grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none", open ? "grid-rows-[1fr]" : "grid-rows-[0fr]")}>
+        <div className="overflow-hidden" inert={!open}>
+          <div className="max-h-[55vh] space-y-1 overflow-y-auto px-1 pb-2 pt-1">
+            <div className="space-y-0.5">
+              {SECONDARY_NAV_ITEMS.map(({ href, label, icon: Icon }) => (
+                <Link key={href} href={href} onClick={handleNavigate} className={ROW}>
+                  <Icon />
+                  {label}
+                </Link>
+              ))}
+            </div>
+
+            <div className="space-y-0.5 border-t border-sidebar-border pt-1.5">
+              <Link href="/" onClick={handleNavigate} className={ROW}>
+                <Home />
+                Home
+              </Link>
+            </div>
+
+            <div className="border-t border-sidebar-border pt-1.5">
+              <button type="button" disabled={loggingOut} onClick={handleLogout} className={cn(ROW, "text-red-500 hover:text-red-500 disabled:opacity-60 [&_svg]:text-red-500")}>
+                {loggingOut ? <Spinner /> : <LogOut />}
+                {loggingOut ? "Signing out…" : "Sign out"}
+              </button>
+            </div>
+          </div>
         </div>
-        <DropdownMenuSeparator />
-        {SECONDARY_NAV_ITEMS.map(({ href, label, icon: Icon }) => (
-          <DropdownMenuItem key={href} asChild>
-            <Link href={href}>
-              <Icon />
-              {label}
-            </Link>
-          </DropdownMenuItem>
-        ))}
-        <DropdownMenuSeparator />
-        <DropdownMenuItem asChild>
-          <Link href="/">
-            <Home />
-            Home
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuItem asChild>
-          <Link href="/contact">
-            <MessageSquare />
-            Feedback
-          </Link>
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem variant="destructive" disabled={loggingOut} onSelect={handleLogout}>
-          {loggingOut ? <Spinner /> : <LogOut />}
-          {loggingOut ? "Signing out…" : "Sign out"}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+      </div>
+
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center gap-2.5 rounded-lg p-2 text-left outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring data-[open=true]:bg-sidebar-accent"
+        data-open={open}
+      >
+        <Avatar className="h-8 w-8 shrink-0 border-0">
+          {avatarUrl && <AvatarImage src={avatarUrl} alt={fullName ?? "Account"} />}
+          <AvatarFallback className="text-xs">{initials(fullName, email)}</AvatarFallback>
+        </Avatar>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-medium leading-tight text-sidebar-foreground">{fullName ?? "Your account"}</span>
+          <span className="block truncate text-xs leading-tight text-sidebar-foreground/60">{planName ?? email}</span>
+        </span>
+        <ChevronUp className={cn("size-4 shrink-0 text-sidebar-foreground/60 transition-transform duration-200", open ? "rotate-180" : "rotate-0")} />
+      </button>
+    </div>
   );
 }

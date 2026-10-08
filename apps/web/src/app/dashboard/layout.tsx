@@ -4,12 +4,14 @@ import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { HeaderSlotProvider } from "@/components/dashboard/header-slot";
+import { ChartStyleProvider } from "@/components/dashboard/chart-style";
+import { CHART_STYLE_COOKIE, parseChartStyle } from "@/lib/chart-style";
 import { SidebarBrandToggle } from "@/components/dashboard/sidebar-brand-toggle";
 import { SessionWatcher } from "@/components/dashboard/session-watcher";
 import { RealtimeProvider } from "@waytara/ui/realtime-provider";
 import { TelemetryProvider } from "@/lib/telemetry/react";
 import { SubmitButton } from "@/components/ui/submit-button";
-import { deviceDisplayId, getCustomerSites, resolveSelectedSite, SELECTED_SITE_COOKIE } from "@/lib/selected-site";
+import { deviceDisplayId, getCustomerSites, resolveSelectedSite, SELECTED_DEVICE_COOKIE, SELECTED_SITE_COOKIE } from "@/lib/selected-site";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { getRequestProfile, isRequestOnboarded } from "@/lib/request-profile";
@@ -104,14 +106,19 @@ export default async function DashboardLayout({
   const sidebarDevices = await Promise.all(
     (selectedSite?.devices ?? []).map(async (d) => {
       const { lastTs, agentSeenTs, deviceOnline, intervalS, heartbeatS } = await getLastSyncInfo(d.id);
-      return { id: d.id, name: deviceDisplayId(d), sync: { lastTs, agentSeenTs, deviceOnline, intervalS, heartbeatS } };
+      return { id: d.id, name: deviceDisplayId(d), category: d.deviceType?.category ?? null, sync: { lastTs, agentSeenTs, deviceOnline, intervalS, heartbeatS } };
     })
+  );
+  // The header's status icons: the inverters and EV chargers of the selected site.
+  const statusDevices = sidebarDevices.flatMap((d) =>
+    d.category === "solar_inverter" || d.category === "ev_charger" ? [{ id: d.id, name: d.name, kind: d.category === "ev_charger" ? ("ev" as const) : ("inverter" as const), sync: d.sync }] : []
   );
 
   return (
     <RealtimeProvider>
       <TelemetryProvider userId={profile?.id ?? "unknown"}>
       <SidebarProvider defaultOpen={sidebarOpen}>
+      <ChartStyleProvider initial={parseChartStyle(cookieStore.get(CHART_STYLE_COOKIE)?.value)}>
       <HeaderSlotProvider>
         <SessionWatcher />
         <SidebarBrandToggle floating />
@@ -140,6 +147,8 @@ export default async function DashboardLayout({
             selectedSiteId={selectedSite?.id ?? null}
             alertDeviceIds={allDeviceIds}
             devices={sites.flatMap((s) => s.devices.map((d) => ({ id: d.id, name: deviceDisplayId(d) })))}
+            statusDevices={statusDevices}
+            selectedDeviceId={cookieStore.get(SELECTED_DEVICE_COOKIE)?.value ?? null}
             initialAlerts={initialAlerts}
             initialFaults={initialFaults}
           />
@@ -149,6 +158,7 @@ export default async function DashboardLayout({
           </main>
         </SidebarInset>
       </HeaderSlotProvider>
+      </ChartStyleProvider>
       </SidebarProvider>
       </TelemetryProvider>
     </RealtimeProvider>

@@ -1,5 +1,7 @@
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { SettingsForm } from "@/components/dashboard/settings-form";
+import { AppearanceSetting } from "@/components/dashboard/appearance-setting";
+import { ChartStyleSetting } from "@/components/dashboard/chart-style-setting";
 
 export default async function SettingsPage() {
   const profile = await getCurrentProfile();
@@ -22,6 +24,10 @@ export default async function SettingsPage() {
         emailAlerts={prefs.email_alerts ?? true}
         emailMaintenanceUpdates={prefs.email_maintenance_updates ?? true}
       />
+
+      <AppearanceSetting />
+
+      <ChartStyleSetting />
     </div>
   );
 }

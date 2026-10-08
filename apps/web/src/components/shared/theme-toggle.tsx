@@ -2,6 +2,7 @@
 
 import { Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
+import { useThemeMode } from "@/components/auto-theme";
 import { cn } from "@/lib/utils";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 
@@ -11,7 +12,8 @@ interface ThemeToggleProps {
 }
 
 export function ThemeToggle({ className, iconClassName }: ThemeToggleProps) {
-  const { theme, setTheme } = useTheme();
+  const { theme } = useTheme();
+  const { setMode } = useThemeMode();
   const mounted = useHasMounted();
 
   if (!mounted) {
@@ -34,7 +36,7 @@ export function ThemeToggle({ className, iconClassName }: ThemeToggleProps) {
   return (
     <button
       type="button"
-      onClick={() => setTheme(isDark ? "light" : "dark")}
+      onClick={() => setMode(isDark ? "light" : "dark")}
       className={cn(
         "p-2 rounded-lg transition-colors hover:bg-black/5 dark:hover:bg-white/10 flex items-center justify-center focus:outline-none cursor-pointer",
         className

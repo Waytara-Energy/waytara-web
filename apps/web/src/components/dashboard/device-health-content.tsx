@@ -1,6 +1,5 @@
 import { createClient } from "@waytara/supabase/server";
 import type { CustomerDevice } from "@/lib/selected-site";
-import { getLastSyncInfo } from "@/lib/device-sync";
 import { fetchSeriesRows } from "@/lib/device-readings-fetch";
 import { deriveFaultEvents } from "@/lib/deye-fault-codes";
 import { getConnectorStatusLabel, getErrorCodeLabel } from "@/lib/ev-charger-catalog";
@@ -15,7 +14,6 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TriangleAlert } from "lucide-react";
 import { FaultBanner } from "./fault-banner";
 import { FaultHistory } from "./fault-history";
-import { LastSyncIndicator } from "./last-sync-indicator";
 import { LiveTemperatureGauges } from "./live-temperature-gauges";
 import { StatusPill } from "./status-pill";
 
@@ -74,8 +72,7 @@ export async function DeviceHealthContent({ supabase, device }: { supabase: Supa
     return <EvChargerHealth supabase={supabase} device={device} />;
   }
 
-  const lastSync = await getLastSyncInfo(device.id);
-  return <LastSyncIndicator sync={lastSync} />;
+  return null;
 }
 
 async function SolarInverterHealth({ supabase, device }: { supabase: SupabaseServerClient; device: CustomerDevice }) {
@@ -110,12 +107,11 @@ async function SolarInverterHealth({ supabase, device }: { supabase: SupabaseSer
   // bitmasks as the highest value in each 2-hour slot (two calls of 45 days keep each under the 750-point cap),
   // the temperatures as 15-minute averages around this time yesterday.
   const faultMid = new Date(faultSince.getTime() + 45 * 24 * 3600 * 1000);
-  const [rawValues, faultFirst, faultSecond, pastBuckets, lastSync] = await Promise.all([
+  const [rawValues, faultFirst, faultSecond, pastBuckets] = await Promise.all([
     fetchFieldValues(supabase, device.id, [...dynamicKeys, ...tempKeys]),
     fetchSeriesRows(supabase, device.id, FAULT_BITMASK_KEYS, faultSince.toISOString(), faultMid.toISOString(), 120),
     fetchSeriesRows(supabase, device.id, FAULT_BITMASK_KEYS, faultMid.toISOString(), new Date().toISOString(), 120),
     fetchSeriesRows(supabase, device.id, tempKeys, windowStart, windowEnd, 15),
-    getLastSyncInfo(device.id),
   ]);
   // Ascending order: the collapse walk needs to see readings in the order they actually happened.
   const faultRows = [...faultFirst, ...faultSecond]
@@ -149,8 +145,6 @@ async function SolarInverterHealth({ supabase, device }: { supabase: SupabaseSer
           <FaultHistory events={faultEvents} />
         </CardContent>
       </Card>
-
-      <LastSyncIndicator sync={lastSync} />
 
       {temperatureGaugeFields.length > 0 && (
         <Card>
@@ -197,9 +191,8 @@ async function EvChargerHealth({ supabase, device }: { supabase: SupabaseServerC
   const dynamicKeys = dynamicFields.map((f) => f.key);
   const CROSSREF_KEYS = ["connector_status", "error_code", "connector_temperature_c"];
 
-  const [rawValues, lastSync, enumOptions] = await Promise.all([
+  const [rawValues, enumOptions] = await Promise.all([
     fetchFieldValues(supabase, device.id, [...dynamicKeys, ...CROSSREF_KEYS]),
-    getLastSyncInfo(device.id),
     fetchEnumOptions(supabase, ["connector_status", "error_code"]),
   ]);
 
@@ -227,7 +220,6 @@ async function EvChargerHealth({ supabase, device }: { supabase: SupabaseServerC
       )}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <LastSyncIndicator sync={lastSync} />
         <div className="rounded-lg border border-theme-border bg-theme-surface px-3 py-2 text-sm text-theme-muted">
           Connector temperature: <span className="font-medium text-theme-primary">{temperature !== null ? `${temperature.toFixed(1)} °C` : "—"}</span>
         </div>
