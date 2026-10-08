@@ -175,6 +175,43 @@ keeping it on record. Which stock categories are devices is `waytara.is_monitore
   battery's capacity (kWh), `technical_specs.usable_kwh` (or `dod`), `technical_specs.eol_pct` (80 if absent) and
   `warranty_info.cycle_life`.
 
+### Electricity rates (Cost & Savings)
+What a customer saves depends on what a unit costs where they live, so the Cost & Savings section values energy at the rate of
+the **state in the site's address** for the site's **kind of property** (villas and gated communities are residential, offices,
+hotels, tech parks and logistics hubs commercial, factories industrial). Rates live in `waytara.electricity_tariffs`: one row per
+state, category and **effective date**; the newest row whose date has arrived is the rate in force, the row before it is what it
+changed from, and a row dated in the future is a scheduled change. Where no rate is on file for the state the customer's own
+account rate (`customers.tariff_rate_per_kwh`) is used and the page says so.
+- **What a tariff holds:** slab bands (telescopic, per bill), billing period (1 month, or 2 for Tamil Nadu), electricity duty %, a
+  per-unit surcharge (fuel adjustment / wheeling) where the order lists one, and **free units** (units free per bill, an optional
+  cap above which the scheme changes, and the free units left past the cap). `rate_per_kwh` is the headline *typical* Rs/unit
+  (average cost at 250 units a month, free units left out): it is what the page shows first, what an EV charger's cost uses and
+  what the daily job compares. Fixed (demand) charges and meter rent are not modelled: they are the same with and without solar,
+  so they cannot change a saving.
+- **Entering rates (admin app > Electricity Rates):** state, kind of property, the slabs (one per line: top of the band in
+  units per bill, then Rs/unit; last line just the rate), bill period, duty, surcharge, free units, optional export rate (what a
+  unit sent to the grid is paid; **blank = net metering**: export is set against import and any surplus carries to the next month
+  until April), the date it takes effect and the link to the regulator's order. *Verified* needs the link; *Indicative* marks
+  an estimate. A rate in force is not edited: add a new row with the new date (a scheduled change can be removed until its date).
+- **Where the first data came from:** migration 20261010010000 loads 74 rows (residential, commercial, industrial for 26 states /
+  UTs) read from <https://electricbill.in/en/tariffs>, plus the free-unit schemes (Tamil Nadu from 10 May 2026, Delhi, Jharkhand,
+  Karnataka Gruha Jyothi, Telangana Gruha Jyothi). **Every row is *indicative*:** the site contradicts itself in places (duty, meter
+  rent, a headline rate that only fits the lifeline category), each row's note lists what was seen, and none has been checked against
+  the order. Replace them order by order and mark them verified. Not loaded (no usable source): Bihar, Goa, Punjab, Meghalaya,
+  Mizoram, Nagaland, Sikkim, Ladakh, Lakshadweep, Dadra & Nagar Haveli and Daman & Diu - their customers use the account rate.
+  Known simplifications are written in the row notes (Kerala's second table above 250 units, Delhi's half-subsidy for 201-400 units).
+- **Daily job (`/api/cron/update-tariffs`, 06:00 IST via pg_cron):** records every rate whose date has arrived in
+  `tariff_changes` (a first rate, or one equal to the previous, is recorded silently) and e-mails each customer with a site in
+  that state and category once (respecting their alert e-mail setting). A failed send is retried the next morning.
+- **What the customer sees:** the rate used (with *estimate* or *official order* and the source link), a notice for 30 days after
+  a change and one up to 30 days before a scheduled change, savings priced month by month at the rate that applied in each month,
+  and the same rate in the Solar and Grid sections.
+- **Bills compared:** each month is billed on its own: without solar = the month's use on the state's bands (free units off the
+  top, then bands, surcharge, duty); with solar = the energy still bought on the same bands, less what the export earned (paid at
+  the export rate, or - net metering - the units it cancelled, with surplus banked month to month until April). saved = the
+  difference, split into energy not bought and energy sent. Since commissioning = every month on file (a year of history) plus
+  anything older in the inverter's counters at the tariff's typical rate. The page shows the bands and free units used.
+
 ## 5. Incident cheat-sheet
 | Symptom | Check |
 |---|---|

@@ -282,6 +282,80 @@ export type Database = {
           },
         ]
       }
+      electricity_tariffs: {
+        Row: {
+          category: string
+          confidence: string
+          created_at: string
+          created_by: string | null
+          effective_from: string
+          export_rate_per_kwh: number | null
+          billing_months: number
+          duty_pct: number
+          free_units: number
+          free_units_cap: number | null
+          free_units_over_cap: number
+          slabs: Json | null
+          surcharge_per_kwh: number
+          fixed_charge_per_month: number | null
+          id: string
+          rate_per_kwh: number
+          source_note: string | null
+          source_url: string | null
+          state: string
+        }
+        Insert: {
+          category: string
+          confidence?: string
+          created_at?: string
+          created_by?: string | null
+          effective_from: string
+          export_rate_per_kwh?: number | null
+          billing_months?: number
+          duty_pct?: number
+          free_units?: number
+          free_units_cap?: number | null
+          free_units_over_cap?: number
+          slabs?: Json | null
+          surcharge_per_kwh?: number
+          fixed_charge_per_month?: number | null
+          id?: string
+          rate_per_kwh: number
+          source_note?: string | null
+          source_url?: string | null
+          state: string
+        }
+        Update: {
+          category?: string
+          confidence?: string
+          created_at?: string
+          created_by?: string | null
+          effective_from?: string
+          export_rate_per_kwh?: number | null
+          billing_months?: number
+          duty_pct?: number
+          free_units?: number
+          free_units_cap?: number | null
+          free_units_over_cap?: number
+          slabs?: Json | null
+          surcharge_per_kwh?: number
+          fixed_charge_per_month?: number | null
+          id?: string
+          rate_per_kwh?: number
+          source_note?: string | null
+          source_url?: string | null
+          state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "electricity_tariffs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipment: {
         Row: {
           created_at: string
@@ -1899,6 +1973,50 @@ export type Database = {
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      tariff_changes: {
+        Row: {
+          category: string
+          effective_from: string
+          id: string
+          new_rate: number
+          noticed_at: string
+          notified_at: string | null
+          old_rate: number | null
+          state: string
+          tariff_id: string | null
+        }
+        Insert: {
+          category: string
+          effective_from: string
+          id?: string
+          new_rate: number
+          noticed_at?: string
+          notified_at?: string | null
+          old_rate?: number | null
+          state: string
+          tariff_id?: string | null
+        }
+        Update: {
+          category?: string
+          effective_from?: string
+          id?: string
+          new_rate?: number
+          noticed_at?: string
+          notified_at?: string | null
+          old_rate?: number | null
+          state?: string
+          tariff_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tariff_changes_tariff_id_fkey"
+            columns: ["tariff_id"]
+            isOneToOne: true
+            referencedRelation: "electricity_tariffs"
             referencedColumns: ["id"]
           },
         ]

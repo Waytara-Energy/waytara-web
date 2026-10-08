@@ -1,28 +1,20 @@
 import { createClient } from "@waytara/supabase/server";
 import type { CustomerDevice } from "@/lib/selected-site";
 import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
-import { fetchReadKeys } from "@/lib/instrument-catalog-data";
-import type { DailyPoint } from "./performance-chart";
-import { PerformanceChart } from "./lazy-charts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { aggregateDailyYield, maxByDeviceDay, sumByDay, type RawReading } from "@/lib/energy-aggregation";
 import { getTotalInvested } from "@/lib/total-invested";
+import { co2AvoidedKg, treesEquivalent } from "@/lib/environmental-impact";
+import { DAY_KEYS, LIFETIME_KEYS } from "@/lib/performance-metrics";
+import { byMonth, olderSavings, priceMonths, recentSavedPerDay, sumBills, type Bill, type DayEnergy } from "@/lib/savings";
+import { istDate } from "@/lib/telemetry/combine";
+import type { ResolvedTariff } from "@/lib/tariff";
+import { CostSavings } from "./cost-savings";
 import { fetchDailyMaxReadings } from "@/lib/device-readings-fetch";
 import { DeviceParameterCards } from "./device-parameter-cards";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
 const HISTORY_DAYS = 365;
-// Current equipment_templates/equipment_metrics vocabulary —
-// "solar_energy_today_kwh"/"grid_buy_energy_today_kwh"/"grid_sell_energy_today_kwh"
-// were the old instrument_catalog names and no device has ever written a
-// row under them, which silently zeroed out every figure in this whole
-// section (Total invested/Saved to date/ROI/cumulative savings chart, plus
-// permanently hid the Grid Cost Estimate card below since its own
-// fetchReadKeys().has(...) check never matched either).
-const YIELD_INSTRUMENT_KEY = "day_pv_energy_kwh";
-const EXTRA_KEYS = ["day_grid_import_energy_kwh", "day_grid_export_energy_kwh"];
-
 function inr(value: number): string {
   return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 }
@@ -76,16 +68,17 @@ function TrendTile({ label, pct }: { label: string; pct: number | null }) {
 export async function AnalyticsContent({
   supabase,
   device,
-  tariffRate,
+  tariff,
 }: {
   supabase: SupabaseServerClient;
   device: CustomerDevice;
-  tariffRate: number;
+  tariff: ResolvedTariff;
 }) {
+  const tariffRate = tariff.rate;
   const category = device.deviceType?.category;
 
   if (category === "solar_inverter") {
-    return <SolarInverterAnalytics supabase={supabase} device={device} tariffRate={tariffRate} />;
+    return <SolarInverterAnalytics supabase={supabase} device={device} tariff={tariff} />;
   }
   if (category === "ev_charger") {
     return <EvChargerAnalytics supabase={supabase} device={device} tariffRate={tariffRate} />;
@@ -98,140 +91,67 @@ export async function AnalyticsContent({
 async function SolarInverterAnalytics({
   supabase,
   device,
-  tariffRate,
+  tariff,
 }: {
   supabase: SupabaseServerClient;
   device: CustomerDevice;
-  tariffRate: number;
+  tariff: ResolvedTariff;
 }) {
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - HISTORY_DAYS);
+  const rates = { rate: tariff.rate, exportRate: tariff.exportRate, schedule: tariff.schedule, netMetering: tariff.netMetering };
+  const today = new Date(new Date().getTime() + 19_800_000).toISOString().slice(0, 10);
 
-  // totalInvested stays account-wide (payments aren't tied to a device),
-  // even though the yield/savings chart below is device-scoped — the two
-  // figures answer different questions (what you spent on the system vs.
-  // what this one device has generated).
-  // HISTORY_DAYS=365 here — the widest date range in the app. Raw history
-  // for that span is millions of rows, far past any per-request cap (the
-  // oldest rows survived the cap, so recent months silently went missing),
-  // so the two history queries below read the per-day rollup instead.
-  const readKeys = await fetchReadKeys(supabase, device);
-  const showGridCost = readKeys.has("day_grid_import_energy_kwh") || readKeys.has("day_grid_export_energy_kwh");
-
-  // No single system-wide cycle-count register exists — only one per
-  // battery pack (battery_pack1_cycle_count .. battery_packN_cycle_count,
-  // up to 15). Pack 1 stands in as the representative reading, same
-  // "one representative reading" simplification this app already uses
-  // elsewhere (e.g. EvChargerOverview picking a site's first charger).
-  const BATTERY_CYCLE_KEY = "battery_pack1_cycle_count";
-
-  const [totalInvested, readings, extraRows, { data: latestRows }] = await Promise.all([
+  // What was spent on the system is account-wide (payments are not tied to a device). The day-by-day energy comes from the
+  // daily rollup (a day's value = the counter's highest reading that day); the lifetime totals from the inverter's counters.
+  const [totalInvested, dailyRows, { data: latestRows }] = await Promise.all([
     getTotalInvested(supabase),
-    fetchDailyMaxReadings(supabase, device.id, [YIELD_INSTRUMENT_KEY], since.toISOString()),
-    fetchDailyMaxReadings(supabase, device.id, EXTRA_KEYS, since.toISOString()),
-    supabase.from("equipment_latest").select("key_name, value, ts").eq("equipment_id", device.id).in("key_name", [BATTERY_CYCLE_KEY]),
+    fetchDailyMaxReadings(supabase, device.id, [DAY_KEYS.pv, DAY_KEYS.load, DAY_KEYS.imported, DAY_KEYS.exported], since.toISOString()),
+    supabase.from("equipment_latest").select("key_name, value").eq("equipment_id", device.id).in("key_name", [LIFETIME_KEYS.pv, LIFETIME_KEYS.load, LIFETIME_KEYS.imported, LIFETIME_KEYS.exported]),
   ]);
-  let batteryCycleCount: number | null = null;
-  for (const r of latestRows ?? []) {
-    if (r.key_name === BATTERY_CYCLE_KEY && batteryCycleCount === null) batteryCycleCount = r.value;
+
+  const byDay = new Map<string, DayEnergy>();
+  for (const r of dailyRows) {
+    if (r.value === null) continue;
+    const day = istDate(new Date(r.ts).getTime());
+    const d = byDay.get(day) ?? { day, loadKwh: 0, importKwh: 0, exportKwh: 0, pvKwh: 0 };
+    if (r.key_name === DAY_KEYS.load) d.loadKwh = r.value;
+    else if (r.key_name === DAY_KEYS.imported) d.importKwh = r.value;
+    else if (r.key_name === DAY_KEYS.exported) d.exportKwh = r.value;
+    else if (r.key_name === DAY_KEYS.pv) d.pvKwh = r.value;
+    byDay.set(day, d);
+  }
+  const days = [...byDay.values()].sort((a, b) => a.day.localeCompare(b.day));
+  const months = priceMonths(byMonth(days), tariff.timeline, rates, today);
+
+  const latest = new Map((latestRows ?? []).map((r) => [r.key_name, r.value]));
+  const has = (k: string) => typeof latest.get(k) === "number";
+  const lifetime =
+    has(LIFETIME_KEYS.load) && has(LIFETIME_KEYS.imported) && has(LIFETIME_KEYS.exported)
+      ? { loadKwh: latest.get(LIFETIME_KEYS.load) as number, importKwh: latest.get(LIFETIME_KEYS.imported) as number, exportKwh: latest.get(LIFETIME_KEYS.exported) as number, pvKwh: (latest.get(LIFETIME_KEYS.pv) as number | undefined) ?? 0 }
+      : null;
+  const pvLifetime = latest.get(LIFETIME_KEYS.pv);
+  const co2Kg = typeof pvLifetime === "number" ? co2AvoidedKg(pvLifetime) : null;
+
+  // Since commissioning = the months on file, each on its own bill, plus whatever the counters hold from before the history starts
+  // (priced at the tariff's typical rate - there is no month to put it in).
+  let lifetimeBill: Bill | null = null;
+  if (lifetime) {
+    const inWindow = days.reduce((s, d) => ({ loadKwh: s.loadKwh + d.loadKwh, importKwh: s.importKwh + d.importKwh, exportKwh: s.exportKwh + d.exportKwh }), { loadKwh: 0, importKwh: 0, exportKwh: 0 });
+    const older = { loadKwh: Math.max(0, lifetime.loadKwh - inWindow.loadKwh), importKwh: Math.max(0, lifetime.importKwh - inWindow.importKwh), exportKwh: Math.max(0, lifetime.exportKwh - inWindow.exportKwh) };
+    lifetimeBill = sumBills([...months.map((m) => m.bill), olderSavings(older, rates)]);
   }
 
-  const perDeviceDay = maxByDeviceDay(readings.map((r) => ({ device_id: device.id, value: r.value, ts: r.ts })));
-  const dailyKwh = sumByDay(perDeviceDay);
-
-  const cumulativeSavings: DailyPoint[] = dailyKwh.reduce<DailyPoint[]>((acc, p) => {
-    const running = (acc[acc.length - 1]?.value ?? 0) / tariffRate + p.value;
-    return [...acc, { date: p.date, value: running * tariffRate }];
-  }, []);
-
-  const totalSavedToDate = cumulativeSavings[cumulativeSavings.length - 1]?.value ?? 0;
-  const avgDailySaving = dailyKwh.length > 0 ? (dailyKwh.reduce((s, p) => s + p.value, 0) * tariffRate) / dailyKwh.length : 0;
-  const remaining = Math.max(0, totalInvested - totalSavedToDate);
-  const paybackMonths = avgDailySaving > 0 ? remaining / (avgDailySaving * 30) : null;
-  const roiPct = totalInvested > 0 ? (totalSavedToDate / totalInvested) * 100 : null;
-
-  // Month-over-month / year-over-year: bucket the same 365-day daily-yield
-  // series by calendar month, then compare this month's total (so far)
-  // against last month's and the same month a year ago. With only up to
-  // HISTORY_DAYS of history, the year-ago bucket may not exist yet — shown
-  // as "—" rather than a misleading 0.
-  const byMonth = new Map<string, number>();
-  for (const p of dailyKwh) byMonth.set(monthKey(p.date), (byMonth.get(monthKey(p.date)) ?? 0) + p.value);
-  const thisMonth = byMonth.get(monthsAgoKey(0)) ?? 0;
-  const lastMonth = byMonth.get(monthsAgoKey(1)) ?? null;
-  const sameMonthLastYear = byMonth.get(monthsAgoKey(12)) ?? null;
-  const momPct = lastMonth !== null ? pctChange(thisMonth, lastMonth) : null;
-  const yoyPct = sameMonthLastYear !== null ? pctChange(thisMonth, sameMonthLastYear) : null;
-
-  // Grid cost estimation — same tariff rate the yield savings above use; a
-  // real feed-in tariff for exports often differs from the import rate,
-  // but the register only reports kWh, so this is the same simplification
-  // already made for "saved to date".
-  const toRawReading = (r: { value: number | null; ts: string }): RawReading => ({ device_id: device.id, value: r.value, ts: r.ts });
-  const gridImportKwh = extraRows.filter((r) => r.key_name === "day_grid_import_energy_kwh").map(toRawReading);
-  const gridExportKwh = extraRows.filter((r) => r.key_name === "day_grid_export_energy_kwh").map(toRawReading);
-  const totalImportKwh = aggregateDailyYield(gridImportKwh).reduce((s, p) => s + p.value, 0);
-  const totalExportKwh = aggregateDailyYield(gridExportKwh).reduce((s, p) => s + p.value, 0);
-
   return (
-    <>
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatTile label="Total invested" value={inr(totalInvested)} />
-        <StatTile label="Saved to date" value={inr(totalSavedToDate)} />
-        <StatTile label="Return on investment" value={roiPct !== null ? `${roiPct.toFixed(0)}%` : "—"} />
-        <StatTile
-          label="Est. time to break even"
-          value={
-            totalInvested === 0
-              ? "—"
-              : remaining === 0
-                ? "Recovered"
-                : paybackMonths !== null
-                  ? `${Math.ceil(paybackMonths)} mo`
-                  : "—"
-          }
-        />
-      </div>
-
-      <div className="rounded-xl border border-theme-border bg-theme-bg p-4">
-        <h2 className="mb-3 text-sm font-semibold text-theme-primary">Cumulative savings over time</h2>
-        <PerformanceChart daily={cumulativeSavings} aggregationMode="last" valueFormat="inr" totalLabel="Saved to date" />
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Generation vs. Prior Periods</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-2 gap-4">
-          <TrendTile label="Vs. last month" pct={momPct} />
-          <TrendTile label="Vs. same month last year" pct={yoyPct} />
-        </CardContent>
-      </Card>
-
-      {showGridCost && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Grid Cost Estimate (last {HISTORY_DAYS}d)</CardTitle>
-          </CardHeader>
-          <CardContent className="grid grid-cols-2 gap-4">
-            <StatTile label="Grid import cost" value={inr(totalImportKwh * tariffRate)} />
-            <StatTile label="Grid export credit" value={inr(totalExportKwh * tariffRate)} />
-          </CardContent>
-        </Card>
-      )}
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Battery Health</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="text-2xl font-semibold text-foreground">
-            {batteryCycleCount !== null ? batteryCycleCount.toLocaleString("en-IN") : "—"}
-          </p>
-          <p className="text-xs text-muted-foreground">Charge cycles to date</p>
-        </CardContent>
-      </Card>
-    </>
+    <CostSavings
+      tariff={tariff}
+      lifetime={lifetimeBill}
+      months={months}
+      invested={totalInvested}
+      savedPerDay={recentSavedPerDay(days, rates)}
+      co2Kg={co2Kg}
+      trees={co2Kg === null ? null : treesEquivalent(co2Kg)}
+    />
   );
 }
 

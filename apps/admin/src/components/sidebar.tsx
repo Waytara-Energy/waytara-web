@@ -10,6 +10,7 @@ import {
   ScrollText,
   LifeBuoy,
   Wrench,
+  Zap,
 } from "lucide-react";
 import { cn } from "@waytara/ui/cn";
 
@@ -22,6 +23,7 @@ const NAV_ITEMS = [
   { label: "Plans", href: "/plans", icon: Layers },
   { label: "Devices", href: "/devices", icon: Cpu },
   { label: "Service Plans", href: "/service-plans", icon: Wrench },
+  { label: "Electricity Rates", href: "/tariffs", icon: Zap },
   { label: "Audit Log", href: "/audit", icon: ScrollText },
 ] as const;
 

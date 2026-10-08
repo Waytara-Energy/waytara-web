@@ -6,6 +6,7 @@ import { DeviceSwitcher } from "@/components/dashboard/device-switcher";
 import { PerformanceContent } from "@/components/dashboard/performance-content";
 import { AnalyticsContent } from "@/components/dashboard/analytics-content";
 import { getCustomerPlan } from "@/lib/customer-plan";
+import { fetchResolvedTariff } from "@/lib/tariff-server";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 
 // Server-side gate, matching Monitoring (Task 10.1) — a Basic-tier customer
@@ -41,7 +42,9 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
   // own feature gate stays a real tier check, just an inline section
   // instead of a redirect: a Performance-only customer still gets this
   // whole page, just without the cost/ROI section below.
-  const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
+  // The rate of the site's state for its kind of property (the customer's own rate where none is on file).
+  const tariff = await fetchResolvedTariff(supabase, site, customerPlan?.tariffRatePerKwh ?? 8);
+  const tariffRate = tariff.rate;
 
   return (
     <div className="space-y-6">
@@ -73,7 +76,7 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
                   {deviceDisplayId(device)}&apos;s cost analytics, estimated at ₹{tariffRate.toFixed(2)}/kWh.
                 </p>
               </div>
-              <AnalyticsContent supabase={supabase} device={device} tariffRate={tariffRate} />
+              <AnalyticsContent supabase={supabase} device={device} tariff={tariff} />
             </>
           )}
         </>
