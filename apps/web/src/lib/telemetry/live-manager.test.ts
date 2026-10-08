@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { DeviceLiveManager, HIDDEN_GRACE_MS, type LiveEnv } from "./live-manager";
+import { DeviceLiveManager, HEARTBEAT_POLL_MS, HIDDEN_GRACE_MS, type LiveEnv } from "./live-manager";
 import { TelemetryStore } from "./store";
 import type { TickPayload } from "./types";
 
@@ -29,8 +29,10 @@ function setup() {
   const catchUp = vi.fn(async () => {});
   const store = new TelemetryStore({ fetchSeries: async () => new Map(), now: () => 0, schedule: (fn) => fn() });
   store.catchUp = catchUp;
+  const refresh = vi.fn(async () => {});
+  store.refreshHeartbeat = refresh;
   const manager = new DeviceLiveManager(e.env, store);
-  return { ...e, store, manager, catchUp };
+  return { ...e, store, manager, catchUp, refresh };
 }
 
 const flush = () => vi.advanceTimersByTimeAsync(0);
@@ -149,5 +151,44 @@ describe("DeviceLiveManager", () => {
     await flush();
     opened[0].onTick({ ts: new Date(1000).toISOString(), values: { p: 5 } });
     expect(store.getLatest("d", "p")?.value).toBe(5);
+  });
+
+  it("re-reads the connection state when a channel opens, and every minute while the screen is visible", async () => {
+    const { manager, refresh, state } = setup();
+    manager.acquire("d");
+    await flush();
+    expect(refresh).toHaveBeenCalledWith("d");
+    const first = refresh.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(HEARTBEAT_POLL_MS);
+    expect(refresh.mock.calls.length).toBeGreaterThan(first);
+    // hidden: no polling
+    state.visible = false;
+    const before = refresh.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(HEARTBEAT_POLL_MS * 3);
+    expect(refresh.mock.calls.length).toBe(before);
+  });
+
+  it("stops polling once the last screen lets go", async () => {
+    const { manager, refresh } = setup();
+    const release = manager.acquire("d");
+    await flush();
+    release();
+    const before = refresh.mock.calls.length;
+    await vi.advanceTimersByTimeAsync(HEARTBEAT_POLL_MS * 3);
+    expect(refresh.mock.calls.length).toBe(before);
+  });
+
+  it("re-reads it when the tab comes back and the channel reopens", async () => {
+    const { manager, refresh, state, cbs } = setup();
+    manager.acquire("d");
+    await flush();
+    state.visible = false;
+    cbs.visibility.forEach((f) => f());
+    await vi.advanceTimersByTimeAsync(HIDDEN_GRACE_MS + 1);
+    refresh.mockClear();
+    state.visible = true;
+    cbs.visibility.forEach((f) => f());
+    await flush();
+    expect(refresh).toHaveBeenCalledWith("d");
   });
 });

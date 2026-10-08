@@ -41,3 +41,22 @@ export async function loadOpen(sb: Sb, deviceId: string, keys: string[]): Promis
   }
   return out;
 }
+
+/** What the agent last said about itself and its device (equipment_heartbeat): when it was last heard, when the device last
+ *  answered, and whether it does now. The live channel carries the same news, but only while it is open. */
+export interface HeartbeatInfo {
+  lastSeenMs: number | null;
+  lastReadMs: number | null;
+  deviceOnline: boolean | null;
+}
+
+export async function loadHeartbeat(sb: Sb, deviceId: string): Promise<HeartbeatInfo | null> {
+  const { data, error } = await sb.from("equipment_heartbeat").select("last_seen, last_read_at, device_online").eq("equipment_id", deviceId).maybeSingle();
+  if (error) throw new Error(error.message);
+  if (!data) return null;
+  return {
+    lastSeenMs: data.last_seen ? new Date(data.last_seen).getTime() : null,
+    lastReadMs: data.last_read_at ? new Date(data.last_read_at).getTime() : null,
+    deviceOnline: data.device_online,
+  };
+}

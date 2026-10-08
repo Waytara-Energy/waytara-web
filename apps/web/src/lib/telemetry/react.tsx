@@ -9,7 +9,7 @@ import { createClient } from "@waytara/supabase/client";
 import { idbKV, PersistentCache } from "./cache";
 import { binStart, combineBuckets, dayAxis, istDayStart, toDisplay } from "./combine";
 import { planRange, type RangePlan, type RangeWindow } from "./ranges";
-import { loadLatest, loadOpen } from "./loaders";
+import { loadHeartbeat, loadLatest, loadOpen } from "./loaders";
 import { DeviceLiveManager, type LiveEnv } from "./live-manager";
 import { fetchSeries } from "./series";
 import { TelemetryStore, type DeviceLiveStatus, type LatestValue, type SeriesRange } from "./store";
@@ -62,6 +62,7 @@ export function TelemetryProvider({ userId, children }: { userId: string; childr
       fetchSeries: (req) => fetchSeries(sb, req),
       loadLatest: (id) => loadLatest(sb, id),
       loadOpen: (id, keys) => loadOpen(sb, id, keys),
+      loadHeartbeat: (id) => loadHeartbeat(sb, id),
       cache,
     });
     const live = new DeviceLiveManager(browserEnv(sb), store, (e) => console.warn("[telemetry]", e));

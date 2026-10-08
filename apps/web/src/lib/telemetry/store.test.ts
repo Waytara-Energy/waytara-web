@@ -167,3 +167,39 @@ describe("catch-up and reset", () => {
     expect(store.getLatest("d", "a")).toBeUndefined();
   });
 });
+
+describe("refreshHeartbeat", () => {
+  const beat = (over: Partial<{ lastSeenMs: number | null; lastReadMs: number | null; deviceOnline: boolean | null }> = {}) => ({ lastSeenMs: NOW - 20_000, lastReadMs: NOW - 25_000, deviceOnline: true, ...over });
+  const make = (load: () => Promise<ReturnType<typeof beat> | null>) =>
+    new TelemetryStore({ fetchSeries: async () => new Map(), loadHeartbeat: load, now: () => NOW, schedule: (fn) => fn() });
+
+  it("tells a tab that missed the live messages that the agent is alive and the device answering", async () => {
+    const store = make(async () => beat());
+    await store.refreshHeartbeat("d");
+    expect(store.getStatus("d")).toMatchObject({ lastTickAt: NOW - 20_000, lastReadAt: NOW - 25_000, deviceOnline: true });
+  });
+
+  it("brings an offline verdict back to online when the database says the device answers again", async () => {
+    const store = make(async () => beat({ deviceOnline: true }));
+    store.applyTick("d", { ts: new Date(NOW - 3_600_000).toISOString(), values: {}, open: {}, agent: { device_online: false, last_read_at: new Date(NOW - 3_700_000).toISOString() } });
+    expect(store.getStatus("d").deviceOnline).toBe(false);
+    await store.refreshHeartbeat("d");
+    expect(store.getStatus("d").deviceOnline).toBe(true);
+  });
+
+  it("never moves anything backwards: a live message newer than the database row wins", async () => {
+    const store = make(async () => beat({ lastSeenMs: NOW - 120_000, lastReadMs: NOW - 130_000, deviceOnline: false }));
+    store.applyTick("d", { ts: new Date(NOW).toISOString(), values: { p: 1 }, open: {}, agent: { device_online: true, last_read_at: new Date(NOW).toISOString() } });
+    await store.refreshHeartbeat("d");
+    expect(store.getStatus("d").deviceOnline).toBe(true);
+    expect(store.getStatus("d").lastReadAt).toBe(NOW);
+  });
+
+  it("does nothing without a loader or a heartbeat row", async () => {
+    const none = make(async () => null);
+    await none.refreshHeartbeat("d");
+    expect(none.getStatus("d").lastTickAt).toBeNull();
+    const bare = new TelemetryStore({ fetchSeries: async () => new Map(), now: () => NOW, schedule: (fn) => fn() });
+    await expect(bare.refreshHeartbeat("d")).resolves.toBeUndefined();
+  });
+});

@@ -6,6 +6,7 @@
 import { binStart, istDayStart, upsertBucket, wireToBucket } from "./combine";
 import type { PersistentCache } from "./cache";
 import { BUCKET_MS, type Bucket, type TickPayload } from "./types";
+import type { HeartbeatInfo } from "./loaders";
 
 export interface SeriesRange {
   fromMs: number;
@@ -31,6 +32,8 @@ export interface StoreDeps {
   fetchSeries: SeriesFetcher;
   loadLatest?: LatestLoader;
   loadOpen?: OpenLoader;
+  /** Reads what the agent last reported about itself and its device, for when the live channel was not listening. */
+  loadHeartbeat?: (deviceId: string) => Promise<HeartbeatInfo | null>;
   cache?: PersistentCache;
   now?: () => number;
   /** Schedules the batched notification (default: setTimeout). */
@@ -269,6 +272,7 @@ export class TelemetryStore {
       lastReadAt = Math.max(lastReadAt ?? 0, ts);
       deviceOnline = true;
     }
+    this.lastTickTs.set(deviceId, Math.max(this.lastTickTs.get(deviceId) ?? 0, ts));
     this.status.set(deviceId, { status: "live", lastTickAt: this.now(), lastReadAt, deviceOnline });
     this.touch(deviceId, touched);
   }
@@ -291,6 +295,9 @@ export class TelemetryStore {
     this.touch(deviceId, Object.keys(open));
   }
 
+  /** The time each device's newest live message says it was sent (not when it was received). */
+  private readonly lastTickTs = new Map<string, number>();
+
   getStatus = (deviceId: string): DeviceLiveStatus => this.status.get(deviceId) ?? IDLE;
 
   setStatus(deviceId: string, status: LiveStatus): void {
@@ -301,6 +308,26 @@ export class TelemetryStore {
   }
 
   // ------------------------------------------------------------ catch-up after a pause or reconnect
+
+  /** Brings the connection state (agent heard from, device answering) up to date from the database. The live channel keeps
+   *  it current while it is open; a tab that was hidden, or a channel that dropped, has missed those messages and would
+   *  otherwise judge a healthy agent "silent". Never moves anything backwards. */
+  async refreshHeartbeat(deviceId: string): Promise<void> {
+    if (!this.deps.loadHeartbeat) return;
+    const beat = await this.deps.loadHeartbeat(deviceId);
+    if (!beat) return;
+    const prev = this.status.get(deviceId) ?? IDLE;
+    // The database row is newer than the last live message when it was written at or after that message's own time.
+    const newer = beat.lastSeenMs !== null && beat.lastSeenMs >= (this.lastTickTs.get(deviceId) ?? 0);
+    this.status.set(deviceId, {
+      status: prev.status,
+      lastTickAt: beat.lastSeenMs !== null ? Math.max(prev.lastTickAt ?? 0, beat.lastSeenMs) : prev.lastTickAt,
+      lastReadAt: beat.lastReadMs !== null ? Math.max(prev.lastReadAt ?? 0, beat.lastReadMs) : prev.lastReadAt,
+      // The database row is the newest word unless a live message arrived after it.
+      deviceOnline: newer && beat.deviceOnline !== null ? beat.deviceOnline : (prev.deviceOnline ?? beat.deviceOnline),
+    });
+    this.touch(deviceId, []);
+  }
 
   /** After the live channel was closed (hidden tab, lost connection): refresh what is on screen, in parallel. */
   async catchUp(deviceId: string): Promise<void> {
@@ -322,6 +349,7 @@ export class TelemetryStore {
     this.latest.clear();
     this.open.clear();
     this.status.clear();
+    this.lastTickTs.clear();
     this.rev.clear();
     this.watching.clear();
     this.listeners.forEach((fn) => fn());

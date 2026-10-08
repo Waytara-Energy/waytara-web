@@ -31,6 +31,8 @@ export interface LiveEnv {
 }
 
 export const HIDDEN_GRACE_MS = 10_000;
+/** While a screen is open and visible, the connection state is re-read from the database this often (the live channel can miss it). */
+export const HEARTBEAT_POLL_MS = 60_000;
 const BACKOFF_MS = [2_000, 4_000, 8_000, 16_000, 32_000, 60_000];
 
 interface DeviceState {
@@ -41,6 +43,7 @@ interface DeviceState {
   closedByUs: boolean;
   hideTimer: unknown;
   retryTimer: unknown;
+  beatTimer: unknown;
   attempt: number;
 }
 
@@ -64,11 +67,14 @@ export class DeviceLiveManager {
   acquire(deviceId: string): () => void {
     let s = this.devices.get(deviceId);
     if (!s) {
-      s = { refs: 0, handle: null, opening: false, everOpened: false, closedByUs: false, hideTimer: null, retryTimer: null, attempt: 0 };
+      s = { refs: 0, handle: null, opening: false, everOpened: false, closedByUs: false, hideTimer: null, retryTimer: null, beatTimer: null, attempt: 0 };
       this.devices.set(deviceId, s);
     }
     s.refs++;
-    if (s.refs === 1) void this.ensureOpen(deviceId);
+    if (s.refs === 1) {
+      void this.ensureOpen(deviceId);
+      this.pollHeartbeat(deviceId);
+    }
     let released = false;
     return () => {
       if (released) return;
@@ -90,6 +96,22 @@ export class DeviceLiveManager {
   }
 
   // ------------------------------------------------------------ internals
+
+  /** Re-reads the agent's connection state while the screen is visible, so a missed live message never leaves a healthy device
+   *  looking offline. */
+  private pollHeartbeat(deviceId: string): void {
+    const s = this.devices.get(deviceId);
+    if (!s || s.refs <= 0) return;
+    if (this.env.isVisible() && this.env.isOnline()) this.refreshState(deviceId);
+    s.beatTimer = this.env.setTimer(() => {
+      s.beatTimer = null;
+      this.pollHeartbeat(deviceId);
+    }, HEARTBEAT_POLL_MS);
+  }
+
+  private refreshState(deviceId: string): void {
+    this.store.refreshHeartbeat(deviceId).catch(this.onError);
+  }
 
   private shouldBeOpen(): boolean {
     return this.env.isVisible() && this.env.isOnline();
@@ -122,6 +144,7 @@ export class DeviceLiveManager {
       return;
     }
     s.opening = false;
+    this.refreshState(deviceId);
     if (reopening) {
       // The channel was closed for a while: catch up on what was missed, in parallel.
       this.store.catchUp(deviceId).catch(this.onError);
@@ -166,6 +189,10 @@ export class DeviceLiveManager {
       s.retryTimer = null;
     }
     s.closedByUs = true;
+    if (status === "idle" && s.beatTimer) {
+      this.env.clearTimer(s.beatTimer);
+      s.beatTimer = null;
+    }
     if (s.handle) {
       try {
         s.handle.close();
