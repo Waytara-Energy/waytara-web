@@ -1,14 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { BatteryCharging, Cpu, Home, Sun, Zap } from "lucide-react";
+import { BatteryCharging, Cpu, Home, Sun, Zap, type LucideIcon } from "lucide-react";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLiveNumbers } from "@/lib/telemetry/live-values";
-import { DAY_KEYS, LIFETIME_KEYS, PERFORMANCE_LIVE_KEYS, pvInputKeys, selfSufficiencyPct } from "@/lib/performance-metrics";
-import { cn } from "@/lib/utils";
+import { PERFORMANCE_LIVE_KEYS, pvInputKeys } from "@/lib/performance-metrics";
 import type { BatteryProfile } from "@/lib/battery-health";
-import { LiveStatusCard } from "./live-status-card";
-import { HISTORY_OPTIONS, type HistoryPreset } from "./perf-data";
-import { fmtKwhText, fmtPct } from "./perf-kit";
+import { periodText } from "./perf-data";
+import { RangeBar, LONG_PRESETS } from "./range-bar";
+import { RangeProvider, useRange } from "./range-context";
 import { SolarSection } from "./perf-solar";
 import { BatterySection, GridSection, InverterSection, LoadSection } from "./perf-sections";
 
@@ -22,19 +22,26 @@ const subscribeHash = (cb: () => void) => {
 };
 const readHash = () => window.location.hash.replace("#", "");
 
-const kwhNumber = (v: number | null | undefined) => (v === null || v === undefined ? "—" : v.toFixed(v >= 100 ? 0 : 1));
+// The five sections, as line tabs (same look as the Monitoring tabs, each with its own accent colour).
+const SECTION_TABS: { id: PerformanceSectionId; label: string; icon: LucideIcon; active: string }[] = [
+  { id: "inverter", label: "Inverter", icon: Cpu, active: "data-[state=active]:border-primary data-[state=active]:text-primary" },
+  { id: "solar", label: "Solar", icon: Sun, active: "data-[state=active]:border-amber-500 data-[state=active]:text-amber-600 dark:data-[state=active]:text-amber-400" },
+  { id: "battery", label: "Battery", icon: BatteryCharging, active: "data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400" },
+  { id: "load", label: "Load", icon: Home, active: "data-[state=active]:border-sky-500 data-[state=active]:text-sky-600 dark:data-[state=active]:text-sky-400" },
+  { id: "grid", label: "Grid", icon: Zap, active: "data-[state=active]:border-violet-500 data-[state=active]:text-violet-600 dark:data-[state=active]:text-violet-400" },
+];
 
-/** Performance for a solar inverter: five cards with the lifetime totals (inverter, solar, battery, load, grid); the one
- *  you open shows its detailed figures, charts and findings underneath. */
-export function PerformanceBoard({
-  deviceId,
-  initial,
-  pvKeys,
-  tariff,
-  batteryProfile,
-  solarKwp,
-  extras,
-}: {
+/** Performance for a solar inverter: five tabs (inverter, solar, battery, load, grid); the one you open shows its figures, charts and
+ *  findings underneath, for the period chosen with the range picker. */
+export function PerformanceBoard(props: PerformanceBoardProps) {
+  return (
+    <RangeProvider deviceId={props.deviceId} scope="performance">
+      <Board {...props} />
+    </RangeProvider>
+  );
+}
+
+interface PerformanceBoardProps {
   deviceId: string;
   initial: Record<string, number | null>;
   pvKeys: string[];
@@ -45,99 +52,41 @@ export function PerformanceBoard({
   solarKwp: number | null;
   /** Server-rendered extra groups for each section (template fields that have values). */
   extras: Partial<Record<PerformanceSectionId, React.ReactNode>>;
-}) {
+}
+
+function Board({ deviceId, initial, pvKeys, tariff, batteryProfile, solarKwp, extras }: PerformanceBoardProps) {
   const keys = React.useMemo(() => [...PERFORMANCE_LIVE_KEYS, ...pvInputKeys(pvKeys)], [pvKeys]);
   const live = useLiveNumbers([deviceId], keys, initial);
   const hash = React.useSyncExternalStore(subscribeHash, readHash, () => "");
   const section: PerformanceSectionId = (SECTION_IDS as string[]).includes(hash) ? (hash as PerformanceSectionId) : "solar";
-  const [preset, setPreset] = React.useState<HistoryPreset>("7d");
+  // The days every chart below follows: the range picker (Today by default, 7 / 30 / 90 days, 1 / 2 years, or a custom start).
+  const range = useRange();
+  const fromMs = range?.window.fromMs ?? 0;
+  const toMs = range?.window.toMs ?? 0;
+  const span = React.useMemo(() => ({ fromMs, toMs }), [fromMs, toMs]);
+  const period = range ? periodText(range.preset, span) : "";
   const open = (id: PerformanceSectionId) => {
     window.location.hash = id;
   };
 
-  const n = (key: string) => live[key] ?? null;
-  const net = n(LIFETIME_KEYS.exported) !== null && n(LIFETIME_KEYS.imported) !== null ? (n(LIFETIME_KEYS.exported) as number) - (n(LIFETIME_KEYS.imported) as number) : null;
-  const props = { deviceId, preset, live, tariff, pvKeys };
+  const props = { deviceId, span, periodText: period, isToday: range?.preset === "today", live, tariff, pvKeys };
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-3 xl:grid-cols-5">
-        <LiveStatusCard
-          icon={Cpu}
-          title="Inverter"
-          subtitle="Total AC output"
-          value={`${kwhNumber(n(LIFETIME_KEYS.acOut))} kWh`}
-          statusLabel="Today"
-          badgeLabel={fmtKwhText(n(DAY_KEYS.acOut))}
-          badgeTone="neutral"
-          selected={section === "inverter"}
-          onClick={() => open("inverter")}
-        />
-        <LiveStatusCard
-          icon={Sun}
-          iconTone="warn"
-          title="Solar"
-          subtitle="Total produced"
-          value={`${kwhNumber(n(LIFETIME_KEYS.pv))} kWh`}
-          statusLabel="Today"
-          badgeLabel={fmtKwhText(n(DAY_KEYS.pv))}
-          badgeTone="neutral"
-          selected={section === "solar"}
-          onClick={() => open("solar")}
-        />
-        <LiveStatusCard
-          icon={BatteryCharging}
-          iconTone="good"
-          title="Battery"
-          subtitle="In / out, total"
-          value={`${kwhNumber(n(LIFETIME_KEYS.charged))} / ${kwhNumber(n(LIFETIME_KEYS.discharged))} kWh`}
-          statusLabel="Today"
-          badgeLabel={`${kwhNumber(n(DAY_KEYS.charged))} / ${kwhNumber(n(DAY_KEYS.discharged))} kWh`}
-          badgeTone="neutral"
-          selected={section === "battery"}
-          onClick={() => open("battery")}
-        />
-        <LiveStatusCard
-          icon={Home}
-          title="Load"
-          subtitle="Total consumed"
-          value={`${kwhNumber(n(LIFETIME_KEYS.load))} kWh`}
-          statusLabel="Self-sufficiency"
-          badgeLabel={fmtPct(selfSufficiencyPct(n(LIFETIME_KEYS.load), n(LIFETIME_KEYS.imported)))}
-          badgeTone="neutral"
-          selected={section === "load"}
-          onClick={() => open("load")}
-        />
-        <div className="col-span-2 lg:col-span-1">
-          <LiveStatusCard
-            icon={Zap}
-            title="Grid"
-            subtitle="Import / export"
-            value={`${kwhNumber(n(LIFETIME_KEYS.imported))} / ${kwhNumber(n(LIFETIME_KEYS.exported))} kWh`}
-            statusLabel="Net exported"
-            badgeLabel={fmtKwhText(net)}
-            badgeTone={net !== null && net > 0 ? "good" : "neutral"}
-            selected={section === "grid"}
-            onClick={() => open("grid")}
-          />
-        </div>
-      </div>
+      <Tabs value={section} onValueChange={(v) => open(v as PerformanceSectionId)}>
+        <TabsList variant="line">
+          {SECTION_TABS.map((t) => (
+            <TabsTrigger key={t.id} value={t.id} variant="line" className={t.active}>
+              <t.icon className="size-4 shrink-0" />
+              <span className="text-sm font-medium">{t.label}</span>
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="text-base font-semibold text-foreground capitalize">{section} in detail</h2>
-        <div className="flex gap-1 rounded-lg border border-border p-1" role="group" aria-label="History period">
-          {HISTORY_OPTIONS.map((o) => (
-            <button
-              key={o.id}
-              type="button"
-              onClick={() => setPreset(o.id)}
-              aria-pressed={preset === o.id}
-              className={cn("rounded-md px-3 py-1 text-xs font-medium transition-colors", preset === o.id ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
+        <RangeBar presets={LONG_PRESETS} />
       </div>
 
       <div key={section}>

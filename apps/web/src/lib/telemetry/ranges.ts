@@ -3,7 +3,7 @@
 
 import { istDayStart } from "./combine";
 
-export type RangePreset = "today" | "7d" | "30d" | "90d" | "custom";
+export type RangePreset = "today" | "7d" | "30d" | "90d" | "1y" | "2y" | "custom";
 
 export const DAY_MS = 86_400_000;
 /** At most this many days in a custom window. */
@@ -19,7 +19,8 @@ export interface RangeWindow {
   toMs: number;
 }
 
-/** The window for a preset. "7 days" means today and the six days before it (IST days). */
+/** The window for a preset. "7 days" means today and the six days before it (IST days); "1 year" is 365 days and "2 years" 730
+ *  days, both ending today (730 daily points is within the 750-point cap). */
 export function windowFor(preset: RangePreset, nowMs: number, customStart?: string | null): RangeWindow {
   const today = istDayStart(nowMs);
   switch (preset) {
@@ -31,6 +32,10 @@ export function windowFor(preset: RangePreset, nowMs: number, customStart?: stri
       return { fromMs: today - 29 * DAY_MS, toMs: today + DAY_MS };
     case "90d":
       return { fromMs: today - 89 * DAY_MS, toMs: today + DAY_MS };
+    case "1y":
+      return { fromMs: today - 364 * DAY_MS, toMs: today + DAY_MS };
+    case "2y":
+      return { fromMs: today - 729 * DAY_MS, toMs: today + DAY_MS };
     case "custom": {
       const start = customStart ? istDayStart(new Date(`${customStart}T12:00:00+05:30`).getTime()) : today;
       return { fromMs: start, toMs: Math.min(start + CUSTOM_MAX_DAYS * DAY_MS, today + DAY_MS) };

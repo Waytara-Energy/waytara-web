@@ -9,12 +9,15 @@ import { cn } from "@/lib/utils";
 import { CUSTOM_MAX_DAYS, DAY_MS, type RangePreset } from "@/lib/telemetry/ranges";
 import { useRange } from "./range-context";
 
-const PRESETS: { id: RangePreset; label: string }[] = [
+export const PRESETS: { id: RangePreset; label: string }[] = [
   { id: "today", label: "Today" },
   { id: "7d", label: "7 days" },
   { id: "30d", label: "30 days" },
   { id: "90d", label: "90 days" },
 ];
+
+/** The longer list the Performance page offers. */
+export const LONG_PRESETS: { id: RangePreset; label: string }[] = [...PRESETS, { id: "1y", label: "1 year" }, { id: "2y", label: "2 years" }];
 
 const toDate = (day: string) => new Date(`${day}T12:00:00`);
 const toDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
@@ -23,9 +26,9 @@ function formatDay(ms: number): string {
   return new Date(ms + 19_800_000).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 }
 
-/** The range picker: Today / 7 days / 30 days / 90 days / a custom window of up to 30 days starting on any day
+/** The range picker: Today / 7 days / 30 days / 90 days (and 1 / 2 years where offered) / a custom window of up to 30 days starting on any day
  *  from the device's first reading until today. */
-export function RangeBar() {
+export function RangeBar({ presets = PRESETS }: { presets?: { id: RangePreset; label: string }[] }) {
   const range = useRange();
   const [open, setOpen] = React.useState(false);
   if (!range) return null;
@@ -35,7 +38,7 @@ export function RangeBar() {
   return (
     <div className="flex flex-wrap items-center gap-3">
       <div className="flex gap-1 rounded-lg border border-theme-border p-1">
-        {PRESETS.map((p) => (
+        {presets.map((p) => (
           <button
             key={p.id}
             type="button"

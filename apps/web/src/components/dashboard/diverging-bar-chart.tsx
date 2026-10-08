@@ -18,8 +18,8 @@ export interface DivergingPoint {
   negative: number;
 }
 
-function formatLabel(date: string): string {
-  return new Date(date + "T00:00:00Z").toLocaleDateString("en-IN", { day: "numeric", month: "short" });
+function formatLabel(date: string, withYear = false): string {
+  return new Date(date + "T00:00:00Z").toLocaleDateString("en-IN", { day: "numeric", month: "short", ...(withYear ? { year: "2-digit" as const } : {}) });
 }
 
 /** Two-series polarity comparison (battery charge vs discharge, grid
@@ -46,7 +46,7 @@ export function DivergingBarChart({
 }) {
   const hover = useBarHover();
   const chartData = data.map((d) => ({
-    label: formatLabel(d.date),
+    label: formatLabel(d.date, data.length > 300),
     positive: d.positive,
     negative: -d.negative,
   }));

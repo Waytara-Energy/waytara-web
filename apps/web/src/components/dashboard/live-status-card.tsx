@@ -27,21 +27,24 @@ export function LiveStatusCard({
   subtitle,
   value,
   statusLabel,
-  badgeLabel,
-  badgeTone,
+  badgeLabel = "",
+  badgeTone = "neutral",
+  valueTone,
   href,
   compact = false,
   onClick,
   selected = false,
 }: {
-  icon: LucideIcon;
+  icon?: LucideIcon;
   iconTone?: StatusTone;
   title: string;
   subtitle: string;
   value: string;
   statusLabel: string;
-  badgeLabel: string;
-  badgeTone: StatusTone;
+  badgeLabel?: string;
+  badgeTone?: StatusTone;
+  /** Colours the headline value (a figure that is good or needs attention); the default is the normal text colour. */
+  valueTone?: StatusTone;
   /** When set, the whole card links into Monitoring scoped to this card's
    *  device + section (e.g. `/dashboard/monitoring?device=<id>#power`) —
    *  omit for a card with nowhere to drill into. */
@@ -56,19 +59,23 @@ export function LiveStatusCard({
     <Card className={cn(compact && "h-full", (href || onClick) && "transition-colors hover:border-primary/40", selected && "border-primary ring-1 ring-primary/40")}>
       <CardContent className={compact ? "p-3.5" : "p-5"}>
         <div className="flex items-center gap-2">
-          <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-full", ICON_TONE_CLASS[iconTone])}>
-            <Icon className="size-4" />
-          </span>
+          {Icon && (
+            <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-full", ICON_TONE_CLASS[iconTone])}>
+              <Icon className="size-4" />
+            </span>
+          )}
           <div className="min-w-0">
             <p className="truncate text-sm font-medium text-foreground">{title}</p>
             <p className="truncate text-xs text-muted-foreground">{subtitle}</p>
           </div>
         </div>
 
-        <p className={cn("font-semibold text-foreground", compact ? "mt-2 text-xl" : "mt-3 text-2xl")}>{value}</p>
+        <p className={cn("truncate font-semibold tabular-nums", valueTone && valueTone !== "neutral" ? BADGE_TONE_CLASS[valueTone] : "text-foreground", compact ? "mt-2 text-xl" : "mt-3 text-2xl")}>{value}</p>
         <div className="mt-1 flex items-center justify-between gap-2 text-xs">
-          <span className="text-muted-foreground">{statusLabel}</span>
-          <span className={cn("font-medium", BADGE_TONE_CLASS[badgeTone])}>{badgeLabel}</span>
+          <span className="min-w-0 truncate text-muted-foreground" title={statusLabel}>
+            {statusLabel || "\u00a0"}
+          </span>
+          {badgeLabel && <span className={cn("shrink-0 font-medium", BADGE_TONE_CLASS[badgeTone])}>{badgeLabel}</span>}
         </div>
       </CardContent>
     </Card>

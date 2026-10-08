@@ -10,6 +10,8 @@ describe("windowFor", () => {
     expect(windowFor("7d", NOW)).toEqual({ fromMs: TODAY - 6 * DAY_MS, toMs: TODAY + DAY_MS });
     expect(windowFor("30d", NOW).fromMs).toBe(TODAY - 29 * DAY_MS);
     expect(windowFor("90d", NOW).fromMs).toBe(TODAY - 89 * DAY_MS);
+    expect(windowFor("1y", NOW)).toEqual({ fromMs: TODAY - 364 * DAY_MS, toMs: TODAY + DAY_MS });
+    expect(windowFor("2y", NOW)).toEqual({ fromMs: TODAY - 729 * DAY_MS, toMs: TODAY + DAY_MS });
   });
 
   it("a custom window is 30 days from the chosen start, never past today", () => {
@@ -51,7 +53,7 @@ describe("planRange", () => {
   });
 
   it("never plans more than 750 points per metric", () => {
-    for (const preset of ["today", "7d", "30d", "90d"] as const) {
+    for (const preset of ["today", "7d", "30d", "90d", "1y", "2y"] as const) {
       const w = windowFor(preset, NOW);
       const p = planRange(w, NOW);
       for (const i of p.options) expect((w.toMs - w.fromMs) / 60_000 / i).toBeLessThanOrEqual(750);

@@ -5,6 +5,8 @@ import type { createClient as createServerClient } from "@waytara/supabase/serve
 // pull `server-only` into a "use client" bundle. Both factories wrap the same SupabaseClient<Database, "waytara">.
 type AnySupabaseClient = ReturnType<typeof createBrowserClient> | Awaited<ReturnType<typeof createServerClient>>;
 
+import { dayCounterValues } from "@/lib/performance-period";
+
 export interface DeviceReadingRow {
   key_name: string;
   value: number | null;
@@ -50,7 +52,7 @@ export async function fetchSeriesRows(
 }
 
 /** Long-range history (Analytics, Performance, report exports: 30-365 days): one reading per day per key - the
- *  day's MAXIMUM (the value of a cumulative "today" energy register at its peak) - read from the daily rollup.
+ *  day's total (the value of a cumulative "today" energy register at its peak) - read from the daily rollup.
  *  `ts` is the IST day's start. Today's figure includes the unfinished bucket, so it is current to the last
  *  agent upload. */
 export async function fetchDailyMaxReadings(
@@ -62,5 +64,14 @@ export async function fetchDailyMaxReadings(
 ): Promise<DeviceReadingRow[]> {
   const to = lt ?? new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString();
   const rows = await fetchSeriesRows(supabase, deviceId, keys, gte, to, 1440);
-  return rows.filter((r) => r.max_value !== null).map((r) => ({ key_name: r.key_name, value: r.max_value, ts: r.bucket }));
+  // Per key, oldest day first, with the day-after-reset correction (see dayCounterValues).
+  const out: DeviceReadingRow[] = [];
+  for (const key of keys) {
+    const mine = rows.filter((r) => r.key_name === key).sort((a, b) => a.bucket.localeCompare(b.bucket));
+    const values = dayCounterValues(mine.map((r) => ({ max: r.max_value, last: r.last_value })));
+    mine.forEach((r, i) => {
+      if (values[i] !== null) out.push({ key_name: key, value: values[i], ts: r.bucket });
+    });
+  }
+  return out;
 }

@@ -23,11 +23,11 @@ interface RangeContextValue extends RangeState {
 
 const RangeContext = React.createContext<RangeContextValue | null>(null);
 
-const storageKey = (deviceId: string) => `waytara:range:${deviceId}`;
+const storageKey = (deviceId: string, scope?: string) => `waytara:range:${scope ? `${scope}:` : ""}${deviceId}`;
 
 /** The range (Today / 7 / 30 / 90 days / custom) a page's charts follow. Chosen per device and remembered for this
  *  browser tab (sessionStorage), never sent anywhere. Pages that mount a RangeBar wrap their content in this. */
-export function RangeProvider({ deviceId, children }: { deviceId: string; children: React.ReactNode }) {
+export function RangeProvider({ deviceId, scope, children }: { deviceId: string; /** Keeps this page's choice apart from another page's (Monitoring and Performance each remember their own). */ scope?: string; children: React.ReactNode }) {
   const [state, setState] = React.useState<RangeState>({ preset: "today", customStart: null });
   const [firstDay, setFirstDay] = React.useState<string | null>(null);
   const [now, setNow] = React.useState(() => Date.now());
@@ -35,13 +35,13 @@ export function RangeProvider({ deviceId, children }: { deviceId: string; childr
   // Restore the tab's last choice after mount (the server render always starts at "today").
   React.useEffect(() => {
     try {
-      const raw = sessionStorage.getItem(storageKey(deviceId));
+      const raw = sessionStorage.getItem(storageKey(deviceId, scope));
       // eslint-disable-next-line react-hooks/set-state-in-effect
       if (raw) setState(JSON.parse(raw) as RangeState);
     } catch {
       /* storage unavailable: start at today */
     }
-  }, [deviceId]);
+  }, [deviceId, scope]);
 
   React.useEffect(() => {
     let cancelled = false;
@@ -62,12 +62,12 @@ export function RangeProvider({ deviceId, children }: { deviceId: string; childr
     (next: RangeState) => {
       setState(next);
       try {
-        sessionStorage.setItem(storageKey(deviceId), JSON.stringify(next));
+        sessionStorage.setItem(storageKey(deviceId, scope), JSON.stringify(next));
       } catch {
         /* ignore */
       }
     },
-    [deviceId]
+    [deviceId, scope]
   );
 
   const value = React.useMemo<RangeContextValue>(() => {
