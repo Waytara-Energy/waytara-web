@@ -286,10 +286,14 @@ export type Database = {
         Row: {
           created_at: string
           device_status: Database["waytara"]["Enums"]["device_status"]
+          discharged_baseline_kwh: number | null
           id: string
           installation_id: string | null
           installed_at: string | null
           label: string | null
+          parent_id: string | null
+          quantity: number
+          retired_at: string | null
           service_id: string | null
           site_id: string
           stock_id: string
@@ -300,10 +304,14 @@ export type Database = {
         Insert: {
           created_at?: string
           device_status?: Database["waytara"]["Enums"]["device_status"]
+          discharged_baseline_kwh?: number | null
           id?: string
           installation_id?: string | null
           installed_at?: string | null
           label?: string | null
+          parent_id?: string | null
+          quantity?: number
+          retired_at?: string | null
           service_id?: string | null
           site_id: string
           stock_id: string
@@ -314,10 +322,14 @@ export type Database = {
         Update: {
           created_at?: string
           device_status?: Database["waytara"]["Enums"]["device_status"]
+          discharged_baseline_kwh?: number | null
           id?: string
           installation_id?: string | null
           installed_at?: string | null
           label?: string | null
+          parent_id?: string | null
+          quantity?: number
+          retired_at?: string | null
           service_id?: string | null
           site_id?: string
           stock_id?: string
@@ -326,6 +338,13 @@ export type Database = {
           warranty_start_date?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "equipment_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "devices_device_type_id_fkey"
             columns: ["stock_id"]
@@ -1937,11 +1956,16 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      assign_child_equipment: {
+        Args: { p_label?: string; p_parent: string; p_quantity?: number; p_stock: string }
+        Returns: string
+      }
       backfill_rollup_15m: {
         Args: { p_equipment_id: string; p_from: string; p_to: string }
         Returns: number
       }
       can_view_equipment: { Args: { p_equipment_id: string }; Returns: boolean }
+      is_monitored_category: { Args: { p_category: string }; Returns: boolean }
       consume_rate_limit: {
         Args: {
           p_bucket: string
