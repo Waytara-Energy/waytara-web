@@ -1,5 +1,6 @@
 import { StatusPill, type StatusTone } from "./status-pill";
 import type { EnumOption } from "@/lib/enum-labels";
+import { CONNECTION_LABEL, type ConnectionStatus } from "@/lib/device-state";
 
 // Real Deye inverter_state codes (register 59, from instrument_enum_values
 // enum_ref 'inverter_state' — the manual's own enum, not a guess): 0=Standby,
@@ -27,7 +28,7 @@ export function DeviceStatusPill({
   activeFaultCode,
   inverterStateOptions,
   variant,
-  lastKnown = false,
+  connection = "online",
 }: {
   inverterState: number | null;
   activeFaultCode?: number | null;
@@ -36,15 +37,17 @@ export function DeviceStatusPill({
    *  not the whole enum Map, so this stays a pure presentational component. */
   inverterStateOptions: EnumOption[];
   variant?: "badge" | "text";
-  /** The device is not answering, so this is the state it reported last, not the state it is in now: shown muted with
-   *  a "Last:" prefix so an old "Normal" never reads as current. */
-  lastKnown?: boolean;
+  /** When the device is not reporting, say so ("Connection lost" / "Offline") instead of the state it reported last. */
+  connection?: ConnectionStatus;
 }) {
+  if (connection !== "online") {
+    return <StatusPill label={CONNECTION_LABEL[connection]} tone="bad" variant={variant} />;
+  }
   if (inverterState === null && !activeFaultCode) {
     return <StatusPill label="No data" tone="neutral" variant={variant} />;
   }
   const match = inverterState === null ? undefined : inverterStateOptions.find((o) => o.code === String(inverterState));
   const label = activeFaultCode ? "Fault" : (match?.label ?? `State ${inverterState}`);
   const tone: StatusTone = activeFaultCode ? "bad" : INVERTER_STATE_TONE[inverterState ?? -1] ?? "neutral";
-  return <StatusPill label={lastKnown ? `Last: ${label}` : label} tone={lastKnown ? "neutral" : tone} variant={variant} />;
+  return <StatusPill label={label} tone={tone} variant={variant} />;
 }

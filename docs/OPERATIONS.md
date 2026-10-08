@@ -136,8 +136,11 @@ goes offline, reports a fault (`fault_message_N`) or an alarm (`alarm_status_N`)
 - Customers can switch these e-mails off under Settings > Application Settings (`notification_preferences.email_alerts`).
 - Needs `RESEND_API_KEY` (and optionally `RESEND_FROM_EMAIL`, `CUSTOMER_APP_URL`) in the Vercel environment. Set
   `DEVICE_ALERT_EMAILS=off` to stop the e-mails without a deploy; the alerts keep being created.
-- The dashboard does not write "Offline" on the page: it shows the last known state muted ("Last: Normal") and "Last
-  reading 1h 55m ago"; the alert is how an offline device is reported.
+- **Dashboard wording.** The unit checks in every minute (`equipment_heartbeat.heartbeat_s`), so the page knows within about
+  three minutes: **Connection lost** = the unit is alive but cannot reach the inverter (`device_online = false`); **Offline** =
+  nothing arrives from the unit at all (it lost power or internet - e.g. an adapter fed by an inverter that was switched off).
+  Both replace the inverter's state in the status pill, the energy-flow diagram freezes (last readings, no moving dots, a
+  "showing the last readings" note) and Go Live is disabled; everything resumes by itself when readings return.
 
 ## 5. Incident cheat-sheet
 | Symptom | Check |

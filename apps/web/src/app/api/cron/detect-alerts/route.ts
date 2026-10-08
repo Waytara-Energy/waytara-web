@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
   // would raise a critical alert for every device.
   const [lastSeen, heartbeats, faultRows, openAlerts] = await Promise.all([
     supabase.rpc("device_last_seen", { p_equipment_ids: deviceIds }),
-    supabase.from("equipment_heartbeat").select("equipment_id, last_seen, upload_interval_s, device_online, last_read_at, device_error").in("equipment_id", deviceIds),
+    supabase.from("equipment_heartbeat").select("equipment_id, last_seen, upload_interval_s, heartbeat_s, device_online, last_read_at, device_error").in("equipment_id", deviceIds),
     supabase.from("equipment_latest").select("equipment_id, key_name, value").in("equipment_id", deviceIds).in("key_name", FAULT_ALARM_KEYS),
     supabase
       .from("alerts")

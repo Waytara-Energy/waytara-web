@@ -23,6 +23,8 @@ const MIN_SILENT_MS = 10 * 60_000;
 export interface HeartbeatRow {
   last_seen: string | null;
   upload_interval_s: number | null;
+  /** How often the agent checks in between uploads (null for an older agent). */
+  heartbeat_s?: number | null;
   device_online: boolean | null;
   last_read_at: string | null;
   /** The agent's own words for why the device does not answer (null while it does, or for older agents). */
@@ -42,9 +44,10 @@ export interface OfflineStatus {
   deviceError: string | null;
 }
 
-/** How long the agent may stay quiet before it counts as gone: three of its upload intervals, at least ten minutes. */
-export function agentSilentAfterMs(uploadIntervalS: number | null): number {
-  return Math.max(MIN_SILENT_MS, 3 * (uploadIntervalS ?? 60) * 1000);
+/** How long the agent may stay quiet before it counts as gone: three of its check-in intervals (its upload interval for an
+ *  agent that does not check in between), at least ten minutes. */
+export function agentSilentAfterMs(uploadIntervalS: number | null, heartbeatS: number | null = null): number {
+  return Math.max(MIN_SILENT_MS, 3 * (heartbeatS ?? uploadIntervalS ?? 60) * 1000);
 }
 
 const ms = (iso: string | null | undefined) => (iso ? new Date(iso).getTime() : null);
@@ -57,7 +60,7 @@ export function offlineStatus(beat: HeartbeatRow | null, latestTs: string | null
     const offline = latestMs === null || nowMs - latestMs > LEGACY_OFFLINE_HOURS * 3_600_000;
     return { monitored: false, offline, reason: offline ? (latestMs === null ? "never" : "silent") : null, lastReadMs: latestMs, deviceError: null };
   }
-  const silentAfter = agentSilentAfterMs(beat.upload_interval_s);
+  const silentAfter = agentSilentAfterMs(beat.upload_interval_s, beat.heartbeat_s ?? null);
   const lastRead = ms(beat.last_read_at) ?? latestMs;
   const lastSeen = ms(beat.last_seen);
   if (beat.device_online === false) return { monitored: true, offline: true, reason: "device", lastReadMs: lastRead, deviceError: beat.device_error ?? null };

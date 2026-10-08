@@ -8,4 +8,6 @@ export interface DeviceSyncInit {
   deviceOnline: boolean | null;
   /** How often the agent uploads (seconds), when it has said. */
   intervalS: number | null;
+  /** How often the agent checks in between uploads (seconds); null for an older agent that does not. */
+  heartbeatS: number | null;
 }

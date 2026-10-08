@@ -81,10 +81,10 @@ function StatusWithAgo({
   faultCode: number | null;
   options: EnumOption[];
 }) {
-  const { lastReadAt, offline } = useDeviceState(deviceId, sync);
+  const { lastReadAt, offline, status } = useDeviceState(deviceId, sync);
   return (
     <>
-      <DeviceStatusPill inverterState={state} activeFaultCode={faultCode} inverterStateOptions={options} variant="text" lastKnown={offline} />
+      <DeviceStatusPill inverterState={state} activeFaultCode={faultCode} inverterStateOptions={options} variant="text" connection={status} />
       <LiveSyncedAgo lastTs={lastReadAt} label={offline ? "Last reading" : "Updated"} />
     </>
   );
@@ -106,6 +106,7 @@ export function LiveEnergyFlow({
   powerSourceCategory,
   pvKeys = [],
   fit = false,
+  sync,
 }: {
   inverterIds: string[];
   chargerIds?: string[];
@@ -117,8 +118,11 @@ export function LiveEnergyFlow({
   pvKeys?: string[];
   /** Size the drawing to the screen's height (the Overview board). */
   fit?: boolean;
+  /** The device's connection, so the drawing can freeze while the unit is offline or has lost the device. */
+  sync: DeviceSyncInit;
 }) {
   const n = useSiteNumbers(inverterIds, initial, pvKeys);
+  const { status } = useDeviceState(inverterIds[0] ?? "", sync);
   const ev = useLiveNumbers(chargerIds, ["power_active_import_kw"], { power_active_import_kw: initialEvW === null ? null : initialEvW / 1000 }, () => "sum");
   const evKw = ev.power_active_import_kw;
   const batteryRaw = n.battery_power_w ?? null;
@@ -134,6 +138,7 @@ export function LiveEnergyFlow({
     fit,
     inverterId: inverterIds[0],
     chargerId: chargerIds[0],
+    frozen: status === "online" ? null : status,
     pvInputs: pvKeys.map((k) => ({ label: `PV${/^pv(\d+)_/.exec(k)?.[1] ?? ""}`, watts: n[k] ?? null })),
   };
   return <EnergyFlowDiagram {...flow} />;

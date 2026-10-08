@@ -22,7 +22,7 @@ export async function getLastSyncInfo(deviceId: string): Promise<LastSyncInfo> {
   const supabase = await createClient();
   const { data: beat } = await supabase
     .from("equipment_heartbeat")
-    .select("last_seen, upload_interval_s, device_online, last_read_at")
+    .select("last_seen, upload_interval_s, heartbeat_s, device_online, last_read_at")
     .eq("equipment_id", deviceId)
     .maybeSingle();
 
@@ -46,6 +46,7 @@ export async function getLastSyncInfo(deviceId: string): Promise<LastSyncInfo> {
     agentSeenTs: beat?.last_seen ?? null,
     deviceOnline,
     intervalS: beat?.upload_interval_s ?? null,
+    heartbeatS: beat?.heartbeat_s ?? null,
     minutesAgo,
     isStale: minutesAgo === null || minutesAgo > STALE_AFTER_MINUTES || deviceOnline === false,
   };

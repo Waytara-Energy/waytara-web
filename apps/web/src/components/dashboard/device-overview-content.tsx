@@ -107,6 +107,7 @@ export async function DeviceOverviewContent({
             powerPackage={site.powerPackage}
             powerSourceCategory={site.powerSourceCategory}
             pvKeys={overview.pvKeys}
+            sync={lastSync}
           />
         )}
 

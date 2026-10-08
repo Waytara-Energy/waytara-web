@@ -488,6 +488,7 @@ export type Database = {
           agent_version: string | null
           device_error: string | null
           device_online: boolean | null
+          heartbeat_s: number | null
           equipment_id: string
           last_read_at: string | null
           last_seen: string
@@ -498,6 +499,7 @@ export type Database = {
           agent_version?: string | null
           device_error?: string | null
           device_online?: boolean | null
+          heartbeat_s?: number | null
           equipment_id: string
           last_read_at?: string | null
           last_seen: string

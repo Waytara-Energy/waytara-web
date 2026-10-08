@@ -92,7 +92,7 @@ export function SolarMonitoringView({
   };
   const activeFaultCode = faultCodeFrom(getNum);
   // Is the device really reporting? (The agent can be running while the device is switched off.)
-  const { lastReadAt, offline } = useDeviceState(deviceId, sync);
+  const { lastReadAt, offline, status } = useDeviceState(deviceId, sync);
   const agentOnline = !offline;
 
   const gridConnected = getNum("grid_relay_status");
@@ -267,7 +267,7 @@ export function SolarMonitoringView({
             activeFaultCode={activeFaultCode}
             inverterStateOptions={inverterStateOptions}
             variant="text"
-            lastKnown={offline}
+            connection={status}
           />
           <LiveSyncedAgo lastTs={lastReadAt} label={offline ? "Last reading" : "Updated"} />
         </div>

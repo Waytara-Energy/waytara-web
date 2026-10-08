@@ -130,6 +130,7 @@ export function EnergyFlowDiagram({
   pvInputs = [],
   inverterId,
   chargerId,
+  frozen = null,
 }: {
   solarW: number | null;
   /** positive = charging, negative = discharging */
@@ -153,6 +154,9 @@ export function EnergyFlowDiagram({
   /** Where a click on a circle goes: the matching tab of that device's Monitoring page. Without them circles don't link. */
   inverterId?: string;
   chargerId?: string;
+  /** The monitoring unit is offline / has lost the device: nothing flows, so the drawing stops (last readings, no moving
+   *  dots, muted) and says why, and picks up again by itself when readings return. */
+  frozen?: "offline" | "connection_lost" | null;
 }) {
   const router = useRouter();
   const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
@@ -197,7 +201,7 @@ export function EnergyFlowDiagram({
         }}
         onPointerLeave={() => setFocus(null)}
       >
-        <svg viewBox={`0 0 ${W} ${H}`} className="absolute inset-0 h-full w-full" aria-hidden="true">
+        <svg viewBox={`0 0 ${W} ${H}`} className={cn("absolute inset-0 h-full w-full transition-opacity", frozen && "opacity-50 grayscale")} aria-hidden="true">
           <defs>
             <linearGradient id={`${uid}-off`} x1="0" y1="0" x2="1" y2="1">
               <stop offset="0" stopColor="#fca5a5" />
@@ -242,7 +246,7 @@ export function EnergyFlowDiagram({
                     <path d={`M -${CROSS} -${CROSS} L ${CROSS} ${CROSS} M -${CROSS} ${CROSS} L ${CROSS} -${CROSS}`} stroke={`url(#${uid}-off)`} strokeWidth={3} strokeLinecap="round" fill="none" />
                   </g>
                 )}
-                {item.dir !== "none" &&
+                {item.dir !== "none" && !frozen &&
                   // Dots streaming the way the energy moves; faster for more power.
                   Array.from({ length: DOTS }, (_, i) => {
                     const begin = `${(-(i * durS) / DOTS).toFixed(2)}s`;
@@ -257,6 +261,13 @@ export function EnergyFlowDiagram({
             );
           })}
         </svg>
+        {frozen && (
+          <div className="pointer-events-none absolute inset-x-0 top-0 flex justify-center">
+            <span className="rounded-full border border-red-500/40 bg-red-500/10 px-3 py-1 text-xs font-medium text-red-600 dark:text-red-400">
+              {frozen === "offline" ? "Offline" : "Connection lost"} · showing the last readings
+            </span>
+          </div>
+        )}
 
         {/* The hub: the inverter every line meets, with the site's overall mode at larger sizes. */}
         <Tooltip>

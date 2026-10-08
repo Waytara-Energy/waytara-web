@@ -81,7 +81,7 @@ export default async function DashboardOverviewPage() {
   const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
   const inverterIds = site.devices.filter((d) => d.deviceType?.category === "solar_inverter").map((d) => d.id);
   // What the server saw; the live components take it from here (no page refresh).
-  const syncInit: DeviceSyncInit = inverterSync ?? { lastTs: null, agentSeenTs: null, deviceOnline: null, intervalS: null };
+  const syncInit: DeviceSyncInit = inverterSync ?? { lastTs: null, agentSeenTs: null, deviceOnline: null, intervalS: null, heartbeatS: null };
   const pvKeys = overview?.pvKeys ?? [];
   const overviewInitial: Record<string, number | null> = overview ? Object.fromEntries([...SITE_OVERVIEW_KEYS, ...pvKeys].map((k) => [k, overview.get(k)])) : {};
 
@@ -144,6 +144,7 @@ export default async function DashboardOverviewPage() {
               powerPackage: site.powerPackage,
               powerSourceCategory: site.powerSourceCategory,
               pvKeys,
+              sync: syncInit,
             }}
           />
 
