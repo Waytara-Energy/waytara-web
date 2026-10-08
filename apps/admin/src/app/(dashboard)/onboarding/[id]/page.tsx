@@ -1,3 +1,4 @@
+import { Fragment } from "react";
 import Link from "next/link";
 import { createClient } from "@waytara/supabase/server";
 import { Button } from "@waytara/ui/button";
@@ -14,6 +15,8 @@ import {
   resendCustomerInviteEmail,
   createSite,
   addDevice,
+  addChildEquipment,
+  retireChildEquipment,
   completeSiteSetup,
   startTestSession,
   sendTestSignal,
@@ -26,6 +29,7 @@ import {
   completeInstallation,
 } from "./actions";
 import { TEMPLATE_VARIANTS } from "@/lib/equipment-templates";
+import { isMonitoredCategory } from "@/lib/equipment-kinds";
 
 // devices no longer carries its own free-typed device_uid — the linked
 // stock item's own serial/model number is the per-unit identifier now
@@ -139,6 +143,10 @@ export default async function OnboardingPipelinePage({
     // "Send Test Signal" below simulates values for.
     readableMetrics: { key_name: string; unit: string | null }[];
   }[] = [];
+  // Child equipment (panels, a battery ...) listed under the device it belongs to.
+  let childrenByParent = new Map<string, { id: string; label: string | null; quantity: number; name: string }[]>();
+  let unassignedEquipment: { id: string; name: string; quantity: number }[] = [];
+  let childStock: { id: string; name: string; category: string; quantity: number }[] = [];
   let deviceTypes: { id: string; name: string }[] = [];
   let testSession: {
     id: string;
@@ -173,11 +181,24 @@ export default async function OnboardingPipelinePage({
     if (site) {
       const { data: deviceRows } = await supabase
         .from("equipment")
-        .select("id, label, device_status, installed_at, device_type:equipment_inventory(name, serial_number, model_number)")
+        .select("id, label, device_status, installed_at, parent_id, quantity, retired_at, device_type:equipment_inventory(name, category, serial_number, model_number)")
         .eq("site_id", site.id)
         .order("created_at", { ascending: false });
 
-      const deviceIds = (deviceRows ?? []).map((d) => d.id);
+      const live = (deviceRows ?? []).filter((d) => d.retired_at === null);
+      childrenByParent = new Map();
+      for (const c of live.filter((d) => d.parent_id !== null)) {
+        const list = childrenByParent.get(c.parent_id as string) ?? [];
+        list.push({ id: c.id, label: c.label, quantity: c.quantity, name: c.device_type?.name ?? "Equipment" });
+        childrenByParent.set(c.parent_id as string, list);
+      }
+      unassignedEquipment = live
+        .filter((d) => d.parent_id === null && !isMonitoredCategory(d.device_type?.category))
+        .map((d) => ({ id: d.id, name: d.device_type?.name ?? "Equipment", quantity: d.quantity }));
+      // Only monitored devices go through registers, the connection test and verification.
+      const monitoredRows = live.filter((d) => d.parent_id === null && isMonitoredCategory(d.device_type?.category));
+
+      const deviceIds = monitoredRows.map((d) => d.id);
       const { data: metricRows } =
         deviceIds.length > 0
           ? await supabase
@@ -193,15 +214,16 @@ export default async function OnboardingPipelinePage({
         metricsByDevice.set(m.equipment_id, list);
       }
 
-      devices = (deviceRows ?? []).map((d) => ({
+      devices = monitoredRows.map((d) => ({
         ...d,
         readableMetrics: metricsByDevice.get(d.id) ?? [],
       }));
     }
 
     if (onboarding.current_stage === "site_setup") {
-      const { data: deviceTypeRows } = await supabase.from("equipment_inventory").select("id, name").order("name");
-      deviceTypes = deviceTypeRows ?? [];
+      const { data: deviceTypeRows } = await supabase.from("equipment_inventory").select("id, name, category, quantity").order("name");
+      deviceTypes = (deviceTypeRows ?? []).filter((r) => isMonitoredCategory(r.category)).map((r) => ({ id: r.id, name: r.name }));
+      childStock = (deviceTypeRows ?? []).filter((r) => !isMonitoredCategory(r.category) && r.quantity > 0).map((r) => ({ id: r.id, name: r.name, category: r.category, quantity: r.quantity }));
     }
 
     if (onboarding.current_stage === "connection_test" && site) {
@@ -425,10 +447,16 @@ export default async function OnboardingPipelinePage({
 
               <div className="space-y-3 border-t border-border pt-4">
                 <h3 className="text-sm font-semibold">Devices ({devices.length})</h3>
+                {unassignedEquipment.length > 0 && (
+                  <p className="rounded-md border border-amber-500/40 bg-amber-500/10 p-2 text-xs text-amber-700 dark:text-amber-400">
+                    Not under a device yet: {unassignedEquipment.map((u) => `${u.quantity > 1 ? `${u.quantity} × ` : ""}${u.name}`).join(", ")}. Add equipment under the inverter it belongs to.
+                  </p>
+                )}
                 {devices.length > 0 && (
                   <ul className="space-y-2">
                     {devices.map((d) => (
-                      <li key={d.id} className="flex items-center justify-between rounded-md border border-border p-3 text-sm">
+                      <Fragment key={d.id}>
+                      <li className="flex items-center justify-between rounded-md border border-border p-3 text-sm">
                         <span>
                           <span className="font-medium">{d.device_type?.name ?? "Device"}</span>{" "}
                           <span className="text-muted-foreground">— {deviceIdentity(d)}</span>
@@ -437,6 +465,47 @@ export default async function OnboardingPipelinePage({
                           Edit Registers
                         </Link>
                       </li>
+                      <li className="-mt-1 ml-4 space-y-2 border-l border-border pl-4">
+                        {(childrenByParent.get(d.id) ?? []).map((c) => (
+                          <div key={c.id} className="flex items-center justify-between text-sm">
+                            <span>
+                              {c.quantity > 1 ? `${c.quantity} × ` : ""}
+                              {c.name}
+                              {c.label ? <span className="text-muted-foreground"> — {c.label}</span> : null}
+                            </span>
+                            <ActionForm action={retireChildEquipment.bind(null, onboarding.id, c.id)} loading="Removing…" success="Removed.">
+                              <button type="submit" className="text-xs text-muted-foreground hover:text-destructive hover:underline">
+                                Remove
+                              </button>
+                            </ActionForm>
+                          </div>
+                        ))}
+                        {childStock.length > 0 && (
+                          <ActionForm
+                            action={addChildEquipment.bind(null, onboarding.id, d.id)}
+                            loading="Adding equipment…"
+                            success="Equipment added."
+                            className="flex flex-wrap items-end gap-2"
+                          >
+                            <select name="stockId" required defaultValue="" className="h-8 rounded-md border border-border bg-background px-2 text-xs">
+                              <option value="" disabled>
+                                Add panels, battery …
+                              </option>
+                              {childStock.map((cs) => (
+                                <option key={cs.id} value={cs.id}>
+                                  {cs.name} ({cs.quantity} in stock)
+                                </option>
+                              ))}
+                            </select>
+                            <Input name="quantity" type="number" min={1} step={1} defaultValue={1} className="h-8 w-20 text-xs" aria-label="Quantity" />
+                            <Input name="label" placeholder="Label (optional)" className="h-8 w-36 text-xs" />
+                            <Button type="submit" size="sm" variant="outline">
+                              Add equipment
+                            </Button>
+                          </ActionForm>
+                        )}
+                      </li>
+                      </Fragment>
                     ))}
                   </ul>
                 )}

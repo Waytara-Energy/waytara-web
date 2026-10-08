@@ -3,6 +3,7 @@ import { isCronAuthorized } from "@/lib/cron-auth";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { ALERT_PREFIX, FAULT_ALARM_KEYS, needsReminder, offlineMessage, offlineStatus, raisedAlerts, reminderDue, type AlertKind, type HeartbeatRow } from "@/lib/device-alerts";
 import { sendDeviceAlertEmail } from "@/lib/send-device-alert-email";
+import { isMonitoredCategory } from "@/lib/equipment-children";
 
 // Device alerts, every 5 minutes (pg_cron calls this route; see migrations 20261003000000_security_hardening.sql and
 // 20261007030000_alert_reminders.sql).
@@ -24,7 +25,7 @@ import { sendDeviceAlertEmail } from "@/lib/send-device-alert-email";
 type Device = {
   id: string;
   label: string | null;
-  device_type: { serial_number: string | null; model_number: string | null } | null;
+  device_type: { serial_number: string | null; model_number: string | null; category: string | null } | null;
   site: { name: string | null; customer_id: string | null } | null;
 };
 
@@ -62,11 +63,12 @@ export async function GET(req: NextRequest) {
 
   const { data: deviceRows, error: devicesError } = await supabase
     .from("equipment")
-    .select("id, label, device_type:equipment_inventory(serial_number, model_number), site:sites(name, customer_id)")
+    .select("id, label, device_type:equipment_inventory(serial_number, model_number, category), site:sites(name, customer_id)")
     .eq("device_status", "active");
   if (devicesError) return NextResponse.json({ error: devicesError.message }, { status: 500 });
 
-  const devices = (deviceRows ?? []) as unknown as Device[];
+  // Child equipment (panels, a battery ...) has no readings of its own: nothing to judge.
+  const devices = ((deviceRows ?? []) as unknown as Device[]).filter((d) => !d.device_type || isMonitoredCategory(d.device_type.category));
   const deviceIds = devices.map((d) => d.id);
   if (deviceIds.length === 0) return NextResponse.json({ checked: 0, newAlerts: 0, resolvedAlerts: 0, emails: 0 });
 

@@ -1,4 +1,5 @@
 import "server-only";
+import { isMonitoredCategory } from "./equipment-children";
 import { cache } from "react";
 import { cookies } from "next/headers";
 import { createClient } from "@waytara/supabase/server";
@@ -41,7 +42,7 @@ export const getCustomerSites = cache(async function getCustomerSites(): Promise
   const { data } = await supabase
     .from("sites")
     .select(
-      "id, name, property_type, power_source_category, power_package, latitude, longitude, address, equipment(id, label, device_status, created_at, installed_at, warranty_start_date, warranty_end_date, service_id, device_type:equipment_inventory(id, category, name, manufacturer, brand, model, serial_number, model_number))"
+      "id, name, property_type, power_source_category, power_package, latitude, longitude, address, equipment(id, label, device_status, parent_id, created_at, installed_at, warranty_start_date, warranty_end_date, service_id, device_type:equipment_inventory(id, category, name, manufacturer, brand, model, serial_number, model_number))"
     )
     .order("created_at", { ascending: true });
 
@@ -54,7 +55,10 @@ export const getCustomerSites = cache(async function getCustomerSites(): Promise
     latitude: s.latitude,
     longitude: s.longitude,
     address: (s.address as SiteAddress | null) ?? null,
+    // Child equipment (panels, a battery ...) belongs to an inverter; the Performance page reads it, but it is not a
+    // device with readings of its own, so only the monitored devices are listed.
     devices: (s.equipment ?? [])
+      .filter((d) => d.parent_id === null && (!d.device_type || isMonitoredCategory(d.device_type.category)))
       .slice()
       .sort((a, b) => a.created_at.localeCompare(b.created_at))
       .map((d) => ({

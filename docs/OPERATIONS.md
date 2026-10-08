@@ -142,6 +142,39 @@ goes offline, reports a fault (`fault_message_N`) or an alarm (`alarm_status_N`)
   Both replace the inverter's state in the status pill, the energy-flow diagram freezes (last readings, no moving dots, a
   "showing the last readings" note) and Go Live is disabled; everything resumes by itself when readings return.
 
+### Battery health and cycle count (Performance page)
+The Deye does not report a battery's state of health or cycle count, so the page works them out from the lifetime energy
+counters and the charge level. The battery's size and rating come from its **stock record** (`equipment_inventory`:
+nominal capacity, `technical_specs.usable_kwh` or `dod`, `technical_specs.eol_pct` - 80 if absent - and
+`warranty_info.cycle_life`), and the battery is allocated to the customer as child equipment under the inverter (see below).
+The one per-unit figure, the inverter's lifetime discharge counter on the day that battery went in, is kept on the allocated
+row (`equipment.discharged_baseline_kwh`, set automatically when a battery is allocated) so a replaced battery starts again
+from zero cycles. Without an allocated battery the customer sees a note instead.
+- **Cycles** = (lifetime discharged kWh - baseline) / usable capacity (equivalent full cycles, as manufacturers rate them).
+- **Health, measured** = energy delivered in a discharge / share of the charge level it used, as the median of the last
+  (up to ten) discharges of the past 7 days that used at least 30 points of charge (the charge level is a whole number,
+  so a 30-point swing keeps the error near 3%). Capped at 100%.
+- **Health, from usage** (until a measurement exists) = a straight line from 100% to the end-of-life capacity at the rated
+  cycle life. The page says which of the two it is showing.
+- **Life left** = remaining rated cycles / the last 30 days' cycles per day.
+Measured capacity depends on the 15-minute summaries, which are kept for 8 days, so only recent discharges can be used.
+
+### Equipment: devices and their children
+A customer's installation is one **monitored device** (a solar inverter or an EV charger: registers, readings, alerts, shown on
+the dashboard) with **child equipment** under it (panels, battery, meters, switchgear ...: no readings, never shown as a
+device). `equipment.parent_id` links a child to its device (same site, one level deep, enforced by the database);
+`equipment.quantity` lets one row stand for many units (12 panels = one row); `equipment.retired_at` takes something out while
+keeping it on record. Which stock categories are devices is `waytara.is_monitored_category` (`solar_inverter`, `ev_charger`).
+- **Allocating (admin):** Onboarding > Site & Device Setup > under the inverter, *Add equipment* (stock item, quantity,
+  label). It calls `waytara.assign_child_equipment`, which checks the rules, takes the units off the stock count (a stock item
+  that reaches 0 shows as allocated) and creates the row. *Remove* retires it.
+- **What it feeds:** the battery's usable energy and rated cycles give the cycle count and health on Performance; the panels'
+  rated power x quantity give the installed kWp and the yield per kWp. Warranty dates come from each child's stock record when
+  the installation is completed. The customer sees only the inverter; the alert job and the connection test skip children.
+- **Stock records must say what the dashboard needs:** a panel's `power_capacity_value` / `power_capacity_unit` (W per panel); a
+  battery's capacity (kWh), `technical_specs.usable_kwh` (or `dod`), `technical_specs.eol_pct` (80 if absent) and
+  `warranty_info.cycle_life`.
+
 ## 5. Incident cheat-sheet
 | Symptom | Check |
 |---|---|

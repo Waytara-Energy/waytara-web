@@ -31,6 +31,8 @@ export function LiveStatusCard({
   badgeTone,
   href,
   compact = false,
+  onClick,
+  selected = false,
 }: {
   icon: LucideIcon;
   iconTone?: StatusTone;
@@ -46,9 +48,12 @@ export function LiveStatusCard({
   href?: string;
   /** Tighter padding and a smaller value, for screens that must fit without scrolling (Overview). */
   compact?: boolean;
+  /** Makes the card a button (for a row of cards that each reveal a section below); `selected` marks the open one. */
+  onClick?: () => void;
+  selected?: boolean;
 }) {
   const card = (
-    <Card className={cn(compact && "h-full", href && "transition-colors hover:border-primary/40")}>
+    <Card className={cn(compact && "h-full", (href || onClick) && "transition-colors hover:border-primary/40", selected && "border-primary ring-1 ring-primary/40")}>
       <CardContent className={compact ? "p-3.5" : "p-5"}>
         <div className="flex items-center gap-2">
           <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-full", ICON_TONE_CLASS[iconTone])}>
@@ -69,6 +74,13 @@ export function LiveStatusCard({
     </Card>
   );
 
+  if (onClick) {
+    return (
+      <button type="button" onClick={onClick} aria-pressed={selected} className="block w-full cursor-pointer rounded-xl text-left outline-none focus-visible:ring-2 focus-visible:ring-primary/50">
+        {card}
+      </button>
+    );
+  }
   return href ? (
     <Link href={href} className="block">
       {card}

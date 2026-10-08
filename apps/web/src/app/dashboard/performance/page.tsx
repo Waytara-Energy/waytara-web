@@ -64,7 +64,7 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
               <p className="mt-1 text-sm text-theme-muted">Performance history, updated as new readings arrive.</p>
             </div>
           </div>
-          <PerformanceContent supabase={supabase} device={device} />
+          <PerformanceContent supabase={supabase} device={device} tariffRate={tariffRate} />
           {features.analytics && (
             <>
               <div className="pt-2">

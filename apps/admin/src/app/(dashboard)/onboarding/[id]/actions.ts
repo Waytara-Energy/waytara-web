@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { isMonitoredCategory } from "@/lib/equipment-kinds";
 import { createClient } from "@waytara/supabase/server";
 import { requireStaff } from "@waytara/supabase/auth";
 import type { Json } from "@waytara/supabase";
@@ -384,6 +385,31 @@ export async function addDevice(onboardingId: string, siteId: string, formData: 
   revalidatePath(`/onboarding/${onboardingId}`);
 }
 
+// Child equipment (panels, a battery, meters ...) is allocated under one monitored device. It has no register map and is not
+// tested: the database function checks the rules, takes the units off the stock count and creates the row in one step.
+export async function addChildEquipment(onboardingId: string, parentId: string, formData: FormData): Promise<void> {
+  await requireStaff();
+  const stockId = String(formData.get("stockId") ?? "");
+  const quantity = Number(formData.get("quantity") ?? 1);
+  const label = String(formData.get("label") ?? "").trim();
+  if (!stockId) throw new Error("Pick the equipment.");
+  if (!Number.isInteger(quantity) || quantity < 1) throw new Error("Quantity must be a whole number, at least 1.");
+
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("assign_child_equipment", { p_parent: parentId, p_stock: stockId, p_quantity: quantity, p_label: label || undefined });
+  if (error) throw new Error(error.message);
+  revalidatePath(`/onboarding/${onboardingId}`);
+}
+
+// Takes child equipment out (a replaced battery, a mistake): it stays on record with the date it was retired.
+export async function retireChildEquipment(onboardingId: string, equipmentId: string): Promise<void> {
+  await requireStaff();
+  const supabase = await createClient();
+  const { error } = await supabase.from("equipment").update({ retired_at: new Date().toISOString() }).eq("id", equipmentId).not("parent_id", "is", null);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/onboarding/${onboardingId}`);
+}
+
 export async function completeSiteSetup(onboardingId: string): Promise<void> {
   await requireStaff();
   const supabase = await createClient();
@@ -557,8 +583,13 @@ export async function completeConnectionTest(onboardingId: string, sessionId: st
   await requireStaff();
   const supabase = await createClient();
 
-  const { data: devices } = await supabase.from("equipment").select("id, device_status").eq("site_id", siteId);
-  if (!devices || devices.length === 0 || devices.some((d) => d.device_status !== "active")) {
+  const { data: siteEquipment } = await supabase
+    .from("equipment")
+    .select("id, device_status, parent_id, device_type:equipment_inventory(category)")
+    .eq("site_id", siteId);
+  // Child equipment (panels, a battery ...) has no readings to test.
+  const devices = (siteEquipment ?? []).filter((d) => d.parent_id === null && isMonitoredCategory(d.device_type?.category));
+  if (devices.length === 0 || devices.some((d) => d.device_status !== "active")) {
     throw new Error("Every device needs to be verified before completing the test.");
   }
 
