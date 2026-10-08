@@ -44,6 +44,9 @@ export const getCustomerSites = cache(async function getCustomerSites(): Promise
     .select(
       "id, name, property_type, power_source_category, power_package, latitude, longitude, address, equipment(id, label, device_status, parent_id, created_at, installed_at, warranty_start_date, warranty_end_date, service_id, device_type:equipment_inventory(id, category, name, manufacturer, brand, model, serial_number, model_number))"
     )
+    // A site hidden from the customer (hidden_at set by staff) is left out here and so everywhere: the site list, the device
+    // icons, and every page's scoping. Nothing is deleted.
+    .is("customer_hidden_at", null)
     .order("created_at", { ascending: true });
 
   return (data ?? []).map((s) => ({

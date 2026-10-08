@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, ChevronsUpDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
-import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
+import { Command, CommandGroup, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { selectSite } from "@/app/dashboard/actions";
@@ -60,9 +60,7 @@ export function SiteSwitcher({ sites, selectedId }: { sites: SwitcherSite[]; sel
       </PopoverTrigger>
       <PopoverContent className="w-64 p-0" align="start">
         <Command>
-          <CommandInput placeholder="Find site…" />
           <CommandList>
-            <CommandEmpty>No site found.</CommandEmpty>
             <CommandGroup>
               {sites.map((s) => (
                 <CommandItem key={s.id} value={s.name} onSelect={() => handleSelect(s.id)}>

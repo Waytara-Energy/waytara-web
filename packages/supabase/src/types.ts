@@ -1806,6 +1806,7 @@ export type Database = {
         Row: {
           address: Json | null
           created_at: string
+          customer_hidden_at: string | null
           customer_id: string
           id: string
           latitude: number | null
@@ -1818,6 +1819,7 @@ export type Database = {
         Insert: {
           address?: Json | null
           created_at?: string
+          customer_hidden_at?: string | null
           customer_id: string
           id?: string
           latitude?: number | null
@@ -1830,6 +1832,7 @@ export type Database = {
         Update: {
           address?: Json | null
           created_at?: string
+          customer_hidden_at?: string | null
           customer_id?: string
           id?: string
           latitude?: number | null
