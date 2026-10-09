@@ -1,196 +1,117 @@
 import { Wrench } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { getSelectedSite, resolveDeviceInSite, deviceDisplayId } from "@/lib/selected-site";
-import { DeviceTitle } from "@/components/dashboard/device-title";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { todayIst } from "@/lib/report-types";
+import { getLastSyncInfo } from "@/lib/device-sync";
+import { fetchSolarHealthData, FAULT_HISTORY_DAYS } from "@/lib/maintenance-data";
+import { getServiceStatus, type ServiceStatus } from "@/lib/service-status";
+import { DeviceHealthContent } from "@/components/dashboard/device-health-content";
+import { LiveDynamicFieldGroup } from "@/components/dashboard/live-field-group";
+import { MaintenanceBoard, type HeadlineData } from "@/components/dashboard/maintenance-board";
+import { MaintenanceRequests, isOpen, type TicketRow } from "@/components/dashboard/maintenance-requests";
+import { MaintenanceService, serviceDate } from "@/components/dashboard/maintenance-service";
 import { NewMaintenanceTicketDialog } from "@/components/dashboard/new-maintenance-ticket-dialog";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
-import { DeviceHealthContent } from "@/components/dashboard/device-health-content";
-import { getServiceStatus, type ServiceStatus } from "@/lib/service-status";
+import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 
-const STATUS_BADGE_VARIANT: Record<string, "alert" | "default" | "secondary"> = {
-  open: "alert",
-  in_progress: "default",
-  resolved: "secondary",
-  closed: "secondary",
-};
+/** The server's clock for the warranty countdown (a function, so a render never reads the time itself). */
+const serverNow = () => Date.now();
 
-// Device-centric redesign: tickets attach to (and this list filters by)
-// the selected device's device_id rather than every ticket across every
-// site the customer owns.
-//
-// Phase 5 of the multi-device-type dashboard roadmap: "Device Health" is
-// now category-aware via DeviceHealthContent — solar_inverter keeps the
-// fault banner/history, temperature trends, and SD-card status (Phase 12's
-// original build); ev_charger gets its own connector-status/error-code
-// health view. The ticket list and service-contract section below are
-// already device-agnostic (maintenance_tickets/service_contracts aren't
-// tied to any one category), so they're untouched.
-export default async function MaintenancePage({
-  searchParams,
-}: {
-  searchParams: Promise<{ device?: string }>;
-}) {
+// Three tabs like Performance and Reports, each with its own headline. Health follows the device's live channel (connection, faults,
+// temperatures and the plain-language checks); the raw registers are kept in a collapsed panel for support. Service shows the plan,
+// warranty and visits, only for what exists; Requests lists what the customer reported. A device that is not a solar inverter keeps its
+// own health view in the Health tab.
+export default async function MaintenancePage({ searchParams }: { searchParams: Promise<{ device?: string }> }) {
   const [{ device: deviceIdParam }, site] = await Promise.all([searchParams, getSelectedSite()]);
   const device = await resolveDeviceInSite(site, deviceIdParam);
-  const supabase = await createClient();
 
-  let tickets: { id: string; description: string | null; status: string; type: string; created_at: string }[] | null = null;
-  let serviceStatus: ServiceStatus | null = null;
-
-  if (device) {
-    const [{ data: ticketRows }] = await Promise.all([
-      supabase
-        .from("maintenance_tickets")
-        .select("id, description, status, type, created_at")
-        .eq("device_id", device.id)
-        .order("created_at", { ascending: false }),
-    ]);
-
-    if (device.serviceId) serviceStatus = await getServiceStatus(device.serviceId);
-
-    tickets = ticketRows;
+  if (!device) {
+    return (
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <Wrench />
+          </EmptyMedia>
+          <EmptyTitle>No devices yet</EmptyTitle>
+          <EmptyDescription>Your WayTara advisor sets this up during installation.</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
   }
 
+  const supabase = await createClient();
+  const isSolar = device.deviceType?.category === "solar_inverter";
+  const [{ data: ticketRows }, sync, solar] = await Promise.all([
+    supabase
+      .from("maintenance_tickets")
+      .select("id, description, status, type, created_at, scheduled_date, completed_at")
+      .eq("device_id", device.id)
+      .order("created_at", { ascending: false }),
+    getLastSyncInfo(device.id),
+    isSolar ? fetchSolarHealthData(supabase, device) : Promise.resolve(null),
+  ]);
+  const tickets: TicketRow[] = ticketRows ?? [];
+  const serviceStatus: ServiceStatus | null = device.serviceId ? await getServiceStatus(device.serviceId) : null;
+
+  const open = tickets.filter((t) => isOpen(t.status)).length;
+  const lastUpdate = tickets.map((t) => t.completed_at ?? t.created_at).sort().at(-1) ?? null;
+  const serviceHeadline: HeadlineData = {
+    label: "Next service",
+    value: serviceDate(serviceStatus?.nextServiceDate) ?? "Not scheduled",
+    figures: [
+      { label: "Visits left", value: serviceStatus?.remainingCount != null ? String(serviceStatus.remainingCount) : "—" },
+      { label: "Warranty until", value: serviceDate(device.warrantyEndDate) ?? "—" },
+    ],
+  };
+  const requestsHeadline: HeadlineData = {
+    label: "Open requests",
+    value: String(open),
+    figures: [
+      { label: "Resolved", value: String(tickets.filter((t) => t.status === "resolved" || t.status === "closed").length) },
+      { label: "Last update", value: serviceDate(lastUpdate) ?? "—" },
+    ],
+  };
+
   return (
-    <div className="space-y-6">
-      {!device ? (
-        <Empty className="border">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <Wrench />
-            </EmptyMedia>
-            <EmptyTitle>No devices yet</EmptyTitle>
-            <EmptyDescription>Your WayTara advisor sets this up during installation.</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : (
-        <>
-          {/* Fault status and temperature trends are derived server-side from the rollups; the sync time and the
-              field groups follow the device's live channel. There is no page refresh on new readings. */}
-          <RealtimeRefresh table="maintenance_tickets" event="UPDATE" filter={`device_id=eq.${device.id}`} />
-
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <DeviceTitle devices={site?.devices ?? [device]} selectedId={device.id} />
-              <p className="mt-1 text-sm text-theme-muted">Report an issue or request a scheduled visit for this device.</p>
-            </div>
-            {site && (
-              <NewMaintenanceTicketDialog
-                deviceId={device.id}
-                deviceLabel={deviceDisplayId(device)}
-                siteId={site.id}
-                siteName={site.name}
-              />
-            )}
-          </div>
-
-          <div className="space-y-3">
-            <h2 className="text-sm font-semibold text-theme-primary">Device Health</h2>
-            <DeviceHealthContent supabase={supabase} device={device} />
-          </div>
-
-          {serviceStatus && (
-            <div className="space-y-3">
-              <h2 className="text-sm font-semibold text-theme-primary">Service</h2>
-              <Card>
-                <CardHeader>
-                  <CardTitle className="text-sm">{serviceStatus.planName ?? "Service plan"}</CardTitle>
-                </CardHeader>
-                <CardContent className="grid grid-cols-2 gap-4 sm:grid-cols-3">
-                  <ServiceStat
-                    label="Next service"
-                    value={serviceStatus.nextServiceDate ? formatServiceDate(serviceStatus.nextServiceDate) : "Not scheduled"}
-                  />
-                  <ServiceStat
-                    label="Services used"
-                    value={
-                      serviceStatus.totalIncluded !== null
-                        ? `${serviceStatus.completedCount} of ${serviceStatus.totalIncluded}`
-                        : String(serviceStatus.completedCount)
-                    }
-                  />
-                  <ServiceStat
-                    label="Remaining"
-                    value={serviceStatus.remainingCount !== null ? String(serviceStatus.remainingCount) : "—"}
-                  />
-                  <ServiceStat
-                    label="Last completed"
-                    value={serviceStatus.lastCompletedAt ? formatServiceDate(serviceStatus.lastCompletedAt) : "None yet"}
-                  />
-                  <ServiceStat
-                    label="Free / paid included"
-                    value={
-                      serviceStatus.freeIncluded !== null && serviceStatus.totalIncluded !== null
-                        ? `${serviceStatus.freeIncluded} free · ${serviceStatus.totalIncluded - serviceStatus.freeIncluded} paid`
-                        : "—"
-                    }
-                  />
-                  <ServiceStat label="Plan ends" value={formatServiceDate(serviceStatus.contractEndDate)} />
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
-          <div className="space-y-2">
-            <h2 className="text-sm font-semibold text-theme-primary">Your requests</h2>
-            {!tickets || tickets.length === 0 ? (
-              <Empty className="border">
-                <EmptyHeader>
-                  <EmptyMedia variant="icon">
-                    <Wrench />
-                  </EmptyMedia>
-                  <EmptyTitle>No maintenance requests yet</EmptyTitle>
-                  <EmptyDescription>Anything you report for this device shows up here, with its status.</EmptyDescription>
-                </EmptyHeader>
-              </Empty>
-            ) : (
-              <div className="overflow-x-auto rounded-lg border border-theme-border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Issue</TableHead>
-                      <TableHead>Reported</TableHead>
-                      <TableHead className="text-right">Status</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {tickets.map((t) => (
-                      <TableRow key={t.id}>
-                        <TableCell className="text-foreground">{t.description}</TableCell>
-                        <TableCell className="text-muted-foreground">
-                          {new Date(t.created_at).toLocaleDateString("en-IN")}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <Badge variant={STATUS_BADGE_VARIANT[t.status] ?? "secondary"} className="capitalize">
-                            {t.status.replace(/_/g, " ")}
-                          </Badge>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
-        </>
-      )}
-    </div>
+    <>
+      <RealtimeRefresh table="maintenance_tickets" event="UPDATE" filter={`device_id=eq.${device.id}`} />
+      <RealtimeRefresh table="maintenance_tickets" event="INSERT" filter={`device_id=eq.${device.id}`} />
+      <MaintenanceBoard
+        deviceId={device.id}
+        sync={sync}
+        solar={
+          solar && {
+            initial: solar.initial,
+            faultEvents: solar.faultEvents,
+            faultHistoryFailed: solar.faultHistoryFailed,
+            gauges: solar.gauges,
+            previousTemps: solar.previousTemps,
+            faultDays: FAULT_HISTORY_DAYS,
+            today: todayIst(),
+            firstDay: null,
+          }
+        }
+        health={isSolar ? null : <DeviceHealthContent supabase={supabase} device={device} />}
+        technical={solar && solar.technical.length > 0 ? <TechnicalGroups deviceId={device.id} groups={solar.technical} /> : null}
+        service={<MaintenanceService status={serviceStatus} installedAt={device.installedAt} warrantyStart={device.warrantyStartDate} warrantyEnd={device.warrantyEndDate} now={serverNow()} />}
+        requests={<MaintenanceRequests tickets={tickets} />}
+        serviceHeadline={serviceHeadline}
+        requestsHeadline={requestsHeadline}
+        report={site ? { deviceId: device.id, deviceLabel: deviceDisplayId(device), siteId: site.id, siteName: site.name } : null}
+        openIssues={tickets.filter((t) => isOpen(t.status)).map((t) => t.description ?? "")}
+        action={site ? <NewMaintenanceTicketDialog deviceId={device.id} deviceLabel={deviceDisplayId(device)} siteId={site.id} siteName={site.name} /> : null}
+      />
+    </>
   );
 }
 
-function formatServiceDate(value: string): string {
-  return new Date(value).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
-}
-
-function ServiceStat({ label, value }: { label: string; value: string }) {
+/** The device's raw Maintenance readings, grouped as the template names them, for the collapsed technical panel. */
+function TechnicalGroups({ deviceId, groups }: { deviceId: string; groups: NonNullable<Awaited<ReturnType<typeof fetchSolarHealthData>>>["technical"] }) {
   return (
-    <div>
-      <p className="text-xs text-theme-muted">{label}</p>
-      <p className="mt-0.5 font-medium text-theme-primary">{value}</p>
+    <div className="space-y-4">
+      {groups.map((g) => (
+        <LiveDynamicFieldGroup key={`${g.category}-${g.groupName ?? ""}`} deviceId={deviceId} title={g.groupName ? `${g.category} — ${g.groupName}` : g.category} fields={g.fields} initial={g.values} />
+      ))}
     </div>
   );
 }

@@ -1,183 +1,33 @@
 import { createClient } from "@waytara/supabase/server";
 import type { CustomerDevice } from "@/lib/selected-site";
-import { fetchSeriesRows } from "@/lib/device-readings-fetch";
-import { deriveFaultEvents } from "@/lib/deye-fault-codes";
 import { getConnectorStatusLabel, getErrorCodeLabel } from "@/lib/ev-charger-catalog";
 import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
-import { deriveFaultCode, FAULT_BITMASK_KEYS } from "@/lib/device-overview";
-import { fetchDashboardFields, fetchFieldValues, type FieldValue, type TemplateField } from "@/lib/template-fields";
-import { TEMPERATURE_MAX_C } from "@/lib/temperature-thresholds";
+import { fetchDashboardFields, fetchFieldValues, type FieldValue } from "@/lib/template-fields";
 import { LiveDynamicFieldGroup } from "./live-field-group";
-import { valuesFor } from "@/lib/field-values";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { hasRecord, valuesFor } from "@/lib/field-values";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TriangleAlert } from "lucide-react";
-import { FaultBanner } from "./fault-banner";
-import { FaultHistory } from "./fault-history";
-import { LiveTemperatureGauges } from "./live-temperature-gauges";
 import { StatusPill } from "./status-pill";
+import { TroubleshootingGuide } from "./troubleshooting-guide";
+import { evChargerGuide } from "@/lib/troubleshooting-guide";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
-const FAULT_HISTORY_DAYS = 90;
-
-// Same 3 real Monitoring > Inverter/Battery temperature registers Phase 3
-// already keyed the Main Hub/Battery Pack trend charts to — reused here
-// for this card's own trend-vs-24h-ago gauges, same cross-page pattern as
-// device-overview.ts's OVERVIEW_CROSSREF_KEYS. Order here is display
-// order; everything else (the real label, the warn ceiling) comes from
-// temperatureGaugeFieldsFor below, never hardcoded — a hardcoded copy of
-// "Battery"/"DC Transformer"/"Radiator" here once read confusingly close
-// to duplicate temperature data, when what it actually was is a *wrong*
-// label on two genuinely different sensors (Monitoring's own
-// equipment_templates calls them "Heat-sink Temperature (DC)"/"(AC)").
-const TEMPERATURE_GAUGE_KEYS = ["battery_temperature_c", "inverter_dc_temperature_c", "inverter_ac_temperature_c"];
-
-/** Looks the 3 gauge keys' real display_name up via a Monitoring-section
- *  fetch (these keys are Monitoring-owned, not Maintenance's own field
- *  list) instead of hardcoding a label here that could drift from what
- *  Monitoring's own Temperature Today heatmap calls the same sensor. */
-function temperatureGaugeFieldsFor(
-  monitoringFields: TemplateField[]
-): { key: string; label: string; warnAboveC: number }[] {
-  const byKey = new Map(monitoringFields.map((f) => [f.key, f]));
-  return TEMPERATURE_GAUGE_KEYS.map((key) => byKey.get(key))
-    .filter((f): f is TemplateField => f !== undefined && f.key in TEMPERATURE_MAX_C)
-    .map((f) => ({ key: f.key, label: f.label, warnAboveC: TEMPERATURE_MAX_C[f.key] }));
-}
 
 function groupTitle(category: string, groupName: string | null): string {
   return groupName ? `${category} — ${groupName}` : category;
 }
 
-function hoursAgo(hours: number): Date {
-  return new Date(Date.now() - hours * 3600 * 1000);
-}
-
-/** Maintenance's "Device Health" section, category-aware — mirrors the
- *  other module dispatchers (Phases 1-4). Ticket list and service-contract
- *  status (the rest of Maintenance) are already device-agnostic — this is
- *  the one part of the page that was inverter-specific: fault status,
- *  temperature trends, and the fault-code lookup only mean anything for a
- *  solar_inverter's registers. A category without a curated health view
- *  yet just gets the connection sync indicator, which is genuinely
- *  device-agnostic (last reading received, regardless of category). */
+/** The Health tab for a device that is not a solar inverter. A solar inverter's health (live checks, temperatures, fault history, the
+ *  guide) is built by the Maintenance board itself; an EV charger gets its own view here, and any other category has none yet. */
 export async function DeviceHealthContent({ supabase, device }: { supabase: SupabaseServerClient; device: CustomerDevice }) {
   const category = device.deviceType?.category;
 
-  if (category === "solar_inverter") {
-    return <SolarInverterHealth supabase={supabase} device={device} />;
-  }
   if (category === "ev_charger") {
     return <EvChargerHealth supabase={supabase} device={device} />;
   }
 
   return null;
-}
-
-async function SolarInverterHealth({ supabase, device }: { supabase: SupabaseServerClient; device: CustomerDevice }) {
-  // sections is this device's own real Maintenance field list (Alerts,
-  // Battery Alerts, Service, System Checks) — replaces the old readKeys-
-  // filtered TEMPERATURE_FIELDS/FAULT_WORD_FIELDS telemetry-catalog.ts
-  // constants entirely. sd_status has no equivalent anywhere in the new
-  // equipment_templates inventory (confirmed via direct query), so
-  // SdStatusIndicator is dropped rather than shown against a fake key.
-  const [sections, monitoringSections] = await Promise.all([
-    fetchDashboardFields(supabase, device, "Maintenance"),
-    // Monitoring-owned fields (see temperatureGaugeFieldsFor's own
-    // comment) — fetched here purely for their real display_name, same
-    // cross-section reuse as device-overview.ts's OVERVIEW_CROSSREF_KEYS.
-    fetchDashboardFields(supabase, device, "Monitoring"),
-  ]);
-  const dynamicFields = sections.flatMap((s) => s.groups.flatMap((g) => g.fields));
-  const dynamicKeys = dynamicFields.map((f) => f.key);
-  const monitoringFields = monitoringSections.flatMap((s) => s.groups.flatMap((g) => g.fields));
-  const temperatureGaugeFields = temperatureGaugeFieldsFor(monitoringFields);
-  const tempKeys = temperatureGaugeFields.map((f) => f.key);
-
-  // A day ago (±2h window), for the temperature trend arrows.
-  const dayAgo = hoursAgo(24);
-  const windowStart = new Date(dayAgo.getTime() - 2 * 3600 * 1000).toISOString();
-  const windowEnd = new Date(dayAgo.getTime() + 2 * 3600 * 1000).toISOString();
-
-  const faultSince = hoursAgo(0);
-  faultSince.setUTCDate(faultSince.getUTCDate() - FAULT_HISTORY_DAYS);
-
-  // Fault history and "24 hours ago" temperatures come from the rollups (raw readings are not stored): the fault
-  // bitmasks as the highest value in each 2-hour slot (two calls of 45 days keep each under the 750-point cap),
-  // the temperatures as 15-minute averages around this time yesterday.
-  const faultMid = new Date(faultSince.getTime() + 45 * 24 * 3600 * 1000);
-  const [rawValues, faultFirst, faultSecond, pastBuckets] = await Promise.all([
-    fetchFieldValues(supabase, device.id, [...dynamicKeys, ...tempKeys]),
-    fetchSeriesRows(supabase, device.id, FAULT_BITMASK_KEYS, faultSince.toISOString(), faultMid.toISOString(), 120),
-    fetchSeriesRows(supabase, device.id, FAULT_BITMASK_KEYS, faultMid.toISOString(), new Date().toISOString(), 120),
-    fetchSeriesRows(supabase, device.id, tempKeys, windowStart, windowEnd, 15),
-  ]);
-  // Ascending order: the collapse walk needs to see readings in the order they actually happened.
-  const faultRows = [...faultFirst, ...faultSecond]
-    .filter((r) => r.max_value !== null)
-    .map((r) => ({ value: r.max_value as number, ts: r.bucket }))
-    .sort((a, b) => a.ts.localeCompare(b.ts));
-  const pastRows = pastBuckets.filter((r) => r.avg_value !== null).map((r) => ({ key_name: r.key_name, value: r.avg_value, ts: r.bucket }));
-
-  const getValue = (key: string): FieldValue => rawValues.get(key) ?? null;
-  const getNum = (key: string): number | null => {
-    const v = getValue(key);
-    return typeof v === "number" ? v : null;
-  };
-  const activeFaultCode = deriveFaultCode(getNum);
-
-  const previousTemps = new Map<string, number | null>();
-  for (const r of pastRows) {
-    if (!previousTemps.has(r.key_name)) previousTemps.set(r.key_name, r.value);
-  }
-  const faultEvents = deriveFaultEvents(faultRows);
-
-  return (
-    <>
-      <FaultBanner faultCode={activeFaultCode} />
-
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Fault History (last {FAULT_HISTORY_DAYS}d)</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <FaultHistory events={faultEvents} />
-        </CardContent>
-      </Card>
-
-      {temperatureGaugeFields.length > 0 && (
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm">Temperature Trends</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <LiveTemperatureGauges
-              deviceId={device.id}
-              gauges={temperatureGaugeFields.map((field) => ({
-                key: field.key,
-                label: field.label,
-                warnAboveC: field.warnAboveC,
-                previousC: previousTemps.get(field.key) ?? null,
-              }))}
-              initial={Object.fromEntries(temperatureGaugeFields.map((field) => [field.key, getNum(field.key)]))}
-            />
-          </CardContent>
-        </Card>
-      )}
-
-      {sections.map((section) =>
-        section.groups.map((group) => (
-          <LiveDynamicFieldGroup deviceId={device.id}
-            key={`${section.category}-${group.groupName ?? ""}`}
-            title={groupTitle(section.category, group.groupName)}
-            fields={group.fields}
-            initial={valuesFor(group.fields, getValue)}
-          />
-        ))
-      )}
-    </>
-  );
 }
 
 async function EvChargerHealth({ supabase, device }: { supabase: SupabaseServerClient; device: CustomerDevice }) {
@@ -200,6 +50,10 @@ async function EvChargerHealth({ supabase, device }: { supabase: SupabaseServerC
   const status = getConnectorStatusLabel(getValue("connector_status") as number | null, enumOptions.get("connector_status") ?? []);
   const errorLabel = getErrorCodeLabel(getValue("error_code") as number | null, enumOptions.get("error_code") ?? []);
   const temperature = getValue("connector_temperature_c") as number | null;
+  // Only the readings that hold a record (not empty, not zero) are listed; the guide below says what a code means.
+  const recordGroups = sections.flatMap((section) =>
+    section.groups.map((group) => ({ section, group, fields: group.fields.filter((f) => hasRecord(getValue(f.key))) })).filter((g) => g.fields.length > 0)
+  );
 
   return (
     <>
@@ -225,15 +79,15 @@ async function EvChargerHealth({ supabase, device }: { supabase: SupabaseServerC
         </div>
       </div>
 
-      {sections.map((section) =>
-        section.groups.map((group) => (
-          <LiveDynamicFieldGroup deviceId={device.id}
-            key={`${section.category}-${group.groupName ?? ""}`}
-            title={groupTitle(section.category, group.groupName)}
-            fields={group.fields}
-            initial={valuesFor(group.fields, getValue)}
-          />
-        ))
+      <TroubleshootingGuide title="Troubleshooting guide" sections={evChargerGuide()} active={[errorLabel, status.label].filter((x): x is string => !!x).map((x) => x.replace(/[^A-Za-z0-9_]/g, ""))} />
+
+      {recordGroups.length > 0 && (
+        <div className="space-y-3">
+          <h2 className="text-sm font-semibold text-theme-primary">Records</h2>
+          {recordGroups.map(({ section, group, fields }) => (
+            <LiveDynamicFieldGroup deviceId={device.id} key={`${section.category}-${group.groupName ?? ""}`} title={groupTitle(section.category, group.groupName)} fields={fields} initial={valuesFor(fields, getValue)} />
+          ))}
+        </div>
       )}
     </>
   );

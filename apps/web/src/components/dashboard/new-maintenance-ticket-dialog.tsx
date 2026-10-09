@@ -33,11 +33,17 @@ export function NewMaintenanceTicketDialog({
   deviceLabel,
   siteId,
   siteName,
+  defaultDescription,
+  trigger,
 }: {
   deviceId: string;
   deviceLabel: string;
   siteId: string;
   siteName: string | null;
+  /** Text the box starts with (for a fault the page already knows about). */
+  defaultDescription?: string;
+  /** The button that opens it, when it is not the usual "Report an issue" button. */
+  trigger?: React.ReactNode;
 }) {
   const [open, setOpen] = React.useState(false);
 
@@ -52,10 +58,12 @@ export function NewMaintenanceTicketDialog({
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button size="sm">
-          <Plus className="size-4" />
-          New Ticket
-        </Button>
+        {trigger ?? (
+          <Button size="sm">
+            <Plus className="size-4" />
+            Report an issue
+          </Button>
+        )}
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
@@ -76,6 +84,7 @@ export function NewMaintenanceTicketDialog({
                   name="description"
                   rows={4}
                   required
+                  defaultValue={defaultDescription}
                   placeholder="e.g. Inverter display shows an error code."
                 />
               </FieldContent>

@@ -69,7 +69,7 @@ describe("raisedAlerts", () => {
     const a = raisedAlerts("Deye", { fault_message_1: 0, fault_message_2: 63, alarm_status_1: 4 });
     expect(a.map((x) => x.kind)).toEqual(["fault", "alarm"]);
     expect(a[0]).toMatchObject({ severity: "critical", code: 63 });
-    expect(a[0].message).toMatch(/^Device fault: Deye - F63 Battery Communication Fault/);
+    expect(a[0].message).toMatch(/^Device fault: Deye - F63 Arc fault \(US only\)/);
     expect(a[1]).toMatchObject({ severity: "warning", code: 4 });
     expect(a[1].message).toMatch(/^Device alarm: Deye/);
   });
