@@ -212,6 +212,31 @@ account rate (`customers.tariff_rate_per_kwh`) is used and the page says so.
   difference, split into energy not bought and energy sent. Since commissioning = every month on file (a year of history) plus
   anything older in the inverter's counters at the tariff's typical rate. The page shows the bands and free units used.
 
+### Device status (online / device unreachable / offline)
+
+The server cannot probe a device (it sits behind the customer's router), so each unit checks in and the server judges the silence.
+The verdict comes from two things only: the time of the last check-in (the **server's** clock) and what the unit says about its own
+link to the inverter.
+
+| Status | Meaning |
+|---|---|
+| `online` | The unit checked in within 3 intervals and its link to the inverter works. |
+| `device_unreachable` | The unit checks in but the inverter has not answered 3 check-ins in a row; `device_error` says why. |
+| `offline` | No check-in for 3 intervals (never under 30 s): power, Wi-Fi or internet is down. |
+| `never_seen` | No check-in yet. |
+
+- **Check-in contract (ESP32 or the PC agent):** call `ingest_device_tick(p_equipment_id, p_token, '{}', p_agent)` every `heartbeat_s`
+  seconds (10 for the ESP; the PC agent uses `HEARTBEAT_S`, default 60 - set it to 10) with
+  `p_agent = {"heartbeat_s": 10, "device_online": true|false, "device_error": "modbus_timeout", "last_read_at": "...", "version": "..."}`.
+  Suggested `device_error` codes: `wifi_down`, `dns_fail`, `tls_fail`, `http_5xx`, `tcp_refused`, `tcp_timeout`, `modbus_timeout`,
+  `modbus_crc`, `rs485_silent`, `inverter_asleep`.
+- **Where it lives:** `equipment_heartbeat.status` (kept by triggers: a check-in sets it at once, so a device is `online` the moment it
+  reports) and the view `equipment_status` (re-derived on every read, with `age_s`-style fields and `server_now`). The pg_cron job
+  `device-status` runs every 10 s and applies the silent direction. Every change is broadcast on `device:<id>` as a `tick` whose
+  `agent` carries `status`, `status_reason`, `last_seen`, `offline_after_s` and `server_now`.
+- **Check the job:** `select * from cron.job where jobname = 'device-status'` and `select * from cron.job_run_details order by start_time desc limit 5`.
+- **Limit:** if Supabase itself is unreachable, every device looks silent; a ESP buffers readings locally and catches up.
+
 ## 5. Incident cheat-sheet
 | Symptom | Check |
 |---|---|

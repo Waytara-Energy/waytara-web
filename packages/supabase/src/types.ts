@@ -113,6 +113,118 @@ export type Database = {
           },
         ]
       }
+      customer_report_runs: {
+        Row: {
+          customer_id: string
+          error: string | null
+          file_names: string[]
+          finished_at: string | null
+          id: string
+          recipients: string[]
+          report_id: string
+          started_at: string
+          status: string
+          trigger: string
+        }
+        Insert: {
+          customer_id: string
+          error?: string | null
+          file_names?: string[]
+          finished_at?: string | null
+          id?: string
+          recipients?: string[]
+          report_id: string
+          started_at?: string
+          status?: string
+          trigger: string
+        }
+        Update: {
+          customer_id?: string
+          error?: string | null
+          file_names?: string[]
+          finished_at?: string | null
+          id?: string
+          recipients?: string[]
+          report_id?: string
+          started_at?: string
+          status?: string
+          trigger?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_report_runs_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "customer_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_reports: {
+        Row: {
+          created_at: string
+          customer_id: string
+          enabled: boolean
+          equipment_id: string | null
+          id: string
+          last_run_at: string | null
+          name: string
+          next_run_at: string | null
+          params: Json
+          recipients: string[]
+          schedule_dom: number | null
+          schedule_dow: number | null
+          schedule_kind: string
+          schedule_time: string
+          send_to_me: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          enabled?: boolean
+          equipment_id?: string | null
+          id?: string
+          last_run_at?: string | null
+          name: string
+          next_run_at?: string | null
+          params: Json
+          recipients?: string[]
+          schedule_dom?: number | null
+          schedule_dow?: number | null
+          schedule_kind?: string
+          schedule_time?: string
+          send_to_me?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          enabled?: boolean
+          equipment_id?: string | null
+          id?: string
+          last_run_at?: string | null
+          name?: string
+          next_run_at?: string | null
+          params?: Json
+          recipients?: string[]
+          schedule_dom?: number | null
+          schedule_dow?: number | null
+          schedule_kind?: string
+          schedule_time?: string
+          send_to_me?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_reports_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customer_onboarding: {
         Row: {
           balance_payment_status: string
@@ -579,33 +691,46 @@ export type Database = {
         Row: {
           agent_ts: string | null
           agent_version: string | null
+          consecutive_failures: number
           device_error: string | null
           device_online: boolean | null
           heartbeat_s: number | null
           equipment_id: string
           last_read_at: string | null
           last_seen: string
+          status: string | null
+          status_reason: string | null
+          status_since: string | null
           upload_interval_s: number | null
         }
         Insert: {
           agent_ts?: string | null
           agent_version?: string | null
+          consecutive_failures?: number
           device_error?: string | null
           device_online?: boolean | null
           heartbeat_s?: number | null
           equipment_id: string
           last_read_at?: string | null
           last_seen: string
+          status?: string | null
+          status_reason?: string | null
+          status_since?: string | null
           upload_interval_s?: number | null
         }
         Update: {
           agent_ts?: string | null
           agent_version?: string | null
+          consecutive_failures?: number
           device_error?: string | null
           device_online?: boolean | null
+          heartbeat_s?: number | null
           equipment_id?: string
           last_read_at?: string | null
           last_seen?: string
+          status?: string | null
+          status_reason?: string | null
+          status_since?: string | null
           upload_interval_s?: number | null
         }
         Relationships: [
@@ -2074,7 +2199,23 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      equipment_status: {
+        Row: {
+          device_error: string | null
+          device_online: boolean | null
+          equipment_id: string | null
+          heartbeat_s: number | null
+          last_read_at: string | null
+          last_seen: string | null
+          offline_after_s: number | null
+          server_now: string | null
+          status: string | null
+          status_reason: string | null
+          status_since: string | null
+          upload_interval_s: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       assign_child_equipment: {
