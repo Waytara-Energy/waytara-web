@@ -169,7 +169,7 @@ describe("catch-up and reset", () => {
 });
 
 describe("refreshHeartbeat", () => {
-  const beat = (over: Partial<{ lastSeenMs: number | null; lastReadMs: number | null; deviceOnline: boolean | null }> = {}) => ({ lastSeenMs: NOW - 20_000, lastReadMs: NOW - 25_000, deviceOnline: true, ...over });
+  const beat = (over: Partial<{ lastSeenMs: number | null; lastReadMs: number | null; deviceOnline: boolean | null; verdict: import("../device-sync-types").ServerVerdict | null }> = {}) => ({ lastSeenMs: NOW - 20_000, lastReadMs: NOW - 25_000, deviceOnline: true, verdict: null, ...over });
   const make = (load: () => Promise<ReturnType<typeof beat> | null>) =>
     new TelemetryStore({ fetchSeries: async () => new Map(), loadHeartbeat: load, now: () => NOW, schedule: (fn) => fn() });
 
@@ -202,4 +202,27 @@ describe("refreshHeartbeat", () => {
     const bare = new TelemetryStore({ fetchSeries: async () => new Map(), now: () => NOW, schedule: (fn) => fn() });
     await expect(bare.refreshHeartbeat("d")).resolves.toBeUndefined();
   });
+
+  it("keeps the server's verdict and its clock offset from a re-read, and never replaces it with an older one", async () => {
+    const verdict = (status: "online" | "offline", serverNowMs: number) => ({ status, reason: null, lastSeenMs: serverNowMs - 5_000, offlineAfterS: 30, serverNowMs });
+    let next = beat({ verdict: verdict("offline", NOW + 5_000) });
+    const store = make(async () => next);
+    await store.refreshHeartbeat("d");
+    expect(store.getStatus("d").verdict?.status).toBe("offline");
+    expect(store.getStatus("d").clockOffsetMs).toBe(5_000);        // the server's clock runs 5 s ahead of this browser's
+    next = beat({ verdict: verdict("online", NOW) });               // older than the one held
+    await store.refreshHeartbeat("d");
+    expect(store.getStatus("d").verdict?.status).toBe("offline");
+  });
+
+  it("a status message carries the server's verdict but does not count as the unit checking in", () => {
+    const store = make(async () => null);
+    store.applyTick("d", {
+      ts: new Date(NOW).toISOString(), values: {}, open: {},
+      agent: { device_online: false, last_read_at: null, status: "offline", status_reason: "The monitoring unit has stopped checking in", last_seen: new Date(NOW - 40_000).toISOString(), offline_after_s: 30, server_now: new Date(NOW).toISOString() },
+    });
+    expect(store.getStatus("d").verdict).toMatchObject({ status: "offline", offlineAfterS: 30 });
+    expect(store.getStatus("d").lastTickAt).toBeNull();
+  });
 });
+

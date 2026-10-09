@@ -1,10 +1,12 @@
-// Keeps ONE live channel per device open only while it is useful:
-//   - opened when the first component needs it and the tab is visible and online;
-//   - closed the moment the tab becomes inactive (hidden, so a tab left in the background stops costing messages), when the
-//     page is closed or the browser goes offline, and when the last user releases it (the user left the page). No timer ever
-//     ends an open connection;
-//   - reopened when the tab is visible again, followed by one parallel catch-up of what was missed;
-//   - retried with backoff if the channel drops by itself.
+// Keeps ONE live channel per device open for as long as the dashboard is open:
+//   - opened when the first component needs it and the browser is online;
+//   - kept open while the tab is in the background too (a connection the user left open is never cut because the window was
+//     covered or minimised); it closes only when the page is closed, the browser goes offline, or the last user releases it
+//     (the user left the page). No timer ever ends an open connection;
+//   - retried with backoff, from a fresh channel each time, if the channel drops by itself - and a check every poll brings
+//     back a channel that is missing for any reason;
+//   - the connection state is re-read from the database every HEARTBEAT_POLL_MS whatever the live channel is doing, so a
+//     missed message can never leave a healthy device looking offline.
 // Everything environmental is injected, so the rules are tested without a browser.
 
 import type { TelemetryStore } from "./store";
@@ -31,8 +33,8 @@ export interface LiveEnv {
   clearTimer(handle: unknown): void;
 }
 
-/** While a screen is open and visible, the connection state is re-read from the database this often (the live channel can miss it). */
-export const HEARTBEAT_POLL_MS = 60_000;
+/** While a screen is open, the connection state is re-read from the database this often (the live channel can miss it). */
+export const HEARTBEAT_POLL_MS = 30_000;
 const BACKOFF_MS = [2_000, 4_000, 8_000, 16_000, 32_000, 60_000];
 
 interface DeviceState {
@@ -96,12 +98,15 @@ export class DeviceLiveManager {
 
   // ------------------------------------------------------------ internals
 
-  /** Re-reads the agent's connection state while the screen is visible, so a missed live message never leaves a healthy device
-   *  looking offline. */
+  /** Re-reads the agent's connection state while the screen is open (visible or not), so a missed live message never leaves a
+   *  healthy device looking offline, and puts back a live channel that is missing for any reason. */
   private pollHeartbeat(deviceId: string): void {
     const s = this.devices.get(deviceId);
     if (!s || s.refs <= 0) return;
-    if (this.env.isVisible() && this.env.isOnline()) this.refreshState(deviceId);
+    if (this.env.isOnline()) {
+      this.refreshState(deviceId);
+      if (!s.handle && !s.opening && !s.retryTimer) void this.ensureOpen(deviceId);
+    }
     s.beatTimer = this.env.setTimer(() => {
       s.beatTimer = null;
       this.pollHeartbeat(deviceId);
@@ -113,7 +118,7 @@ export class DeviceLiveManager {
   }
 
   private shouldBeOpen(): boolean {
-    return this.env.isVisible() && this.env.isOnline();
+    return this.env.isOnline();
   }
 
   private async ensureOpen(deviceId: string): Promise<void> {
@@ -130,7 +135,7 @@ export class DeviceLiveManager {
         (st) => this.onChannelStatus(deviceId, st)
       );
       if (!this.devices.has(deviceId) || s.refs <= 0 || !this.shouldBeOpen()) {
-        handle.close(); // released or hidden while we were connecting
+        handle.close(); // released or offline while we were connecting
         s.opening = false;
         return;
       }
@@ -159,7 +164,14 @@ export class DeviceLiveManager {
       return;
     }
     if (s.closedByUs) return;
+    // Let go of the dropped channel so the retry starts from a fresh one.
+    const dropped = s.handle;
     s.handle = null;
+    try {
+      dropped?.close();
+    } catch (e) {
+      this.onError(e);
+    }
     this.store.setStatus(deviceId, this.env.isOnline() ? "connecting" : "offline");
     this.scheduleRetry(deviceId);
   }
@@ -203,15 +215,17 @@ export class DeviceLiveManager {
     for (const id of this.devices.keys()) this.close(id, status);
   }
 
+  /** The tab is in front again: its timers may have been slowed while it was behind, so re-read the state and what was missed
+   *  now, and bring back a channel that is not there. */
   private onVisibility(): void {
+    if (!this.env.isVisible()) return;
     for (const [id, s] of this.devices) {
-      if (this.env.isVisible()) {
-        if (!s.handle && !s.opening) {
-          s.attempt = 0;
-          void this.ensureOpen(id);
-        }
+      this.refreshState(id);
+      if (!s.handle && !s.opening) {
+        s.attempt = 0;
+        void this.ensureOpen(id);
       } else if (s.handle) {
-        this.close(id, "paused"); // the tab went inactive: let go now, catch up when it is back
+        this.store.catchUp(id).catch(this.onError);
       }
     }
   }

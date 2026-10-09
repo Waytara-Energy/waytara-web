@@ -1,7 +1,7 @@
 import "server-only";
 import { cache } from "react";
 import { createClient } from "@waytara/supabase/server";
-import type { DeviceSyncInit } from "./device-sync-types";
+import type { DeviceSyncInit, ServerVerdict } from "./device-sync-types";
 
 /** Threshold for Maintenance's "connection may be down" indicator — much
  *  shorter than the offline-detection cron's 6-hour alert threshold
@@ -22,8 +22,8 @@ export interface LastSyncInfo extends DeviceSyncInit {
 export const getLastSyncInfo = cache(async function getLastSyncInfo(deviceId: string): Promise<LastSyncInfo> {
   const supabase = await createClient();
   const { data: beat } = await supabase
-    .from("equipment_heartbeat")
-    .select("last_seen, upload_interval_s, heartbeat_s, device_online, last_read_at")
+    .from("equipment_status")
+    .select("status, status_reason, last_seen, last_read_at, device_online, heartbeat_s, upload_interval_s, offline_after_s, server_now")
     .eq("equipment_id", deviceId)
     .maybeSingle();
 
@@ -42,12 +42,23 @@ export const getLastSyncInfo = cache(async function getLastSyncInfo(deviceId: st
   }
 
   const minutesAgo = lastTs ? Math.round((Date.now() - new Date(lastTs).getTime()) / 60000) : null;
+  const verdict: ServerVerdict | null =
+    beat?.status && beat.server_now
+      ? {
+          status: beat.status as ServerVerdict["status"],
+          reason: beat.status_reason,
+          lastSeenMs: beat.last_seen ? new Date(beat.last_seen).getTime() : null,
+          offlineAfterS: beat.offline_after_s ?? 180,
+          serverNowMs: new Date(beat.server_now).getTime(),
+        }
+      : null;
   return {
     lastTs,
     agentSeenTs: beat?.last_seen ?? null,
     deviceOnline,
     intervalS: beat?.upload_interval_s ?? null,
     heartbeatS: beat?.heartbeat_s ?? null,
+    verdict,
     minutesAgo,
     isStale: minutesAgo === null || minutesAgo > STALE_AFTER_MINUTES || deviceOnline === false,
   };

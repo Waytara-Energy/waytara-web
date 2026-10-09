@@ -7,7 +7,6 @@ import { getCustomerPlan } from "@/lib/customer-plan";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { LiveChannelKeeper } from "@/components/dashboard/overview-live";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
-import { ConnectionNotice } from "@/components/dashboard/connection-notice";
 import { SITE_OVERVIEW_KEYS } from "@/lib/overview-keys";
 import { fetchSolarCardsProps } from "@/components/dashboard/solar-live-status-cards";
 import { fetchEvCardsProps } from "@/components/dashboard/ev-live-status-cards";
@@ -99,8 +98,8 @@ export default async function DashboardOverviewPage() {
           <RealtimeRefresh table="ev_sessions" event="UPDATE" filter={`equipment_id=in.(${chargerIds.join(",")})`} />
         </>
       )}
-      {/* The device status icons (each one a live connection) are in the page header on every page; an offline device is announced by a toast at the top. */}
-      {inverterId && <ConnectionNotice deviceId={inverterId} sync={syncInit} />}
+      {/* The device status icons (each one a live connection) are in the page header on every page, and an offline device is announced by a toast
+          at the top (both live in the dashboard layout). */}
 
       {!overview ? (
         <Empty className="border">

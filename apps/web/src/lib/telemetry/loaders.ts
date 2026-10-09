@@ -2,6 +2,7 @@ import type { createClient as createBrowserClient } from "@waytara/supabase/clie
 import { wireToBucket } from "./combine";
 import type { LatestValue } from "./store";
 import type { Bucket } from "./types";
+import type { ServerVerdict } from "../device-sync-types";
 
 type Sb = ReturnType<typeof createBrowserClient>;
 
@@ -48,15 +49,32 @@ export interface HeartbeatInfo {
   lastSeenMs: number | null;
   lastReadMs: number | null;
   deviceOnline: boolean | null;
+  /** The server's verdict, by the server's clock. */
+  verdict: ServerVerdict | null;
 }
 
 export async function loadHeartbeat(sb: Sb, deviceId: string): Promise<HeartbeatInfo | null> {
-  const { data, error } = await sb.from("equipment_heartbeat").select("last_seen, last_read_at, device_online").eq("equipment_id", deviceId).maybeSingle();
+  const { data, error } = await sb
+    .from("equipment_status")
+    .select("status, status_reason, last_seen, last_read_at, device_online, offline_after_s, server_now")
+    .eq("equipment_id", deviceId)
+    .maybeSingle();
   if (error) throw new Error(error.message);
   if (!data) return null;
+  const lastSeenMs = data.last_seen ? new Date(data.last_seen).getTime() : null;
   return {
-    lastSeenMs: data.last_seen ? new Date(data.last_seen).getTime() : null,
+    lastSeenMs,
     lastReadMs: data.last_read_at ? new Date(data.last_read_at).getTime() : null,
     deviceOnline: data.device_online,
+    verdict:
+      data.status && data.server_now
+        ? {
+            status: data.status as ServerVerdict["status"],
+            reason: data.status_reason,
+            lastSeenMs,
+            offlineAfterS: data.offline_after_s ?? 180,
+            serverNowMs: new Date(data.server_now).getTime(),
+          }
+        : null,
   };
 }

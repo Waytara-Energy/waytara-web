@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { TriangleAlert, WifiOff } from "lucide-react";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
@@ -44,17 +44,24 @@ function NoticeToast({ status, onDismiss, onInvestigate }: { status: Exclude<Con
   );
 }
 
-/** While the device is offline or the unit has lost it, a toast sits at the top of the window (on a phone, the usual notification
+/** On every dashboard page (it is mounted in the layout): while the device is offline or the unit has lost it, a toast sits at the top of the window (on a phone, the usual notification
  *  across the top) saying the page shows the last readings, with an Investigate button that opens Maintenance. It has no close
  *  button: clicking it dismisses it, and the dismissal is kept in a cookie. If the device is still offline 3 hours later it comes
  *  back, and so on every 3 hours until the problem is resolved (the device reports again, which also clears the cookie). */
 export function ConnectionNotice({ deviceId, sync }: { deviceId: string; sync: DeviceSyncInit }) {
   const { status } = useDeviceState(deviceId, sync);
   const router = useRouter();
+  // On the Maintenance page itself there is nothing to investigate (it is the place Investigate leads to), so the toast stays away.
+  const onMaintenance = usePathname().startsWith("/dashboard/maintenance");
 
   React.useEffect(() => {
     const cookie = noticeCookieName(deviceId);
     let timer: ReturnType<typeof setTimeout> | null = null;
+
+    if (onMaintenance) {
+      toast.dismiss(TOAST_ID);
+      return;
+    }
 
     if (status === "online") {
       document.cookie = clearedCookie(deviceId); // resolved: the next outage is shown straight away
@@ -88,7 +95,7 @@ export function ConnectionNotice({ deviceId, sync }: { deviceId: string; sync: D
     return () => {
       if (timer) clearTimeout(timer);
     };
-  }, [status, deviceId, router]);
+  }, [status, deviceId, router, onMaintenance]);
 
   // Leaving the page takes the toast with it.
   React.useEffect(() => () => void toast.dismiss(TOAST_ID), []);

@@ -7,6 +7,7 @@ import { binStart, istDayStart, upsertBucket, wireToBucket } from "./combine";
 import type { PersistentCache } from "./cache";
 import { BUCKET_MS, type Bucket, type TickPayload } from "./types";
 import type { HeartbeatInfo } from "./loaders";
+import type { ServerVerdict } from "../device-sync-types";
 
 export interface SeriesRange {
   fromMs: number;
@@ -56,8 +57,24 @@ export interface DeviceLiveStatus {
   lastReadAt: number | null;
   /** Whether the device is answering the agent; null = not said yet. */
   deviceOnline: boolean | null;
+  /** The server's newest verdict on the device (from a live status message or a re-read), judged by the server's own clock. */
+  verdict: ServerVerdict | null;
+  /** The server's clock minus this browser's clock (ms), measured when that verdict arrived. */
+  clockOffsetMs: number | null;
 }
-const IDLE: DeviceLiveStatus = { status: "idle", lastTickAt: null, lastReadAt: null, deviceOnline: null };   // one shared object: a stable snapshot for React
+const IDLE: DeviceLiveStatus = { status: "idle", lastTickAt: null, lastReadAt: null, deviceOnline: null, verdict: null, clockOffsetMs: null };   // one shared object: a stable snapshot for React
+
+/** The verdict a status message carries, or null when it lacks the parts. */
+function verdictFromTick(agent: NonNullable<TickPayload["agent"]>): ServerVerdict | null {
+  if (!agent.status || !agent.server_now) return null;
+  return {
+    status: agent.status,
+    reason: agent.status_reason ?? null,
+    lastSeenMs: agent.last_seen ? new Date(agent.last_seen).getTime() : null,
+    offlineAfterS: agent.offline_after_s ?? 180,
+    serverNowMs: new Date(agent.server_now).getTime(),
+  };
+}
 
 export function todayRange(now: number, minutes = 15): SeriesRange {
   const from = istDayStart(now);
@@ -273,7 +290,16 @@ export class TelemetryStore {
       deviceOnline = true;
     }
     this.lastTickTs.set(deviceId, Math.max(this.lastTickTs.get(deviceId) ?? 0, ts));
-    this.status.set(deviceId, { status: "live", lastTickAt: this.now(), lastReadAt, deviceOnline });
+    // A message announcing a change of the server's verdict is the server speaking, not the unit: it carries the verdict (and the
+    // server's clock) but does not count as the unit having just checked in.
+    const announced = tick.agent?.status ? verdictFromTick(tick.agent) : null;
+    let verdict = prev.verdict;
+    let clockOffsetMs = prev.clockOffsetMs;
+    if (announced && (!verdict || announced.serverNowMs >= verdict.serverNowMs)) {
+      verdict = announced;
+      clockOffsetMs = announced.serverNowMs - this.now();
+    }
+    this.status.set(deviceId, { status: "live", lastTickAt: announced ? prev.lastTickAt : this.now(), lastReadAt, deviceOnline, verdict, clockOffsetMs });
     this.touch(deviceId, touched);
   }
 
@@ -319,8 +345,11 @@ export class TelemetryStore {
     const prev = this.status.get(deviceId) ?? IDLE;
     // The database row is newer than the last live message when it was written at or after that message's own time.
     const newer = beat.lastSeenMs !== null && beat.lastSeenMs >= (this.lastTickTs.get(deviceId) ?? 0);
+    const takeVerdict = beat.verdict !== null && (!prev.verdict || beat.verdict.serverNowMs >= prev.verdict.serverNowMs);
     this.status.set(deviceId, {
       status: prev.status,
+      verdict: takeVerdict ? beat.verdict : prev.verdict,
+      clockOffsetMs: takeVerdict && beat.verdict ? beat.verdict.serverNowMs - this.now() : prev.clockOffsetMs,
       lastTickAt: beat.lastSeenMs !== null ? Math.max(prev.lastTickAt ?? 0, beat.lastSeenMs) : prev.lastTickAt,
       lastReadAt: beat.lastReadMs !== null ? Math.max(prev.lastReadAt ?? 0, beat.lastReadMs) : prev.lastReadAt,
       // The database row is the newest word unless a live message arrived after it.

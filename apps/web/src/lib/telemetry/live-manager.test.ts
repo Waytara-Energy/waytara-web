@@ -53,20 +53,23 @@ describe("DeviceLiveManager", () => {
     expect(store.getStatus("d").status).toBe("idle");
   });
 
-  it("closes the moment the tab is hidden (no timer), and reopens with a catch-up when it is visible again", async () => {
-    const { manager, opened, state, cbs, store, catchUp } = setup();
+  it("keeps the channel open while the tab is hidden, and catches up when it is in front again", async () => {
+    const { manager, opened, state, cbs, store, catchUp, refresh } = setup();
     manager.acquire("d");
     await flush();
     state.visible = false;
     cbs.visibility.forEach((f) => f());
-    expect(opened[0].closed).toBe(true);
-    expect(store.getStatus("d").status).toBe("paused");
-    expect(catchUp).not.toHaveBeenCalled();
+    expect(opened[0].closed).toBe(false);
+    expect(store.getStatus("d").status).not.toBe("paused");
+    await vi.advanceTimersByTimeAsync(10 * 60 * 1000);
+    expect(opened).toHaveLength(1);
 
+    refresh.mockClear();
     state.visible = true;
     cbs.visibility.forEach((f) => f());
     await flush();
-    expect(opened).toHaveLength(2);
+    expect(opened).toHaveLength(1);
+    expect(refresh).toHaveBeenCalledWith("d");
     expect(catchUp).toHaveBeenCalledWith("d");
   });
 
@@ -88,14 +91,9 @@ describe("DeviceLiveManager", () => {
     expect(opened[0].closed).toBe(true);
   });
 
-  it("does not open while the tab is hidden, and goes offline/online with the browser", async () => {
+  it("goes offline/online with the browser", async () => {
     const { manager, opened, state, cbs, store, catchUp } = setup();
-    state.visible = false;
     manager.acquire("d");
-    await flush();
-    expect(opened).toHaveLength(0);
-    state.visible = true;
-    cbs.visibility.forEach((f) => f());
     await flush();
     expect(opened).toHaveLength(1);
 
@@ -108,6 +106,30 @@ describe("DeviceLiveManager", () => {
     await flush();
     expect(opened).toHaveLength(2);
     expect(catchUp).toHaveBeenCalledTimes(1);
+  });
+
+  it("lets go of a dropped channel and retries from a fresh one", async () => {
+    const { manager, opened } = setup();
+    manager.acquire("d");
+    await flush();
+    opened[0].onStatus("dropped");
+    expect(opened[0].closed).toBe(true);
+    await vi.advanceTimersByTimeAsync(2001);
+    expect(opened).toHaveLength(2);
+  });
+
+  it("puts back a channel that is missing, at the next check", async () => {
+    const { manager, opened, state, cbs } = setup();
+    manager.acquire("d");
+    await flush();
+    // The browser reports going offline and online without the manager being told (events missed): the next check restores it.
+    state.online = false;
+    cbs.connectivity.forEach((f) => f());
+    state.online = true;
+    await vi.advanceTimersByTimeAsync(0);
+    expect(opened.length).toBeGreaterThanOrEqual(1);
+    await vi.advanceTimersByTimeAsync(HEARTBEAT_POLL_MS + 1);
+    expect(opened.filter((o) => !o.closed)).toHaveLength(1);
   });
 
   it("retries with backoff when the channel drops by itself, then catches up", async () => {
@@ -145,7 +167,7 @@ describe("DeviceLiveManager", () => {
     expect(store.getLatest("d", "p")?.value).toBe(5);
   });
 
-  it("re-reads the connection state when a channel opens, and every minute while the screen is visible", async () => {
+  it("re-reads the connection state when a channel opens, and every poll while the screen is open, hidden or not", async () => {
     const { manager, refresh, state } = setup();
     manager.acquire("d");
     await flush();
@@ -153,11 +175,11 @@ describe("DeviceLiveManager", () => {
     const first = refresh.mock.calls.length;
     await vi.advanceTimersByTimeAsync(HEARTBEAT_POLL_MS);
     expect(refresh.mock.calls.length).toBeGreaterThan(first);
-    // hidden: no polling
+    // hidden: it keeps polling
     state.visible = false;
     const before = refresh.mock.calls.length;
     await vi.advanceTimersByTimeAsync(HEARTBEAT_POLL_MS * 3);
-    expect(refresh.mock.calls.length).toBe(before);
+    expect(refresh.mock.calls.length).toBeGreaterThan(before);
   });
 
   it("stops polling once the last screen lets go", async () => {
@@ -170,7 +192,7 @@ describe("DeviceLiveManager", () => {
     expect(refresh.mock.calls.length).toBe(before);
   });
 
-  it("re-reads it when the tab comes back and the channel reopens", async () => {
+  it("re-reads it when the tab comes back", async () => {
     const { manager, refresh, state, cbs } = setup();
     manager.acquire("d");
     await flush();

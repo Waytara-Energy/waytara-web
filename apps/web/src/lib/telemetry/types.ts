@@ -65,7 +65,16 @@ export interface TickPayload {
   values?: Record<string, number | { v: number; u?: string | null }>;
   open?: Record<string, WireBucket>;
   /** Whether the device itself is answering the agent, and when it last did (the agent being alive is a separate thing). */
-  agent?: { device_online: boolean | null; last_read_at: string | null };
+  agent?: {
+    device_online: boolean | null;
+    last_read_at: string | null;
+    /** Present when this message announces a change of the server's verdict on the device. */
+    status?: "online" | "device_unreachable" | "offline" | "never_seen";
+    status_reason?: string | null;
+    last_seen?: string | null;
+    offline_after_s?: number;
+    server_now?: string;
+  };
 }
 
 export const IST_OFFSET_MS = 19_800_000; // UTC+05:30

@@ -8,7 +8,7 @@ import { useTelemetryStore } from "@/lib/telemetry/react";
 import type { EnumOption } from "@/lib/enum-labels";
 import { DeviceStatusIcon, type StatusDevice } from "./device-status-icons";
 import { GoLiveProvider, GoLiveStatusButton, useGoLive } from "./go-live";
-import { LiveStatusPill } from "./overview-live";
+import { LiveChannelKeeper, LiveStatusPill } from "./overview-live";
 import { useDeviceState } from "./use-device-state";
 
 /** While Go Live is on, feeds every reading the device sends (at its own rate) into the same live store the Overview
@@ -57,6 +57,10 @@ export function OverviewHeaderStatus({ devices, pvKeys, defaultSelectedId }: { d
     .filter((g) => g.devices.length > 0);
   return (
     <div className="flex items-center gap-2">
+      {/* The header is on every page, so every page keeps the devices' live channel and the 30-second connection check running:
+          without it a page with no live number on it (Reports, Maintenance, Devices, Settings) would never hear that a device is
+          still checking in and would show it offline. */}
+      <LiveChannelKeeper deviceIds={devices.map((d) => d.id)} />
       {groups.map((g, i) => (
         <LiveKind key={g.kind} kind={g.kind} devices={g.devices} index={i} pvKeys={pvKeys} selectedId={selectedId} />
       ))}

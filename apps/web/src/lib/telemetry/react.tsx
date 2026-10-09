@@ -34,15 +34,30 @@ function browserEnv(sb: Sb): LiveEnv {
   };
   return {
     openChannel: async (deviceId, onTick, onStatus) => {
+      await sb.auth.getSession(); // renews an expired token first, so the channel is never joined with a stale one
       await sb.realtime.setAuth(); // the signed-in session's token: the channel is private
+      // The client hands back an existing channel of the same name (which cannot be subscribed twice), so a channel left over
+      // from before a drop is removed first: every (re)connection starts from a fresh one.
+      const topic = `realtime:device:${deviceId}`;
+      for (const old of sb.getChannels().filter((c) => c.topic === topic)) await sb.removeChannel(old);
+      let ended = false;
       const channel = sb
         .channel(`device:${deviceId}`, { config: { private: true } })
         .on("broadcast", { event: "tick" }, (msg) => onTick(msg.payload as TickPayload))
         .subscribe((status) => {
+          if (ended) return;
           if (status === "SUBSCRIBED") onStatus("joined");
-          else if (status === "CLOSED" || status === "CHANNEL_ERROR" || status === "TIMED_OUT") onStatus("dropped");
+          else if (status === "CLOSED" || status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+            ended = true; // one report per channel; the manager retries with a new one
+            onStatus("dropped");
+          }
         });
-      return { close: () => void sb.removeChannel(channel) };
+      return {
+        close: () => {
+          ended = true;
+          void sb.removeChannel(channel);
+        },
+      };
     },
     isVisible: () => typeof document !== "undefined" && document.visibilityState === "visible",
     isOnline: () => typeof navigator === "undefined" || navigator.onLine,
@@ -62,7 +77,12 @@ export function TelemetryProvider({ userId, children }: { userId: string; childr
       fetchSeries: (req) => fetchSeries(sb, req),
       loadLatest: (id) => loadLatest(sb, id),
       loadOpen: (id, keys) => loadOpen(sb, id, keys),
-      loadHeartbeat: (id) => loadHeartbeat(sb, id),
+      // The session is checked (and renewed if it ran out) before each read, so the connection state keeps updating however long
+      // the tab has been open.
+      loadHeartbeat: async (id) => {
+        await sb.auth.getSession();
+        return loadHeartbeat(sb, id);
+      },
       cache,
     });
     const live = new DeviceLiveManager(browserEnv(sb), store, (e) => console.warn("[telemetry]", e));

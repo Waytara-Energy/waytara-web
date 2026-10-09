@@ -82,9 +82,9 @@ interface GoLiveContextValue {
 const GoLiveContext = React.createContext<GoLiveContextValue | null>(null);
 
 /** Go Live for a device's screen. While it is on, the screen shows the device's readings as they arrive (the agent sends every
- *  reading for the first minute, then thins them out) instead of the regular 15-minute updates. No timer ever ends it: it closes
- *  when the tab goes inactive (hidden), the page is left or closed, or the browser goes offline - and the page falls back to the
- *  regular 15-minute live updates and saved data. It starts again by itself when the tab is active again. */
+ *  reading for the first minute, then thins them out) instead of the regular 15-minute updates. No timer ever ends it, and it stays
+ *  on while the tab is open, in front or behind: it closes when the page is left or closed, or pauses while the browser is offline
+ *  (and starts again by itself when the network is back). */
 export function GoLiveProvider({
   deviceId,
   agentOnline,
@@ -120,30 +120,31 @@ export function GoLiveProvider({
   const start = React.useCallback(() => void session.start(deviceId, union(), { history }), [session, deviceId, union, history]);
   const stop = React.useCallback(() => session.stop(), [session]);
 
-  // Was it on when the tab went inactive? Then it comes back with the tab.
+  // It stays on while the tab is open, in front or behind. Losing the network pauses it and it comes back with the network; leaving or
+  // closing the page ends it.
   const resumeRef = React.useRef(false);
   React.useEffect(() => {
-    const onVisibility = () => {
-      if (document.visibilityState === "hidden") {
-        const status = session.getState().status;
-        resumeRef.current = status !== "off" && status !== "error";
-        session.stop();
-      } else if (resumeRef.current) {
-        resumeRef.current = false;
-        void session.start(deviceId, union(), { history });
-      }
+    const onOffline = () => {
+      const status = session.getState().status;
+      resumeRef.current = status !== "off" && status !== "error";
+      session.stop();
+    };
+    const onOnline = () => {
+      if (!resumeRef.current) return;
+      resumeRef.current = false;
+      void session.start(deviceId, union(), { history });
     };
     const leave = () => {
       resumeRef.current = false;
       session.stop();
     };
-    document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("pagehide", leave);
-    window.addEventListener("offline", leave);
+    window.addEventListener("offline", onOffline);
+    window.addEventListener("online", onOnline);
     return () => {
-      document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("pagehide", leave);
-      window.removeEventListener("offline", leave);
+      window.removeEventListener("offline", onOffline);
+      window.removeEventListener("online", onOnline);
       session.stop(); // leaving the screen leaves the channel
     };
   }, [session, deviceId, union, history]);

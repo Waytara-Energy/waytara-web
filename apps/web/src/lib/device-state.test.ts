@@ -54,4 +54,44 @@ describe("computeDeviceState", () => {
     // the same silence is still fine for an older agent that only uploads every 15 minutes
     expect(computeDeviceState({ ...base, agentSeenTs: ago(5) }, quiet, NOW).status).toBe("online");
   });
+
+  describe("with the server's verdict", () => {
+    const verdict = (status: "online" | "device_unreachable" | "offline" | "never_seen", over: Partial<{ lastSeenMs: number | null; offlineAfterS: number; serverNowMs: number }> = {}) => ({
+      status, reason: null, lastSeenMs: NOW - 5_000, offlineAfterS: 30, serverNowMs: NOW, ...over,
+    });
+    const init = (v: ReturnType<typeof verdict>) => ({ ...base, verdict: v });
+
+    it("shows what the server says", () => {
+      expect(computeDeviceState(init(verdict("online")), quiet, NOW).status).toBe("online");
+      expect(computeDeviceState(init(verdict("device_unreachable")), quiet, NOW).status).toBe("connection_lost");
+      expect(computeDeviceState(init(verdict("offline")), quiet, NOW).status).toBe("offline");
+      expect(computeDeviceState(init(verdict("never_seen", { lastSeenMs: null })), quiet, NOW).status).toBe("offline");
+    });
+
+    it("goes offline by itself once the unit has been silent longer than the server's limit, if no newer word has come", () => {
+      const v = init(verdict("online", { lastSeenMs: NOW - 5_000 }));
+      expect(computeDeviceState(v, quiet, NOW).status).toBe("online");              // the page's first use fixes the clock offset
+      expect(computeDeviceState(v, quiet, NOW + 20_000).status).toBe("online");     // 25 s of silence
+      expect(computeDeviceState(v, quiet, NOW + 30_000).status).toBe("offline");    // 35 s
+    });
+
+    it("a live message from the unit keeps it online", () => {
+      const v = init(verdict("online", { lastSeenMs: NOW - 5_000 }));
+      expect(computeDeviceState(v, { lastTickAt: NOW + 55_000, lastReadAt: null, deviceOnline: null }, NOW + 60_000).status).toBe("online");
+    });
+
+    it("judges ages by the server's clock: a browser clock that is minutes fast does not make a healthy unit look silent", () => {
+      const fast = 5 * 60_000;                                          // this browser runs 5 minutes ahead of the server
+      const v = init(verdict("online", { lastSeenMs: NOW - 5_000, serverNowMs: NOW }));
+      expect(computeDeviceState(v, quiet, NOW + fast).status).toBe("online");
+      expect(computeDeviceState(v, quiet, NOW + fast + 40_000).status).toBe("offline");
+    });
+
+    it("the newest verdict wins, whether it came with the page or over the live channel", () => {
+      const v = init(verdict("offline", { serverNowMs: NOW - 60_000 }));
+      const live = { lastTickAt: null, lastReadAt: null, deviceOnline: null, verdict: verdict("online"), clockOffsetMs: 0 };
+      expect(computeDeviceState(v, live, NOW).status).toBe("online");
+    });
+  });
 });
+

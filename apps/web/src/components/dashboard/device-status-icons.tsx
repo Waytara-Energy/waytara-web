@@ -53,7 +53,7 @@ function useDeviceStates(devices: StatusDevice[]) {
       devices
         .map((d) => {
           const s = store.getStatus(d.id);
-          return `${s.lastTickAt}|${s.lastReadAt}|${s.deviceOnline}`;
+          return `${s.lastTickAt}|${s.lastReadAt}|${s.deviceOnline}|${s.verdict?.status}|${s.verdict?.serverNowMs}`;
         })
         .join(";"),
     () => ""

@@ -8,7 +8,9 @@ import { ChartStyleProvider } from "@/components/dashboard/chart-style";
 import { CHART_STYLE_COOKIE, parseChartStyle } from "@/lib/chart-style";
 import { SidebarBrandToggle } from "@/components/dashboard/sidebar-brand-toggle";
 import { SessionWatcher } from "@/components/dashboard/session-watcher";
+import { ConnectionNotice } from "@/components/dashboard/connection-notice";
 import { RealtimeProvider } from "@waytara/ui/realtime-provider";
+import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { TelemetryProvider } from "@/lib/telemetry/react";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { deviceDisplayId, getCustomerSites, resolveSelectedSite, SELECTED_DEVICE_COOKIE, SELECTED_SITE_COOKIE } from "@/lib/selected-site";
@@ -105,14 +107,16 @@ export default async function DashboardLayout({
   // (the dots then follow the live channel themselves).
   const sidebarDevices = await Promise.all(
     (selectedSite?.devices ?? []).map(async (d) => {
-      const { lastTs, agentSeenTs, deviceOnline, intervalS, heartbeatS } = await getLastSyncInfo(d.id);
-      return { id: d.id, name: deviceDisplayId(d), category: d.deviceType?.category ?? null, sync: { lastTs, agentSeenTs, deviceOnline, intervalS, heartbeatS } };
+      const { lastTs, agentSeenTs, deviceOnline, intervalS, heartbeatS, verdict } = await getLastSyncInfo(d.id);
+      return { id: d.id, name: deviceDisplayId(d), category: d.deviceType?.category ?? null, sync: { lastTs, agentSeenTs, deviceOnline, intervalS, heartbeatS, verdict } };
     })
   );
   // The header's status icons: the inverters and EV chargers of the selected site.
   const statusDevices = sidebarDevices.flatMap((d) =>
     d.category === "solar_inverter" || d.category === "ev_charger" ? [{ id: d.id, name: d.name, kind: d.category === "ev_charger" ? ("ev" as const) : ("inverter" as const), sync: d.sync }] : []
   );
+
+  const noticeDevice = statusDevices.find((d) => d.kind === "inverter");
 
   return (
     <RealtimeProvider>
@@ -121,6 +125,13 @@ export default async function DashboardLayout({
       <ChartStyleProvider initial={parseChartStyle(cookieStore.get(CHART_STYLE_COOKIE)?.value)}>
       <HeaderSlotProvider>
         <SessionWatcher />
+        {/* An offline or unreachable inverter is announced by a toast (with Investigate) on every page, not only Overview. */}
+        {noticeDevice && <ConnectionNotice deviceId={noticeDevice.id} sync={noticeDevice.sync} />}
+        {/* The account, plan, sites and devices shown in the sidebar and header follow their rows as they change (no reload). */}
+        {profile && <RealtimeRefresh table="profiles" event="UPDATE" filter={`id=eq.${profile.id}`} debounceMs={1000} />}
+        {profile && <RealtimeRefresh table="subscriptions" event="UPDATE" filter={`customer_id=eq.${profile.id}`} debounceMs={1000} />}
+        {profile && <RealtimeRefresh table="sites" event="UPDATE" filter={`customer_id=eq.${profile.id}`} debounceMs={1000} />}
+        {allDeviceIds.length > 0 && <RealtimeRefresh table="equipment" event="UPDATE" filter={`id=in.(${allDeviceIds.join(",")})`} debounceMs={1000} />}
         <SidebarBrandToggle floating />
         <DashboardSidebar
           features={features}

@@ -1,5 +1,5 @@
 import { isAgentOnline } from "./agent-online";
-import type { DeviceSyncInit } from "./device-sync-types";
+import type { DeviceSyncInit, ServerVerdict } from "./device-sync-types";
 
 /** online: readings are coming in. connection_lost: the monitoring unit is alive but cannot reach the device (the
  *  inverter's adapter is off or unreachable). offline: nothing is arriving from the unit at all (it lost power or its
@@ -27,19 +27,55 @@ function newest(a: string | null, b: string | null): string | null {
   return a > b ? a : b;
 }
 
+// The server's clock minus this browser's, measured the first time a page's own render data is used (so a clock that is fast or
+// slow never makes a healthy device look silent).
+const initOffsets = new WeakMap<object, number>();
+function initOffset(init: DeviceSyncInit, nowMs: number): number {
+  if (!init.verdict) return 0;
+  let offset = initOffsets.get(init);
+  if (offset === undefined) {
+    offset = init.verdict.serverNowMs - nowMs;
+    initOffsets.set(init, offset);
+  }
+  return offset;
+}
+
+type LiveInput = {
+  lastTickAt: number | null;
+  lastReadAt: number | null;
+  deviceOnline: boolean | null;
+  verdict?: ServerVerdict | null;
+  clockOffsetMs?: number | null;
+};
+
+/** The server's verdict (online / device unreachable / offline), taken as the truth and only ever made stricter locally: if the
+ *  unit has said nothing for longer than the server's own offline limit, by the server's clock, it shows offline even if no
+ *  newer verdict has arrived yet. */
+function fromVerdict(init: DeviceSyncInit, live: LiveInput, nowMs: number): DeviceState | null {
+  const fresher = !!live.verdict && (!init.verdict || live.verdict.serverNowMs >= init.verdict.serverNowMs);
+  const verdict = fresher ? live.verdict! : init.verdict;
+  if (!verdict) return null;
+  const offset = fresher ? (live.clockOffsetMs ?? initOffset(init, nowMs)) : initOffset(init, nowMs);
+  const serverNow = nowMs + offset;
+  const heardMs = Math.max(verdict.lastSeenMs ?? 0, live.lastTickAt !== null ? live.lastTickAt + offset : 0);
+  const silentS = heardMs > 0 ? (serverNow - heardMs) / 1000 : Infinity;
+  const iso = (ms: number | null) => (ms === null ? null : new Date(ms).toISOString());
+  let status: ConnectionStatus;
+  if (verdict.status === "offline" || verdict.status === "never_seen") status = "offline";
+  else if (silentS > verdict.offlineAfterS) status = "offline";
+  else status = verdict.status === "device_unreachable" ? "connection_lost" : "online";
+  return { lastReadAt: newest(init.lastTs, iso(live.lastReadAt)), agentOnline: status !== "offline", offline: status !== "online", status };
+}
+
 /** Combines what the server rendered with what the live messages have said since (epoch ms, or null). */
-export function computeDeviceState(
-  init: DeviceSyncInit,
-  live: { lastTickAt: number | null; lastReadAt: number | null; deviceOnline: boolean | null },
-  nowMs: number
-): DeviceState {
+export function computeDeviceState(init: DeviceSyncInit, live: LiveInput, nowMs: number): DeviceState {
+  const judged = fromVerdict(init, live, nowMs);
+  if (judged) return judged;
+  // No verdict from the server (before the status migration): the older judgement from the raw check-in times.
   const iso = (ms: number | null) => (ms === null ? null : new Date(ms).toISOString());
   const lastReadAt = newest(init.lastTs, iso(live.lastReadAt));
   const agentSeen = newest(init.agentSeenTs, iso(live.lastTickAt));
-  // The unit checks in every heartbeat_s (when it says), so its silence is judged by that rather than by its (much
-  // slower) upload interval: a unit that lost power shows within minutes.
   const agentOnline = isAgentOnline(agentSeen, nowMs, init.heartbeatS ?? init.intervalS);
-  // The agent's own word on the device wins; an agent that says nothing is judged by how recent the last reading is.
   const explicit = live.deviceOnline ?? init.deviceOnline;
   const deviceSilent = explicit === false || (explicit === null && !isAgentOnline(lastReadAt, nowMs, init.intervalS));
   const status: ConnectionStatus = !agentOnline ? "offline" : deviceSilent ? "connection_lost" : "online";
