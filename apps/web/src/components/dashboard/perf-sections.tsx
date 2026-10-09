@@ -38,7 +38,7 @@ const ORANGE = "#f97316";
 const BLUE: string = FLOW.consuming;
 // Charts that are not an energy flow keep neutral colours, so the green / amber / blue of the flow key means one thing.
 const SOC = "var(--chart-1)";
-const TEMP = "var(--chart-4)";
+const TEMP = "#f59e0b"; // temperature charts: amber, and blue for a second line
 const VOLT = "var(--chart-1)";
 const FREQ = "var(--chart-5)";
 const EFF = "var(--chart-2)";
@@ -303,15 +303,15 @@ export function InverterSection({ deviceId, span, periodText, isToday, live, pvK
             isToday={isToday}
             todayAxis={curves.axis}
             todaySeries={[
-              { key: "ac", label: "AC side", color: "var(--chart-4)", values: untilNow(curves.today.inverter_ac_temperature_c ?? [], curves.axis, curves.nowMs) },
-              { key: "dc", label: "DC side", color: "var(--chart-5)", values: untilNow(curves.today.inverter_dc_temperature_c ?? [], curves.axis, curves.nowMs) },
+              { key: "ac", label: "AC side", color: TEMP, values: untilNow(curves.today.inverter_ac_temperature_c ?? [], curves.axis, curves.nowMs) },
+              { key: "dc", label: "DC side", color: "#3b82f6", values: untilNow(curves.today.inverter_dc_temperature_c ?? [], curves.axis, curves.nowMs) },
             ]}
             period={{
               axis: period.axis,
               minutes: period.minutes,
               series: [
-                { key: "ac", label: "AC side", color: "var(--chart-4)", values: period.avg("inverter_ac_temperature_c") },
-                { key: "dc", label: "DC side", color: "var(--chart-5)", values: period.avg("inverter_dc_temperature_c") },
+                { key: "ac", label: "AC side", color: TEMP, values: period.avg("inverter_ac_temperature_c") },
+                { key: "dc", label: "DC side", color: "#3b82f6", values: period.avg("inverter_dc_temperature_c") },
               ],
             }}
             unit="°C"

@@ -362,8 +362,12 @@ export function SolarMonitoringView({
 
           <MainHubTrendGroup
             deviceId={deviceId}
+            inverterSeries={{ key: "inverter_output_power_w", label: "Inverter output", color: FLOW.producing }}
             powerSeries={[
-              { key: "inverter_output_power_w", label: "Solar", color: FLOW.producing },
+              // The solar power is what the panels produce (PV1 + PV2 + ...), not the inverter's AC output; a device with no PV power registers falls back to the AC output.
+              pvKeys.length > 0
+                ? { key: "solar_total_w", label: "Solar", color: FLOW.producing, sumOf: pvKeys }
+                : { key: "inverter_output_power_w", label: "Solar", color: FLOW.producing },
               { key: "load_total_power_w", label: "Load", color: FLOW.consuming },
               {
                 key: "grid_total_power_w",
@@ -488,7 +492,30 @@ export function SolarMonitoringView({
               unit="%"
               valueScale={1}
               footerMode="average"
+              fromFirstData
             />
+
+            {/* What went into and came out of the battery so far today (the inverter's own daily energy counters), side by side. */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <BarTrendChart
+                deviceId={deviceId}
+                title="Charged today"
+                series={[{ key: "day_battery_charge_energy_kwh", label: "Charged", color: FLOW.producing }]}
+                unit="kWh"
+                valueScale={1}
+                hideFooter
+                fromFirstData
+              />
+              <BarTrendChart
+                deviceId={deviceId}
+                title="Discharged today"
+                series={[{ key: "day_battery_discharge_energy_kwh", label: "Discharged", color: FLOW.drawing }]}
+                unit="kWh"
+                valueScale={1}
+                hideFooter
+                fromFirstData
+              />
+            </div>
 
             {/* Live, BMS and Energy are covered by the cards and charts above; only the per-pack readings remain. */}
             {sortGroups(
@@ -543,7 +570,30 @@ export function SolarMonitoringView({
               deviceId={deviceId}
               title="Load Power"
               series={[{ key: "load_total_power_w", label: "Load", color: FLOW.consuming }]}
+              fromFirstData
             />
+
+            {/* What the home used so far today (the inverter's own daily energy counter) and the current it draws, side by side. */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <BarTrendChart
+                deviceId={deviceId}
+                title="Consumed today"
+                series={[{ key: "day_load_energy_kwh", label: "Consumed", color: FLOW.consuming }]}
+                unit="kWh"
+                valueScale={1}
+                hideFooter
+                fromFirstData
+              />
+              <BarTrendChart
+                deviceId={deviceId}
+                title="Load current"
+                series={[{ key: "load_l1_current_a", label: "Current", color: "var(--chart-4)" }]}
+                unit="A"
+                valueScale={1}
+                hideFooter
+                fromFirstData
+              />
+            </div>
           </TabsContent>
         )}
 
@@ -592,7 +642,30 @@ export function SolarMonitoringView({
               deviceId={deviceId}
               title="Grid Power"
               series={[{ key: "grid_total_power_w", label: "Grid", color: FLOW.drawing }]}
+              fromFirstData
             />
+
+            {/* What came from and went to the grid so far today (the inverter's own daily energy counters), side by side. */}
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+              <BarTrendChart
+                deviceId={deviceId}
+                title="Imported today"
+                series={[{ key: "day_grid_import_energy_kwh", label: "Imported", color: FLOW.drawing }]}
+                unit="kWh"
+                valueScale={1}
+                hideFooter
+                fromFirstData
+              />
+              <BarTrendChart
+                deviceId={deviceId}
+                title="Exported today"
+                series={[{ key: "day_grid_export_energy_kwh", label: "Exported", color: FLOW.consuming }]}
+                unit="kWh"
+                valueScale={1}
+                hideFooter
+                fromFirstData
+              />
+            </div>
           </TabsContent>
         )}
 
