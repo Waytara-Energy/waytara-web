@@ -16,6 +16,10 @@ import {
   resolveReportType,
   isValidReportDate,
   istDayStart,
+  inWindow,
+  normalizeWindow,
+  resolveSelection,
+  type TimeWindow,
   reportKeys,
   summarizeSeries,
   todayIst,
@@ -39,6 +43,8 @@ export interface DayReport {
   /** How many consecutive days the report covers, starting on `date` (1 = a single day). */
   days: number;
   type: ReportType;
+  /** The part of each day that was asked for (null = the whole day). */
+  window: TimeWindow | null;
   bucketMinutes: number;
   /** True when the day was older than the 15-minute retention and was read from hourly rollups. */
   coarse: boolean;
@@ -79,6 +85,11 @@ export async function gatherDayReport(params: {
   date?: string | null;
   days?: string | null;
   type?: string | null;
+  /** Single readings to show together ("solar,load"); used instead of `type` when given. */
+  series?: string | null;
+  /** Only this part of each day, "HH:mm" (India time). */
+  from?: string | null;
+  to?: string | null;
   bucketMinutes?: string | null;
 }): Promise<DayReportResult> {
   const date = params.date ?? todayIst();
@@ -89,6 +100,12 @@ export async function gatherDayReport(params: {
   }
   // Never past today: a window that would run into the future is cut at today.
   const days = Math.min(daysRaw, Math.max(1, Math.round((istDayStart(todayIst()).getTime() - istDayStart(date).getTime()) / 86_400_000) + 1));
+
+  const window = normalizeWindow(params.from, params.to);
+  if ((params.from || params.to) && !window && !(params.from === "00:00" && params.to && params.to >= "23:59")) {
+    return { ok: false, status: 400, error: "Pick a start time that is before the end time." };
+  }
+  const seriesIds = (params.series ?? "").split(",").map((x) => x.trim()).filter(Boolean).slice(0, 12);
 
   const [profile, site] = await Promise.all([getRequestProfile(), getSelectedSite()]);
   if (!profile) return { ok: false, status: 401, error: "Please sign in." };
@@ -115,14 +132,14 @@ export async function gatherDayReport(params: {
   if (!isSolar) {
     return {
       ok: true,
-      report: { ...base, type: getReportType(params.type), bucketMinutes, coarse: false, points: [], summaries: [], hasData: false },
+      report: { ...base, type: getReportType(params.type), window, bucketMinutes, coarse: false, points: [], summaries: [], hasData: false },
     };
   }
 
   // Only what this device's equipment_metrics enables (read + show_for_user). A requested
   // report the device can't draw, or an unknown id, falls back to the first one it can.
   const enabled = await getEnabledMetricKeys(device.id);
-  const type = resolveReportType(getReportType(params.type), enabled) ?? availableReportTypes(enabled)[0];
+  const type = (seriesIds.length > 0 ? resolveSelection(seriesIds, enabled) : null) ?? resolveReportType(getReportType(params.type), enabled) ?? availableReportTypes(enabled)[0];
   if (!type) return { ok: false, status: 404, error: "No report metrics are enabled for this device." };
 
   const dayStart = istDayStart(date);
@@ -160,7 +177,7 @@ export async function gatherDayReport(params: {
   // A day's counter value is its highest reading; a window's total is the sum over its days.
   for (const r of counterRows) if (r.max_value !== null) counters[r.key_name] = (counters[r.key_name] ?? 0) + r.max_value;
 
-  const points: ReportPoint[] = windowBucketKeys(date, days, bucketMinutes).map((time) => {
+  const points: ReportPoint[] = windowBucketKeys(date, days, bucketMinutes).filter((time) => inWindow(time, window)).map((time) => {
     const sample = raw.get(time) ?? {};
     const point: ReportPoint = { time };
     for (const s of type.series) {
@@ -172,8 +189,9 @@ export async function gatherDayReport(params: {
     return point;
   });
 
-  const summaries = type.series.map((s) => summarizeSeries(s, points, bucketMinutes, counters));
+  // The inverter's own energy count is for the whole day, so a part of the day is worked out from its readings instead.
+  const summaries = type.series.map((s) => summarizeSeries(s, points, bucketMinutes, window ? {} : counters));
   const hasData = points.some((p) => type.series.some((s) => typeof p[s.id] === "number"));
 
-  return { ok: true, report: { ...base, type, bucketMinutes, coarse, points, summaries, hasData } };
+  return { ok: true, report: { ...base, type, window, bucketMinutes, coarse, points, summaries, hasData } };
 }

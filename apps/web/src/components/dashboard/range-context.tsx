@@ -27,8 +27,8 @@ const storageKey = (deviceId: string, scope?: string) => `waytara:range:${scope 
 
 /** The range (Today / 7 / 30 / 90 days / custom) a page's charts follow. Chosen per device and remembered for this
  *  browser tab (sessionStorage), never sent anywhere. Pages that mount a RangeBar wrap their content in this. */
-export function RangeProvider({ deviceId, scope, children }: { deviceId: string; /** Keeps this page's choice apart from another page's (Monitoring and Performance each remember their own). */ scope?: string; children: React.ReactNode }) {
-  const [state, setState] = React.useState<RangeState>({ preset: "today", customStart: null });
+export function RangeProvider({ deviceId, scope, defaultPreset = "today", children }: { deviceId: string; /** Keeps this page's choice apart from another page's (Monitoring and Performance each remember their own). */ scope?: string; /** What a page starts on before a choice is remembered (Today unless the page says otherwise). */ defaultPreset?: RangePreset; children: React.ReactNode }) {
+  const [state, setState] = React.useState<RangeState>({ preset: defaultPreset, customStart: null });
   const [firstDay, setFirstDay] = React.useState<string | null>(null);
   const [now, setNow] = React.useState(() => Date.now());
 

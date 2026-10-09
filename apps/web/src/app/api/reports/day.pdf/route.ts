@@ -9,6 +9,9 @@ export async function GET(req: NextRequest) {
     date: q.get("date"),
     days: q.get("days"),
     type: q.get("type"),
+    series: q.get("series"),
+    from: q.get("from"),
+    to: q.get("to"),
     bucketMinutes: q.get("interval"),
   });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });

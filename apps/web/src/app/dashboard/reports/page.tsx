@@ -1,149 +1,48 @@
 import { redirect } from "next/navigation";
 import { FileText } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { gatherReportData, toWeeklyRows } from "@/lib/gather-report-data";
-import { fetchDashboardFields, fetchFieldValues, resolveComputedValues, type FieldValue } from "@/lib/template-fields";
-import { LiveDynamicFieldGroup } from "@/components/dashboard/live-field-group";
-import { valuesFor } from "@/lib/field-values";
-import { ReportControls } from "@/components/dashboard/report-controls";
-import { DayReport } from "@/components/dashboard/day-report";
+import { getRequestProfile } from "@/lib/request-profile";
+import { gatherReportsBase } from "@/lib/reports/gather";
 import { getEnabledMetricKeys } from "@/lib/report-day-data";
-import { availableReportTypes, toAvailableReports } from "@/lib/report-types";
-import { DeviceTitle } from "@/components/dashboard/device-title";
-import { ChartEmptyState } from "@/components/dashboard/chart-empty-state";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { availableReadingIds, availableReportTypes, toAvailableReports } from "@/lib/report-types";
+import { toReportView, toRunView } from "@/lib/reports/saved-report-view";
+import { ReportsBoard } from "@/components/dashboard/reports-board";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 
-const DEFAULT_DAYS = 90;
-
-function groupTitle(category: string, groupName: string | null): string {
-  return groupName ? `${category} — ${groupName}` : category;
-}
-
-// Server-side gate, matching Monitoring/Performance/Analytics — a customer
-// on a plan without the "reports" feature (only Advance has it) gets
-// redirected, not just hidden from the nav.
+// Server-side gate, matching Monitoring/Performance: a customer on a plan without the "reports" feature (only Advance has it) is
+// redirected, not just hidden from the nav. The numbers are read once here (one history of day-by-day energy, priced on the same
+// tariff Performance uses) and the page works out whatever period is chosen from them in the browser.
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ device?: string }> }) {
   const { device: deviceIdParam } = await searchParams;
-  const report = await gatherReportData(DEFAULT_DAYS, deviceIdParam);
-  if (!report.authorized) {
-    redirect("/dashboard");
+  const [base, profile] = await Promise.all([gatherReportsBase(deviceIdParam), getRequestProfile()]);
+  if (!base.authorized || !profile) redirect("/dashboard");
+
+  if (!base.deviceId || !base.isSolar) {
+    return (
+      <Empty className="border">
+        <EmptyHeader>
+          <EmptyMedia variant="icon">
+            <FileText />
+          </EmptyMedia>
+          <EmptyTitle>{base.deviceId ? "Reports for this device are on the way" : "No devices yet"}</EmptyTitle>
+          <EmptyDescription>{base.deviceId ? "Energy reports are available for solar inverters today; charger reports are next." : "Your WayTara advisor sets this up during installation."}</EmptyDescription>
+        </EmptyHeader>
+      </Empty>
+    );
   }
 
-  const weeks = toWeeklyRows(report.daily, 8);
-  const device = report.site && report.deviceId ? (report.site.devices.find((d) => d.id === report.deviceId) ?? null) : null;
+  // The time-series reports offer only what this device's own metrics can supply (a PV3 report is never offered on a two-input
+  // inverter). The customer's own saved reports and their latest e-mails come with the page and then follow live.
+  const supabase = await createClient();
+  const [keys, savedRows, runRows] = await Promise.all([
+    getEnabledMetricKeys(base.deviceId),
+    supabase.from("customer_reports").select("id, name, equipment_id, params, schedule_kind, schedule_time, schedule_dow, schedule_dom, send_to_me, recipients, enabled, next_run_at, last_run_at").order("created_at", { ascending: false }),
+    supabase.from("customer_report_runs").select("id, report_id, status, trigger, recipients, error, started_at, finished_at").order("started_at", { ascending: false }).limit(100),
+  ]);
+  // Every single reading the device reports (voltage, current, frequency...) is offered in the filter, not only those in the ready-made reports.
+  const available = [...toAvailableReports(availableReportTypes(keys)), { id: "readings", seriesIds: availableReadingIds(keys) }];
+  const reports = (savedRows.data ?? []).map(toReportView).filter((r): r is NonNullable<typeof r> => r !== null);
+  const runs = (runRows.data ?? []).map(toRunView);
 
-  // The new equipment_templates inventory has no Reports-section rows for
-  // ev_charger at all (confirmed via direct query) — every Reports field
-  // is solar-only, so this section is skipped entirely for any other
-  // category rather than rendering an empty shell.
-  let reportSections: Awaited<ReturnType<typeof fetchDashboardFields>> = [];
-  let getFieldValue: (key: string) => FieldValue = () => null;
-  if (device && device.deviceType?.category === "solar_inverter") {
-    const supabase = await createClient();
-    reportSections = await fetchDashboardFields(supabase, device, "Reports");
-    const dynamicFields = reportSections.flatMap((s) => s.groups.flatMap((g) => g.fields));
-    const dynamicKeys = dynamicFields.map((f) => f.key);
-    // total_pv_energy_kwh is Monitoring-owned, cross-referenced for
-    // co2_saved_kg/trees_equivalent's own resolvers (same reuse pattern
-    // every other phase already established).
-    const rawValues = await fetchFieldValues(supabase, device.id, [...dynamicKeys, "total_pv_energy_kwh"]);
-    const values = resolveComputedValues(dynamicFields, rawValues, device);
-    // savings_amount is this exact page's own totalSaved figure
-    // (totalKwh * tariffRate over the selected period) — gatherReportData
-    // already computes it for the weekly table above, reused here rather
-    // than recomputed.
-    getFieldValue = (key) => (key === "savings_amount" ? report.totalSaved : (values.get(key) ?? null));
-  }
-
-  // Daily-report choices come from this device's own equipment_metrics (read + show_for_user),
-  // so a metric that isn't enabled for it (e.g. PV3 on a 2-input inverter) is never offered.
-  const dailyReports =
-    device && device.deviceType?.category === "solar_inverter"
-      ? toAvailableReports(availableReportTypes(await getEnabledMetricKeys(device.id)))
-      : [];
-
-  // The first day with readings: the custom window can't start before it.
-  let firstDay: string | null = null;
-  if (dailyReports.length > 0 && device) {
-    const { data } = await (await createClient()).rpc("device_data_range", { p_equipment_id: device.id });
-    const row = Array.isArray(data) ? data[0] : data;
-    firstDay = (row?.first_day as string | undefined) ?? null;
-  }
-
-  return (
-    <div className="space-y-6">
-      {!device ? (
-        <Empty className="border">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <FileText />
-            </EmptyMedia>
-            <EmptyTitle>No devices yet</EmptyTitle>
-            <EmptyDescription>Your WayTara advisor sets this up during installation.</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : (
-        <>
-          <div className="flex flex-wrap items-start justify-between gap-3">
-            <div>
-              <DeviceTitle devices={report.site?.devices ?? [device]} selectedId={device.id} />
-              <p className="mt-1 text-sm text-theme-muted">Pick a report and a day (00:00 to 23:59) or a window of 7, 30, 90 days or up to 30 days from a date you choose, then download it as CSV or PDF.</p>
-            </div>
-          </div>
-
-          {dailyReports.length > 0 && (
-            <div className="space-y-3">
-              <h2 className="text-sm font-semibold text-theme-primary">Daily report</h2>
-              <DayReport deviceId={device.id} available={dailyReports} firstDay={firstDay} />
-            </div>
-          )}
-
-          <div className="rounded-xl border border-theme-border bg-theme-bg p-4">
-            <h2 className="mb-3 text-sm font-semibold text-theme-primary">Long-range yield export</h2>
-            <ReportControls defaultDays={DEFAULT_DAYS} deviceId={report.deviceId} />
-          </div>
-
-          <div className="rounded-xl border border-theme-border bg-theme-bg p-4">
-            <h2 className="mb-3 text-sm font-semibold text-theme-primary">Weekly yield (last 8 weeks)</h2>
-            {weeks.length === 0 ? (
-              <ChartEmptyState />
-            ) : (
-              <div className="overflow-x-auto rounded-lg border border-theme-border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Week</TableHead>
-                      <TableHead className="text-right">Yield</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {weeks.map((w) => (
-                      <TableRow key={w.label}>
-                        <TableCell className="text-foreground">{w.label}</TableCell>
-                        <TableCell className="text-right tabular-nums text-muted-foreground">
-                          {w.kwh.toFixed(1)} kWh
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            )}
-          </div>
-
-          {reportSections.map((section) =>
-            section.groups.map((group) => (
-              <LiveDynamicFieldGroup deviceId={device.id}
-                key={`${section.category}-${group.groupName ?? ""}`}
-                title={groupTitle(section.category, group.groupName)}
-                fields={group.fields}
-                initial={valuesFor(group.fields, getFieldValue)}
-              />
-            ))
-          )}
-        </>
-      )}
-    </div>
-  );
+  return <ReportsBoard base={base} customerId={profile.id} reports={reports} runs={runs} available={available} />;
 }

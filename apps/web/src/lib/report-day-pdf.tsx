@@ -1,6 +1,7 @@
 import { Document, Page, Text, View, StyleSheet, Svg, Rect, Line, Polyline, renderToBuffer } from "@react-pdf/renderer";
+import { PdfLogo } from "@/lib/reports/pdf-logo-image";
 import type { DayReport } from "@/lib/report-day-data";
-import { shiftDate, type ReportPoint, type ReportSeries, type ReportSeriesSummary } from "@/lib/report-types";
+import { shiftDate, unitDecimals, windowText, type ReportPoint, type ReportSeries, type ReportSeriesSummary } from "@/lib/report-types";
 
 // The PDF can't read the dashboard's CSS variables, so each series has a fixed
 // hex of the same hue family as the on-screen chart.
@@ -19,7 +20,19 @@ const PDF_COLORS: Record<string, string> = {
   inverterAcTemp: "#3B82F6",
   batteryTemp: "#16A34A",
 };
-const colorOf = (id: string) => PDF_COLORS[id] ?? "#475569";
+const SPARE_COLORS = ["#F59E0B", "#3B82F6", "#16A34A", "#8B5CF6", "#0D9488", "#EF4444"];
+/** A colour for each series; one that would repeat an earlier series' colour takes the next unused one. */
+function pdfColors(series: ReportSeries[]): Record<string, string> {
+  const used = new Set<string>();
+  const out: Record<string, string> = {};
+  for (const s of series) {
+    const want = PDF_COLORS[s.id] ?? "#475569";
+    const pick = used.has(want) ? (SPARE_COLORS.find((c) => !used.has(c)) ?? want) : want;
+    used.add(pick);
+    out[s.id] = pick;
+  }
+  return out;
+}
 
 const styles = StyleSheet.create({
   page: { padding: 36, fontSize: 9, fontFamily: "Helvetica", color: "#0F172A" },
@@ -56,7 +69,7 @@ function niceCeil(v: number): number {
 
 function fmt(v: number | null, unit: string): string {
   if (v === null) return "-";
-  return `${v.toFixed(unit === "kW" ? 2 : 1)} ${unit}`;
+  return `${v.toFixed(unitDecimals(unit))} ${unit}`;
 }
 
 
@@ -64,6 +77,11 @@ function fmt(v: number | null, unit: string): string {
 function xTicks(report: DayReport): { i: number; label: string }[] {
   const n = report.points.length;
   if (report.days <= 1) {
+    if (report.window) {
+      // part of a day: label about eight of the intervals shown
+      const step = Math.max(1, Math.ceil(n / 8));
+      return report.points.flatMap((p, i) => (i % step === 0 ? [{ i, label: p.time.slice(11, 16) }] : []));
+    }
     return Array.from({ length: 9 }, (_, k) => ({ i: (k / 8) * n, label: `${String(k * 3).padStart(2, "0")}:00` }));
   }
   const perDay = n / report.days;
@@ -82,8 +100,8 @@ function fmtAt(at: string | null, days: number): string {
   return days <= 1 ? at.slice(11, 16) : `${at.slice(8, 10)}/${at.slice(5, 7)} ${at.slice(11, 16)}`;
 }
 
-function DayChart({ report }: { report: DayReport }) {
-  const series = report.type.series;
+function DayChart({ report, series, colors }: { report: DayReport; series: ReportSeries[]; colors: Record<string, string> }) {
+  const colorOf = (id: string) => colors[id] ?? "#475569";
   const unit = series[0].unit;
   const pts = report.points;
   const values = pts.flatMap((p) => series.map((s) => p[s.id]).filter((v): v is number => typeof v === "number"));
@@ -91,8 +109,10 @@ function DayChart({ report }: { report: DayReport }) {
   const dataMin = values.length ? Math.min(...values) : 0;
   const isBar = series.every((s) => s.kind === "bar") && series.length <= 2; // 3+ series read better as lines (same rule as the on-screen chart)
   // Bars sit on zero; lines (SOC, temperatures) get a padded range of their own.
-  const lo = isBar ? 0 : unit === "%" ? 0 : Math.floor(Math.min(dataMin, 0) / 5) * 5;
-  const hi = unit === "%" ? 100 : niceCeil(Math.max(dataMax, 0.001));
+  const around = !isBar && (unit === "V" || unit === "A" || unit === "Hz");
+  const pad = (dataMax - dataMin || Math.abs(dataMax) * 0.05 || 1) * 0.2;
+  const lo = isBar ? 0 : unit === "%" ? 0 : around ? dataMin - pad : Math.floor(Math.min(dataMin, 0) / 5) * 5;
+  const hi = unit === "%" ? 100 : around ? dataMax + pad : niceCeil(Math.max(dataMax, 0.001));
   const plotW = CHART_W - M.left - M.right;
   const plotH = CHART_H - M.top - M.bottom;
   const y = (v: number) => M.top + plotH - ((v - lo) / (hi - lo || 1)) * plotH;
@@ -110,7 +130,7 @@ function DayChart({ report }: { report: DayReport }) {
           <View key={s.id} style={styles.legendItem}>
             <View style={[styles.swatch, { backgroundColor: colorOf(s.id) }]} />
             <Text>
-              {s.label} ({s.unit})
+              {s.label} · {s.unit}
             </Text>
           </View>
         ))}
@@ -121,7 +141,7 @@ function DayChart({ report }: { report: DayReport }) {
         ))}
         {ticks.map((t, i) => (
           <Text key={`yl${i}`} x={M.left - 4} y={y(t) + 2.5} style={{ fontSize: 7, fill: "#64748B", textAnchor: "end" }}>
-            {unit === "kW" ? t.toFixed(t < 10 && t % 1 !== 0 ? 1 : 0) : t.toFixed(0)}
+            {(hi - lo) < 5 ? t.toFixed(2) : (hi - lo) < 50 ? t.toFixed(1) : t.toFixed(0)}
           </Text>
         ))}
         {xTicks(report).map((tick) => (
@@ -167,8 +187,8 @@ function SummaryTable({ report }: { report: DayReport }) {
     <View style={styles.table}>
       <View style={styles.trHead}>
         <Text style={styles.cFirst}>Series</Text>
-        {kw && <Text style={styles.cNum}>Energy (meter)</Text>}
-        {kw && <Text style={styles.cNum}>Energy (est.)</Text>}
+        {kw && <Text style={styles.cNum}>Energy from meter</Text>}
+        {kw && <Text style={styles.cNum}>Energy estimated</Text>}
         <Text style={styles.cNum}>Peak</Text>
         <Text style={styles.cNum}>Peak at</Text>
         <Text style={styles.cNum}>Average</Text>
@@ -219,11 +239,14 @@ function formatLongDate(date: string): string {
 function DayDocument({ report, generatedAt }: { report: DayReport; generatedAt: string }) {
   const series = report.type.series;
   const rows = summaryRows(report.points, series, report.days);
+  // Readings in different units never share a scale: each unit gets its own chart.
+  const colors = pdfColors(series);
+  const unitGroups = [...new Set(series.map((s) => s.unit))].map((u) => series.filter((s) => s.unit === u));
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
-          <Text style={styles.brand}>WayTara Energy</Text>
+          <PdfLogo />
           <View style={styles.meta}>
             <Text>Daily Energy Report</Text>
             <Text>Generated {new Date(generatedAt).toLocaleString("en-IN", { timeZone: "Asia/Kolkata" })}</Text>
@@ -232,15 +255,20 @@ function DayDocument({ report, generatedAt }: { report: DayReport; generatedAt: 
 
         <Text style={styles.title}>{report.type.label}</Text>
         <Text style={styles.sub}>
-          {report.days > 1 ? `${formatLongDate(report.date)} to ${formatLongDate(shiftDate(report.date, report.days - 1))} (${report.days} days)` : `${formatLongDate(report.date)} - 00:00 to 23:59 IST`} - {report.customerName}
+          {report.days > 1 ? `${formatLongDate(report.date)} to ${formatLongDate(shiftDate(report.date, report.days - 1))} (${report.days} days)` : `${formatLongDate(report.date)} - ${report.window ? windowText(report.window) : "00:00 to 23:59"} IST`}
+          {report.days > 1 && report.window ? ` - ${windowText(report.window)} each day` : ""} - {report.customerName}
           {report.deviceLabel ? ` - ${report.deviceLabel}` : ""}
         </Text>
 
         <View style={styles.section}>
-          <DayChart report={report} />
+          {unitGroups.map((g) => (
+            <View key={g[0].unit} style={{ marginBottom: 8 }}>
+              <DayChart report={report} series={g} colors={colors} />
+            </View>
+          ))}
           <Text style={styles.note}>
             {report.coarse
-              ? "Hourly averages (detailed readings are only kept for 90 days)."
+              ? "Hourly averages, as detailed readings are only kept for 90 days."
               : `Each ${report.bucketMinutes < 60 ? `${report.bucketMinutes}-minute` : report.bucketMinutes >= 1440 ? "1-day" : `${report.bucketMinutes / 60}-hour`} interval shows the average over that interval.`}
           </Text>
         </View>
@@ -248,9 +276,9 @@ function DayDocument({ report, generatedAt }: { report: DayReport; generatedAt: 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Summary</Text>
           <SummaryTable report={report} />
-          {series.some((s) => s.counterKey) && (
+          {!report.window && series.some((s) => s.counterKey) && (
             <Text style={styles.note}>
-              Energy (meter) is the inverter&apos;s own count for the day. Energy (est.) adds up the interval averages and can differ slightly.
+              Energy from meter is the inverter&apos;s own count for the day. Energy estimated adds up the interval averages and can differ slightly.
             </Text>
           )}
         </View>
@@ -267,7 +295,7 @@ function DayDocument({ report, generatedAt }: { report: DayReport; generatedAt: 
             <Text style={styles.cFirst}>{report.days > 1 ? "Day" : "Hour"}</Text>
             {series.map((s) => (
               <Text key={s.id} style={styles.cNum}>
-                {s.label} ({s.unit})
+                {s.label} · {s.unit}
               </Text>
             ))}
           </View>
@@ -276,7 +304,7 @@ function DayDocument({ report, generatedAt }: { report: DayReport; generatedAt: 
               <Text style={styles.cFirst}>{r.label}</Text>
               {r.cells.map((c, i) => (
                 <Text key={series[i].id} style={styles.cNum}>
-                  {c === null ? "-" : c.toFixed(series[i].unit === "kW" ? 2 : 1)}
+                  {c === null ? "-" : c.toFixed(unitDecimals(series[i].unit))}
                 </Text>
               ))}
             </View>

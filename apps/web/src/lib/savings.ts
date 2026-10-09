@@ -75,6 +75,9 @@ export function billModel(e: Energy, r: Rates, bankedIn = 0): Bill {
 export interface DayEnergy extends Energy {
   /** YYYY-MM-DD */
   day: string;
+  /** What went into / came out of the battery that day, when the inverter reports it. */
+  chargedKwh?: number;
+  dischargedKwh?: number;
 }
 
 /** Day rows -> one row per month (YYYY-MM), oldest first. */

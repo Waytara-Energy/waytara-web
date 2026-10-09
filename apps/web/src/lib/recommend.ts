@@ -1,4 +1,5 @@
 import { EnergyPlannerInput, RecommendationResult } from "@/types";
+import { EMISSION_FACTOR } from "./emission-factor";
 
 /**
  * Plain, explainable pure TS rule set for recommending WayTara energy packages.
@@ -160,9 +161,9 @@ export function calculateRecommendation(
     Math.max(2.5, Math.min(5.5, midpointCost / (yearlySavingsInr || 50000))).toFixed(1)
   );
 
-  // ~0.82 kg CO2 saved per kWh solar in India
+  // kg CO2 saved per kWh solar in India (the grid emission factor, see emission-factor.ts)
   const co2OffsetTonnesPerYear = Number(
-    ((yearlyGenerationKwh * 0.82) / 1000).toFixed(1)
+    ((yearlyGenerationKwh * EMISSION_FACTOR.kgPerKwh) / 1000).toFixed(1)
   );
 
   return {
