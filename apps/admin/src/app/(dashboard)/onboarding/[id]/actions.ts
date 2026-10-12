@@ -315,6 +315,29 @@ export async function createSite(onboardingId: string, formData: FormData): Prom
   revalidatePath(`/onboarding/${onboardingId}`);
 }
 
+/** Staff change a site's property type, power source and power package here; a customer cannot (the database refuses them), because these
+ *  decide how the customer's system is drawn and reported. */
+export async function updateSiteStaffFields(onboardingId: string, siteId: string, formData: FormData): Promise<void> {
+  await requireStaff();
+  const propertyType = String(formData.get("propertyType") ?? "");
+  const powerSourceCategory = String(formData.get("powerSourceCategory") ?? "");
+  const powerPackageRaw = String(formData.get("powerPackage") ?? "").trim();
+  if (!propertyType || !powerSourceCategory) throw new Error("Pick a property type and a power source.");
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("sites")
+    .update({
+      property_type: propertyType as never,
+      power_source_category: powerSourceCategory as never,
+      power_package: (powerPackageRaw || null) as never,
+    })
+    .eq("id", siteId);
+  if (error) throw new Error(error.message);
+
+  revalidatePath(`/onboarding/${onboardingId}`);
+}
+
 // Warranty years live on the linked stock item's own warranty_info jsonb
 // (shape varies — {"years": 5} for most items, {"product_years": 12,
 // "performance_years": 30} for panels) — "years" wins when both are

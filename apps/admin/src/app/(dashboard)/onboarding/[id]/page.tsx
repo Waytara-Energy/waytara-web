@@ -14,6 +14,7 @@ import {
   recordSplitPayment,
   resendCustomerInviteEmail,
   createSite,
+  updateSiteStaffFields,
   addDevice,
   addChildEquipment,
   retireChildEquipment,
@@ -127,6 +128,7 @@ export default async function OnboardingPipelinePage({
     name: string;
     property_type: string;
     power_source_category: string;
+    power_package: string | null;
   } | null = null;
   let devices: {
     id: string;
@@ -165,7 +167,7 @@ export default async function OnboardingPipelinePage({
   if (STAGES_NEEDING_SITE.includes(onboarding.current_stage) && onboarding.customer_id) {
     const { data: siteRow } = await supabase
       .from("sites")
-      .select("id, name, property_type, power_source_category")
+      .select("id, name, property_type, power_source_category, power_package")
       .eq("customer_id", onboarding.customer_id)
       .order("created_at", { ascending: false })
       .limit(1)
@@ -442,7 +444,48 @@ export default async function OnboardingPipelinePage({
                 <p className="text-muted-foreground">
                   {PROPERTY_TYPE_LABELS[site.property_type] ?? site.property_type} ·{" "}
                   {POWER_SOURCE_LABELS[site.power_source_category] ?? site.power_source_category}
+                  {site.power_package ? ` · ${POWER_PACKAGE_LABELS[site.power_package] ?? site.power_package}` : ""}
                 </p>
+                {/* Only staff change these three: they decide how the customer's system is drawn and reported, so the customer app shows them read-only. */}
+                <details className="mt-2">
+                  <summary className="cursor-pointer text-xs text-primary hover:underline">Edit property type, power source and package</summary>
+                  <ActionForm action={updateSiteStaffFields.bind(null, onboarding.id, site.id)} loading="Saving site…" success="Site updated." className="mt-3 space-y-3">
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Property type</label>
+                      <select name="propertyType" defaultValue={site.property_type} className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm" required>
+                        {Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Power source</label>
+                      <select name="powerSourceCategory" defaultValue={site.power_source_category} className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm" required>
+                        {Object.entries(POWER_SOURCE_LABELS).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="space-y-1.5">
+                      <label className="text-xs font-medium">Power package</label>
+                      <select name="powerPackage" defaultValue={site.power_package ?? ""} className="h-9 w-full rounded-md border border-border bg-background px-3 text-sm">
+                        <option value="">Not set yet</option>
+                        {Object.entries(POWER_PACKAGE_LABELS).map(([value, label]) => (
+                          <option key={value} value={value}>
+                            {label}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
+                    <Button type="submit" size="sm" variant="outline">
+                      Save
+                    </Button>
+                  </ActionForm>
+                </details>
               </div>
 
               <div className="space-y-3 border-t border-border pt-4">
