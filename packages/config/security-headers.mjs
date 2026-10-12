@@ -13,6 +13,7 @@
  * @param {string[]} [options.scriptSrc]   extra script origins (analytics, etc.)
  * @param {string[]} [options.connectSrc]  extra fetch/XHR/WebSocket origins
  * @param {string[]} [options.imgSrc]      extra image origins
+ * @param {string[]} [options.workerSrc]   extra worker sources (a map library starts its worker from a blob: URL)
  * @returns {{ key: string, value: string }[]}
  */
 export function securityHeaders(options = {}) {
@@ -30,6 +31,8 @@ export function securityHeaders(options = {}) {
     `script-src 'self' 'unsafe-inline'${isDev ? " 'unsafe-eval' https://va.vercel-scripts.com" : ""} ${(options.scriptSrc ?? []).join(" ")}`.trim(),
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' data: blob: ${supabaseHttp} ${(options.imgSrc ?? []).join(" ")}`.trim(),
+    // A map library runs in a worker started from a blob: URL; only apps that pass `workerSrc` allow it.
+    ...(options.workerSrc?.length ? [`worker-src 'self' ${options.workerSrc.join(" ")}`] : []),
     "media-src 'self'",
     "font-src 'self' data:",
     `connect-src 'self' ${supabaseHttp} ${supabaseWs} ${sentryOrigin} ${(options.connectSrc ?? []).join(" ")}`.replace(/\s+/g, " ").trim(),

@@ -111,9 +111,24 @@ export default async function DashboardLayout({
       return { id: d.id, name: deviceDisplayId(d), category: d.deviceType?.category ?? null, sync: { lastTs, agentSeenTs, deviceOnline, intervalS, heartbeatS, verdict } };
     })
   );
+  // When each device's settings were last asked for (a change from the dashboard or admin app) and last read from the device (by the agent):
+  // shown in the header's device menu. Only the newest rows are needed.
+  const statusDeviceIds = sidebarDevices.filter((d) => d.category === "solar_inverter" || d.category === "ev_charger").map((d) => d.id);
+  const settingsTimes = new Map<string, { requestedAt: string | null; readAt: string | null }>();
+  if (statusDeviceIds.length > 0) {
+    const { data: configRows } = await (await createClient()).from("equipment_configs").select("equipment_id, source, ts").in("equipment_id", statusDeviceIds).order("ts", { ascending: false }).limit(600);
+    for (const r of configRows ?? []) {
+      const t = settingsTimes.get(r.equipment_id) ?? { requestedAt: null, readAt: null };
+      if ((r.source ?? "").startsWith("agent")) t.readAt ??= r.ts;
+      else t.requestedAt ??= r.ts;
+      settingsTimes.set(r.equipment_id, t);
+    }
+  }
   // The header's status icons: the inverters and EV chargers of the selected site.
   const statusDevices = sidebarDevices.flatMap((d) =>
-    d.category === "solar_inverter" || d.category === "ev_charger" ? [{ id: d.id, name: d.name, kind: d.category === "ev_charger" ? ("ev" as const) : ("inverter" as const), sync: d.sync }] : []
+    d.category === "solar_inverter" || d.category === "ev_charger"
+      ? [{ id: d.id, name: d.name, kind: d.category === "ev_charger" ? ("ev" as const) : ("inverter" as const), sync: d.sync, settingsRequestedAt: settingsTimes.get(d.id)?.requestedAt ?? null, settingsReadAt: settingsTimes.get(d.id)?.readAt ?? null }]
+      : []
   );
 
   const noticeDevice = statusDevices.find((d) => d.kind === "inverter");

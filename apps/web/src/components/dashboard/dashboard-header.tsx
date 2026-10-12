@@ -1,4 +1,5 @@
 import { HeaderLeft } from "./header-left";
+import { HeaderWeather } from "./header-weather";
 import { HeaderSlotTarget } from "./header-slot";
 import type { StatusDevice } from "./device-status-icons";
 import { OverviewHeaderStatus } from "./overview-go-live";
@@ -8,7 +9,7 @@ import type { AlertRow } from "./recent-alerts";
 
 // No bar and no line: it is the page's own colour, and the content that scrolls up under it fades out over a thin strip at its
 // bottom edge (the `after` gradient) instead of meeting a border. The site switcher is at the top left (after the brand button on a phone,
-// or after the floating one when the sidebar is closed); the top right holds whatever the page puts in the header slot - the
+// or after the floating one when the sidebar is closed); the top right holds the weather at the site (a click opens the forecast), whatever the page puts in the header slot - the
 // Overview's Go Live and connection status - then the notification bell. Search and the account live in the sidebar.
 // The inverter's PV power keys, so a live connection from any page also brings the solar inputs.
 const PV_KEYS = ["pv1_power_w", "pv2_power_w", "pv3_power_w", "pv4_power_w"];
@@ -42,6 +43,7 @@ export function DashboardHeader({
       <HeaderLeft sites={sites} selectedSiteId={selectedSiteId} />
       <div className="flex min-w-0 items-center justify-end gap-3">
         <HeaderSlotTarget className="flex min-w-0 items-center" />
+        <HeaderWeather siteId={selectedSiteId} />
         <OverviewHeaderStatus devices={statusDevices} pvKeys={PV_KEYS} defaultSelectedId={selectedDeviceId} />
         <NotificationCenter deviceIds={alertDeviceIds} devices={devices} initialAlerts={initialAlerts} initialFaults={initialFaults} />
       </div>

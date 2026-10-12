@@ -34,6 +34,7 @@ Every migration must first pass on the production-shaped local database:
 | `NEXT_PUBLIC_SITE_URL` | `https://www.waytaraenergy.com` | `https://admin.waytaraenergy.com` | Used for e-mail links. |
 | `NEXT_PUBLIC_CANONICAL_URL` | optional | — | Defaults to `https://www.waytaraenergy.com`. |
 | `CRON_SECRET` | ✔ | — | **Required in production**: the cron routes now refuse every request without it. Generate: `openssl rand -hex 32`. |
+| `OLA_MAPS_API_KEY` | optional | — | Server-only. Address search and "what is at this pin" on the Devices > Site map (Ola Maps, built for Indian addresses). Without it the page falls back to Photon's public server, which is throttled and has no uptime promise: set the key for production. |
 | `CUSTOMER_APP_URL` | — | `https://www.waytaraenergy.com` | |
 | `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `LEADS_NOTIFICATION_EMAIL` | ✔ | ✔ | |
 | `SENTRY_DSN`, `NEXT_PUBLIC_SENTRY_DSN` | optional | optional | Error monitoring stays completely off until set. |

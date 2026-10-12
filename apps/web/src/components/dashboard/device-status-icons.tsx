@@ -2,7 +2,9 @@
 
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { Check, EvCharger, Radio, RefreshCw, Server } from "lucide-react";
+import Link from "next/link";
+import { Check, EvCharger, Radio, RefreshCw, Server, SlidersHorizontal } from "lucide-react";
+import { useRealtimeTable } from "@waytara/ui/realtime-provider";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
@@ -19,6 +21,9 @@ export interface StatusDevice {
   name: string;
   kind: "inverter" | "ev";
   sync: DeviceSyncInit;
+  /** When the device's settings were last asked for, and last read from the device (ISO). */
+  settingsRequestedAt?: string | null;
+  settingsReadAt?: string | null;
 }
 
 const KIND = {
@@ -37,6 +42,51 @@ const STATE_TEXT: Record<ConnectionStatus, string> = { online: "Online", connect
 const clockText = (ms: number) => new Date(ms).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", second: "2-digit" });
 /** How long the time of a new connection stays up before it fades and the icon comes back. */
 const MOMENT_MS = 3200;
+
+const STORAGE_KEY = "waytara:last-go-live";
+const goLiveListeners = new Set<() => void>();
+const readGoLive = () => {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY) ?? "{}";
+  } catch {
+    return "{}";
+  }
+};
+/** When each device last went live, kept in this browser (going live is a thing this browser does), as JSON text. */
+function useGoLiveTimes(): Record<string, number> {
+  const raw = React.useSyncExternalStore(
+    (cb) => {
+      goLiveListeners.add(cb);
+      return () => void goLiveListeners.delete(cb);
+    },
+    readGoLive,
+    () => "{}"
+  );
+  return React.useMemo(() => {
+    try {
+      return JSON.parse(raw) as Record<string, number>;
+    } catch {
+      return {};
+    }
+  }, [raw]);
+}
+function rememberGoLive(deviceId: string) {
+  try {
+    const all = JSON.parse(readGoLive()) as Record<string, number>;
+    all[deviceId] = Date.now();
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
+  } catch {
+    // storage can be blocked; the time just is not kept
+  }
+  goLiveListeners.forEach((l) => l());
+}
+
+const timeOnly = (ms: number) => new Date(ms).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
+const stamp = (ms: number, now: number) => {
+  const d = new Date(ms);
+  const sameDay = d.toDateString() === new Date(now).toDateString();
+  return sameDay ? timeOnly(ms) : d.toLocaleDateString("en-IN", { day: "numeric", month: "short" }) + ", " + timeOnly(ms);
+};
 
 /** The connection state of each device, live: from the server's first reading, then the live messages (re-judged every 15 seconds). */
 function useDeviceStates(devices: StatusDevice[]) {
@@ -96,8 +146,6 @@ export function DeviceStatusIcon({
   const [switching, startSwitch] = React.useTransition();
   const [refreshing, startRefresh] = React.useTransition();
   const [fetchedAt, setFetchedAt] = React.useState(() => Date.now());
-  // Clicking the icon re-reads the connection straight away: the icon turns into a spinning refresh icon until that is done.
-  const [quickRefresh, setQuickRefresh] = React.useState(false);
 
   const status = worstStatus(states.map((s) => s.status));
   const lastRead = newestIso(states.map((s) => s.lastReadAt));
@@ -107,6 +155,19 @@ export function DeviceStatusIcon({
   const failed = liveStatus === "error";
   const active = connecting || isLive;
   const holdsSelected = devices.some((d) => d.id === selectedId);
+  // The device the menu talks about: the one the page shows, or the first of this kind.
+  const focus = devices.find((d) => d.id === selectedId) ?? devices[0];
+  const goLiveTimes = useGoLiveTimes();
+  // Settings times follow the device's own rows as they arrive; the server's values are the starting point.
+  const [seenSettings, setSeenSettings] = React.useState<Record<string, { requested?: string; read?: string }>>({});
+  useRealtimeTable<{ equipment_id: string; source: string | null; ts: string }>("equipment_configs", "INSERT", `equipment_id=in.(${devices.map((d) => d.id).join(",")})`, (p) => {
+    const row = p.new;
+    const agent = (row.source ?? "").startsWith("agent");
+    setSeenSettings((prev) => ({ ...prev, [row.equipment_id]: { ...prev[row.equipment_id], [agent ? "read" : "requested"]: row.ts } }));
+  });
+  const newestOf = (a: string | null | undefined, b: string | null | undefined) => (a && b ? (a > b ? a : b) : (a ?? b ?? null));
+  const settingsRequested = newestOf(focus?.settingsRequestedAt, seenSettings[focus?.id ?? ""]?.requested);
+  const settingsRead = newestOf(focus?.settingsReadAt, seenSettings[focus?.id ?? ""]?.read);
 
   // The moment the connection comes up: its time is shown for a while, then the icon returns with a different animation.
   const [momentAt, setMomentAt] = React.useState<number | null>(null);
@@ -117,12 +178,13 @@ export function DeviceStatusIcon({
     previous.current = liveStatus;
     if (!cameUp) return;
     setMomentAt(Date.now());
+    rememberGoLive(selectedId);
     const timer = setTimeout(() => {
       setMomentAt(null);
       setEntrance("pop");
     }, MOMENT_MS);
     return () => clearTimeout(timer);
-  }, [liveStatus]);
+  }, [liveStatus, selectedId]);
   const showMoment = momentAt !== null && isLive;
 
   function pick(id: string) {
@@ -153,17 +215,8 @@ export function DeviceStatusIcon({
     devices.forEach((d) => void store.refreshHeartbeat(d.id));
   }
 
-  function openMenu(next: boolean) {
-    setOpen(next);
-    if (!next || quickRefresh) return;
-    setQuickRefresh(true);
-    void Promise.allSettled(devices.map((d) => store.refreshHeartbeat(d.id))).then(() =>
-      setTimeout(() => {
-        setFetchedAt(Date.now());
-        setQuickRefresh(false);
-      }, 700)
-    );
-  }
+  // Opening the menu only shows it; nothing is re-read until Refresh is pressed.
+  const openMenu = setOpen;
 
   function refresh() {
     startRefresh(async () => {
@@ -177,7 +230,7 @@ export function DeviceStatusIcon({
   const plural = devices.length > 1 ? "s" : "";
   const liveText = failed ? "Try again" : connecting ? "Connecting… stop" : isLive ? "Live · stop" : "Go live";
 
-  const spinning = quickRefresh || refreshing;
+  const spinning = refreshing;
 
   return (
     <div className="flex items-center gap-1.5">
@@ -263,10 +316,31 @@ export function DeviceStatusIcon({
             Refresh
           </Button>
         </div>
-        <p className="px-2 pb-1 pt-2 text-[11px] text-muted-foreground">
-          Fetched at {clockText(fetchedAt)}
-          {lastRead ? ` · last reading ${agoText(clock - new Date(lastRead).getTime())}` : ""}
-        </p>
+        {/* When things last happened, for the device the page shows. Opening this menu reads nothing again. */}
+        <dl className="mt-2 space-y-1 border-t pt-2 text-xs">
+          {(
+            [
+              ["Last went live", goLiveTimes[focus?.id ?? ""] ? stamp(goLiveTimes[focus!.id], clock) : "Not yet"],
+              ["Last refresh", stamp(fetchedAt, clock)],
+              ["Last reading (sync)", lastRead ? `${stamp(new Date(lastRead).getTime(), clock)} · ${agoText(clock - new Date(lastRead).getTime())}` : "No reading yet"],
+              ["Settings read from device", settingsRead ? stamp(new Date(settingsRead).getTime(), clock) : "Not yet"],
+              ["Settings last changed", settingsRequested ? stamp(new Date(settingsRequested).getTime(), clock) : "No change yet"],
+            ] as const
+          ).map(([label, value]) => (
+            <div key={label} className="flex items-baseline justify-between gap-3 px-2">
+              <dt className="text-muted-foreground">{label}</dt>
+              <dd className="text-right font-medium tabular-nums text-foreground">{value}</dd>
+            </div>
+          ))}
+        </dl>
+        <Link
+          href={`/dashboard/devices${focus ? `?device=${focus.id}` : ""}${kind === "inverter" ? "#settings-basic" : ""}`}
+          onClick={() => setOpen(false)}
+          className="mt-2 flex items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium text-foreground outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
+        >
+          <SlidersHorizontal className="size-3.5" />
+          Open device settings
+        </Link>
       </PopoverContent>
     </Popover>
     {/* The count, outside the button, and only when there is more than one device to choose between. */}

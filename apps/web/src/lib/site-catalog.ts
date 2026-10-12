@@ -33,6 +33,17 @@ export const POWER_PACKAGE_LABELS: Record<string, string> = {
   ev_charger_only: "EV Charger Only",
 };
 
+/** What a power package includes, in words ("solar_battery_inverter_ev" is solar panels, a battery, the inverter and an EV charger). */
+export function powerPackageIncludes(key: string | null | undefined): string[] {
+  if (!key) return [];
+  const parts: string[] = [];
+  if (key.includes("solar")) parts.push("Solar panels");
+  if (key.includes("battery")) parts.push("Battery");
+  if (key.includes("inverter")) parts.push("Inverter");
+  if (key === "ev_charger_only" || key.endsWith("_ev")) parts.push("EV charger");
+  return parts;
+}
+
 export const PROPERTY_TYPE_OPTIONS = Object.entries(PROPERTY_TYPE_LABELS).map(([value, label]) => ({ value, label }));
 export const POWER_SOURCE_OPTIONS = Object.entries(POWER_SOURCE_LABELS).map(([value, label]) => ({ value, label }));
 export const POWER_PACKAGE_OPTIONS = Object.entries(POWER_PACKAGE_LABELS).map(([value, label]) => ({ value, label }));

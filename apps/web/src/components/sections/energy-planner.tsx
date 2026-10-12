@@ -38,6 +38,7 @@ import { calculateRecommendation } from "@/lib/recommend";
 import { EnergyPlannerInput, CustomerSegmentId, RecommendationResult } from "@/types";
 import { cn } from "@/lib/utils";
 import { Reveal } from "@/components/shared/reveal";
+import { PincodeHint, usePincode } from "./use-pincode";
 
 interface QuestionStep {
   id: number;
@@ -288,6 +289,7 @@ export function EnergyPlanner({ selectedSegment: _selectedSegment }: EnergyPlann
   const [contactEmail, setContactEmail] = React.useState("");
   const [contactPhone, setContactPhone] = React.useState("");
   const [contactPincode, setContactPincode] = React.useState("");
+  const pincodeInfo = usePincode(contactPincode);
   const [website, setWebsite] = React.useState(""); // honeypot
 
   // Accumulated Planner Form State
@@ -389,6 +391,7 @@ export function EnergyPlanner({ selectedSegment: _selectedSegment }: EnergyPlann
           email: contactEmail,
           phone: contactPhone,
           pincode: contactPincode,
+          city: pincodeInfo.city ?? undefined,
           propertyType: plannerData.propertyType,
           monthlyBill: plannerData.monthlyBill,
           backupNeeds: plannerData.backupNeeds,
@@ -833,6 +836,7 @@ export function EnergyPlanner({ selectedSegment: _selectedSegment }: EnergyPlann
                     onChange={(e) => setContactPincode(e.target.value)}
                     className="h-10 text-xs mt-1"
                   />
+                  <PincodeHint info={pincodeInfo} />
                 </div>
               </div>
 

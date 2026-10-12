@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { CheckCircle2, ShieldCheck } from "lucide-react";
+import { PincodeHint, usePincode } from "./use-pincode";
 
 interface AssessmentModalProps {
   open: boolean;
@@ -34,6 +35,7 @@ export function AssessmentModal({
   const [contactPhone, setContactPhone] = React.useState("");
   const [contactEmail, setContactEmail] = React.useState("");
   const [contactPincode, setContactPincode] = React.useState("");
+  const pincodeInfo = usePincode(contactPincode);
   const [website, setWebsite] = React.useState(""); // honeypot
   const [isSubmittingLead, setIsSubmittingLead] = React.useState(false);
   const [leadSubmitted, setLeadSubmitted] = React.useState(false);
@@ -53,6 +55,7 @@ export function AssessmentModal({
           phone: contactPhone,
           email: contactEmail,
           pincode: contactPincode,
+          city: pincodeInfo.city ?? undefined,
           source: "solutions_page",
           segment: preselectedSegment,
           packageId: packageDetails?.name,
@@ -194,6 +197,7 @@ export function AssessmentModal({
                   onChange={(e) => setContactPincode(e.target.value)}
                   className="h-10 text-xs mt-1 bg-theme-bg"
                 />
+                <PincodeHint info={pincodeInfo} />
               </div>
             </div>
 
