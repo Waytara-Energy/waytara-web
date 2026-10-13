@@ -14,6 +14,7 @@ export async function GET(req: NextRequest) {
     from: q.get("from"),
     to: q.get("to"),
     bucketMinutes: q.get("interval"),
+    reading: q.get("reading"),
   });
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
   // `type` carries compute functions the client already has; send just its id.
