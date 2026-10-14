@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { ButtonSpinner } from "@/components/ui/spinner";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { REPORT_BUCKET_OPTIONS, REPORT_TYPES, READING_GROUP_ORDER, DEFAULT_REPORT_BUCKET_MINUTES, getSeries, readingOptions, withDistinctColors, type AvailableReport, type ReportType } from "@/lib/report-types";
+import { CADENCE_RETENTION_DAYS, REPORT_BUCKET_OPTIONS, REPORT_TYPES, READING_GROUP_ORDER, DEFAULT_REPORT_BUCKET_MINUTES, getSeries, readingOptions, withDistinctColors, type AvailableReport, type ReportType } from "@/lib/report-types";
 import { planRange } from "@/lib/telemetry/ranges";
 import { buildCustomReport, type CustomReportDef } from "@/lib/reports/custom-report";
 import { BUILTIN_DEFS } from "@/lib/reports/catalogue";
@@ -55,6 +55,7 @@ export function ReportCenter({ base, available }: { base: ReportsBase; available
   const [win, setWin] = React.useState<DayWindow>(ALL_DAY);
   const [choice, setChoice] = React.useState<PeriodChoice>(() => defaultChoice(today));
   const [interval, setInterval_] = React.useState(DEFAULT_REPORT_BUCKET_MINUTES);
+  const [reading, setReading] = React.useState<"avg" | "last">("avg");
   const [view, setView] = React.useState<"graph" | "table">("graph");
   const [month, setMonth] = React.useState(months[0] ?? today.slice(0, 7));
   const [csvPending, triggerCsv] = useDownloadPending();
@@ -87,9 +88,14 @@ export function ReportCenter({ base, available }: { base: ReportsBase; available
     const from = new Date(`${start}T00:00:00+05:30`).getTime();
     return planRange({ fromMs: from, toMs: from + days * 86_400_000 }, nowMs);
   }, [start, days, nowMs]);
-  const shownInterval = plan.options.includes(interval) ? interval : plan.default;
+  // One day at a time can also be shown minute by minute (1 / 5 min), built from the device's readings at their own rhythm; the
+  // history is kept for CADENCE_RETENTION_DAYS days.
+  const cadenceFrom = new Date(Date.parse(`${today}T00:00:00Z`) - (CADENCE_RETENTION_DAYS - 1) * 86_400_000).toISOString().slice(0, 10);
+  const intervalOptions = React.useMemo(() => (days === 1 && start >= cadenceFrom ? [1, 5, ...plan.options] : plan.options), [days, start, cadenceFrom, plan.options]);
+  const shownInterval = intervalOptions.includes(interval) ? interval : plan.default;
+  const perMinute = shownInterval === 1 || shownInterval === 5;
   const windowQs = isAllDay(win) ? "" : `&from=${win.from}&to=${win.to}`;
-  const query = `device=${base.deviceId}&series=${seriesList.map((s) => s.id).join(",")}&date=${start}&days=${days}&interval=${shownInterval}${windowQs}`;
+  const query = `device=${base.deviceId}&series=${seriesList.map((s) => s.id).join(",")}&date=${start}&days=${days}&interval=${shownInterval}${perMinute ? `&reading=${reading}` : ""}${windowQs}`;
   const [result, setResult] = React.useState<{ key: string; data: SeriesReportResponse | null; error: string | null } | null>(null);
 
   React.useEffect(() => {
@@ -267,7 +273,7 @@ export function ReportCenter({ base, available }: { base: ReportsBase; available
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    {plan.options.map((m) => (
+                    {intervalOptions.map((m) => (
                       <SelectItem key={m} value={String(m)}>
                         {INTERVAL_LABELS[m] ?? REPORT_BUCKET_OPTIONS.find((o) => o.minutes === m)?.label ?? `${m} min`}
                       </SelectItem>
@@ -275,6 +281,20 @@ export function ReportCenter({ base, available }: { base: ReportsBase; available
                   </SelectContent>
                 </Select>
               </div>
+              {perMinute && (
+                <div className="space-y-1">
+                  <span className={label}>Value</span>
+                  <Select value={reading} onValueChange={(v) => setReading(v as "avg" | "last")}>
+                    <SelectTrigger className="h-9 w-[150px]">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="avg">Average</SelectItem>
+                      <SelectItem value="last">At that time</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </>
           )}
 

@@ -2237,6 +2237,10 @@ export type Database = {
         }
         Returns: boolean
       }
+      request_live: {
+        Args: { p_equipment_id: string }
+        Returns: string
+      }
       device_data_range: {
         Args: { p_equipment_id: string }
         Returns: {

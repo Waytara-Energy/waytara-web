@@ -5,9 +5,15 @@ import { getCustomerPlan } from "@/lib/customer-plan";
 import { getRequestProfile } from "@/lib/request-profile";
 import { fetchSeriesRows } from "@/lib/device-readings-fetch";
 import { planRange } from "@/lib/telemetry/ranges";
+import { cadenceConfigured, readCadence } from "@/lib/cadence-sheet";
+import { bucketCadenceForReport } from "@/lib/cadence-parse";
+import { CADENCE_GROUP_STEP_S, cadenceGroupOf } from "@/lib/cadence-keys";
 import {
   REPORT_BUCKET_OPTIONS,
   DEFAULT_REPORT_BUCKET_MINUTES,
+  CADENCE_RETENTION_DAYS,
+  isCadenceMinutes,
+  type CadenceReading,
   istBucketKey,
   windowBucketKeys,
   MAX_REPORT_DAYS,
@@ -91,6 +97,8 @@ export async function gatherDayReport(params: {
   from?: string | null;
   to?: string | null;
   bucketMinutes?: string | null;
+  /** For the 1 / 5 minute steps: "avg" (the average of the readings in the step) or "last" (the reading at that time). */
+  reading?: string | null;
 }): Promise<DayReportResult> {
   const date = params.date ?? todayIst();
   if (!isValidReportDate(date)) return { ok: false, status: 400, error: "Pick a valid date that is not in the future." };
@@ -144,25 +152,47 @@ export async function gatherDayReport(params: {
 
   const dayStart = istDayStart(date);
   const windowEnd = new Date(dayStart.getTime() + days * 24 * 60 * 60 * 1000);
+  // 1 / 5 minute steps come from the device's readings at their own rhythm (cadence history), one day at a time.
+  const fromCadence = isCadenceMinutes(bucketMinutes) && days === 1;
+  const reading: CadenceReading = params.reading === "last" ? "last" : "avg";
+  if (isCadenceMinutes(bucketMinutes) && !fromCadence) bucketMinutes = DEFAULT_REPORT_BUCKET_MINUTES;
+  if (fromCadence) {
+    if (!cadenceConfigured()) return { ok: false, status: 503, error: "Minute-by-minute readings are not set up yet." };
+    if (Date.now() - dayStart.getTime() > CADENCE_RETENTION_DAYS * 86_400_000) {
+      return { ok: false, status: 400, error: `Minute-by-minute readings are kept for ${CADENCE_RETENTION_DAYS} days. Pick a 15 minute or longer interval for this day.` };
+    }
+  }
   // What the database can serve for this window (15-minute data is kept 8 days, at most 750 points per metric):
   // the requested interval if allowed, else the plan's default for the span.
   const rangePlan = planRange({ fromMs: dayStart.getTime(), toMs: windowEnd.getTime() }, Date.now());
-  bucketMinutes = rangePlan.options.includes(bucketMinutes) ? bucketMinutes : rangePlan.default;
-  const coarse = bucketMinutes >= 60 && days === 1 && Date.now() - dayStart.getTime() > FINE_RETENTION_DAYS * 86_400_000;
+  if (!fromCadence) bucketMinutes = rangePlan.options.includes(bucketMinutes) ? bucketMinutes : rangePlan.default;
+  const coarse = !fromCadence && bucketMinutes >= 60 && days === 1 && Date.now() - dayStart.getTime() > FINE_RETENTION_DAYS * 86_400_000;
 
   const { sampleKeys, counterKeys } = reportKeys(type);
   const supabase = await createClient();
 
   // One request for the day's buckets of every metric the report needs, and one for the inverter's own energy
   // counters (the day's maximum) - in parallel. Both read the rollup tables; nothing here touches raw readings.
-  const [bucketRows, counterRows] = await Promise.all([
-    fetchSeriesRows(supabase, device.id, sampleKeys, dayStart.toISOString(), windowEnd.toISOString(), bucketMinutes),
+  // (For a 1 / 5 minute step the day's readings come from the cadence history instead of the 15-minute rollups.)
+  let cadenceError: string | null = null;
+  const [bucketRows, counterRows, cadence] = await Promise.all([
+    fromCadence ? Promise.resolve([]) : fetchSeriesRows(supabase, device.id, sampleKeys, dayStart.toISOString(), windowEnd.toISOString(), bucketMinutes),
     counterKeys.length > 0 ? fetchSeriesRows(supabase, device.id, counterKeys, dayStart.toISOString(), windowEnd.toISOString(), 1440) : Promise.resolve([]),
+    fromCadence
+      ? readCadence(device.id, sampleKeys, dayStart.getTime(), Math.min(windowEnd.getTime(), Date.now())).catch((e: unknown) => {
+          cadenceError = e instanceof Error ? e.message : "The minute-by-minute readings are unavailable.";
+          return null;
+        })
+      : Promise.resolve(null),
   ]);
+  if (fromCadence && cadenceError) return { ok: false, status: 502, error: cadenceError };
 
   // bucket key -> metric -> that bucket's figures
-  const raw = new Map<string, RawBuckets>();
-  const covered = new Map<string, Record<string, number>>();
+  let raw = new Map<string, RawBuckets>();
+  let covered = new Map<string, Record<string, number>>();
+  if (cadence) {
+    ({ raw, covered } = bucketCadenceForReport(cadence.series, (k) => CADENCE_GROUP_STEP_S[cadenceGroupOf(k) ?? "slow_30s"], bucketMinutes, reading, (ms, m) => istBucketKey(new Date(ms), m)));
+  }
   for (const r of bucketRows) {
     const key = istBucketKey(r.bucket, bucketMinutes);
     const row = raw.get(key) ?? {};

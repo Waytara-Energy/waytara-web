@@ -618,6 +618,8 @@ export function getReportType(id: string | null | undefined): ReportType {
 }
 
 export const REPORT_BUCKET_OPTIONS = [
+  { minutes: 1, label: "1 min" },
+  { minutes: 5, label: "5 min" },
   { minutes: 15, label: "15 min" },
   { minutes: 30, label: "30 min" },
   { minutes: 60, label: "1 hour" },
@@ -625,6 +627,13 @@ export const REPORT_BUCKET_OPTIONS = [
 ] as const;
 
 export const DEFAULT_REPORT_BUCKET_MINUTES = 15;
+
+/** Steps that are built from the device's readings at their own rhythm (the cadence history in Google Sheets), for one day at a time,
+ *  not from the 15-minute rollups. The history is kept for CADENCE_RETENTION_DAYS days. */
+export const CADENCE_REPORT_MINUTES = [1, 5] as const;
+export const CADENCE_RETENTION_DAYS = 28;
+export type CadenceReading = "avg" | "last";
+export const isCadenceMinutes = (m: number): boolean => (CADENCE_REPORT_MINUTES as readonly number[]).includes(m);
 
 /** Every raw key the given report needs (series keys + their energy counters). */
 export function reportKeys(type: ReportType): { sampleKeys: string[]; counterKeys: string[] } {

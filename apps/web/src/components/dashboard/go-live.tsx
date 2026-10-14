@@ -28,6 +28,9 @@ import { ChartErrorCard } from "./chart-states";
 
 type Sb = ReturnType<typeof createClient>;
 
+/** How long the database keeps "someone is watching" switched on after one request; the viewer renews well before. */
+const LIVE_RENEW_MS = 30_000;
+
 function browserEnv(sb: Sb): GoLiveEnv {
   const viewer = Math.random().toString(36).slice(2, 10);
   return {
@@ -40,9 +43,38 @@ function browserEnv(sb: Sb): GoLiveEnv {
         joined = resolve;
         setTimeout(() => reject(new Error("Couldn't open the live connection in time.")), 10_000);
       });
+
+      // The monitoring unit (an ESP32) cannot join this private channel, so it is told through the database that someone is
+      // watching (request_live, renewed while this page is open) and sends its readings as ticks. Today's history is not a file
+      // from the unit: it is read from the cadence spreadsheets (/api/cadence) once the first tick shows the unit is streaming.
+      const want = { keys: [] as string[], history: true };
+      let firstTickT: number | null = null;
+      let snapshotSent = false;
+      const emitSnapshot = () => {
+        const now = Date.now();
+        handlers.onSnapshot({
+          path: want.history ? "cadence" : "",
+          session: deviceId,
+          bucket: "cadence",
+          from_ms: istDayStart(now),
+          to_ms: (firstTickT ?? now) - 1, // the tick that started the stream (and later ones) are newer than the history
+          keys: want.keys,
+          points: 0,
+        });
+      };
+      const renew = () => void sb.rpc("request_live", { p_equipment_id: deviceId }).then(() => undefined, () => undefined);
+
       channel
         .on("broadcast", { event: "snapshot" }, (m) => handlers.onSnapshot(m.payload as SnapshotMeta))
-        .on("broadcast", { event: "tick" }, (m) => handlers.onTick(m.payload as TickMessage))
+        .on("broadcast", { event: "tick" }, (m) => {
+          const tick = m.payload as TickMessage;
+          handlers.onTick(tick);
+          if (!snapshotSent) {
+            snapshotSent = true;
+            firstTickT = tick.t;
+            emitSnapshot();
+          }
+        })
         .on("broadcast", { event: "bye" }, () => handlers.onBye())
         .subscribe((status) => {
           if (status === "SUBSCRIBED") {
@@ -53,15 +85,30 @@ function browserEnv(sb: Sb): GoLiveEnv {
           }
         });
       await ready;
+      renew();
+      const renewTimer = setInterval(renew, LIVE_RENEW_MS);
       return {
-        track: (payload) => void channel.track(payload),
+        track: (payload) => {
+          want.keys = payload.keys;
+          want.history = payload.history;
+          void channel.track(payload);
+          if (snapshotSent) emitSnapshot(); // other metrics are needed now: load their history too
+        },
         leave: () => {
+          clearInterval(renewTimer);
           void channel.untrack();
           void sb.removeChannel(channel);
         },
       };
     },
     download: async (meta) => {
+      if (meta.bucket === "cadence") {
+        const qs = new URLSearchParams({ device: meta.session, from: String(meta.from_ms), to: String(meta.to_ms), keys: meta.keys.join(",") });
+        const res = await fetch(`/api/cadence?${qs}`, { cache: "no-store" });
+        if (!res.ok) throw new Error("Couldn't load today's readings from the device.");
+        const body = (await res.json()) as { from_ms: number; to_ms: number; series: Record<string, [number, number][]> };
+        return { from_ms: body.from_ms, to_ms: body.to_ms, series: body.series };
+      }
       const { data, error } = await sb.storage.from(meta.bucket).download(meta.path);
       if (error || !data) throw new Error("Couldn't load today's readings from the device.");
       const stream = data.stream().pipeThrough(new DecompressionStream("gzip"));
