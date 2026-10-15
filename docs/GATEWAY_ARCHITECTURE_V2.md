@@ -717,7 +717,7 @@ Work is done one task at a time. Before each task I brief you (what I will do, w
 | A3 Backend core libraries | done, pushed | `waytara-backend` |
 | A4a Sign-in checks, keys, claim tickets | done, pushed | migration 20261015010000, test 16, `waytara-backend` |
 | A4b Broker and data intake (storage plugged in at A4c) | done | `waytara-backend` |
-| A4c Supabase storage, device status, live end-to-end test | next | |
+| A4c Supabase storage, device status, live end-to-end test | done, live (simulated board through hub) | migration 20261015020000, test 17, `waytara-backend` |
 
 ### Part A: solar inverter, from the board to the dashboard
 
