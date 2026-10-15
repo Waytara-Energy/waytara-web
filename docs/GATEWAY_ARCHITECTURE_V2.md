@@ -719,6 +719,9 @@ Work is done one task at a time. Before each task I brief you (what I will do, w
 | A4b Broker and data intake (storage plugged in at A4c) | done | `waytara-backend` |
 | A4c Supabase storage, device status, live end-to-end test | done, live (simulated board through hub) | migration 20261015020000, test 17, `waytara-backend` |
 | A5 Cadence storage (R2), reports endpoint, access rules | done, live (simulated board through hub into R2) | migration 20261015030000, test 18, `waytara-backend` |
+| A6 Gateway firmware foundation (crypto, Wi-Fi, checks, speed test, Bluetooth setup and claim, MQTT) | done, tested on the board; BOOT button not yet | `ESP32-S3` branch feat/gateway-fw |
+| A8 Modbus engine and data path | done with a simulated inverter through the hub; RS485 with the real inverter next | `ESP32-S3`, `waytara-backend` |
+| B2/B3 OCPP server, EV sessions, split | done, live (simulated charger over wss on Render); real charger next | migration 20261016000000, test 19, `waytara-backend` |
 
 ### Part A: solar inverter, from the board to the dashboard
 
