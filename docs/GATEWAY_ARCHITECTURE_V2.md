@@ -722,6 +722,8 @@ Work is done one task at a time. Before each task I brief you (what I will do, w
 | A6 Gateway firmware foundation (crypto, Wi-Fi, checks, speed test, Bluetooth setup and claim, MQTT) | done, tested on the board; BOOT button not yet | `ESP32-S3` branch feat/gateway-fw |
 | A8 Modbus engine and data path | done with a simulated inverter through the hub; RS485 with the real inverter next | `ESP32-S3`, `waytara-backend` |
 | B2/B3 OCPP server, EV sessions, split | done, live (simulated charger over wss on Render); real charger next | migration 20261016000000, test 19, `waytara-backend` |
+| B4 Customer EV sessions page | done in code (list, detail, power curve, split with "estimate" note, menu entry only with a charger); not yet looked at in a browser | `apps/web` `/dashboard/ev-sessions`, `lib/ev-sessions.ts` |
+| A10 (part) Admin Device keys screen | done in code (make, replace with grace, revoke, secret shown once, charger address); not yet looked at in a browser | `apps/admin` `/keys`, `packages/cadence/src/keys.ts` |
 
 ### Part A: solar inverter, from the board to the dashboard
 
