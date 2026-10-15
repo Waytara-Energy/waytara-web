@@ -23,6 +23,7 @@ export interface EvSessionRow {
   energy_unattributed_kwh: number | null;
   solar_share_pct: number | null;
   site_data_coverage_pct: number | null;
+  target_kwh: number | null;
 }
 
 export interface EvSampleRow {
@@ -77,6 +78,7 @@ export function stopReasonLabel(reason: string | null): string | null {
     HardReset: "Charger restarted",
     DeAuthorized: "Not authorised",
     UnlockCommand: "Unlocked from the app",
+    MissingStop: "The charger did not report the end, so the session was closed automatically",
     Other: "Other",
   };
   return known[reason] ?? reason;

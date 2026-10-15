@@ -50,6 +50,7 @@ describe("labels", () => {
     expect(sessionStatusLabel("active")).toEqual({ label: "Charging now", tone: "good" });
     expect(sessionStatusLabel("suspect").tone).toBe("warn");
     expect(stopReasonLabel("EVDisconnected")).toBe("Car unplugged");
+    expect(stopReasonLabel("MissingStop")).toMatch(/closed automatically/);
     expect(stopReasonLabel("Weird")).toBe("Weird");
     expect(stopReasonLabel(null)).toBeNull();
   });

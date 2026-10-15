@@ -21,7 +21,7 @@ import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { FLOW } from "@/components/dashboard/flow-colors";
 
 const SESSION_COLUMNS =
-  "id, equipment_id, started_at, ended_at, status, source, is_test, stop_reason, start_energy_kwh, end_energy_kwh, meter_start_wh, meter_stop_wh, peak_power_kw, avg_power_kw, max_current_a, charging_seconds, energy_from_solar_kwh, energy_from_battery_kwh, energy_from_grid_kwh, energy_unattributed_kwh, solar_share_pct, site_data_coverage_pct";
+  "id, equipment_id, started_at, ended_at, status, source, is_test, stop_reason, start_energy_kwh, end_energy_kwh, meter_start_wh, meter_stop_wh, peak_power_kw, avg_power_kw, max_current_a, charging_seconds, energy_from_solar_kwh, energy_from_battery_kwh, energy_from_grid_kwh, energy_unattributed_kwh, solar_share_pct, site_data_coverage_pct, target_kwh";
 const SAMPLE_COLUMNS = "ts, energy_kwh, power_kw, current_a_l1, voltage_v_l1, soc_pct, ev_from_solar_w, ev_from_battery_w, ev_from_grid_w";
 /** How many sessions the list shows; the newest first. */
 const LIST_LIMIT = 60;
@@ -130,6 +130,11 @@ export default async function EvSessionsPage({ searchParams }: { searchParams: P
                 <Figure label="Max current" value={session.max_current_a === null ? "—" : `${session.max_current_a.toFixed(0)} A`} />
                 <Figure label="Solar share" value={session.solar_share_pct === null ? "—" : `${session.solar_share_pct.toFixed(0)}%`} />
               </div>
+              {session.target_kwh !== null ? (
+                <p className="text-sm text-muted-foreground">
+                  You asked for {session.target_kwh} kWh; the charge stops by itself when that much has been delivered.
+                </p>
+              ) : null}
               {session.status === "suspect" ? (
                 <p className="rounded-md border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-sm">
                   The charger reported an energy figure that does not look right. We show it as reported; WayTara support can check it for you.

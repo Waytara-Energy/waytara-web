@@ -2302,6 +2302,7 @@ export type Database = {
           started_at: string
           status: string
           stop_reason: string | null
+          target_kwh: number | null
           tariff_snapshot: Json | null
         }
         Insert: {
@@ -2333,6 +2334,7 @@ export type Database = {
           started_at: string
           status?: string
           stop_reason?: string | null
+          target_kwh?: number | null
           tariff_snapshot?: Json | null
         }
         Update: {
@@ -2364,6 +2366,7 @@ export type Database = {
           started_at?: string
           status?: string
           stop_reason?: string | null
+          target_kwh?: number | null
           tariff_snapshot?: Json | null
         }
         Relationships: [
@@ -3604,6 +3607,7 @@ export type Database = {
         Args: { p_actor: string; p_equipment: string }
         Returns: string
       }
+      gw_ev_active_sessions: { Args: { p_equipment: string }; Returns: Json }
       gw_ev_event: {
         Args: {
           p_detail?: Json
@@ -3630,6 +3634,10 @@ export type Database = {
         }[]
       }
       gw_ev_session_samples: { Args: { p_session: string }; Returns: Json }
+      gw_ev_session_set_target: {
+        Args: { p_session: string; p_target_kwh: number }
+        Returns: undefined
+      }
       gw_ev_session_start: {
         Args: {
           p_charge_point: string
