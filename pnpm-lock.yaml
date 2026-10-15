@@ -42,6 +42,9 @@ importers:
       '@vercel/speed-insights':
         specifier: ^2.0.0
         version: 2.0.0(next@16.3.8(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@playwright/test@1.63.0)(@types/node@20.19.43)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
+      '@waytara/cadence':
+        specifier: workspace:*
+        version: link:../../packages/cadence
       '@waytara/supabase':
         specifier: workspace:*
         version: link:../../packages/supabase
@@ -148,6 +151,9 @@ importers:
       '@vercel/speed-insights':
         specifier: ^2.0.0
         version: 2.0.0(next@16.3.8(@babel/core@7.29.7(supports-color@8.1.1))(@opentelemetry/api@1.9.1)(@playwright/test@1.63.0)(@types/node@20.19.43)(react-dom@19.2.8(react@19.2.8))(react@19.2.8))(react@19.2.8)
+      '@waytara/cadence':
+        specifier: workspace:*
+        version: link:../../packages/cadence
       '@waytara/config':
         specifier: workspace:*
         version: link:../../packages/config
@@ -248,6 +254,21 @@ importers:
       tailwindcss:
         specifier: ^4
         version: 4.3.3
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+      vitest:
+        specifier: ^3.2.7
+        version: 3.2.7(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(supports-color@8.1.1)(terser@5.51.2)
+
+  packages/cadence:
+    devDependencies:
+      '@types/node':
+        specifier: ^20
+        version: 20.19.43
+      '@waytara/config':
+        specifier: workspace:*
+        version: link:../config
       typescript:
         specifier: ^5
         version: 5.9.3
