@@ -6,7 +6,8 @@
   "exports": {
     "./range": "./src/range.ts",
     "./client": "./src/client.ts",
-    "./pick": "./src/pick.ts"
+    "./pick": "./src/pick.ts",
+    "./keys": "./src/keys.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit",
