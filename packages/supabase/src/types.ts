@@ -14,7 +14,7 @@ export type Database = {
   // Allows to automatically instantiate createClient with right options
   // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
   __InternalSupabase: {
-    PostgrestVersion: "14.5"
+    PostgrestVersion: "14.17"
   }
   waytara: {
     Tables: {
@@ -113,118 +113,6 @@ export type Database = {
           },
         ]
       }
-      customer_report_runs: {
-        Row: {
-          customer_id: string
-          error: string | null
-          file_names: string[]
-          finished_at: string | null
-          id: string
-          recipients: string[]
-          report_id: string
-          started_at: string
-          status: string
-          trigger: string
-        }
-        Insert: {
-          customer_id: string
-          error?: string | null
-          file_names?: string[]
-          finished_at?: string | null
-          id?: string
-          recipients?: string[]
-          report_id: string
-          started_at?: string
-          status?: string
-          trigger: string
-        }
-        Update: {
-          customer_id?: string
-          error?: string | null
-          file_names?: string[]
-          finished_at?: string | null
-          id?: string
-          recipients?: string[]
-          report_id?: string
-          started_at?: string
-          status?: string
-          trigger?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "customer_report_runs_report_id_fkey"
-            columns: ["report_id"]
-            isOneToOne: false
-            referencedRelation: "customer_reports"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      customer_reports: {
-        Row: {
-          created_at: string
-          customer_id: string
-          enabled: boolean
-          equipment_id: string | null
-          id: string
-          last_run_at: string | null
-          name: string
-          next_run_at: string | null
-          params: Json
-          recipients: string[]
-          schedule_dom: number | null
-          schedule_dow: number | null
-          schedule_kind: string
-          schedule_time: string
-          send_to_me: boolean
-          updated_at: string
-        }
-        Insert: {
-          created_at?: string
-          customer_id: string
-          enabled?: boolean
-          equipment_id?: string | null
-          id?: string
-          last_run_at?: string | null
-          name: string
-          next_run_at?: string | null
-          params: Json
-          recipients?: string[]
-          schedule_dom?: number | null
-          schedule_dow?: number | null
-          schedule_kind?: string
-          schedule_time?: string
-          send_to_me?: boolean
-          updated_at?: string
-        }
-        Update: {
-          created_at?: string
-          customer_id?: string
-          enabled?: boolean
-          equipment_id?: string | null
-          id?: string
-          last_run_at?: string | null
-          name?: string
-          next_run_at?: string | null
-          params?: Json
-          recipients?: string[]
-          schedule_dom?: number | null
-          schedule_dow?: number | null
-          schedule_kind?: string
-          schedule_time?: string
-          send_to_me?: boolean
-          updated_at?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "customer_reports_equipment_id_fkey"
-            columns: ["equipment_id"]
-            isOneToOne: false
-            referencedRelation: "equipment"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
       customer_onboarding: {
         Row: {
           balance_payment_status: string
@@ -302,6 +190,132 @@ export type Database = {
           },
         ]
       }
+      customer_report_runs: {
+        Row: {
+          customer_id: string
+          error: string | null
+          file_names: string[]
+          finished_at: string | null
+          id: string
+          recipients: string[]
+          report_id: string
+          started_at: string
+          status: string
+          trigger: string
+        }
+        Insert: {
+          customer_id: string
+          error?: string | null
+          file_names?: string[]
+          finished_at?: string | null
+          id?: string
+          recipients?: string[]
+          report_id: string
+          started_at?: string
+          status?: string
+          trigger: string
+        }
+        Update: {
+          customer_id?: string
+          error?: string | null
+          file_names?: string[]
+          finished_at?: string | null
+          id?: string
+          recipients?: string[]
+          report_id?: string
+          started_at?: string
+          status?: string
+          trigger?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_report_runs_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_report_runs_report_id_fkey"
+            columns: ["report_id"]
+            isOneToOne: false
+            referencedRelation: "customer_reports"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      customer_reports: {
+        Row: {
+          created_at: string
+          customer_id: string
+          enabled: boolean
+          equipment_id: string | null
+          id: string
+          last_run_at: string | null
+          name: string
+          next_run_at: string | null
+          params: Json
+          recipients: string[]
+          schedule_dom: number | null
+          schedule_dow: number | null
+          schedule_kind: string
+          schedule_time: string
+          send_to_me: boolean
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          enabled?: boolean
+          equipment_id?: string | null
+          id?: string
+          last_run_at?: string | null
+          name: string
+          next_run_at?: string | null
+          params: Json
+          recipients?: string[]
+          schedule_dom?: number | null
+          schedule_dow?: number | null
+          schedule_kind?: string
+          schedule_time?: string
+          send_to_me?: boolean
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          enabled?: boolean
+          equipment_id?: string | null
+          id?: string
+          last_run_at?: string | null
+          name?: string
+          next_run_at?: string | null
+          params?: Json
+          recipients?: string[]
+          schedule_dom?: number | null
+          schedule_dow?: number | null
+          schedule_kind?: string
+          schedule_time?: string
+          send_to_me?: boolean
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "customer_reports_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "customer_reports_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       customers: {
         Row: {
           address: Json | null
@@ -350,6 +364,95 @@ export type Database = {
           },
         ]
       }
+      data_fixes: {
+        Row: {
+          applied_at: string
+          name: string
+        }
+        Insert: {
+          applied_at?: string
+          name: string
+        }
+        Update: {
+          applied_at?: string
+          name?: string
+        }
+        Relationships: []
+      }
+      electricity_tariffs: {
+        Row: {
+          billing_months: number
+          category: string
+          confidence: string
+          created_at: string
+          created_by: string | null
+          duty_pct: number
+          effective_from: string
+          export_rate_per_kwh: number | null
+          fixed_charge_per_month: number | null
+          free_units: number
+          free_units_cap: number | null
+          free_units_over_cap: number
+          id: string
+          rate_per_kwh: number
+          slabs: Json | null
+          source_note: string | null
+          source_url: string | null
+          state: string
+          surcharge_per_kwh: number
+        }
+        Insert: {
+          billing_months?: number
+          category: string
+          confidence?: string
+          created_at?: string
+          created_by?: string | null
+          duty_pct?: number
+          effective_from: string
+          export_rate_per_kwh?: number | null
+          fixed_charge_per_month?: number | null
+          free_units?: number
+          free_units_cap?: number | null
+          free_units_over_cap?: number
+          id?: string
+          rate_per_kwh: number
+          slabs?: Json | null
+          source_note?: string | null
+          source_url?: string | null
+          state: string
+          surcharge_per_kwh?: number
+        }
+        Update: {
+          billing_months?: number
+          category?: string
+          confidence?: string
+          created_at?: string
+          created_by?: string | null
+          duty_pct?: number
+          effective_from?: string
+          export_rate_per_kwh?: number | null
+          fixed_charge_per_month?: number | null
+          free_units?: number
+          free_units_cap?: number | null
+          free_units_over_cap?: number
+          id?: string
+          rate_per_kwh?: number
+          slabs?: Json | null
+          source_note?: string | null
+          source_url?: string | null
+          state?: string
+          surcharge_per_kwh?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "electricity_tariffs_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       employee_invites: {
         Row: {
           accepted_at: string | null
@@ -388,80 +491,6 @@ export type Database = {
           {
             foreignKeyName: "employee_invites_invited_by_fkey"
             columns: ["invited_by"]
-            isOneToOne: false
-            referencedRelation: "profiles"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
-      electricity_tariffs: {
-        Row: {
-          category: string
-          confidence: string
-          created_at: string
-          created_by: string | null
-          effective_from: string
-          export_rate_per_kwh: number | null
-          billing_months: number
-          duty_pct: number
-          free_units: number
-          free_units_cap: number | null
-          free_units_over_cap: number
-          slabs: Json | null
-          surcharge_per_kwh: number
-          fixed_charge_per_month: number | null
-          id: string
-          rate_per_kwh: number
-          source_note: string | null
-          source_url: string | null
-          state: string
-        }
-        Insert: {
-          category: string
-          confidence?: string
-          created_at?: string
-          created_by?: string | null
-          effective_from: string
-          export_rate_per_kwh?: number | null
-          billing_months?: number
-          duty_pct?: number
-          free_units?: number
-          free_units_cap?: number | null
-          free_units_over_cap?: number
-          slabs?: Json | null
-          surcharge_per_kwh?: number
-          fixed_charge_per_month?: number | null
-          id?: string
-          rate_per_kwh: number
-          source_note?: string | null
-          source_url?: string | null
-          state: string
-        }
-        Update: {
-          category?: string
-          confidence?: string
-          created_at?: string
-          created_by?: string | null
-          effective_from?: string
-          export_rate_per_kwh?: number | null
-          billing_months?: number
-          duty_pct?: number
-          free_units?: number
-          free_units_cap?: number | null
-          free_units_over_cap?: number
-          slabs?: Json | null
-          surcharge_per_kwh?: number
-          fixed_charge_per_month?: number | null
-          id?: string
-          rate_per_kwh?: number
-          source_note?: string | null
-          source_url?: string | null
-          state?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "electricity_tariffs_created_by_fkey"
-            columns: ["created_by"]
             isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
@@ -525,13 +554,6 @@ export type Database = {
         }
         Relationships: [
           {
-            foreignKeyName: "equipment_parent_id_fkey"
-            columns: ["parent_id"]
-            isOneToOne: false
-            referencedRelation: "equipment"
-            referencedColumns: ["id"]
-          },
-          {
             foreignKeyName: "devices_device_type_id_fkey"
             columns: ["stock_id"]
             isOneToOne: false
@@ -557,6 +579,13 @@ export type Database = {
             columns: ["site_id"]
             isOneToOne: false
             referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_parent_id_fkey"
+            columns: ["parent_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
             referencedColumns: ["id"]
           },
         ]
@@ -602,6 +631,51 @@ export type Database = {
             columns: ["device_id"]
             isOneToOne: true
             referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_claim_tickets: {
+        Row: {
+          created_at: string
+          equipment_id: string
+          expires_at: string
+          hardware_id: string
+          id: string
+          issued_to: string | null
+          used_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          equipment_id: string
+          expires_at?: string
+          hardware_id: string
+          id?: string
+          issued_to?: string | null
+          used_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          equipment_id?: string
+          expires_at?: string
+          hardware_id?: string
+          id?: string
+          issued_to?: string | null
+          used_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_claim_tickets_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_claim_tickets_issued_to_fkey"
+            columns: ["issued_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -694,8 +768,8 @@ export type Database = {
           consecutive_failures: number
           device_error: string | null
           device_online: boolean | null
-          heartbeat_s: number | null
           equipment_id: string
+          heartbeat_s: number | null
           last_read_at: string | null
           last_seen: string
           status: string | null
@@ -709,8 +783,8 @@ export type Database = {
           consecutive_failures?: number
           device_error?: string | null
           device_online?: boolean | null
-          heartbeat_s?: number | null
           equipment_id: string
+          heartbeat_s?: number | null
           last_read_at?: string | null
           last_seen: string
           status?: string | null
@@ -724,8 +798,8 @@ export type Database = {
           consecutive_failures?: number
           device_error?: string | null
           device_online?: boolean | null
-          heartbeat_s?: number | null
           equipment_id?: string
+          heartbeat_s?: number | null
           last_read_at?: string | null
           last_seen?: string
           status?: string | null
@@ -736,6 +810,32 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "equipment_heartbeat_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: true
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_ingest_tokens: {
+        Row: {
+          created_at: string
+          equipment_id: string
+          token_hash: string
+        }
+        Insert: {
+          created_at?: string
+          equipment_id: string
+          token_hash: string
+        }
+        Update: {
+          created_at?: string
+          equipment_id?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_ingest_tokens_equipment_id_fkey"
             columns: ["equipment_id"]
             isOneToOne: true
             referencedRelation: "equipment"
@@ -827,6 +927,134 @@ export type Database = {
         }
         Relationships: []
       }
+      equipment_key_events: {
+        Row: {
+          actor: string | null
+          at: string
+          detail: Json
+          equipment_id: string
+          event: string
+          id: number
+          ip: unknown
+          key_id: string | null
+        }
+        Insert: {
+          actor?: string | null
+          at?: string
+          detail?: Json
+          equipment_id: string
+          event: string
+          id?: never
+          ip?: unknown
+          key_id?: string | null
+        }
+        Update: {
+          actor?: string | null
+          at?: string
+          detail?: Json
+          equipment_id?: string
+          event?: string
+          id?: never
+          ip?: unknown
+          key_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_key_events_actor_fkey"
+            columns: ["actor"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_key_events_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_key_events_key_id_fkey"
+            columns: ["key_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_keys"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_keys: {
+        Row: {
+          created_at: string
+          created_by: string | null
+          equipment_id: string
+          expires_at: string | null
+          id: string
+          key_ciphertext: string
+          key_fingerprint: string
+          kind: string
+          label: string | null
+          last_used_at: string | null
+          last_used_ip: unknown
+          revoke_reason: string | null
+          revoked_at: string | null
+          revoked_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by?: string | null
+          equipment_id: string
+          expires_at?: string | null
+          id?: string
+          key_ciphertext: string
+          key_fingerprint: string
+          kind: string
+          label?: string | null
+          last_used_at?: string | null
+          last_used_ip?: unknown
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string | null
+          equipment_id?: string
+          expires_at?: string | null
+          id?: string
+          key_ciphertext?: string
+          key_fingerprint?: string
+          kind?: string
+          label?: string | null
+          last_used_at?: string | null
+          last_used_ip?: unknown
+          revoke_reason?: string | null
+          revoked_at?: string | null
+          revoked_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_keys_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_keys_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_keys_revoked_by_fkey"
+            columns: ["revoked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipment_latest: {
         Row: {
           equipment_id: string
@@ -859,6 +1087,29 @@ export type Database = {
           },
         ]
       }
+      equipment_live_requests: {
+        Row: {
+          equipment_id: string
+          until: string
+        }
+        Insert: {
+          equipment_id: string
+          until: string
+        }
+        Update: {
+          equipment_id?: string
+          until?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_live_requests_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: true
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipment_metrics: {
         Row: {
           address: Json | null
@@ -873,6 +1124,7 @@ export type Database = {
           is_verified: boolean
           key_name: string
           notes: string | null
+          poll_enabled: boolean
           show_for_user: boolean
           valid_max: number | null
           valid_min: number | null
@@ -890,6 +1142,7 @@ export type Database = {
           is_verified?: boolean
           key_name: string
           notes?: string | null
+          poll_enabled?: boolean
           show_for_user?: boolean
           valid_max?: number | null
           valid_min?: number | null
@@ -907,6 +1160,7 @@ export type Database = {
           is_verified?: boolean
           key_name?: string
           notes?: string | null
+          poll_enabled?: boolean
           show_for_user?: boolean
           valid_max?: number | null
           valid_min?: number | null
@@ -1036,6 +1290,534 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      equipment_rollup_15m_p20261007: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20261008: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20261009: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20261010: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20261011: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20261012: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20261013: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20261014: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20261015: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20261016: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20261017: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
       }
       equipment_rollup_1d: {
         Row: {
@@ -1349,39 +2131,240 @@ export type Database = {
         }
         Relationships: []
       }
+      ev_events: {
+        Row: {
+          detail: Json
+          equipment_id: string
+          id: number
+          kind: string
+          session_id: string | null
+          ts: string
+        }
+        Insert: {
+          detail?: Json
+          equipment_id: string
+          id?: never
+          kind: string
+          session_id?: string | null
+          ts?: string
+        }
+        Update: {
+          detail?: Json
+          equipment_id?: string
+          id?: never
+          kind?: string
+          session_id?: string | null
+          ts?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ev_events_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ev_events_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "ev_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ev_session_samples: {
+        Row: {
+          battery_w: number | null
+          current_a_l1: number | null
+          current_a_l2: number | null
+          current_a_l3: number | null
+          current_offered_a: number | null
+          energy_kwh: number | null
+          equipment_id: string
+          ev_from_battery_w: number | null
+          ev_from_grid_w: number | null
+          ev_from_solar_w: number | null
+          frequency_hz: number | null
+          grid_w: number | null
+          id: number
+          power_factor: number | null
+          power_kw: number | null
+          pv_w: number | null
+          raw: Json | null
+          session_id: string
+          site_load_w: number | null
+          soc_pct: number | null
+          temperature_c: number | null
+          ts: string
+          voltage_v_l1: number | null
+          voltage_v_l2: number | null
+          voltage_v_l3: number | null
+        }
+        Insert: {
+          battery_w?: number | null
+          current_a_l1?: number | null
+          current_a_l2?: number | null
+          current_a_l3?: number | null
+          current_offered_a?: number | null
+          energy_kwh?: number | null
+          equipment_id: string
+          ev_from_battery_w?: number | null
+          ev_from_grid_w?: number | null
+          ev_from_solar_w?: number | null
+          frequency_hz?: number | null
+          grid_w?: number | null
+          id?: never
+          power_factor?: number | null
+          power_kw?: number | null
+          pv_w?: number | null
+          raw?: Json | null
+          session_id: string
+          site_load_w?: number | null
+          soc_pct?: number | null
+          temperature_c?: number | null
+          ts: string
+          voltage_v_l1?: number | null
+          voltage_v_l2?: number | null
+          voltage_v_l3?: number | null
+        }
+        Update: {
+          battery_w?: number | null
+          current_a_l1?: number | null
+          current_a_l2?: number | null
+          current_a_l3?: number | null
+          current_offered_a?: number | null
+          energy_kwh?: number | null
+          equipment_id?: string
+          ev_from_battery_w?: number | null
+          ev_from_grid_w?: number | null
+          ev_from_solar_w?: number | null
+          frequency_hz?: number | null
+          grid_w?: number | null
+          id?: never
+          power_factor?: number | null
+          power_kw?: number | null
+          pv_w?: number | null
+          raw?: Json | null
+          session_id?: string
+          site_load_w?: number | null
+          soc_pct?: number | null
+          temperature_c?: number | null
+          ts?: string
+          voltage_v_l1?: number | null
+          voltage_v_l2?: number | null
+          voltage_v_l3?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ev_session_samples_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "ev_session_samples_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "ev_sessions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ev_sessions: {
         Row: {
+          avg_power_kw: number | null
+          charge_point_id: string | null
+          charging_seconds: number | null
+          connector_id: number | null
+          cost_amount: number | null
           created_at: string
           end_energy_kwh: number | null
           ended_at: string | null
+          energy_from_battery_kwh: number | null
+          energy_from_grid_kwh: number | null
+          energy_from_solar_kwh: number | null
+          energy_unattributed_kwh: number | null
           equipment_id: string
           id: string
+          id_tag_hash: string | null
           is_test: boolean
+          max_current_a: number | null
+          meter_start_wh: number | null
+          meter_stop_wh: number | null
+          ocpp_transaction_id: number | null
+          peak_power_kw: number | null
+          site_data_coverage_pct: number | null
+          solar_share_pct: number | null
+          source: string
           start_energy_kwh: number | null
           started_at: string
+          status: string
           stop_reason: string | null
+          tariff_snapshot: Json | null
         }
         Insert: {
+          avg_power_kw?: number | null
+          charge_point_id?: string | null
+          charging_seconds?: number | null
+          connector_id?: number | null
+          cost_amount?: number | null
           created_at?: string
           end_energy_kwh?: number | null
           ended_at?: string | null
+          energy_from_battery_kwh?: number | null
+          energy_from_grid_kwh?: number | null
+          energy_from_solar_kwh?: number | null
+          energy_unattributed_kwh?: number | null
           equipment_id: string
           id?: string
+          id_tag_hash?: string | null
           is_test?: boolean
+          max_current_a?: number | null
+          meter_start_wh?: number | null
+          meter_stop_wh?: number | null
+          ocpp_transaction_id?: number | null
+          peak_power_kw?: number | null
+          site_data_coverage_pct?: number | null
+          solar_share_pct?: number | null
+          source?: string
           start_energy_kwh?: number | null
           started_at: string
+          status?: string
           stop_reason?: string | null
+          tariff_snapshot?: Json | null
         }
         Update: {
+          avg_power_kw?: number | null
+          charge_point_id?: string | null
+          charging_seconds?: number | null
+          connector_id?: number | null
+          cost_amount?: number | null
           created_at?: string
           end_energy_kwh?: number | null
           ended_at?: string | null
+          energy_from_battery_kwh?: number | null
+          energy_from_grid_kwh?: number | null
+          energy_from_solar_kwh?: number | null
+          energy_unattributed_kwh?: number | null
           equipment_id?: string
           id?: string
+          id_tag_hash?: string | null
           is_test?: boolean
+          max_current_a?: number | null
+          meter_start_wh?: number | null
+          meter_stop_wh?: number | null
+          ocpp_transaction_id?: number | null
+          peak_power_kw?: number | null
+          site_data_coverage_pct?: number | null
+          solar_share_pct?: number | null
+          source?: string
           start_energy_kwh?: number | null
           started_at?: string
+          status?: string
           stop_reason?: string | null
+          tariff_snapshot?: Json | null
         }
         Relationships: [
           {
@@ -1392,6 +2375,107 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      gateway_devices: {
+        Row: {
+          claimed_at: string | null
+          claimed_by: string | null
+          equipment_id: string
+          fw_version: string | null
+          hardware_id: string | null
+          last_boot_at: string | null
+          map_version: number | null
+          ota_state: string | null
+          reset_reason: string | null
+          updated_at: string
+        }
+        Insert: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          equipment_id: string
+          fw_version?: string | null
+          hardware_id?: string | null
+          last_boot_at?: string | null
+          map_version?: number | null
+          ota_state?: string | null
+          reset_reason?: string | null
+          updated_at?: string
+        }
+        Update: {
+          claimed_at?: string | null
+          claimed_by?: string | null
+          equipment_id?: string
+          fw_version?: string | null
+          hardware_id?: string | null
+          last_boot_at?: string | null
+          map_version?: number | null
+          ota_state?: string | null
+          reset_reason?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gateway_devices_claimed_by_fkey"
+            columns: ["claimed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gateway_devices_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: true
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gateway_equipment_settings: {
+        Row: {
+          equipment_id: string
+          unreadable_registers: number[]
+          updated_at: string
+          upload_interval_s: number
+        }
+        Insert: {
+          equipment_id: string
+          unreadable_registers?: number[]
+          updated_at?: string
+          upload_interval_s?: number
+        }
+        Update: {
+          equipment_id?: string
+          unreadable_registers?: number[]
+          updated_at?: string
+          upload_interval_s?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gateway_equipment_settings_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: true
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      gateway_service_users: {
+        Row: {
+          created_at: string
+          label: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          label: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          label?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       installations: {
         Row: {
@@ -1828,6 +2912,38 @@ export type Database = {
         }
         Relationships: []
       }
+      register_map_versions: {
+        Row: {
+          body: Json
+          built_at: string
+          equipment_id: string
+          hash: string
+          version: number
+        }
+        Insert: {
+          body: Json
+          built_at?: string
+          equipment_id: string
+          hash: string
+          version: number
+        }
+        Update: {
+          body?: Json
+          built_at?: string
+          equipment_id?: string
+          hash?: string
+          version?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "register_map_versions_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       rollup_state: {
         Row: {
           name: string
@@ -1926,6 +3042,71 @@ export type Database = {
           total_services_included?: number
         }
         Relationships: []
+      }
+      site_staff: {
+        Row: {
+          expires_at: string | null
+          granted_at: string
+          granted_by: string | null
+          id: string
+          note: string | null
+          removed_at: string | null
+          removed_by: string | null
+          site_id: string
+          staff_id: string
+        }
+        Insert: {
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          note?: string | null
+          removed_at?: string | null
+          removed_by?: string | null
+          site_id: string
+          staff_id: string
+        }
+        Update: {
+          expires_at?: string | null
+          granted_at?: string
+          granted_by?: string | null
+          id?: string
+          note?: string | null
+          removed_at?: string | null
+          removed_by?: string | null
+          site_id?: string
+          staff_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "site_staff_granted_by_fkey"
+            columns: ["granted_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_staff_removed_by_fkey"
+            columns: ["removed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_staff_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "site_staff_staff_id_fkey"
+            columns: ["staff_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       sites: {
         Row: {
@@ -2214,20 +3395,66 @@ export type Database = {
           status_since: string | null
           upload_interval_s: number | null
         }
-        Relationships: []
+        Insert: {
+          device_error?: string | null
+          device_online?: boolean | null
+          equipment_id?: string | null
+          heartbeat_s?: number | null
+          last_read_at?: string | null
+          last_seen?: string | null
+          offline_after_s?: never
+          server_now?: never
+          status?: never
+          status_reason?: string | null
+          status_since?: string | null
+          upload_interval_s?: number | null
+        }
+        Update: {
+          device_error?: string | null
+          device_online?: boolean | null
+          equipment_id?: string | null
+          heartbeat_s?: number | null
+          last_read_at?: string | null
+          last_seen?: string | null
+          offline_after_s?: never
+          server_now?: never
+          status?: never
+          status_reason?: string | null
+          status_since?: string | null
+          upload_interval_s?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_heartbeat_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: true
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Functions: {
+      _require_gateway_service: { Args: never; Returns: undefined }
       assign_child_equipment: {
-        Args: { p_label?: string; p_parent: string; p_quantity?: number; p_stock: string }
+        Args: {
+          p_label?: string
+          p_parent: string
+          p_quantity?: number
+          p_stock: string
+        }
         Returns: string
       }
       backfill_rollup_15m: {
         Args: { p_equipment_id: string; p_from: string; p_to: string }
         Returns: number
       }
+      can_access_site: { Args: { p_site: string }; Returns: boolean }
+      can_access_site_as: {
+        Args: { p_site: string; p_user: string }
+        Returns: boolean
+      }
       can_view_equipment: { Args: { p_equipment_id: string }; Returns: boolean }
-      is_monitored_category: { Args: { p_category: string }; Returns: boolean }
       consume_rate_limit: {
         Args: {
           p_bucket: string
@@ -2236,10 +3463,6 @@ export type Database = {
           p_window_seconds: number
         }
         Returns: boolean
-      }
-      request_live: {
-        Args: { p_equipment_id: string }
-        Returns: string
       }
       device_data_range: {
         Args: { p_equipment_id: string }
@@ -2255,6 +3478,43 @@ export type Database = {
           last_ts: string
         }[]
       }
+      device_live_active: { Args: { p_equipment_id: string }; Returns: boolean }
+      device_live_tick: {
+        Args: {
+          p_equipment_id: string
+          p_t: number
+          p_token: string
+          p_v: Json
+        }
+        Returns: Json
+      }
+      device_pending_writes: {
+        Args: { p_equipment_id: string; p_token: string }
+        Returns: Json
+      }
+      device_pending_writes_of: {
+        Args: { p_equipment_id: string }
+        Returns: Json
+      }
+      device_report_configs: {
+        Args: { p_equipment_id: string; p_rows: Json; p_token: string }
+        Returns: number
+      }
+      device_status_of: {
+        Args: {
+          p_device_online: boolean
+          p_failures: number
+          p_heartbeat_s: number
+          p_interval_s: number
+          p_last_seen: string
+          p_now?: string
+        }
+        Returns: string
+      }
+      device_token_ok: {
+        Args: { p_equipment_id: string; p_token: string }
+        Returns: boolean
+      }
       drop_old_rollup_15m_partitions: {
         Args: { p_keep_days?: number; p_now?: string }
         Returns: number
@@ -2265,6 +3525,233 @@ export type Database = {
       }
       ensure_rollup_1h_partition: { Args: { p_ts: string }; Returns: undefined }
       ensure_rollup_partitions: { Args: { p_now?: string }; Returns: undefined }
+      gw_active_keys: {
+        Args: { p_equipment: string }
+        Returns: {
+          expires_at: string
+          key_ciphertext: string
+          key_id: string
+          kind: string
+        }[]
+      }
+      gw_actor_can_access_site: {
+        Args: { p_actor: string; p_site: string }
+        Returns: boolean
+      }
+      gw_actor_can_manage_keys: {
+        Args: { p_actor: string; p_equipment: string }
+        Returns: boolean
+      }
+      gw_cadence_access: {
+        Args: { p_actor: string; p_equipment: string }
+        Returns: string
+      }
+      gw_charger_keys: {
+        Args: never
+        Returns: {
+          equipment_id: string
+          expires_at: string
+          key_ciphertext: string
+          key_id: string
+          label: string
+        }[]
+      }
+      gw_claim_device: {
+        Args: {
+          p_ciphertext: string
+          p_fingerprint: string
+          p_hardware_id: string
+          p_ip?: unknown
+          p_ticket: string
+        }
+        Returns: {
+          out_equipment_id: string
+          out_issued_to: string
+          out_key_id: string
+        }[]
+      }
+      gw_claim_peek: {
+        Args: { p_hardware_id: string; p_ticket: string }
+        Returns: {
+          equipment_id: string
+        }[]
+      }
+      gw_create_key: {
+        Args: {
+          p_actor: string
+          p_ciphertext: string
+          p_equipment: string
+          p_expires?: string
+          p_fingerprint: string
+          p_ip?: unknown
+          p_kind: string
+          p_label: string
+        }
+        Returns: string
+      }
+      gw_equipment_info: {
+        Args: { p_equipment: string }
+        Returns: {
+          category: string
+          equipment_id: string
+          label: string
+          site_id: string
+          technical_specs: Json
+        }[]
+      }
+      gw_equipment_profile: { Args: { p_equipment: string }; Returns: Json }
+      gw_ev_access: {
+        Args: { p_actor: string; p_equipment: string }
+        Returns: string
+      }
+      gw_ev_event: {
+        Args: {
+          p_detail?: Json
+          p_equipment: string
+          p_kind: string
+          p_session: string
+          p_ts: string
+        }
+        Returns: undefined
+      }
+      gw_ev_next_transaction: { Args: never; Returns: number }
+      gw_ev_sample: {
+        Args: { p_sample: Json; p_session: string; p_ts: string }
+        Returns: undefined
+      }
+      gw_ev_session_by_transaction: {
+        Args: { p_equipment: string; p_transaction: number }
+        Returns: {
+          ended_at: string
+          id: string
+          meter_start_wh: number
+          started_at: string
+          status: string
+        }[]
+      }
+      gw_ev_session_samples: { Args: { p_session: string }; Returns: Json }
+      gw_ev_session_start: {
+        Args: {
+          p_charge_point: string
+          p_connector: number
+          p_equipment: string
+          p_id_tag_hash: string
+          p_meter_start_wh: number
+          p_source?: string
+          p_started_at: string
+          p_transaction: number
+        }
+        Returns: string
+      }
+      gw_ev_session_stop: {
+        Args: {
+          p_ended_at: string
+          p_meter_stop_wh: number
+          p_reason: string
+          p_session: string
+          p_summary?: Json
+        }
+        Returns: undefined
+      }
+      gw_ev_site_figures: { Args: { p_equipment: string }; Returns: Json }
+      gw_ingest_summaries: {
+        Args: {
+          p_buckets?: Json
+          p_equipment: string
+          p_latest?: Json
+          p_open?: Json
+        }
+        Returns: Json
+      }
+      gw_issue_claim_ticket: {
+        Args: {
+          p_equipment: string
+          p_hardware_id: string
+          p_ip?: unknown
+          p_issued_to: string
+        }
+        Returns: {
+          expires_at: string
+          ticket: string
+        }[]
+      }
+      gw_key_info: {
+        Args: { p_key: string }
+        Returns: {
+          equipment_id: string
+          expires_at: string
+          key_id: string
+          kind: string
+          label: string
+          revoked_at: string
+        }[]
+      }
+      gw_record_key_event: {
+        Args: {
+          p_actor?: string
+          p_detail?: Json
+          p_equipment: string
+          p_event: string
+          p_ip?: unknown
+          p_key: string
+        }
+        Returns: undefined
+      }
+      gw_report_heartbeat: {
+        Args: {
+          p_clock_offset_s?: number
+          p_equipment: string
+          p_fw_version?: string
+          p_heartbeat_s?: number
+          p_inverter_online?: boolean
+          p_last_modbus_ok_age_s?: number
+          p_map_version?: number
+          p_reset_reason?: string
+          p_upload_interval_s?: number
+          p_uptime_s?: number
+        }
+        Returns: undefined
+      }
+      gw_revoke_key: {
+        Args: {
+          p_actor: string
+          p_ip?: unknown
+          p_key: string
+          p_reason?: string
+        }
+        Returns: boolean
+      }
+      gw_rotate_key: {
+        Args: {
+          p_actor: string
+          p_ciphertext: string
+          p_fingerprint: string
+          p_grace_seconds?: number
+          p_ip?: unknown
+          p_key: string
+        }
+        Returns: string
+      }
+      gw_store_map: {
+        Args: { p_body: Json; p_equipment: string; p_hash: string }
+        Returns: number
+      }
+      gw_touch_key: {
+        Args: { p_ip?: unknown; p_key: string }
+        Returns: undefined
+      }
+      ingest_device_tick: {
+        Args: {
+          p_agent?: Json
+          p_closed?: Json
+          p_equipment_id: string
+          p_open?: Json
+          p_token: string
+          p_ts?: string
+          p_values?: Json
+        }
+        Returns: Json
+      }
       ingest_tick: {
         Args: {
           p_agent?: Json
@@ -2278,8 +3765,19 @@ export type Database = {
       }
       invoke_cron_route: { Args: { p_path: string }; Returns: undefined }
       is_admin: { Args: never; Returns: boolean }
+      is_gateway_service: { Args: never; Returns: boolean }
+      is_monitored_category: { Args: { p_category: string }; Returns: boolean }
       is_site_engineer_or_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
+      my_assigned_equipment_ids: { Args: never; Returns: string[] }
+      my_assigned_site_ids: { Args: never; Returns: string[] }
+      offline_after_s: {
+        Args: { p_heartbeat_s: number; p_interval_s: number }
+        Returns: number
+      }
+      purge_old_ev_samples: { Args: never; Returns: number }
+      refresh_device_status: { Args: never; Returns: number }
+      request_live: { Args: { p_equipment_id: string }; Returns: string }
       rollup_days: { Args: { p_days: string[] }; Returns: number }
       rollup_hours: { Args: { p_hours: string[] }; Returns: number }
       run_rollups: { Args: { p_now?: string }; Returns: Json }

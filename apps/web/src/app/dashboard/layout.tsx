@@ -74,7 +74,9 @@ export default async function DashboardLayout({
     );
   }
 
-  const features = customerPlan?.features ?? {};
+  // Charging sessions are in the menu for anyone who has a charger (at any site), whatever the plan includes.
+  const hasCharger = sites.some((s) => s.devices.some((d) => d.deviceType?.category === "ev_charger"));
+  const features = { ...(customerPlan?.features ?? {}), ev_sessions: hasCharger };
 
   // Every device across every site the customer has — the header's
   // notification bell isn't scoped to whichever site happens to be
