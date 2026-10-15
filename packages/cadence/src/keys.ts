@@ -72,6 +72,10 @@ export function createKeysClient(o: KeysClientOptions) {
     rotate(keyId: string, graceSeconds = 0): Promise<IssuedKey> {
       return call("POST", `/v1/keys/${encodeURIComponent(keyId)}/rotate`, { grace_seconds: graceSeconds });
     },
+    /** A single-use ticket (valid 15 minutes) that lets one board, named by its hardware id, collect the key of this equipment. */
+    issueClaimTicket(equipmentId: string, hardwareId: string): Promise<{ ticket: string; expires_at: string }> {
+      return call("POST", `/v1/equipment/${encodeURIComponent(equipmentId)}/claim-tickets`, { hardware_id: hardwareId });
+    },
     /** Stops a secret working at once. */
     revoke(keyId: string, reason?: string): Promise<{ revoked: boolean }> {
       return call("DELETE", `/v1/keys/${encodeURIComponent(keyId)}`, reason?.trim() ? { reason: reason.trim() } : {});

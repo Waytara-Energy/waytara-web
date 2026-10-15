@@ -23,7 +23,7 @@ Design and reasons: `GATEWAY_ARCHITECTURE_V2.md`. No secret appears in this file
 |---|---|
 | `NODE_ENV=production`, `TRUST_PROXY=true` | |
 | `PUBLIC_BASE_URL` | `https://hub.waytaraenergy.com` |
-| `ALLOWED_ORIGINS` | every website that calls the API from a browser, origin only, https, no trailing slash: **the customer dashboard, the staff dashboard**, and later the setup page. A missing one shows up as "Could not reach the service" on the Cadence, Reports and Device keys pages. |
+| `ALLOWED_ORIGINS` | every website that calls the API from a browser, origin only, https, no trailing slash: **the customer dashboard, the staff dashboard and the setup page**. A missing one shows up as "Could not reach the service" on the Cadence, Reports and Device keys pages. |
 | `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_USER_EMAIL`, `SUPABASE_SERVICE_USER_PASSWORD` | The backend signs in as its own service user. It never holds the `service_role` key. |
 | `KEY_ENCRYPTION_MASTER` | 32 random bytes, base64. **If lost, every stored key must be re-issued.** Keep a copy in the password manager. |
 | `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, `R2_BUCKET` | All four or none. Token limited to the bucket (Object Read & Write). |
@@ -105,7 +105,7 @@ The unit keeps the readings it has not had acknowledged in a 1 MB buffer and sen
 ## 9. Known gaps (so nothing is a surprise)
 
 * The new pages (Charging sessions, Device keys, Cadence tab) have been built, type-checked and compiled, but not yet looked at in a browser with a real sign-in.
-* Settings write-back (A9) and the Bluetooth setup page (A7) are not built; the unit is set up with the serial helper or the local test page `tools/setup-test.html`.
+* Settings write-back (A9) is not built. The setup page (A7, `apps/setup`) is built and tested against a fake unit in a real browser, but not yet against the real board over Bluetooth, and not yet deployed (it needs a Vercel project, see `apps/setup/README.md`); until then the serial helper and `tools/setup-test.html` still work.
 * The BOOT-button recovery window and the unit's restart after a setup session have not been exercised on the board.
 * Render free plan: needs the monitor in section 3 until the plan is upgraded.
 * The Ola Maps key was exposed earlier and lives on a personal account: rotate it and move it to a company account.

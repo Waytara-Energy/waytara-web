@@ -724,6 +724,7 @@ Work is done one task at a time. Before each task I brief you (what I will do, w
 | B2/B3 OCPP server, EV sessions, split | done, live (simulated charger over wss on Render); real charger next | migration 20261016000000, test 19, `waytara-backend` |
 | B4 Customer EV sessions page | done in code (list, detail, power curve, split with "estimate" note, menu entry only with a charger); not yet looked at in a browser | `apps/web` `/dashboard/ev-sessions`, `lib/ev-sessions.ts` |
 | A10 (part) Admin Device keys screen | done in code (make, replace with grace, revoke, secret shown once, charger address); not yet looked at in a browser | `apps/admin` `/keys`, `packages/cadence/src/keys.ts` |
+| A7 Setup web page (Vite + React): sign-in, device pick, Bluetooth, Wi-Fi, checks, speed, claim | done in code; the whole flow was run in a browser against a fake unit and the encrypted protocol is tested; not yet tried against the real board, not yet deployed (needs a Vercel project) | `apps/setup`, `packages/cadence/src/keys.ts` (claim ticket) |
 
 ### Part A: solar inverter, from the board to the dashboard
 

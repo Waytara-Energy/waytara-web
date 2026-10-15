@@ -104,6 +104,46 @@ importers:
         specifier: ^5
         version: 5.9.3
 
+  apps/setup:
+    dependencies:
+      '@supabase/supabase-js':
+        specifier: ^2.112.4
+        version: 2.112.4(@opentelemetry/api@1.9.1)
+      '@waytara/cadence':
+        specifier: workspace:*
+        version: link:../../packages/cadence
+      '@waytara/supabase':
+        specifier: workspace:*
+        version: link:../../packages/supabase
+      react:
+        specifier: 19.2.8
+        version: 19.2.8
+      react-dom:
+        specifier: 19.2.8
+        version: 19.2.8(react@19.2.8)
+    devDependencies:
+      '@types/node':
+        specifier: ^20
+        version: 20.19.43
+      '@types/react':
+        specifier: ^19
+        version: 19.2.18
+      '@types/react-dom':
+        specifier: ^19
+        version: 19.2.5(@types/react@19.2.18)
+      '@waytara/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      typescript:
+        specifier: ^5
+        version: 5.9.3
+      vite:
+        specifier: ^7.3.6
+        version: 7.3.6(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(terser@5.51.2)
+      vitest:
+        specifier: ^3.2.7
+        version: 3.2.7(@types/node@20.19.43)(jiti@2.7.0)(lightningcss@1.32.0)(supports-color@8.1.1)(terser@5.51.2)
+
   apps/web:
     dependencies:
       '@hookform/resolvers':

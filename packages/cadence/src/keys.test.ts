@@ -31,6 +31,13 @@ describe("keys client", () => {
     expect(JSON.parse(d.calls[0]!.init.body as string)).toEqual({ reason: "lost" });
   });
 
+  it("asks for a claim ticket for one board of one equipment", async () => {
+    const { calls, client } = fake(201, { ticket: "t", expires_at: "2026-10-16T00:00:00Z" });
+    expect(await client.issueClaimTicket("00000000-0000-4000-8000-000000000001", "2884855505D0")).toMatchObject({ ticket: "t" });
+    expect(calls[0]!.url).toBe("https://hub.example/v1/equipment/00000000-0000-4000-8000-000000000001/claim-tickets");
+    expect(JSON.parse(calls[0]!.init.body as string)).toEqual({ hardware_id: "2884855505D0" });
+  });
+
   it("does not call out without a sign-in, and gives plain messages for refusals", async () => {
     const none = createKeysClient({ baseUrl: "https://x", getToken: async () => null, fetch: (() => { throw new Error("no call expected"); }) as unknown as typeof fetch });
     await expect(none.revoke("k")).rejects.toMatchObject({ status: 401 });
