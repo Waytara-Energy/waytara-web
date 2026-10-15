@@ -416,8 +416,8 @@ The server builds the map from the catalogue: the list of requests (first regist
 **Layout (R2 or any S3-style store)**
 * Bucket `waytara-cadence`, **private**.
 * Object key: `cadence/v1/<equipmentId>/<yyyy>/<mm>/<dd>/<HH><mm>.csv.gz`, one per aligned 5-minute window (288 per day). The key is deterministic, so a retry overwrites the same object; if late frames arrive for a closed window the backend reads, merges by sequence and rewrites it.
-* Format: first line `# map_version=…`, then a header `ts_utc,<key>,<key>,…`, then one row per sampling instant with decoded values, empty where a value was not sampled that instant. Fast values fill most rows; slower ones appear when read. Values are in the units of the catalogue.
-* At 02:00 the previous day's parts are merged into `…/<dd>/day.csv.gz` to make reports faster; parts are then removed by the lifecycle rule.
+* Format (changed at A5, decision: store raw words): `# waytara-cadence 1`, `# equipment=… window=…`, then a header `ts_ms,boot,seq,r<register>,…` and one row per frame with the **raw 16-bit words**, empty where a register was not read in that frame. Decoding (scale, offset, signed, combined words) happens when a report is made, from the catalogue as it is then, so a wrong scale can be corrected and the history is right afterwards. Reports show India time and the values in the units of the catalogue.
+* The day's parts are joined into `…/<dd>/day.csv.gz` to make reports faster: one run a minute after start-up over the whole 28 days, then every hour over the last 3 days (not tied to 02:00, so a sleeping free service loses nothing). A reader takes the day file plus every part newer than it; parts are removed by the lifecycle rule.
 * **Lifecycle rule:** prefix `cadence/`, delete after **30 days**. The report page offers the last **28 days**, so deletion lag never shows.
 * Free-tier fit **[estimate]**: about 8,640 writes per equipment per month, so about 100 equipments per million writes.
 
@@ -718,6 +718,7 @@ Work is done one task at a time. Before each task I brief you (what I will do, w
 | A4a Sign-in checks, keys, claim tickets | done, pushed | migration 20261015010000, test 16, `waytara-backend` |
 | A4b Broker and data intake (storage plugged in at A4c) | done | `waytara-backend` |
 | A4c Supabase storage, device status, live end-to-end test | done, live (simulated board through hub) | migration 20261015020000, test 17, `waytara-backend` |
+| A5 Cadence storage (R2), reports endpoint, access rules | built; live run with the real bucket pending | migration 20261015030000, test 18, `waytara-backend` |
 
 ### Part A: solar inverter, from the board to the dashboard
 
@@ -727,7 +728,7 @@ Work is done one task at a time. Before each task I brief you (what I will do, w
 | A2 | **Backend skeleton:** repo, Fastify, validated settings, health endpoints, security headers, rate limits, redacted logs, tests | Say "push" later; nothing else | Runs locally, tests pass |
 | A3 | **Backend core libraries** (tests only, nothing deployed): sealed message envelope with shared test vectors, decode engine checked against the sweep values, 15-minute rollup engine checked against the old firmware maths, register-map builder (PV inputs from stock) | None | Golden-vector tests pass |
 | A4 | **Backend runtime:** sign-in (JWT) checks, key endpoints and claim tickets, the built-in MQTT broker with the key-checking login, ingest to Supabase through `gw_*`, status verdicts, first deployment to Render | Create the Render service from the pushed repo; set its environment variables | A simulated board connects over `wss://`, data and heartbeat reach Supabase, a wrong key is refused |
-| A5 | **Cadence storage and reports:** 5-minute CSV parts, 28-day rule, report endpoint, daily merge | Cloudflare account and the `waytara-cadence` R2 bucket (16.3) | A simulated day is stored, read back as one CSV, and old parts expire |
+| A5 | **Cadence storage and reports:** 5-minute CSV parts, 28-day rule, report endpoint, daily merge | Cloudflare account and the `waytara-cadence` R2 bucket (16.3) | A simulated day is stored, read back as one CSV, and old parts expire (built; live run pending) |
 | A6 | **Gateway firmware foundation:** module layout, protected settings, Wi-Fi manager, connection checks, speed test, Bluetooth setup with the sign-in claim flow, sealed hello | Install Arduino tooling or let me; flash the board when I say; an Android phone | Fresh board is set up from the phone and shows online in the backend |
 | A7 | **Setup web page** (Vite + React on Vercel): sign-in, equipment pick, Bluetooth, Wi-Fi, checks, speed, forget | Create the Vercel project | Same test as A6, from the deployed page |
 | A8 | **Modbus engine and data path:** register map download, scheduler, frames, buffer, acknowledgements; backend writes to Supabase and the cadence store | Inverter connected to the board | A full day matches the inverter screen and the old firmware's buckets |
