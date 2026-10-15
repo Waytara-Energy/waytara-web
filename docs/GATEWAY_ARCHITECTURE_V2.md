@@ -718,7 +718,7 @@ Work is done one task at a time. Before each task I brief you (what I will do, w
 | A4a Sign-in checks, keys, claim tickets | done, pushed | migration 20261015010000, test 16, `waytara-backend` |
 | A4b Broker and data intake (storage plugged in at A4c) | done | `waytara-backend` |
 | A4c Supabase storage, device status, live end-to-end test | done, live (simulated board through hub) | migration 20261015020000, test 17, `waytara-backend` |
-| A5 Cadence storage (R2), reports endpoint, access rules | built; live run with the real bucket pending | migration 20261015030000, test 18, `waytara-backend` |
+| A5 Cadence storage (R2), reports endpoint, access rules | done, live (simulated board through hub into R2) | migration 20261015030000, test 18, `waytara-backend` |
 
 ### Part A: solar inverter, from the board to the dashboard
 
@@ -728,7 +728,7 @@ Work is done one task at a time. Before each task I brief you (what I will do, w
 | A2 | **Backend skeleton:** repo, Fastify, validated settings, health endpoints, security headers, rate limits, redacted logs, tests | Say "push" later; nothing else | Runs locally, tests pass |
 | A3 | **Backend core libraries** (tests only, nothing deployed): sealed message envelope with shared test vectors, decode engine checked against the sweep values, 15-minute rollup engine checked against the old firmware maths, register-map builder (PV inputs from stock) | None | Golden-vector tests pass |
 | A4 | **Backend runtime:** sign-in (JWT) checks, key endpoints and claim tickets, the built-in MQTT broker with the key-checking login, ingest to Supabase through `gw_*`, status verdicts, first deployment to Render | Create the Render service from the pushed repo; set its environment variables | A simulated board connects over `wss://`, data and heartbeat reach Supabase, a wrong key is refused |
-| A5 | **Cadence storage and reports:** 5-minute CSV parts, 28-day rule, report endpoint, daily merge | Cloudflare account and the `waytara-cadence` R2 bucket (16.3) | A simulated day is stored, read back as one CSV, and old parts expire (built; live run pending) |
+| A5 | **Cadence storage and reports:** 5-minute CSV parts, 28-day rule, report endpoint, daily merge | Cloudflare account and the `waytara-cadence` R2 bucket (16.3) | A simulated day is stored, read back as one CSV, and old parts expire (done; expiry is the bucket's 30-day rule, not yet seen deleting) |
 | A6 | **Gateway firmware foundation:** module layout, protected settings, Wi-Fi manager, connection checks, speed test, Bluetooth setup with the sign-in claim flow, sealed hello | Install Arduino tooling or let me; flash the board when I say; an Android phone | Fresh board is set up from the phone and shows online in the backend |
 | A7 | **Setup web page** (Vite + React on Vercel): sign-in, equipment pick, Bluetooth, Wi-Fi, checks, speed, forget | Create the Vercel project | Same test as A6, from the deployed page |
 | A8 | **Modbus engine and data path:** register map download, scheduler, frames, buffer, acknowledgements; backend writes to Supabase and the cadence store | Inverter connected to the board | A full day matches the inverter screen and the old firmware's buckets |
