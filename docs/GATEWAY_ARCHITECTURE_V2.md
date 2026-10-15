@@ -325,7 +325,7 @@ A signed command arrives (10.6). The ESP checks the signature, the expiry (comma
 
 ## 10. MQTT contract
 
-### 10.1 Topics (all QoS 1; board client id `gw-<equipmentId>`; user name = equipment id, password = equipment key; below `wt/v1/<equipmentId>/` only)
+### 10.1 Topics (all QoS 1; board client id `gw-<equipmentId>`; user name = equipment id, password = login token derived from the equipment key (see below); below `wt/v1/<equipmentId>/` only)
 
 | Topic | Direction | Content |
 |---|---|---|
@@ -336,6 +336,8 @@ A signed command arrives (10.6). The ESP checks the signature, the expiry (comma
 | `wt/v1/<equipmentId>/dn/ack` | backend to gateway | sealed: highest sequence stored |
 | `wt/v1/<equipmentId>/dn/cmd` | backend to gateway | sealed commands: write, live on/off, open setup, reboot, OTA |
 | `wt/v1/<equipmentId>/dn/map` | backend to gateway | sealed register map |
+
+**Login token.** The board never sends its key. The password is `base64url(HMAC-SHA-256(key = equipment key, message = "wt-mqtt-login/v1|<equipmentId>"))` (43 characters, shared vectors in the backend's `test-vectors/mqtt-login.json`). A captured token lets someone connect until the key is rotated but cannot read or forge a sealed message, because sealing uses a different derivation of the key. The broker also enforces: the last-will may only be the board's own `up/state`; publishing outside the board's own `up/*` topics, subscribing to anything else (or any wildcard), or a message over 64 KB disconnects the board; one connection per board (a new login replaces the old); revoke and rotate drop the connection within seconds; 10 failed logins per source address per minute shut that address out for the rest of the minute.
 
 Chargers do not use MQTT; they use OCPP (section 13).
 
@@ -713,8 +715,9 @@ Work is done one task at a time. Before each task I brief you (what I will do, w
 | A1 Supabase foundation | done, live | migration 20261015000000, test 15 |
 | A2 Backend skeleton | done, pushed | `waytara-backend` |
 | A3 Backend core libraries | done, pushed | `waytara-backend` |
-| A4a Sign-in checks, keys, claim tickets | done; waits for the Render settings before it is pushed | migration 20261015010000, test 16, `waytara-backend` |
-| A4b Broker, data pipeline, Render deploy | next | |
+| A4a Sign-in checks, keys, claim tickets | done, pushed | migration 20261015010000, test 16, `waytara-backend` |
+| A4b Broker and data intake (storage plugged in at A4c) | done | `waytara-backend` |
+| A4c Supabase storage, device status, live end-to-end test | next | |
 
 ### Part A: solar inverter, from the board to the dashboard
 
