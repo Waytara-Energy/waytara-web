@@ -24,6 +24,8 @@ export function securityHeaders(options = {}) {
   // Error reports go to the DSN's ingest host; allow exactly that origin, and only when configured.
   const sentryDsn = process.env.NEXT_PUBLIC_SENTRY_DSN;
   const sentryOrigin = sentryDsn ? new URL(sentryDsn).origin : "";
+  // The readings service (WayTara backend): the browser asks it for cadence downloads, signed in as the person.
+  const gatewayOrigin = new URL(process.env.NEXT_PUBLIC_GATEWAY_URL || "https://hub.waytaraenergy.com").origin;
 
   const csp = [
     "default-src 'self'",
@@ -35,7 +37,7 @@ export function securityHeaders(options = {}) {
     ...(options.workerSrc?.length ? [`worker-src 'self' ${options.workerSrc.join(" ")}`] : []),
     "media-src 'self'",
     "font-src 'self' data:",
-    `connect-src 'self' ${supabaseHttp} ${supabaseWs} ${sentryOrigin} ${(options.connectSrc ?? []).join(" ")}`.replace(/\s+/g, " ").trim(),
+    `connect-src 'self' ${supabaseHttp} ${supabaseWs} ${sentryOrigin} ${gatewayOrigin} ${(options.connectSrc ?? []).join(" ")}`.replace(/\s+/g, " ").trim(),
     "frame-ancestors 'none'",
     "base-uri 'self'",
     "form-action 'self'",

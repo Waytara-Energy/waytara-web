@@ -30,6 +30,7 @@
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
     "@waytara/config": "workspace:*",
+    "@waytara/cadence": "workspace:*",
     "@waytara/supabase": "workspace:*",
     "@waytara/ui": "workspace:*",
     "canvas-confetti": "^1.9.4",

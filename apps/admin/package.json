@@ -15,6 +15,7 @@
     "@sentry/nextjs": "^10.76.0",
     "@vercel/analytics": "^2.0.1",
     "@vercel/speed-insights": "^2.0.0",
+    "@waytara/cadence": "workspace:*",
     "@waytara/supabase": "workspace:*",
     "@waytara/ui": "workspace:*",
     "class-variance-authority": "^0.7.1",

@@ -1,3 +1,5 @@
+> **Superseded on 2026-10-14 by [GATEWAY_ARCHITECTURE_V2.md](GATEWAY_ARCHITECTURE_V2.md)** (new stack, repos and requirements). Kept for its research notes.
+
 # WayTara gateway: ESP32-S3 to inverter, MQTT, backend and Supabase
 
 A plan, not code. Written 2026-10-12 from what is in this repo, the Python agent, the ESP32 sketches and the Deye documents on this PC, plus internet research (sources at the end).

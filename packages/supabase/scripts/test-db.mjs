@@ -14,7 +14,7 @@ let total = 0;
 for (const file of readdirSync(dir).filter((f) => f.endsWith(".test.sql")).sort()) {
   let out;
   try {
-    out = execSync(`docker exec -i ${CONTAINER} psql -U postgres -d postgres -v ON_ERROR_STOP=0 -At`, {
+    out = execSync(`docker exec -i ${CONTAINER} psql -U postgres -d postgres -v ON_ERROR_STOP=0 -At 2>&1`, {
       input: readFileSync(join(dir, file)),
       encoding: "utf8",
       stdio: ["pipe", "pipe", "pipe"],
@@ -29,7 +29,7 @@ for (const file of readdirSync(dir).filter((f) => f.endsWith(".test.sql")).sort(
   const ok = lines.filter((l) => /^ok \d+/.test(l)).length;
   const notOk = lines.filter((l) => /^not ok \d+/.test(l));
   const planned = Number((lines.find((l) => /^1\.\.\d+/.test(l)) ?? "1..0").slice(3));
-  const errors = lines.filter((l) => /^ERROR:/.test(l));
+  const errors = lines.filter((l) => /ERROR:/.test(l));
   total += ok;
   if (notOk.length || errors.length || ok !== planned) {
     failed++;

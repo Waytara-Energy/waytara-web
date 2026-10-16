@@ -16,6 +16,7 @@ import { defaultChoice, resolveChoice, type PeriodChoice } from "@/lib/reports/p
 import { monthsWithData } from "@/lib/reports/period-math";
 import { buildStatement } from "@/lib/reports/statement-data";
 import type { ReportsBase } from "@/lib/reports/gather";
+import { CadencePanel } from "./cadence-panel";
 import { CustomReportView } from "./custom-report-view";
 import { ALL_DAY, FilterChips, MultiPicker, TimeOfDayFilter, isAllDay, windowIsValid, type DayWindow, type PickGroup } from "./report-filters";
 import { ReportPeriodPicker } from "./report-period-picker";
@@ -23,11 +24,12 @@ import { SeriesReportView, type SeriesReportResponse } from "./series-report-vie
 import { StatementView } from "./statement-view";
 import { useDownloadPending } from "./use-download-pending";
 
-type Mode = "readings" | "totals" | "statement";
+type Mode = "readings" | "totals" | "statement" | "cadence";
 const MODES: { id: Mode; label: string }[] = [
   { id: "readings", label: "Readings" },
   { id: "totals", label: "Daily totals" },
   { id: "statement", label: "Monthly statement" },
+  { id: "cadence", label: "Cadence data" },
 ];
 
 const INTERVAL_LABELS: Record<number, string> = { 15: "15 min", 30: "30 min", 60: "1 hour", 120: "2 hours", 1440: "1 day" };
@@ -158,16 +160,28 @@ export function ReportCenter({ base, available }: { base: ReportsBase; available
   };
 
   const label = "text-xs font-medium text-muted-foreground";
+  const modeToggle = (
+    <ToggleGroup type="single" variant="outline" size="sm" value={mode} onValueChange={(v) => v && setMode(v as Mode)} aria-label="What to look at">
+      {MODES.map((m) => (
+        <ToggleGroupItem key={m.id} value={m.id} className="h-9 px-3 text-xs sm:text-sm">
+          {m.label}
+        </ToggleGroupItem>
+      ))}
+    </ToggleGroup>
+  );
+  // Cadence data has its own filter, preview and download (the file is made by the readings service), so it takes the whole tab.
+  if (mode === "cadence" && base.deviceId) {
+    return (
+      <div className="space-y-4">
+        <div className="flex flex-wrap items-center justify-between gap-3">{modeToggle}</div>
+        <CadencePanel deviceId={base.deviceId} today={today} firstDay={base.firstDay} />
+      </div>
+    );
+  }
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <ToggleGroup type="single" variant="outline" size="sm" value={mode} onValueChange={(v) => v && setMode(v as Mode)} aria-label="What to look at">
-          {MODES.map((m) => (
-            <ToggleGroupItem key={m.id} value={m.id} className="h-9 px-3 text-xs sm:text-sm">
-              {m.label}
-            </ToggleGroupItem>
-          ))}
-        </ToggleGroup>
+        {modeToggle}
 
         <div className="flex items-center gap-2">
           <ToggleGroup type="single" variant="outline" size="sm" value={view} onValueChange={(v) => v && setView(v as "graph" | "table")} aria-label="Show as">

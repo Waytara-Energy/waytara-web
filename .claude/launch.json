@@ -4,14 +4,37 @@
     {
       "name": "web",
       "runtimeExecutable": "D:\\Manoj-Waytara\\Projects\\apps\\web\\node_modules\\.bin\\next.CMD",
-      "runtimeArgs": ["dev", "D:\\Manoj-Waytara\\Projects\\apps\\web", "--port", "3000"],
+      "runtimeArgs": [
+        "dev",
+        "D:\\Manoj-Waytara\\Projects\\apps\\web",
+        "--port",
+        "3000"
+      ],
       "port": 3000
     },
     {
       "name": "admin",
       "runtimeExecutable": "D:\\Manoj-Waytara\\Projects\\apps\\admin\\node_modules\\.bin\\next.CMD",
-      "runtimeArgs": ["dev", "D:\\Manoj-Waytara\\Projects\\apps\\admin", "--port", "3001"],
+      "runtimeArgs": [
+        "dev",
+        "D:\\Manoj-Waytara\\Projects\\apps\\admin",
+        "--port",
+        "3001"
+      ],
       "port": 3001
+    },
+    {
+      "name": "setup",
+      "runtimeExecutable": "node",
+      "runtimeArgs": [
+        "D:/Manoj-Waytara/ESP32-S3 GUI/node_modules/vite/bin/vite.js",
+        "D:/Manoj-Waytara/ESP32-S3 GUI",
+        "--port",
+        "5174",
+        "--host",
+        "127.0.0.1"
+      ],
+      "port": 5174
     }
   ]
 }

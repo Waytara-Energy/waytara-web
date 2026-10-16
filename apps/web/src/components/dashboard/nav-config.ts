@@ -8,6 +8,7 @@ import {
   TrendingUp,
   FileDown,
   Cpu,
+  PlugZap,
   type LucideIcon,
 } from "lucide-react";
 
@@ -39,6 +40,8 @@ export const NAV_ITEMS: NavItem[] = [
   // inline there, not as a second nav item/redirect-gated route).
   { href: "/dashboard/performance", label: "Performance", icon: TrendingUp, featureKey: "performance" },
   { href: "/dashboard/reports", label: "Reports", icon: FileDown, featureKey: "reports" },
+  // Only for a customer with an EV charger: the layout sets features.ev_sessions from the devices, not from the plan.
+  { href: "/dashboard/ev-sessions", label: "Charging sessions", icon: PlugZap, featureKey: "ev_sessions" },
   { href: "/dashboard/maintenance", label: "Maintenance", icon: Wrench },
   { href: "/dashboard/devices", label: "Devices", icon: Cpu },
 ];

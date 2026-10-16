@@ -1,0 +1,22 @@
+{
+  "name": "@waytara/cadence",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./range": "./src/range.ts",
+    "./client": "./src/client.ts",
+    "./pick": "./src/pick.ts",
+    "./keys": "./src/keys.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^20",
+    "@waytara/config": "workspace:*",
+    "typescript": "^5",
+    "vitest": "^3.2.7"
+  }
+}
