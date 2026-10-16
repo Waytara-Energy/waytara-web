@@ -22,13 +22,15 @@ insert into waytara.profiles (id, email, role, full_name) values
   ('c3000000-0000-0000-0000-000000000003', 'c3@test.local', 'customer', 'C3'),
   ('e1000000-0000-0000-0000-0000000000e1', 'e1@test.local', 'employee', 'E1'),
   ('e2000000-0000-0000-0000-0000000000e2', 'e2@test.local', 'employee', 'E2');
--- the plans are created here (a fresh database does not carry the seeded ones, and the live one may have been tuned)
+-- the two plans this test needs, with the features it relies on (a fresh database does not carry the seeded plans; on the live one this
+-- only changes them inside the rolled-back transaction)
 insert into waytara.plans (code, name, max_devices, price_monthly, price_yearly, features, is_active) values
-  ('t18_with_reports', 'T18 with reports', null, 1, 1, '{"reports": true}'::jsonb, true),
-  ('t18_without_reports', 'T18 without reports', 10, 1, 1, '{"reports": false}'::jsonb, true);
+  ('advance', 'Advance', null, 2999, 29990, '{"reports": true}'::jsonb, true),
+  ('pro', 'Pro', 10, 1499, 14990, '{"reports": false}'::jsonb, true)
+on conflict (code) do update set features = excluded.features;
 insert into waytara.customers (id, plan_id) values
-  ('c1000000-0000-0000-0000-000000000001', (select id from waytara.plans where code = 't18_with_reports')),
-  ('c2000000-0000-0000-0000-000000000002', (select id from waytara.plans where code = 't18_without_reports')),
+  ('c1000000-0000-0000-0000-000000000001', (select id from waytara.plans where code = 'advance')),
+  ('c2000000-0000-0000-0000-000000000002', (select id from waytara.plans where code = 'pro')),
   ('c3000000-0000-0000-0000-000000000003', null);
 insert into waytara.sites (id, customer_id, name, property_type, power_source_category) values
   ('51000000-0000-0000-0000-000000000001', 'c1000000-0000-0000-0000-000000000001', 'S1', 'residential_independent_villas', 'hybrid'),

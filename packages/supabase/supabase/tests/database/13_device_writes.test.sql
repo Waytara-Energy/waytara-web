@@ -21,6 +21,11 @@ insert into waytara.equipment (id, site_id, stock_id) values (:e1, '51000000-000
 insert into waytara.equipment_ingest_tokens (equipment_id, token_hash)
 values (:e1, encode(sha256(convert_to('a-long-device-secret-1', 'utf8')), 'hex'));
 
+-- the metric templates the rows below point at (a fresh database does not carry the live ones)
+insert into waytara.equipment_templates (category, dashboard_section, device_category, key_name, display_name, direction) values
+  ('My Settings', 'Settings', 'solar', 'battery_low_soc_pct', 'Battery low SOC', 'write'),
+  ('Solar', 'Monitoring', 'solar', 'pv1_power_w', 'PV1 power', 'read')
+on conflict do nothing;
 insert into waytara.equipment_metrics (equipment_id, key_name, category, device_category, direction, address, show_for_user) values
   (:e1, 'battery_low_soc_pct', 'My Settings', 'solar', 'write', '{"registers":[219]}', true),
   (:e1, 'pv1_power_w', 'Solar', 'solar', 'read', '{"registers":[186]}', true);
