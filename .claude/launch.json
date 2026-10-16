@@ -27,8 +27,8 @@
       "name": "setup",
       "runtimeExecutable": "node",
       "runtimeArgs": [
-        "D:/Manoj-Waytara/Projects/apps/setup/node_modules/vite/bin/vite.js",
-        "D:/Manoj-Waytara/Projects/apps/setup",
+        "D:/Manoj-Waytara/ESP32-S3 GUI/node_modules/vite/bin/vite.js",
+        "D:/Manoj-Waytara/ESP32-S3 GUI",
         "--port",
         "5174",
         "--host",
