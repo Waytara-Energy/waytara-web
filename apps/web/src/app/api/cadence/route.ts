@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRequestProfile } from "@/lib/request-profile";
 import { getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
-import { cadenceConfigured, readCadence } from "@/lib/cadence-sheet";
+import { cadenceConfigured, readCadence } from "@/lib/cadence-hub";
 
 // The readings of a device at their own rhythm (5 s / 10 s / 30 s) between two times: what Go Live opens with, and what the day report
 // uses for "Today". The device must be one the signed-in person can see (it is looked up in their selected site, never taken on trust
-// from the request); the data itself comes from the cadence spreadsheets through the Apps Script web app (see lib/cadence-sheet.ts).
+// from the request); the data itself comes from the WayTara readings service (the hub, see lib/cadence-hub.ts), which checks again.
 //
 //   GET /api/cadence?device=<equipment id>&from=<epoch ms>&to=<epoch ms>&keys=a,b,c
 //   -> { from_ms, to_ms, series: { key: [[epoch ms, value], ...] }, unknown: [keys with no cadence history] }

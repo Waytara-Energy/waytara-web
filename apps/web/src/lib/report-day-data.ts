@@ -5,7 +5,7 @@ import { getCustomerPlan } from "@/lib/customer-plan";
 import { getRequestProfile } from "@/lib/request-profile";
 import { fetchSeriesRows } from "@/lib/device-readings-fetch";
 import { planRange } from "@/lib/telemetry/ranges";
-import { cadenceConfigured, readCadence } from "@/lib/cadence-sheet";
+import { cadenceConfigured, readCadence } from "@/lib/cadence-hub";
 import { bucketCadenceForReport } from "@/lib/cadence-parse";
 import { CADENCE_GROUP_STEP_S, cadenceGroupOf } from "@/lib/cadence-keys";
 import {

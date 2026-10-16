@@ -46,7 +46,7 @@ function browserEnv(sb: Sb): GoLiveEnv {
 
       // The monitoring unit (an ESP32) cannot join this private channel, so it is told through the database that someone is
       // watching (request_live, renewed while this page is open) and sends its readings as ticks. Today's history is not a file
-      // from the unit: it is read from the cadence spreadsheets (/api/cadence) once the first tick shows the unit is streaming.
+      // from the unit: it is read from the WayTara readings service (through /api/cadence) once the first tick shows the unit is streaming.
       const want = { keys: [] as string[], history: true };
       let firstTickT: number | null = null;
       let snapshotSent = false;
