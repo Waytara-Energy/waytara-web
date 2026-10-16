@@ -105,7 +105,7 @@ The unit keeps the readings it has not had acknowledged in a 1 MB buffer and sen
 ## 9. Known gaps (so nothing is a surprise)
 
 * The new pages (Charging sessions, Device keys, Cadence tab) have been built, type-checked and compiled, but not yet looked at in a browser with a real sign-in.
-* Settings write-back (A9) is not built. The setup page (A7, `apps/setup`) is built and tested against a fake unit in a real browser, but not yet against the real board over Bluetooth, and not yet deployed (it needs a Vercel project, see `apps/setup/README.md`); until then the serial helper and `tools/setup-test.html` still work.
+* Settings write-back (A9) is not built. The setup page (A7, repository `ESP32-S3-GUI`) is built and tested against a fake unit in a real browser, but not yet against the real board over Bluetooth, and not yet deployed (it needs a Vercel project, see the README of the `ESP32-S3-GUI` repository); until then the serial helper and `tools/setup-test.html` still work.
 * The BOOT-button recovery window and the unit's restart after a setup session have not been exercised on the board.
 * Render free plan: needs the monitor in section 3 until the plan is upgraded.
 * The Ola Maps key was exposed earlier and lives on a personal account: rotate it and move it to a company account.

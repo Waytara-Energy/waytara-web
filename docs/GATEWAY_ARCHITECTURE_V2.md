@@ -636,7 +636,7 @@ No new account. In the Supabase dashboard open **Storage**, create a **private**
 5. Custom domain: your DNS is hosted by **Vercel** (S26), so the record is added there: in the Vercel dashboard open the domain `waytaraenergy.com`, its DNS records, and add a **CNAME** with name `hub` and the target Render shows, then in Render add `hub.waytaraenergy.com` as a custom domain. Names agreed on 2026-10-15: `hub.waytaraenergy.com` is the Render backend (REST, board connection, live data, chargers); `server.waytaraenergy.com` is reserved for your own server (VPS); `mqtt.waytaraenergy.com` will point at the Mosquitto broker when it exists and wait for it to verify. Nothing moves to Cloudflare. (Menu names in Vercel may differ slightly; I will check them with you on screen.)
 
 ### 16.5 Vercel (GUI, phase 1)
-Import the `ESP32-S3-GUI` repo, framework preset Vite, add `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_API_BASE_URL` (public values only). Add a custom domain such as `setup.<domain>` later.
+Import the `ESP32-S3-GUI` repo, framework preset Vite, add `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `VITE_GATEWAY_URL` (the hub address, default https://hub.waytaraenergy.com) (public values only). Add a custom domain such as `setup.<domain>` later.
 
 ### 16.6 The charger address (phase 5)
 **Simplest start, no extra account:** use the Render address, `wss://<service>.onrender.com/<secret>/<deviceName>`. Nothing to configure.
@@ -724,7 +724,8 @@ Work is done one task at a time. Before each task I brief you (what I will do, w
 | B2/B3 OCPP server, EV sessions, split | done, live (simulated charger over wss on Render); real charger next | migration 20261016000000, test 19, `waytara-backend` |
 | B4 Customer EV sessions page | done in code (list, detail, power curve, split with "estimate" note, menu entry only with a charger); not yet looked at in a browser | `apps/web` `/dashboard/ev-sessions`, `lib/ev-sessions.ts` |
 | A10 (part) Admin Device keys screen | done in code (make, replace with grace, revoke, secret shown once, charger address); not yet looked at in a browser | `apps/admin` `/keys`, `packages/cadence/src/keys.ts` |
-| A7 Setup web page (Vite + React): sign-in, device pick, Bluetooth, Wi-Fi, checks, speed, claim | done in code; the whole flow was run in a browser against a fake unit and the encrypted protocol is tested; not yet tried against the real board, not yet deployed (needs a Vercel project) | `apps/setup`, `packages/cadence/src/keys.ts` (claim ticket) |
+| A7 Setup web page (Vite + React): sign-in, device pick, Bluetooth, Wi-Fi, checks, speed, claim | done in code; the whole flow was run in a browser against a fake unit and the encrypted protocol is tested; not yet tried against the real board, pushed to its repository, not yet deployed (needs a Vercel project) | own repository `Waytara-Energy/ESP32-S3-GUI` (folder `ESP32-S3 GUI`, moved out of `apps/setup` on 2026-10-16); the claim ticket call is the hub's `POST /v1/equipment/{id}/claim-tickets` |
+| A9 Settings write-back | hub and database done and tested without hardware (494 backend tests, 17 database checks, live); board side written, being built; NOT yet tried on the real inverter; backend not yet deployed | migration 20261016020000, test 21, `waytara-backend` (`features/ingest/settings.ts`), `waytara-gateway-fw` (`engineWriteMasked`, `plan` allow-list, `handleCommand`) |
 
 ### Part A: solar inverter, from the board to the dashboard
 
