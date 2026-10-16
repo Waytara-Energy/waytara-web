@@ -2,6 +2,8 @@
 // the page. Runs in the browser. The backend decides who may manage which device; this only asks and reports what it answered.
 // A secret comes back exactly once, in the answer to create or rotate: the caller shows it and never stores it.
 
+import { trimBoth, trimEnd } from "./trim";
+
 export interface IssuedKey {
   key_id: string;
   equipment_id: string;
@@ -42,7 +44,7 @@ const plainMessage = (status: number): string =>
             : "The request was not accepted.";
 
 export function createKeysClient(o: KeysClientOptions) {
-  const base = o.baseUrl.replace(/\/+$/, "");
+  const base = trimEnd(o.baseUrl, "/");
   const doFetch = o.fetch ?? ((...a: Parameters<typeof fetch>) => fetch(...a));
 
   async function call<T>(method: "POST" | "DELETE", path: string, body: unknown): Promise<T> {
@@ -92,6 +94,6 @@ export type KeysClient = ReturnType<typeof createKeysClient>;
 /** The address to type into a charger's app: the secret and the charger's name in the path. The name is limited to what an address
  *  can carry, so a label like "ECR Villa #2" becomes "ECR-Villa-2". */
 export function chargerAddress(host: string, secret: string, name: string): string {
-  const cleaned = name.trim().replace(/[^A-Za-z0-9_.-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 40) || "charger";
-  return `wss://${host.replace(/^(?:wss?|https?):\/\//, "").replace(/\/+$/, "")}/ocpp/${secret}/${cleaned}`;
+  const cleaned = trimBoth(name.trim().replace(/[^A-Za-z0-9_.-]+/g, "-"), "-").slice(0, 40) || "charger";
+  return `wss://${trimEnd(host.replace(/^(?:wss?|https?):\/\//, ""), "/")}/ocpp/${secret}/${cleaned}`;
 }

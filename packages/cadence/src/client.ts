@@ -2,6 +2,7 @@
 // Runs in the browser. The backend decides who may read what; this only asks and reports what it answered.
 
 import { CADENCE_MAX_KEYS } from "./range";
+import { trimEnd } from "./trim";
 import type { CadenceKey } from "./pick";
 
 export interface KeysAnswer {
@@ -49,7 +50,7 @@ const plainMessage = (status: number): string =>
   status === 401 ? "Please sign in again." : status === 404 ? "No readings are available for this device." : status === 429 ? "Too many requests. Wait a minute and try again." : status >= 500 ? "The readings are unavailable right now. Try again in a moment." : "The request was not accepted.";
 
 export function createCadenceClient(o: CadenceClientOptions) {
-  const base = o.baseUrl.replace(/\/+$/, "");
+  const base = trimEnd(o.baseUrl, "/");
   const doFetch = o.fetch ?? ((...a: Parameters<typeof fetch>) => fetch(...a));
 
   async function call(path: string, params: Record<string, string>, signal?: AbortSignal): Promise<Response> {
