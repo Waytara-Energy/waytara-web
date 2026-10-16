@@ -50,6 +50,7 @@ export function KeysManager({ devices }: { devices: KeyDevice[] }) {
   const [busy, setBusy] = useState<string | null>(null);
   const [shown, setShown] = useState<Shown | null>(null);
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
+  const [confirmRelease, setConfirmRelease] = useState<string | null>(null);
   const [grace, setGrace] = useState(0);
 
   async function run(deviceId: string, work: () => Promise<void>) {
@@ -73,6 +74,13 @@ export function KeysManager({ devices }: { devices: KeyDevice[] }) {
     run(d.id, async () => {
       const issued = await client.rotate(keyId, grace);
       setShown({ device: d, issued });
+    });
+  const release = (d: KeyDevice) =>
+    run(d.id, async () => {
+      const r = await client.releaseBoard(d.id);
+      setConfirmRelease(null);
+      if (r.released) notify.success("The unit was released. Set it up again from the setup page, for this device or another one.");
+      else notify.error("No unit was linked to this device.");
     });
   const revoke = (d: KeyDevice, keyId: string) =>
     run(d.id, async () => {
@@ -130,6 +138,16 @@ export function KeysManager({ devices }: { devices: KeyDevice[] }) {
                       <Button size="sm" disabled={pending} onClick={() => create(d)}>
                         <KeyRound className="size-3.5" /> {pending ? "Making…" : "Make a key"}
                       </Button>
+                    ) : confirmRelease === d.id ? (
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <span className="max-w-xs text-right text-xs text-muted-foreground">Unlink the unit from this device? It stops sending data until a unit is set up for it again.</span>
+                        <Button size="sm" variant="destructive" disabled={pending} onClick={() => release(d)}>
+                          {pending ? "Releasing…" : "Yes, release"}
+                        </Button>
+                        <Button size="sm" variant="ghost" disabled={pending} onClick={() => setConfirmRelease(null)}>
+                          Cancel
+                        </Button>
+                      </div>
                     ) : confirmRevoke === key.id ? (
                       <div className="flex items-center justify-end gap-2">
                         <span className="text-xs text-muted-foreground">Cut this device off?</span>
@@ -160,6 +178,11 @@ export function KeysManager({ devices }: { devices: KeyDevice[] }) {
                         <Button size="sm" variant="ghost" className="text-destructive" disabled={pending} onClick={() => setConfirmRevoke(key.id)}>
                           Revoke
                         </Button>
+                        {!d.isCharger ? (
+                          <Button size="sm" variant="ghost" disabled={pending} onClick={() => setConfirmRelease(d.id)} title="Unlink the monitoring unit so it can be set up for another device">
+                            Release unit
+                          </Button>
+                        ) : null}
                       </div>
                     )}
                   </TableCell>

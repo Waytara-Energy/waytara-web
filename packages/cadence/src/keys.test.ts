@@ -46,6 +46,22 @@ describe("keys client", () => {
   });
 });
 
+describe("releasing a unit", () => {
+  it("asks the hub to unlink the unit from the device, with the signed-in token", async () => {
+    const { calls, client } = fake(200, { released: true });
+    expect(await client.releaseBoard("00000000-0000-4000-8000-000000000001")).toEqual({ released: true });
+    expect(calls[0]!.url).toBe("https://hub.example/v1/equipment/00000000-0000-4000-8000-000000000001/release");
+    expect(calls[0]!.init.method).toBe("POST");
+    expect((calls[0]!.init.headers as Record<string, string>).Authorization).toBe("Bearer tok");
+  });
+
+  it("says plainly when the person may not do it, and does not call out without a sign-in", async () => {
+    await expect(fake(404, {}).client.releaseBoard("e")).rejects.toThrow(/can't manage keys/);
+    const none = createKeysClient({ baseUrl: "https://x", getToken: async () => null, fetch: (() => { throw new Error("no call expected"); }) as unknown as typeof fetch });
+    await expect(none.releaseBoard("e")).rejects.toMatchObject({ status: 401 });
+  });
+});
+
 describe("chargerAddress", () => {
   it("puts the secret and a safe charger name in the path", () => {
     expect(chargerAddress("hub.waytaraenergy.com", "abc123", "ECR Villa #2")).toBe("wss://hub.waytaraenergy.com/ocpp/abc123/ECR-Villa-2");

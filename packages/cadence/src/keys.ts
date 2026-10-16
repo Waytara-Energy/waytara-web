@@ -76,6 +76,10 @@ export function createKeysClient(o: KeysClientOptions) {
     issueClaimTicket(equipmentId: string, hardwareId: string): Promise<{ ticket: string; expires_at: string }> {
       return call("POST", `/v1/equipment/${encodeURIComponent(equipmentId)}/claim-tickets`, { hardware_id: hardwareId });
     },
+    /** Unlinks the monitoring unit from this device and cuts its key off, so the unit can be set up for another device. `released` is false when no unit was linked. */
+    releaseBoard(equipmentId: string): Promise<{ released: boolean }> {
+      return call("POST", `/v1/equipment/${encodeURIComponent(equipmentId)}/release`, {});
+    },
     /** Stops a secret working at once. */
     revoke(keyId: string, reason?: string): Promise<{ revoked: boolean }> {
       return call("DELETE", `/v1/keys/${encodeURIComponent(keyId)}`, reason?.trim() ? { reason: reason.trim() } : {});
