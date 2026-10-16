@@ -80,7 +80,8 @@ The unit keeps the readings it has not had acknowledged in a 1 MB buffer and sen
 * Backend → database: its own low-privilege user, `gw_*` functions only; no `service_role`. ✔
 * Customers: see only their own sites' sessions, samples and events (RLS); cadence data only on a plan with the reports feature. ✔ database tests 17–19
 * Logs and errors never contain a secret, a token or a request body. ✔ tests
-* Not done yet: the board's secure-boot and flash-encryption (irreversible; needs a spare board, A11), signed commands for settings write-back (A9), raw OCPP frame log.
+* Settings commands to a unit are sealed like every other message (authenticated, replay-protected), expire after 45 seconds, are carried out once, and the unit refuses any register that is not on the list the hub gave it or any value outside the range (a second check after the hub's own). Every change is read back before it is called confirmed. ✔ tested without hardware
+* Not done yet: the board's secure-boot and flash-encryption (irreversible; needs a spare board, A11), raw OCPP frame log.
 
 ## 8. First hardware tests (in this order)
 
@@ -102,10 +103,21 @@ The unit keeps the readings it has not had acknowledged in a 1 MB buffer and sen
 3. The charger's header icon turns green within a minute. Start a charge from the charger; stop it after a few minutes.
 4. Customer **Charging sessions** shows the session: energy equals the charger's display (±0.01 kWh), the curve, and the solar/battery/grid split if the inverter was reporting.
 
+### 8.3 Settings write-back and Go Live (after 8.1 passes, with the firmware 0.2.2 or later flashed)
+
+1. Pick one harmless setting that is marked verified (for example **generator charge current** when no generator is connected) and note its value on the inverter's own screen.
+2. In the customer dashboard (Devices > settings) change it. Within about 10 seconds the setting shows **Confirmed** with the value the inverter read back; the board's serial log says `setting write: register N was 0x… will be 0x… ` and `read back as 0x…`. Check the inverter's screen shows the new value, then change it back the same way.
+3. A setting that is **not** marked verified is refused in plain words ("has not been verified on the unit yet"). To verify one: change it once while watching the inverter's screen; if the screen agrees, mark it verified in the catalogue (`equipment_metrics.is_verified`). `ALLOW_UNVERIFIED_WRITES=true` on the hub allows all of them at once and is not recommended.
+4. On the Overview page press **Go live**. Within a few seconds the board logs `live mode on for 90 s`, values move about every 5 seconds, and when you stop (or close the page) the board logs `live mode off` and goes back to batches every 30 seconds.
+
 ## 9. Known gaps (so nothing is a surprise)
 
-* The new pages (Charging sessions, Device keys, Cadence tab) have been built, type-checked and compiled, but not yet looked at in a browser with a real sign-in.
-* Settings write-back (A9) is not built. The setup page (A7, repository `ESP32-S3-GUI`) is built and tested against a fake unit in a real browser, but not yet against the real board over Bluetooth, and not yet deployed (it needs a Vercel project, see the README of the `ESP32-S3-GUI` repository); until then the serial helper and `tools/setup-test.html` still work.
-* The BOOT-button recovery window and the unit's restart after a setup session have not been exercised on the board.
-* Render free plan: needs the monitor in section 3 until the plan is upgraded.
+* The new pages (Charging sessions, Device keys, Cadence tab, Site access) have been built, type-checked and compiled, but not yet looked at in a browser with a real sign-in as a customer, an employee and an admin.
+* Settings write-back (A9) and Go Live (A10): the database functions, the hub and the board firmware are written and tested (database 17 and 8 checks, hub 504 tests); **not yet tried on the real inverter**, and the firmware that carries them is not flashed yet.
+* The dashboard's Go Live opening history and the day report's 1 / 5 minute steps now read the hub (`apps/web/src/lib/cadence-hub.ts`), not the Google spreadsheets. The old Apps Script is no longer used: remove `CADENCE_SCRIPT_URL` and `CADENCE_READ_SECRET` from Vercel and switch the script off. Not yet seen working with real data (the inverter has to be wired up).
+* The hub rate-limits each route per client address (30 a minute for the report routes). The dashboard's server calls share Vercel's addresses, which is fine for a pilot but should become a per-person limit before many people watch at once.
+* The setup page is deployed (https://setup.waytaraenergy.com) and its whole flow ran on the real board on 2026-10-16 (sign-in, Bluetooth, Wi-Fi, checks, claim). Not done: moving a board from one equipment to another needs a manual release in the database (there is no screen for it yet), and the page's message for that case is a bare "refused (409)".
+* Firmware faults found on the board: if the first time-server answer fails after joining Wi-Fi the unit did not retry (fixed in 0.2.2, not flashed); the BOOT-button recovery window and the restart after a setup session have not been exercised.
+* 29 customer-visible settings are not marked verified and are refused for writing until checked one by one (see 8.3).
+* Render free plan: needs the monitors in section 3 until the plan is upgraded; the real customer launch should be on a paid instance.
 * The Ola Maps key was exposed earlier and lives on a personal account: rotate it and move it to a company account.

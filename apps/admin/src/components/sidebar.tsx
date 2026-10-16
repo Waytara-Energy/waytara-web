@@ -13,6 +13,7 @@ import {
   Zap,
   Activity,
   KeyRound,
+  UserCheck,
 } from "lucide-react";
 import { cn } from "@waytara/ui/cn";
 
@@ -22,6 +23,7 @@ const NAV_ITEMS = [
   { label: "Support", href: "/support", icon: LifeBuoy },
   { label: "Customers", href: "/customers", icon: UserCircle2 },
   { label: "Employees", href: "/employees", icon: UsersRound },
+  { label: "Site access", href: "/site-access", icon: UserCheck },
   { label: "Plans", href: "/plans", icon: Layers },
   { label: "Devices", href: "/devices", icon: Cpu },
   { label: "Cadence data", href: "/cadence", icon: Activity },
