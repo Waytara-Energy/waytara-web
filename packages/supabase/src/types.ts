@@ -4306,6 +4306,10 @@ export type Database = {
       }
       purge_old_ev_samples: { Args: never; Returns: number }
       refresh_device_status: { Args: never; Returns: number }
+      rename_device: {
+        Args: { p_equipment: string; p_label: string }
+        Returns: string
+      }
       request_live: { Args: { p_equipment_id: string }; Returns: string }
       rollup_days: { Args: { p_days: string[] }; Returns: number }
       rollup_hours: { Args: { p_hours: string[] }; Returns: number }
