@@ -3988,6 +3988,10 @@ export type Database = {
         }
         Returns: Json
       }
+      gw_ble_access: {
+        Args: { p_actor: string; p_equipment: string; p_ip?: unknown }
+        Returns: string
+      }
       gw_cadence_access: {
         Args: { p_actor: string; p_equipment: string }
         Returns: string

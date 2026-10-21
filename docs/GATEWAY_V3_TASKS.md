@@ -38,7 +38,7 @@ Status: `[ ]` to do, `[~]` in progress, `[x]` done and verified. Started 2026-10
 
 ## Phase 3: firmware (restarts the soak)
 - [ ] **T14** Bluetooth always on, one connection, disconnects itself after about 5 minutes idle; test that Wi-Fi and the hub link stay healthy. (Built and compiled 2026-10-21; the on-board test happens with T17, see the T14 record.)
-- [ ] **T15** Signed Bluetooth grants: the hub issues a short-lived grant to a signed-in person for one board; the board checks it offline with its own key.
+- [ ] **T15** Signed Bluetooth grants: the hub issues a short-lived grant to a signed-in person for one board; the board checks it offline with its own key. (Built 2026-10-21: hub, database and firmware compiled; the on-board test happens with T17, see the T15 record.)
 - [ ] **T16** Bluetooth services: device info and version, network and hub status, edit networks, live logs, live readings, register map, push interval, restart.
 - [ ] **T17** Test with the bench tester page, flash the board, restart the soak.
 
@@ -121,3 +121,12 @@ Firmware 0.3.0-t14 (compiled, NOT flashed; repo `waytara-gateway-fw`, branch `fe
 - The hub link is no longer paused and the unit no longer restarts after every phone session. Only commands that open their own secure connection (`checks`, `speed`, `claim`, `wifi`) pause the hub link while they run; it comes back at the next 20 s round. The unit restarts after a session only if that session changed the setup (claim, networks, hub address, factory reset).
 - Safety until T15: without an open setup window (BOOT for 3 s, no Wi-Fi/key at start, or 10 min without network) a connected phone can only `info` and `ping`; everything that changes the unit is refused with a plain message. T15 adds signed grants as the second way in.
 **Main risk to check on the board:** memory. Bluetooth, the hub link (TLS) and the page's commands now live together. After flashing, connect with the bench page, read `info` (`heap_free`, `heap_largest`) with and without a phone connected, run `checks`, and watch that `hub_link` is true again within about 20 s and Wi-Fi stays up; leave a phone idle for 5 minutes and see it let go.
+
+## T15 record (2026-10-21)
+How a person gets in over Bluetooth now (firmware 0.3.0-t15, hub route live after the next hub deploy, database function already live):
+1. The page connects (the unit is always advertising), reads the unit's public key for this connection, and asks the hub: `POST /v1/equipment/:id/ble-grant` with `{"pub": "<base64url>"}` and the person's sign-in token.
+2. The hub decides the level from who the person is (`gw_ble_access`): admin = **4 admin**, assigned employee or site engineer = **3 service**, the customer who owns the site = **2 network**; anybody else gets a plain 404. Each granted request is written to the activity log (`bluetooth_access`). The hub refuses while the unit is changing its key (409) or has no key (409).
+3. The hub returns a 62-byte grant: version, level, expiry (2 minutes), a hash of the unit's public key for this connection, the unit id, the person id, and a 16-byte HMAC made with a key derived from the unit's equipment key. The page sends it to the unit with the `auth` command.
+4. The unit checks it by itself (no network): signature, that it is for this unit and this connection (a grant cannot be replayed on another connection), the level, and the expiry when its clock is set. Three bad grants in one connection and it disconnects the phone.
+What each level may do on the unit: 0 (none) `ping`, `auth`; 1 `info`; 2 `scan`, `wifi`, `forget`; 3 `checks`, `speed`, `hub`, `reboot`; 4 `claim`, `factory`. The open setup window (BOOT for 3 s) still counts as level 4, so a unit with no key or a lost key can still be reached by someone standing next to it. T16 adds the new services at these levels.
+Proof the two sides agree: `test-vectors/ble-grant.json` (backend) is turned into `vectors.h` for the board's `selftest` command (new grant checks: right level, expiry, no clock, another unit, another connection, changed level, another key). The backend side passes; **run `selftest` on the board after flashing**.
