@@ -4290,6 +4290,16 @@ export type Database = {
       }
       my_assigned_equipment_ids: { Args: never; Returns: string[] }
       my_assigned_site_ids: { Args: never; Returns: string[] }
+      my_unit_by_hardware: {
+        Args: { p_hardware_id: string }
+        Returns: {
+          equipment_id: string
+          fw_version: string
+          label: string
+          site_id: string
+          site_name: string
+        }[]
+      }
       offline_after_s: {
         Args: { p_heartbeat_s: number; p_interval_s: number }
         Returns: number

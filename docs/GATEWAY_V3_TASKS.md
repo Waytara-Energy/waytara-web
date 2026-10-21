@@ -40,14 +40,14 @@ Status: `[ ]` to do, `[~]` in progress, `[x]` done and verified. Started 2026-10
 - [ ] **T14** Bluetooth always on, one connection, disconnects itself after about 5 minutes idle; test that Wi-Fi and the hub link stay healthy. (Built and compiled 2026-10-21; the on-board test happens with T17, see the T14 record.)
 - [ ] **T15** Signed Bluetooth grants: the hub issues a short-lived grant to a signed-in person for one board; the board checks it offline with its own key. (Built 2026-10-21: hub, database and firmware compiled; the on-board test happens with T17, see the T15 record.)
 - [ ] **T16** Bluetooth services: device info and version, network and hub status, edit networks, live logs, live readings, register map, push interval, restart. (Firmware built and compiled 2026-10-21; the on-board test happens with T17, see the T16 record.)
-- [ ] **T17** Test with the bench tester page, flash the board, restart the soak.
+- [ ] **T17** (moved to the END by the user, 2026-10-21: the board is not at hand; do it with T7 and T25) Test with the bench tester page, flash the board, restart the soak.
 
 ## Phase 4: the setup page rebuild
-- [ ] **T18** Design system: the dashboard's colours, fonts and logo, light and dark mode, the sidebar and phone drawer, firmware version and "© WayTara Energy" footer.
-- [ ] **T19** Sign in, device list by role, one "Scan for units" button (and remembered units), clear "not found" and "no details" handling, unit details.
-- [ ] **T20** Pages: Overview, Network, Setup (claim), Key, Status, Live logs, Live readings, Register map, Push interval, Activity log.
-- [ ] **T21** Role rules: customer (view, change Wi-Fi), employee/installer (assigned sites, optional end date), admin (all).
-- [ ] **T22** Phone and laptop checks, deploy.
+- [x] **T18** Design system: the dashboard's colours, fonts and logo, light and dark mode, the sidebar and phone drawer, firmware version and "© WayTara Energy" footer.
+- [x] **T19** Sign in, device list by role, one "Scan for units" button (and remembered units), clear "not found" and "no details" handling, unit details.
+- [x] **T20** Pages: Overview, Network, Setup (claim), Key, Status, Live logs, Live readings, Register map, Push interval, Activity log.
+- [x] **T21** Role rules: customer (view, change Wi-Fi), employee/installer (assigned sites, optional end date), admin (all).
+- [~] **T22** Phone and laptop checks, deploy. (Looked at on laptop and phone widths in the browser; waiting for the push and the hub and Vercel deploys.)
 
 ## Phase 5: finish
 - [ ] **T23** Device keys page and admin screens on the new workflow; customer views.
@@ -144,3 +144,10 @@ Firmware 0.3.0-t16 (compiled, NOT flashed). The commands a signed-in phone can s
 | Restart | `reboot` | 3 service | restarts the unit |
 | Keep the session | `ping` | none | counts as activity so the 5-minute idle limit does not apply while the page is open |
 The **push interval** needs no firmware service: it is a setting of the hub (`GET/PUT /v1/equipment/:id/push-interval`, T10), so the page uses that API (a unit without internet keeps its last value). The static RAM use grew from 32% to 37% (log ring and live buffer); check free memory on the board with `status` while a phone is connected.
+
+## T18 to T21 record (2026-10-21)
+The setup page (repo `ESP32-S3-GUI`, folder `D:Manoj-WaytaraESP32-S3 GUI`) was rebuilt; see its README for the page list. What the rest of the system got for it:
+- **Database** (applied live, test `31_unit_by_hardware`, 7 of 7): `waytara.my_unit_by_hardware(hardware id)` returns the device, its name and its site for the signed-in person only (the owner, assigned staff, admins); an unknown unit and somebody else's look the same. This is how a customer's phone finds which device a unit belongs to, since only staff can read `gateway_devices`.
+- **Hub**: `POST /v1/equipment/:id/decode` turns raw register words (as the unit shows them live over Bluetooth) into values with the stored readings' rules, so the page decodes nothing itself; a customer gets only what the customer view shows; 90 requests a minute per person; 3 tests. The page also uses `ble-grant` (T15), `push-interval` (T10) and `rotation` (T11).
+- **Page**: sign-in, one Scan button, remembered units, grant request and presentation, nine unit and hub pages, light and dark, sidebar and phone drawer, footer with the firmware version and the copyright line. 50 tests with a fake unit that follows the firmware's access levels. Wi-Fi edits are written to the activity log (never the password).
+**Not verified with a real unit** (the board is not at hand): the whole Bluetooth path (grant, levels, status, live readings, logs, map). That is part of T17. **Deploy order:** push; redeploy the hub on Render (new `decode` and `ble-grant` routes); the page builds on Vercel from the repository (its `ALLOWED_ORIGINS` and Content-Security-Policy already allow the hub and Supabase).
