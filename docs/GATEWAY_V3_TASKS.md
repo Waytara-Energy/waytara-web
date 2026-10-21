@@ -34,7 +34,7 @@ Status: `[ ]` to do, `[~]` in progress, `[x]` done and verified. Started 2026-10
   - [x] **T11c** Firmware: accept the staged key and the commit, switch keys without a restart (built and compiled now, flashed with phase 3).
   - [x] **T11d** Admin Device keys page: key states, "Rotate key" (only when the unit is online and can do it), "Cut off", no more "Replace" for units; plain explanations.
 - [x] **T12** "Latest values" pushed to Supabase every 30 to 60 s, and the dashboard Overview uses it.
-- [ ] **T13** Go Live: measure click-to-first-value and value-to-value delay, remove the polling delay, tune; target about 2 to 3 s start and about 1 s updates. (Built 2026-10-21; ticks when the measured numbers are in, see the T13 record.)
+- [x] **T13** Go Live: measure click-to-first-value and value-to-value delay, remove the polling delay, tune; target about 2 to 3 s start and about 1 s updates. (Measured 2026-10-21: start 2.2 s; the update rhythm stays about 5 s until the firmware with the 2 s Go Live reads is flashed, see the T13 record.)
 
 ## Phase 3: firmware (restarts the soak)
 - [ ] **T14** Bluetooth always on, one connection, disconnects itself after about 5 minutes idle; test that Wi-Fi and the hub link stay healthy. (Built and compiled 2026-10-21; the on-board test happens with T17, see the T14 record.)
@@ -155,3 +155,15 @@ The setup page (repo `ESP32-S3-GUI`, folder `D:Manoj-WaytaraESP32-S3 GUI`) was r
 ## T23 and T24 record (2026-10-21)
 **T23.** Admin app: a **Device activity** page (`/activity`, in the menu after Device keys): the newest 200 rows of `device_activity_log` with the device and site, who, what and when, a source filter, and the detail and address in each row's expandable part. Admins see every device; an employee sees the sites they are assigned to (the view's row security decides; the page adds no rule). Customer dashboard: a **Recent activity** card at the bottom of the Devices page: the newest ten sentences with the person's name and time, without technical detail (the view hides it from customers). Both type-check and lint clean; not looked at in a browser (they need sign-ins).
 **T24, database level (live, rolled back): `32_four_roles` 22 of 22.** Customer, employee, installer (site engineer) and admin against what the page and hub rely on: Bluetooth level (customer network, employee and installer service, admin admin), finding a unit by hardware id, who may manage keys and the push interval (not the customer), and the activity log (admin and staff see the detail and address, the customer only the sentence). An assignment that has ended, another customer, and staff at another site get nothing. **Page level:** `roles.test` (6) and the connect-flow tests (7) cover the menu per level and each outcome. **Left for the board (T17):** signing in as each of the four on the real page and connecting over Bluetooth to see the unit's own level checks (they are covered by the firmware, compiled but not flashed).
+
+## T13 measurement (2026-10-21 16:18, Deye 8 kW, firmware still 0.2.9)
+One clean press (every other dashboard tab closed, the hub with the timing fix and the dashboard with the instant wake-up both deployed):
+| Step | Time |
+|---|---|
+| Press until the hub tells the unit to stream | 0.76 s (was 3.1 s before the wake-up) |
+| Unit told until its first reading | 1.34 s (waiting for the unit's next read) |
+| First reading until the value is on the dashboard's channel | 0.16 s |
+| **Press until the first value** | **2.25 s** (first measurement before the change: 4.17 s; target 2 to 3 s) |
+| Gap between updates once running | average 4.9 s, longest 6.2 s (17 updates in 80 s) |
+The start meets the target. The update rhythm is the unit's own 5-second read cycle: the firmware built for T13 (0.3.0-t13 and later, in the T16 build) reads the fast values every 2 s while somebody watches, which should bring it to about 2 s; it is not flashed yet (T17), so re-measure `avg_gap_ms` after flashing. A target of about 1 s would need the inverter read every second; whether the Deye answers that fast is a question for the board test.
+Two traps when measuring: the database keeps ONE Go Live request per unit, so any dashboard tab left open (or an old tab) keeps the session going and the next press does not start a new one; wait until `select count(*) from waytara.equipment_live_requests where until > now()` is 0 before pressing.
