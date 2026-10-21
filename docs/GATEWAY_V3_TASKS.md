@@ -21,7 +21,7 @@ Status: `[ ]` to do, `[~]` in progress, `[x]` done and verified. Started 2026-10
 - [x] **T3** Database: the `fleet_tick()` function (statuses, hub-down guard, offline / 3 h / daily / back-online events, digest and 10-minute rules) with tests.
 - [x] **T4** Hub: `POST /v1/internal/tick` (shared secret, answers with its health and the number of connected boards) with tests.
 - [x] **T5** Dashboard app: the route that sends the queued emails (offline, still offline, back online, hub down) as digests, with tests.
-- [~] **T6** Switch on: create the 10-second `fleet-tick` job and retire `device-status`, `keep-hub-awake` and the offline part of `detect-alerts` (with a rollback).
+- [x] **T6** Switch on: create the 10-second `fleet-tick` job and retire `device-status`, `keep-hub-awake` and the offline part of `detect-alerts` (with a rollback).
 - [ ] **T7** Live check: unplug and replug the inverter cable, turn the board's Wi-Fi off and on, redeploy the hub; confirm the statuses, the email timeline, one email at a time, and no false emails.
 
 ## Phase 2: backend codec, activity log, key and data freshness
@@ -78,3 +78,6 @@ EV charger, the other 28 settings, Ola Maps key, Render paid plan, hardening, fi
 **Retired once `fleet-tick` runs:** `device-status` (its function is called inside `fleet_tick`), `keep-hub-awake`, and the offline part of `detect-alerts` (fault and alarm stay).
 
 **Secrets (you set these, I never see them):** `HUB_TICK_SECRET` on Render and the same value in the Supabase vault as `hub_tick_secret`. The mailer route uses the existing `cron_secret`.
+
+## T6 record (2026-10-21, 13:53 IST)
+`fleet-tick` (pg_cron, every 10 s, `select waytara.fleet_tick()`) is running; `device-status` and `keep-hub-awake` were removed in the same transaction; `detect-alerts` (every 5 min) stays for faults and alarms only. First check: no failed runs, hub up, 1 board connected, nothing queued. **Rollback** if ever needed: `select cron.unschedule('fleet-tick'); select cron.schedule('device-status', '10 seconds', $$select waytara.refresh_device_status()$$); select cron.schedule('keep-hub-awake', '*/5 * * * *', $$select net.http_get(url := 'https://hub.waytaraenergy.com/healthz', timeout_milliseconds := 60000)$$);` and restore the offline handling in `apps/web/src/app/api/cron/detect-alerts/route.ts` (or the customer would get no offline alerts).
