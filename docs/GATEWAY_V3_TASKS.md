@@ -55,8 +55,11 @@ Status: `[ ]` to do, `[~]` in progress, `[x]` done and verified. Started 2026-10
 - [~] **T25** (running since 2026-10-21 17:37 IST, report due 2026-10-24 about 17:40) Restart and complete the 72 h soak with the final firmware.
 - [ ] **T26** Documentation (later, as you asked).
 
+## What is left
+Everything still open from this list, in detail, with the parked work as Gateway v4, is in `docs/GATEWAY_V4_TASKS.md`.
+
 ## Parked, as before
-EV charger, the other 28 settings, Ola Maps key, Render paid plan, hardening, firmware update.
+EV charger, the other 28 settings, Ola Maps key, Render paid plan, hardening, firmware update (now Part B of `docs/GATEWAY_V4_TASKS.md`).
 
 ---
 
