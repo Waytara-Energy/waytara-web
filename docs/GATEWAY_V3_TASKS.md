@@ -37,7 +37,7 @@ Status: `[ ]` to do, `[~]` in progress, `[x]` done and verified. Started 2026-10
 - [ ] **T13** Go Live: measure click-to-first-value and value-to-value delay, remove the polling delay, tune; target about 2 to 3 s start and about 1 s updates. (Built 2026-10-21; ticks when the measured numbers are in, see the T13 record.)
 
 ## Phase 3: firmware (restarts the soak)
-- [ ] **T14** Bluetooth always on, one connection, disconnects itself after about 5 minutes idle; test that Wi-Fi and the hub link stay healthy.
+- [ ] **T14** Bluetooth always on, one connection, disconnects itself after about 5 minutes idle; test that Wi-Fi and the hub link stay healthy. (Built and compiled 2026-10-21; the on-board test happens with T17, see the T14 record.)
 - [ ] **T15** Signed Bluetooth grants: the hub issues a short-lived grant to a signed-in person for one board; the board checks it offline with its own key.
 - [ ] **T16** Bluetooth services: device info and version, network and hub status, edit networks, live logs, live readings, register map, push interval, restart.
 - [ ] **T17** Test with the bench tester page, flash the board, restart the soak.
@@ -113,3 +113,11 @@ Built, not yet measured. What changed:
 - **Hub**: the wake-up route (same access rule as the cadence reports, answers 202 at once) makes the Go Live check run immediately instead of at the next 3 s check; the unit is told to stream within a fraction of a second. The hub also writes how each session went to `equipment_live_timing` (one row per unit): `request_to_command_ms`, `command_to_first_frame_ms`, `first_frame_to_tick_ms`, `request_to_first_tick_ms`, and `ticks`, `avg_gap_ms`, `max_gap_ms` (the refresh rhythm).
 - **Firmware 0.3.0-t13**: while live, readings that are normally read every 10 s or quicker are read every 2 s, and a Go Live press brings the next read forward to within 2 s. Compiled, not flashed (the soak runs on 0.2.9), so until it is flashed the rhythm stays at the unit's normal 5 s.
 **To measure:** deploy the hub, open a dashboard, press Go Live, wait about 30 s, then read the row: `select * from waytara.equipment_live_timing;`. Target: `request_to_first_tick_ms` about 2 to 3 s, `avg_gap_ms` about 1 s to 2 s (5 s on unflashed firmware). Tick T13 once the numbers are in and tuned.
+
+## T14 record (2026-10-21)
+Firmware 0.3.0-t14 (compiled, NOT flashed; repo `waytara-gateway-fw`, branch `feat/gateway-fw`):
+- Bluetooth starts at boot and advertises all the time as `WayTara-<last 6>`; one connection at a time; a fresh key pair for every phone.
+- The unit disconnects a phone that sends nothing authenticated for 5 minutes (`BLE_IDLE_MS`; the page keeps a session alive with the new `ping` command) and one that has not agreed the encrypted link within 30 seconds (`BLE_HANDSHAKE_MS`), so a passer-by cannot hold the only slot.
+- The hub link is no longer paused and the unit no longer restarts after every phone session. Only commands that open their own secure connection (`checks`, `speed`, `claim`, `wifi`) pause the hub link while they run; it comes back at the next 20 s round. The unit restarts after a session only if that session changed the setup (claim, networks, hub address, factory reset).
+- Safety until T15: without an open setup window (BOOT for 3 s, no Wi-Fi/key at start, or 10 min without network) a connected phone can only `info` and `ping`; everything that changes the unit is refused with a plain message. T15 adds signed grants as the second way in.
+**Main risk to check on the board:** memory. Bluetooth, the hub link (TLS) and the page's commands now live together. After flashing, connect with the bench page, read `info` (`heap_free`, `heap_largest`) with and without a phone connected, run `checks`, and watch that `hub_link` is true again within about 20 s and Wi-Fi stays up; leave a phone idle for 5 minutes and see it let go.
