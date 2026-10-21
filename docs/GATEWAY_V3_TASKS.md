@@ -39,7 +39,7 @@ Status: `[ ]` to do, `[~]` in progress, `[x]` done and verified. Started 2026-10
 ## Phase 3: firmware (restarts the soak)
 - [ ] **T14** Bluetooth always on, one connection, disconnects itself after about 5 minutes idle; test that Wi-Fi and the hub link stay healthy. (Built and compiled 2026-10-21; the on-board test happens with T17, see the T14 record.)
 - [ ] **T15** Signed Bluetooth grants: the hub issues a short-lived grant to a signed-in person for one board; the board checks it offline with its own key. (Built 2026-10-21: hub, database and firmware compiled; the on-board test happens with T17, see the T15 record.)
-- [ ] **T16** Bluetooth services: device info and version, network and hub status, edit networks, live logs, live readings, register map, push interval, restart.
+- [ ] **T16** Bluetooth services: device info and version, network and hub status, edit networks, live logs, live readings, register map, push interval, restart. (Firmware built and compiled 2026-10-21; the on-board test happens with T17, see the T16 record.)
 - [ ] **T17** Test with the bench tester page, flash the board, restart the soak.
 
 ## Phase 4: the setup page rebuild
@@ -130,3 +130,17 @@ How a person gets in over Bluetooth now (firmware 0.3.0-t15, hub route live afte
 4. The unit checks it by itself (no network): signature, that it is for this unit and this connection (a grant cannot be replayed on another connection), the level, and the expiry when its clock is set. Three bad grants in one connection and it disconnects the phone.
 What each level may do on the unit: 0 (none) `ping`, `auth`; 1 `info`; 2 `scan`, `wifi`, `forget`; 3 `checks`, `speed`, `hub`, `reboot`; 4 `claim`, `factory`. The open setup window (BOOT for 3 s) still counts as level 4, so a unit with no key or a lost key can still be reached by someone standing next to it. T16 adds the new services at these levels.
 Proof the two sides agree: `test-vectors/ble-grant.json` (backend) is turned into `vectors.h` for the board's `selftest` command (new grant checks: right level, expiry, no clock, another unit, another connection, changed level, another key). The backend side passes; **run `selftest` on the board after flashing**.
+
+## T16 record (2026-10-21)
+Firmware 0.3.0-t16 (compiled, NOT flashed). The commands a signed-in phone can send over the encrypted Bluetooth link, with the grant level each needs (T15):
+| Service | Command | Level | What it does |
+|---|---|---|---|
+| Device info and version | `info` | 1 view | hardware id, firmware version, claimed or not, equipment id, hub address, clock, memory, Wi-Fi, saved networks, hub link, the level the phone has |
+| Network and hub status | `status` | 1 view | boot number, uptime, Wi-Fi (name, signal, channel, address), clock, hub link, inverter online, share of successful reads, rounds, failures, dead registers, queued frames, sent and acknowledged numbers, dropped frames, map version and size, free memory |
+| Edit networks | `scan`, `wifi`, `forget` | 2 network | as before; the hub link is paused only while a `wifi` command runs |
+| Live readings | `live` {on} | 1 view | the newest round of Modbus reads as RAW words (`{live: round, t, b: [[start, "hex words"]], more}`); the unit never converts them, the page or the backend decodes them with the register map. While it is on the fast values are read every 2 s (as in Go Live); it stops when the phone leaves |
+| Live logs | `logs` {on, backlog} | 3 service | the unit's log lines (`{log: [[number, text]]}`), the last 30 first. Every log line is kept in a ring of 64 lines |
+| Register map | `map` {kind: r or w, from} | 3 service | the map the hub sent, a page at a time: what is read (start, count, seconds) or what may be written (register, mask, low, high) |
+| Restart | `reboot` | 3 service | restarts the unit |
+| Keep the session | `ping` | none | counts as activity so the 5-minute idle limit does not apply while the page is open |
+The **push interval** needs no firmware service: it is a setting of the hub (`GET/PUT /v1/equipment/:id/push-interval`, T10), so the page uses that API (a unit without internet keeps its last value). The static RAM use grew from 32% to 37% (log ring and live buffer); check free memory on the board with `status` while a phone is connected.
