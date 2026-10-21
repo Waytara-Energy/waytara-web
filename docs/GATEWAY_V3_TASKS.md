@@ -179,3 +179,13 @@ Everything below needs the office board (hardware id 2884855505D0, the Deye 8 kW
 7. **T7 live checks.** Unplug and replug the RS485 cable, turn the Wi-Fi off and on, redeploy the hub. Check the device status, the email timeline (offline after 30 s, first email after 2 more minutes, back-online email with the downtime), one email at a time, and no false emails while the hub restarts.
 8. **T25.** Start the 72 h soak again from the final firmware and run the soak report when it is over (pass = no gaps over 2 minutes except planned ones, a reading about every 5 s, no unexpected hub restarts).
 9. Afterwards: tick T7, T14 to T17, T24, T25 and write what was found into the records; then the documentation (T26).
+
+## T13 re-measured on the flashed firmware (2026-10-21 17:43, firmware 0.3.0-t16e)
+| Step | Time |
+|---|---|
+| Press until the hub tells the unit | 1.68 s (0.76 s the time before; it varies with the browser to hub round trip) |
+| Unit told until its first reading | 1.24 s |
+| Reading until the dashboard channel | 0.17 s |
+| **Press until the first value** | **3.09 s** (2.25 s before; target 2 to 3 s) |
+| **Gap between updates** | **average 2.14 s, longest 2.95 s** (was 4.91 s on 0.2.9; 10 updates in 21 s) |
+The 2-second Go Live reads of the new firmware work: updates now come about every 2 s while somebody watches. The start is 2 to 3 s, borderline on a slow press. Whether it can go to about 1 s per update depends on reading the inverter every second, which the Deye might not answer; not tried.
