@@ -30,7 +30,7 @@ Status: `[ ]` to do, `[~]` in progress, `[x]` done and verified. Started 2026-10
 - [x] **T10** Push-interval setting: API with limits, the hub applies it, logged in the activity log.
 - [ ] **T11** Key workflow (split in four, below):
   - [x] **T11a** Database: key rotations (two keys valid side by side while the new one is delivered, one rotation at a time, cancel if it does not finish), with tests.
-  - [ ] **T11b** Hub: remote two-step rotation (new key sent sealed with the old one, the unit confirms, then the old key is cut), revoke, and the old "replace" refused for units; tests with a simulated unit.
+  - [x] **T11b** Hub: remote two-step rotation (new key sent sealed with the old one, the unit confirms, then the old key is cut), revoke, and the old "replace" refused for units; tests with a simulated unit.
   - [ ] **T11c** Firmware: accept the staged key and the commit, switch keys without a restart (built and compiled now, flashed with phase 3).
   - [ ] **T11d** Admin Device keys page: key states, "Rotate key" (only when the unit is online and can do it), "Cut off", no more "Replace" for units; plain explanations.
 - [ ] **T12** "Latest values" pushed to Supabase every 30 to 60 s, and the dashboard Overview uses it.
