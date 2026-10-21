@@ -382,6 +382,73 @@ export type Database = {
         }
         Relationships: []
       }
+      device_activity: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_name: string | null
+          actor_role: string | null
+          at: string
+          details: Json
+          equipment_id: string | null
+          id: number
+          ip: unknown
+          site_id: string | null
+          source: string
+          summary: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          at?: string
+          details?: Json
+          equipment_id?: string | null
+          id?: never
+          ip?: unknown
+          site_id?: string | null
+          source: string
+          summary: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          at?: string
+          details?: Json
+          equipment_id?: string | null
+          id?: never
+          ip?: unknown
+          site_id?: string | null
+          source?: string
+          summary?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_activity_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_activity_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_activity_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       electricity_tariffs: {
         Row: {
           billing_months: number
@@ -3530,6 +3597,73 @@ export type Database = {
       }
     }
     Views: {
+      device_activity_log: {
+        Row: {
+          action: string | null
+          actor_id: string | null
+          actor_name: string | null
+          actor_role: string | null
+          at: string | null
+          details: Json | null
+          equipment_id: string | null
+          id: number | null
+          ip: unknown
+          site_id: string | null
+          source: string | null
+          summary: string | null
+        }
+        Insert: {
+          action?: string | null
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          at?: string | null
+          details?: never
+          equipment_id?: string | null
+          id?: number | null
+          ip?: never
+          site_id?: string | null
+          source?: string | null
+          summary?: string | null
+        }
+        Update: {
+          action?: string | null
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          at?: string | null
+          details?: never
+          equipment_id?: string | null
+          id?: number | null
+          ip?: never
+          site_id?: string | null
+          source?: string | null
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_activity_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_activity_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_activity_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipment_status: {
         Row: {
           device_error: string | null
@@ -3597,6 +3731,19 @@ export type Database = {
       _fleet_hub_events: { Args: { p_now: string }; Returns: number }
       _fleet_hub_step: {
         Args: { p_io: boolean; p_now: string }
+        Returns: undefined
+      }
+      _record_activity: {
+        Args: {
+          p_action: string
+          p_actor: string
+          p_details?: Json
+          p_equipment: string
+          p_ip?: unknown
+          p_site: string
+          p_source: string
+          p_summary: string
+        }
         Returns: undefined
       }
       _require_gateway_service: { Args: never; Returns: undefined }
@@ -3954,6 +4101,16 @@ export type Database = {
       is_monitored_category: { Args: { p_category: string }; Returns: boolean }
       is_site_engineer_or_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
+      log_device_activity: {
+        Args: {
+          p_action: string
+          p_details?: Json
+          p_equipment: string
+          p_summary: string
+          p_via?: string
+        }
+        Returns: undefined
+      }
       my_assigned_equipment_ids: { Args: never; Returns: string[] }
       my_assigned_site_ids: { Args: never; Returns: string[] }
       offline_after_s: {
