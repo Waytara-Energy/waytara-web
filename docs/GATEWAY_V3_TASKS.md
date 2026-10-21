@@ -27,7 +27,7 @@ Status: `[ ]` to do, `[~]` in progress, `[x]` done and verified. Started 2026-10
 ## Phase 2: backend codec, activity log, key and data freshness
 - [x] **T8** One shared codec: encoding for time-of-day settings, 32-bit values and option lists; round-trip tests (value to raw to value) for every setting.
 - [x] **T9** Activity log table in Supabase (who, what, when, source, details) with who-can-see rules, and the hub and apps writing to it.
-- [ ] **T10** Push-interval setting: API with limits, the hub applies it, logged in the activity log.
+- [x] **T10** Push-interval setting: API with limits, the hub applies it, logged in the activity log.
 - [ ] **T11** Key workflow: remote two-step rotation (new key sent sealed with the old one), revoke, key states; the "Replace" button removed for boards on Device keys.
 - [ ] **T12** "Latest values" pushed to Supabase every 30 to 60 s, and the dashboard Overview uses it.
 - [ ] **T13** Go Live: measure click-to-first-value and value-to-value delay, remove the polling delay, tune; target about 2 to 3 s start and about 1 s updates.
@@ -87,3 +87,6 @@ The backend codec is the only place that converts: `core/decode.ts` (raw words t
 
 ## T9 record (2026-10-21)
 `waytara.device_activity` (+ the view `waytara.device_activity_log`) is the one "who did what, when" history. Filled by triggers on the tables that already know: key events (unit set up, key replaced, key cut off, unit released), site access (granted with its end date, removed), offline alerts (offline, back), and setting changes (requested, confirmed by the inverter, not taken). The setup page adds what only it knows through `waytara.log_device_activity()` (Wi-Fi changed or removed, restart, push interval): a customer may log Wi-Fi changes and restarts on their own unit, only staff the push interval, a secret in the details is refused, a claim cannot be faked from the page (the trigger writes it). Visible to: the customer who owns the site, staff assigned to it (an ended assignment shows nothing) and admins; customers do not get the technical details or the address. Each trigger swallows its own errors so a log problem never stops the action. Tests: 26_device_activity (22).
+
+## T10 record (2026-10-21)
+The push interval (how often the averaged 15-minute figures and the latest values of a unit are written to Supabase) lives in `gateway_equipment_settings.upload_interval_s`. New: `gw_get_push_interval` / `gw_set_push_interval` (backend identity only; the person must manage the unit; allowed 60, 120, 300, 600, 900, 1800 or 3600 s; the change is written to the activity log with the old and new value), the hub's `GET` and `PUT /v1/equipment/:id/push-interval`, and `IngestService.reloadProfile()` so a connected unit takes it at once. Tests: 27_push_interval (10), push-interval.test.ts (6), 2 in ingest.test.ts. The setup page's Push interval screen (T20) is the user of this.

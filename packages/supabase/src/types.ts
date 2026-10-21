@@ -3971,6 +3971,10 @@ export type Database = {
         Returns: undefined
       }
       gw_ev_site_figures: { Args: { p_equipment: string }; Returns: Json }
+      gw_get_push_interval: {
+        Args: { p_actor: string; p_equipment: string }
+        Returns: number
+      }
       gw_ingest_summaries: {
         Args: {
           p_buckets?: Json
@@ -4063,6 +4067,15 @@ export type Database = {
           p_key: string
         }
         Returns: string
+      }
+      gw_set_push_interval: {
+        Args: {
+          p_actor: string
+          p_equipment: string
+          p_ip?: unknown
+          p_seconds: number
+        }
+        Returns: Json
       }
       gw_store_map: {
         Args: { p_body: Json; p_equipment: string; p_hash: string }
