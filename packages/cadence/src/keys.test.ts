@@ -46,6 +46,30 @@ describe("keys client", () => {
   });
 });
 
+describe("changing a unit's key", () => {
+  const eq = "00000000-0000-4000-8000-000000000001";
+
+  it("asks where the change stands with a GET and no body, and starts one with a POST", async () => {
+    const s = fake(200, { state: "none", rotation_id: null, started_at: null, expires_at: null, can_start: true, reason: null });
+    expect(await s.client.keyChangeStatus(eq)).toMatchObject({ state: "none", can_start: true });
+    expect(s.calls[0]!.url).toBe(`https://hub.example/v1/equipment/${eq}/rotation`);
+    expect(s.calls[0]!.init.method).toBe("GET");
+    expect(s.calls[0]!.init.body).toBeUndefined();
+    expect((s.calls[0]!.init.headers as Record<string, string>)["Content-Type"]).toBeUndefined();
+    const p = fake(202, { state: "sent", rotation_id: "r1", started_at: "x", expires_at: "y" });
+    expect(await p.client.startKeyChange(eq)).toMatchObject({ rotation_id: "r1" });
+    expect(p.calls[0]!.init.method).toBe("POST");
+  });
+
+  it("shows the hub's own plain reason when the unit cannot do it now, but not an unexpected message", async () => {
+    const reason = "The unit is not online right now. A key can only be changed while the unit is connected.";
+    await expect(fake(409, { error: { code: "not_possible", message: reason } }).client.startKeyChange(eq)).rejects.toThrow(reason);
+    await expect(fake(409, { error: { message: "x".repeat(500) } }).client.startKeyChange(eq)).rejects.toThrow(/conflicts with the current state/);
+    await expect(fake(500, { error: { message: "database password=hunter2" } }).client.startKeyChange(eq)).rejects.toThrow(/unavailable/);
+    await expect(fake(404, {}).client.keyChangeStatus(eq)).rejects.toMatchObject({ status: 404 });
+  });
+});
+
 describe("releasing a unit", () => {
   it("asks the hub to unlink the unit from the device, with the signed-in token", async () => {
     const { calls, client } = fake(200, { released: true });
