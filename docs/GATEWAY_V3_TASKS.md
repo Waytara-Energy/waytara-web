@@ -50,8 +50,8 @@ Status: `[ ]` to do, `[~]` in progress, `[x]` done and verified. Started 2026-10
 - [~] **T22** Phone and laptop checks, deploy. (Looked at on laptop and phone widths in the browser; waiting for the push and the hub and Vercel deploys.)
 
 ## Phase 5: finish
-- [ ] **T23** Device keys page and admin screens on the new workflow; customer views.
-- [ ] **T24** Test with all four roles (customer, employee, installer, admin).
+- [x] **T23** Device keys page and admin screens on the new workflow; customer views. (Admin: new Device activity page; customer: a Recent activity card on the Devices page; the Device keys page is the T11d one.)
+- [~] **T24** Test with all four roles (customer, employee, installer, admin). (Done at the database and page-rule level, see the T23 and T24 record; the real sign-ins and the Bluetooth part wait for the board, T17.)
 - [ ] **T25** Restart and complete the 72 h soak with the final firmware.
 - [ ] **T26** Documentation (later, as you asked).
 
@@ -151,3 +151,7 @@ The setup page (repo `ESP32-S3-GUI`, folder `D:Manoj-WaytaraESP32-S3 GUI`) was r
 - **Hub**: `POST /v1/equipment/:id/decode` turns raw register words (as the unit shows them live over Bluetooth) into values with the stored readings' rules, so the page decodes nothing itself; a customer gets only what the customer view shows; 90 requests a minute per person; 3 tests. The page also uses `ble-grant` (T15), `push-interval` (T10) and `rotation` (T11).
 - **Page**: sign-in, one Scan button, remembered units, grant request and presentation, nine unit and hub pages, light and dark, sidebar and phone drawer, footer with the firmware version and the copyright line. 50 tests with a fake unit that follows the firmware's access levels. Wi-Fi edits are written to the activity log (never the password).
 **Not verified with a real unit** (the board is not at hand): the whole Bluetooth path (grant, levels, status, live readings, logs, map). That is part of T17. **Deploy order:** push; redeploy the hub on Render (new `decode` and `ble-grant` routes); the page builds on Vercel from the repository (its `ALLOWED_ORIGINS` and Content-Security-Policy already allow the hub and Supabase).
+
+## T23 and T24 record (2026-10-21)
+**T23.** Admin app: a **Device activity** page (`/activity`, in the menu after Device keys): the newest 200 rows of `device_activity_log` with the device and site, who, what and when, a source filter, and the detail and address in each row's expandable part. Admins see every device; an employee sees the sites they are assigned to (the view's row security decides; the page adds no rule). Customer dashboard: a **Recent activity** card at the bottom of the Devices page: the newest ten sentences with the person's name and time, without technical detail (the view hides it from customers). Both type-check and lint clean; not looked at in a browser (they need sign-ins).
+**T24, database level (live, rolled back): `32_four_roles` 22 of 22.** Customer, employee, installer (site engineer) and admin against what the page and hub rely on: Bluetooth level (customer network, employee and installer service, admin admin), finding a unit by hardware id, who may manage keys and the push interval (not the customer), and the activity log (admin and staff see the detail and address, the customer only the sentence). An assignment that has ended, another customer, and staff at another site get nothing. **Page level:** `roles.test` (6) and the connect-flow tests (7) cover the menu per level and each outcome. **Left for the board (T17):** signing in as each of the four on the real page and connecting over Bluetooth to see the unit's own level checks (they are covered by the firmware, compiled but not flashed).

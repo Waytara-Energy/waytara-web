@@ -13,6 +13,7 @@ import { ABOUT_READING_KEYS, aboutPages, type ChildView } from "@/lib/device-abo
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { FieldGroup } from "@/components/ui/field";
 import { DeviceAbout } from "@/components/dashboard/device-about";
+import { DeviceActivity } from "@/components/dashboard/device-activity";
 import { DeviceCard } from "@/components/dashboard/device-card";
 import { DevicesBoard } from "@/components/dashboard/devices-board";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
@@ -150,6 +151,8 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
           ) : null
         }
       />
+
+      <DeviceActivity deviceId={device.id} />
     </div>
   );
 }

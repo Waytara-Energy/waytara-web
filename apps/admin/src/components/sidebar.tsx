@@ -14,6 +14,7 @@ import {
   Activity,
   KeyRound,
   UserCheck,
+  History,
 } from "lucide-react";
 import { cn } from "@waytara/ui/cn";
 
@@ -28,6 +29,7 @@ const NAV_ITEMS = [
   { label: "Devices", href: "/devices", icon: Cpu },
   { label: "Cadence data", href: "/cadence", icon: Activity },
   { label: "Device keys", href: "/keys", icon: KeyRound },
+  { label: "Device activity", href: "/activity", icon: History },
   { label: "Service Plans", href: "/service-plans", icon: Wrench },
   { label: "Electricity Rates", href: "/tariffs", icon: Zap },
   { label: "Audit Log", href: "/audit", icon: ScrollText },
