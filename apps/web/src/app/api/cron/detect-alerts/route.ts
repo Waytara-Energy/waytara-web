@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isCronAuthorized } from "@/lib/cron-auth";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
-import { ALERT_PREFIX, FAULT_ALARM_KEYS, needsReminder, offlineMessage, offlineStatus, raisedAlerts, reminderDue, type AlertKind, type HeartbeatRow } from "@/lib/device-alerts";
+import { ALERT_PREFIX, FAULT_ALARM_KEYS, needsReminder, offlineStatus, raisedAlerts, reminderDue, type AlertKind, type HeartbeatRow } from "@/lib/device-alerts";
 import { sendDeviceAlertEmail } from "@/lib/send-device-alert-email";
 import { isMonitoredCategory } from "@/lib/equipment-children";
 
@@ -10,10 +10,11 @@ import { isMonitoredCategory } from "@/lib/equipment-children";
 // No signed-in user exists for a scheduled job, so this is one of the legitimate service_role cases (see
 // service-role.ts's own doc comment).
 //
-// For each active device it decides three things, opens or closes the matching alert, and e-mails the customer when
+// For each active device it decides two things, opens or closes the matching alert, and e-mails the customer when
 // something starts or clears:
-//   - offline: the agent says the device does not answer (or the agent itself has gone quiet) - see device-alerts.ts.
-//     Devices that have never had an agent heartbeat are judged slowly (6 hours) and are not e-mailed.
+//   - offline: NO LONGER HANDLED HERE. The one heartbeat in the database, waytara.fleet_tick() (every 10 s, GATEWAY_V3_TASKS.md T3),
+//     opens, repeats and closes the offline alerts and queues their e-mails; send-device-notifications sends them. This job only reads the
+//     offline verdict, to leave the fault and alarm alerts of a device that is not answering alone.
 //   - fault:   a non-zero fault_message_N register, decoded with the Deye fault table.
 //   - alarm:   a non-zero alarm_status_N register.
 // An alert is only opened if there is not already an open one (resolved_at is null) of the same kind for the device,
@@ -47,7 +48,8 @@ interface Pending {
   message: string;
 }
 
-const KINDS: AlertKind[] = ["offline", "fault", "alarm"];
+// offline alerts belong to fleet_tick(): not listed here, so this job never opens, reminds about or closes them
+const KINDS: AlertKind[] = ["fault", "alarm"];
 
 function kindOfMessage(message: string): AlertKind | null {
   return KINDS.find((k) => message.startsWith(ALERT_PREFIX[k])) ?? null;
@@ -115,7 +117,6 @@ export async function GET(req: NextRequest) {
 
     const open = (kind: AlertKind) => openBy.get(`${device.id}:${kind}`);
     const want = new Map<AlertKind, Pending>();
-    if (offline.offline) want.set("offline", { deviceId: device.id, kind: "offline", severity: "critical", message: offlineMessage(label, offline) });
     // Fault and alarm registers of a device that is not answering are old news: leave those alerts as they are.
     if (!offline.offline) {
       for (const a of raisedAlerts(label, faultValues.get(device.id) ?? {})) {
