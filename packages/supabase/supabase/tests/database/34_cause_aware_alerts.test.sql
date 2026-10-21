@@ -40,6 +40,7 @@ create or replace function pg_temp.unit_silent(p_label text, p_minutes int) retu
 $$;
 create or replace function pg_temp.all_good(p_label text) returns void language sql as $$
   update waytara.equipment_heartbeat h set last_seen = now(), device_online = true, consecutive_failures = 0, device_error = null where h.equipment_id = (select id from waytara.equipment where label = p_label);
+  update waytara.equipment_heartbeat h set status_since = now() - interval '2 minutes' where h.equipment_id = (select id from waytara.equipment where label = p_label);
 $$;
 create or replace function pg_temp.alert(p_label text) returns waytara.alerts language sql as $$
   select a.* from waytara.alerts a join waytara.equipment e on e.id = a.device_id where e.label = p_label order by a.ts desc limit 1

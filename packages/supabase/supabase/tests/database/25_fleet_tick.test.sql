@@ -6,7 +6,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public, waytara;
 
-select plan(19);
+select plan(20);
 
 insert into auth.users (id, instance_id, aud, role, email) values
   ('c1000000-0000-0000-0000-0000000000f1', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'f1@test.local'),
@@ -100,10 +100,14 @@ select is(pg_temp.outbox('E2', 'still_offline'), 0, 'an acknowledged alert gets 
 -- 8. back online: told customer gets one message with the time down; a customer never told gets none
 update waytara.equipment_heartbeat set last_seen = now(), device_online = true where equipment_id = 'e1000000-0000-0000-0000-0000000000f1';
 select waytara.fleet_tick(now(), false);
+select is(pg_temp.open_alerts('E1') * 10 + pg_temp.outbox('E1', 'back_online'), 10, 'a recovery that has held for less than a minute does not close the alert or send "back online"');
+update waytara.equipment_heartbeat set status_since = now() - interval '2 minutes' where equipment_id = 'e1000000-0000-0000-0000-0000000000f1';
+select waytara.fleet_tick(now(), false);
 select is(pg_temp.open_alerts('E1') * 10 + pg_temp.outbox('E1', 'back_online'), 1, 'when the device is back the alert closes and one "back online" e-mail is queued');
 select pg_temp.silent('E5', 3);
 select waytara.fleet_tick(now(), false);
 update waytara.equipment_heartbeat set last_seen = now(), device_online = true where equipment_id = 'e5000000-0000-0000-0000-0000000000f5';
+update waytara.equipment_heartbeat set status_since = now() - interval '2 minutes' where equipment_id = 'e5000000-0000-0000-0000-0000000000f5';
 select waytara.fleet_tick(now(), false);
 select is(pg_temp.open_alerts('E5') * 10 + pg_temp.outbox('E5', 'back_online'), 0, 'a customer who was never e-mailed gets no "back online" e-mail');
 
