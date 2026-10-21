@@ -6,7 +6,7 @@ import { KeysManager, type KeyDevice } from "./keys-manager";
 // revokes anything. The secret itself is never in the database in the clear and never on this page: it is shown once, when it is made.
 export default async function KeysPage() {
   const supabase = await createClient();
-  const [{ data: equipment, error }, { data: keyRows }] = await Promise.all([
+  const [{ data: equipment, error }, { data: keyRows }, { data: changeRows }] = await Promise.all([
     supabase
       .from("equipment")
       .select("id, label, parent_id, retired_at, site:sites(name), device_type:equipment_inventory(category, name, model_number)")
@@ -20,7 +20,14 @@ export default async function KeysPage() {
       .is("revoked_at", null)
       .order("created_at", { ascending: false })
       .limit(1000),
+    // a key change that is still being delivered to a unit (the database drops it after 10 minutes)
+    supabase.from("key_rotations").select("equipment_id, state, started_at, expires_at").in("state", ["sent", "staged"]).limit(500),
   ]);
+
+  const changeByDevice = new Map<string, NonNullable<KeyDevice["keyChange"]>>();
+  for (const r of changeRows ?? []) {
+    if (r.state === "sent" || r.state === "staged") changeByDevice.set(r.equipment_id, { state: r.state, startedAt: r.started_at, expiresAt: r.expires_at });
+  }
 
   const keysByDevice = new Map<string, KeyDevice["keys"]>();
   for (const k of keyRows ?? []) {
@@ -38,6 +45,7 @@ export default async function KeysPage() {
       model: d.device_type?.model_number ?? null,
       isCharger: d.device_type?.category === "ev_charger",
       keys: keysByDevice.get(d.id) ?? [],
+      keyChange: changeByDevice.get(d.id) ?? null,
     }))
     .sort((a, b) => a.site.localeCompare(b.site) || a.name.localeCompare(b.name));
 
@@ -46,8 +54,9 @@ export default async function KeysPage() {
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Device keys</h1>
         <p className="mt-1 text-sm text-muted-foreground">
-          The secret each monitoring unit or EV charger uses to talk to WayTara. A unit normally gets its key during setup; use this page to make or replace
-          one by hand, or to cut a lost one off. A new secret is shown once, so copy it before closing the box.
+          The secret each monitoring unit or EV charger uses to talk to WayTara. A unit gets its key when it is set up (setup page, Finish) and nobody ever
+          sees it. Here you can change a unit&apos;s key while it is online (nothing is cut off), or cut a lost unit off. An EV charger&apos;s secret is typed into
+          the charger, so it is made and replaced here and shown once.
         </p>
       </div>
 

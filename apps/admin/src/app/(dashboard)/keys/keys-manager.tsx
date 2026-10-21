@@ -21,6 +21,8 @@ export interface KeyDevice {
   model: string | null;
   isCharger: boolean;
   keys: { id: string; kind: "gateway" | "charger"; label: string | null; fingerprint: string; createdAt: string; lastUsedAt: string | null; expiresAt: string | null }[];
+  /** a key change that is being delivered to the unit right now */
+  keyChange: { state: "sent" | "staged"; startedAt: string; expiresAt: string } | null;
 }
 
 const when = (ts: string | null) =>
@@ -51,6 +53,8 @@ export function KeysManager({ devices }: { devices: KeyDevice[] }) {
   const [shown, setShown] = useState<Shown | null>(null);
   const [confirmRevoke, setConfirmRevoke] = useState<string | null>(null);
   const [confirmRelease, setConfirmRelease] = useState<string | null>(null);
+  const [confirmChange, setConfirmChange] = useState<string | null>(null);
+  const [waiting, setWaiting] = useState<string | null>(null);
   const [grace, setGrace] = useState(0);
 
   async function run(deviceId: string, work: () => Promise<void>) {
@@ -75,6 +79,25 @@ export function KeysManager({ devices }: { devices: KeyDevice[] }) {
       const issued = await client.rotate(keyId, grace);
       setShown({ device: d, issued });
     });
+  // Changes a unit's key without cutting it off: the unit gets the new key over its working connection and switches within seconds.
+  const changeUnitKey = (d: KeyDevice) =>
+    run(d.id, async () => {
+      await client.startKeyChange(d.id);
+      setConfirmChange(null);
+      setWaiting(d.id);
+      try {
+        for (let i = 0; i < 20; i++) {
+          await new Promise((r) => setTimeout(r, 2000));
+          if ((await client.keyChangeStatus(d.id)).state === "none") {
+            notify.success("The key was changed. The unit is using its new key.");
+            return;
+          }
+        }
+        notify.info("The unit has not finished yet. It has 10 minutes; if it does not, nothing changes and it keeps its old key.");
+      } finally {
+        setWaiting(null);
+      }
+    });
   const release = (d: KeyDevice) =>
     run(d.id, async () => {
       const r = await client.releaseBoard(d.id);
@@ -86,7 +109,7 @@ export function KeysManager({ devices }: { devices: KeyDevice[] }) {
     run(d.id, async () => {
       await client.revoke(keyId, "revoked from the admin page");
       setConfirmRevoke(null);
-      notify.success("The key was revoked. The device can no longer connect with it.");
+      notify.success(d.isCharger ? "The key was revoked. The charger can no longer connect with it." : "The unit was cut off. It can only come back by being set up again from the setup page.");
     });
 
   return (
@@ -121,7 +144,7 @@ export function KeysManager({ devices }: { devices: KeyDevice[] }) {
                   <TableCell>
                     {key ? (
                       <div className="space-y-1">
-                        <Badge variant="default">Active</Badge>
+                        {d.keyChange ? <Badge variant="secondary">Key change in progress</Badge> : <Badge variant="default">Active</Badge>}
                         <div className="font-mono text-xs text-muted-foreground" title="A short fingerprint of the secret; the secret itself is not kept anywhere readable.">
                           {key.fingerprint.slice(0, 12)}…
                         </div>
@@ -129,15 +152,38 @@ export function KeysManager({ devices }: { devices: KeyDevice[] }) {
                         {d.keys.length > 1 ? <div className="text-xs text-amber-600">{d.keys.length} keys are active (one is being replaced)</div> : null}
                       </div>
                     ) : (
-                      <Badge variant="secondary">No key</Badge>
+                      <div className="space-y-1">
+                        <Badge variant="secondary">No key</Badge>
+                        {!d.isCharger ? <div className="max-w-xs text-xs text-muted-foreground">A unit gets its key when it is set up. Open the setup page, pick this device and press Finish.</div> : null}
+                      </div>
                     )}
                   </TableCell>
                   <TableCell className="text-sm text-muted-foreground">{key ? when(key.lastUsedAt) : "—"}</TableCell>
                   <TableCell className="text-right">
                     {!key ? (
-                      <Button size="sm" disabled={pending} onClick={() => create(d)}>
-                        <KeyRound className="size-3.5" /> {pending ? "Making…" : "Make a key"}
-                      </Button>
+                      d.isCharger ? (
+                        <Button size="sm" disabled={pending} onClick={() => create(d)}>
+                          <KeyRound className="size-3.5" /> {pending ? "Making…" : "Make a key"}
+                        </Button>
+                      ) : (
+                        <a href="https://setup.waytaraenergy.com" target="_blank" rel="noreferrer" className="text-sm text-primary underline-offset-4 hover:underline">
+                          Open the setup page
+                        </a>
+                      )
+                    ) : waiting === d.id ? (
+                      <span className="text-sm text-muted-foreground">Waiting for the unit to switch to its new key…</span>
+                    ) : confirmChange === d.id ? (
+                      <div className="flex flex-wrap items-center justify-end gap-2">
+                        <span className="max-w-sm text-right text-xs text-muted-foreground">
+                          Change this unit&apos;s key? The unit must be online. It receives the new key over its connection and switches within seconds; nothing is cut off. If it cannot finish in 10 minutes, nothing changes.
+                        </span>
+                        <Button size="sm" disabled={pending} onClick={() => changeUnitKey(d)}>
+                          {pending ? "Starting…" : "Yes, change the key"}
+                        </Button>
+                        <Button size="sm" variant="ghost" disabled={pending} onClick={() => setConfirmChange(null)}>
+                          Cancel
+                        </Button>
+                      </div>
                     ) : confirmRelease === d.id ? (
                       <div className="flex flex-wrap items-center justify-end gap-2">
                         <span className="max-w-xs text-right text-xs text-muted-foreground">Unlink the unit from this device? It stops sending data until a unit is set up for it again.</span>
@@ -150,9 +196,11 @@ export function KeysManager({ devices }: { devices: KeyDevice[] }) {
                       </div>
                     ) : confirmRevoke === key.id ? (
                       <div className="flex items-center justify-end gap-2">
-                        <span className="text-xs text-muted-foreground">Cut this device off?</span>
+                        <span className="max-w-sm text-right text-xs text-muted-foreground">
+                          {d.isCharger ? "Cut this charger off?" : "Cut this unit off? It stops sending data at once and can only come back by being set up again from the setup page. Use this for a lost or stolen unit."}
+                        </span>
                         <Button size="sm" variant="destructive" disabled={pending} onClick={() => revoke(d, key.id)}>
-                          {pending ? "Revoking…" : "Yes, revoke"}
+                          {pending ? "Cutting off…" : d.isCharger ? "Yes, revoke" : "Yes, cut off"}
                         </Button>
                         <Button size="sm" variant="ghost" disabled={pending} onClick={() => setConfirmRevoke(null)}>
                           Cancel
@@ -160,6 +208,8 @@ export function KeysManager({ devices }: { devices: KeyDevice[] }) {
                       </div>
                     ) : (
                       <div className="flex flex-wrap items-center justify-end gap-2">
+                        {d.isCharger ? (
+                        <>
                         <select
                           aria-label={`How to replace the key of ${d.name}`}
                           className="h-8 rounded-md border border-border bg-background px-2 text-xs"
@@ -175,8 +225,14 @@ export function KeysManager({ devices }: { devices: KeyDevice[] }) {
                         <Button size="sm" variant="outline" disabled={pending} onClick={() => rotate(d, key.id)}>
                           {pending ? "Working…" : "Replace"}
                         </Button>
+                        </>
+                        ) : (
+                          <Button size="sm" variant="outline" disabled={pending || d.keyChange !== null} onClick={() => setConfirmChange(d.id)} title="Change the unit's key while it is online; nothing is cut off">
+                            Rotate key
+                          </Button>
+                        )}
                         <Button size="sm" variant="ghost" className="text-destructive" disabled={pending} onClick={() => setConfirmRevoke(key.id)}>
-                          Revoke
+                          {d.isCharger ? "Revoke" : "Cut off"}
                         </Button>
                         {!d.isCharger ? (
                           <Button size="sm" variant="ghost" disabled={pending} onClick={() => setConfirmRelease(d.id)} title="Unlink the monitoring unit so it can be set up for another device">

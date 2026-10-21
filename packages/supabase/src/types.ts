@@ -382,6 +382,73 @@ export type Database = {
         }
         Relationships: []
       }
+      device_activity: {
+        Row: {
+          action: string
+          actor_id: string | null
+          actor_name: string | null
+          actor_role: string | null
+          at: string
+          details: Json
+          equipment_id: string | null
+          id: number
+          ip: unknown
+          site_id: string | null
+          source: string
+          summary: string
+        }
+        Insert: {
+          action: string
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          at?: string
+          details?: Json
+          equipment_id?: string | null
+          id?: never
+          ip?: unknown
+          site_id?: string | null
+          source: string
+          summary: string
+        }
+        Update: {
+          action?: string
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          at?: string
+          details?: Json
+          equipment_id?: string | null
+          id?: never
+          ip?: unknown
+          site_id?: string | null
+          source?: string
+          summary?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_activity_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_activity_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_activity_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       electricity_tariffs: {
         Row: {
           billing_months: number
@@ -1106,6 +1173,53 @@ export type Database = {
         Relationships: [
           {
             foreignKeyName: "equipment_live_requests_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: true
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      equipment_live_timing: {
+        Row: {
+          avg_gap_ms: number | null
+          command_to_first_frame_ms: number | null
+          equipment_id: string
+          first_frame_to_tick_ms: number | null
+          max_gap_ms: number | null
+          request_to_command_ms: number | null
+          request_to_first_tick_ms: number | null
+          started_at: string
+          ticks: number
+          updated_at: string
+        }
+        Insert: {
+          avg_gap_ms?: number | null
+          command_to_first_frame_ms?: number | null
+          equipment_id: string
+          first_frame_to_tick_ms?: number | null
+          max_gap_ms?: number | null
+          request_to_command_ms?: number | null
+          request_to_first_tick_ms?: number | null
+          started_at: string
+          ticks?: number
+          updated_at?: string
+        }
+        Update: {
+          avg_gap_ms?: number | null
+          command_to_first_frame_ms?: number | null
+          equipment_id?: string
+          first_frame_to_tick_ms?: number | null
+          max_gap_ms?: number | null
+          request_to_command_ms?: number | null
+          request_to_first_tick_ms?: number | null
+          started_at?: string
+          ticks?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_live_timing_equipment_id_fkey"
             columns: ["equipment_id"]
             isOneToOne: true
             referencedRelation: "equipment"
@@ -2576,6 +2690,77 @@ export type Database = {
           },
         ]
       }
+      key_rotations: {
+        Row: {
+          equipment_id: string
+          expires_at: string
+          finished_at: string | null
+          id: string
+          new_key_id: string
+          old_key_id: string
+          reason: string | null
+          staged_at: string | null
+          started_at: string
+          started_by: string | null
+          state: string
+        }
+        Insert: {
+          equipment_id: string
+          expires_at: string
+          finished_at?: string | null
+          id?: string
+          new_key_id: string
+          old_key_id: string
+          reason?: string | null
+          staged_at?: string | null
+          started_at?: string
+          started_by?: string | null
+          state?: string
+        }
+        Update: {
+          equipment_id?: string
+          expires_at?: string
+          finished_at?: string | null
+          id?: string
+          new_key_id?: string
+          old_key_id?: string
+          reason?: string | null
+          staged_at?: string | null
+          started_at?: string
+          started_by?: string | null
+          state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "key_rotations_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "key_rotations_new_key_id_fkey"
+            columns: ["new_key_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_keys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "key_rotations_old_key_id_fkey"
+            columns: ["old_key_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_keys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "key_rotations_started_by_fkey"
+            columns: ["started_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           accepted_at: string | null
@@ -3530,6 +3715,73 @@ export type Database = {
       }
     }
     Views: {
+      device_activity_log: {
+        Row: {
+          action: string | null
+          actor_id: string | null
+          actor_name: string | null
+          actor_role: string | null
+          at: string | null
+          details: Json | null
+          equipment_id: string | null
+          id: number | null
+          ip: unknown
+          site_id: string | null
+          source: string | null
+          summary: string | null
+        }
+        Insert: {
+          action?: string | null
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          at?: string | null
+          details?: never
+          equipment_id?: string | null
+          id?: number | null
+          ip?: never
+          site_id?: string | null
+          source?: string | null
+          summary?: string | null
+        }
+        Update: {
+          action?: string | null
+          actor_id?: string | null
+          actor_name?: string | null
+          actor_role?: string | null
+          at?: string | null
+          details?: never
+          equipment_id?: string | null
+          id?: number | null
+          ip?: never
+          site_id?: string | null
+          source?: string | null
+          summary?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "device_activity_actor_id_fkey"
+            columns: ["actor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_activity_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "device_activity_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipment_status: {
         Row: {
           device_error: string | null
@@ -3585,10 +3837,15 @@ export type Database = {
       }
     }
     Functions: {
+      _cancel_rotation: {
+        Args: { p_reason: string; p_rotation: string }
+        Returns: boolean
+      }
       _customer_wants_status_emails: {
         Args: { p_customer: string }
         Returns: boolean
       }
+      _expire_rotations: { Args: { p_now?: string }; Returns: number }
       _fleet_alert_step: {
         Args: { p_allow_open: boolean; p_now: string }
         Returns: Json
@@ -3597,6 +3854,19 @@ export type Database = {
       _fleet_hub_events: { Args: { p_now: string }; Returns: number }
       _fleet_hub_step: {
         Args: { p_io: boolean; p_now: string }
+        Returns: undefined
+      }
+      _record_activity: {
+        Args: {
+          p_action: string
+          p_actor: string
+          p_details?: Json
+          p_equipment: string
+          p_ip?: unknown
+          p_site: string
+          p_source: string
+          p_summary: string
+        }
         Returns: undefined
       }
       _require_gateway_service: { Args: never; Returns: undefined }
@@ -3707,9 +3977,28 @@ export type Database = {
         Args: { p_actor: string; p_equipment: string }
         Returns: boolean
       }
+      gw_begin_rotation: {
+        Args: {
+          p_actor: string
+          p_ciphertext: string
+          p_fingerprint: string
+          p_ip?: unknown
+          p_old: string
+          p_window_seconds?: number
+        }
+        Returns: Json
+      }
+      gw_ble_access: {
+        Args: { p_actor: string; p_equipment: string; p_ip?: unknown }
+        Returns: string
+      }
       gw_cadence_access: {
         Args: { p_actor: string; p_equipment: string }
         Returns: string
+      }
+      gw_cancel_rotation: {
+        Args: { p_reason?: string; p_rotation: string }
+        Returns: boolean
       }
       gw_charger_keys: {
         Args: never
@@ -3740,6 +4029,10 @@ export type Database = {
         Returns: {
           equipment_id: string
         }[]
+      }
+      gw_complete_rotation: {
+        Args: { p_ip?: unknown; p_rotation: string }
+        Returns: boolean
       }
       gw_create_key: {
         Args: {
@@ -3824,6 +4117,10 @@ export type Database = {
         Returns: undefined
       }
       gw_ev_site_figures: { Args: { p_equipment: string }; Returns: Json }
+      gw_get_push_interval: {
+        Args: { p_actor: string; p_equipment: string }
+        Returns: number
+      }
       gw_ingest_summaries: {
         Args: {
           p_buckets?: Json
@@ -3862,6 +4159,8 @@ export type Database = {
         Args: { p_equipment: string; p_t: number; p_v: Json }
         Returns: boolean
       }
+      gw_live_until: { Args: { p_equipment: string }; Returns: string }
+      gw_open_rotation: { Args: { p_equipment: string }; Returns: Json }
       gw_pending_writes: { Args: { p_equipment: string }; Returns: Json }
       gw_record_key_event: {
         Args: {
@@ -3871,6 +4170,20 @@ export type Database = {
           p_event: string
           p_ip?: unknown
           p_key: string
+        }
+        Returns: undefined
+      }
+      gw_record_live_timing: {
+        Args: {
+          p_avg_gap_ms: number
+          p_command_to_first_frame_ms: number
+          p_equipment: string
+          p_first_frame_to_tick_ms: number
+          p_max_gap_ms: number
+          p_request_to_command_ms: number
+          p_request_to_first_tick_ms: number
+          p_started_at: string
+          p_ticks: number
         }
         Returns: undefined
       }
@@ -3917,6 +4230,17 @@ export type Database = {
         }
         Returns: string
       }
+      gw_rotation_for_login: { Args: { p_key: string }; Returns: string }
+      gw_rotation_staged: { Args: { p_rotation: string }; Returns: boolean }
+      gw_set_push_interval: {
+        Args: {
+          p_actor: string
+          p_equipment: string
+          p_ip?: unknown
+          p_seconds: number
+        }
+        Returns: Json
+      }
       gw_store_map: {
         Args: { p_body: Json; p_equipment: string; p_hash: string }
         Returns: number
@@ -3954,14 +4278,38 @@ export type Database = {
       is_monitored_category: { Args: { p_category: string }; Returns: boolean }
       is_site_engineer_or_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
+      log_device_activity: {
+        Args: {
+          p_action: string
+          p_details?: Json
+          p_equipment: string
+          p_summary: string
+          p_via?: string
+        }
+        Returns: undefined
+      }
       my_assigned_equipment_ids: { Args: never; Returns: string[] }
       my_assigned_site_ids: { Args: never; Returns: string[] }
+      my_unit_by_hardware: {
+        Args: { p_hardware_id: string }
+        Returns: {
+          equipment_id: string
+          fw_version: string
+          label: string
+          site_id: string
+          site_name: string
+        }[]
+      }
       offline_after_s: {
         Args: { p_heartbeat_s: number; p_interval_s: number }
         Returns: number
       }
       purge_old_ev_samples: { Args: never; Returns: number }
       refresh_device_status: { Args: never; Returns: number }
+      rename_device: {
+        Args: { p_equipment: string; p_label: string }
+        Returns: string
+      }
       request_live: { Args: { p_equipment_id: string }; Returns: string }
       rollup_days: { Args: { p_days: string[] }; Returns: number }
       rollup_hours: { Args: { p_hours: string[] }; Returns: number }

@@ -15,6 +15,18 @@ export interface IssuedKey {
   replaces?: string;
 }
 
+/** Where a unit's key change stands (GET and POST /v1/equipment/:id/rotation). */
+export interface KeyChangeStatus {
+  state: "none" | "sent" | "staged";
+  rotation_id: string | null;
+  started_at: string | null;
+  expires_at: string | null;
+  /** can a key change be started now */
+  can_start: boolean;
+  /** why not, in plain words (null when it can) */
+  reason: string | null;
+}
+
 export class KeysApiError extends Error {
   readonly status: number;
   constructor(status: number, message: string) {
@@ -43,25 +55,39 @@ const plainMessage = (status: number): string =>
             ? "The service is unavailable right now. Try again in a moment."
             : "The request was not accepted.";
 
+/** The hub words its refusals for people (409 and 400: "The unit is not online right now..."); those sentences are shown as they are, anything else gets the generic text. */
+async function refusalText(res: Response): Promise<string> {
+  if (res.status === 409 || res.status === 400) {
+    try {
+      const body = (await res.json()) as { error?: { message?: unknown } };
+      const m = body?.error?.message;
+      if (typeof m === "string" && m.length > 0 && m.length <= 240) return m;
+    } catch {
+      /* not JSON: the generic text below */
+    }
+  }
+  return plainMessage(res.status);
+}
+
 export function createKeysClient(o: KeysClientOptions) {
   const base = trimEnd(o.baseUrl, "/");
   const doFetch = o.fetch ?? ((...a: Parameters<typeof fetch>) => fetch(...a));
 
-  async function call<T>(method: "POST" | "DELETE", path: string, body: unknown): Promise<T> {
+  async function call<T>(method: "GET" | "POST" | "DELETE", path: string, body?: unknown): Promise<T> {
     const token = await o.getToken();
     if (!token) throw new KeysApiError(401, plainMessage(401));
     let res: Response;
     try {
       res = await doFetch(`${base}${path}`, {
         method,
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        headers: { Authorization: `Bearer ${token}`, ...(body === undefined ? {} : { "Content-Type": "application/json" }) },
+        ...(body === undefined ? {} : { body: JSON.stringify(body) }),
         cache: "no-store",
       });
     } catch {
       throw new KeysApiError(0, "Could not reach the service. Check your connection and try again.");
     }
-    if (!res.ok) throw new KeysApiError(res.status, plainMessage(res.status));
+    if (!res.ok) throw new KeysApiError(res.status, await refusalText(res));
     return (await res.json()) as T;
   }
 
@@ -81,6 +107,14 @@ export function createKeysClient(o: KeysClientOptions) {
     /** Unlinks the monitoring unit from this device and cuts its key off, so the unit can be set up for another device. `released` is false when no unit was linked. */
     releaseBoard(equipmentId: string): Promise<{ released: boolean }> {
       return call("POST", `/v1/equipment/${encodeURIComponent(equipmentId)}/release`, {});
+    },
+    /** Where this unit's key change stands, and whether one can be started now (the unit must be online and able to). */
+    keyChangeStatus(equipmentId: string): Promise<KeyChangeStatus> {
+      return call("GET", `/v1/equipment/${encodeURIComponent(equipmentId)}/rotation`);
+    },
+    /** Starts changing the unit's key without cutting it off: the unit receives the new key over its working connection and switches within seconds. */
+    startKeyChange(equipmentId: string): Promise<{ state: "sent" | "staged"; rotation_id: string; started_at: string; expires_at: string }> {
+      return call("POST", `/v1/equipment/${encodeURIComponent(equipmentId)}/rotation`, {});
     },
     /** Stops a secret working at once. */
     revoke(keyId: string, reason?: string): Promise<{ revoked: boolean }> {
