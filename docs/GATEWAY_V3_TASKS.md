@@ -22,7 +22,7 @@ Status: `[ ]` to do, `[~]` in progress, `[x]` done and verified. Started 2026-10
 - [x] **T4** Hub: `POST /v1/internal/tick` (shared secret, answers with its health and the number of connected boards) with tests.
 - [x] **T5** Dashboard app: the route that sends the queued emails (offline, still offline, back online, hub down) as digests, with tests.
 - [x] **T6** Switch on: create the 10-second `fleet-tick` job and retire `device-status`, `keep-hub-awake` and the offline part of `detect-alerts` (with a rollback).
-- [ ] **T7** (moved to the end by the user: do it last) Live check: unplug and replug the inverter cable, turn the board's Wi-Fi off and on, redeploy the hub; confirm the statuses, the email timeline, one email at a time, and no false emails.
+- [~] **T7** (moved to the end by the user: do it last; cable pull and hub redeploy verified 2026-10-21, only the Wi-Fi off and on is left) Live check: unplug and replug the inverter cable, turn the board's Wi-Fi off and on, redeploy the hub; confirm the statuses, the email timeline, one email at a time, and no false emails.
 
 ## Phase 2: backend codec, activity log, key and data freshness
 - [x] **T8** One shared codec: encoding for time-of-day settings, 32-bit values and option lists; round-trip tests (value to raw to value) for every setting.
@@ -37,22 +37,22 @@ Status: `[ ]` to do, `[~]` in progress, `[x]` done and verified. Started 2026-10
 - [x] **T13** Go Live: measure click-to-first-value and value-to-value delay, remove the polling delay, tune; target about 2 to 3 s start and about 1 s updates. (Measured 2026-10-21: start 2.2 s; the update rhythm stays about 5 s until the firmware with the 2 s Go Live reads is flashed, see the T13 record.)
 
 ## Phase 3: firmware (restarts the soak)
-- [ ] **T14** Bluetooth always on, one connection, disconnects itself after about 5 minutes idle; test that Wi-Fi and the hub link stay healthy. (Built and compiled 2026-10-21; the on-board test happens with T17, see the T14 record.)
-- [ ] **T15** Signed Bluetooth grants: the hub issues a short-lived grant to a signed-in person for one board; the board checks it offline with its own key. (Built 2026-10-21: hub, database and firmware compiled; the on-board test happens with T17, see the T15 record.)
-- [ ] **T16** Bluetooth services: device info and version, network and hub status, edit networks, live logs, live readings, register map, push interval, restart. (Firmware built and compiled 2026-10-21; the on-board test happens with T17, see the T16 record.)
-- [ ] **T17** (moved to the END by the user, 2026-10-21: the board is not at hand; do it with T7 and T25) Test with the bench tester page, flash the board, restart the soak.
+- [~] **T14** (verified on the board: always on, memory and hub link healthy with a phone connected; the 5-minute idle disconnect is not tested yet) Bluetooth always on, one connection, disconnects itself after about 5 minutes idle; test that Wi-Fi and the hub link stay healthy. (Built and compiled 2026-10-21; the on-board test happens with T17, see the T14 record.)
+- [~] **T15** (verified on the board for a customer: grant issued, checked offline by the unit, level View and Wi-Fi; employee and admin levels are not tested yet) Signed Bluetooth grants: the hub issues a short-lived grant to a signed-in person for one board; the board checks it offline with its own key. (Built 2026-10-21: hub, database and firmware compiled; the on-board test happens with T17, see the T15 record.)
+- [~] **T16** (verified on the board: info, status, live readings, saved networks; not tested yet: live logs, register map, join and forget a network, restart) Bluetooth services: device info and version, network and hub status, edit networks, live logs, live readings, register map, push interval, restart. (Firmware built and compiled 2026-10-21; the on-board test happens with T17, see the T16 record.)
+- [x] **T17** (done 2026-10-21 with the real setup page instead of the bench page; moved to the END by the user, 2026-10-21: the board is not at hand; do it with T7 and T25) Test with the bench tester page, flash the board, restart the soak.
 
 ## Phase 4: the setup page rebuild
 - [x] **T18** Design system: the dashboard's colours, fonts and logo, light and dark mode, the sidebar and phone drawer, firmware version and "© WayTara Energy" footer.
 - [x] **T19** Sign in, device list by role, one "Scan for units" button (and remembered units), clear "not found" and "no details" handling, unit details.
 - [x] **T20** Pages: Overview, Network, Setup (claim), Key, Status, Live logs, Live readings, Register map, Push interval, Activity log.
 - [x] **T21** Role rules: customer (view, change Wi-Fi), employee/installer (assigned sites, optional end date), admin (all).
-- [~] **T22** Phone and laptop checks, deploy. (Looked at on laptop and phone widths in the browser; waiting for the push and the hub and Vercel deploys.)
+- [x] **T22** Phone and laptop checks, deploy. (Looked at on laptop and phone widths in the browser; waiting for the push and the hub and Vercel deploys.)
 
 ## Phase 5: finish
 - [x] **T23** Device keys page and admin screens on the new workflow; customer views. (Admin: new Device activity page; customer: a Recent activity card on the Devices page; the Device keys page is the T11d one.)
 - [~] **T24** Test with all four roles (customer, employee, installer, admin). (Done at the database and page-rule level, see the T23 and T24 record; the real sign-ins and the Bluetooth part wait for the board, T17.)
-- [ ] **T25** Restart and complete the 72 h soak with the final firmware.
+- [~] **T25** (running since 2026-10-21 17:37 IST, report due 2026-10-24 about 17:40) Restart and complete the 72 h soak with the final firmware.
 - [ ] **T26** Documentation (later, as you asked).
 
 ## Parked, as before
