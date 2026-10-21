@@ -189,3 +189,19 @@ Everything below needs the office board (hardware id 2884855505D0, the Deye 8 kW
 | **Press until the first value** | **3.09 s** (2.25 s before; target 2 to 3 s) |
 | **Gap between updates** | **average 2.14 s, longest 2.95 s** (was 4.91 s on 0.2.9; 10 updates in 21 s) |
 The 2-second Go Live reads of the new firmware work: updates now come about every 2 s while somebody watches. The start is 2 to 3 s, borderline on a slow press. Whether it can go to about 1 s per update depends on reading the inverter every second, which the Deye might not answer; not tried.
+
+## Board day, first session (2026-10-21 16:25 to 17:55)
+**Done and verified on the real board**
+- Flashed 0.3.0-t16e (settings backed up first). Self-test 47 of 47 including the grant checks.
+- **Memory problem found and fixed.** With Bluetooth on and the hub link up, free internal RAM was 17 KB (largest block 7.7 KB) and had dipped to 100 bytes during the secure handshake; with a phone connected the page showed 13 KB. Fix: `heap_caps_malloc_extmem_enable(128)` (allocations of 128 bytes or more go to the 8 MB external RAM). Now 30 to 31 KB free with or without a phone, lowest ever 26 KB, one MQTT connect and no reconnects over 10+ minutes; a phone connected for 5 minutes kept 30 KB free and the hub saw no heartbeat gap.
+- **Setup page against the real unit as a customer:** the radar found the unit, the hub issued a view-and-Wi-Fi grant (logged as Bluetooth access), the unit accepted it, Overview, Status, Network, Live readings, Device name and Activity log worked, and Register map, Setup, Push interval, Key and Live logs were locked. Bugs found and fixed: "Set up: Not yet" (the plain Bluetooth record now says `claimed`), the footer scrolling out of view (fixed-height console), and a localhost page being blocked by the hub (CORS allows only https://setup.waytaraenergy.com; use a normal, not Incognito, Chrome window).
+- **Go Live rhythm:** 2.14 s average between updates (4.91 s on the old firmware). See the T13 records.
+- **T7 inverter cable pull:** last good read 17:48:03, device unreachable 17:48:58, "stopped reporting" and one offline email 17:51:02 (the 2-minute rule), recovered 17:52:32 ("reporting again"), one back-online email queued for after the 10-minute gap; the offline email arrived. Readings matched the inverter display and Status showed the inverter answering.
+- Soak restarted on the final firmware at 17:37 IST (ends about 2026-10-24 17:40).
+**Still open from the board checklist**
+- Service and administrator levels over Bluetooth (needs an admin or an assigned employee account): Live logs, Register map, Push interval, Key, Setup, and the unit refusing what a level does not allow; employee and installer sign-ins (T24).
+- Key change on the board and its failure path (T11 firmware).
+- The 5-minute idle disconnect (T14).
+- Wi-Fi off and on for 3 minutes with the email timeline (T7), left for last by the user. The first attempt at about 17:55 never showed in the hub (status online continuously since 17:52:26), so it was too short or on another network.
+- Verify the back-online email (outbox 61) was sent once, at about 18:02.
+- Soak report on 2026-10-24 (T25), then documentation (T26).
