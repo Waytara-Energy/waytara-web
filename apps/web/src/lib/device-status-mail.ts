@@ -83,7 +83,14 @@ export interface DigestItem {
   sinceMs: number | null;
   /** how long it has been offline (still offline) or was down (back online) */
   seconds: number | null;
+  /** why it is silent: the monitoring unit stopped checking in (power or network), or the unit is online but the inverter does not answer it */
+  cause: "offline" | "device_unreachable" | null;
+  /** back online only: what the outage was, and whether the unit restarted meanwhile (null when the record does not say) */
+  wasCause: "offline" | "device_unreachable" | null;
+  restarted: boolean | null;
 }
+
+const causeOf = (v: unknown): "offline" | "device_unreachable" | null => (v === "offline" || v === "device_unreachable" ? v : null);
 
 /** The row's payload, read defensively (it is JSON written by the database function). */
 export function itemOf(row: OutboxRow): DigestItem | null {
@@ -97,18 +104,36 @@ export function itemOf(row: OutboxRow): DigestItem | null {
     message: str(p.message),
     sinceMs: since ? new Date(since).getTime() : null,
     seconds: num(p.offline_for_s) ?? num(p.down_for_s),
+    cause: causeOf(p.status),
+    wasCause: causeOf(p.was_status),
+    restarted: typeof p.restarted === "boolean" ? p.restarted : null,
   };
 }
 
-const SECTIONS: { kind: DigestItem["kind"]; title: string }[] = [
-  { kind: "offline", title: "Offline" },
-  { kind: "still_offline", title: "Still offline" },
-  { kind: "back_online", title: "Back online" },
+const SECTIONS: { kind: DigestItem["kind"]; cause: "offline" | "device_unreachable" | null; title: string }[] = [
+  { kind: "offline", cause: "offline", title: "Offline" },
+  { kind: "offline", cause: "device_unreachable", title: "Inverter not answering" },
+  { kind: "still_offline", cause: "offline", title: "Still offline" },
+  { kind: "still_offline", cause: "device_unreachable", title: "Inverter still not answering" },
+  { kind: "back_online", cause: null, title: "Back online" },
 ];
+const causeKey = (i: DigestItem): "offline" | "device_unreachable" | null => (i.kind === "back_online" ? null : (i.cause ?? "offline"));
 
 function lineOf(it: DigestItem): string {
   const where = it.siteName ? ` (${it.siteName})` : "";
-  if (it.kind === "back_online") return `${it.deviceLabel}${where} is reporting again${it.seconds !== null ? `; it was down for ${fmtDuration(it.seconds)}` : ""}.`;
+  if (it.kind === "back_online") {
+    const down = it.seconds !== null ? `; it was down for ${fmtDuration(it.seconds)}` : "";
+    // what the outage turned out to be: a new start of the unit means power was lost; no restart means the connection was the problem
+    const why =
+      it.wasCause === "device_unreachable"
+        ? " The inverter is answering the monitoring unit again."
+        : it.restarted === true
+          ? " The monitoring unit restarted, so power was probably lost."
+          : it.restarted === false && it.wasCause === "offline"
+            ? " The monitoring unit stayed on, so the Wi-Fi or internet connection was the problem."
+            : "";
+    return `${it.deviceLabel}${where} is reporting again${down}.${why}`;
+  }
   const base = it.message ?? `${it.deviceLabel}${where} is not reporting.`;
   const label = it.message && !it.message.includes(it.deviceLabel) ? ` (${it.deviceLabel}${where})` : "";
   const since = it.sinceMs !== null ? ` Offline since ${fmtIst(it.sinceMs)}${it.kind === "still_offline" && it.seconds !== null ? ` (${fmtDuration(it.seconds)})` : ""}.` : "";
@@ -127,20 +152,34 @@ export function buildStatusDigest(input: DigestInput): { subject: string; text: 
   const first = items[0];
   let subject = "Updates about your devices";
   if (items.length === 1 && first) {
-    subject = first.kind === "offline" ? `${first.deviceLabel} is offline` : first.kind === "still_offline" ? `Reminder: ${first.deviceLabel} is still offline` : `${first.deviceLabel} is back online`;
+    const silentInverter = first.cause === "device_unreachable";
+    subject =
+      first.kind === "offline"
+        ? silentInverter ? `${first.deviceLabel} is not answering its monitoring unit` : `${first.deviceLabel} is offline`
+        : first.kind === "still_offline"
+          ? silentInverter ? `Reminder: ${first.deviceLabel} is still not answering` : `Reminder: ${first.deviceLabel} is still offline`
+          : `${first.deviceLabel} is back online`;
   } else if (items.every((i) => i.kind === "offline")) {
-    subject = `${items.length} of your devices are offline`;
+    subject = items.every((i) => i.cause === "device_unreachable") ? `${items.length} of your inverters are not answering` : `${items.length} of your devices are offline`;
   } else if (items.every((i) => i.kind === "back_online")) {
     subject = `${items.length} of your devices are back online`;
   }
   const greeting = `Hi ${input.customerName ?? "there"},`;
-  const lead = items.some((i) => i.kind !== "back_online")
-    ? "We can no longer reach the device(s) below. If power or internet was cut, it will reconnect by itself when it is back."
-    : "Good news: your device(s) are reporting again.";
+  const down = items.filter((i) => i.kind !== "back_online");
+  const unitSilent = down.some((i) => (i.cause ?? "offline") === "offline");
+  const inverterSilent = down.some((i) => i.cause === "device_unreachable");
+  const lead =
+    down.length === 0
+      ? "Good news: your device(s) are reporting again."
+      : unitSilent && inverterSilent
+        ? "We cannot get readings from the device(s) below. Some monitoring units have stopped checking in (power or internet may be down); for others the unit is online but cannot read the inverter. Both reconnect by themselves when the cause is gone."
+        : inverterSilent
+          ? "The monitoring unit is online, but it cannot read the inverter of the device(s) below. Check that the inverter is switched on and that the cable between the unit and the inverter is connected; it recovers by itself once the inverter answers."
+          : "We can no longer reach the device(s) below. If power or internet was cut, it will reconnect by itself when it is back.";
   const reminder = items.some((i) => i.kind === "still_offline")
     ? "Open the dashboard and press Acknowledge on the alert to stop the reminders (they also stop once the device is back)."
     : "";
-  const sections = SECTIONS.map((s) => ({ title: s.title, lines: items.filter((i) => i.kind === s.kind).map(lineOf) })).filter((s) => s.lines.length > 0);
+  const sections = SECTIONS.map((s) => ({ title: s.title, lines: items.filter((i) => i.kind === s.kind && causeKey(i) === s.cause).map(lineOf) })).filter((s) => s.lines.length > 0);
 
   const text = [
     greeting,

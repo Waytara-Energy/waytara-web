@@ -88,7 +88,7 @@ const stamp = (ms: number, now: number) => {
   return sameDay ? timeOnly(ms) : d.toLocaleDateString("en-IN", { day: "numeric", month: "short" }) + ", " + timeOnly(ms);
 };
 
-/** The connection state of each device, live: from the server's first reading, then the live messages (re-judged every 15 seconds). */
+/** The connection state of each device, live: from the server's first reading, then the server's verdict as it changes over the live channel (the browser does not judge silence). */
 function useDeviceStates(devices: StatusDevice[]) {
   const store = useTelemetryStore();
   const [clock, setClock] = React.useState(() => Date.now());

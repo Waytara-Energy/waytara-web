@@ -12,6 +12,12 @@ import { useDeviceState } from "./use-device-state";
 
 const TOAST_ID = "device-connection";
 
+/** What each state means, in words: the unit stopped checking in (power or internet), or the unit is online but the inverter does not answer it (the cable, or the inverter itself). */
+const CAUSE: Record<Exclude<ConnectionStatus, "online">, string> = {
+  offline: "The monitoring unit has stopped checking in: power or internet may be down.",
+  connection_lost: "The monitoring unit is online but the inverter is not answering it.",
+};
+
 function NoticeToast({ status, onDismiss, onInvestigate }: { status: Exclude<ConnectionStatus, "online">; onDismiss: () => void; onInvestigate: () => void }) {
   const Icon = status === "offline" ? WifiOff : TriangleAlert;
   return (
@@ -28,7 +34,7 @@ function NoticeToast({ status, onDismiss, onInvestigate }: { status: Exclude<Con
       <Icon className={cn("size-5 shrink-0", status === "offline" ? "text-red-500" : "text-amber-500")} />
       <span className="min-w-0 flex-1">
         <span className="block text-sm font-medium">{CONNECTION_LABEL[status]}</span>
-        <span className="block text-xs text-muted-foreground">Showing the last readings · tap to dismiss</span>
+        <span className="block text-xs text-muted-foreground">{CAUSE[status]} Showing the last readings · tap to dismiss</span>
       </span>
       <button
         type="button"

@@ -27,19 +27,6 @@ function newest(a: string | null, b: string | null): string | null {
   return a > b ? a : b;
 }
 
-// The server's clock minus this browser's, measured the first time a page's own render data is used (so a clock that is fast or
-// slow never makes a healthy device look silent).
-const initOffsets = new WeakMap<object, number>();
-function initOffset(init: DeviceSyncInit, nowMs: number): number {
-  if (!init.verdict) return 0;
-  let offset = initOffsets.get(init);
-  if (offset === undefined) {
-    offset = init.verdict.serverNowMs - nowMs;
-    initOffsets.set(init, offset);
-  }
-  return offset;
-}
-
 type LiveInput = {
   lastTickAt: number | null;
   lastReadAt: number | null;
@@ -48,28 +35,21 @@ type LiveInput = {
   clockOffsetMs?: number | null;
 };
 
-/** The server's verdict (online / device unreachable / offline), taken as the truth and only ever made stricter locally: if the
- *  unit has said nothing for longer than the server's own offline limit, by the server's clock, it shows offline even if no
- *  newer verdict has arrived yet. */
-function fromVerdict(init: DeviceSyncInit, live: LiveInput, nowMs: number): DeviceState | null {
+/** The server's verdict (online / device unreachable / offline), exactly as it stands. The browser never judges silence itself, with its own
+ *  clock or any timer: the server marks a silent unit offline (a job every 10 seconds) and announces every CHANGE of status over the live channel
+ *  (Supabase realtime); a page that was hidden or lost the channel re-reads the row. The newest verdict, from the page or from the channel, is the truth. */
+function fromVerdict(init: DeviceSyncInit, live: LiveInput): DeviceState | null {
   const fresher = !!live.verdict && (!init.verdict || live.verdict.serverNowMs >= init.verdict.serverNowMs);
   const verdict = fresher ? live.verdict! : init.verdict;
   if (!verdict) return null;
-  const offset = fresher ? (live.clockOffsetMs ?? initOffset(init, nowMs)) : initOffset(init, nowMs);
-  const serverNow = nowMs + offset;
-  const heardMs = Math.max(verdict.lastSeenMs ?? 0, live.lastTickAt !== null ? live.lastTickAt + offset : 0);
-  const silentS = heardMs > 0 ? (serverNow - heardMs) / 1000 : Infinity;
   const iso = (ms: number | null) => (ms === null ? null : new Date(ms).toISOString());
-  let status: ConnectionStatus;
-  if (verdict.status === "offline" || verdict.status === "never_seen") status = "offline";
-  else if (silentS > verdict.offlineAfterS) status = "offline";
-  else status = verdict.status === "device_unreachable" ? "connection_lost" : "online";
+  const status: ConnectionStatus = verdict.status === "offline" || verdict.status === "never_seen" ? "offline" : verdict.status === "device_unreachable" ? "connection_lost" : "online";
   return { lastReadAt: newest(init.lastTs, iso(live.lastReadAt)), agentOnline: status !== "offline", offline: status !== "online", status };
 }
 
-/** Combines what the server rendered with what the live messages have said since (epoch ms, or null). */
+/** Combines what the server rendered with what the live messages have said since. `nowMs` is read only for a device the server has no verdict for (older setups). */
 export function computeDeviceState(init: DeviceSyncInit, live: LiveInput, nowMs: number): DeviceState {
-  const judged = fromVerdict(init, live, nowMs);
+  const judged = fromVerdict(init, live);
   if (judged) return judged;
   // No verdict from the server (before the status migration): the older judgement from the raw check-in times.
   const iso = (ms: number | null) => (ms === null ? null : new Date(ms).toISOString());

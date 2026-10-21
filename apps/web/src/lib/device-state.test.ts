@@ -68,23 +68,32 @@ describe("computeDeviceState", () => {
       expect(computeDeviceState(init(verdict("never_seen", { lastSeenMs: null })), quiet, NOW).status).toBe("offline");
     });
 
-    it("goes offline by itself once the unit has been silent longer than the server's limit, if no newer word has come", () => {
+    it("never judges silence itself: the server's verdict stands however long the channel is quiet", () => {
+      // The unit's values reach the dashboard only every 30 seconds (and only when they changed), so a healthy unit with steady values is
+      // quiet on the live channel for minutes. Only the server may call that offline, and it announces it when it does.
       const v = init(verdict("online", { lastSeenMs: NOW - 5_000 }));
-      expect(computeDeviceState(v, quiet, NOW).status).toBe("online");              // the page's first use fixes the clock offset
-      expect(computeDeviceState(v, quiet, NOW + 20_000).status).toBe("online");     // 25 s of silence
-      expect(computeDeviceState(v, quiet, NOW + 30_000).status).toBe("offline");    // 35 s
+      for (const s of [20, 40, 60, 300, 3600]) expect(computeDeviceState(v, quiet, NOW + s * 1000).status, `${s} s`).toBe("online");
     });
 
-    it("a live message from the unit keeps it online", () => {
-      const v = init(verdict("online", { lastSeenMs: NOW - 5_000 }));
-      expect(computeDeviceState(v, { lastTickAt: NOW + 55_000, lastReadAt: null, deviceOnline: null }, NOW + 60_000).status).toBe("online");
-    });
-
-    it("judges ages by the server's clock: a browser clock that is minutes fast does not make a healthy unit look silent", () => {
-      const fast = 5 * 60_000;                                          // this browser runs 5 minutes ahead of the server
+    it("does not depend on the browser's clock at all", () => {
       const v = init(verdict("online", { lastSeenMs: NOW - 5_000, serverNowMs: NOW }));
-      expect(computeDeviceState(v, quiet, NOW + fast).status).toBe("online");
-      expect(computeDeviceState(v, quiet, NOW + fast + 40_000).status).toBe("offline");
+      expect(computeDeviceState(v, quiet, NOW + 5 * 60_000).status).toBe("online");   // a browser clock running minutes fast
+      expect(computeDeviceState(v, quiet, NOW - 5 * 60_000).status).toBe("online");   // or slow
+    });
+
+    it("follows a change the server announces over the live channel, in both directions, at once", () => {
+      const v = init(verdict("online"));
+      const gone = { ...quiet, verdict: verdict("device_unreachable", { serverNowMs: NOW + 1_000 }) };
+      expect(computeDeviceState(v, gone, NOW + 1_000).status).toBe("connection_lost");        // the RS485 line went silent
+      const off = { ...quiet, verdict: verdict("offline", { serverNowMs: NOW + 2_000 }) };
+      expect(computeDeviceState(v, off, NOW + 2_000).status).toBe("offline");                  // power or network gone
+      const back = { ...quiet, verdict: verdict("online", { serverNowMs: NOW + 3_000 }) };
+      expect(computeDeviceState(init(verdict("offline")), back, NOW + 3_000).status).toBe("online");
+    });
+
+    it("a live message from the unit does not change the server's word either way", () => {
+      const v = init(verdict("offline"));
+      expect(computeDeviceState(v, { lastTickAt: NOW + 55_000, lastReadAt: null, deviceOnline: null }, NOW + 60_000).status).toBe("offline");
     });
 
     it("the newest verdict wins, whether it came with the page or over the live channel", () => {

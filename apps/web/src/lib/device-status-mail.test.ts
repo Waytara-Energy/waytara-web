@@ -124,3 +124,51 @@ describe("the hub's e-mail to admins", () => {
     expect(m.text).toContain("after 7 minutes");
   });
 });
+
+describe("the cause is told in the e-mail", () => {
+  const dash = "https://example.test/dashboard";
+  const items = (rows: OutboxRow[]) => rows.map(itemOf).filter((i) => i !== null);
+  const silentInverter = (id: number) =>
+    row(id, { payload: { device_label: `Inverter ${id}`, site_name: "Home", status: "device_unreachable", message: `Device offline: Inverter ${id} is not responding - its monitoring unit is online but the inverter does not answer it.`, since: new Date(NOW - 5 * 60_000).toISOString() } });
+  const silentUnit = (id: number) => row(id, { payload: { device_label: `Inverter ${id}`, site_name: "Home", status: "offline", message: `Device offline: Inverter ${id} has stopped reporting.`, since: new Date(NOW - 5 * 60_000).toISOString() } });
+  const back = (id: number, extra: Record<string, unknown>) => row(id, { kind: "back_online", payload: { device_label: `Inverter ${id}`, site_name: "Home", back_at: new Date(NOW).toISOString(), down_for_s: 240, ...extra } });
+
+  it("says the inverter is not answering when the unit is online but cannot read it", () => {
+    const m = buildStatusDigest({ customerName: "Asha", items: items([silentInverter(1)]), dashboardUrl: dash });
+    expect(m.subject).toBe("Inverter 1 is not answering its monitoring unit");
+    expect(m.text).toContain("Inverter not answering:");
+    expect(m.text).toContain("cable between the unit and the inverter");
+    expect(m.text).not.toContain("If power or internet was cut");
+  });
+
+  it("keeps the power-or-internet wording when the unit itself stopped checking in", () => {
+    const m = buildStatusDigest({ customerName: "Asha", items: items([silentUnit(1)]), dashboardUrl: dash });
+    expect(m.subject).toBe("Inverter 1 is offline");
+    expect(m.text).toContain("If power or internet was cut");
+    expect(m.text).not.toContain("Inverter not answering:");
+  });
+
+  it("separates the two causes when both are due together", () => {
+    const m = buildStatusDigest({ customerName: null, items: items([silentUnit(1), silentInverter(2)]), dashboardUrl: dash });
+    expect(m.subject).toBe("2 of your devices are offline");
+    expect(m.text).toMatch(/Offline:[\s\S]*Inverter 1[\s\S]*Inverter not answering:[\s\S]*Inverter 2/);
+    expect(m.text).toContain("Some monitoring units have stopped checking in");
+  });
+
+  it("counts inverters, not devices, when they all failed the same way", () => {
+    const m = buildStatusDigest({ customerName: null, items: items([silentInverter(1), silentInverter(2)]), dashboardUrl: dash });
+    expect(m.subject).toBe("2 of your inverters are not answering");
+  });
+
+  it("says what the outage was when the device is back: power, the connection, or the inverter", () => {
+    const power = buildStatusDigest({ customerName: "A", items: items([back(1, { was_status: "offline", restarted: true })]), dashboardUrl: dash });
+    expect(power.text).toContain("The monitoring unit restarted, so power was probably lost.");
+    const net = buildStatusDigest({ customerName: "A", items: items([back(2, { was_status: "offline", restarted: false })]), dashboardUrl: dash });
+    expect(net.text).toContain("stayed on, so the Wi-Fi or internet connection was the problem");
+    const inv = buildStatusDigest({ customerName: "A", items: items([back(3, { was_status: "device_unreachable", restarted: false })]), dashboardUrl: dash });
+    expect(inv.text).toContain("The inverter is answering the monitoring unit again.");
+    const old = buildStatusDigest({ customerName: "A", items: items([back(4, {})]), dashboardUrl: dash });
+    expect(old.text).toContain("it was down for 4 minutes.");
+    expect(old.text).not.toMatch(/restarted|stayed on|answering the monitoring unit again/);
+  });
+});

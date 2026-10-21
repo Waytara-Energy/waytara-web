@@ -61,7 +61,7 @@ select is(pg_temp.n('device_offline', 'e1000000-0000-0000-0000-0000000000b6'), 1
 update waytara.alerts set resolved_at = now() where device_id = 'e1000000-0000-0000-0000-0000000000b6';
 select is(pg_temp.n('device_online', 'e1000000-0000-0000-0000-0000000000b6'), 1, 'and so is its return');
 insert into waytara.alerts (device_id, severity, message) values ('e1000000-0000-0000-0000-0000000000b6', 'warning', 'Device fault: something');
-select is(pg_temp.n('device_offline'), 1, 'a fault alert is not an offline event');
+select is(pg_temp.n('device_offline', 'e1000000-0000-0000-0000-0000000000b6'), 1, 'a fault alert is not an offline event');
 
 insert into waytara.equipment_configs (equipment_id, setting_category, key_name, setting_value, source, written_by) values
   ('e1000000-0000-0000-0000-0000000000b6', 'x', 'grid_charge_enabled', 'true', 'customer_dashboard', 'c1000000-0000-0000-0000-0000000000a6'),

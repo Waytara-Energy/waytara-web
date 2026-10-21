@@ -44,7 +44,7 @@ select is((select count(*)::int from waytara.notification_outbox where dedupe_ke
 
 insert into waytara.notification_state (customer_id, last_status_email_at) values ('c1000000-0000-0000-0000-0000000000c1', now());
 delete from waytara.profiles where id = 'c1000000-0000-0000-0000-0000000000c1';
-select is((select count(*)::int from waytara.notification_state), 0, 'deleting the person removes their e-mail timing row');
+select is((select count(*)::int from waytara.notification_state where customer_id = 'c1000000-0000-0000-0000-0000000000c1'), 0, 'deleting the person removes their e-mail timing row');
 
 -- nobody signed in, and nobody anonymous, can read them
 set local role authenticated;
