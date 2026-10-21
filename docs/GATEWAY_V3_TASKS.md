@@ -34,7 +34,7 @@ Status: `[ ]` to do, `[~]` in progress, `[x]` done and verified. Started 2026-10
   - [x] **T11c** Firmware: accept the staged key and the commit, switch keys without a restart (built and compiled now, flashed with phase 3).
   - [x] **T11d** Admin Device keys page: key states, "Rotate key" (only when the unit is online and can do it), "Cut off", no more "Replace" for units; plain explanations.
 - [x] **T12** "Latest values" pushed to Supabase every 30 to 60 s, and the dashboard Overview uses it.
-- [ ] **T13** Go Live: measure click-to-first-value and value-to-value delay, remove the polling delay, tune; target about 2 to 3 s start and about 1 s updates.
+- [ ] **T13** Go Live: measure click-to-first-value and value-to-value delay, remove the polling delay, tune; target about 2 to 3 s start and about 1 s updates. (Built 2026-10-21; ticks when the measured numbers are in, see the T13 record.)
 
 ## Phase 3: firmware (restarts the soak)
 - [ ] **T14** Bluetooth always on, one connection, disconnects itself after about 5 minutes idle; test that Wi-Fi and the hub link stay healthy.
@@ -106,3 +106,10 @@ The push interval (how often the averaged 15-minute figures and the latest value
 
 ## T12 record (2026-10-21)
 The hub now pushes the latest values of a unit to the database every 30 s (only what changed, with the running figures of the unfinished bucket) through `gw_ingest_summaries`, whose broadcast the dashboards already consume: no database or dashboard change was needed. The regular push (the push interval) is unchanged and is the only thing that acknowledges readings. To see it: open the dashboard Overview with Go Live off; the values should move about every 30 s instead of every 15 minutes (after the next hub deploy).
+
+## T13 record (2026-10-21)
+Built, not yet measured. What changed:
+- **Dashboard** (`go-live.tsx`): the request to the database (`request_live`) is sent at once, in parallel with joining the live channel (it used to wait for the channel), and the moment it is stored the page sends `POST /v1/equipment/:id/live-wake` to the hub.
+- **Hub**: the wake-up route (same access rule as the cadence reports, answers 202 at once) makes the Go Live check run immediately instead of at the next 3 s check; the unit is told to stream within a fraction of a second. The hub also writes how each session went to `equipment_live_timing` (one row per unit): `request_to_command_ms`, `command_to_first_frame_ms`, `first_frame_to_tick_ms`, `request_to_first_tick_ms`, and `ticks`, `avg_gap_ms`, `max_gap_ms` (the refresh rhythm).
+- **Firmware 0.3.0-t13**: while live, readings that are normally read every 10 s or quicker are read every 2 s, and a Go Live press brings the next read forward to within 2 s. Compiled, not flashed (the soak runs on 0.2.9), so until it is flashed the rhythm stays at the unit's normal 5 s.
+**To measure:** deploy the hub, open a dashboard, press Go Live, wait about 30 s, then read the row: `select * from waytara.equipment_live_timing;`. Target: `request_to_first_tick_ms` about 2 to 3 s, `avg_gap_ms` about 1 s to 2 s (5 s on unflashed firmware). Tick T13 once the numbers are in and tuned.

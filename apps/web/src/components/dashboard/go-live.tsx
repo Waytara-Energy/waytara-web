@@ -30,6 +30,8 @@ type Sb = ReturnType<typeof createClient>;
 
 /** How long the database keeps "someone is watching" switched on after one request; the viewer renews well before. */
 const LIVE_RENEW_MS = 30_000;
+/** The hub that tells the unit to stream. */
+const GATEWAY_URL = process.env.NEXT_PUBLIC_GATEWAY_URL ?? "https://hub.waytaraenergy.com";
 
 function browserEnv(sb: Sb): GoLiveEnv {
   const viewer = Math.random().toString(36).slice(2, 10);
@@ -62,7 +64,19 @@ function browserEnv(sb: Sb): GoLiveEnv {
           points: 0,
         });
       };
-      const renew = () => void sb.rpc("request_live", { p_equipment_id: deviceId }).then(() => undefined, () => undefined);
+      // Asks the database that someone is watching and, the moment that is stored, nudges the hub so it tells the unit to stream at once
+      // instead of at its next check. The nudge is best effort: without it the hub finds the request by itself within a few seconds.
+      const renew = (nudge: boolean) =>
+        void sb
+          .rpc("request_live", { p_equipment_id: deviceId })
+          .then(async () => {
+            if (!nudge) return;
+            const token = (await sb.auth.getSession()).data.session?.access_token;
+            if (!token) return;
+            await fetch(`${GATEWAY_URL}/v1/equipment/${deviceId}/live-wake`, { method: "POST", headers: { authorization: `Bearer ${token}` }, keepalive: true });
+          })
+          .then(() => undefined, () => undefined);
+      renew(true); // at once, while the channel below is still being joined: the unit starts streaming in parallel
 
       channel
         .on("broadcast", { event: "snapshot" }, (m) => handlers.onSnapshot(m.payload as SnapshotMeta))
@@ -85,8 +99,7 @@ function browserEnv(sb: Sb): GoLiveEnv {
           }
         });
       await ready;
-      renew();
-      const renewTimer = setInterval(renew, LIVE_RENEW_MS);
+      const renewTimer = setInterval(() => renew(false), LIVE_RENEW_MS);
       return {
         track: (payload) => {
           want.keys = payload.keys;

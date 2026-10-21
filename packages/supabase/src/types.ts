@@ -1180,6 +1180,53 @@ export type Database = {
           },
         ]
       }
+      equipment_live_timing: {
+        Row: {
+          avg_gap_ms: number | null
+          command_to_first_frame_ms: number | null
+          equipment_id: string
+          first_frame_to_tick_ms: number | null
+          max_gap_ms: number | null
+          request_to_command_ms: number | null
+          request_to_first_tick_ms: number | null
+          started_at: string
+          ticks: number
+          updated_at: string
+        }
+        Insert: {
+          avg_gap_ms?: number | null
+          command_to_first_frame_ms?: number | null
+          equipment_id: string
+          first_frame_to_tick_ms?: number | null
+          max_gap_ms?: number | null
+          request_to_command_ms?: number | null
+          request_to_first_tick_ms?: number | null
+          started_at: string
+          ticks?: number
+          updated_at?: string
+        }
+        Update: {
+          avg_gap_ms?: number | null
+          command_to_first_frame_ms?: number | null
+          equipment_id?: string
+          first_frame_to_tick_ms?: number | null
+          max_gap_ms?: number | null
+          request_to_command_ms?: number | null
+          request_to_first_tick_ms?: number | null
+          started_at?: string
+          ticks?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "equipment_live_timing_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: true
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       equipment_metrics: {
         Row: {
           address: Json | null
@@ -4108,6 +4155,8 @@ export type Database = {
         Args: { p_equipment: string; p_t: number; p_v: Json }
         Returns: boolean
       }
+      gw_live_until: { Args: { p_equipment: string }; Returns: string }
+      gw_open_rotation: { Args: { p_equipment: string }; Returns: Json }
       gw_pending_writes: { Args: { p_equipment: string }; Returns: Json }
       gw_record_key_event: {
         Args: {
@@ -4117,6 +4166,20 @@ export type Database = {
           p_event: string
           p_ip?: unknown
           p_key: string
+        }
+        Returns: undefined
+      }
+      gw_record_live_timing: {
+        Args: {
+          p_avg_gap_ms: number
+          p_command_to_first_frame_ms: number
+          p_equipment: string
+          p_first_frame_to_tick_ms: number
+          p_max_gap_ms: number
+          p_request_to_command_ms: number
+          p_request_to_first_tick_ms: number
+          p_started_at: string
+          p_ticks: number
         }
         Returns: undefined
       }
