@@ -88,6 +88,31 @@ Postponed by the user until the flow is verified. When the board tests above are
 * `README` of the firmware and of the setup page: the Bluetooth services and levels, the memory plan (`heap_caps_malloc_extmem_enable`), the console commands.
 * A short "lessons" section: the memory squeeze found on the board, Bluetooth and TLS sharing a small internal RAM; the one Go Live request per unit (open tabs keep a session alive); the CORS rule (only the deployed page's address may call the hub).
 
+## A9. The three failure causes, end to end (power, network, RS485)  `[~]`
+
+Asked for by the user on 2026-10-21 evening: the board can lose **power**, its **network** or the **RS485 line** to the inverter; each must show correctly on the dashboard (customer and staff), in the activity log and in the e-mails, the RS485 check must live in the heartbeat itself, a status must change only when it really differs from the previous one, and the live updates on the dashboard must come only from Supabase, never from the browser's own judgement.
+
+**What exists and was checked in the code (2026-10-21):**
+
+* **RS485 in the heartbeat.** The board's heartbeat carries `inverter_online` (an answer from the inverter in the last 30 s), the age of the last good read and the success rate. The hub writes it to `equipment_heartbeat.device_online`; three check-ins in a row with the inverter silent make the server verdict **`device_unreachable`** (measured 55 s after the cable was pulled).
+* **Power or network lost.** The unit stops checking in; after 30 s without a heartbeat the server verdict is **`offline`**. The server cannot tell power from network while it lasts. It can afterwards: the back-online record now says whether the unit **restarted** (`gateway_devices.last_boot_at` moved: power was lost) or stayed on (the connection was the problem).
+* **Only on a change.** The verdict trigger writes `status` and `status_since` only when the new verdict differs from the old one, and broadcasts only that change on the device's live channel (Supabase realtime). The alert step compares what the alert recorded with what is true now and acts only on a difference.
+
+**Changed on 2026-10-21 (code, tests and the migration are done; the migration is live):**
+
+* **The dashboard no longer judges silence.** `useDeviceState` had a 15-second browser clock and a rule that turned a healthy device "offline" when nothing arrived on the live channel for more than 30 s by that clock. Because the unit's values reach the dashboard only every 30 s, and only when they changed, a device with steady values (night, no sun) made the toast "Offline" or "Connection lost" appear in the middle of the page while the server still said online. The browser now follows the server's verdict only (the page's first read, then the live change messages, then a re-read after a hidden tab or a dropped channel). A timer survives only for a device the server has no verdict for. The toast also names the cause: "The monitoring unit has stopped checking in: power or internet may be down." or "The monitoring unit is online but the inverter is not answering it."
+* **Cause-aware alerts** (migration `20261022010000_cause_aware_alerts.sql`, test `34_cause_aware_alerts`, 14 assertions): the alert text, the activity log and the e-mail say which of the two causes it is (the RS485 text now names the cable); if the cause changes while the alert is open and the new cause holds for 2 minutes, the alert text is updated, the activity log records it, an unsent first e-mail is corrected in place, and a customer who was already told gets one follow-up; the back-online record carries `was_status` and `restarted`.
+* **E-mails:** the subject, the section title and the lead sentence follow the cause ("... is not answering its monitoring unit", "Inverter not answering", "Offline"); the back-online line adds "The monitoring unit restarted, so power was probably lost.", "The monitoring unit stayed on, so the Wi-Fi or internet connection was the problem." or "The inverter is answering the monitoring unit again."
+
+**To verify at the board (owner: the user; board: yes). Tell me the time of each action:**
+
+1. **Browser fix.** Open the dashboard on the Deye with the board online and the values steady (night is ideal) and leave it for 10 minutes. No "Offline" or "Connection lost" toast may appear at any time. Then do step 2 and confirm the toast appears once, with the right sentence, and goes away when the cause is gone.
+2. **RS485:** unplug the RS485 cable for 3 minutes. Expect: status "Connection lost" on the dashboard (amber) within about a minute, the toast with the inverter sentence, one e-mail at about 2 minutes ("... is not answering its monitoring unit", the inverter section), the activity log "the monitoring unit is online but the inverter is not answering it". Plug it back: "reporting again" and, after the 10-minute gap, one back-online e-mail ending "The inverter is answering the monitoring unit again."
+3. **Network:** switch the Waytara Office router off for 3 minutes (and turn off any phone hotspot the board knows). Expect: "Offline" within 30 s, the offline e-mail at 2 minutes ("Offline"), then on return a back-online e-mail ending "The monitoring unit stayed on, so the Wi-Fi or internet connection was the problem."
+4. **Power:** unplug the board's power for 3 minutes, plug it back. Expect the same as step 3 until it returns; the back-online e-mail must end "The monitoring unit restarted, so power was probably lost."
+5. **Cause change** (optional): pull the RS485 cable, wait 3 minutes, then also pull the power for 3 minutes. Expect the alert text to change, one follow-up e-mail (or a corrected first one if it had not gone yet), never two e-mails within 10 minutes.
+* **Pass:** each step's dashboard state, toast text, activity log line and e-mail match; never more than one device e-mail per 10 minutes; no toast while the device is online; the status on the dashboard changes only at the moments the server records a change (`equipment_heartbeat.status_since`).
+
 ---
 
 # Part B: Gateway v4 (parked until solar was verified)
