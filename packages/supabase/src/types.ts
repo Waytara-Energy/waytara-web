@@ -2643,6 +2643,77 @@ export type Database = {
           },
         ]
       }
+      key_rotations: {
+        Row: {
+          equipment_id: string
+          expires_at: string
+          finished_at: string | null
+          id: string
+          new_key_id: string
+          old_key_id: string
+          reason: string | null
+          staged_at: string | null
+          started_at: string
+          started_by: string | null
+          state: string
+        }
+        Insert: {
+          equipment_id: string
+          expires_at: string
+          finished_at?: string | null
+          id?: string
+          new_key_id: string
+          old_key_id: string
+          reason?: string | null
+          staged_at?: string | null
+          started_at?: string
+          started_by?: string | null
+          state?: string
+        }
+        Update: {
+          equipment_id?: string
+          expires_at?: string
+          finished_at?: string | null
+          id?: string
+          new_key_id?: string
+          old_key_id?: string
+          reason?: string | null
+          staged_at?: string | null
+          started_at?: string
+          started_by?: string | null
+          state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "key_rotations_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "key_rotations_new_key_id_fkey"
+            columns: ["new_key_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_keys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "key_rotations_old_key_id_fkey"
+            columns: ["old_key_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_keys"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "key_rotations_started_by_fkey"
+            columns: ["started_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       leads: {
         Row: {
           accepted_at: string | null
@@ -3719,10 +3790,15 @@ export type Database = {
       }
     }
     Functions: {
+      _cancel_rotation: {
+        Args: { p_reason: string; p_rotation: string }
+        Returns: boolean
+      }
       _customer_wants_status_emails: {
         Args: { p_customer: string }
         Returns: boolean
       }
+      _expire_rotations: { Args: { p_now?: string }; Returns: number }
       _fleet_alert_step: {
         Args: { p_allow_open: boolean; p_now: string }
         Returns: Json
@@ -3854,9 +3930,24 @@ export type Database = {
         Args: { p_actor: string; p_equipment: string }
         Returns: boolean
       }
+      gw_begin_rotation: {
+        Args: {
+          p_actor: string
+          p_ciphertext: string
+          p_fingerprint: string
+          p_ip?: unknown
+          p_old: string
+          p_window_seconds?: number
+        }
+        Returns: Json
+      }
       gw_cadence_access: {
         Args: { p_actor: string; p_equipment: string }
         Returns: string
+      }
+      gw_cancel_rotation: {
+        Args: { p_reason?: string; p_rotation: string }
+        Returns: boolean
       }
       gw_charger_keys: {
         Args: never
@@ -3887,6 +3978,10 @@ export type Database = {
         Returns: {
           equipment_id: string
         }[]
+      }
+      gw_complete_rotation: {
+        Args: { p_ip?: unknown; p_rotation: string }
+        Returns: boolean
       }
       gw_create_key: {
         Args: {
@@ -4068,6 +4163,8 @@ export type Database = {
         }
         Returns: string
       }
+      gw_rotation_for_login: { Args: { p_key: string }; Returns: string }
+      gw_rotation_staged: { Args: { p_rotation: string }; Returns: boolean }
       gw_set_push_interval: {
         Args: {
           p_actor: string

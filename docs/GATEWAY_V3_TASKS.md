@@ -28,7 +28,11 @@ Status: `[ ]` to do, `[~]` in progress, `[x]` done and verified. Started 2026-10
 - [x] **T8** One shared codec: encoding for time-of-day settings, 32-bit values and option lists; round-trip tests (value to raw to value) for every setting.
 - [x] **T9** Activity log table in Supabase (who, what, when, source, details) with who-can-see rules, and the hub and apps writing to it.
 - [x] **T10** Push-interval setting: API with limits, the hub applies it, logged in the activity log.
-- [ ] **T11** Key workflow: remote two-step rotation (new key sent sealed with the old one), revoke, key states; the "Replace" button removed for boards on Device keys.
+- [ ] **T11** Key workflow (split in four, below):
+  - [x] **T11a** Database: key rotations (two keys valid side by side while the new one is delivered, one rotation at a time, cancel if it does not finish), with tests.
+  - [ ] **T11b** Hub: remote two-step rotation (new key sent sealed with the old one, the unit confirms, then the old key is cut), revoke, and the old "replace" refused for units; tests with a simulated unit.
+  - [ ] **T11c** Firmware: accept the staged key and the commit, switch keys without a restart (built and compiled now, flashed with phase 3).
+  - [ ] **T11d** Admin Device keys page: key states, "Rotate key" (only when the unit is online and can do it), "Cut off", no more "Replace" for units; plain explanations.
 - [ ] **T12** "Latest values" pushed to Supabase every 30 to 60 s, and the dashboard Overview uses it.
 - [ ] **T13** Go Live: measure click-to-first-value and value-to-value delay, remove the polling delay, tune; target about 2 to 3 s start and about 1 s updates.
 
@@ -90,3 +94,8 @@ The backend codec is the only place that converts: `core/decode.ts` (raw words t
 
 ## T10 record (2026-10-21)
 The push interval (how often the averaged 15-minute figures and the latest values of a unit are written to Supabase) lives in `gateway_equipment_settings.upload_interval_s`. New: `gw_get_push_interval` / `gw_set_push_interval` (backend identity only; the person must manage the unit; allowed 60, 120, 300, 600, 900, 1800 or 3600 s; the change is written to the activity log with the old and new value), the hub's `GET` and `PUT /v1/equipment/:id/push-interval`, and `IngestService.reloadProfile()` so a connected unit takes it at once. Tests: 27_push_interval (10), push-interval.test.ts (6), 2 in ingest.test.ts. The setup page's Push interval screen (T20) is the user of this.
+
+## T11 design (2026-10-21): why a key, and how it changes safely
+**Why a key:** it is the unit's identity and its secret. It proves a message comes from this unit, makes it unreadable to anyone else, and lets us cut off a stolen unit. **Set** when someone with access sets the unit up (setup page, Finish): the hub makes it and hands it to the unit sealed to the unit's own one-time key; nobody ever sees it. **Today a change locks the unit out:** the new key can only reach the unit through setup over Bluetooth.
+**New rotation (two steps, no downtime):** (1) the hub makes the new key and both keys are valid side by side; (2) the hub sends the new key to the unit sealed with the old key (only that unit can read it); (3) the unit stores it aside and answers "staged"; (4) the hub sends "commit"; (5) the unit switches to the new key without restarting (the buffered readings stay) and reconnects; (6) the hub sees the unit log in with the new key and cuts the old one. If the unit does not finish within 10 minutes, the rotation is cancelled by the database, the new key is cut and the old key stays: nothing is lost, and the activity log says so. Only one rotation at a time per unit.
+**Cut off (revoke):** for a lost or stolen unit: it stops at once and needs a fresh setup. **Replace** is no longer offered for units (it caused the lockout); chargers keep their typed-in key and Replace.
