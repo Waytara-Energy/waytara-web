@@ -1,7 +1,8 @@
 "use client";
 
 import * as React from "react";
-import { CalendarCheck, CheckCircle2, ChevronDown, Flag, HeartPulse, MessageSquareText, TriangleAlert, XCircle, type LucideIcon } from "lucide-react";
+import Link from "next/link";
+import { CalendarCheck, CheckCircle2, ChevronDown, HeartPulse, LifeBuoy, TriangleAlert, XCircle, type LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -9,13 +10,12 @@ import { agoText } from "@/lib/device-status-summary";
 import { getFaultInfo, type FaultEvent } from "@/lib/deye-fault-codes";
 import { inverterGuide } from "@/lib/troubleshooting-guide";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
-import { HEALTH_KEYS, VERDICT_LABEL, alreadyReported, buildHealthChecks, checkReportTag, checkReportText, faultReportText, problemCount, verdictOf, type CheckState, type Verdict } from "@/lib/maintenance-health";
+import { HEALTH_KEYS, VERDICT_LABEL, alreadyReported, buildHealthChecks, checkReportText, checkSubject, faultReportText, faultSubject, problemCount, verdictOf, type CheckState, type Verdict } from "@/lib/maintenance-health";
 import { FAULT_BITMASK_KEYS_LIVE } from "@/lib/overview-keys";
 import { faultCodeOf } from "@/lib/notification-items";
 import { useLiveNumbers } from "@/lib/telemetry/live-values";
 import { cn } from "@/lib/utils";
 import { FaultHistoryCard } from "./fault-history-card";
-import { NewMaintenanceTicketDialog } from "./new-maintenance-ticket-dialog";
 import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { TroubleshootingGuide } from "./troubleshooting-guide";
@@ -23,11 +23,10 @@ import { TemperatureGauge } from "./temperature-gauge";
 import { useDeviceState } from "./use-device-state";
 import { useHashTab } from "./use-hash-tab";
 
-type SectionId = "health" | "service" | "requests";
+type SectionId = "health" | "service";
 const SECTIONS: { id: SectionId; label: string; icon: LucideIcon; active: string; circle: string }[] = [
   { id: "health", label: "Health", icon: HeartPulse, active: "data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400", circle: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
   { id: "service", label: "Service", icon: CalendarCheck, active: "data-[state=active]:border-sky-500 data-[state=active]:text-sky-600 dark:data-[state=active]:text-sky-400", circle: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
-  { id: "requests", label: "Requests", icon: MessageSquareText, active: "data-[state=active]:border-violet-500 data-[state=active]:text-violet-600 dark:data-[state=active]:text-violet-400", circle: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
 ];
 const IDS = SECTIONS.map((s) => s.id);
 
@@ -57,8 +56,9 @@ export interface SolarHealthProps {
   firstDay: string | null;
 }
 
-/** The Maintenance page: a headline for the open tab (like Performance's), the three tabs, and the report-an-issue button at the right.
- *  Health follows the device's live channel (connection, faults, temperatures, checks); Service and Requests are rendered by the server. */
+/** The Maintenance page: a headline for the open tab (like Performance's) and the two tabs. Health follows the device's live channel
+ *  (connection, faults, temperatures, checks); Service is rendered by the server. A problem is reported in Support: the fault and check
+ *  buttons open its new-ticket form with the details filled in. */
 export function MaintenanceBoard({
   deviceId,
   sync,
@@ -66,10 +66,7 @@ export function MaintenanceBoard({
   health,
   technical,
   service,
-  requests,
   serviceHeadline,
-  requestsHeadline,
-  action,
   report,
   openIssues,
 }: {
@@ -80,13 +77,10 @@ export function MaintenanceBoard({
   health: React.ReactNode;
   technical: React.ReactNode;
   service: React.ReactNode;
-  requests: React.ReactNode;
   serviceHeadline: HeadlineData;
-  requestsHeadline: HeadlineData;
-  action: React.ReactNode;
-  /** Where a report is filed from the Health tab (a fault or a check that is not fine); null hides those buttons. */
+  /** Which device a Support request is about, from the Health tab (a fault or a check that is not fine); null hides those buttons. */
   report: ReportTarget | null;
-  /** The descriptions of the customer's open requests, so the same fault is not reported twice. */
+  /** The subjects of the customer's open Support tickets for this device, so the same fault is not reported twice. */
   openIssues: string[];
 }) {
   const [section, open] = useHashTab(IDS, "health");
@@ -112,7 +106,7 @@ export function MaintenanceBoard({
   const healthHeadline: HeadlineData = solar
     ? { label: "System health", value: VERDICT_LABEL[verdict], figures: [{ label: "Last data", value: lastRead }, { label: "Open issues", value: String(problems) }] }
     : { label: "Device health", value: state.status === "online" ? "Reporting" : "Not reporting", figures: [{ label: "Last data", value: lastRead }] };
-  const head = section === "service" ? serviceHeadline : section === "requests" ? requestsHeadline : healthHeadline;
+  const head = section === "service" ? serviceHeadline : healthHeadline;
   const meta = SECTIONS.find((s) => s.id === section)!;
   const Icon = meta.icon;
   const tone: Verdict | null = section === "health" && solar ? verdict : null;
@@ -137,7 +131,6 @@ export function MaintenanceBoard({
             ))}
           </div>
         </div>
-        {action}
       </div>
 
       <Tabs value={section} onValueChange={(v) => open(v as SectionId)}>
@@ -159,7 +152,6 @@ export function MaintenanceBoard({
             health
           ))}
         {section === "service" && service}
-        {section === "requests" && requests}
       </div>
     </div>
   );
@@ -195,7 +187,7 @@ function SolarHealth({ solar, checks, faultCode, value, technical, report, openI
                       <p className="text-xs text-muted-foreground">{c.detail}</p>
                     </div>
                     {c.state !== "ok" && c.id !== "fault" && report && (
-                      <ReportButton report={report} tag={checkReportTag(c.label)} text={checkReportText(c.label, c.detail)} openIssues={openIssues} label="Report" />
+                      <ReportButton report={report} tag={checkSubject(c.label)} subject={checkSubject(c.label)} text={checkReportText(c.label, c.detail)} openIssues={openIssues} label="Get support" />
                     )}
                   </li>
                 );
@@ -247,30 +239,25 @@ function TechnicalDetails({ children }: { children: React.ReactNode }) {
   );
 }
 
-/** A button that files a request about something the page has shown (prefilled), or says it is already reported while that request is open. */
-function ReportButton({ report, tag, text, openIssues, label, size = "sm" }: { report: ReportTarget; tag: string; text: string; openIssues: string[]; label: string; size?: "sm" | "default" }) {
+/** A link to Support for something the page has shown: it opens the new-ticket form with the device, subject and message filled in, so the
+ *  customer only has to read it and send. While a ticket about it is open it says so instead. */
+function ReportButton({ report, tag, subject, text, openIssues, label }: { report: ReportTarget; tag: string; subject: string; text: string; openIssues: string[]; label: string }) {
   if (alreadyReported(openIssues, tag)) {
     return (
-      <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground">
+      <Link href="/dashboard/support" className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
         <CheckCircle2 className="size-3.5 text-emerald-500" />
-        Reported
-      </span>
+        In Support
+      </Link>
     );
   }
+  const href = `/dashboard/support?${new URLSearchParams({ new: "1", device: report.deviceId, category: "device", subject, message: text })}`;
   return (
-    <NewMaintenanceTicketDialog
-      deviceId={report.deviceId}
-      deviceLabel={report.deviceLabel}
-      siteId={report.siteId}
-      siteName={report.siteName}
-      defaultDescription={text}
-      trigger={
-        <Button variant="outline" size={size} className="h-7 shrink-0 gap-1.5 px-2.5 text-xs">
-          <Flag className="size-3.5" />
-          {label}
-        </Button>
-      }
-    />
+    <Button asChild variant="outline" size="sm" className="h-7 shrink-0 gap-1.5 px-2.5 text-xs">
+      <Link href={href}>
+        <LifeBuoy className="size-3.5" />
+        {label}
+      </Link>
+    </Button>
   );
 }
 
@@ -295,7 +282,7 @@ function ActiveFault({ faultCode, report, openIssues }: { faultCode: number | nu
           </ol>
         </div>
       </div>
-      {report && <ReportButton report={report} tag={`Fault ${fault.code} `} text={faultReportText(fault.code, fault.label, fault.description)} openIssues={openIssues} label="Report this fault" />}
+      {report && <ReportButton report={report} tag={`Fault ${fault.code} `} subject={faultSubject(fault.code, fault.label)} text={faultReportText(fault.code, fault.label, fault.description)} openIssues={openIssues} label="Get support for this fault" />}
     </Alert>
   );
 }

@@ -101,7 +101,11 @@ export function checkReportText(label: string, detail: string): string {
   return `${checkReportTag(label)} ${detail}`;
 }
 
-/** Has this already been reported and is still open? `openIssues` are the descriptions of the customer's open requests. */
+/** The subject of the Support ticket a fault or a check opens (it contains the tag the "already reported" check looks for). */
+export const faultSubject = (code: string, label: string) => `Fault ${code} · ${label}`;
+export const checkSubject = (label: string) => `Health check: ${label}`;
+
+/** Has this already been reported and is still open? `openIssues` are the subjects of the customer's open Support tickets for the device. */
 export const alreadyReported = (openIssues: readonly string[], tag: string): boolean => openIssues.some((d) => d.includes(tag));
 
 export type Verdict = "good" | "attention" | "offline";

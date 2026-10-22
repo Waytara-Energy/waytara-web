@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Paperclip, Plus, X } from "lucide-react";
 import { createClient } from "@waytara/supabase/client";
 import { supportApi } from "@waytara/ui/support-client";
@@ -24,8 +24,9 @@ interface SiteOption {
 const NO_DEVICE = "none";
 
 /** Opens a ticket: which site (and device), what it is about, a subject, the message and up to five files. The ticket goes to the team of that
- *  site (its installer, its employees and the admins); anyone of them can take it, and you are e-mailed when they do. */
-export function NewSupportTicketDialog({ sites, defaultSiteId, label = "New ticket", variant }: { sites: SiteOption[]; defaultSiteId: string | null; label?: string; variant?: "gradient" | "outline" }) {
+ *  site (its installer, its employees and the admins); anyone of them can take it, and you are e-mailed when they do.
+ *  With `fromLink`, a link such as /dashboard/support?new=1&device=…&subject=…&message=… (from Maintenance) opens it with those filled in. */
+export function NewSupportTicketDialog({ sites, defaultSiteId, label = "New ticket", variant, fromLink = false }: { sites: SiteOption[]; defaultSiteId: string | null; label?: string; variant?: "gradient" | "outline"; fromLink?: boolean }) {
   const router = useRouter();
   const api = React.useMemo(() => supportApi(createClient()), []);
   const [open, setOpen] = React.useState(false);
@@ -39,6 +40,32 @@ export function NewSupportTicketDialog({ sites, defaultSiteId, label = "New tick
   const [busy, setBusy] = React.useState(false);
   const [dragging, setDragging] = React.useState(false);
   const picker = React.useRef<HTMLInputElement>(null);
+
+  const params = useSearchParams();
+  const linked = fromLink && params.get("new") === "1" ? params.toString() : null;
+  // a link arrived (or went): fill the form from it while rendering, the way React asks for state that follows a prop
+  const [seenLink, setSeenLink] = React.useState<string | null>(null);
+  if (linked !== seenLink) {
+    setSeenLink(linked);
+    if (linked) {
+      const p = new URLSearchParams(linked);
+      const device = p.get("device");
+      const owner = sites.find((s) => s.devices.some((d) => d.id === device));
+      const cat = p.get("category");
+      if (owner) {
+        setSiteId(owner.id);
+        setDeviceId(device ?? NO_DEVICE);
+      }
+      if (CATEGORIES.some((c) => c.id === cat)) setCategory(cat as string);
+      setSubject((p.get("subject") ?? "").slice(0, 140));
+      setBody((p.get("message") ?? "").slice(0, MAX_BODY));
+      setOpen(true);
+    }
+  }
+  React.useEffect(() => {
+    // the link has done its job: drop it from the address so a reload does not open the form again
+    if (linked) router.replace("/dashboard/support");
+  }, [linked, router]);
 
   const site = sites.find((s) => s.id === siteId);
   const ready = subject.trim().length > 0 && body.trim().length > 0 && !busy;

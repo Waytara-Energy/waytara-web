@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { cookies } from "next/headers";
 import { createClient } from "@waytara/supabase/server";
 import { getRequestProfile } from "@/lib/request-profile";
@@ -30,7 +31,7 @@ export default async function SupportLayout({ children }: { children: React.Reac
         <SupportInbox
           tickets={tickets}
           customerId={profile?.id ?? ""}
-          action={<NewSupportTicketDialog sites={sites.map((s) => ({ id: s.id, name: s.name, devices: s.devices.map((d) => ({ id: d.id, name: deviceDisplayId(d) })) }))} defaultSiteId={selected?.id ?? sites[0]?.id ?? null} />}
+          action={<Suspense fallback={null}><NewSupportTicketDialog fromLink sites={sites.map((s) => ({ id: s.id, name: s.name, devices: s.devices.map((d) => ({ id: d.id, name: deviceDisplayId(d) })) }))} defaultSiteId={selected?.id ?? sites[0]?.id ?? null} /></Suspense>}
         />
       }
     >

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { alreadyReported, buildHealthChecks, checkReportTag, checkReportText, faultReportText, problemCount, verdictOf } from "./maintenance-health";
+import { alreadyReported, buildHealthChecks, checkReportTag, checkReportText, checkSubject, faultReportText, faultSubject, problemCount, verdictOf } from "./maintenance-health";
 
 const readings = (r: Record<string, number | null>) => (key: string) => r[key] ?? null;
 const ids = (checks: { id: string }[]) => checks.map((c) => c.id);
@@ -65,5 +65,11 @@ describe("reporting what the page shows", () => {
     expect(alreadyReported(open, checkReportTag("Connection"))).toBe(true);
     expect(alreadyReported(open, "Fault F13 ")).toBe(false);
     expect(alreadyReported([], "Fault F58 ")).toBe(false);
+  });
+  it("finds a fault or check in the subjects of the open Support tickets", () => {
+    const subjects = [faultSubject("F58", "BMS communication fault"), checkSubject("Connection")];
+    expect(alreadyReported(subjects, "Fault F58 ")).toBe(true);
+    expect(alreadyReported(subjects, checkSubject("Connection"))).toBe(true);
+    expect(alreadyReported(subjects, "Fault F13 ")).toBe(false);
   });
 });
