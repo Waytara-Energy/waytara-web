@@ -18,23 +18,25 @@ const POWER_ICON: Record<string, LucideIcon> = { grid_tied: PlugZap, off_grid: U
 /** One fact about the site as a round icon with its words under it. */
 function Tile({ icon: Icon, caption, value }: { icon: LucideIcon; caption: string; value: string }) {
   return (
-    <div className="flex min-w-0 flex-1 flex-col items-center gap-2.5 text-center">
-      <span className="flex size-16 items-center justify-center rounded-full border border-border bg-background shadow-sm">
-        <Icon className="size-8 text-foreground/80" strokeWidth={1.4} />
+    <div className="flex min-w-0 flex-1 flex-col items-center gap-2 text-center">
+      <span className="flex size-12 items-center justify-center rounded-full border border-border bg-background shadow-sm">
+        <Icon className="size-6 text-foreground/80" strokeWidth={1.5} />
       </span>
       <div className="min-w-0">
-        <p className="text-sm font-medium leading-snug text-foreground">{value}</p>
-        <p className="mt-0.5 text-xs text-muted-foreground">{caption}</p>
+        <p className="text-[13px] font-medium leading-snug text-foreground">{value}</p>
+        <p className="mt-0.5 text-[11px] text-muted-foreground">{caption}</p>
       </div>
     </div>
   );
 }
 
-/** The Site tab: the map on the left with no card around it; on the right what kind of site it is (property type and power source, set by
- *  your WayTara advisor, as icons) and then the site's details (editable). The weather has its own page, opened from the header. */
+/** The Site page: a full-page map with two cards over it on the left. The first says what kind of site it is (property type and power source,
+ *  set by your WayTara advisor, as icons, with an EV charger next to them when the site has one); the second holds the site's details and
+ *  Edit site (see SiteLocation). The weather has its own page, opened from the header. */
 export function SitePane({ device, site }: { device: CustomerDevice; site: CustomerSite }) {
   const property = PROPERTY_TYPE_LABELS[site.propertyType] ?? site.propertyType;
   const power = POWER_SOURCE_LABELS[site.powerSourceCategory] ?? site.powerSourceCategory;
+  const chargers = site.devices.filter((d) => d.deviceType?.category === "ev_charger").length;
   return (
     <SiteLocation
       key={device.id}
@@ -45,11 +47,12 @@ export function SitePane({ device, site }: { device: CustomerDevice; site: Custo
       latitude={site.latitude}
       longitude={site.longitude}
       address={site.address}
-      intro={
-        <Card className="p-6">
-          <div className="flex items-start justify-center gap-6 sm:gap-12">
+      kind={
+        <Card className="gap-0 border-border/60 bg-card/95 p-4 shadow-xl backdrop-blur">
+          <div className="flex items-start justify-center gap-3">
             <Tile icon={PROPERTY_ICON[site.propertyType] ?? Building} caption="Property type" value={property} />
             <Tile icon={POWER_ICON[site.powerSourceCategory] ?? PlugZap} caption="Power source" value={power} />
+            {chargers > 0 && <Tile icon={PlugZap} caption="EV charger" value={chargers === 1 ? "Installed" : `${chargers} installed`} />}
           </div>
         </Card>
       }

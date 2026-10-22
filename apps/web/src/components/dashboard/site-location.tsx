@@ -77,7 +77,7 @@ export function SiteLocation({
   latitude,
   longitude,
   address,
-  intro,
+  kind,
 }: {
   deviceId: string;
   siteName: string;
@@ -87,8 +87,8 @@ export function SiteLocation({
   latitude: number | null;
   longitude: number | null;
   address: Partial<SiteAddressFields> | null;
-  /** What goes above the details on the right (the site's kind), rendered by the page. */
-  intro?: React.ReactNode;
+  /** The card of what kind of site it is (property type, power source, EV charger), shown above the details; rendered by the page. */
+  kind?: React.ReactNode;
 }) {
   const box = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<import("maplibre-gl").Map | null>(null);
@@ -465,68 +465,87 @@ export function SiteLocation({
           : "Finding where you are…";
 
   return (
-    <div className="grid items-start gap-4 xl:grid-cols-5">
-      {/* The map, with no card around it, on the left. */}
-      <div className="relative h-[360px] w-full overflow-hidden rounded-2xl bg-muted sm:h-[440px] xl:sticky xl:top-2 xl:col-span-3 xl:h-[620px]">
-        {/* The library's stylesheet makes the map element position: relative, which would drop it to no height: it gets a full-size wrapper. */}
-        <div className="absolute inset-0">
-          <div ref={box} className="h-full w-full" />
-        </div>
-
-        <button
-          type="button"
-          onClick={() => setThreeD((v) => !v)}
-          aria-pressed={threeD}
-          aria-label={threeD ? "Switch to the flat 2D map" : "Switch to the 3D map"}
-          title={threeD ? "Flat map" : "3D map"}
-          className={cn(
-            "absolute right-[10px] z-10 flex size-[29px] items-center justify-center rounded-md border border-border text-[11px] font-bold shadow-md outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
-            "top-[82px]",
-            threeD ? "bg-primary text-white" : "bg-popover text-foreground hover:bg-muted"
-          )}
-        >
-          3D
-        </button>
-
-        {/* While editing, the pin is always in the middle and the map moves under it; its tip is the spot. */}
-        {editing && (
-          <div className="pointer-events-none absolute left-1/2 top-1/2 z-10">
-            <span aria-hidden className={cn("absolute left-0 top-0 h-1.5 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/35 blur-[1px] transition-transform duration-150", moving && "scale-75 opacity-60")} />
-            <span className={cn("absolute left-0 top-0 -translate-x-1/2 -translate-y-full transition-transform duration-150", moving && "-translate-y-[calc(100%+10px)]")}>
-              <MapPin className="size-11 fill-emerald-500 text-white drop-shadow-lg" strokeWidth={1.5} />
-            </span>
-          </div>
-        )}
+    // A full-page map: it fills the page under the header (the dashboard layout pads its pages by p-6, taken back here) with the site's cards
+    // floating over it on the left, like a map app.
+    <div className="relative -mx-6 -mb-6 -mt-3 h-[calc(100svh-clamp(3.5rem,4.5vw,4.25rem))] min-h-[520px] overflow-hidden bg-muted">
+      {/* The library's stylesheet makes the map element position: relative, which would drop it to no height: it gets a full-size wrapper. */}
+      <div className="absolute inset-0">
+        <div ref={box} className="h-full w-full" />
       </div>
 
-      {/* On the right: what kind of site it is, then the site's details, read-only until Edit site. */}
-      <div className="space-y-4 xl:col-span-2">
-        {intro}
-        <Card className="overflow-hidden">
-          <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border/60 px-4 py-3">
+      <button
+        type="button"
+        onClick={() => setThreeD((v) => !v)}
+        aria-pressed={threeD}
+        aria-label={threeD ? "Switch to the flat 2D map" : "Switch to the 3D map"}
+        title={threeD ? "Flat map" : "3D map"}
+        className={cn(
+          "absolute right-[10px] z-10 flex size-[29px] items-center justify-center rounded-md border border-border text-[11px] font-bold shadow-md outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
+          "top-[82px]",
+          threeD ? "bg-primary text-white" : "bg-popover text-foreground hover:bg-muted"
+        )}
+      >
+        3D
+      </button>
+
+      {/* While editing, the pin is always in the middle and the map moves under it; its tip is the spot. */}
+      {editing && (
+        <div className="pointer-events-none absolute left-1/2 top-1/2 z-10">
+          <span aria-hidden className={cn("absolute left-0 top-0 h-1.5 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/35 blur-[1px] transition-transform duration-150", moving && "scale-75 opacity-60")} />
+          <span className={cn("absolute left-0 top-0 -translate-x-1/2 -translate-y-full transition-transform duration-150", moving && "-translate-y-[calc(100%+10px)]")}>
+            <MapPin className="size-11 fill-emerald-500 text-white drop-shadow-lg" strokeWidth={1.5} />
+          </span>
+        </div>
+      )}
+
+      {/* Search, floating at the top of the map while editing (beside the cards on a wide screen, across the top on a phone). */}
+      {editing && (
+        <div className="absolute inset-x-3 top-3 z-30 md:left-[412px] md:right-14 md:max-w-[480px]">
+          <SearchBox
+            center={center}
+            onPick={(p) => {
+              if (p.lat === null || p.lng === null) return;
+              forceFill.current = true;
+              setLookupTick((t) => t + 1);
+              goTo(p.lat, p.lng, 17.5);
+            }}
+            onLookup={async (p) => {
+              if (!p.placeId) return;
+              const res = await fetch(`/api/geocode?place_id=${encodeURIComponent(p.placeId)}`);
+              const body = (await res.json()) as { place?: Place };
+              if (body.place?.lat != null && body.place.lng != null) goTo(body.place.lat, body.place.lng, 17.5);
+            }}
+          />
+        </div>
+      )}
+
+      {/* The cards: on the left over the map (a sheet at the bottom on a phone). Only the cards take clicks; the rest of the map stays live. */}
+      <div className={cn("pointer-events-none absolute z-20 flex flex-col gap-3 max-md:inset-x-3 max-md:bottom-3 md:bottom-4 md:left-4 md:top-4 md:w-[380px]", editing && "max-md:top-16")}>
+        {!editing && <div className="pointer-events-auto">{kind}</div>}
+
+        <Card className={cn("pointer-events-auto flex min-h-0 flex-col gap-0 overflow-hidden border-border/60 bg-card/95 py-0 shadow-xl backdrop-blur", editing ? "max-md:flex-1 md:max-h-full" : "md:max-h-[calc(100%-9rem)]")}>
+          <div className="flex items-center justify-between gap-3 px-4 py-3.5">
             <div className="min-w-0">
-              <p className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
-                <MapPin className="size-4 text-muted-foreground" />
-                <span className="truncate">{siteName}</span>
+              <p className="flex items-center gap-1.5 text-[15px] font-semibold text-foreground">
+                <MapPin className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                <span className="truncate">{editing ? (saved ? "Edit site" : "Set up your site") : siteName}</span>
               </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{status}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{editing ? "Nothing changes until you press Save." : status}</p>
             </div>
             {!editing && saved && (
-              <Button type="button" size="sm" variant="outline" onClick={startEditing} className="gap-1.5">
+              <Button type="button" size="sm" variant="outline" onClick={startEditing} className="shrink-0 gap-1.5 rounded-full">
                 <Pencil className="size-3.5" />
                 Edit site
               </Button>
             )}
           </div>
 
-          {/* The site's details, under the map: read-only until Edit site. */}
           {!editing && (
-            <div className="border-t border-border/60 p-4">
+            <div className="min-h-0 overflow-auto border-t border-border/60 px-4 py-3">
               <AboutRows
                 rows={[
-                  ["Site name", siteName],
-                  ["Device name", deviceLabel || deviceName],
-                  ["Address line", savedAddress.line1],
+                  ["Device", deviceLabel || deviceName],
+                  ["Address", savedAddress.line1],
                   ["City", savedAddress.city],
                   ["State", savedAddress.state],
                   ["PIN code", savedAddress.pincode],
@@ -537,112 +556,85 @@ export function SiteLocation({
           )}
 
           {editing && (
-            <div className="space-y-4 border-t border-border/60 p-4">
-              <SearchBox
-                center={center}
-                onPick={(p) => {
-                  if (p.lat === null || p.lng === null) return;
-                  forceFill.current = true;
-                  setLookupTick((t) => t + 1);
-                  goTo(p.lat, p.lng, 17.5);
-                }}
-                onLookup={async (p) => {
-                  if (!p.placeId) return;
-                  const res = await fetch(`/api/geocode?place_id=${encodeURIComponent(p.placeId)}`);
-                  const body = (await res.json()) as { place?: Place };
-                  if (body.place?.lat != null && body.place.lng != null) goTo(body.place.lat, body.place.lng, 17.5);
-                }}
-              />
+            <>
+              <div className="min-h-0 flex-1 space-y-5 overflow-auto border-t border-border/60 px-4 py-4">
+                {/* One short instruction, in plain words, that changes as the map is moved. */}
+                <div className="rounded-xl bg-muted/60 px-3 py-2.5 text-sm">
+                  {!ready || !center ? (
+                    <p className="text-muted-foreground">Loading the map…</p>
+                  ) : !zoomedIn ? (
+                    <p className="text-foreground">Zoom in or search, then move the map until the pin is on your building.</p>
+                  ) : (
+                    <p className="text-foreground">Move the map until the pin is on your building.</p>
+                  )}
+                  {saved && center && zoomedIn && away !== null && <p className="mt-0.5 text-xs text-muted-foreground">{away > MOVED_M ? `The pin is ${distanceText(away)} from the saved location.` : "The pin is on the saved location."}</p>}
+                  {userPos && userPos.accuracy > POOR_FIX_M && (
+                    <p className="mt-1 flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+                      <ShieldAlert className="mt-0.5 size-3.5 shrink-0" />
+                      Your device could only place you within {distanceText(userPos.accuracy)}. Move the map until the pin is on your building.
+                    </p>
+                  )}
+                  {permission === "denied" && <p className="mt-1 text-xs text-muted-foreground">Location is blocked in your browser. Allow it for this site in the address bar to use it here.</p>}
+                </div>
 
-              <div className="min-w-0 text-sm">
-                {!ready || !center ? (
-                  <p className="text-muted-foreground">Loading the map…</p>
-                ) : !zoomedIn ? (
-                  <p className="text-foreground">Zoom in or search, then move the map until the pin is on your building.</p>
-                ) : (
-                  <p className="text-foreground">Move the map until the pin is on your building.</p>
-                )}
-                {saved && center && zoomedIn && away !== null && <p className="mt-0.5 text-xs text-muted-foreground">{away > MOVED_M ? `The pin is ${distanceText(away)} from the saved location.` : "The pin is on the saved location."}</p>}
-                {userPos && userPos.accuracy > POOR_FIX_M && (
-                  <p className="mt-1 flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400">
-                    <ShieldAlert className="mt-0.5 size-3.5 shrink-0" />
-                    Your device could only place you within {distanceText(userPos.accuracy)}. Move the map until the pin is on your building.
-                  </p>
-                )}
-                {permission === "denied" && <p className="mt-1 text-xs text-muted-foreground">Location is blocked in your browser. Allow it for this site in the address bar to use it here.</p>}
-              </div>
+                <div className="space-y-3">
+                  <label className="block space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground">Site name</span>
+                    <Input value={names.siteName} onChange={(e) => setNames((n) => ({ ...n, siteName: e.target.value }))} maxLength={120} required aria-invalid={!nameOk} className="h-9" />
+                  </label>
+                  <label className="block space-y-1">
+                    <span className="text-xs font-medium text-muted-foreground">Device name</span>
+                    <Input value={names.deviceLabel} onChange={(e) => setNames((n) => ({ ...n, deviceLabel: e.target.value }))} maxLength={120} placeholder={deviceName} className="h-9" />
+                  </label>
+                </div>
 
-              <div>
-                <p className="mb-2 text-sm font-medium text-foreground">Site</p>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="space-y-1">
-                    <span className="text-xs text-muted-foreground">Site name</span>
-                    <Input value={names.siteName} onChange={(e) => setNames((n) => ({ ...n, siteName: e.target.value }))} maxLength={120} required aria-invalid={!nameOk} />
-                  </label>
-                  <label className="space-y-1">
-                    <span className="text-xs text-muted-foreground">Device name (shown in the header menu)</span>
-                    <Input value={names.deviceLabel} onChange={(e) => setNames((n) => ({ ...n, deviceLabel: e.target.value }))} maxLength={120} placeholder={deviceName} />
-                  </label>
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-xs font-medium text-muted-foreground">Address</p>
+                    <p className="text-[11px] text-muted-foreground">
+                      {lookup === "loading" ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <Loader2 className="size-3 animate-spin" />
+                          Finding the address…
+                        </span>
+                      ) : lookup === "unavailable" ? (
+                        "Not found here. Type it in."
+                      ) : (
+                        "Filled from the map. You can correct it."
+                      )}
+                    </p>
+                  </div>
+                  <Input value={fields.line1} onChange={(e) => edit("line1", e.target.value)} maxLength={200} placeholder="Building, street, area" aria-label="Address line" className="h-9" />
+                  <div className="grid grid-cols-3 gap-2">
+                    <Input value={fields.city} onChange={(e) => edit("city", e.target.value)} maxLength={100} placeholder="City" aria-label="City" className="h-9" />
+                    <Input value={fields.state} onChange={(e) => edit("state", e.target.value)} maxLength={100} placeholder="State" aria-label="State" className="h-9" />
+                    <Input value={fields.pincode} onChange={(e) => edit("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" maxLength={6} placeholder="PIN" aria-label="PIN code" aria-invalid={!pinOk} className="h-9" />
+                  </div>
                 </div>
               </div>
 
-              <div>
-                <div className="mb-2 flex items-center justify-between gap-2">
-                  <p className="text-sm font-medium text-foreground">Address at the pin</p>
-                  <p className="text-xs text-muted-foreground">
-                    {lookup === "loading" ? (
-                      <span className="inline-flex items-center gap-1.5">
-                        <Loader2 className="size-3 animate-spin" />
-                        Finding the address…
-                      </span>
-                    ) : lookup === "unavailable" ? (
-                      "The address could not be found here. Type it in."
-                    ) : (
-                      "Filled in from the map. You can correct it."
-                    )}
-                  </p>
-                </div>
-                <div className="grid gap-3 sm:grid-cols-6">
-                  <label className="space-y-1 sm:col-span-6">
-                    <span className="text-xs text-muted-foreground">Address line</span>
-                    <Input value={fields.line1} onChange={(e) => edit("line1", e.target.value)} maxLength={200} placeholder="Building, street, area" />
-                  </label>
-                  <label className="space-y-1 sm:col-span-2">
-                    <span className="text-xs text-muted-foreground">City</span>
-                    <Input value={fields.city} onChange={(e) => edit("city", e.target.value)} maxLength={100} />
-                  </label>
-                  <label className="space-y-1 sm:col-span-2">
-                    <span className="text-xs text-muted-foreground">State</span>
-                    <Input value={fields.state} onChange={(e) => edit("state", e.target.value)} maxLength={100} />
-                  </label>
-                  <label className="space-y-1 sm:col-span-2">
-                    <span className="text-xs text-muted-foreground">PIN code</span>
-                    <Input value={fields.pincode} onChange={(e) => edit("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" maxLength={6} aria-invalid={!pinOk} />
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex flex-wrap items-center justify-between gap-2">
+              {/* Always in reach: use the phone's or computer's position, cancel, save. */}
+              <div className="flex items-center justify-between gap-2 border-t border-border/60 bg-card px-4 py-3">
                 {permission === "unsupported" ? (
                   <span />
                 ) : (
-                  <Button type="button" size="sm" variant="outline" onClick={locate} disabled={locating} className="gap-1.5">
+                  <Button type="button" size="sm" variant="ghost" onClick={locate} disabled={locating} className="gap-1.5 px-2 text-muted-foreground hover:text-foreground">
                     {locating ? <Loader2 className="size-4 animate-spin" /> : <LocateFixed className="size-4" />}
-                    {locating ? "Locating…" : "Use my location"}
+                    {locating ? "Locating…" : "My location"}
                   </Button>
                 )}
                 <div className="flex gap-2">
                   {saved && (
-                    <Button type="button" size="sm" variant="ghost" onClick={cancel} disabled={saving}>
+                    <Button type="button" size="sm" variant="outline" onClick={cancel} disabled={saving} className="rounded-full">
                       Cancel
                     </Button>
                   )}
-                  <Button type="button" size="sm" onClick={save} disabled={!canSave || saving}>
+                  <Button type="button" size="sm" onClick={save} disabled={!canSave || saving} className="rounded-full px-5">
                     {saving ? "Saving…" : "Save"}
                   </Button>
                 </div>
               </div>
-            </div>
+            </>
           )}
         </Card>
       </div>
