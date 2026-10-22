@@ -14,7 +14,7 @@ import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/
 // tariff Performance uses) and the page works out whatever period is chosen from them in the browser.
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ device?: string }> }) {
   const { device: deviceIdParam } = await searchParams;
-  const [base, profile] = await Promise.all([gatherReportsBase(deviceIdParam), getRequestProfile()]);
+  const [base, profile] = await Promise.all([gatherReportsBase(deviceIdParam, { tolerant: true }), getRequestProfile()]);
   if (!base.authorized || !profile) redirect("/dashboard");
 
   if (!base.deviceId || !base.isSolar) {

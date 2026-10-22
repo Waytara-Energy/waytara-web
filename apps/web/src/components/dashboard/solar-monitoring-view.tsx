@@ -18,8 +18,6 @@ import { TabButtonContent, renderGroup, sortGroups } from "./monitoring-shared";
 import { useDeviceState } from "./use-device-state";
 import { pvPowerKeys, solarGenerationW } from "@/lib/solar-generation";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
-import { RangeProvider } from "./range-context";
-import { RangeBar } from "./range-bar";
 import { GoLiveProvider } from "./go-live";
 import { IntervalProvider } from "./interval-context";
 import { FLOW } from "./flow-colors";
@@ -248,8 +246,10 @@ export function SolarMonitoringView({
     ...(generatorEnabled ? { generator: { value: genLiveText, label: "Generator Output" } } : {}),
   };
 
+  // Monitoring is today's picture only: there is no range picker and no range provider, so every chart below shows today
+  // (Performance and Reports are where a longer period is chosen).
   return (
-    <RangeProvider deviceId={deviceId}>
+    <>
       <IntervalProvider>
       <GoLiveProvider deviceId={deviceId} agentOnline={agentOnline}>
 
@@ -263,7 +263,7 @@ export function SolarMonitoringView({
           a device that doesn't share the previous one's node (e.g. no
           "battery" tab) left the panel on a tab that no longer had a
           trigger to select it. */}
-      <MonitoringTabs key={deviceId} defaultValue="hub" headlines={tabHeadlines} actions={<RangeBar />}>
+      <MonitoringTabs key={deviceId} defaultValue="hub" headlines={tabHeadlines}>
         <TabsList variant="line">
           <TabsTrigger value="hub" variant="line" className="data-[state=active]:border-primary data-[state=active]:text-primary">
             <TabButtonContent icon={Server} label="Main Hub" />
@@ -715,6 +715,6 @@ export function SolarMonitoringView({
       </MonitoringTabs>
       </GoLiveProvider>
       </IntervalProvider>
-    </RangeProvider>
+    </>
   );
 }

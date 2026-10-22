@@ -40,9 +40,17 @@ export async function fetchSeriesRows(
   const MAX_PAGES = 30;
   const rows: SeriesRowOut[] = [];
   for (let page = 0; page < MAX_PAGES; page++) {
-    const { data, error } = await supabase
-      .rpc("telemetry_series", { p_equipment_id: deviceId, p_keys: keys, p_from: fromIso, p_to: toIso, p_interval_minutes: minutes })
-      .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    const ask = () =>
+      supabase
+        .rpc("telemetry_series", { p_equipment_id: deviceId, p_keys: keys, p_from: fromIso, p_to: toIso, p_interval_minutes: minutes })
+        .range(page * PAGE_SIZE, (page + 1) * PAGE_SIZE - 1);
+    let { data, error } = await ask();
+    // The database now and then stalls for a few seconds under load (a statement is cancelled at its time limit). The same read a moment
+    // later almost always goes through, so it is asked once more before the page gives up.
+    if (error && /statement timeout|canceling statement/i.test(error.message)) {
+      await new Promise((resolve) => setTimeout(resolve, 1200));
+      ({ data, error } = await ask());
+    }
     if (error) throw new Error(error.message);
     if (!data || data.length === 0) break;
     rows.push(...(data as unknown as SeriesRowOut[]));

@@ -36,6 +36,8 @@ export interface ReportsBase {
   /** The first day with readings (the earliest a report can start). */
   firstDay: string | null;
   days: DayEnergy[];
+  /** The day-by-day history could not be read just now (the database was busy): the page says so and offers to try again. */
+  historyFailed: boolean;
   months: MonthRow[];
   lifetime: Lifetime | null;
   lifetimeBill: Bill | null;
@@ -60,6 +62,7 @@ const NONE: ReportsBase = {
   today: "",
   firstDay: null,
   days: [],
+  historyFailed: false,
   months: [],
   lifetime: null,
   lifetimeBill: null,
@@ -84,7 +87,7 @@ interface Loaded {
 }
 
 /** The history, tariff and bills of one solar inverter - the same whoever asks (a signed-in customer, or the scheduled job). */
-async function loadSolar(a: Loaded): Promise<ReportsBase> {
+async function loadSolar(a: Loaded, tolerant = false): Promise<ReportsBase> {
   const today = istToday();
   const site = a.site as Parameters<typeof fetchResolvedTariff>[1];
   const tariff = await fetchResolvedTariff(a.supabase, site, a.accountRate);
@@ -93,12 +96,19 @@ async function loadSolar(a: Loaded): Promise<ReportsBase> {
   since.setUTCDate(since.getUTCDate() - HISTORY_DAYS);
 
   const [dailyRows, { data: latestRows }, { data: range }] = await Promise.all([
-    fetchDailyMaxReadings(a.supabase, a.device.id, [DAY_KEYS.pv, DAY_KEYS.load, DAY_KEYS.imported, DAY_KEYS.exported, DAY_KEYS.charged, DAY_KEYS.discharged], since.toISOString()),
+    // The page can show itself without the history (and say so); a download or a scheduled report must not be written from nothing, so there it fails.
+    fetchDailyMaxReadings(a.supabase, a.device.id, [DAY_KEYS.pv, DAY_KEYS.load, DAY_KEYS.imported, DAY_KEYS.exported, DAY_KEYS.charged, DAY_KEYS.discharged], since.toISOString()).then(
+      (rows) => ({ rows, failed: false }),
+      (error: unknown) => {
+        if (!tolerant) throw error;
+        return { rows: [], failed: true };
+      },
+    ),
     a.supabase.from("equipment_latest").select("key_name, value").eq("equipment_id", a.device.id).in("key_name", [LIFETIME_KEYS.pv, LIFETIME_KEYS.load, LIFETIME_KEYS.imported, LIFETIME_KEYS.exported]),
     a.supabase.rpc("device_data_range", { p_equipment_id: a.device.id }),
   ]);
 
-  const days = daysFromRows(dailyRows);
+  const days = daysFromRows(dailyRows.rows);
   const months = pricedMonths(days, tariff.timeline, rates, today);
   const lifetime = lifetimeFrom(new Map((latestRows ?? []).map((r) => [r.key_name, r.value])));
   const row = Array.isArray(range) ? range[0] : range;
@@ -116,6 +126,7 @@ async function loadSolar(a: Loaded): Promise<ReportsBase> {
     generatedAt: new Date().toISOString(),
     today,
     days,
+    historyFailed: dailyRows.failed,
     months,
     lifetime,
     lifetimeBill: lifetimeBillFor(days, months, lifetime, rates),
@@ -127,7 +138,7 @@ async function loadSolar(a: Loaded): Promise<ReportsBase> {
 }
 
 /** Everything the Reports page, the downloads and the saved reports need, read once and priced on the same tariff Performance uses. */
-export async function gatherReportsBase(deviceIdParam?: string): Promise<ReportsBase> {
+export async function gatherReportsBase(deviceIdParam?: string, opts: { tolerant?: boolean } = {}): Promise<ReportsBase> {
   const [profile, site] = await Promise.all([getRequestProfile(), getSelectedSite()]);
   const device = await resolveDeviceInSite(site, deviceIdParam);
   if (!profile) return NONE;
@@ -158,7 +169,7 @@ export async function gatherReportsBase(deviceIdParam?: string): Promise<Reports
     device: { id: device.id, label: deviceDisplayId(device) },
     accountRate: customerPlan?.tariffRatePerKwh ?? 8,
     invested: await getTotalInvested(supabase),
-  });
+  }, opts.tolerant ?? false);
 }
 
 /** The same for a scheduled report: there is no signed-in user, so the customer and device are named, and every query is limited to

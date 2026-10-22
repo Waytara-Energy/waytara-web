@@ -1,7 +1,9 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { FileBarChart, FilePlus2, Zap, type LucideIcon } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { inr } from "@/lib/savings";
 import { istDate } from "@/lib/telemetry/combine";
@@ -50,6 +52,7 @@ export function ReportsBoard({ base, customerId, reports, runs, available }: { b
 
 function Board({ base, customerId, reports, runs, available }: { base: ReportsBase; customerId: string; reports: SavedReportView[]; runs: RunView[]; available: AvailableReport[] }) {
   const range = useRange();
+  const router = useRouter();
   const hash = React.useSyncExternalStore(subscribeHash, readHash, () => "");
   const section: SectionId = (SECTIONS.map((s) => s.id) as string[]).includes(hash) ? (hash as SectionId) : "summary";
 
@@ -70,6 +73,15 @@ function Board({ base, customerId, reports, runs, available }: { base: ReportsBa
 
   return (
     <div className="space-y-5">
+      {/* The history could not be read just now (the database was busy): the page still opens, says so, and offers to read it again. */}
+      {base.historyFailed && (
+        <div role="alert" className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-700 dark:text-amber-300">
+          <span>We could not read your energy history just now, so the figures below are empty. This is usually brief.</span>
+          <Button type="button" size="sm" variant="outline" onClick={() => router.refresh()}>
+            Try again
+          </Button>
+        </div>
+      )}
       <Headline section={section} view={view} label={label} reports={reports} runs={runs} />
 
       <Tabs value={section} onValueChange={(v) => (window.location.hash = v)}>
