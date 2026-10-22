@@ -175,7 +175,7 @@ export default async function DashboardLayout({
             lives inside this same container. `clip` never becomes a
             scroll container at all, so no scrollTop can land on it by any
             path. */}
-        <SidebarInset className="h-svh overflow-clip">
+        <SidebarInset className="isolate h-svh overflow-clip">
           <DashboardHeader
             sites={sites.map((s) => ({ id: s.id, name: s.name, deviceCount: s.devices.length }))}
             selectedSiteId={selectedSite?.id ?? null}

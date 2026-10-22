@@ -44,7 +44,7 @@ export function TodayStatCard({
   return (
     <Link
       href={href}
-      className="group flex h-full min-w-0 flex-col gap-4 rounded-2xl border border-border p-5"
+      className="group flex h-full min-h-0 min-w-0 flex-col gap-3 overflow-hidden rounded-2xl border border-border p-4 lg:gap-4 lg:p-5"
     >
       <div className="flex items-start justify-between gap-3">
         <span className="text-sm font-medium text-foreground">{title}</span>
@@ -60,7 +60,7 @@ export function TodayStatCard({
         </div>
         <p className="mt-2 text-xs text-muted-foreground">{detail}</p>
       </div>
-      <div className="min-h-28 flex-1">
+      <div className="min-h-28 flex-1 lg:min-h-0">
         <TodayAreaChart points={points} now={now} posColor={posColor} negColor={negColor} posLabel={posLabel} negLabel={negLabel} />
       </div>
     </Link>
