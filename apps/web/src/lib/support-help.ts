@@ -1,4 +1,4 @@
-// Answers to the questions customers ask most, shown on the Support page while no ticket is open, so many problems are solved without waiting.
+// The six questions customers ask most (keep it short), shown on the Support page while no ticket is open, so many problems are solved without waiting.
 // Plain data: the screen and its test share it. Steps never ask anyone to open equipment or touch wiring.
 
 export interface HelpItem {
@@ -23,7 +23,7 @@ export const HELP_ITEMS: HelpItem[] = [
   {
     id: "beeping",
     question: "The inverter beeps or shows a fault code",
-    answer: ["Note the code on the inverter's screen (for example F58 or W03) and look it up in the guide below: it says what it means and what you can safely try.", "If the code stays or comes back, open a ticket with the code and a photo of the screen."],
+    answer: ["Note the code on the inverter's screen (for example F58 or W03) and check Maintenance in the dashboard, which shows the fault and what it means. Please do not open the inverter or touch any wiring.", "If the code stays or comes back, open a ticket with the code and a photo of the screen."],
     link: { href: "/dashboard/maintenance", label: "Health and faults" },
   },
   {
@@ -43,30 +43,6 @@ export const HELP_ITEMS: HelpItem[] = [
     question: "My electricity bill looks different from what the app says",
     answer: ["The app prices your energy on your state's tariff, which is shown at the bottom of the Reports page. Bills also include fixed charges and taxes the app does not add.", "If the units differ, open a ticket with the month and the units on your bill."],
     link: { href: "/dashboard/reports", label: "Open Reports" },
-  },
-  {
-    id: "charger",
-    question: "My EV charger will not start charging",
-    answer: ["Check that the connector is fully seated in the car and that the charger's status in the dashboard is Online and Available. Try unplugging and plugging in again.", "If it stays unavailable, open a ticket with the charger status you see."],
-    link: { href: "/dashboard/ev-sessions", label: "Charging sessions" },
-  },
-  {
-    id: "site",
-    question: "How do I change my site's address or a device's name?",
-    answer: ["Open the Site page, press Edit site, move the pin to your building and check the details, then save."],
-    link: { href: "/dashboard/site", label: "Open Site" },
-  },
-  {
-    id: "reports",
-    question: "How do I download a report?",
-    answer: ["Open Reports, choose the period at the top right, then Generate. You can download a statement, a day or period report, or the readings exactly as your unit took them (the last 4 weeks)."],
-    link: { href: "/dashboard/reports", label: "Open Reports" },
-  },
-  {
-    id: "alerts",
-    question: "How do I change which e-mails I get?",
-    answer: ["Open Application Settings from your account menu. You can switch alert e-mails on or off there."],
-    link: { href: "/dashboard/settings", label: "Application Settings" },
   },
   {
     id: "reply",

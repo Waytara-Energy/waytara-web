@@ -2,13 +2,12 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowUpRight, LifeBuoy, Search } from "lucide-react";
-import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import * as AccordionPrimitive from "@radix-ui/react-accordion";
+import { ArrowUpRight, LifeBuoy, Plus, Search, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { searchHelp } from "@/lib/support-help";
 
-/** What the right side of the Support page shows while no ticket is open: answers to the usual questions (searchable), the fault-code guide,
- *  and a way to open a ticket if none of it helps. */
+/** What the right side of the Support page shows while no ticket is open: answers to the usual questions (searchable) and a way to open a ticket if none of it helps. */
 export function SupportHelp({ newTicket }: { newTicket: React.ReactNode }) {
   const [query, setQuery] = React.useState("");
   const items = React.useMemo(() => searchHelp(query), [query]);
@@ -27,36 +26,46 @@ export function SupportHelp({ newTicket }: { newTicket: React.ReactNode }) {
         </div>
         <div className="relative mt-4">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search: offline, battery, bill, charger…" aria-label="Search the help" className="h-10 pl-9" />
+          <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search: offline, battery, bill…" aria-label="Search the help" className="h-10 pl-9" />
         </div>
       </section>
 
-      <section className="rounded-2xl border border-border bg-card p-2 sm:p-4">
-        <h3 className="px-3 pb-1 pt-2 text-sm font-semibold text-foreground sm:px-1">Common questions</h3>
+      <section>
+        <h3 className="mb-3 px-1 text-sm font-semibold text-foreground">Common questions</h3>
         {items.length === 0 ? (
-          <div className="px-3 py-8 text-center sm:px-1">
+          <div className="rounded-2xl border border-border bg-card px-4 py-8 text-center">
             <p className="text-sm text-muted-foreground">Nothing matches &ldquo;{query}&rdquo;. A ticket is the quickest way to get an answer.</p>
             <div className="mt-3 flex justify-center">{newTicket}</div>
           </div>
         ) : (
-          <Accordion type="single" collapsible>
+          <AccordionPrimitive.Root type="single" collapsible className="space-y-3">
             {items.map((i) => (
-              <AccordionItem key={i.id} value={i.id}>
-                <AccordionTrigger className="text-left text-sm">{i.question}</AccordionTrigger>
-                <AccordionContent className="space-y-2 text-sm text-muted-foreground">
-                  {i.answer.map((p) => (
-                    <p key={p}>{p}</p>
-                  ))}
-                  {i.link && (
-                    <Link href={i.link.href} className="inline-flex items-center gap-1 pt-1 text-sm font-medium text-primary underline-offset-2 hover:underline">
-                      {i.link.label}
-                      <ArrowUpRight className="size-3.5" />
-                    </Link>
-                  )}
-                </AccordionContent>
-              </AccordionItem>
+              <AccordionPrimitive.Item key={i.id} value={i.id} className="group/q rounded-3xl border border-transparent bg-muted/60 px-5 transition-colors data-[state=open]:border-border data-[state=open]:bg-card">
+                <AccordionPrimitive.Header className="flex">
+                  <AccordionPrimitive.Trigger className="flex flex-1 items-center justify-between gap-4 py-3 text-left text-[15px] font-medium text-foreground focus-visible:outline-none">
+                    {i.question}
+                    <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-background text-foreground shadow-sm transition-colors group-data-[state=open]/q:bg-muted group-data-[state=open]/q:shadow-none">
+                      <Plus className="size-4 group-data-[state=open]/q:hidden" />
+                      <X className="hidden size-4 group-data-[state=open]/q:block" />
+                    </span>
+                  </AccordionPrimitive.Trigger>
+                </AccordionPrimitive.Header>
+                <AccordionPrimitive.Content className="overflow-hidden text-sm text-muted-foreground data-[state=closed]:animate-accordion-up data-[state=open]:animate-accordion-down">
+                  <div className="max-w-2xl space-y-2 pb-5 pr-12 leading-relaxed">
+                    {i.answer.map((p) => (
+                      <p key={p}>{p}</p>
+                    ))}
+                    {i.link && (
+                      <Link href={i.link.href} className="inline-flex items-center gap-1 pt-1 text-sm font-medium text-primary underline-offset-2 hover:underline">
+                        {i.link.label}
+                        <ArrowUpRight className="size-3.5" />
+                      </Link>
+                    )}
+                  </div>
+                </AccordionPrimitive.Content>
+              </AccordionPrimitive.Item>
             ))}
-          </Accordion>
+          </AccordionPrimitive.Root>
         )}
       </section>
 
