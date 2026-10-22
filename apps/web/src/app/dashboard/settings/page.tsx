@@ -8,7 +8,8 @@ import { parseOverviewPrefs } from "@/lib/overview-prefs";
 import { parseSessionPolicy } from "@/lib/session-policy";
 import { fetchUnitFields } from "@/lib/unit-fields";
 import { parseUnitPrefs } from "@/lib/unit-prefs";
-import { getSelectedSite } from "@/lib/selected-site";
+import { getCustomerSites, getSelectedSite } from "@/lib/selected-site";
+import { effectiveRules, type RuleRow } from "@/lib/alert-rules";
 
 /** The server clock for "last active 5 min ago" (a function, so a render never reads the time itself). */
 const serverNow = () => Date.now();
@@ -19,13 +20,15 @@ const serverNow = () => Date.now();
 export default async function SettingsPage() {
   const profile = await requireCustomer();
   const supabase = await createClient();
-  const site = await getSelectedSite();
-  const [{ data: row }, { data: customer }, { data: sessionRows }, unitValues] = await Promise.all([
+  const [site, allSites] = await Promise.all([getSelectedSite(), getCustomerSites()]);
+  const [{ data: row }, { data: customer }, { data: sessionRows }, unitValues, { data: ruleRows }] = await Promise.all([
     supabase.from("profiles").select("full_name, phone, email, avatar_url, notification_preferences, ui_preferences, security_preferences").eq("id", profile.id).maybeSingle(),
     supabase.from("customers").select("address, billing_address, billing_email, gstin").eq("id", profile.id).maybeSingle(),
     supabase.rpc("my_sessions"),
     // the readings of the selected site's devices whose unit can be changed (for the "particular values" list of Units)
     fetchUnitFields(supabase, (site?.devices ?? []).map((d) => d.id)),
+    // the customer's own alerts and their changes to the ready-made ones (RLS: only their rows)
+    supabase.from("alert_rules").select("id, preset_id, name, metric, op, threshold, site_id, notify_email, notify_app, cooldown_minutes, enabled").order("created_at"),
   ]);
 
   const overview = parseOverviewPrefs(row?.ui_preferences);
@@ -41,7 +44,7 @@ export default async function SettingsPage() {
 
       <SettingsBoard
         profile={{ userId: profile.id, fullName: row?.full_name ?? "", phone: row?.phone ?? "", email: row?.email ?? profile.email ?? "", avatarUrl: row?.avatar_url ?? null }}
-        notifications={{ initial: resolveNotificationPrefs(row?.notification_preferences) }}
+        notifications={{ initial: resolveNotificationPrefs(row?.notification_preferences), alertRules: effectiveRules((ruleRows ?? []) as unknown as RuleRow[]), sites: allSites.map((s) => ({ id: s.id, name: s.name })) }}
         addresses={{ address: parseAddress(customer?.address), billing: customer?.billing_address ? parseAddress(customer.billing_address) : null, billingEmail: customer?.billing_email ?? "", gstin: customer?.gstin ?? "" }}
         overview={{ userId: profile.id, initial: overview, imageUrl }}
         units={{ initial: parseUnitPrefs(row?.ui_preferences), values: unitValues }}

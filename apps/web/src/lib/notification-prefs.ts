@@ -11,7 +11,8 @@ export type NotificationKey =
   | "faults"
   | "alarms"
   | "tariff"
-  | "support_emails";
+  | "support_emails"
+  | "rule_alerts";
 
 export interface NotificationItem {
   key: NotificationKey;
@@ -21,7 +22,7 @@ export interface NotificationItem {
 }
 
 export interface NotificationCategory {
-  id: "account" | "devices" | "faults" | "billing" | "support";
+  id: "account" | "devices" | "faults" | "alerts" | "billing" | "support";
   title: string;
   description: string;
   items: NotificationItem[];
@@ -58,6 +59,12 @@ export const NOTIFICATION_CATEGORIES: NotificationCategory[] = [
       { key: "faults", title: "Fault e-mails", description: "When the inverter raises a fault, with reminders until it clears and a note when it does.", default: true },
       { key: "alarms", title: "Alarm e-mails", description: "When the inverter raises an alarm (a warning that is not yet a fault).", default: true },
     ],
+  },
+  {
+    id: "alerts",
+    title: "My alerts",
+    description: "Alerts you set up yourself, and the ready-made ones for your battery, solar, grid, consumption and cost (below).",
+    items: [{ key: "rule_alerts", title: "E-mail for my alerts", description: "An e-mail when one of your alerts goes off. Each alert also has its own e-mail and app choices below.", default: true }],
   },
   {
     id: "billing",

@@ -18,6 +18,117 @@ export type Database = {
   }
   waytara: {
     Tables: {
+      alert_rule_state: {
+        Row: {
+          active: boolean
+          alert_id: string | null
+          customer_id: string
+          last_fired_at: string | null
+          last_value: number | null
+          rule_key: string
+          site_id: string
+        }
+        Insert: {
+          active?: boolean
+          alert_id?: string | null
+          customer_id: string
+          last_fired_at?: string | null
+          last_value?: number | null
+          rule_key: string
+          site_id: string
+        }
+        Update: {
+          active?: boolean
+          alert_id?: string | null
+          customer_id?: string
+          last_fired_at?: string | null
+          last_value?: number | null
+          rule_key?: string
+          site_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_rule_state_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_rule_state_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      alert_rules: {
+        Row: {
+          cooldown_minutes: number
+          created_at: string
+          customer_id: string
+          enabled: boolean
+          id: string
+          metric: string
+          name: string | null
+          notify_app: boolean
+          notify_email: boolean
+          op: string
+          preset_id: string | null
+          site_id: string | null
+          threshold: number
+          updated_at: string
+        }
+        Insert: {
+          cooldown_minutes?: number
+          created_at?: string
+          customer_id: string
+          enabled?: boolean
+          id?: string
+          metric: string
+          name?: string | null
+          notify_app?: boolean
+          notify_email?: boolean
+          op: string
+          preset_id?: string | null
+          site_id?: string | null
+          threshold: number
+          updated_at?: string
+        }
+        Update: {
+          cooldown_minutes?: number
+          created_at?: string
+          customer_id?: string
+          enabled?: boolean
+          id?: string
+          metric?: string
+          name?: string | null
+          notify_app?: boolean
+          notify_email?: boolean
+          op?: string
+          preset_id?: string | null
+          site_id?: string | null
+          threshold?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "alert_rules_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "alert_rules_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alerts: {
         Row: {
           acknowledged_at: string | null

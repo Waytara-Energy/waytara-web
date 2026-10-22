@@ -27,9 +27,17 @@
 
 `lib/notification-prefs.ts` lists the categories and reads a stored choice (`wants(prefs, key)`). Every sender checks its own key: the alert cron per e-mail (`alertKey`: offline, back online, fault, alarm), the device digest per line (`digestKey`), the tariff cron (`tariff`), the support mailer (`support_emails`), and the account e-mails sent by `lib/auth-notify.ts` after a sign-in (login action), a sign-out (sign-out button, a device ended from Settings, others, all, or idle) and a password change (always sent). They are sent with `after()`, so they never slow the page, and carry the device, the place (Vercel's geo headers, when present), the address and the time.
 
+## My alerts ("tell me when the battery is below 20%")
+
+Settings > Notifications, under the e-mail switches. `lib/alert-rules.ts` has the catalogue: 15 things to watch (battery level, charging and discharging power, battery temperature; solar power and energy today; grid import and export power and energy today; consumption power and energy today; electricity rate, grid cost today, value of the solar energy today) and 13 ready-made alerts. Switched on for everyone from the start: battery below 20% and below 10%, grid import above 5 kW, energy bought today above 15 kWh, grid cost today above ₹150. The rest are off until chosen. A customer can switch any off, change its limit, e-mail/app choices and cooldown, or make alerts of their own (any metric, above or below a limit, one site or all, e-mail and/or the bell, repeat no more often than 15 minutes to a day).
+
+- **Storage:** `alert_rules` (a customer's own alerts, and a row per ready-made alert they changed; RLS: own rows, own sites, at most 60) and `alert_rule_state` (server only: whether a rule is tripped and when it last fired).
+- **Evaluation:** `/api/cron/evaluate-alert-rules` every 5 minutes (pg_cron, like the other cron routes). Per customer and site it works out each metric from the latest readings of the site's inverters (readings older than 30 minutes are ignored), then: a limit just crossed and not fired within its cooldown fires once (a row for the bell, and one e-mail listing everything that fired, if the customer keeps "E-mail for my alerts" on); a value back in range by a small margin arms the rule again and marks its bell alert cleared. `?dry=1` reports what would fire and writes nothing.
+- Needs `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY` and `CUSTOMER_APP_URL` on the web app, like the other jobs.
+
 ## Migrations and tests
 
-`20261023050000_my_sessions`, `20261023060000_profile_preferences`, `20261023070000_customer_billing_details`; database tests 38 and 39; web tests for `overview-prefs`, `session-policy`, `address`, `email-otp`, `unit-convert`, `user-agent`.
+`20261023050000_my_sessions`, `20261023060000_profile_preferences`, `20261023070000_customer_billing_details`, `20261023080000_alert_rules`; database tests 38, 39 and 40; web tests for `overview-prefs`, `session-policy`, `address`, `email-otp`, `unit-convert`, `user-agent`.
 
 ## Not done
 

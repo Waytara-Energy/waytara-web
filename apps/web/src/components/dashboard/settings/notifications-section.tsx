@@ -2,27 +2,30 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Bell, Cpu, Headset, Lock, ReceiptText, ShieldCheck, TriangleAlert, type LucideIcon } from "lucide-react";
+import { Bell, BellRing, Cpu, Headset, Lock, ReceiptText, ShieldCheck, TriangleAlert, type LucideIcon } from "lucide-react";
 import { withPromiseToast } from "@waytara/ui/notify";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { ButtonSpinner } from "@/components/ui/spinner";
 import { NOTIFICATION_CATEGORIES, NOTIFICATION_KEYS, type NotificationCategory, type NotificationKey } from "@/lib/notification-prefs";
 import { saveNotifications, type NotificationPrefs } from "@/app/dashboard/settings/actions";
+import type { EffectiveRule } from "@/lib/alert-rules";
+import { AlertsManager, type AlertSite } from "./alerts-manager";
 import { cn } from "@/lib/utils";
 
-const ICON: Record<NotificationCategory["id"], LucideIcon> = { account: ShieldCheck, devices: Cpu, faults: TriangleAlert, billing: ReceiptText, support: Headset };
+const ICON: Record<NotificationCategory["id"], LucideIcon> = { account: ShieldCheck, devices: Cpu, faults: TriangleAlert, alerts: BellRing, billing: ReceiptText, support: Headset };
 const TONE: Record<NotificationCategory["id"], string> = {
   account: "bg-violet-500/15 text-violet-600 dark:text-violet-400",
   devices: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
   faults: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  alerts: "bg-rose-500/15 text-rose-600 dark:text-rose-400",
   billing: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
   support: "bg-primary/15 text-primary",
 };
 
 /** Settings > Notifications: the e-mails WayTara sends, in categories (account and security, devices, faults and alarms, billing, support),
  *  each with its own switch. The bell in the app always shows everything; these only control e-mail. */
-export function NotificationsSection({ initial }: { initial: NotificationPrefs }) {
+export function NotificationsSection({ initial, alertRules, sites }: { initial: NotificationPrefs; alertRules: EffectiveRule[]; sites: AlertSite[] }) {
   const router = useRouter();
   const [prefs, setPrefs] = React.useState<NotificationPrefs>(initial);
   const [saved, setSaved] = React.useState<NotificationPrefs>(initial);
@@ -106,6 +109,12 @@ export function NotificationsSection({ initial }: { initial: NotificationPrefs }
           {saving ? "Saving…" : "Save changes"}
         </Button>
       </div>
+
+      <div className="space-y-1 pt-2">
+        <h2 className="text-lg font-semibold text-foreground">My alerts</h2>
+        <p className="text-sm text-muted-foreground">Alerts about your battery, solar, grid, consumption, rate and cost. Each one saves as soon as you change it.</p>
+      </div>
+      <AlertsManager rules={alertRules} sites={sites} />
     </div>
   );
 }

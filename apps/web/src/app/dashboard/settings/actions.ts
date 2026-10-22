@@ -12,6 +12,7 @@ import { isBackgroundPathOf, overviewToJson, parseOverviewPrefs, type OverviewPr
 import { policyToJson, parseSessionPolicy, type SessionPolicy } from "@/lib/session-policy";
 import { sendMail } from "@/lib/send-mail";
 import { parseUnitPrefs, type UnitPrefs } from "@/lib/unit-prefs";
+import { metricOf, presetOf } from "@/lib/alert-rules";
 import { notifyAuthEvent } from "@/lib/auth-notify";
 import { describeDevice } from "@/lib/user-agent";
 import { NOTIFICATION_KEYS, mergeNotificationPrefs, type NotificationKey } from "@/lib/notification-prefs";
@@ -286,5 +287,67 @@ export async function revokeSession(sessionId: string): Promise<void> {
   const { error } = await supabase.rpc("revoke_my_session", { p_id: sessionId });
   if (error) throw new Error(error.message);
   await notifyAuthEvent("session_revoked", profile, { target });
+  revalidatePath(SETTINGS);
+}
+
+// ---- my alerts ("tell me when the battery is below 20%") -------------------------------------------------------------------------------
+
+export interface AlertInput {
+  /** the alert's row, when it is already saved */
+  id?: string | null;
+  /** set for a ready-made alert: the customer's change to it */
+  presetId?: string | null;
+  name?: string;
+  metric: string;
+  op: "above" | "below";
+  threshold: number;
+  /** null = every site */
+  siteId: string | null;
+  email: boolean;
+  app: boolean;
+  cooldownMinutes: number;
+  enabled: boolean;
+}
+
+/** Saves one alert: a change to a ready-made one (switch, limit, channels, cooldown) or one of the customer's own (made or edited). */
+export async function saveAlertRule(input: AlertInput): Promise<void> {
+  const profile = await requireCustomer();
+  const preset = input.presetId ? presetOf(input.presetId) : null;
+  if (input.presetId && !preset) throw new Error("That ready-made alert does not exist.");
+  const metric = preset ? preset.metric : input.metric;
+  const op = preset ? preset.op : input.op;
+  if (!metricOf(metric)) throw new Error("Choose what to watch.");
+  if (op !== "above" && op !== "below") throw new Error("Choose above or below.");
+  if (!Number.isFinite(input.threshold) || Math.abs(input.threshold) > 1_000_000) throw new Error("Enter a limit as a number.");
+  if (!Number.isInteger(input.cooldownMinutes) || input.cooldownMinutes < 5 || input.cooldownMinutes > 10_080) throw new Error("Choose how often it may repeat.");
+  const name = (input.name ?? "").trim();
+  if (name.length > 80) throw new Error("Keep the name under 80 characters.");
+  if (!input.email && !input.app && input.enabled) throw new Error("Choose at least one way to be told: e-mail or the app.");
+
+  const supabase = await createClient();
+  const values = { metric, op, threshold: input.threshold, notify_email: input.email, notify_app: input.app, cooldown_minutes: input.cooldownMinutes, enabled: input.enabled };
+
+  if (preset) {
+    const { data: existing } = await supabase.from("alert_rules").select("id").eq("customer_id", profile.id).eq("preset_id", preset.id).maybeSingle();
+    const { error } = existing
+      ? await supabase.from("alert_rules").update(values).eq("id", existing.id)
+      : await supabase.from("alert_rules").insert({ ...values, customer_id: profile.id, preset_id: preset.id, name: null, site_id: null });
+    if (error) throw new Error(error.message);
+  } else if (input.id) {
+    const { error } = await supabase.from("alert_rules").update({ ...values, name: name || null, site_id: input.siteId }).eq("id", input.id).eq("customer_id", profile.id);
+    if (error) throw new Error(error.message);
+  } else {
+    const { error } = await supabase.from("alert_rules").insert({ ...values, customer_id: profile.id, preset_id: null, name: name || null, site_id: input.siteId });
+    if (error) throw new Error(error.code === "54000" ? "That is the most alerts you can have. Delete one first." : error.message);
+  }
+  revalidatePath(SETTINGS);
+}
+
+/** Deletes one of the customer's own alerts, or puts a ready-made alert back as WayTara set it up. */
+export async function deleteAlertRule(id: string): Promise<void> {
+  const profile = await requireCustomer();
+  const supabase = await createClient();
+  const { error } = await supabase.from("alert_rules").delete().eq("id", id).eq("customer_id", profile.id);
+  if (error) throw new Error(error.message);
   revalidatePath(SETTINGS);
 }
