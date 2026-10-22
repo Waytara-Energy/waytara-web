@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ArrowLeft, Loader2, LocateFixed, MapPin, Pencil, Search, ShieldAlert, X } from "lucide-react";
+import { ArrowLeft, Crosshair, Loader2, LocateFixed, MapPin, Pencil, Search, ShieldAlert, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { withPromiseToast } from "@waytara/ui/notify";
 import { Button } from "@/components/ui/button";
@@ -33,6 +33,12 @@ const GOOD_FIX_M = 25;
 const POOR_FIX_M = 100;
 /** How the map is tilted when 3D is on. */
 const TILT_3D = { pitch: 58, bearing: -17 };
+/** How close the map is to the site by default (zoom): near enough to see the building and its neighbours. */
+const SITE_ZOOM = 18.5;
+/** On opening, and on Recenter, the map makes one slow turn around the site (3D only): one full turn in this many seconds. */
+const SPIN_SECONDS = 22;
+/** The shortest distance (degrees) between two bearings. */
+const bearingGap = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
 
 type Permission = "checking" | "granted" | "prompt" | "denied" | "unsupported";
 type Lookup = "idle" | "loading" | "unavailable" | "ready";
@@ -106,7 +112,7 @@ export function SiteLocation({
   const { resolvedTheme } = useTheme();
   const themeKnown = resolvedTheme !== undefined;
   const theme: MapTheme = resolvedTheme === "dark" ? "dark" : "light";
-  const [threeD, setThreeD] = React.useState(false);
+  const [threeD, setThreeD] = React.useState(true);
   // What the map was last given, so a theme change keeps the 3D choice and a late-created map starts right.
   const lookRef = React.useRef({ theme, threeD });
   const saved: Point | null = latitude !== null && longitude !== null ? { lat: latitude, lng: longitude } : null;
@@ -167,11 +173,11 @@ export function SiteLocation({
         container: box.current,
         style: mapStyle(lookRef.current.theme, lookRef.current.threeD),
         center: saved ? [saved.lng, saved.lat] : INDIA,
-        zoom: saved ? 17 : 4,
-        maxZoom: 19,
-        // Flat until 3D is switched on (see the effect below).
-        pitch: 0,
-        bearing: 0,
+        zoom: saved ? SITE_ZOOM : 4,
+        maxZoom: 20,
+        // Tilted from the start when 3D is on (the default); flat otherwise.
+        pitch: lookRef.current.threeD ? TILT_3D.pitch : 0,
+        bearing: lookRef.current.threeD ? TILT_3D.bearing : 0,
         maxPitch: 75,
         dragRotate: false,
         touchPitch: false,
@@ -220,6 +226,78 @@ export function SiteLocation({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [theme]);
 
+  /** The slow turn: three eased steps of 120 degrees (one step cannot be more than half a turn), stopped by anything the person does. */
+  const spinning = React.useRef(false);
+  const stopSpin = React.useCallback(() => {
+    if (!spinning.current) return;
+    spinning.current = false;
+    mapRef.current?.stop();
+  }, []);
+  const startSpin = React.useCallback(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    spinning.current = true;
+    let done = 0;
+    const next = () => {
+      const m = mapRef.current;
+      if (!m || !spinning.current || done >= 3) {
+        spinning.current = false;
+        return;
+      }
+      done++;
+      const expected = m.getBearing() + 120;
+      m.easeTo({ bearing: expected, duration: (SPIN_SECONDS * 1000) / 3, easing: (t) => t, essential: true });
+      m.once("moveend", () => {
+        // a step that did not reach its end was cut short by the person: the turn is over
+        if (bearingGap(m.getBearing(), expected) > 1.5) spinning.current = false;
+        next();
+      });
+    };
+    next();
+  }, []);
+
+  // On opening, once the map has drawn: one slow turn around the saved site (3D only; not while a site is being set up).
+  const spunOnce = React.useRef(false);
+  React.useEffect(() => {
+    if (!ready || spunOnce.current) return;
+    spunOnce.current = true;
+    if (!saved || !lookRef.current.threeD || editing) return;
+    const timer = window.setTimeout(startSpin, 800);
+    return () => window.clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ready]);
+
+  // Moving, zooming or touching the map stops the turn.
+  React.useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !ready) return;
+    const halt = () => stopSpin();
+    for (const e of ["mousedown", "touchstart", "wheel", "dragstart", "zoomstart"] as const) map.on(e, halt);
+    return () => {
+      for (const e of ["mousedown", "touchstart", "wheel", "dragstart", "zoomstart"] as const) map.off(e, halt);
+    };
+  }, [ready, stopSpin]);
+
+  /** Back to the site at the default zoom and pose, then the turn again (in 3D). */
+  const recenter = React.useCallback(() => {
+    const map = mapRef.current;
+    const target = saved ?? (userPos ? { lat: userPos.lat, lng: userPos.lng } : null);
+    if (!map || !target) return;
+    stopSpin();
+    const tilt = lookRef.current.threeD;
+    map.flyTo({ center: [target.lng, target.lat], zoom: SITE_ZOOM, pitch: tilt ? TILT_3D.pitch : 0, bearing: tilt ? TILT_3D.bearing : 0, speed: 1.4, essential: true });
+    if (tilt && !editing) {
+      map.once("moveend", () => {
+        const c = map.getCenter();
+        if (distanceMeters({ lat: c.lat, lng: c.lng }, target) < 5) startSpin();
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [latitude, longitude, userPos, editing, startSpin, stopSpin]);
+
+  // The map and anything that moves it by itself stop the turn when the page goes.
+  React.useEffect(() => () => stopSpin(), [stopSpin]);
+
   // 3D: the buildings rise and the map tilts (and, while editing, can be turned); back to 2D it lies flat again, facing north.
   React.useEffect(() => {
     lookRef.current = { ...lookRef.current, threeD };
@@ -227,7 +305,12 @@ export function SiteLocation({
     if (!map || !ready) return;
     const visibility = threeD ? "visible" : "none";
     for (const layer of [BUILDINGS_3D_LAYER, SITE_BUILDING_3D_LAYER]) if (map.getLayer(layer)) map.setLayoutProperty(layer, "visibility", visibility);
-    map.easeTo(threeD ? { ...TILT_3D, duration: 700 } : { pitch: 0, bearing: 0, duration: 500 });
+    if (!threeD) stopSpin();
+    // the map already starts in the wanted pose (3D by default): nothing to ease
+    const wantPitch = threeD ? TILT_3D.pitch : 0;
+    const wantBearing = threeD ? TILT_3D.bearing : 0;
+    if (Math.abs(map.getPitch() - wantPitch) > 1 || bearingGap(map.getBearing(), wantBearing) > 1) map.easeTo({ pitch: wantPitch, bearing: wantBearing, duration: threeD ? 700 : 500 });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [threeD, ready]);
 
   // The map can always be moved and zoomed (the saved site keeps its own icon where it is); turning and tilting by hand only in 3D.
@@ -337,11 +420,13 @@ export function SiteLocation({
   /** Moves the map so the pin is over a spot. */
   const goTo = React.useCallback((lat: number, lng: number, zoom: number) => {
     const map = mapRef.current;
+    stopSpin();
     if (map) map.flyTo({ center: [lng, lat], zoom: Math.max(zoom, map.getZoom()), speed: 1.4, essential: true });
-  }, []);
+  }, [stopSpin]);
 
   // "Use my location": the map goes to the customer and keeps following while the reading sharpens.
   const locate = React.useCallback(() => {
+    stopSpin();
     forceFill.current = true;
     setLookupTick((t) => t + 1);
     setLocating(true);
@@ -353,7 +438,7 @@ export function SiteLocation({
       if (map) map.flyTo({ center: [userPos.lng, userPos.lat], zoom: Math.max(map.getZoom(), 18), speed: 1.6, essential: true });
       if (userPos.accuracy <= GOOD_FIX_M) stopFollowing();
     }
-  }, [startWatch, stopFollowing, userPos]);
+  }, [startWatch, stopFollowing, stopSpin, userPos]);
 
   // A site with no location yet starts from where the customer is, as soon as that is known.
   const startedFromUser = React.useRef(false);
@@ -407,6 +492,7 @@ export function SiteLocation({
   }
 
   function startEditing() {
+    stopSpin();
     setFields(savedAddress);
     setNames({ siteName, deviceLabel: deviceLabel ?? "" });
     typedAt.current = null;
@@ -425,7 +511,7 @@ export function SiteLocation({
     setNames({ siteName, deviceLabel: deviceLabel ?? "" });
     setLookup("idle");
     typedAt.current = null;
-    if (saved) mapRef.current?.flyTo({ center: [saved.lng, saved.lat], zoom: 17, speed: 1.6, essential: true });
+    if (saved) mapRef.current?.flyTo({ center: [saved.lng, saved.lat], zoom: SITE_ZOOM, speed: 1.6, essential: true });
   }
 
   const away = center && saved ? distanceMeters(center, saved) : null;
@@ -513,6 +599,19 @@ export function SiteLocation({
       >
         3D
       </button>
+
+      {/* Recenter: back to the site at the default zoom, and the slow turn starts again. */}
+      {(saved || userPos) && (
+        <button
+          type="button"
+          onClick={recenter}
+          aria-label="Recenter the map on the site"
+          title="Recenter"
+          className="absolute right-[10px] top-[117px] z-10 flex size-[29px] items-center justify-center rounded-md border border-border bg-popover text-foreground shadow-md outline-none transition-colors hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50"
+        >
+          <Crosshair className="size-4" />
+        </button>
+      )}
 
       {/* While placing the pin it is always in the middle and the map moves under it; its tip is the spot. */}
       {placing && (
