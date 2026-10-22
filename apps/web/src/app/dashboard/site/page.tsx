@@ -1,5 +1,6 @@
 import { MapPin } from "lucide-react";
-import { getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
+import { getLastSyncInfo } from "@/lib/device-sync";
+import { deviceDisplayId, getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
 import { SitePane } from "@/components/dashboard/site-pane";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 
@@ -23,5 +24,10 @@ export default async function SitePage({ searchParams }: { searchParams: Promise
     );
   }
 
-  return <SitePane device={device} site={site} />;
+  // The site's devices with what the server last knew of each one's connection (the live dots take it from there).
+  const devices = await Promise.all(
+    site.devices.map(async (d) => ({ id: d.id, name: deviceDisplayId(d), category: d.deviceType?.category ?? null, sync: await getLastSyncInfo(d.id) })),
+  );
+
+  return <SitePane device={device} site={site} devices={devices} />;
 }

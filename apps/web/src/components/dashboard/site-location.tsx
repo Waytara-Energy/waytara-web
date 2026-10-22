@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Loader2, LocateFixed, MapPin, Pencil, Search, ShieldAlert, X } from "lucide-react";
+import { ArrowLeft, Loader2, LocateFixed, MapPin, Pencil, Search, ShieldAlert, X } from "lucide-react";
 import { useTheme } from "next-themes";
 import { withPromiseToast } from "@waytara/ui/notify";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import { BUILDINGS_3D_LAYER, SITE_BUILDING_3D_LAYER, SITE_BUILDING_SOURCE, mapSt
 import { saveSite } from "@/app/dashboard/devices/actions";
 import { cn } from "@/lib/utils";
 import { AboutRows } from "./device-about";
+import { GLASS } from "./glass";
 import "maplibre-gl/dist/maplibre-gl.css";
 
 // The tiles are OpenFreeMap's (free, no key, commercial use allowed; the credit is shown by the map itself); the look is our own, in
@@ -78,6 +79,7 @@ export function SiteLocation({
   longitude,
   address,
   kind,
+  devices,
 }: {
   deviceId: string;
   siteName: string;
@@ -89,6 +91,8 @@ export function SiteLocation({
   address: Partial<SiteAddressFields> | null;
   /** The card of what kind of site it is (property type, power source, EV charger), shown above the details; rendered by the page. */
   kind?: React.ReactNode;
+  /** The site's devices with their status, shown under the address; rendered by the page. */
+  devices?: React.ReactNode;
 }) {
   const box = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<import("maplibre-gl").Map | null>(null);
@@ -109,6 +113,8 @@ export function SiteLocation({
   const savedAddress = React.useMemo<SiteAddressFields>(() => ({ ...EMPTY, line1: address?.line1 ?? "", city: address?.city ?? "", state: address?.state ?? "", pincode: address?.pincode ?? "" }), [address?.line1, address?.city, address?.state, address?.pincode]);
 
   const [editing, setEditing] = React.useState(!saved);
+  // Editing is two steps, like a delivery app's address: place the pin on the map, then check the names and the address.
+  const [step, setStep] = React.useState<"pin" | "details">("pin");
   const [ready, setReady] = React.useState(false);
   const [moving, setMoving] = React.useState(false);
   const [center, setCenter] = React.useState<(Point & { zoom: number }) | null>(null);
@@ -404,6 +410,7 @@ export function SiteLocation({
     setFields(savedAddress);
     setNames({ siteName, deviceLabel: deviceLabel ?? "" });
     typedAt.current = null;
+    setStep("pin");
     setEditing(true);
     // the pin starts on the saved site, wherever the map has been moved to
     const map = mapRef.current;
@@ -413,6 +420,7 @@ export function SiteLocation({
   function cancel() {
     stopFollowing();
     setEditing(false);
+    setStep("pin");
     setFields(savedAddress);
     setNames({ siteName, deviceLabel: deviceLabel ?? "" });
     setLookup("idle");
@@ -444,6 +452,7 @@ export function SiteLocation({
       if (ok) {
         stopFollowing();
         setEditing(false);
+        setStep("pin");
         setLookup("idle");
         typedAt.current = null;
       }
@@ -464,12 +473,29 @@ export function SiteLocation({
           ? "Your browser cannot share its location"
           : "Finding where you are…";
 
+  const preview = [fields.line1, fields.city, [fields.state, fields.pincode].filter(Boolean).join(" ")].filter(Boolean).join(", ");
+  const pickPlace = (p: Place) => {
+    if (p.lat === null || p.lng === null) return;
+    forceFill.current = true;
+    setLookupTick((t) => t + 1);
+    goTo(p.lat, p.lng, 17.5);
+  };
+  const lookupPlace = async (p: Place) => {
+    if (!p.placeId) return;
+    const res = await fetch(`/api/geocode?place_id=${encodeURIComponent(p.placeId)}`);
+    const body = (await res.json()) as { place?: Place };
+    if (body.place?.lat != null && body.place.lng != null) goTo(body.place.lat, body.place.lng, 17.5);
+  };
+  const placing = editing && step === "pin";
+  const checking = editing && step === "details";
+
   return (
     // A full-page map: it fills the page under the header (the dashboard layout pads its pages by p-6, taken back here) with the site's cards
     // floating over it on the left, like a map app.
     <div className="relative -mx-6 -mb-6 -mt-3 h-[calc(100svh-clamp(3.5rem,4.5vw,4.25rem))] min-h-[520px] overflow-hidden bg-muted">
-      {/* The library's stylesheet makes the map element position: relative, which would drop it to no height: it gets a full-size wrapper. */}
-      <div className="absolute inset-0">
+      {/* The library's stylesheet makes the map element position: relative, which would drop it to no height: it gets a full-size wrapper.
+          Once the spot is confirmed (the details step) the map is held still, so a touch cannot move the pin by accident; Back moves it again. */}
+      <div className={cn("absolute inset-0", checking && "pointer-events-none")}>
         <div ref={box} className="h-full w-full" />
       </div>
 
@@ -488,8 +514,8 @@ export function SiteLocation({
         3D
       </button>
 
-      {/* While editing, the pin is always in the middle and the map moves under it; its tip is the spot. */}
-      {editing && (
+      {/* While placing the pin it is always in the middle and the map moves under it; its tip is the spot. */}
+      {placing && (
         <div className="pointer-events-none absolute left-1/2 top-1/2 z-10">
           <span aria-hidden className={cn("absolute left-0 top-0 h-1.5 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-black/35 blur-[1px] transition-transform duration-150", moving && "scale-75 opacity-60")} />
           <span className={cn("absolute left-0 top-0 -translate-x-1/2 -translate-y-full transition-transform duration-150", moving && "-translate-y-[calc(100%+10px)]")}>
@@ -498,42 +524,29 @@ export function SiteLocation({
         </div>
       )}
 
-      {/* Search, floating at the top of the map while editing (beside the cards on a wide screen, across the top on a phone). */}
-      {editing && (
-        <div className="absolute inset-x-3 top-3 z-30 md:left-[412px] md:right-14 md:max-w-[480px]">
-          <SearchBox
-            center={center}
-            onPick={(p) => {
-              if (p.lat === null || p.lng === null) return;
-              forceFill.current = true;
-              setLookupTick((t) => t + 1);
-              goTo(p.lat, p.lng, 17.5);
-            }}
-            onLookup={async (p) => {
-              if (!p.placeId) return;
-              const res = await fetch(`/api/geocode?place_id=${encodeURIComponent(p.placeId)}`);
-              const body = (await res.json()) as { place?: Place };
-              if (body.place?.lat != null && body.place.lng != null) goTo(body.place.lat, body.place.lng, 17.5);
-            }}
-          />
+      {/* On a phone the search floats across the top of the map while placing the pin (on a wide screen it is inside the card). Its list is
+          short and closes on a tap elsewhere, so the map stays within reach. */}
+      {placing && (
+        <div className="absolute left-3 right-14 top-3 z-30 md:hidden">
+          <SearchBox variant="floating" center={center} onPick={pickPlace} onLookup={lookupPlace} />
         </div>
       )}
 
-      {/* The cards: on the left over the map (a sheet at the bottom on a phone). Only the cards take clicks; the rest of the map stays live. */}
-      <div className={cn("pointer-events-none absolute z-20 flex flex-col gap-3 max-md:inset-x-3 max-md:bottom-3 md:bottom-4 md:left-4 md:top-4 md:w-[380px]", editing && "max-md:top-16")}>
-        {!editing && <div className="pointer-events-auto">{kind}</div>}
+      {/* The cards: glass over the map on the left (a sheet at the bottom on a phone). Only the cards take clicks; the rest of the map stays live. */}
+      <div className="pointer-events-none absolute z-20 flex flex-col gap-3 max-md:inset-x-3 max-md:bottom-3 max-md:max-h-[72%] md:bottom-4 md:left-4 md:top-4 md:w-[380px]">
+        {!editing && <div className="pointer-events-auto max-md:shrink-0">{kind}</div>}
 
-        <Card className={cn("pointer-events-auto flex min-h-0 flex-col gap-0 overflow-hidden border-border/60 bg-card/95 py-0 shadow-xl backdrop-blur", editing ? "max-md:flex-1 md:max-h-full" : "md:max-h-[calc(100%-9rem)]")}>
-          <div className="flex items-center justify-between gap-3 px-4 py-3.5">
+        <Card className={cn(GLASS, "pointer-events-auto flex min-h-0 flex-col gap-0 overflow-hidden py-0", !editing && "md:max-h-[calc(100%-9.5rem)]", editing && "md:max-h-full")}>
+          <div className="flex shrink-0 items-center justify-between gap-3 px-4 py-3.5">
             <div className="min-w-0">
               <p className="flex items-center gap-1.5 text-[15px] font-semibold text-foreground">
                 <MapPin className="size-4 shrink-0 text-emerald-600 dark:text-emerald-400" />
                 <span className="truncate">{editing ? (saved ? "Edit site" : "Set up your site") : siteName}</span>
               </p>
-              <p className="mt-0.5 text-xs text-muted-foreground">{editing ? "Nothing changes until you press Save." : status}</p>
+              <p className="mt-0.5 text-xs text-muted-foreground">{placing ? "Step 1 of 2 · Place the pin" : checking ? "Step 2 of 2 · Check the details" : status}</p>
             </div>
             {!editing && saved && (
-              <Button type="button" size="sm" variant="outline" onClick={startEditing} className="shrink-0 gap-1.5 rounded-full">
+              <Button type="button" size="sm" variant="outline" onClick={startEditing} className="shrink-0 gap-1.5 rounded-full bg-background/50">
                 <Pencil className="size-3.5" />
                 Edit site
               </Button>
@@ -541,10 +554,9 @@ export function SiteLocation({
           </div>
 
           {!editing && (
-            <div className="min-h-0 overflow-auto border-t border-border/60 px-4 py-3">
+            <div className="min-h-0 overflow-auto border-t border-border/50 px-4 py-3">
               <AboutRows
                 rows={[
-                  ["Device", deviceLabel || deviceName],
                   ["Address", savedAddress.line1],
                   ["City", savedAddress.city],
                   ["State", savedAddress.state],
@@ -552,80 +564,117 @@ export function SiteLocation({
                 ]}
               />
               {Object.values(savedAddress).every((v) => v === "") && <p className="pt-3 text-xs text-muted-foreground">No address saved yet. Press Edit site to add it.</p>}
+              {devices && (
+                <div className="mt-4 border-t border-border/50 pt-3">
+                  <p className="mb-1.5 text-xs font-medium text-muted-foreground">Devices</p>
+                  {devices}
+                </div>
+              )}
             </div>
           )}
 
-          {editing && (
+          {placing && (
             <>
-              <div className="min-h-0 flex-1 space-y-5 overflow-auto border-t border-border/60 px-4 py-4">
+              <div className="min-h-0 flex-1 space-y-3 overflow-auto border-t border-border/50 px-4 py-4">
+                <div className="max-md:hidden">
+                  <SearchBox variant="inline" center={center} onPick={pickPlace} onLookup={lookupPlace} />
+                </div>
+
                 {/* One short instruction, in plain words, that changes as the map is moved. */}
-                <div className="rounded-xl bg-muted/60 px-3 py-2.5 text-sm">
+                <div className="space-y-0.5 text-sm">
                   {!ready || !center ? (
                     <p className="text-muted-foreground">Loading the map…</p>
                   ) : !zoomedIn ? (
-                    <p className="text-foreground">Zoom in or search, then move the map until the pin is on your building.</p>
+                    <p className="font-medium text-foreground">Zoom in or search, then move the map until the pin is on your building.</p>
                   ) : (
-                    <p className="text-foreground">Move the map until the pin is on your building.</p>
+                    <p className="font-medium text-foreground">Move the map until the pin is on your building.</p>
                   )}
-                  {saved && center && zoomedIn && away !== null && <p className="mt-0.5 text-xs text-muted-foreground">{away > MOVED_M ? `The pin is ${distanceText(away)} from the saved location.` : "The pin is on the saved location."}</p>}
+                  {saved && center && zoomedIn && away !== null && <p className="text-xs text-muted-foreground">{away > MOVED_M ? `The pin is ${distanceText(away)} from the saved location.` : "The pin is on the saved location."}</p>}
                   {userPos && userPos.accuracy > POOR_FIX_M && (
-                    <p className="mt-1 flex items-start gap-1.5 text-xs text-amber-600 dark:text-amber-400">
+                    <p className="flex items-start gap-1.5 pt-1 text-xs text-amber-600 dark:text-amber-400">
                       <ShieldAlert className="mt-0.5 size-3.5 shrink-0" />
                       Your device could only place you within {distanceText(userPos.accuracy)}. Move the map until the pin is on your building.
                     </p>
                   )}
-                  {permission === "denied" && <p className="mt-1 text-xs text-muted-foreground">Location is blocked in your browser. Allow it for this site in the address bar to use it here.</p>}
+                  {permission === "denied" && <p className="pt-1 text-xs text-muted-foreground">Location is blocked in your browser. Allow it for this site in the address bar to use it here.</p>}
                 </div>
 
+                <div className="rounded-xl bg-background/40 px-3 py-2.5 ring-1 ring-border/40">
+                  <p className="text-[11px] font-medium uppercase tracking-wide text-muted-foreground">Address at the pin</p>
+                  <p className="mt-0.5 text-sm text-foreground">
+                    {lookup === "loading" ? (
+                      <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+                        <Loader2 className="size-3.5 animate-spin" />
+                        Finding the address…
+                      </span>
+                    ) : preview ? (
+                      preview
+                    ) : (
+                      <span className="text-muted-foreground">{lookup === "unavailable" ? "No address found here. You can type it in the next step." : "Move the map to see the address."}</span>
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border/50 px-4 py-3">
+                {permission === "unsupported" ? (
+                  <span />
+                ) : (
+                  <Button type="button" size="sm" variant="ghost" onClick={locate} disabled={locating} className="gap-1.5 px-2 text-muted-foreground hover:text-foreground" aria-label="Use my location">
+                    {locating ? <Loader2 className="size-4 animate-spin" /> : <LocateFixed className="size-4" />}
+                    <span className="max-sm:hidden">{locating ? "Locating…" : "My location"}</span>
+                  </Button>
+                )}
+                <div className="flex gap-2">
+                  {saved && (
+                    <Button type="button" size="sm" variant="outline" onClick={cancel} disabled={saving} className="rounded-full bg-background/50">
+                      Cancel
+                    </Button>
+                  )}
+                  <Button type="button" size="sm" onClick={() => setStep("details")} disabled={!center || !zoomedIn} className="rounded-full px-4">
+                    Confirm location
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+
+          {checking && (
+            <>
+              <div className="min-h-0 flex-1 space-y-5 overflow-auto border-t border-border/50 px-4 py-4">
                 <div className="space-y-3">
                   <label className="block space-y-1">
                     <span className="text-xs font-medium text-muted-foreground">Site name</span>
-                    <Input value={names.siteName} onChange={(e) => setNames((n) => ({ ...n, siteName: e.target.value }))} maxLength={120} required aria-invalid={!nameOk} className="h-9" />
+                    <Input value={names.siteName} onChange={(e) => setNames((n) => ({ ...n, siteName: e.target.value }))} maxLength={120} required aria-invalid={!nameOk} className="h-9 bg-background/50" />
                   </label>
                   <label className="block space-y-1">
                     <span className="text-xs font-medium text-muted-foreground">Device name</span>
-                    <Input value={names.deviceLabel} onChange={(e) => setNames((n) => ({ ...n, deviceLabel: e.target.value }))} maxLength={120} placeholder={deviceName} className="h-9" />
+                    <Input value={names.deviceLabel} onChange={(e) => setNames((n) => ({ ...n, deviceLabel: e.target.value }))} maxLength={120} placeholder={deviceName} className="h-9 bg-background/50" />
                   </label>
                 </div>
 
                 <div className="space-y-3">
                   <div className="flex items-center justify-between gap-2">
                     <p className="text-xs font-medium text-muted-foreground">Address</p>
-                    <p className="text-[11px] text-muted-foreground">
-                      {lookup === "loading" ? (
-                        <span className="inline-flex items-center gap-1.5">
-                          <Loader2 className="size-3 animate-spin" />
-                          Finding the address…
-                        </span>
-                      ) : lookup === "unavailable" ? (
-                        "Not found here. Type it in."
-                      ) : (
-                        "Filled from the map. You can correct it."
-                      )}
-                    </p>
+                    <p className="text-[11px] text-muted-foreground">{lookup === "unavailable" ? "Not found here. Type it in." : "Filled from the map. You can correct it."}</p>
                   </div>
-                  <Input value={fields.line1} onChange={(e) => edit("line1", e.target.value)} maxLength={200} placeholder="Building, street, area" aria-label="Address line" className="h-9" />
+                  <Input value={fields.line1} onChange={(e) => edit("line1", e.target.value)} maxLength={200} placeholder="Building, street, area" aria-label="Address line" className="h-9 bg-background/50" />
                   <div className="grid grid-cols-3 gap-2">
-                    <Input value={fields.city} onChange={(e) => edit("city", e.target.value)} maxLength={100} placeholder="City" aria-label="City" className="h-9" />
-                    <Input value={fields.state} onChange={(e) => edit("state", e.target.value)} maxLength={100} placeholder="State" aria-label="State" className="h-9" />
-                    <Input value={fields.pincode} onChange={(e) => edit("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" maxLength={6} placeholder="PIN" aria-label="PIN code" aria-invalid={!pinOk} className="h-9" />
+                    <Input value={fields.city} onChange={(e) => edit("city", e.target.value)} maxLength={100} placeholder="City" aria-label="City" className="h-9 bg-background/50" />
+                    <Input value={fields.state} onChange={(e) => edit("state", e.target.value)} maxLength={100} placeholder="State" aria-label="State" className="h-9 bg-background/50" />
+                    <Input value={fields.pincode} onChange={(e) => edit("pincode", e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" maxLength={6} placeholder="PIN" aria-label="PIN code" aria-invalid={!pinOk} className="h-9 bg-background/50" />
                   </div>
                 </div>
               </div>
 
-              {/* Always in reach: use the phone's or computer's position, cancel, save. */}
-              <div className="flex items-center justify-between gap-2 border-t border-border/60 bg-card px-4 py-3">
-                {permission === "unsupported" ? (
-                  <span />
-                ) : (
-                  <Button type="button" size="sm" variant="ghost" onClick={locate} disabled={locating} className="gap-1.5 px-2 text-muted-foreground hover:text-foreground">
-                    {locating ? <Loader2 className="size-4 animate-spin" /> : <LocateFixed className="size-4" />}
-                    {locating ? "Locating…" : "My location"}
-                  </Button>
-                )}
+              <div className="flex shrink-0 items-center justify-between gap-2 border-t border-border/50 px-4 py-3">
+                <Button type="button" size="sm" variant="ghost" onClick={() => setStep("pin")} disabled={saving} className="gap-1.5 px-2 text-muted-foreground hover:text-foreground">
+                  <ArrowLeft className="size-4" />
+                  Back
+                </Button>
                 <div className="flex gap-2">
                   {saved && (
-                    <Button type="button" size="sm" variant="outline" onClick={cancel} disabled={saving} className="rounded-full">
+                    <Button type="button" size="sm" variant="outline" onClick={cancel} disabled={saving} className="rounded-full bg-background/50">
                       Cancel
                     </Button>
                   )}
@@ -643,7 +692,8 @@ export function SiteLocation({
 }
 
 /** Search for an area, street or landmark: suggestions appear as the customer types, and picking one moves the map there. */
-function SearchBox({ center, onPick, onLookup }: { center: Point | null; onPick: (p: Place) => void; onLookup: (p: Place) => Promise<void> }) {
+function SearchBox({ center, onPick, onLookup, variant }: { center: Point | null; onPick: (p: Place) => void; onLookup: (p: Place) => Promise<void>; variant: "floating" | "inline" }) {
+  const root = React.useRef<HTMLDivElement>(null);
   const [query, setQuery] = React.useState("");
   const [results, setResults] = React.useState<Place[]>([]);
   const [state, setState] = React.useState<"idle" | "loading" | "empty" | "error">("idle");
@@ -652,6 +702,16 @@ function SearchBox({ center, onPick, onLookup }: { center: Point | null; onPick:
   React.useEffect(() => {
     near.current = center;
   }, [center]);
+
+  // A tap anywhere else (the map included) closes the list, so it never keeps the map out of reach.
+  React.useEffect(() => {
+    if (!open) return;
+    const away = (e: PointerEvent) => {
+      if (root.current && !root.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener("pointerdown", away);
+    return () => document.removeEventListener("pointerdown", away);
+  }, [open]);
 
   React.useEffect(() => {
     const text = query.trim();
@@ -692,7 +752,7 @@ function SearchBox({ center, onPick, onLookup }: { center: Point | null; onPick:
   }
 
   return (
-    <div className="relative">
+    <div ref={root} className="relative">
       <div className="relative">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
         <Input
@@ -708,7 +768,7 @@ function SearchBox({ center, onPick, onLookup }: { center: Point | null; onPick:
           }}
           placeholder="Search an area, street or landmark"
           aria-label="Search an area, street or landmark"
-          className="h-10 pl-9 pr-9"
+          className={variant === "floating" ? "h-11 rounded-full border-white/20 bg-card/80 pl-10 pr-10 shadow-lg backdrop-blur-xl" : "h-10 bg-background/50 pl-9 pr-9"}
         />
         {query && (
           <button type="button" aria-label="Clear search" onClick={() => setQuery("")} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground">
@@ -717,7 +777,7 @@ function SearchBox({ center, onPick, onLookup }: { center: Point | null; onPick:
         )}
       </div>
       {open && query.trim().length >= 3 && (results.length > 0 || state === "empty" || state === "error") && (
-        <ul role="listbox" className="absolute inset-x-0 top-full z-30 mt-1 max-h-72 overflow-auto rounded-xl border border-border bg-popover py-1 shadow-lg">
+        <ul role="listbox" className={cn("overflow-auto rounded-xl border border-border bg-popover py-1 shadow-lg", variant === "floating" ? "absolute inset-x-0 top-full z-30 mt-2 max-h-[40svh]" : "mt-2 max-h-52")}>
           {results.map((p, i) => (
             <li key={`${p.placeId ?? ""}-${i}-${p.label}`} role="option" aria-selected={false}>
               <button type="button" onClick={() => pick(p)} className="flex w-full items-start gap-2.5 px-3 py-2 text-left text-sm hover:bg-muted/60 focus-visible:bg-muted/60 focus-visible:outline-none">

@@ -2,6 +2,8 @@ import { Building, Building2, Factory, Home, PlugZap, Server, Store, Truck, Unpl
 import type { CustomerDevice, CustomerSite } from "@/lib/selected-site";
 import { PROPERTY_TYPE_LABELS, POWER_SOURCE_LABELS } from "@/lib/site-catalog";
 import { Card } from "@/components/ui/card";
+import { GLASS } from "./glass";
+import { SiteDevices, type SiteDevice } from "./site-devices";
 import { SiteLocation } from "./site-location";
 
 // An icon for each kind of property and each way of getting power (the labels are the catalogue's own).
@@ -19,21 +21,21 @@ const POWER_ICON: Record<string, LucideIcon> = { grid_tied: PlugZap, off_grid: U
 function Tile({ icon: Icon, caption, value }: { icon: LucideIcon; caption: string; value: string }) {
   return (
     <div className="flex min-w-0 flex-1 flex-col items-center gap-2 text-center">
-      <span className="flex size-12 items-center justify-center rounded-full border border-border bg-background shadow-sm">
-        <Icon className="size-6 text-foreground/80" strokeWidth={1.5} />
+      <span className="flex size-10 items-center justify-center rounded-full border border-border bg-background/70 shadow-sm md:size-12">
+        <Icon className="size-5 text-foreground/80 md:size-6" strokeWidth={1.5} />
       </span>
       <div className="min-w-0">
-        <p className="text-[13px] font-medium leading-snug text-foreground">{value}</p>
+        <p className="text-xs font-medium leading-snug text-foreground md:text-[13px]">{value}</p>
         <p className="mt-0.5 text-[11px] text-muted-foreground">{caption}</p>
       </div>
     </div>
   );
 }
 
-/** The Site page: a full-page map with two cards over it on the left. The first says what kind of site it is (property type and power source,
- *  set by your WayTara advisor, as icons, with an EV charger next to them when the site has one); the second holds the site's details and
- *  Edit site (see SiteLocation). The weather has its own page, opened from the header. */
-export function SitePane({ device, site }: { device: CustomerDevice; site: CustomerSite }) {
+/** The Site page: a full-page map with two glass cards over it on the left. The first says what kind of site it is (property type and power
+ *  source, set by your WayTara advisor, as icons, with an EV charger next to them when the site has one); the second holds the site's address,
+ *  its devices with their status, and Edit site (see SiteLocation). The weather has its own page, opened from the header. */
+export function SitePane({ device, site, devices }: { device: CustomerDevice; site: CustomerSite; devices: SiteDevice[] }) {
   const property = PROPERTY_TYPE_LABELS[site.propertyType] ?? site.propertyType;
   const power = POWER_SOURCE_LABELS[site.powerSourceCategory] ?? site.powerSourceCategory;
   const chargers = site.devices.filter((d) => d.deviceType?.category === "ev_charger").length;
@@ -47,8 +49,9 @@ export function SitePane({ device, site }: { device: CustomerDevice; site: Custo
       latitude={site.latitude}
       longitude={site.longitude}
       address={site.address}
+      devices={<SiteDevices devices={devices} />}
       kind={
-        <Card className="gap-0 border-border/60 bg-card/95 p-4 shadow-xl backdrop-blur">
+        <Card className={`${GLASS} gap-0 p-3 md:p-4`}>
           <div className="flex items-start justify-center gap-3">
             <Tile icon={PROPERTY_ICON[site.propertyType] ?? Building} caption="Property type" value={property} />
             <Tile icon={POWER_ICON[site.powerSourceCategory] ?? PlugZap} caption="Power source" value={power} />
