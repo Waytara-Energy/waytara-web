@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@waytara/supabase/server";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
+import { navFeatures } from "@/components/dashboard/nav-config";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
 import { HeaderSlotProvider } from "@/components/dashboard/header-slot";
 import { ChartStyleProvider } from "@/components/dashboard/chart-style";
@@ -74,10 +75,6 @@ export default async function DashboardLayout({
     );
   }
 
-  // Charging sessions are in the menu for anyone who has a charger (at any site), whatever the plan includes.
-  const hasCharger = sites.some((s) => s.devices.some((d) => d.deviceType?.category === "ev_charger"));
-  const features = { ...(customerPlan?.features ?? {}), ev_sessions: hasCharger };
-
   // Every device across every site the customer has — the header's
   // notification bell isn't scoped to whichever site happens to be
   // selected (it's mounted once here, outside any single site's page), so
@@ -104,6 +101,9 @@ export default async function DashboardLayout({
   // from the layout. `sites` was already fetched above (in parallel with
   // `profile`) purely for the header switcher's list.
   const selectedSite = resolveSelectedSite(sites, cookieStore.get(SELECTED_SITE_COOKIE)?.value);
+
+  // Charging sessions are in the menu only while the selected site has a charger (whatever the plan includes); another site without one hides it.
+  const features = navFeatures(customerPlan?.features, selectedSite?.devices ?? []);
 
   // The sidebar lists the selected site's devices, each with a status dot: what the server knows of every device's connection
   // (the dots then follow the live channel themselves).

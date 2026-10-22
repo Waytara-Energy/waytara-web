@@ -3,7 +3,7 @@ import { createClient } from "@waytara/supabase/server";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
-import { POWER_PACKAGE_LABELS, PROPERTY_TYPE_LABELS, powerPackageIncludes } from "@/lib/site-catalog";
+import { POWER_PACKAGE_LABELS, powerPackageIncludes } from "@/lib/site-catalog";
 import { getSettingFields, getSettingFieldsByCategory } from "@/lib/instrument-settings-catalog";
 import { fetchDeviceSettingFields, categoryLabel } from "@/lib/instrument-catalog-data";
 import { installedParts, settingsForInstalled } from "@/lib/setting-values";
@@ -18,12 +18,11 @@ import { DeviceCard } from "@/components/dashboard/device-card";
 import { DevicesBoard } from "@/components/dashboard/devices-board";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { SettingFieldRow } from "@/components/dashboard/setting-field-row";
-import { SitePane } from "@/components/dashboard/site-pane";
 
-// The Devices page, built like Performance and Maintenance: a headline for the open tab, then three tabs - Details (an About card group for
-// the device and each part installed under it), Settings (the inverter's own menu pages as cards; an EV charger keeps its own categories)
-// and Site (map, weather, address). Settings follow the inverter live and show whether it has confirmed each change. They are gated by
-// the plan; the details and the site are not.
+// The Devices page, built like Performance and Maintenance: a headline for the open tab, then the tabs - Details (an About card group for
+// the device and each part installed under it) and Settings (the inverter's own menu pages as cards; an EV charger keeps its own
+// categories). Settings follow the inverter live and show whether it has confirmed each change. They are gated by the plan; the details
+// are not. The site (map, address) has its own page, Site, in the menu.
 export default async function DevicesPage({ searchParams }: { searchParams: Promise<{ device?: string }> }) {
   const supabase = await createClient();
   const [site, { device: deviceIdParam }, customerPlan] = await Promise.all([getSelectedSite(), searchParams, getCustomerPlan()]);
@@ -114,15 +113,6 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
           figures: [
             ...(pages[0].coverShort ? [{ label: "Warranty", value: pages[0].coverShort }] : []),
             { label: "Parts", value: String(pages.length - 1) },
-          ],
-        }}
-        site={<SitePane device={device} site={site} />}
-        siteHeadline={{
-          label: "Site",
-          value: site.name,
-          figures: [
-            { label: "City", value: site.address?.city ?? "—" },
-            { label: "Property", value: PROPERTY_TYPE_LABELS[site.propertyType] ?? site.propertyType },
           ],
         }}
         fallbackSettings={

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { ArrowLeft, PlugZap } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { deviceDisplayId, getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
@@ -67,19 +68,8 @@ export default async function EvSessionsPage({ searchParams }: { searchParams: P
   const preferred = await resolveDeviceInSite(site, deviceParam);
   const charger = chargers.find((d) => d.id === preferred?.id) ?? chargers[0] ?? null;
 
-  if (!site || !charger) {
-    return (
-      <Empty className="border">
-        <EmptyHeader>
-          <EmptyMedia variant="icon">
-            <PlugZap />
-          </EmptyMedia>
-          <EmptyTitle>No EV charger at this site</EmptyTitle>
-          <EmptyDescription>Charging sessions appear here once a charger is installed and connected.</EmptyDescription>
-        </EmptyHeader>
-      </Empty>
-    );
-  }
+  // A site without a charger has no charging pages: the menu hides them, and a typed address or an old bookmark goes to the Overview.
+  if (!site || !charger) redirect("/dashboard");
 
   const supabase = await createClient();
   const realtime = (

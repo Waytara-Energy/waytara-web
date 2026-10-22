@@ -21,7 +21,7 @@ function Message({ title, description, action }: { title: string; description: s
       {action && (
         <EmptyContent>
           <Button asChild size="sm">
-            <Link href="/dashboard/devices#site">Open the Site tab</Link>
+            <Link href="/dashboard/site">Open the Site page</Link>
           </Button>
         </EmptyContent>
       )}

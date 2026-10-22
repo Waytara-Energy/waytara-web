@@ -9,6 +9,7 @@ import {
   FileDown,
   Cpu,
   PlugZap,
+  MapPin,
   type LucideIcon,
 } from "lucide-react";
 
@@ -43,6 +44,8 @@ export const NAV_ITEMS: NavItem[] = [
   // Only for a customer with an EV charger: the layout sets features.ev_sessions from the devices, not from the plan.
   { href: "/dashboard/ev-sessions", label: "Charging sessions", icon: PlugZap, featureKey: "ev_sessions" },
   { href: "/dashboard/maintenance", label: "Maintenance", icon: Wrench },
+  // The site's map, kind and address: it was a tab of Devices. Not gated by the plan, like Devices itself.
+  { href: "/dashboard/site", label: "Site", icon: MapPin },
   { href: "/dashboard/devices", label: "Devices", icon: Cpu },
 ];
 
@@ -57,6 +60,15 @@ export const SECONDARY_NAV_ITEMS: NavItem[] = [
 ];
 
 export const ALL_NAV: NavItem[] = [...NAV_ITEMS, ...SECONDARY_NAV_ITEMS];
+
+/** The menu's feature flags for the selected site: what the plan includes, plus the charging pages only while this site has an EV charger
+ *  (a site without one shows none of them, whatever the plan says and whatever the customer's other sites have). */
+export function navFeatures(
+  planFeatures: Record<string, boolean> | undefined,
+  devices: readonly { deviceType?: { category?: string | null } | null }[],
+): Record<string, boolean> {
+  return { ...(planFeatures ?? {}), ev_sessions: devices.some((d) => d.deviceType?.category === "ev_charger") };
+}
 
 /** Sidebar + command palette's primary list. */
 export function visibleNavItems(features: Record<string, boolean>): NavItem[] {

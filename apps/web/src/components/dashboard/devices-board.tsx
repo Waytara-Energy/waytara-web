@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { BatteryCharging, CalendarClock, Info, MapPin, Plug, SlidersHorizontal, Wrench, Zap, type LucideIcon } from "lucide-react";
+import { BatteryCharging, CalendarClock, Info, Plug, SlidersHorizontal, Wrench, Zap, type LucideIcon } from "lucide-react";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { agoText } from "@/lib/device-status-summary";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
@@ -45,8 +45,8 @@ interface Tab {
   label: string;
   icon: LucideIcon;
   tone: CardTone;
-  /** What the tab shows: a page of details, the site, or a page of settings (with the fields it holds). */
-  kind: "details" | "site" | "settings";
+  /** What the tab shows: a page of details, or a page of settings (with the fields it holds). */
+  kind: "details" | "settings";
   fields: SettingField[];
   description?: string;
   node?: React.ReactNode;
@@ -58,8 +58,8 @@ interface Tab {
 const STATE_TEXT = { online: "Online", connection_lost: "Connection lost", offline: "Offline" } as const;
 
 /** The Devices page, built like Performance and Maintenance: a headline for the open tab, a row of tabs (the device, each part installed
- *  with it, the site, then the pages of the inverter's own settings menu) and cards under them. Settings follow the inverter live; the
- *  details and the site are rendered by the server. */
+ *  with it, then the pages of the inverter's own settings menu) and cards under them. Settings follow the inverter live; the details are
+ *  rendered by the server. The site has its own page in the menu. */
 export function DevicesBoard({
   deviceId,
   sync,
@@ -69,8 +69,6 @@ export function DevicesBoard({
   mode,
   devicePages,
   detailsHeadline,
-  site,
-  siteHeadline,
   fallbackSettings,
   hasSettings,
 }: {
@@ -85,8 +83,6 @@ export function DevicesBoard({
   /** The device itself first, then each part installed under it (solar panels, battery, generator, UPS ...), each as a heading with cards. */
   devicePages: { id: string; node: React.ReactNode }[];
   detailsHeadline: HeadlineData;
-  site: React.ReactNode;
-  siteHeadline: HeadlineData;
   /** A device whose settings are not from the catalogue (a battery store) brings its own content. */
   fallbackSettings: React.ReactNode | null;
   hasSettings: boolean;
@@ -111,7 +107,6 @@ export function DevicesBoard({
         ),
       },
     ];
-    list.push({ id: "site", label: "Site", icon: MapPin, tone: "sky", kind: "site", fields: [], node: site, headline: siteHeadline });
     if (hasSettings) {
       if (fallbackSettings) list.push({ id: "settings", label: "Settings", icon: SlidersHorizontal, tone: "amber", kind: "settings", fields: [], node: fallbackSettings });
       else if (mode === "areas") {
@@ -125,7 +120,7 @@ export function DevicesBoard({
       }
     }
     return list;
-  }, [devicePages, detailsHeadline, site, siteHeadline, hasSettings, fallbackSettings, mode, fields]);
+  }, [devicePages, detailsHeadline, hasSettings, fallbackSettings, mode, fields]);
 
   const [current, open] = useHashTab(
     tabs.map((t) => t.id),
