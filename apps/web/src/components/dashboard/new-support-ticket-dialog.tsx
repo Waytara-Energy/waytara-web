@@ -10,6 +10,7 @@ import { notify } from "@waytara/ui/notify";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 
@@ -19,16 +20,17 @@ interface SiteOption {
   devices: { id: string; name: string }[];
 }
 
-const SELECT = "h-10 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
+/** The value of "not about one device" (a select item cannot be an empty string). */
+const NO_DEVICE = "none";
 
 /** Opens a ticket: which site (and device), what it is about, a subject, the message and up to five files. The ticket goes to the team of that
  *  site (its installer, its employees and the admins); anyone of them can take it, and you are e-mailed when they do. */
-export function NewSupportTicketDialog({ sites, defaultSiteId }: { sites: SiteOption[]; defaultSiteId: string | null }) {
+export function NewSupportTicketDialog({ sites, defaultSiteId, label = "New ticket", variant = "default" }: { sites: SiteOption[]; defaultSiteId: string | null; label?: string; variant?: "default" | "outline" }) {
   const router = useRouter();
   const api = React.useMemo(() => supportApi(createClient()), []);
   const [open, setOpen] = React.useState(false);
   const [siteId, setSiteId] = React.useState(defaultSiteId ?? "");
-  const [deviceId, setDeviceId] = React.useState("");
+  const [deviceId, setDeviceId] = React.useState(NO_DEVICE);
   const [category, setCategory] = React.useState<string>("device");
   const [subject, setSubject] = React.useState("");
   const [body, setBody] = React.useState("");
@@ -54,7 +56,7 @@ export function NewSupportTicketDialog({ sites, defaultSiteId }: { sites: SiteOp
     setBusy(true);
     setProblems([]);
     try {
-      const made = await api.createTicket({ siteId: siteId || null, equipmentId: deviceId || null, category, subject: subject.trim(), body: body.trim() });
+      const made = await api.createTicket({ siteId: siteId || null, equipmentId: deviceId === NO_DEVICE ? null : deviceId, category, subject: subject.trim(), body: body.trim() });
       let failed: string[] = [];
       if (files.length > 0) failed = await api.attach(made.ticketId, made.messageId, files).catch(() => files.map((f) => f.name));
       notify.success(`Ticket ${`#${made.ticketNo}`} opened. We will e-mail you when someone takes it.`);
@@ -63,7 +65,7 @@ export function NewSupportTicketDialog({ sites, defaultSiteId }: { sites: SiteOp
       setSubject("");
       setBody("");
       setFiles([]);
-      setDeviceId("");
+      setDeviceId(NO_DEVICE);
       router.push(`/dashboard/support/${made.ticketId}`);
       router.refresh();
     } catch (error) {
@@ -76,9 +78,9 @@ export function NewSupportTicketDialog({ sites, defaultSiteId }: { sites: SiteOp
   return (
     <Dialog open={open} onOpenChange={(v) => !busy && setOpen(v)}>
       <DialogTrigger asChild>
-        <Button size="sm">
+        <Button size="sm" variant={variant}>
           <Plus className="size-4" />
-          New ticket
+          {label}
         </Button>
       </DialogTrigger>
       <DialogContent className="max-h-[92svh] overflow-y-auto sm:max-w-lg">
@@ -89,37 +91,48 @@ export function NewSupportTicketDialog({ sites, defaultSiteId }: { sites: SiteOp
 
         <form onSubmit={submit} className="space-y-4">
           {sites.length > 1 && (
-            <label className="block space-y-1.5">
+            <div className="space-y-1.5">
               <span className="text-sm font-medium">Which site?</span>
-              <select
+              <Select
                 value={siteId}
-                onChange={(e) => {
-                  setSiteId(e.target.value);
-                  setDeviceId("");
+                onValueChange={(v) => {
+                  setSiteId(v);
+                  setDeviceId(NO_DEVICE);
                 }}
-                className={SELECT}
               >
-                {sites.map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+                <SelectTrigger aria-label="Which site?">
+                  <SelectValue placeholder="Choose a site" />
+                </SelectTrigger>
+                <SelectContent>
+                  {sites.map((s) => (
+                    <SelectItem key={s.id} value={s.id}>
+                      {s.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
 
           {site && site.devices.length > 0 && (
-            <label className="block space-y-1.5">
-              <span className="text-sm font-medium">Which device? <span className="font-normal text-muted-foreground">(optional)</span></span>
-              <select value={deviceId} onChange={(e) => setDeviceId(e.target.value)} className={SELECT}>
-                <option value="">Not about one device</option>
-                {site.devices.map((d) => (
-                  <option key={d.id} value={d.id}>
-                    {d.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <div className="space-y-1.5">
+              <span className="text-sm font-medium">
+                Which device? <span className="font-normal text-muted-foreground">(optional)</span>
+              </span>
+              <Select value={deviceId} onValueChange={setDeviceId}>
+                <SelectTrigger aria-label="Which device?">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value={NO_DEVICE}>Not about one device</SelectItem>
+                  {site.devices.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
 
           <fieldset className="space-y-1.5">

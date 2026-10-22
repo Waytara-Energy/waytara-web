@@ -76,8 +76,8 @@ export function SupportDesk({
   const customerSeen = ticket.customer_last_read_at ? clock(ticket.customer_last_read_at) : null;
 
   return (
-    <div className="grid gap-4 lg:h-[calc(100svh-8rem)] lg:grid-cols-[minmax(0,1fr)_20rem]">
-      <section className="flex min-h-[28rem] min-w-0 flex-col gap-3 lg:min-h-0">
+    <div className="grid gap-4 xl:h-full xl:grid-cols-[minmax(0,1fr)_19rem] max-xl:h-auto">
+      <section className="flex min-h-[28rem] min-w-0 flex-col gap-3 xl:min-h-0">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 items-start gap-2">
             <Link href="/support" aria-label="Back to the tickets" className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:bg-accent hover:text-foreground">
@@ -117,7 +117,7 @@ export function SupportDesk({
         />
       </section>
 
-      <aside className="space-y-3 lg:min-h-0 lg:overflow-y-auto">
+      <aside className="space-y-3 xl:min-h-0 xl:overflow-y-auto">
         {problem && (
           <p className="rounded-md border border-destructive/40 bg-destructive/10 px-3 py-2 text-sm text-destructive" role="alert">
             {problem}

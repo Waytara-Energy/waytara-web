@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { LifeBuoy } from "lucide-react";
 import { StatusPill, Stars } from "@waytara/ui/support-ui";
 import { isActive, roleName, ticketCode } from "@waytara/ui/support-model";
@@ -33,19 +34,29 @@ function ago(iso: string): string {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short" });
 }
 
-/** The customer's tickets: the ones still open first, the finished ones on the other tab, an unread count on each ticket that has news. */
-export function SupportInbox({ tickets, customerId }: { tickets: InboxTicket[]; customerId: string }) {
+/** The customer's tickets, on the left of the Support page: the open ones first, the finished ones on the other tab, an unread count on each
+ *  ticket that has news, and the one being read marked. `action` is the New ticket button. */
+export function SupportInbox({ tickets, customerId, action }: { tickets: InboxTicket[]; customerId: string; action: React.ReactNode }) {
   const [tab, setTab] = React.useState<"active" | "done">("active");
+  const openId = usePathname().match(/\/dashboard\/support\/([0-9a-f-]{36})/)?.[1] ?? null;
   const active = tickets.filter((t) => isActive(t.status) || t.status === "resolved");
   const done = tickets.filter((t) => t.status === "closed");
   const shown = tab === "active" ? active : done;
   const unreadTotal = tickets.reduce((n, t) => n + (t.unread_customer > 0 ? 1 : 0), 0);
 
   return (
-    <div className="space-y-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       {/* a ticket changing (someone takes it, replies, resolves it) or a new one: the list follows without a reload */}
       <RealtimeRefresh table="support_tickets" event="UPDATE" filter={`customer_id=eq.${customerId}`} debounceMs={800} />
       <RealtimeRefresh table="support_tickets" event="INSERT" filter={`customer_id=eq.${customerId}`} debounceMs={800} />
+
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <h1 className="text-2xl font-semibold text-theme-primary">Support</h1>
+          <p className="mt-0.5 text-sm text-theme-muted">We e-mail you at every step.</p>
+        </div>
+        {action}
+      </div>
 
       <div role="tablist" aria-label="Tickets" className="flex gap-1 border-b border-border">
         {(
@@ -63,7 +74,7 @@ export function SupportInbox({ tickets, customerId }: { tickets: InboxTicket[]; 
       </div>
 
       {shown.length === 0 ? (
-        <div className="rounded-xl border border-dashed border-border px-6 py-12 text-center">
+        <div className="rounded-xl border border-dashed border-border px-6 py-10 text-center">
           <span className="mx-auto mb-3 flex size-11 items-center justify-center rounded-full bg-muted text-muted-foreground">
             <LifeBuoy className="size-5" />
           </span>
@@ -71,13 +82,14 @@ export function SupportInbox({ tickets, customerId }: { tickets: InboxTicket[]; 
           <p className="mt-1 text-sm text-muted-foreground">{tab === "active" ? "Need help? Open a ticket and the team that looks after your site will pick it up." : "Tickets you close, or that the team closes, are kept here."}</p>
         </div>
       ) : (
-        <ul className="divide-y divide-border overflow-hidden rounded-xl border border-border bg-card">
+        <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 max-lg:overflow-visible max-lg:pr-0">
           {shown.map((t) => {
             const news = t.unread_customer > 0;
+            const open = t.id === openId;
             const who = t.last_message_role === "customer" ? "You" : t.assigned_name ? t.assigned_name.split(" ")[0] : "Team";
             return (
               <li key={t.id}>
-                <Link href={`/dashboard/support/${t.id}`} className="flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-muted/50 focus-visible:bg-muted/50 focus-visible:outline-none">
+                <Link href={`/dashboard/support/${t.id}`} aria-current={open ? "page" : undefined} className={cn("flex items-start gap-3 rounded-2xl border px-4 py-3.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", open ? "border-primary/50 bg-primary/10" : "border-border bg-card hover:bg-muted/50")}>
                   <span className={cn("mt-2 size-2 shrink-0 rounded-full", news ? "bg-primary" : "bg-transparent")} aria-hidden />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-3">

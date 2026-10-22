@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
 import { StatusPill, Stars } from "@waytara/ui/support-ui";
 import { roleName, ticketCode } from "@waytara/ui/support-model";
@@ -37,13 +38,14 @@ function ago(iso: string): string {
   return `${Math.floor(s / 86_400)} d`;
 }
 
-/** The team's tickets: what nobody has taken, what is mine, everything still open, and what is closed. Live: a new ticket, a reply or a
- *  hand-over shows without a reload. */
+/** The team's tickets, on the left of the Support page: what nobody has taken, what is mine, everything still open, and what is closed. The
+ *  ticket being read is marked. Live: a new ticket, a reply or a hand-over shows without a reload. */
 export function SupportBoard({ tickets, meId, isAdmin }: { tickets: BoardTicket[]; meId: string; isAdmin: boolean }) {
   const [tab, setTab] = React.useState<Tab>("unassigned");
   const [query, setQuery] = React.useState("");
   // the moment the board was drawn (how long a ticket has waited is measured against it)
   const [now] = React.useState(() => Date.now());
+  const openId = usePathname().match(/\/support\/([0-9a-f-]{36})/)?.[1] ?? null;
 
   const counts = React.useMemo(
     () => ({
@@ -70,37 +72,42 @@ export function SupportBoard({ tickets, meId, isAdmin }: { tickets: BoardTicket[
   ];
 
   return (
-    <div className="space-y-4">
+    <div className="flex min-h-0 flex-1 flex-col gap-3">
       <RealtimeRefresh table="support_tickets" event="UPDATE" />
       <RealtimeRefresh table="support_tickets" event="INSERT" />
 
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div role="tablist" aria-label="Tickets" className="flex gap-1 border-b border-border">
-          {tabs.map((t) => (
-            <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={cn("-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors", tab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>
-              {t.label}
-              <span className={cn("rounded-full px-1.5 text-xs", t.id === "unassigned" && counts.unassigned > 0 ? "bg-amber-500/20 text-amber-700 dark:text-amber-300" : "bg-muted text-muted-foreground")}>{counts[t.id]}</span>
-            </button>
-          ))}
-        </div>
-        <label className="relative">
-          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search ticket, customer, site" aria-label="Search tickets" className="h-9 w-64 max-w-full rounded-md border border-border bg-background pl-8 pr-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
-        </label>
+      <div>
+        <h1 className="text-2xl font-semibold tracking-tight">Support</h1>
+        <p className="mt-0.5 text-sm text-muted-foreground">{isAdmin ? "Every ticket, every site." : "The tickets of your sites."}</p>
       </div>
 
+      <div role="tablist" aria-label="Tickets" className="flex flex-wrap gap-x-1 border-b border-border">
+        {tabs.map((t) => (
+          <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={cn("-mb-px flex items-center gap-1.5 border-b-2 px-2.5 py-2 text-sm font-medium transition-colors", tab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>
+            {t.label}
+            <span className={cn("rounded-full px-1.5 text-xs", t.id === "unassigned" && counts.unassigned > 0 ? "bg-amber-500/20 text-amber-700 dark:text-amber-300" : "bg-muted text-muted-foreground")}>{counts[t.id]}</span>
+          </button>
+        ))}
+      </div>
+
+      <label className="relative block">
+        <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search ticket, customer, site" aria-label="Search tickets" className="h-9 w-full rounded-md border border-border bg-background pl-8 pr-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+      </label>
+
       {shown.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-border bg-card px-6 py-12 text-center text-sm text-muted-foreground">
+        <div className="rounded-lg border border-dashed border-border bg-card px-6 py-10 text-center text-sm text-muted-foreground">
           {query ? "No ticket matches that." : tab === "unassigned" ? "Nothing is waiting for someone to take it." : tab === "mine" ? "You have no open tickets." : tab === "open" ? "No open tickets." : "No closed tickets yet."}
         </div>
       ) : (
-        <ul className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-card">
+        <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 max-lg:overflow-visible max-lg:pr-0">
           {shown.map((t) => {
             const news = t.unread_staff > 0;
+            const open = t.id === openId;
             const waitingH = !t.assigned_to && t.status === "open" ? (now - Date.parse(t.created_at)) / 3_600_000 : 0;
             return (
               <li key={t.id}>
-                <Link href={`/support/${t.id}`} className="flex items-start gap-3 px-4 py-3.5 transition-colors hover:bg-accent/60 focus-visible:bg-accent/60 focus-visible:outline-none">
+                <Link href={`/support/${t.id}`} aria-current={open ? "page" : undefined} className={cn("flex items-start gap-3 rounded-xl border px-3.5 py-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", open ? "border-primary/50 bg-primary/10" : "border-border bg-card hover:bg-accent/60")}>
                   <span className={cn("mt-2 size-2 shrink-0 rounded-full", news ? "bg-primary" : "bg-transparent")} aria-hidden />
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center justify-between gap-3">
@@ -134,7 +141,6 @@ export function SupportBoard({ tickets, meId, isAdmin }: { tickets: BoardTicket[
           })}
         </ul>
       )}
-      {!isAdmin && <p className="text-xs text-muted-foreground">You see the tickets of the sites you are assigned to. Anyone on a site&apos;s team can take its tickets.</p>}
     </div>
   );
 }
