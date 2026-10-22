@@ -2,42 +2,240 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@waytara/supabase/server";
+import { createServiceRoleClient } from "@waytara/supabase/service-role";
+import { verifyPassword } from "@waytara/supabase/verify-password";
 import { requireCustomer } from "@waytara/supabase/auth";
+import type { Json } from "@waytara/supabase/types";
+import { EMAIL_PATTERN, MAX_ATTEMPTS, CODE_TTL_MS, buildEmailChangedMail, buildEmailCodeMail, canResend, codeExpired, codeMatches, generateCode, hashCode, normaliseEmail, secondsUntilResend } from "@/lib/email-otp";
+import { GSTIN, addressProblems, addressToJson, normaliseGstin, type Address } from "@/lib/address";
+import { isBackgroundPathOf, overviewToJson, parseOverviewPrefs, type OverviewPrefs } from "@/lib/overview-prefs";
+import { policyToJson, parseSessionPolicy, type SessionPolicy } from "@/lib/session-policy";
+import { sendMail } from "@/lib/send-mail";
 
-export async function updateProfile(formData: FormData): Promise<void> {
+const SETTINGS = "/dashboard/settings";
+const asJson = (v: unknown): Json => v as Json;
+
+// ---- profile: name and phone ------------------------------------------------------------------------------------------------------------
+
+/** Saves the person's name and phone. Only the columns granted to `authenticated` can change here (the e-mail goes through the code check below). */
+export async function saveProfile(input: { fullName: string; phone: string }): Promise<void> {
   const profile = await requireCustomer();
-
-  const fullName = String(formData.get("fullName") ?? "").trim();
-  const phone = String(formData.get("phone") ?? "").trim() || null;
-  const emailAlerts = formData.get("emailAlerts") === "on";
-  const emailMaintenanceUpdates = formData.get("emailMaintenanceUpdates") === "on";
-
-  if (!fullName) {
-    throw new Error("Name can't be empty.");
-  }
+  const fullName = input.fullName.trim();
+  const phone = input.phone.trim();
+  if (!fullName) throw new Error("Name can't be empty.");
+  if (fullName.length > 100) throw new Error("That name is too long.");
+  if (phone && !/^\+?[0-9][0-9 ()-]{6,18}$/.test(phone)) throw new Error("Enter a phone number with digits, and optionally + at the start.");
 
   const supabase = await createClient();
-  // Only the columns granted to `authenticated` in the self-update policy
-  // (full_name, phone, avatar_url, notification_preferences) can actually
-  // change here — role/email are enforced server-side via a column-level
-  // GRANT restriction, not just app-layer omission.
-  const { error } = await supabase
-    .from("profiles")
-    .update({
-      full_name: fullName,
-      phone,
-      notification_preferences: {
-        email_alerts: emailAlerts,
-        email_maintenance_updates: emailMaintenanceUpdates,
-      },
-    })
-    .eq("id", profile.id);
+  const { error } = await supabase.from("profiles").update({ full_name: fullName, phone: phone || null }).eq("id", profile.id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/dashboard", "layout");
+}
 
-  if (error) {
-    throw new Error(error.message);
+/** Sets or clears the profile picture. The picture itself was uploaded by the browser to the person's own folder; the address is checked here. */
+export async function saveAvatar(path: string | null): Promise<void> {
+  const profile = await requireCustomer();
+  const supabase = await createClient();
+  let url: string | null = null;
+  if (path !== null) {
+    if (!new RegExp(`^${profile.id}/avatar-\\d{10,16}\\.(jpg|jpeg|png|webp)$`).test(path)) throw new Error("That picture is not allowed.");
+    url = supabase.storage.from("avatars").getPublicUrl(path).data.publicUrl;
+  }
+  const { data: old } = await supabase.from("profiles").select("avatar_url").eq("id", profile.id).maybeSingle();
+  const { error } = await supabase.from("profiles").update({ avatar_url: url }).eq("id", profile.id);
+  if (error) throw new Error(error.message);
+
+  // the previous picture is no longer needed
+  const oldPath = old?.avatar_url?.split("/avatars/")[1];
+  if (oldPath && oldPath !== path && oldPath.startsWith(`${profile.id}/`)) await supabase.storage.from("avatars").remove([oldPath]);
+  revalidatePath("/dashboard", "layout");
+}
+
+// ---- e-mail address, proved with a code sent to the new address ----------------------------------------------------------------------------
+
+function codeSecret(): string {
+  const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!secret) throw new Error("The server is not set up to send codes.");
+  return secret;
+}
+
+/** Sends a 6-digit code to the new address. Nothing changes until the code is entered (confirmEmailChange). */
+export async function requestEmailChange(newEmailRaw: string): Promise<{ sentTo: string }> {
+  const profile = await requireCustomer();
+  const email = normaliseEmail(newEmailRaw);
+  if (!EMAIL_PATTERN.test(email) || email.length > 200) throw new Error("Enter a valid e-mail address.");
+  if (email === normaliseEmail(profile.email ?? "")) throw new Error("That is already your e-mail address.");
+
+  const service = createServiceRoleClient();
+  const { data: taken } = await service.from("profiles").select("id").ilike("email", email).neq("id", profile.id).limit(1);
+  if (taken && taken.length > 0) throw new Error("That address cannot be used. Try another one.");
+
+  const { data: pending } = await service.from("email_change_codes").select("created_at").eq("user_id", profile.id).maybeSingle();
+  if (pending && !canResend(pending.created_at, Date.now())) throw new Error(`Wait ${secondsUntilResend(pending.created_at, Date.now())} seconds before asking for another code.`);
+
+  const code = generateCode();
+  const { error } = await service.from("email_change_codes").upsert({
+    user_id: profile.id,
+    new_email: email,
+    code_hash: hashCode(codeSecret(), profile.id, email, code),
+    expires_at: new Date(Date.now() + CODE_TTL_MS).toISOString(),
+    attempts: 0,
+    created_at: new Date().toISOString(),
+  });
+  if (error) throw new Error("Could not start the change. Try again.");
+
+  const sent = await sendMail(email, buildEmailCodeMail({ name: profile.full_name, code }));
+  if (sent !== "sent") {
+    await service.from("email_change_codes").delete().eq("user_id", profile.id);
+    throw new Error("We could not send the code. Check the address and try again.");
+  }
+  return { sentTo: email };
+}
+
+/** Checks the code and, if it is right, changes the e-mail address the account signs in with. */
+export async function confirmEmailChange(codeRaw: string): Promise<{ email: string }> {
+  const profile = await requireCustomer();
+  const code = codeRaw.replace(/\s+/g, "");
+  if (!/^\d{6}$/.test(code)) throw new Error("The code is 6 digits.");
+
+  const service = createServiceRoleClient();
+  const { data: row } = await service.from("email_change_codes").select("new_email, code_hash, expires_at, attempts").eq("user_id", profile.id).maybeSingle();
+  if (!row) throw new Error("Ask for a new code first.");
+  if (codeExpired(row.expires_at, Date.now())) {
+    await service.from("email_change_codes").delete().eq("user_id", profile.id);
+    throw new Error("That code has expired. Ask for a new one.");
+  }
+  if (row.attempts >= MAX_ATTEMPTS) {
+    await service.from("email_change_codes").delete().eq("user_id", profile.id);
+    throw new Error("Too many wrong tries. Ask for a new code.");
+  }
+  if (!codeMatches(codeSecret(), profile.id, row.new_email, code, row.code_hash)) {
+    await service.from("email_change_codes").update({ attempts: row.attempts + 1 }).eq("user_id", profile.id);
+    const left = MAX_ATTEMPTS - row.attempts - 1;
+    throw new Error(left > 0 ? `That code is not right. ${left} ${left === 1 ? "try" : "tries"} left.` : "Too many wrong tries. Ask for a new code.");
   }
 
-  revalidatePath("/dashboard/settings");
+  const oldEmail = profile.email;
+  const { error: authError } = await service.auth.admin.updateUserById(profile.id, { email: row.new_email, email_confirm: true });
+  if (authError) throw new Error("Could not change the address. Try again.");
+  const { error: profileError } = await service.from("profiles").update({ email: row.new_email }).eq("id", profile.id);
+  if (profileError) throw new Error("The address changed for signing in, but the profile could not be updated. Contact support.");
+  await service.from("email_change_codes").delete().eq("user_id", profile.id);
+
+  // a notice to the old address, and a fresh token so this browser carries the new address
+  if (oldEmail) await sendMail(oldEmail, buildEmailChangedMail({ name: profile.full_name, newEmail: row.new_email }));
+  const supabase = await createClient();
+  await supabase.auth.refreshSession();
+  revalidatePath("/dashboard", "layout");
+  return { email: row.new_email };
+}
+
+// ---- notifications ---------------------------------------------------------------------------------------------------------------------
+
+export interface NotificationPrefs {
+  email_alerts: boolean;
+  support_emails: boolean;
+  email_maintenance_updates: boolean;
+}
+
+export async function saveNotifications(prefs: NotificationPrefs): Promise<void> {
+  const profile = await requireCustomer();
+  const supabase = await createClient();
+  const { data: current } = await supabase.from("profiles").select("notification_preferences").eq("id", profile.id).maybeSingle();
+  const base = current?.notification_preferences && typeof current.notification_preferences === "object" && !Array.isArray(current.notification_preferences) ? current.notification_preferences : {};
+  const { error } = await supabase
+    .from("profiles")
+    .update({ notification_preferences: asJson({ ...base, email_alerts: !!prefs.email_alerts, support_emails: !!prefs.support_emails, email_maintenance_updates: !!prefs.email_maintenance_updates }) })
+    .eq("id", profile.id);
+  if (error) throw new Error(error.message);
+  revalidatePath(SETTINGS);
+}
+
+// ---- addresses and billing details -----------------------------------------------------------------------------------------------------
+
+export interface AddressesInput {
+  address: Address;
+  /** null: the billing address is the same as the address */
+  billing: Address | null;
+  billingEmail: string;
+  gstin: string;
+}
+
+export async function saveAddresses(input: AddressesInput): Promise<void> {
+  const profile = await requireCustomer();
+  const problems = [...addressProblems(input.address, "Address"), ...(input.billing ? addressProblems(input.billing, "Billing address") : [])];
+  const billingEmail = input.billingEmail.trim().toLowerCase();
+  const gstin = normaliseGstin(input.gstin);
+  if (billingEmail && !EMAIL_PATTERN.test(billingEmail)) problems.push("Billing e-mail: enter a valid address.");
+  if (gstin && !GSTIN.test(gstin)) problems.push("GST number: it is 15 letters and digits, like 33AABCU9603R1ZX.");
+  if (problems.length > 0) throw new Error(problems[0]);
+
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("customers")
+    .update({
+      address: input.address ? asJson(addressToJson(input.address)) : null,
+      billing_address: input.billing ? asJson(addressToJson(input.billing)) : null,
+      billing_email: billingEmail || null,
+      gstin: gstin || null,
+    })
+    .eq("id", profile.id);
+  if (error) throw new Error(error.message);
+  revalidatePath(SETTINGS);
+}
+
+// ---- Overview: which four cards, and the background -------------------------------------------------------------------------------------
+
+/** Saves the Overview choices. A picture is accepted only if it is in the person's own folder; the one it replaces is deleted. */
+export async function saveOverview(prefs: OverviewPrefs): Promise<void> {
+  const profile = await requireCustomer();
+  const clean = parseOverviewPrefs(overviewToJson(prefs));
+  if (clean.cards.length !== 4 || clean.cards.some((c, i) => c !== prefs.cards[i])) throw new Error("Choose exactly four different cards.");
+  if (clean.background.kind === "image" && !isBackgroundPathOf(clean.background.path, profile.id)) throw new Error("That picture is not allowed.");
+
+  const supabase = await createClient();
+  const { data: current } = await supabase.from("profiles").select("ui_preferences").eq("id", profile.id).maybeSingle();
+  const base = current?.ui_preferences && typeof current.ui_preferences === "object" && !Array.isArray(current.ui_preferences) ? (current.ui_preferences as Record<string, Json>) : {};
+  const before = parseOverviewPrefs(base).background;
+
+  const { error } = await supabase.from("profiles").update({ ui_preferences: asJson({ ...base, ...overviewToJson(clean) }) }).eq("id", profile.id);
+  if (error) throw new Error(error.message);
+
+  if (before.kind === "image" && (clean.background.kind !== "image" || clean.background.path !== before.path)) await supabase.storage.from("avatars").remove([before.path]);
+  revalidatePath("/dashboard", "layout");
+}
+
+// ---- password and sign-in policy -------------------------------------------------------------------------------------------------------
+
+/** Changes the password after checking the current one. Optionally signs every other device out (a good idea after a suspected leak). */
+export async function changePassword(current: string, next: string, signOutOthers: boolean): Promise<void> {
+  const profile = await requireCustomer();
+  if (next.length < 8) throw new Error("The new password needs at least 8 characters.");
+  if (next === current) throw new Error("Choose a password you have not used just now.");
+  if (!profile.email || !(await verifyPassword(profile.email, current))) throw new Error("The current password is not right.");
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.updateUser({ password: next });
+  if (error) throw new Error(error.message);
+  if (signOutOthers) await supabase.auth.signOut({ scope: "others" });
+  revalidatePath(SETTINGS);
+}
+
+/** How long a browser may sit idle before it is signed out, and whether that covers only that device or every device. */
+export async function saveSessionPolicy(policy: SessionPolicy): Promise<void> {
+  const profile = await requireCustomer();
+  const clean = parseSessionPolicy(policyToJson(policy));
+  if (clean.idleMinutes !== policy.idleMinutes) throw new Error("Choose one of the times offered.");
+  const supabase = await createClient();
+  const { error } = await supabase.from("profiles").update({ security_preferences: asJson(policyToJson(clean)) }).eq("id", profile.id);
+  if (error) throw new Error(error.message);
+  revalidatePath("/dashboard", "layout");
+}
+
+/** The inactivity watcher's sign-out: this device, or all devices. */
+export async function idleSignOut(scope: "device" | "all"): Promise<void> {
+  const supabase = await createClient();
+  await supabase.auth.signOut({ scope: scope === "all" ? "global" : "local" });
 }
 
 // ---- signed-in devices ------------------------------------------------------------------------------------------------------------------
@@ -48,7 +246,7 @@ export async function signOutOtherDevices(): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase.auth.signOut({ scope: "others" });
   if (error) throw new Error(error.message);
-  revalidatePath("/dashboard/settings");
+  revalidatePath(SETTINGS);
 }
 
 /** Ends every session, this device included (the caller then goes to the sign-in page). */
@@ -65,5 +263,5 @@ export async function revokeSession(sessionId: string): Promise<void> {
   const supabase = await createClient();
   const { error } = await supabase.rpc("revoke_my_session", { p_id: sessionId });
   if (error) throw new Error(error.message);
-  revalidatePath("/dashboard/settings");
+  revalidatePath(SETTINGS);
 }

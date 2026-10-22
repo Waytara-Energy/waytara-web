@@ -11,6 +11,7 @@
     "./auth": "./src/auth.ts",
     "./roles": "./src/roles.ts",
     "./service-role": "./src/service-role.ts",
+    "./verify-password": "./src/verify-password.ts",
     "./types": "./src/types.ts"
   },
   "scripts": {

@@ -14,6 +14,7 @@ import type { ConfigLogRow, EnumOption, SettingField } from "@/lib/instrument-ca
 import { parseBool, settingStatus, toShownValue, toStoredValue, type ConfigRow, type SettingStatus } from "@/lib/setting-values";
 import { cn } from "@/lib/utils";
 import { DeviceCard } from "./device-card";
+import { UnitConverterIcon } from "./unit-converter";
 
 interface ConfigInsert {
   key_name: string;
@@ -213,6 +214,7 @@ function SettingRow({ field }: { field: SettingField }) {
         <p className="text-sm font-medium text-foreground">
           {field.name}
           {field.unit && field.valueKind !== "bool" ? <span className="font-normal text-muted-foreground"> · {field.unit}</span> : null}
+          {field.valueKind === "number" && <UnitConverterIcon unit={field.unit} />}
         </p>
         {hint && field.valueKind === "number" && <p className="text-xs text-muted-foreground">{hint}</p>}
         <StatusLine field={field} />

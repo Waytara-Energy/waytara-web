@@ -39,7 +39,7 @@ export function DevicesSetting({ devices, now }: { devices: SignedInDevice[]; no
   };
 
   return (
-    <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+    <section className="space-y-5 rounded-2xl border border-border bg-card p-5 sm:p-6">
       <div className="flex items-start gap-3">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">
           <ShieldCheck className="size-5" />

@@ -10,6 +10,7 @@ import { AREA_LABEL, AREA_ORDER, type SettingArea } from "@/lib/setting-values";
 import { cn } from "@/lib/utils";
 import { TONE_CIRCLE, type CardTone } from "./device-card";
 import { SettingsPane, SettingsProvider, useNeedsAttention, useSettingsSummary } from "./device-settings";
+import { UnitConverterButton } from "./unit-converter";
 import { useDeviceState } from "./use-device-state";
 import { useHashTab } from "./use-hash-tab";
 
@@ -200,6 +201,7 @@ function Headline({ deviceId, sync, tab }: { deviceId: string; sync: DeviceSyncI
           </div>
         ))}
       </div>
+      {tab.kind === "settings" && <UnitConverterButton />}
     </div>
   );
 }

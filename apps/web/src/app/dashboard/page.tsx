@@ -15,6 +15,7 @@ import { ChargingSessionsCarousel } from "@/components/dashboard/charging-sessio
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
 import { getLastSyncInfo } from "@/lib/device-sync";
+import { backgroundCss, parseOverviewPrefs } from "@/lib/overview-prefs";
 
 // Site-centric redesign: Overview is now the selected *site*'s overview —
 // a customer can have several sites, and each site can have several
@@ -60,7 +61,7 @@ export default async function DashboardOverviewPage() {
   const deviceIds = site.devices.map((d) => d.id);
   const chargerIds = site.devices.filter((d) => d.deviceType?.category === "ev_charger").map((d) => d.id);
   const inverterId = site.devices.find((d) => d.deviceType?.category === "solar_inverter")?.id;
-  const [overview, chargingSummary, recentChargingStats, customerPlan, connectorStatusOptions, inverterSync] = await Promise.all([
+  const [overview, chargingSummary, recentChargingStats, customerPlan, connectorStatusOptions, inverterSync, uiRow] = await Promise.all([
     deviceIds.length > 0 ? fetchSiteOverview(supabase, site) : Promise.resolve(null),
     chargerIds.length > 0 ? fetchTodayChargingSessions(supabase, chargerIds[0]) : Promise.resolve(null),
     chargerIds.length > 0 ? fetchRecentChargingStats(supabase, chargerIds[0]) : Promise.resolve(null),
@@ -69,7 +70,12 @@ export default async function DashboardOverviewPage() {
       ? fetchEnumOptions(supabase, ["connector_status"]).then((m) => m.get("connector_status") ?? [])
       : Promise.resolve([]),
     inverterId ? getLastSyncInfo(inverterId) : Promise.resolve(null),
+    // the person's own choices for this page (which four cards, what is behind it): see Application Settings
+    profile ? supabase.from("profiles").select("ui_preferences").eq("id", profile.id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
+  const overviewPrefs = parseOverviewPrefs(uiRow.data?.ui_preferences);
+  const backgroundUrl = overviewPrefs.background.kind === "image" ? supabase.storage.from("avatars").getPublicUrl(overviewPrefs.background.path).data.publicUrl : null;
+  const background = backgroundCss(overviewPrefs.background, backgroundUrl, overviewPrefs.dim);
   const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
   const inverterIds = site.devices.filter((d) => d.deviceType?.category === "solar_inverter").map((d) => d.id);
   // What the server saw; the live components take it from here (no page refresh).
@@ -114,6 +120,8 @@ export default async function DashboardOverviewPage() {
       ) : (
         <>
           <OverviewBoard
+            cards={overviewPrefs.cards}
+            background={background}
             solar={solarCards}
             ev={evCards}
             flow={{

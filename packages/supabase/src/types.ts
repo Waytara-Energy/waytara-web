@@ -322,8 +322,10 @@ export type Database = {
       customers: {
         Row: {
           address: Json | null
+          billing_address: Json | null
           billing_email: string | null
           created_at: string
+          gstin: string | null
           id: string
           plan_id: string | null
           plan_started_at: string | null
@@ -332,8 +334,10 @@ export type Database = {
         }
         Insert: {
           address?: Json | null
+          billing_address?: Json | null
           billing_email?: string | null
           created_at?: string
+          gstin?: string | null
           id: string
           plan_id?: string | null
           plan_started_at?: string | null
@@ -342,8 +346,10 @@ export type Database = {
         }
         Update: {
           address?: Json | null
+          billing_address?: Json | null
           billing_email?: string | null
           created_at?: string
+          gstin?: string | null
           id?: string
           plan_id?: string | null
           plan_started_at?: string | null
@@ -522,6 +528,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      email_change_codes: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          expires_at: string
+          new_email: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          new_email: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          new_email?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       employee_invites: {
         Row: {
@@ -3105,6 +3138,8 @@ export type Database = {
           notification_preferences: Json
           phone: string | null
           role: Database["waytara"]["Enums"]["user_role"]
+          security_preferences: Json
+          ui_preferences: Json
         }
         Insert: {
           avatar_url?: string | null
@@ -3117,6 +3152,8 @@ export type Database = {
           notification_preferences?: Json
           phone?: string | null
           role?: Database["waytara"]["Enums"]["user_role"]
+          security_preferences?: Json
+          ui_preferences?: Json
         }
         Update: {
           avatar_url?: string | null
@@ -3129,6 +3166,8 @@ export type Database = {
           notification_preferences?: Json
           phone?: string | null
           role?: Database["waytara"]["Enums"]["user_role"]
+          security_preferences?: Json
+          ui_preferences?: Json
         }
         Relationships: []
       }

@@ -17,7 +17,7 @@ export function ChartStyleSetting() {
   const style = useChartStyle();
   const setStyle = useSetChartStyle();
   return (
-    <section className="space-y-4 rounded-xl border border-border bg-card p-5">
+    <section className="space-y-5 rounded-2xl border border-border bg-card p-5 sm:p-6">
       <div>
         <h2 className="text-sm font-semibold text-foreground">Charts</h2>
         <p className="mt-1 text-xs text-muted-foreground">Choose how every chart is drawn. The change applies straight away.</p>

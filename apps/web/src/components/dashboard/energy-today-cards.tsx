@@ -5,6 +5,7 @@ import { areaPoints, deltaPct, fmtKwh, recentPoints, RECENT_WINDOW_MS, peakOf, s
 import { istDayStart } from "@/lib/telemetry/combine";
 import { useLiveNumbers } from "@/lib/telemetry/live-values";
 import { useSeriesRange, useTodaySeries } from "@/lib/telemetry/react";
+import type { OverviewCardId } from "@/lib/overview-prefs";
 import { TodayStatCard } from "./today-stat-card";
 import { FLOW } from "./flow-colors";
 
@@ -27,21 +28,22 @@ function useYesterdayAtThisTime(deviceId: string, keys: string[], nowMs: number)
 const kwhNumber = (v: number | null) => (v === null ? "—" : v.toFixed(v >= 100 ? 0 : 1));
 const istClock = (ms: number) => new Date(ms + 19_800_000).toISOString().slice(11, 16);
 
-/** Overview's four "today" cards - solar generated, grid, load consumption, battery - each opening its Monitoring tab.
- *  The totals are the inverter's own day counters (live, in place); the dots are today's readings. */
+/** Overview's "today" cards, each opening its Monitoring tab: solar generated, grid, load consumption, battery, self-powered, sent to and
+ *  bought from the grid. `cards` says which ones to draw here, in order (the person chooses four in Application Settings; two sit on each
+ *  side of the energy flow). The totals are the inverter's own day counters (live, in place); the dots are today's readings. */
 export function EnergyTodayCards({
   inverterId,
   initial,
   pvKeys,
-  which,
+  cards,
 }: {
   inverterId: string;
   initial: Record<string, number | null>;
   /** Accepted for the callers' shared props. */
   sync?: unknown;
   pvKeys: string[];
-  /** Left of the energy flow: solar and grid. Right: load and battery. */
-  which: "left" | "right";
+  /** The cards to draw, in order. */
+  cards: OverviewCardId[];
 }) {
   const solarKeys = pvKeys.length > 0 ? pvKeys : ["inverter_output_power_w"];
   const counterKeys = [K.solar, K.load, K.charged, K.discharged, K.imported, K.exported];
@@ -160,15 +162,76 @@ export function EnergyTodayCards({
       />
   );
 
-  return which === "left" ? (
+  // How much of today's use did not come from the grid, and where the exported and imported energy stands against solar and load.
+  const imported = n[K.imported];
+  const selfPowered = n[K.load] !== null && n[K.load]! > 0 && imported !== null ? Math.min(100, Math.max(0, (1 - imported / n[K.load]!) * 100)) : null;
+
+  const selfPoweredCard = (
+    <TodayStatCard
+      title="Self-powered today"
+      href={monitoring("grid")}
+      value={selfPowered === null ? "—" : selfPowered.toFixed(0)}
+      unit="%"
+      trend={null}
+      detail={n[K.load] !== null && imported !== null ? `${fmtKwh(imported)} bought from the grid of ${fmtKwh(n[K.load])} used` : "No readings yet"}
+      points={recentPoints(gridCurve, series.nowMs)}
+      now={series.nowMs}
+      posColor={AMBER}
+      negColor={BLUE}
+      posLabel="Importing"
+      negLabel="Exporting"
+    />
+  );
+
+  const exportedCard = (
+    <TodayStatCard
+      title="Sent to the grid today"
+      href={monitoring("grid")}
+      value={kwhNumber(n[K.exported])}
+      unit="kWh"
+      trend={null}
+      detail={n[K.exported] !== null && n[K.solar] !== null && n[K.solar]! > 0 ? `${Math.round((n[K.exported]! / n[K.solar]!) * 100)}% of the solar you made` : "Energy exported today"}
+      points={recentPoints(gridCurve, series.nowMs)}
+      now={series.nowMs}
+      posColor={AMBER}
+      negColor={BLUE}
+      posLabel="Importing"
+      negLabel="Exporting"
+    />
+  );
+
+  const importedCard = (
+    <TodayStatCard
+      title="Bought from the grid today"
+      href={monitoring("grid")}
+      value={kwhNumber(imported)}
+      unit="kWh"
+      trend={null}
+      detail={imported !== null && n[K.load] !== null && n[K.load]! > 0 ? `${Math.round((imported / n[K.load]!) * 100)}% of what your site used` : "Energy imported today"}
+      points={recentPoints(gridCurve, series.nowMs)}
+      now={series.nowMs}
+      posColor={AMBER}
+      negColor={BLUE}
+      posLabel="Importing"
+      negLabel="Exporting"
+    />
+  );
+
+  const byId: Record<OverviewCardId, React.ReactNode> = {
+    solar: solarCard,
+    grid: gridCard,
+    load: loadCard,
+    battery: batteryCard,
+    selfpowered: selfPoweredCard,
+    exported: exportedCard,
+    imported: importedCard,
+  };
+
+  return (
     <>
-      {solarCard}
-      {gridCard}
-    </>
-  ) : (
-    <>
-      {loadCard}
-      {batteryCard}
+      {cards.map((id) => (
+        <React.Fragment key={id}>{byId[id]}</React.Fragment>
+      ))}
     </>
   );
 }

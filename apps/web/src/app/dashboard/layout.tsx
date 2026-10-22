@@ -9,6 +9,8 @@ import { ChartStyleProvider } from "@/components/dashboard/chart-style";
 import { CHART_STYLE_COOKIE, parseChartStyle } from "@/lib/chart-style";
 import { SidebarBrandToggle } from "@/components/dashboard/sidebar-brand-toggle";
 import { SessionWatcher } from "@/components/dashboard/session-watcher";
+import { IdleSignOut } from "@/components/dashboard/idle-sign-out";
+import { parseSessionPolicy } from "@/lib/session-policy";
 import { ConnectionNotice } from "@/components/dashboard/connection-notice";
 import { RealtimeProvider } from "@waytara/ui/realtime-provider";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
@@ -87,11 +89,14 @@ export default async function DashboardLayout({
   // is what makes a collapsed sidebar stay collapsed across a reload
   // instead of springing back open. Runs alongside the alerts fetch below
   // since neither depends on the other.
-  const [cookieStore, initialAlerts, initialFaults] = await Promise.all([
+  const [cookieStore, initialAlerts, initialFaults, securityRow] = await Promise.all([
     cookies(),
     createClient().then((supabase) => fetchCustomerAlerts(supabase, allDeviceIds)),
     createClient().then((supabase) => fetchActiveFaultCodes(supabase, allDeviceIds)),
+    // how long this person lets a browser sit idle before it is signed out (Application Settings > Account & security)
+    profile ? createClient().then((supabase) => supabase.from("profiles").select("security_preferences").eq("id", profile.id).maybeSingle()) : Promise.resolve({ data: null }),
   ]);
+  const sessionPolicy = parseSessionPolicy(securityRow.data?.security_preferences);
   const sidebarOpen = cookieStore.get("sidebar_state")?.value === "true";
 
   // Site is the dashboard's navigation root now — every site-scoped page
@@ -142,6 +147,7 @@ export default async function DashboardLayout({
       <ChartStyleProvider initial={parseChartStyle(cookieStore.get(CHART_STYLE_COOKIE)?.value)}>
       <HeaderSlotProvider>
         <SessionWatcher />
+        <IdleSignOut idleMinutes={sessionPolicy.idleMinutes} scope={sessionPolicy.scope} />
         {/* An offline or unreachable inverter is announced by a toast (with Investigate) on every page, not only Overview. */}
         {noticeDevice && <ConnectionNotice deviceId={noticeDevice.id} sync={noticeDevice.sync} />}
         {/* The account, plan, sites and devices shown in the sidebar and header follow their rows as they change (no reload). */}
