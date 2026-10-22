@@ -5,9 +5,7 @@ import Link from "next/link";
 import { ArrowUpRight, LifeBuoy, Search } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Input } from "@/components/ui/input";
-import { inverterGuide } from "@/lib/troubleshooting-guide";
 import { searchHelp } from "@/lib/support-help";
-import { TroubleshootingGuide } from "./troubleshooting-guide";
 
 /** What the right side of the Support page shows while no ticket is open: answers to the usual questions (searchable), the fault-code guide,
  *  and a way to open a ticket if none of it helps. */
@@ -61,8 +59,6 @@ export function SupportHelp({ newTicket }: { newTicket: React.ReactNode }) {
           </Accordion>
         )}
       </section>
-
-      <TroubleshootingGuide title="Inverter fault codes and indicator lights" sections={inverterGuide()} active={[]} />
 
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-dashed border-border p-5">
         <div>

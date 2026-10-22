@@ -12,7 +12,6 @@ export default async function SupportPage() {
       newTicket={
         <NewSupportTicketDialog
           label="Open a ticket"
-          variant="outline"
           sites={sites.map((s) => ({ id: s.id, name: s.name, devices: s.devices.map((d) => ({ id: d.id, name: deviceDisplayId(d) })) }))}
           defaultSiteId={selected?.id ?? sites[0]?.id ?? null}
         />

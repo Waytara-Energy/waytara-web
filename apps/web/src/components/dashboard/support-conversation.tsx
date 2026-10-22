@@ -2,21 +2,28 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowUpRight, Check, ChevronLeft, FileText } from "lucide-react";
+import { ArrowUpRight, Check, ChevronDown, ChevronLeft, FileText } from "lucide-react";
 import { Composer, RatingForm, StatusPill, StatusSteps, Stars, Thread, type OutgoingMessage } from "@waytara/ui/support-ui";
 import { categoryLabel, fileKind, isActive, roleName, ticketCode, STATUS_STEPS, type AttachmentView, type MessageView, type TicketView } from "@waytara/ui/support-model";
 import { useSupportThread } from "@waytara/ui/use-support-thread";
 import { Button } from "@/components/ui/button";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { cn } from "@/lib/utils";
 
 const when = (iso: string | null) => (iso ? new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" }) : null);
 
-function Widget({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
+/** One card of the right-hand column. Its title folds it away; `defaultOpen={false}` keeps the less important ones closed until wanted. */
+function Widget({ title, children, className, defaultOpen = true }: { title: string; children: React.ReactNode; className?: string; defaultOpen?: boolean }) {
   return (
-    <section className={cn("rounded-2xl border border-border bg-card p-4", className)}>
-      <h3 className="mb-3 text-sm font-semibold text-foreground">{title}</h3>
-      {children}
-    </section>
+    <Collapsible defaultOpen={defaultOpen} asChild>
+      <section className={cn("group/widget rounded-2xl border border-border bg-card", className)}>
+        <CollapsibleTrigger className="flex w-full items-center justify-between gap-2 px-4 py-3.5 text-left text-sm font-semibold text-foreground">
+          {title}
+          <ChevronDown className="size-4 text-muted-foreground transition-transform group-data-[state=open]/widget:rotate-180" />
+        </CollapsibleTrigger>
+        <CollapsibleContent className="px-4 pb-4">{children}</CollapsibleContent>
+      </section>
+    </Collapsible>
   );
 }
 
@@ -268,7 +275,7 @@ export function SupportConversation({
         </Widget>
 
         {files.length > 0 && (
-          <Widget title={`Files shared (${files.length})`}>
+          <Widget title={`Files shared (${files.length})`} defaultOpen={false}>
             <ul className="space-y-1.5">
               {files.map((f) => (
                 <li key={f.id}>
@@ -283,7 +290,7 @@ export function SupportConversation({
           </Widget>
         )}
 
-        <Widget title="While you wait">
+        <Widget title="While you wait" defaultOpen={false}>
           <ul className="space-y-1.5 text-sm">
             {[
               { href: "/dashboard/maintenance", label: "Check your device's health" },

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { LifeBuoy } from "lucide-react";
 import { StatusPill, Stars } from "@waytara/ui/support-ui";
-import { isActive, roleName, ticketCode } from "@waytara/ui/support-model";
+import { isActive, ticketCode } from "@waytara/ui/support-model";
 import { cn } from "@/lib/utils";
 import { RealtimeRefresh } from "./realtime-refresh";
 
@@ -45,7 +45,7 @@ export function SupportInbox({ tickets, customerId, action }: { tickets: InboxTi
   const unreadTotal = tickets.reduce((n, t) => n + (t.unread_customer > 0 ? 1 : 0), 0);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-2xl border border-border bg-card p-4">
       {/* a ticket changing (someone takes it, replies, resolves it) or a new one: the list follows without a reload */}
       <RealtimeRefresh table="support_tickets" event="UPDATE" filter={`customer_id=eq.${customerId}`} debounceMs={800} />
       <RealtimeRefresh table="support_tickets" event="INSERT" filter={`customer_id=eq.${customerId}`} debounceMs={800} />
@@ -58,16 +58,16 @@ export function SupportInbox({ tickets, customerId, action }: { tickets: InboxTi
         {action}
       </div>
 
-      <div role="tablist" aria-label="Tickets" className="flex gap-1 border-b border-border">
+      <div role="tablist" aria-label="Tickets" className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
         {(
           [
             { id: "active", label: "Open", count: active.length },
             { id: "done", label: "Closed", count: done.length },
           ] as const
         ).map((t) => (
-          <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={cn("-mb-px flex items-center gap-2 border-b-2 px-3 py-2 text-sm font-medium transition-colors", tab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>
+          <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={cn("flex items-center justify-center gap-2 rounded-md px-3 py-1.5 text-sm font-medium transition-colors", tab === t.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
             {t.label}
-            <span className="rounded-full bg-muted px-1.5 text-xs text-muted-foreground">{t.count}</span>
+            <span className="text-xs text-muted-foreground">{t.count}</span>
             {t.id === "active" && unreadTotal > 0 && <span className="size-2 rounded-full bg-primary" aria-label={`${unreadTotal} with news`} />}
           </button>
         ))}
@@ -82,34 +82,31 @@ export function SupportInbox({ tickets, customerId, action }: { tickets: InboxTi
           <p className="mt-1 text-sm text-muted-foreground">{tab === "active" ? "Need help? Open a ticket and the team that looks after your site will pick it up." : "Tickets you close, or that the team closes, are kept here."}</p>
         </div>
       ) : (
-        <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 max-lg:overflow-visible max-lg:pr-0">
+        <ul className="-mx-1 min-h-0 flex-1 space-y-1 overflow-y-auto px-1 max-lg:overflow-visible">
           {shown.map((t) => {
             const news = t.unread_customer > 0;
             const open = t.id === openId;
             const who = t.last_message_role === "customer" ? "You" : t.assigned_name ? t.assigned_name.split(" ")[0] : "Team";
             return (
               <li key={t.id}>
-                <Link href={`/dashboard/support/${t.id}`} aria-current={open ? "page" : undefined} className={cn("flex items-start gap-3 rounded-2xl border px-4 py-3.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", open ? "border-primary/50 bg-primary/10" : "border-border bg-card hover:bg-muted/50")}>
-                  <span className={cn("mt-2 size-2 shrink-0 rounded-full", news ? "bg-primary" : "bg-transparent")} aria-hidden />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className={cn("truncate text-sm text-foreground", news ? "font-semibold" : "font-medium")}>{t.subject}</p>
-                      <span className="shrink-0 text-xs text-muted-foreground">{ago(t.last_message_at ?? t.updated_at)}</span>
-                    </div>
-                    {t.last_message_preview && (
-                      <p className={cn("mt-0.5 truncate text-sm", news ? "text-foreground" : "text-muted-foreground")}>
-                        <span className="font-medium">{who}:</span> {t.last_message_preview}
-                      </p>
-                    )}
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                      <StatusPill status={t.status} />
-                      <span>{ticketCode(t.ticket_no)}</span>
-                      {t.site_name && <span>· {t.site_name}</span>}
-                      <span>· {t.assigned_name ? `${t.assigned_name} · ${roleName(t.assigned_role, true)}` : t.status === "closed" ? "Closed" : "Waiting for the team"}</span>
-                      {t.status === "closed" && t.rating && <Stars value={t.rating} size="sm" />}
-                    </div>
+                <Link href={`/dashboard/support/${t.id}`} aria-current={open ? "page" : undefined} className={cn("block rounded-xl px-3.5 py-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", open ? "bg-primary/10 ring-1 ring-primary/40" : "hover:bg-muted/60")}>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className={cn("flex min-w-0 items-center gap-2 text-sm text-foreground", news ? "font-semibold" : "font-medium")}>
+                      {news && <span className="size-2 shrink-0 rounded-full bg-primary" aria-label={`${t.unread_customer} new`} />}
+                      <span className="truncate">{t.subject}</span>
+                    </p>
+                    <span className="shrink-0 text-xs text-muted-foreground">{ago(t.last_message_at ?? t.updated_at)}</span>
                   </div>
-                  {news && <span className="mt-1 shrink-0 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">{t.unread_customer}</span>}
+                  {t.last_message_preview && (
+                    <p className={cn("mt-1 line-clamp-2 text-[13px] leading-snug", news ? "text-foreground" : "text-muted-foreground")}>
+                      <span className="font-medium">{who}:</span> {t.last_message_preview}
+                    </p>
+                  )}
+                  <div className="mt-2.5 flex items-center gap-2 text-xs text-muted-foreground">
+                    <StatusPill status={t.status} />
+                    <span>{ticketCode(t.ticket_no)}</span>
+                    {t.status === "closed" && t.rating ? <Stars value={t.rating} size="sm" /> : !t.assigned_name && t.status !== "closed" ? <span>Waiting for the team</span> : null}
+                  </div>
                 </Link>
               </li>
             );

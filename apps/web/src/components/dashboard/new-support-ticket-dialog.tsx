@@ -25,7 +25,7 @@ const NO_DEVICE = "none";
 
 /** Opens a ticket: which site (and device), what it is about, a subject, the message and up to five files. The ticket goes to the team of that
  *  site (its installer, its employees and the admins); anyone of them can take it, and you are e-mailed when they do. */
-export function NewSupportTicketDialog({ sites, defaultSiteId, label = "New ticket", variant = "default" }: { sites: SiteOption[]; defaultSiteId: string | null; label?: string; variant?: "default" | "outline" }) {
+export function NewSupportTicketDialog({ sites, defaultSiteId, label = "New ticket", variant }: { sites: SiteOption[]; defaultSiteId: string | null; label?: string; variant?: "gradient" | "outline" }) {
   const router = useRouter();
   const api = React.useMemo(() => supportApi(createClient()), []);
   const [open, setOpen] = React.useState(false);
