@@ -1411,54 +1411,6 @@ export type Database = {
           },
         ]
       }
-      equipment_rollup_15m_p20261014: {
-        Row: {
-          bucket: string
-          covered_s: number
-          created_at: string
-          equipment_id: string
-          is_test: boolean
-          key_name: string
-          last_value: number | null
-          max_value: number | null
-          min_value: number | null
-          n_samples: number
-          neg_wsum: number | null
-          pos_wsum: number | null
-          wsum: number
-        }
-        Insert: {
-          bucket: string
-          covered_s: number
-          created_at?: string
-          equipment_id: string
-          is_test?: boolean
-          key_name: string
-          last_value?: number | null
-          max_value?: number | null
-          min_value?: number | null
-          n_samples?: number
-          neg_wsum?: number | null
-          pos_wsum?: number | null
-          wsum: number
-        }
-        Update: {
-          bucket?: string
-          covered_s?: number
-          created_at?: string
-          equipment_id?: string
-          is_test?: boolean
-          key_name?: string
-          last_value?: number | null
-          max_value?: number | null
-          min_value?: number | null
-          n_samples?: number
-          neg_wsum?: number | null
-          pos_wsum?: number | null
-          wsum?: number
-        }
-        Relationships: []
-      }
       equipment_rollup_15m_p20261015: {
         Row: {
           bucket: string
@@ -1892,6 +1844,54 @@ export type Database = {
         Relationships: []
       }
       equipment_rollup_15m_p20261024: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20261025: {
         Row: {
           bucket: string
           covered_s: number
@@ -4582,6 +4582,17 @@ export type Database = {
         Returns: number
       }
       purge_old_ev_samples: { Args: never; Returns: number }
+      record_subscription: {
+        Args: {
+          p_customer: string
+          p_end?: string
+          p_plan: string
+          p_ref?: string
+          p_start?: string
+          p_status?: Database["waytara"]["Enums"]["subscription_status"]
+        }
+        Returns: string
+      }
       refresh_device_status: { Args: never; Returns: number }
       rename_device: {
         Args: { p_equipment: string; p_label: string }
@@ -4591,6 +4602,13 @@ export type Database = {
       rollup_days: { Args: { p_days: string[] }; Returns: number }
       rollup_hours: { Args: { p_hours: string[] }; Returns: number }
       run_rollups: { Args: { p_now?: string }; Returns: Json }
+      set_subscription_status: {
+        Args: {
+          p_id: string
+          p_status: Database["waytara"]["Enums"]["subscription_status"]
+        }
+        Returns: undefined
+      }
       support_assign: {
         Args: { p_ticket: string; p_to: string }
         Returns: undefined
@@ -4609,6 +4627,7 @@ export type Database = {
         Args: { p_files: Json; p_message: string }
         Returns: number
       }
+      support_can_access: { Args: { p_ticket: string }; Returns: boolean }
       support_can_access_as: {
         Args: { p_ticket: string; p_user: string }
         Returns: boolean
