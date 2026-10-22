@@ -4,13 +4,16 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@waytara/supabase/server";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { verifyPassword } from "@waytara/supabase/verify-password";
-import { requireCustomer } from "@waytara/supabase/auth";
+import { getCurrentProfile, requireCustomer } from "@waytara/supabase/auth";
 import type { Json } from "@waytara/supabase/types";
 import { EMAIL_PATTERN, MAX_ATTEMPTS, CODE_TTL_MS, buildEmailChangedMail, buildEmailCodeMail, canResend, codeExpired, codeMatches, generateCode, hashCode, normaliseEmail, secondsUntilResend } from "@/lib/email-otp";
 import { GSTIN, addressProblems, addressToJson, normaliseGstin, type Address } from "@/lib/address";
 import { isBackgroundPathOf, overviewToJson, parseOverviewPrefs, type OverviewPrefs } from "@/lib/overview-prefs";
 import { policyToJson, parseSessionPolicy, type SessionPolicy } from "@/lib/session-policy";
 import { sendMail } from "@/lib/send-mail";
+import { notifyAuthEvent } from "@/lib/auth-notify";
+import { describeDevice } from "@/lib/user-agent";
+import { NOTIFICATION_KEYS, mergeNotificationPrefs, type NotificationKey } from "@/lib/notification-prefs";
 
 const SETTINGS = "/dashboard/settings";
 const asJson = (v: unknown): Json => v as Json;
@@ -132,21 +135,14 @@ export async function confirmEmailChange(codeRaw: string): Promise<{ email: stri
 
 // ---- notifications ---------------------------------------------------------------------------------------------------------------------
 
-export interface NotificationPrefs {
-  email_alerts: boolean;
-  support_emails: boolean;
-  email_maintenance_updates: boolean;
-}
+export type NotificationPrefs = Record<NotificationKey, boolean>;
 
 export async function saveNotifications(prefs: NotificationPrefs): Promise<void> {
   const profile = await requireCustomer();
   const supabase = await createClient();
   const { data: current } = await supabase.from("profiles").select("notification_preferences").eq("id", profile.id).maybeSingle();
-  const base = current?.notification_preferences && typeof current.notification_preferences === "object" && !Array.isArray(current.notification_preferences) ? current.notification_preferences : {};
-  const { error } = await supabase
-    .from("profiles")
-    .update({ notification_preferences: asJson({ ...base, email_alerts: !!prefs.email_alerts, support_emails: !!prefs.support_emails, email_maintenance_updates: !!prefs.email_maintenance_updates }) })
-    .eq("id", profile.id);
+  const values = Object.fromEntries(NOTIFICATION_KEYS.map((k) => [k, !!prefs[k]])) as NotificationPrefs;
+  const { error } = await supabase.from("profiles").update({ notification_preferences: asJson(mergeNotificationPrefs(current?.notification_preferences, values)) }).eq("id", profile.id);
   if (error) throw new Error(error.message);
   revalidatePath(SETTINGS);
 }
@@ -218,6 +214,7 @@ export async function changePassword(current: string, next: string, signOutOther
   const { error } = await supabase.auth.updateUser({ password: next });
   if (error) throw new Error(error.message);
   if (signOutOthers) await supabase.auth.signOut({ scope: "others" });
+  await notifyAuthEvent("password_changed", profile);
   revalidatePath(SETTINGS);
 }
 
@@ -235,33 +232,41 @@ export async function saveSessionPolicy(policy: SessionPolicy): Promise<void> {
 /** The inactivity watcher's sign-out: this device, or all devices. */
 export async function idleSignOut(scope: "device" | "all"): Promise<void> {
   const supabase = await createClient();
+  const profile = await getCurrentProfile(supabase);
   await supabase.auth.signOut({ scope: scope === "all" ? "global" : "local" });
+  if (profile) await notifyAuthEvent("signout_idle", profile);
 }
 
 // ---- signed-in devices ------------------------------------------------------------------------------------------------------------------
 
 /** Ends the sessions on every other device and keeps this one (Supabase's "others" scope). */
 export async function signOutOtherDevices(): Promise<void> {
-  await requireCustomer();
+  const profile = await requireCustomer();
   const supabase = await createClient();
   const { error } = await supabase.auth.signOut({ scope: "others" });
   if (error) throw new Error(error.message);
+  await notifyAuthEvent("signout_others", profile);
   revalidatePath(SETTINGS);
 }
 
 /** Ends every session, this device included (the caller then goes to the sign-in page). */
 export async function signOutAllDevices(): Promise<void> {
-  await requireCustomer();
+  const profile = await requireCustomer();
   const supabase = await createClient();
   const { error } = await supabase.auth.signOut({ scope: "global" });
   if (error) throw new Error(error.message);
+  await notifyAuthEvent("signout_all", profile);
 }
 
 /** Ends one other device's session (the database function only ever touches the caller's own). */
 export async function revokeSession(sessionId: string): Promise<void> {
-  await requireCustomer();
+  const profile = await requireCustomer();
   const supabase = await createClient();
+  // what the device was, for the e-mail, read before it is gone
+  const { data: mine } = await supabase.rpc("my_sessions");
+  const target = describeDevice(mine?.find((s) => s.id === sessionId)?.user_agent).label;
   const { error } = await supabase.rpc("revoke_my_session", { p_id: sessionId });
   if (error) throw new Error(error.message);
+  await notifyAuthEvent("session_revoked", profile, { target });
   revalidatePath(SETTINGS);
 }

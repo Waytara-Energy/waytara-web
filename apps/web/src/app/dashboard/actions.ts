@@ -4,7 +4,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@waytara/supabase/server";
-import { requireCustomer } from "@waytara/supabase/auth";
+import { getCurrentProfile, requireCustomer } from "@waytara/supabase/auth";
+import { notifyAuthEvent } from "@/lib/auth-notify";
 import { SELECTED_SITE_COOKIE, SELECTED_DEVICE_COOKIE } from "@/lib/selected-site";
 
 // Called directly from the header's SiteSwitcher (a client component), not
@@ -40,8 +41,10 @@ export async function selectDevice(deviceId: string) {
 
 export async function logout() {
   const supabase = await createClient();
+  const profile = await getCurrentProfile(supabase);
   // this device only: signOut() alone defaults to the "global" scope and would end every other device's session too
   await supabase.auth.signOut({ scope: "local" });
+  if (profile) await notifyAuthEvent("signout", profile);
   redirect("/login");
 }
 

@@ -7,7 +7,7 @@
 | Profile | Photo (cropped to a square, shrunk in the browser, uploaded to the `avatars` bucket under the person's id), name, phone. E-mail changes only by a 6-digit code sent to the NEW address. | `profiles.avatar_url / full_name / phone`; pending codes in `email_change_codes` |
 | Appearance | Light, dark or auto theme; chart style. | the browser (theme cookie / chart cookie) |
 | Overview | Which four cards sit beside the energy flow (two each side) out of seven, and a background (six gradients or the person's own picture, with a darken slider). | `profiles.ui_preferences` (`overview_cards`, `overview_background`, `overview_dim`) |
-| Notifications | E-mails: device alerts, support replies, service and maintenance updates. | `profiles.notification_preferences` (`email_alerts`, `support_emails`, `email_maintenance_updates`) |
+| Notifications | E-mails in five categories, each with its own switch: Account & security (signed in, signed out; password or e-mail changed is always sent), Devices (offline, back online), Faults & alarms (fault e-mails, alarm e-mails), Billing & plan (tariff changes), Support (ticket updates). | `profiles.notification_preferences`, one true/false per key (`auth_signin`, `auth_signout`, `device_offline`, `device_online`, `faults`, `alarms`, `tariff`, `support_emails`); an account that had switched the old `email_alerts` off keeps that for the device, fault and tariff e-mails |
 | Addresses & billing | Own address, billing address (or "same as my address"), billing e-mail, GST number. | `customers.address / billing_address / billing_email / gstin` |
 | Account & security | Password (current one checked first; option to sign every other device out), how long a browser may sit idle (never, 15 min, 30 min, 1 h, 4 h, 1 day) and whether that signs out only that device or all, and the list of signed-in devices with sign out per device / all others / all. | `profiles.security_preferences` (`idle_minutes`, `idle_scope`); sessions are Supabase's own (`auth.sessions`) |
 
@@ -19,6 +19,10 @@ The Devices page (Settings tabs) has a **Unit converter** button, and a small ca
 - **Idle sign-out.** `IdleSignOut` (mounted in the dashboard layout) keeps the last-activity time in `localStorage` (shared by the tabs of one browser) and signs out when it is older than the person's limit, on the timer, when the tab becomes visible, and on arrival (so a browser reopened after a long absence is signed out at once). It is checked in the browser while the app is open: it cannot sign out a browser that stays closed.
 - **Signing out never ends other devices' sessions** unless asked (`signOut({ scope: "local" })`); "other devices" and "all devices" use Supabase's `others` and `global` scopes. Ending one other device's session is `waytara.revoke_my_session` (`auth.sessions` is not readable by the app; `my_sessions()` shows only the caller's own rows).
 - **Overview background pictures** live in the same public `avatars` bucket (`<person's id>/overview-<ms>.jpg`); the server action refuses any path outside the person's own folder, and deletes the picture a new one replaces.
+
+## Account e-mails and the switches
+
+`lib/notification-prefs.ts` lists the categories and reads a stored choice (`wants(prefs, key)`). Every sender checks its own key: the alert cron per e-mail (`alertKey`: offline, back online, fault, alarm), the device digest per line (`digestKey`), the tariff cron (`tariff`), the support mailer (`support_emails`), and the account e-mails sent by `lib/auth-notify.ts` after a sign-in (login action), a sign-out (sign-out button, a device ended from Settings, others, all, or idle) and a password change (always sent). They are sent with `after()`, so they never slow the page, and carry the device, the place (Vercel's geo headers, when present), the address and the time.
 
 ## Migrations and tests
 

@@ -1,3 +1,4 @@
+import { digestKey, wants } from "@/lib/notification-prefs";
 import { NextRequest, NextResponse } from "next/server";
 import { isCronAuthorized } from "@/lib/cron-auth";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
@@ -108,32 +109,36 @@ export async function GET(req: NextRequest) {
     if (wanted.length === 0) continue;
 
     const p = profiles.get(customerId);
-    const prefs = (p?.notification_preferences as { email_alerts?: boolean } | null) ?? {};
-    if (!p || !p.email || p.deactivated_at || p.deleted_at || prefs.email_alerts === false) {
-      await close(wanted.map((r) => r.id), "the customer does not take alert e-mails");
+    if (!p || !p.email || p.deactivated_at || p.deleted_at) {
+      await close(wanted.map((r) => r.id), "the customer cannot be e-mailed");
       suppressed += wanted.length;
       continue;
     }
-    const items = wanted.map(itemOf).filter((i): i is DigestItem => i !== null);
+    // each line goes by its own switch in Settings > Notifications (offline and reminders, back online)
+    const allowed = wanted.filter((r) => (r.kind === "offline" || r.kind === "still_offline" || r.kind === "back_online" ? wants(p.notification_preferences, digestKey(r.kind)) : true));
+    await close(wanted.filter((r) => !allowed.includes(r)).map((r) => r.id), "the customer turned this e-mail off");
+    suppressed += wanted.length - allowed.length;
+    if (allowed.length === 0) continue;
+    const items = allowed.map(itemOf).filter((i): i is DigestItem => i !== null);
     const mail: Mail = buildStatusDigest({ customerName: p.full_name, items, dashboardUrl });
     const result = await sendDeviceStatusEmail(p.email, mail);
     if (result === "sent") {
       sent += 1;
-      await close(wanted.map((r) => r.id), null);
+      await close(allowed.map((r) => r.id), null);
       await supabase.from("notification_state").upsert({ customer_id: customerId, last_status_email_at: nowIso });
       // remember when the customer was last told about each alert: reminders count from here
-      for (const r of wanted) {
+      for (const r of allowed) {
         if ((r.kind === "offline" || r.kind === "still_offline") && r.alert_id) {
           const { data: a } = await supabase.from("alerts").select("notified_count").eq("id", r.alert_id).maybeSingle();
           await supabase.from("alerts").update({ last_notified_at: nowIso, notified_count: (a?.notified_count ?? 0) + 1 }).eq("id", r.alert_id);
         }
       }
     } else if (result === "suppressed") {
-      suppressed += wanted.length;
-      await close(wanted.map((r) => r.id), "suppressed: e-mails are switched off");
+      suppressed += allowed.length;
+      await close(allowed.map((r) => r.id), "suppressed: e-mails are switched off");
     } else {
       failed += 1;
-      await retryLater(wanted, "Resend did not accept the e-mail");
+      await retryLater(allowed, "Resend did not accept the e-mail");
     }
   }
 

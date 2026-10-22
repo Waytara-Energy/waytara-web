@@ -1,3 +1,4 @@
+import { wants } from "@/lib/notification-prefs";
 import { NextRequest, NextResponse } from "next/server";
 import { isCronAuthorized } from "@/lib/cron-auth";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
@@ -72,8 +73,7 @@ export async function GET(req: NextRequest) {
       let allSent = true;
       for (const [customerId, siteNames] of affected) {
         const p = profileById.get(customerId);
-        const prefs = (p?.notification_preferences as { email_alerts?: boolean } | null) ?? {};
-        if (!p || !p.email || p.deactivated_at || p.deleted_at || prefs.email_alerts === false) continue;
+        if (!p || !p.email || p.deactivated_at || p.deleted_at || !wants(p.notification_preferences, "tariff")) continue;
         const sent = await sendTariffEmail(p.email, { customerName: p.full_name, state: change.state, category: change.category as TariffCategory, oldRate: Number(change.old_rate), newRate: Number(change.new_rate), effectiveFrom: change.effective_from, siteNames });
         if (sent) emails += 1;
         else allSent = false;

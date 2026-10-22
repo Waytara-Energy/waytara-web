@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@waytara/supabase/server";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { isCustomerRole } from "@waytara/supabase/roles";
+import { notifyAuthEvent } from "@/lib/auth-notify";
 
 export async function login(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
@@ -29,6 +30,9 @@ export async function login(formData: FormData) {
       `/login?error=${encodeURIComponent("This app is for customer accounts only.")}`
     );
   }
+
+  // tell the person about the sign-in (if they want that e-mail); it is sent after the redirect, so it does not slow it down
+  if (profile) await notifyAuthEvent("signin", profile);
 
   redirect("/dashboard");
 }

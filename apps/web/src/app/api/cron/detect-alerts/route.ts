@@ -1,3 +1,4 @@
+import { alertKey, wants } from "@/lib/notification-prefs";
 import { NextRequest, NextResponse } from "next/server";
 import { isCronAuthorized } from "@/lib/cron-auth";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
@@ -162,16 +163,15 @@ export async function GET(req: NextRequest) {
   // ---- e-mail the customers (only for devices whose agent reports, and only to people who left alert e-mails on)
   const deviceById = new Map(devices.map((d) => [d.id, d]));
   const customerIds = [...new Set([...opened.map((o) => o.deviceId), ...closed.map((c) => c.deviceId), ...toRemind.map((r) => r.alert.device_id)].map((id) => deviceById.get(id)?.site?.customer_id).filter((id): id is string => !!id))];
-  const profiles = new Map<string, { email: string; full_name: string | null }>();
+  const profiles = new Map<string, { email: string; full_name: string | null; prefs: unknown }>();
   if (customerIds.length > 0) {
     const { data } = await supabase
       .from("profiles")
       .select("id, email, full_name, notification_preferences, deactivated_at, deleted_at")
       .in("id", customerIds);
     for (const p of data ?? []) {
-      const prefs = (p.notification_preferences as { email_alerts?: boolean } | null) ?? {};
-      if (p.deactivated_at || p.deleted_at || prefs.email_alerts === false || !p.email) continue;
-      profiles.set(p.id, { email: p.email, full_name: p.full_name });
+      if (p.deactivated_at || p.deleted_at || !p.email) continue;
+      profiles.set(p.id, { email: p.email, full_name: p.full_name, prefs: p.notification_preferences });
     }
   }
 
@@ -181,6 +181,8 @@ export async function GET(req: NextRequest) {
     const device = deviceById.get(deviceId);
     const profile = device?.site?.customer_id ? profiles.get(device.site.customer_id) : undefined;
     if (!device || !profile) return false;
+    // the person's own switch for this kind of e-mail (offline, back online, fault, alarm): see Settings > Notifications
+    if (!wants(profile.prefs, alertKey(kind, event))) return false;
     const deviceLabel = device.label || device.device_type?.serial_number || device.device_type?.model_number || "Your device";
     const sent = await sendDeviceAlertEmail(profile.email, { kind, event, customerName: profile.full_name, deviceLabel, siteName: device.site?.name ?? null, message, ...extra });
     if (sent) emails += 1;

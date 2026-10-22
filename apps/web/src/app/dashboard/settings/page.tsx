@@ -3,6 +3,7 @@ import { requireCustomer } from "@waytara/supabase/auth";
 import { SettingsBoard } from "@/components/dashboard/settings/settings-board";
 import type { SignedInDevice } from "@/components/dashboard/devices-setting";
 import { parseAddress } from "@/lib/address";
+import { resolveNotificationPrefs } from "@/lib/notification-prefs";
 import { parseOverviewPrefs } from "@/lib/overview-prefs";
 import { parseSessionPolicy } from "@/lib/session-policy";
 
@@ -21,7 +22,6 @@ export default async function SettingsPage() {
     supabase.rpc("my_sessions"),
   ]);
 
-  const notif = (row?.notification_preferences ?? {}) as { email_alerts?: boolean; support_emails?: boolean; email_maintenance_updates?: boolean };
   const overview = parseOverviewPrefs(row?.ui_preferences);
   const imageUrl = overview.background.kind === "image" ? supabase.storage.from("avatars").getPublicUrl(overview.background.path).data.publicUrl : null;
   const devices: SignedInDevice[] = (sessionRows ?? []).map((s) => ({ id: s.id, lastActive: s.last_active, createdAt: s.created_at, userAgent: s.user_agent, ip: s.ip, isCurrent: s.is_current }));
@@ -35,7 +35,7 @@ export default async function SettingsPage() {
 
       <SettingsBoard
         profile={{ userId: profile.id, fullName: row?.full_name ?? "", phone: row?.phone ?? "", email: row?.email ?? profile.email ?? "", avatarUrl: row?.avatar_url ?? null }}
-        notifications={{ initial: { email_alerts: notif.email_alerts ?? true, support_emails: notif.support_emails ?? true, email_maintenance_updates: notif.email_maintenance_updates ?? true } }}
+        notifications={{ initial: resolveNotificationPrefs(row?.notification_preferences) }}
         addresses={{ address: parseAddress(customer?.address), billing: customer?.billing_address ? parseAddress(customer.billing_address) : null, billingEmail: customer?.billing_email ?? "", gstin: customer?.gstin ?? "" }}
         overview={{ userId: profile.id, initial: overview, imageUrl }}
         security={{ policy: parseSessionPolicy(row?.security_preferences), devices, now: serverNow() }}
