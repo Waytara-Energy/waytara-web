@@ -3,20 +3,18 @@
 import * as React from "react";
 import { CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import { PERIOD_MODES, choiceLabel, type PeriodChoice } from "@/lib/reports/period-choice";
+import { CUSTOM_MAX_DAYS, PERIOD_MODES, choiceLabel, resolveChoice, type PeriodChoice } from "@/lib/reports/period-choice";
+import { RangeCalendar } from "./range-calendar";
 
-const toDate = (day: string) => new Date(`${day}T12:00:00`);
-const toDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
-/** One button showing the period; its calendar holds the presets (Day, 7, 30, 90 days) in a column beside it. Picking a day sets that
- *  day (in Day mode) or the first day of a window of up to 30 days. On a phone the button shows only the calendar icon. */
-export function ReportPeriodPicker({ choice, onChange, today, firstDay }: { choice: PeriodChoice; onChange: (c: PeriodChoice) => void; today: string; firstDay: string | null }) {
+/** One button showing the period; its calendar holds the presets (Day, 7, 30, 90 days) in a column beside it. In the calendar, tap the first
+ *  day and then the last: a range of up to `maxDays` days (90 unless the page needs fewer), or one day when the same day is tapped twice. On a
+ *  phone the button shows only the calendar icon. */
+export function ReportPeriodPicker({ choice, onChange, today, firstDay, maxDays = CUSTOM_MAX_DAYS }: { choice: PeriodChoice; onChange: (c: PeriodChoice) => void; today: string; firstDay: string | null; maxDays?: number }) {
   const [open, setOpen] = React.useState(false);
   const label = choiceLabel(choice, today);
-  const selected = choice.mode === "day" ? choice.date : choice.mode === "custom" ? choice.customStart : undefined;
+  const now = resolveChoice(choice, today);
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -45,17 +43,16 @@ export function ReportPeriodPicker({ choice, onChange, today, firstDay }: { choi
               </button>
             ))}
           </div>
-          <Calendar
-            mode="single"
-            selected={selected ? toDate(selected) : undefined}
-            defaultMonth={toDate(selected ?? today)}
-            onSelect={(d) => {
-              if (!d) return;
-              const day = toDay(d);
-              onChange(choice.mode === "day" ? { ...choice, date: day } : { ...choice, mode: "custom", customStart: day });
+          <RangeCalendar
+            start={now.start}
+            end={now.end}
+            today={today}
+            firstDay={firstDay}
+            maxDays={maxDays}
+            onPick={(from, to) => {
+              onChange(from === to ? { ...choice, mode: "day", date: from } : { ...choice, mode: "custom", customStart: from, customEnd: to });
               setOpen(false);
             }}
-            disabled={[{ after: toDate(today) }, ...(firstDay ? [{ before: toDate(firstDay) }] : [])]}
           />
         </div>
       </PopoverContent>

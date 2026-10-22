@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { DAY_MS, isValidCustomStart, planRange, windowFor } from "./ranges";
+import { DAY_MS, isValidCustomStart, normalizeRange, planRange, rangeLabel, windowFor } from "./ranges";
 
 const TODAY = Date.parse("2026-10-05T18:30:00Z");       // 2026-10-06 00:00 IST
 const NOW = TODAY + 10 * 3600_000;
@@ -14,12 +14,62 @@ describe("windowFor", () => {
     expect(windowFor("2y", NOW)).toEqual({ fromMs: TODAY - 729 * DAY_MS, toMs: TODAY + DAY_MS });
   });
 
-  it("a custom window is 30 days from the chosen start, never past today", () => {
+  it("a custom window saved without an end day keeps its old length: 30 days from the start, never past today", () => {
     const w = windowFor("custom", NOW, "2026-09-01");
     expect(w.toMs - w.fromMs).toBe(30 * DAY_MS);
     const recent = windowFor("custom", NOW, "2026-10-03");
     expect(recent.toMs).toBe(TODAY + DAY_MS);                 // clipped to the end of today
     expect(recent.fromMs).toBe(TODAY - 3 * DAY_MS);
+  });
+
+  it("a custom window runs from the first day to the end of the last day chosen", () => {
+    const w = windowFor("custom", NOW, "2026-09-10", "2026-09-20");
+    expect(w.toMs - w.fromMs).toBe(11 * DAY_MS);              // both days included
+    const one = windowFor("custom", NOW, "2026-09-10", "2026-09-10");
+    expect(one.toMs - one.fromMs).toBe(DAY_MS);               // a single day
+  });
+
+  it("a custom window can be up to 90 days, and no more", () => {
+    const ninety = windowFor("custom", NOW, "2026-07-01", "2026-09-28");
+    expect(ninety.toMs - ninety.fromMs).toBe(90 * DAY_MS);
+    const tooLong = windowFor("custom", NOW, "2026-06-01", "2026-10-01");
+    expect(tooLong.toMs - tooLong.fromMs).toBe(90 * DAY_MS);  // cut back to 90
+  });
+
+  it("a custom window never ends after today and never ends before it starts", () => {
+    expect(windowFor("custom", NOW, "2026-10-01", "2026-12-31").toMs).toBe(TODAY + DAY_MS);
+    const back = windowFor("custom", NOW, "2026-10-01", "2026-09-20");
+    expect(back.toMs - back.fromMs).toBe(DAY_MS);
+  });
+});
+
+describe("rangeLabel", () => {
+  it("says a day, a range within a month, across months and across years", () => {
+    expect(rangeLabel("2026-10-09", "2026-10-09")).toBe("9 Oct 2026");
+    expect(rangeLabel("2026-10-09", "2026-10-20")).toBe("9 - 20 Oct 2026");
+    expect(rangeLabel("2026-09-28", "2026-10-03")).toMatch(/^28 Sept? - 3 Oct 2026$/);
+    expect(rangeLabel("2025-12-30", "2026-01-03")).toBe("30 Dec 2025 - 3 Jan 2026");
+  });
+});
+
+describe("normalizeRange", () => {
+  const today = "2026-10-06";
+  it("puts the earlier day first, whichever was tapped first", () => {
+    expect(normalizeRange("2026-09-20", "2026-09-10", today, null)).toEqual({ start: "2026-09-10", end: "2026-09-20" });
+  });
+  it("keeps it between the first reading and today", () => {
+    expect(normalizeRange("2026-08-01", "2026-12-01", today, "2026-09-01")).toEqual({ start: "2026-09-01", end: "2026-10-06" });
+  });
+  it("allows 90 days and pulls a longer range back to 90", () => {
+    expect(normalizeRange("2026-07-01", "2026-09-28", today, null)).toEqual({ start: "2026-07-01", end: "2026-09-28" });
+    expect(normalizeRange("2026-06-01", "2026-10-01", today, null)).toEqual({ start: "2026-06-01", end: "2026-08-29" });
+  });
+  it("takes a smaller limit when a page has one (the cadence files: 7 days)", () => {
+    expect(normalizeRange("2026-10-01", "2026-10-06", today, null, 7)).toEqual({ start: "2026-10-01", end: "2026-10-06" });
+    expect(normalizeRange("2026-09-20", "2026-10-06", today, null, 7)).toEqual({ start: "2026-09-20", end: "2026-09-26" });
+  });
+  it("one day tapped twice is that one day", () => {
+    expect(normalizeRange("2026-09-10", "2026-09-10", today, null)).toEqual({ start: "2026-09-10", end: "2026-09-10" });
   });
 });
 

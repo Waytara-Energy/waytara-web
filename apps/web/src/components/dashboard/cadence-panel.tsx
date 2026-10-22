@@ -133,7 +133,7 @@ export function CadencePanel({ deviceId, today, firstDay }: { deviceId: string; 
           <div className="space-y-1">
             <span className={label}>Period</span>
             <div>
-              <ReportPeriodPicker choice={choice} onChange={setChoice} today={today} firstDay={firstDay && firstDay > oldestDay() ? firstDay : oldestDay()} />
+              <ReportPeriodPicker choice={choice} onChange={setChoice} today={today} firstDay={firstDay && firstDay > oldestDay() ? firstDay : oldestDay()} maxDays={CADENCE_MAX_DAYS} />
             </div>
           </div>
           <p className="max-w-md pb-2 text-xs text-muted-foreground">

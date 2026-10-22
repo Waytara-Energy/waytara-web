@@ -3,11 +3,12 @@
 import * as React from "react";
 import { CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
-import type { RangePreset } from "@/lib/telemetry/ranges";
+import { istDate } from "@/lib/telemetry/combine";
+import { CUSTOM_MAX_DAYS, rangeLabel, type RangePreset } from "@/lib/telemetry/ranges";
 import { useRange } from "./range-context";
+import { RangeCalendar } from "./range-calendar";
 
 export const PRESETS: { id: RangePreset; label: string }[] = [
   { id: "today", label: "Today" },
@@ -19,20 +20,19 @@ export const PRESETS: { id: RangePreset; label: string }[] = [
 /** The longer list the Performance page offers. */
 export const LONG_PRESETS: { id: RangePreset; label: string }[] = [...PRESETS, { id: "1y", label: "1 year" }, { id: "2y", label: "2 years" }];
 
-const toDate = (day: string) => new Date(`${day}T12:00:00`);
-const toDay = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-
 /** The range picker, one button: it shows the chosen period and opens a calendar with the presets (Today / 7 days / 30 days / 90 days, and
- *  1 / 2 years where offered) above it. Picking a day starts a custom window of up to 30 days from it, from the device's first reading
- *  until today. */
+ *  1 / 2 years where offered) beside it. In the calendar, tap the first day and then the last: a custom window of up to 90 days (a second
+ *  tap on the same day is that single day), from the device's first reading until today. */
 export function RangeBar({ presets = PRESETS }: { presets?: { id: RangePreset; label: string }[] }) {
   const range = useRange();
   const [open, setOpen] = React.useState(false);
   if (!range) return null;
-  const { preset, setPreset, setCustomStart, customStart, firstDay, today } = range;
+  const { preset, setPreset, setCustomRange, customStart, firstDay, today, window: win } = range;
+  // the last day of the custom window: what the window really covers (an older saved choice without an end runs 30 days)
+  const customEnd = istDate(win.toMs - 1);
   const label =
     preset === "custom" && customStart
-      ? `From ${toDate(customStart).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}`
+      ? rangeLabel(customStart, customEnd)
       : (presets.find((p) => p.id === preset)?.label ?? "Today");
 
   return (
@@ -64,17 +64,16 @@ export function RangeBar({ presets = PRESETS }: { presets?: { id: RangePreset; l
               </button>
             ))}
           </div>
-          <Calendar
-            mode="single"
-            selected={customStart && preset === "custom" ? toDate(customStart) : undefined}
-            defaultMonth={customStart ? toDate(customStart) : toDate(today)}
-            onSelect={(d) => {
-              if (d) {
-                setCustomStart(toDay(d));
-                setOpen(false);
-              }
+          <RangeCalendar
+            start={preset === "custom" ? customStart : null}
+            end={preset === "custom" ? customEnd : null}
+            today={today}
+            firstDay={firstDay}
+            maxDays={CUSTOM_MAX_DAYS}
+            onPick={(from, to) => {
+              setCustomRange(from, to);
+              setOpen(false);
             }}
-            disabled={[{ after: toDate(today) }, ...(firstDay ? [{ before: toDate(firstDay) }] : [])]}
           />
         </div>
       </PopoverContent>

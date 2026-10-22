@@ -9,12 +9,15 @@ interface RangeState {
   preset: RangePreset;
   /** First day of a custom window (YYYY-MM-DD, IST). */
   customStart: string | null;
+  /** Last day of a custom window; missing in a choice saved before windows had an end (it then runs 30 days from the start). */
+  customEnd?: string | null;
 }
 
 interface RangeContextValue extends RangeState {
   window: RangeWindow;
   setPreset: (p: RangePreset) => void;
-  setCustomStart: (day: string) => void;
+  /** A custom window from its first day to its last (the same day for a single day; at most 90 days). */
+  setCustomRange: (start: string, end: string) => void;
   /** The device's first day with data (YYYY-MM-DD), once known - the earliest a custom window may start. */
   firstDay: string | null;
   /** Today's date in IST. */
@@ -28,7 +31,7 @@ const storageKey = (deviceId: string, scope?: string) => `waytara:range:${scope 
 /** The range (Today / 7 / 30 / 90 days / custom) a page's charts follow. Chosen per device and remembered for this
  *  browser tab (sessionStorage), never sent anywhere. Pages that mount a RangeBar wrap their content in this. */
 export function RangeProvider({ deviceId, scope, defaultPreset = "today", children }: { deviceId: string; /** Keeps this page's choice apart from another page's (Monitoring and Performance each remember their own). */ scope?: string; /** What a page starts on before a choice is remembered (Today unless the page says otherwise). */ defaultPreset?: RangePreset; children: React.ReactNode }) {
-  const [state, setState] = React.useState<RangeState>({ preset: defaultPreset, customStart: null });
+  const [state, setState] = React.useState<RangeState>({ preset: defaultPreset, customStart: null, customEnd: null });
   const [firstDay, setFirstDay] = React.useState<string | null>(null);
   const [now, setNow] = React.useState(() => Date.now());
 
@@ -74,9 +77,9 @@ export function RangeProvider({ deviceId, scope, defaultPreset = "today", childr
     const today = istDate(now);
     return {
       ...state,
-      window: windowFor(state.preset, now, state.customStart),
+      window: windowFor(state.preset, now, state.customStart, state.customEnd),
       setPreset: (preset) => persist({ ...state, preset }),
-      setCustomStart: (day) => persist({ preset: "custom", customStart: day }),
+      setCustomRange: (start, end) => persist({ preset: "custom", customStart: start, customEnd: end }),
       firstDay,
       today,
     };
