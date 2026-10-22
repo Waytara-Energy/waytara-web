@@ -23,7 +23,8 @@ export async function login(formData: FormData) {
   const profile = await getCurrentProfile(supabase);
 
   if (!isAdminAppRole(profile?.role)) {
-    await supabase.auth.signOut();
+    // this device only: signOut() alone defaults to the "global" scope and would end every other device's session too
+    await supabase.auth.signOut({ scope: "local" });
     redirect(
       `/login?error=${encodeURIComponent("This app is for staff accounts only.")}`
     );

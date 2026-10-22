@@ -4567,6 +4567,17 @@ export type Database = {
       }
       my_assigned_equipment_ids: { Args: never; Returns: string[] }
       my_assigned_site_ids: { Args: never; Returns: string[] }
+      my_sessions: {
+        Args: never
+        Returns: {
+          created_at: string
+          id: string
+          ip: string
+          is_current: boolean
+          last_active: string
+          user_agent: string
+        }[]
+      }
       my_unit_by_hardware: {
         Args: { p_hardware_id: string }
         Returns: {
@@ -4599,6 +4610,7 @@ export type Database = {
         Returns: string
       }
       request_live: { Args: { p_equipment_id: string }; Returns: string }
+      revoke_my_session: { Args: { p_id: string }; Returns: undefined }
       rollup_days: { Args: { p_days: string[] }; Returns: number }
       rollup_hours: { Args: { p_hours: string[] }; Returns: number }
       run_rollups: { Args: { p_now?: string }; Returns: Json }
