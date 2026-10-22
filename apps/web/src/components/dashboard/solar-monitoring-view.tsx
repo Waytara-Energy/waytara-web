@@ -9,6 +9,7 @@ import { TEMPERATURE_MAX_C } from "@/lib/temperature-thresholds";
 import type { FieldValue } from "@/lib/template-field-format";
 import type { FieldGroup } from "@/lib/template-fields";
 import { useLiveNumbers } from "@/lib/telemetry/live-values";
+import { useUnits } from "@/components/units-provider";
 import { BarTrendChart, MainHubTrendGroup, SolarTrendGroup } from "./lazy-charts";
 import type { HeatmapRow } from "./temperature-heatmap";
 import { LiveStatusCard } from "./live-status-card";
@@ -60,6 +61,8 @@ export function SolarMonitoringView({
   enumOptions: enumOptionsObj,
   sync,
 }: SolarMonitoringProps) {
+  // numbers in the units the person chose (Application Settings > Units), else as the inverter reports them
+  const u = useUnits();
   const enumOptions = React.useMemo(() => new Map(Object.entries(enumOptionsObj)), [enumOptionsObj]);
   const solarEnabled = "Solar Array" in categories;
   const batteryEnabled = "Battery" in categories;
@@ -91,13 +94,13 @@ export function SolarMonitoringView({
   const gridConnected = getNum("grid_relay_status");
 
   const activeEnergyKwh = getNum("day_active_energy_kwh");
-  const activeEnergyText = activeEnergyKwh !== null ? `${activeEnergyKwh.toFixed(1)} kWh` : "—";
+  const activeEnergyText = activeEnergyKwh !== null ? u.format(activeEnergyKwh, "kWh", null, 1) : "—";
 
   const voltageV = getNum("inverter_l1_voltage_v");
   const currentA = getNum("inverter_l1_current_a");
   const frequencyHz = getNum("inverter_output_frequency_hz");
-  const voltageText = voltageV !== null ? `${voltageV.toFixed(1)} V` : "—";
-  const currentText = currentA !== null ? `${currentA.toFixed(2)} A` : "—";
+  const voltageText = voltageV !== null ? u.format(voltageV, "V", null, 1) : "—";
+  const currentText = currentA !== null ? u.format(currentA, "A", null, 2) : "—";
   const frequencyText = frequencyHz !== null ? `${frequencyHz.toFixed(2)} Hz` : "—";
 
   // The hottest inverter sensor, against its own ceiling (the same one the temperature gauges use).
@@ -116,14 +119,14 @@ export function SolarMonitoringView({
   // expanded tab does.
   const liveOutputKw = (() => {
     const v = getNum("inverter_output_power_w");
-    return v !== null ? `${(v / 1000).toFixed(2)} kW` : "—";
+    return v !== null ? u.format(v / 1000, "kW", null, 2) : "—";
   })();
   // The Solar Array tab's live output is the solar generation itself: the device's PV inputs added together (the Main
   // Hub's own "Live Output" stays the inverter's AC output, which also carries battery discharge).
   const pvKeys = pvPowerKeys(liveKeys);
   const solarGenerationText = (() => {
     const v = solarGenerationW(Object.fromEntries(pvKeys.concat("inverter_output_power_w").map((k) => [k, getNum(k)])), pvKeys);
-    return v !== null ? `${(v / 1000).toFixed(2)} kW` : "—";
+    return v !== null ? u.format(v / 1000, "kW", null, 2) : "—";
   })();
   // One card per PV input the device really has: its power, with voltage and current alongside.
   const pvInputs = pvKeys.map((key) => {
@@ -133,9 +136,9 @@ export function SolarMonitoringView({
     const amps = getNum(`pv${n}_current_a`);
     return {
       n,
-      powerText: power !== null ? `${(power / 1000).toFixed(2)} kW` : "—",
-      voltageText: volts !== null ? `${volts.toFixed(1)} V` : "—",
-      currentText: amps !== null ? `${amps.toFixed(2)} A` : "—",
+      powerText: power !== null ? u.format(power / 1000, "kW", null, 2) : "—",
+      voltageText: volts !== null ? u.format(volts, "V", null, 1) : "—",
+      currentText: amps !== null ? u.format(amps, "A", null, 2) : "—",
     };
   });
   const socPctText = (() => {
@@ -143,49 +146,49 @@ export function SolarMonitoringView({
     return v !== null ? `${Math.round(v)}%` : "—";
   })();
   const solarToday = getNum("day_pv_energy_kwh");
-  const solarTodayText = solarToday !== null ? `${solarToday.toFixed(1)} kWh` : "—";
+  const solarTodayText = solarToday !== null ? u.format(solarToday, "kWh", null, 1) : "—";
   const loadTodayText = (() => {
     const v = getNum("day_load_energy_kwh");
-    return v !== null ? `${v.toFixed(1)} kWh` : "—";
+    return v !== null ? u.format(v, "kWh", null, 1) : "—";
   })();
   const gridImportedTodayText = (() => {
     const v = getNum("day_grid_import_energy_kwh");
-    return v !== null ? `${v.toFixed(1)} kWh` : "—";
+    return v !== null ? u.format(v, "kWh", null, 1) : "—";
   })();
 
   // Battery Pack's own 4 cards — live charge/discharge power plus today's
   // two energy totals.
   const batteryPowerW = getNum("battery_power_w");
-  const batteryPowerText = batteryPowerW !== null ? `${(Math.abs(batteryPowerW) / 1000).toFixed(2)} kW` : "—";
+  const batteryPowerText = batteryPowerW !== null ? u.format(Math.abs(batteryPowerW) / 1000, "kW", null, 2) : "—";
   const batteryDirection = batteryPowerW === null || batteryPowerW === 0 ? "Idle" : batteryPowerW < 0 ? "Charging" : "Discharging";
   const batteryDirectionTone = batteryPowerW !== null && batteryPowerW < 0 ? "good" : "neutral";
   const batteryVoltageV = getNum("battery_voltage_v");
-  const batteryVoltageText = batteryVoltageV !== null ? `${batteryVoltageV.toFixed(2)} V` : "—";
+  const batteryVoltageText = batteryVoltageV !== null ? u.format(batteryVoltageV, "V", null, 2) : "—";
   const batteryCurrentA = getNum("battery_current_a");
-  const batteryCurrentText = batteryCurrentA !== null ? `${Math.abs(batteryCurrentA).toFixed(2)} A` : "—";
+  const batteryCurrentText = batteryCurrentA !== null ? u.format(Math.abs(batteryCurrentA), "A", null, 2) : "—";
   const batteryTempC = getNum("battery_temperature_c");
-  const batteryTempText = batteryTempC !== null ? `${batteryTempC.toFixed(1)} °C` : "—";
+  const batteryTempText = batteryTempC !== null ? u.format(batteryTempC, "°C", null, 1) : "—";
   const batteryTempWarm = batteryTempC !== null && batteryTempC >= TEMPERATURE_MAX_C.battery_temperature_c;
   const dayBatteryChargeText = (() => {
     const v = getNum("day_battery_charge_energy_kwh");
-    return v !== null ? `${v.toFixed(1)} kWh` : "—";
+    return v !== null ? u.format(v, "kWh", null, 1) : "—";
   })();
   const dayBatteryDischargeText = (() => {
     const v = getNum("day_battery_discharge_energy_kwh");
-    return v !== null ? `${v.toFixed(1)} kWh` : "—";
+    return v !== null ? u.format(v, "kWh", null, 1) : "—";
   })();
 
   // Load's own 4 cards — live draw, today's total, the L1 power and an Electrical card (voltage, current, frequency).
   const loadPowerW = getNum("load_total_power_w");
-  const loadLiveText = loadPowerW !== null ? `${(loadPowerW / 1000).toFixed(2)} kW` : "—";
+  const loadLiveText = loadPowerW !== null ? u.format(loadPowerW / 1000, "kW", null, 2) : "—";
   const load1Text = (() => {
     const v = getNum("load_l1_power_w");
-    return v !== null ? `${v.toFixed(0)} W` : "—";
+    return v !== null ? u.format(v, "W", null, 0) : "—";
   })();
   const loadVoltageV = getNum("load_l1_voltage_v");
-  const loadVoltageText = loadVoltageV !== null ? `${loadVoltageV.toFixed(1)} V` : "—";
+  const loadVoltageText = loadVoltageV !== null ? u.format(loadVoltageV, "V", null, 1) : "—";
   const loadCurrentA = getNum("load_l1_current_a");
-  const loadCurrentText = loadCurrentA !== null ? `${loadCurrentA.toFixed(2)} A` : "—";
+  const loadCurrentText = loadCurrentA !== null ? u.format(loadCurrentA, "A", null, 2) : "—";
   const loadFrequencyText = (() => {
     const v = getNum("load_frequency_hz");
     return v !== null ? `${v.toFixed(2)} Hz` : "—";
@@ -195,28 +198,28 @@ export function SolarMonitoringView({
   // import/export direction), today's two totals, and the same
   // Voltage/Current/Frequency "Electrical" pattern Main Hub uses.
   const gridPowerW = getNum("grid_total_power_w");
-  const gridLiveText = gridPowerW !== null ? `${(Math.abs(gridPowerW) / 1000).toFixed(2)} kW` : "—";
+  const gridLiveText = gridPowerW !== null ? u.format(Math.abs(gridPowerW) / 1000, "kW", null, 2) : "—";
   const gridDirection = gridPowerW === null || gridPowerW === 0 ? "Idle" : gridPowerW > 0 ? "Importing" : "Exporting";
   const gridDirectionTone = gridPowerW !== null && gridPowerW > 0 ? "warn" : gridPowerW !== null && gridPowerW < 0 ? "good" : "neutral";
   // Today's energy as plain numbers (the card shows "imported / exported kWh").
   const kwhNumber = (key: string) => {
     const v = getNum(key);
-    return v !== null ? v.toFixed(1) : "—";
+    return v !== null ? u.format(v, "kWh", key, 1, false) : "—";
   };
   const gridImportedKwhText = kwhNumber("day_grid_import_energy_kwh");
   const gridExportedKwhText = kwhNumber("day_grid_export_energy_kwh");
   // The grid CT clamp: total power, L1 power and L1 current.
   const ctTotalW = getNum("grid_ct_total_power_w");
-  const gridCtTotalText = ctTotalW !== null ? `${(ctTotalW / 1000).toFixed(2)} kW` : "—";
+  const gridCtTotalText = ctTotalW !== null ? u.format(ctTotalW / 1000, "kW", null, 2) : "—";
   const ctPowerW = getNum("grid_ct_l1_power_w");
-  const gridCtPowerText = ctPowerW !== null ? `${ctPowerW.toFixed(0)} W` : "—";
+  const gridCtPowerText = ctPowerW !== null ? u.format(ctPowerW, "W", null, 0) : "—";
   const ctCurrentA = getNum("grid_ct_l1_current_a");
-  const gridCtCurrentText = ctCurrentA !== null ? `${ctCurrentA.toFixed(2)} A` : "—";
+  const gridCtCurrentText = ctCurrentA !== null ? u.format(ctCurrentA, "A", null, 2) : "—";
   const gridVoltageV = getNum("grid_l1_voltage_v");
-  const gridVoltageText = gridVoltageV !== null ? `${gridVoltageV.toFixed(1)} V` : "—";
+  const gridVoltageText = gridVoltageV !== null ? u.format(gridVoltageV, "V", null, 1) : "—";
   const gridCurrentText = (() => {
     const v = getNum("grid_l1_current_a");
-    return v !== null ? `${v.toFixed(2)} A` : "—";
+    return v !== null ? u.format(v, "A", null, 2) : "—";
   })();
   const gridFrequencyText = (() => {
     const v = getNum("grid_frequency_hz");
@@ -226,9 +229,9 @@ export function SolarMonitoringView({
   // Generator tab — only ever populated (and only ever fetched) when this
   // specific install has one connected (generatorEnabled).
   const genPowerW = getNum("generator_power_w");
-  const genLiveText = genPowerW !== null ? `${(genPowerW / 1000).toFixed(2)} kW` : "—";
+  const genLiveText = genPowerW !== null ? u.format(genPowerW / 1000, "kW", null, 2) : "—";
   const genVoltageV = getNum("generator_voltage_v");
-  const genVoltageText = genVoltageV !== null ? `${genVoltageV.toFixed(1)} V` : "—";
+  const genVoltageText = genVoltageV !== null ? u.format(genVoltageV, "V", null, 1) : "—";
   const genFrequencyText = (() => {
     const v = getNum("generator_frequency_hz");
     return v !== null ? `${v.toFixed(2)} Hz` : "—";
@@ -352,7 +355,7 @@ export function SolarMonitoringView({
                 iconTone={tempRatio >= 0.85 ? "warn" : "neutral"}
                 title="Temperature"
                 subtitle={hottest ? `Hottest · ${hottest.label}` : "Inverter sensors"}
-                value={hottest ? `${hottest.c.toFixed(1)} °C` : "—"}
+                value={hottest ? u.format(hottest.c, "°C", null, 1) : "—"}
                 statusLabel="Status"
                 badgeLabel={tempBadge}
                 badgeTone={!hottest ? "neutral" : tempRatio >= 0.85 ? "warn" : "good"}
@@ -396,7 +399,7 @@ export function SolarMonitoringView({
           {sortGroups(
             "Inverter",
             inverterGroups.filter((g) => g.groupName !== "AC output" && g.groupName !== "Energy")
-          ).map((group) => renderGroup("Inverter", group, getValue, enumOptions))}
+          ).map((group) => renderGroup("Inverter", group, getValue, enumOptions, u.prefs))}
         </TabsContent>
 
         {solarEnabled && (
@@ -440,7 +443,7 @@ export function SolarMonitoringView({
             {sortGroups(
               "Solar Array",
               (categories["Solar Array"] ?? []).filter((g) => g.groupName !== "Per input (MPPT)" && g.groupName !== "Energy")
-            ).map((group) => renderGroup("Solar Array", group, getValue, enumOptions))}
+            ).map((group) => renderGroup("Solar Array", group, getValue, enumOptions, u.prefs))}
           </TabsContent>
         )}
 
@@ -521,7 +524,7 @@ export function SolarMonitoringView({
             {sortGroups(
               "Battery",
               batteryGroups.filter((g) => !["Live", "Battery management system (BMS)", "Energy"].includes(g.groupName ?? ""))
-            ).map((group) => renderGroup("Battery", group, getValue, enumOptions))}
+            ).map((group) => renderGroup("Battery", group, getValue, enumOptions, u.prefs))}
           </TabsContent>
         )}
 
@@ -613,7 +616,7 @@ export function SolarMonitoringView({
                 icon={ArrowDownToLine}
                 title="Energy Today"
                 subtitle="Imported / Exported"
-                value={`${gridImportedKwhText} / ${gridExportedKwhText} kWh`}
+                value={`${gridImportedKwhText} / ${gridExportedKwhText} ${u.unit("kWh")}`}
                 statusLabel="Status"
                 badgeLabel="Today"
                 badgeTone="neutral"

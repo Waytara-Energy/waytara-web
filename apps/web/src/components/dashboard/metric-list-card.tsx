@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatFieldValue, type TemplateField, type FieldValue } from "@/lib/template-field-format";
+import type { UnitPrefs } from "@/lib/unit-prefs";
 import { lookupEnumLabel, type EnumOption } from "@/lib/enum-labels";
 
 /** A generic "detail" card — a flat list of label/value rows under one
@@ -14,11 +15,14 @@ export function MetricListCard({
   fields,
   getValue,
   enumOptionsByRef,
+  units,
 }: {
   title: string;
   fields: TemplateField[];
   getValue: (key: string) => FieldValue;
   enumOptionsByRef?: Map<string, EnumOption[]>;
+  /** The unit choices of the person (Application Settings > Units); the readings are shown in them. */
+  units?: UnitPrefs;
 }) {
   return (
     <Card>
@@ -35,7 +39,7 @@ export function MetricListCard({
           return (
             <div key={field.key} className="flex items-center justify-between text-sm">
               <span className="text-muted-foreground">{field.label}</span>
-              <span className="font-medium text-foreground">{formatFieldValue(display, field)}</span>
+              <span className="font-medium text-foreground">{formatFieldValue(display, field, units)}</span>
             </div>
           );
         })}

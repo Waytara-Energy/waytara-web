@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatFieldValue, type TemplateField, type FieldValue } from "@/lib/template-field-format";
+import type { UnitPrefs } from "@/lib/unit-prefs";
 import { Meter } from "./meter";
 
 type Phase = "1" | "2" | "3";
@@ -168,10 +169,13 @@ export function PhaseMeterCard({
   title,
   fields,
   getValue,
+  units,
 }: {
   title: string;
   fields: TemplateField[];
   getValue: (key: string) => FieldValue;
+  /** The unit choices of the person (Application Settings > Units); the readings are shown in them. */
+  units?: UnitPrefs;
 }) {
   const grouped = groupByPhase(fields);
   if (!grouped) return null;
@@ -188,7 +192,7 @@ export function PhaseMeterCard({
             label={measurementLabel(measurement.phases[0].field)}
             phases={measurement.phases.map(({ phase, field }) => {
               const raw = getValue(field.key);
-              return { phase, value: raw, formatted: formatFieldValue(raw, field) };
+              return { phase, value: raw, formatted: formatFieldValue(raw, field, units) };
             })}
           />
         ))}
@@ -198,7 +202,7 @@ export function PhaseMeterCard({
             {grouped.restFields.map((field) => (
               <div key={field.key} className="space-y-0.5">
                 <p className="truncate text-xs text-muted-foreground">{field.label}</p>
-                <p className="truncate text-sm font-semibold tabular-nums text-foreground">{formatFieldValue(getValue(field.key), field)}</p>
+                <p className="truncate text-sm font-semibold tabular-nums text-foreground">{formatFieldValue(getValue(field.key), field, units)}</p>
               </div>
             ))}
           </div>

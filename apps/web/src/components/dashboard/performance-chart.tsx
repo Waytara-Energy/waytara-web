@@ -10,6 +10,7 @@ import { ChartEmptyState } from "./chart-empty-state";
 import { ChartReadout } from "./chart-kit";
 import { useChartStyle } from "./chart-style";
 import { CHART_CURSOR } from "./chart-cursor";
+import { useSeriesUnit } from "@/components/units-provider";
 
 export interface DailyPoint {
   date: string; // YYYY-MM-DD
@@ -69,8 +70,8 @@ const chartConfig = {
 } satisfies ChartConfig;
 
 export function PerformanceChart({
-  daily,
-  unit = "kWh",
+  daily: dailyIn,
+  unit: unitIn = "kWh",
   aggregationMode = "sum",
   valueFormat = "unit",
   totalLabel = "Total this period",
@@ -91,6 +92,10 @@ export function PerformanceChart({
    *  series the period total isn't a sum, it's the latest value. */
   totalLabel?: string;
 }) {
+  // the person's unit choice (Application Settings > Units): the same readings in another unit
+  const su = useSeriesUnit(valueFormat === "inr" ? null : unitIn);
+  const daily = React.useMemo(() => (su.converted ? dailyIn.map((p) => ({ ...p, value: su.map(p.value) })) : dailyIn), [dailyIn, su]);
+  const unit = su.converted ? su.unit : unitIn;
   const [granularity, setGranularity] = React.useState<Granularity>("daily");
   const asBars = useChartStyle() === "bar"; // Application Settings: bars for every chart (lines and the default keep this filled line)
   const [hover, setHover] = React.useState<number | null>(null);

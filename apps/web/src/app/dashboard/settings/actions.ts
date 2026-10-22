@@ -11,6 +11,7 @@ import { GSTIN, addressProblems, addressToJson, normaliseGstin, type Address } f
 import { isBackgroundPathOf, overviewToJson, parseOverviewPrefs, type OverviewPrefs } from "@/lib/overview-prefs";
 import { policyToJson, parseSessionPolicy, type SessionPolicy } from "@/lib/session-policy";
 import { sendMail } from "@/lib/send-mail";
+import { parseUnitPrefs, type UnitPrefs } from "@/lib/unit-prefs";
 import { notifyAuthEvent } from "@/lib/auth-notify";
 import { describeDevice } from "@/lib/user-agent";
 import { NOTIFICATION_KEYS, mergeNotificationPrefs, type NotificationKey } from "@/lib/notification-prefs";
@@ -198,6 +199,23 @@ export async function saveOverview(prefs: OverviewPrefs): Promise<void> {
   if (error) throw new Error(error.message);
 
   if (before.kind === "image" && (clean.background.kind !== "image" || clean.background.path !== before.path)) await supabase.storage.from("avatars").remove([before.path]);
+  revalidatePath("/dashboard", "layout");
+}
+
+// ---- units ------------------------------------------------------------------------------------------------------------------------------
+
+/** Saves the units numbers are shown in (one per kind, and per reading). Only units that belong to their kind are accepted. */
+export async function saveUnits(prefs: UnitPrefs): Promise<void> {
+  const profile = await requireCustomer();
+  const clean = parseUnitPrefs({ units: prefs });
+  const lost = Object.keys(prefs.defaults).some((k) => (clean.defaults as Record<string, string>)[k] !== (prefs.defaults as Record<string, string>)[k]) || Object.keys(prefs.overrides).length !== Object.keys(clean.overrides).length;
+  if (lost) throw new Error("Choose one of the units offered.");
+
+  const supabase = await createClient();
+  const { data: current } = await supabase.from("profiles").select("ui_preferences").eq("id", profile.id).maybeSingle();
+  const base = current?.ui_preferences && typeof current.ui_preferences === "object" && !Array.isArray(current.ui_preferences) ? (current.ui_preferences as Record<string, Json>) : {};
+  const { error } = await supabase.from("profiles").update({ ui_preferences: asJson({ ...base, units: clean }) }).eq("id", profile.id);
+  if (error) throw new Error(error.message);
   revalidatePath("/dashboard", "layout");
 }
 

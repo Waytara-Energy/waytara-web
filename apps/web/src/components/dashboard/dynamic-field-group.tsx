@@ -1,5 +1,6 @@
 import type { TemplateField, FieldValue } from "@/lib/template-field-format";
 import type { EnumOption } from "@/lib/enum-labels";
+import type { UnitPrefs } from "@/lib/unit-prefs";
 import { MetricListCard } from "./metric-list-card";
 import { groupByIndex } from "./indexed-group-card";
 import { ComparisonStripCard } from "./comparison-strip-card";
@@ -37,18 +38,21 @@ export function DynamicFieldGroup({
   fields,
   getValue,
   enumOptionsByRef,
+  units,
 }: {
   title: string;
   fields: TemplateField[];
   getValue: (key: string) => FieldValue;
   enumOptionsByRef?: Map<string, EnumOption[]>;
+  /** The unit choices of the person, passed on to the cards. */
+  units?: UnitPrefs;
 }) {
   if (groupByPhase(fields)) {
-    return <PhaseMeterCard title={title} fields={fields} getValue={getValue} />;
+    return <PhaseMeterCard title={title} fields={fields} getValue={getValue} units={units} />;
   }
   const grouped = groupByIndex(fields);
   if (grouped && grouped.items.size > 1) {
-    return <ComparisonStripCard title={title} itemLabel={itemLabelFor(grouped.prefix)} fields={fields} getValue={getValue} />;
+    return <ComparisonStripCard title={title} itemLabel={itemLabelFor(grouped.prefix)} fields={fields} getValue={getValue} units={units} />;
   }
-  return <MetricListCard title={title} fields={fields} getValue={getValue} enumOptionsByRef={enumOptionsByRef} />;
+  return <MetricListCard title={title} fields={fields} getValue={getValue} enumOptionsByRef={enumOptionsByRef} units={units} />;
 }

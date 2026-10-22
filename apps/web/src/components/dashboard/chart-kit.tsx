@@ -9,6 +9,7 @@ import { ChartEmptyState } from "./chart-empty-state";
 import { useChartStyle } from "./chart-style";
 import { usePanelCaption } from "./panel-context";
 import { CHART_CURSOR } from "./chart-cursor";
+import { useSeriesUnit } from "@/components/units-provider";
 
 // The charts of the Performance page, drawn the same way: no value axis (the number you point at is written big under the title, with
 // its date and the series' colour node, instead of a floating tooltip), a gradient under every line, the x axis at the bottom with the panel's description under
@@ -239,12 +240,13 @@ export function LineSeriesChart({
   zeroLine?: boolean;
 }) {
   const kind = resolveKind(useChartStyle(), "line");
+  const su = useSeriesUnit(unit);
   const rows = React.useMemo<ChartRow[]>(
-    () => axis.map((t, i) => ({ __tick: hourTick(t), __label: clock(t), ...Object.fromEntries(series.map((s) => [s.key, s.values[i] ?? null])) })),
-    [axis, series]
+    () => axis.map((t, i) => ({ __tick: hourTick(t), __label: clock(t), ...Object.fromEntries(series.map((s) => [s.key, s.values[i] == null ? null : su.map(s.values[i] as number)])) })),
+    [axis, series, su]
   );
   const defs = series.map(({ key, label, color, dashed }) => ({ key, label, color, dashed }));
-  return <ChartCore rows={rows} series={defs} kind={kind} format={fixed(digits, unit)} zeroLine={zeroLine} height={height} tickEvery={Math.max(1, Math.round(axis.length / 6))} />;
+  return <ChartCore rows={rows} series={defs} kind={kind} format={fixed(su.converted ? su.decimals : digits, su.unit)} zeroLine={zeroLine} height={height} tickEvery={Math.max(1, Math.round(axis.length / 6))} />;
 }
 
 /** Readings over several days (a week ... two years): a label every few days, the slot's date and time under the title. */
@@ -267,6 +269,7 @@ export function PeriodLineChart({
   zeroLine?: boolean;
 }) {
   const kind = resolveKind(useChartStyle(), "line");
+  const su = useSeriesUnit(unit);
   const spanDays = axis.length === 0 ? 1 : Math.max(1, Math.round((axis[axis.length - 1] + minutes * 60_000 - axis[0]) / DAY_MS));
   const withYear = spanDays > 300;
   const rows = React.useMemo<ChartRow[]>(
@@ -274,14 +277,14 @@ export function PeriodLineChart({
       axis.map((t, i) => ({
         __tick: dateText(t, withYear),
         __label: minutes >= 1440 ? dateText(t, true) : `${dateText(t, true)} ${clock(t)}`,
-        ...Object.fromEntries(series.map((s) => [s.key, s.values[i] ?? null])),
+        ...Object.fromEntries(series.map((s) => [s.key, s.values[i] == null ? null : su.map(s.values[i] as number)])),
       })),
-    [axis, series, minutes, withYear]
+    [axis, series, minutes, withYear, su]
   );
   const defs = series.map(({ key, label, color, dashed }) => ({ key, label, color, dashed }));
   const slotsPerDay = 1440 / minutes;
   const stepDays = Math.max(1, Math.ceil(spanDays / 6));
-  return <ChartCore rows={rows} series={defs} kind={kind} format={fixed(digits, unit)} zeroLine={zeroLine} height={height} tickEvery={Math.max(1, Math.round(slotsPerDay * stepDays))} />;
+  return <ChartCore rows={rows} series={defs} kind={kind} format={fixed(su.converted ? su.decimals : digits, su.unit)} zeroLine={zeroLine} height={height} tickEvery={Math.max(1, Math.round(slotsPerDay * stepDays))} />;
 }
 
 /** One chart for the chosen period: today's curve (with yesterday dashed) when the period is Today, otherwise the whole window. */
@@ -322,8 +325,17 @@ export function StackedDailyBars({
   digits?: number;
 }) {
   const kind = resolveKind(useChartStyle(), "bar");
-  const data = React.useMemo<ChartRow[]>(() => rows.map((r) => ({ ...r, __tick: String(r.label), __label: String(r.label) }) as ChartRow), [rows]);
-  const format = currency ? (v: number) => ({ num: `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`, unit: "" }) : (v: number) => ({ num: v.toFixed(digits), unit });
+  const su = useSeriesUnit(currency ? null : unit);
+  const data = React.useMemo<ChartRow[]>(
+    () =>
+      rows.map((r) => {
+        const row = { ...r, __tick: String(r.label), __label: String(r.label) } as ChartRow;
+        if (su.converted) for (const s of series) if (typeof row[s.key] === "number") row[s.key] = su.map(row[s.key] as number);
+        return row;
+      }),
+    [rows, su, series]
+  );
+  const format = currency ? (v: number) => ({ num: `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`, unit: "" }) : (v: number) => ({ num: v.toFixed(su.converted ? su.decimals : digits), unit: su.unit });
   return <ChartCore rows={data} series={series} kind={kind} stacked format={format} />;
 }
 

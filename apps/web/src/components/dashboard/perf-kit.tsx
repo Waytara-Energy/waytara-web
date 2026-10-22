@@ -10,9 +10,14 @@ import type { Insight, Split } from "@/lib/performance-metrics";
 import { ChartEmptyState } from "./chart-empty-state";
 import { LiveStatusCard } from "./live-status-card";
 import { PanelCaptionProvider } from "./panel-context";
+import { useSeriesUnit, useUnits } from "@/components/units-provider";
 
 export const fmtNum = (v: number | null | undefined, digits = 1) => (v === null || v === undefined || !Number.isFinite(v) ? "—" : v.toFixed(digits));
-export const fmtKwhText = (v: number | null | undefined) => (v === null || v === undefined || !Number.isFinite(v) ? "—" : `${v.toFixed(v >= 100 ? 0 : 1)} kWh`);
+/** The "12.3 kWh" text of the Performance tiles, in the energy unit the person chose (Application Settings > Units). */
+export function useKwhText(): (v: number | null | undefined) => string {
+  const u = useUnits();
+  return (v) => (v === null || v === undefined || !Number.isFinite(v) ? "—" : u.format(v, "kWh", null, v >= 100 ? 0 : 1));
+}
 export const fmtPct = (v: number | null | undefined) => (v === null || v === undefined ? "—" : `${v.toFixed(0)}%`);
 
 /** "Produced · today" -> title "Produced", subtitle "today"; "Produced, lifetime" the same; no separator -> no subtitle. */
@@ -100,6 +105,7 @@ export function InsightList({ insights }: { insights: Insight[] }) {
 
 /** Shares of a whole as a ring with the list beside it. */
 export function DonutShare({ parts, center, unit = "kWh" }: { parts: { label: string; value: number; color: string }[]; center?: string; unit?: string }) {
+  const su = useSeriesUnit(unit);
   const total = parts.reduce((s, p) => s + p.value, 0);
   const config = Object.fromEntries(parts.map((p) => [p.label, { label: p.label, color: p.color }])) satisfies ChartConfig;
   if (total <= 0) return <ChartEmptyState />;
@@ -125,7 +131,7 @@ export function DonutShare({ parts, center, unit = "kWh" }: { parts: { label: st
               <span className="truncate">{p.label}</span>
             </span>
             <span className="shrink-0 font-medium tabular-nums">
-              {p.value.toFixed(p.value >= 100 ? 0 : 1)} {unit} · {((p.value / total) * 100).toFixed(0)}%
+              {su.converted ? su.map(p.value).toFixed(su.decimals) : p.value.toFixed(p.value >= 100 ? 0 : 1)} {su.unit} · {((p.value / total) * 100).toFixed(0)}%
             </span>
           </li>
         ))}
@@ -136,12 +142,13 @@ export function DonutShare({ parts, center, unit = "kWh" }: { parts: { label: st
 
 /** A single bar split into coloured shares, with the legend under it. */
 export function SplitBar({ parts, colors }: { parts: Split[]; colors: string[] }) {
+  const u = useUnits();
   const total = parts.reduce((s, p) => s + p.kwh, 0);
   if (total <= 0) return <p className="text-sm text-muted-foreground">No energy recorded yet.</p>;
   return (
     <div className="space-y-2">
       <div className="flex h-3 w-full overflow-hidden rounded-full bg-muted">
-        {parts.map((p, i) => (p.kwh > 0 ? <div key={p.label} style={{ width: `${(p.kwh / total) * 100}%`, backgroundColor: colors[i] }} title={`${p.label}: ${p.kwh.toFixed(1)} kWh`} /> : null))}
+        {parts.map((p, i) => (p.kwh > 0 ? <div key={p.label} style={{ width: `${(p.kwh / total) * 100}%`, backgroundColor: colors[i] }} title={`${p.label}: ${u.format(p.kwh, "kWh", null, 1)}`} /> : null))}
       </div>
       <ul className="grid gap-1.5 text-xs sm:grid-cols-3">
         {parts.map((p, i) => (
@@ -151,7 +158,7 @@ export function SplitBar({ parts, colors }: { parts: Split[]; colors: string[] }
               <span className="truncate">{p.label}</span>
             </span>
             <span className="shrink-0 font-medium tabular-nums">
-              {p.kwh.toFixed(p.kwh >= 100 ? 0 : 1)} kWh · {((p.kwh / total) * 100).toFixed(0)}%
+              {u.format(p.kwh, "kWh", null, p.kwh >= 100 ? 0 : 1)} · {((p.kwh / total) * 100).toFixed(0)}%
             </span>
           </li>
         ))}

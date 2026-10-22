@@ -11,6 +11,7 @@ import { groupByPhase } from "./phase-meter-card";
 import { groupByIndex } from "./indexed-group-card";
 import { LiveReadingsCard } from "./live-readings-card";
 import { EnergyStatCard } from "./energy-stat-card";
+import type { UnitPrefs } from "@/lib/unit-prefs";
 
 /** A tab button's own content — icon + label at rest. The active tab
  *  drops its icon (`group-data-[state=active]:hidden`, keyed off the
@@ -73,16 +74,18 @@ export function renderGroup(
   category: string,
   group: FieldGroup,
   getValue: (key: string) => FieldValue,
-  enumOptionsByRef?: Map<string, EnumOption[]>
+  enumOptionsByRef?: Map<string, EnumOption[]>,
+  /** The person's unit choices (from `useUnits().prefs`), applied to every reading of the group. */
+  units?: UnitPrefs
 ) {
   const title = groupTitle(category, group.groupName);
   const key = `${category}-${group.groupName ?? ""}`;
 
   if (group.groupName && ENERGY_GROUP_NAMES.has(group.groupName)) {
-    return <EnergyStatCard key={key} title={title} fields={group.fields} getValue={getValue} />;
+    return <EnergyStatCard key={key} title={title} fields={group.fields} getValue={getValue} units={units} />;
   }
   if (groupByPhase(group.fields) || (groupByIndex(group.fields)?.items.size ?? 0) > 1) {
-    return <DynamicFieldGroup key={key} title={title} fields={group.fields} getValue={getValue} enumOptionsByRef={enumOptionsByRef} />;
+    return <DynamicFieldGroup key={key} title={title} fields={group.fields} getValue={getValue} enumOptionsByRef={enumOptionsByRef} units={units} />;
   }
-  return <LiveReadingsCard key={key} title={title} fields={group.fields} getValue={getValue} enumOptionsByRef={enumOptionsByRef} />;
+  return <LiveReadingsCard key={key} title={title} fields={group.fields} getValue={getValue} enumOptionsByRef={enumOptionsByRef} units={units} />;
 }

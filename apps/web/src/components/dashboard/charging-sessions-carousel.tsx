@@ -11,6 +11,7 @@ import { startChargingSession, stopChargingSession } from "@/app/dashboard/ev-se
 import { getConnectorStatusLabel, type StatusInfo } from "@/lib/ev-charger-catalog";
 import type { EnumOption } from "@/lib/enum-labels";
 import type { ChargingSessionDetail, RecentChargingStats } from "@/lib/device-overview";
+import { useUnits } from "@/components/units-provider";
 
 const DEFAULT_RATED_POWER_W = 7400;
 
@@ -132,12 +133,14 @@ function StatusText({
  *  not a percentage of an assumed rated capacity. */
 function PowerReadout({
   kw,
+  unit,
   active,
   label,
   tone,
   suffix,
 }: {
   kw: string;
+  unit: string;
   active: boolean;
   label: string;
   tone: StatusInfo["tone"];
@@ -147,7 +150,7 @@ function PowerReadout({
     <div className="flex flex-wrap items-baseline gap-2.5">
       <BoltIcon active={active} />
       <span className="text-4xl leading-none font-bold tabular-nums text-foreground">{kw}</span>
-      <span className="text-lg text-muted-foreground">kW</span>
+      <span className="text-lg text-muted-foreground">{unit}</span>
       <StatusText label={label} tone={tone} suffix={suffix} />
     </div>
   );
@@ -157,12 +160,12 @@ function PowerReadout({
  *  same big bold number, same unit treatment) rather than the smaller
  *  boxed BigStat tiles below it — it's the slide's other headline number,
  *  not a secondary stat. */
-function EnergyReadout({ kwh, active }: { kwh: string; active: boolean }) {
+function EnergyReadout({ kwh, unit, active }: { kwh: string; unit: string; active: boolean }) {
   return (
     <div className="flex flex-wrap items-baseline gap-2.5">
       <BatteryCharging className={`h-8 w-8 shrink-0 self-center ${active ? "text-emerald-500" : "text-muted-foreground"}`} />
       <span className="text-4xl leading-none font-bold tabular-nums text-foreground">{kwh}</span>
-      <span className="text-lg text-muted-foreground">kWh</span>
+      <span className="text-lg text-muted-foreground">{unit}</span>
     </div>
   );
 }
@@ -199,6 +202,7 @@ function MiniStat({ icon, label, value }: { icon: React.ReactNode; label: string
  *  session at all to report. Right-aligned by its parent, opposite the
  *  "ready to charge" figure. */
 function RecentHistoryLine({ stats }: { stats: RecentChargingStats | null }) {
+  const u = useUnits();
   const hasYesterday = !!stats && stats.yesterdaySessions > 0;
   const hasWeek = !!stats && stats.weekSessions > 0;
   const sessionCount = hasYesterday ? stats!.yesterdaySessions : hasWeek ? stats!.weekSessions : 0;
@@ -217,7 +221,7 @@ function RecentHistoryLine({ stats }: { stats: RecentChargingStats | null }) {
     <div>
       <p className="text-sm font-semibold text-emerald-500">Past Charging Sessions</p>
       <p className="text-sm text-muted-foreground">
-        {sessionCount} session{sessionCount === 1 ? "" : "s"} · {energyKwh.toFixed(1)} kWh delivered
+        {sessionCount} session{sessionCount === 1 ? "" : "s"} · {u.format(energyKwh, "kWh", null, 1)} delivered
       </p>
     </div>
   );
@@ -246,6 +250,7 @@ function IdleSlide({
   energyToday: number;
   recentStats: RecentChargingStats | null;
 }) {
+  const u = useUnits();
   // This slide only ever renders when there's no open session — if the
   // charger also has no live connector_status reading yet, the rest of
   // this slide is already asserting "ready to charge" (rated power, an
@@ -264,8 +269,8 @@ function IdleSlide({
         <div>
           <p className="text-sm text-muted-foreground">Ready to charge</p>
           <p className="mt-1 text-4xl leading-none font-bold text-foreground">
-            {(ratedPowerW / 1000).toFixed(1)}
-            <span className="text-lg font-normal text-muted-foreground"> kW available</span>
+            {u.format(ratedPowerW / 1000, "kW", null, 1, false)}
+            <span className="text-lg font-normal text-muted-foreground"> {u.unit("kW")} available</span>
           </p>
         </div>
         <div className="text-right">
@@ -317,6 +322,7 @@ function SessionSlide({
   tariffRate: number;
   showCost: boolean;
 }) {
+  const u = useUnits();
   const cost = session.energyKwh !== null ? session.energyKwh * tariffRate : null;
   const avgPowerW = session.energyKwh !== null ? (session.energyKwh * 1000) / durationHours(session.startedAt, session.endedAt) : null;
   const powerW = session.isOpen ? currentPowerW : avgPowerW;
@@ -328,26 +334,27 @@ function SessionSlide({
   return (
     <div className="flex flex-col gap-6">
       <PowerReadout
-        kw={powerKw !== null ? powerKw.toFixed(1) : "0.0"}
+        kw={powerKw !== null ? u.format(powerKw, "kW", "power_active_import_kw", 1, false) : "0.0"}
+        unit={u.unit("kW", "power_active_import_kw")}
         active={session.isOpen}
         label={status.label}
         tone={status.tone}
         suffix={!session.isOpen ? (session.stopReason ?? undefined) : undefined}
       />
 
-      <EnergyReadout kwh={session.energyKwh !== null ? session.energyKwh.toFixed(1) : "—"} active={session.isOpen} />
+      <EnergyReadout kwh={session.energyKwh !== null ? u.format(session.energyKwh, "kWh", "ev_energy_today_kwh", 1, false) : "—"} unit={u.unit("kWh", "ev_energy_today_kwh")} active={session.isOpen} />
 
       {showCost && (
         <BigStat label={`Total Cost · ${formatInrRate(tariffRate)}/kWh`} value={cost !== null ? formatInr(cost) : "—"} />
       )}
 
       <div className="grid grid-cols-3 gap-3">
-        <MiniStat icon={<Activity className="h-4 w-4" />} label="Current" value={session.isOpen && currentA !== null ? `${currentA.toFixed(1)} A` : "—"} />
-        <MiniStat icon={<Gauge className="h-4 w-4" />} label="Voltage" value={session.isOpen && voltageV !== null ? `${voltageV.toFixed(0)} V` : "—"} />
+        <MiniStat icon={<Activity className="h-4 w-4" />} label="Current" value={session.isOpen && currentA !== null ? u.format(currentA, "A", null, 1) : "—"} />
+        <MiniStat icon={<Gauge className="h-4 w-4" />} label="Voltage" value={session.isOpen && voltageV !== null ? u.format(voltageV, "V", null, 0) : "—"} />
         <MiniStat
           icon={<Thermometer className="h-4 w-4" />}
           label="Temperature"
-          value={session.isOpen && temperatureC !== null ? `${temperatureC.toFixed(0)}°C` : "—"}
+          value={session.isOpen && temperatureC !== null ? u.format(temperatureC, "°C", null, 0) : "—"}
         />
       </div>
 

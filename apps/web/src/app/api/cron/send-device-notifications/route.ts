@@ -115,7 +115,7 @@ export async function GET(req: NextRequest) {
       continue;
     }
     // each line goes by its own switch in Settings > Notifications (offline and reminders, back online)
-    const allowed = wanted.filter((r) => (r.kind === "offline" || r.kind === "still_offline" || r.kind === "back_online" ? wants(p.notification_preferences, digestKey(r.kind)) : true));
+    const allowed = wanted.filter((r) => (r.kind === "offline" || r.kind === "still_offline" || r.kind === "back_online" ? wants(p.notification_preferences, digestKey(r.kind, itemOf(r)?.cause ?? null)) : true));
     await close(wanted.filter((r) => !allowed.includes(r)).map((r) => r.id), "the customer turned this e-mail off");
     suppressed += wanted.length - allowed.length;
     if (allowed.length === 0) continue;

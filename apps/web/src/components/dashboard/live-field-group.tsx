@@ -5,6 +5,7 @@ import type { EnumOption } from "@/lib/enum-labels";
 import type { FieldValue, TemplateField } from "@/lib/template-field-format";
 import { useLiveNumbers } from "@/lib/telemetry/live-values";
 import { DynamicFieldGroup } from "./dynamic-field-group";
+import { useUnits } from "@/components/units-provider";
 
 /** A group of readings (phase meter, numbered strip, or plain list - DynamicFieldGroup decides) whose numbers follow
  *  the device's live channel. `initial` is what the server rendered; values the device does not report live
@@ -22,6 +23,7 @@ export function LiveDynamicFieldGroup({
   initial: Record<string, FieldValue>;
   enumOptions?: Record<string, EnumOption[]>;
 }) {
+  const { prefs } = useUnits();
   const keys = React.useMemo(() => fields.map((f) => f.key), [fields]);
   const initialNumbers = React.useMemo(() => {
     const out: Record<string, number | null> = {};
@@ -34,5 +36,5 @@ export function LiveDynamicFieldGroup({
     return v !== undefined && v !== null ? v : (initial[key] ?? null);
   };
   const options = React.useMemo(() => (enumOptions ? new Map(Object.entries(enumOptions)) : undefined), [enumOptions]);
-  return <DynamicFieldGroup title={title} fields={fields} getValue={getValue} enumOptionsByRef={options} />;
+  return <DynamicFieldGroup title={title} fields={fields} getValue={getValue} enumOptionsByRef={options} units={prefs} />;
 }

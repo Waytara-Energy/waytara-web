@@ -6,6 +6,7 @@ import type { EnumOption } from "@/lib/enum-labels";
 import type { FieldValue } from "@/lib/template-field-format";
 import type { FieldGroup } from "@/lib/template-fields";
 import { useLiveNumbers } from "@/lib/telemetry/live-values";
+import { useUnits } from "@/components/units-provider";
 import { LiveStatusCard } from "./live-status-card";
 import { renderGroup } from "./monitoring-shared";
 
@@ -25,6 +26,7 @@ export function EvHubCards({
   energyTodayKwh: number;
 }) {
   const n = useLiveNumbers([deviceId], CARD_KEYS, initial);
+  const u = useUnits();
   const powerKw = n.power_active_import_kw;
   const offeredKw = n.power_offered_kw;
   const utilizationPct = powerKw !== null && offeredKw !== null && offeredKw > 0 ? Math.max(0, Math.min(100, (powerKw / offeredKw) * 100)) : null;
@@ -34,7 +36,7 @@ export function EvHubCards({
         icon={Zap}
         title="Power Offered"
         subtitle="Max charger output"
-        value={offeredKw !== null ? `${offeredKw.toFixed(1)} kW` : "—"}
+        value={offeredKw !== null ? u.format(offeredKw, "kW", "power_offered_kw", 1) : "—"}
         statusLabel="Status"
         badgeLabel="Live"
         badgeTone="neutral"
@@ -52,7 +54,7 @@ export function EvHubCards({
         icon={ArrowDownToLine}
         title="Energy Delivered"
         subtitle="Total today"
-        value={`${energyTodayKwh.toFixed(1)} kWh`}
+        value={u.format(energyTodayKwh, "kWh", "ev_energy_today_kwh", 1)}
         statusLabel="Status"
         badgeLabel="Today"
         badgeTone={energyTodayKwh > 0 ? "good" : "neutral"}
@@ -82,6 +84,7 @@ export function EvHubGroups({
   initial: Record<string, FieldValue>;
   enumOptions: Record<string, EnumOption[]>;
 }) {
+  const { prefs } = useUnits();
   const keys = React.useMemo(() => groups.flatMap((g) => g.group.fields.map((f) => f.key)), [groups]);
   const initialNumbers = React.useMemo(() => {
     const out: Record<string, number | null> = {};
@@ -94,5 +97,5 @@ export function EvHubGroups({
     return v !== undefined && v !== null ? v : (initial[key] ?? null);
   };
   const options = React.useMemo(() => new Map(Object.entries(enumOptions)), [enumOptions]);
-  return <>{groups.map(({ category, group }) => renderGroup(category, group, getValue, options))}</>;
+  return <>{groups.map(({ category, group }) => renderGroup(category, group, getValue, options, prefs))}</>;
 }

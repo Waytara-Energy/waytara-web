@@ -1,6 +1,7 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { formatFieldValue, type TemplateField, type FieldValue } from "@/lib/template-field-format";
+import type { UnitPrefs } from "@/lib/unit-prefs";
 import { lookupEnumLabel, type EnumOption } from "@/lib/enum-labels";
 import { Meter } from "./meter";
 import { RadialMeter } from "./radial-meter";
@@ -84,11 +85,14 @@ export function LiveReadingsCard({
   fields,
   getValue,
   enumOptionsByRef,
+  units,
 }: {
   title: string;
   fields: TemplateField[];
   getValue: (key: string) => FieldValue;
   enumOptionsByRef?: Map<string, EnumOption[]>;
+  /** The unit choices of the person (Application Settings > Units); the readings are shown in them. */
+  units?: UnitPrefs;
 }) {
   if (fields.length === 0) return null;
 
@@ -135,7 +139,7 @@ export function LiveReadingsCard({
                 <RadialMeter
                   key={field.key}
                   label={field.label}
-                  valueText={formatFieldValue(raw, field)}
+                  valueText={formatFieldValue(raw, field, units)}
                   fraction={num !== null ? num / 100 : 0}
                   tone={num !== null && num < 20 ? "bad" : "accent"}
                 />
@@ -156,8 +160,8 @@ export function LiveReadingsCard({
               return (
                 <Meter
                   key={field.key}
-                  label={`${field.label} · limit ${formatFieldValue(limitRaw, limit)}`}
-                  value={formatFieldValue(raw, field)}
+                  label={`${field.label} · limit ${formatFieldValue(limitRaw, limit, units)}`}
+                  value={formatFieldValue(raw, field, units)}
                   fraction={fraction}
                   tone={fraction > 0.9 ? "warn" : "accent"}
                 />
@@ -171,7 +175,7 @@ export function LiveReadingsCard({
             {plainFields.map((field) => (
               <div key={field.key} className="space-y-0.5">
                 <p className="truncate text-xs text-muted-foreground">{field.label}</p>
-                <p className="truncate text-base font-semibold tabular-nums text-foreground">{formatFieldValue(getValue(field.key), field)}</p>
+                <p className="truncate text-base font-semibold tabular-nums text-foreground">{formatFieldValue(getValue(field.key), field, units)}</p>
               </div>
             ))}
           </div>

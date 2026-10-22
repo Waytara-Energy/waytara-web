@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatFieldValue, type TemplateField, type FieldValue } from "@/lib/template-field-format";
+import type { UnitPrefs } from "@/lib/unit-prefs";
 
 // "Today"/"Day" figures lead (what changed since midnight is the
 // actionable number); a lifetime/total figure is context, not news, so it
@@ -19,10 +20,13 @@ export function EnergyStatCard({
   title,
   fields,
   getValue,
+  units,
 }: {
   title: string;
   fields: TemplateField[];
   getValue: (key: string) => FieldValue;
+  /** The unit choices of the person (Application Settings > Units); the readings are shown in them. */
+  units?: UnitPrefs;
 }) {
   if (fields.length === 0) return null;
   const ordered = [...fields].sort((a, b) => Number(isTodayField(b)) - Number(isTodayField(a)));
@@ -36,7 +40,7 @@ export function EnergyStatCard({
         {ordered.map((field) => (
           <div key={field.key} className="rounded-xl border border-border/60 bg-muted/20 px-4 py-3.5">
             <p className="text-xs text-muted-foreground">{field.label}</p>
-            <p className="mt-1 text-2xl leading-none font-bold tabular-nums text-foreground">{formatFieldValue(getValue(field.key), field)}</p>
+            <p className="mt-1 text-2xl leading-none font-bold tabular-nums text-foreground">{formatFieldValue(getValue(field.key), field, units)}</p>
           </div>
         ))}
       </CardContent>

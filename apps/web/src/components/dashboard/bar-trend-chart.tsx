@@ -19,6 +19,8 @@ import { LiveRawChart, useGoLive } from "./go-live";
 import { useBarHover } from "./bar-hover";
 import { useChartStyle } from "./chart-style";
 import { CHART_CURSOR } from "./chart-cursor";
+import { useUnits } from "@/components/units-provider";
+import { applyChartUnits } from "@/lib/chart-units";
 
 export interface BarTrendSeries {
   key: string;
@@ -41,6 +43,8 @@ export interface BarTrendSeries {
    *  only makes sense as an "A avg" (average), in the same chart. */
   footerMode?: "sum" | "average";
   footerUnit?: string;
+  /** Multiplies this series' totals (and a running total) into the energy unit the person chose; set by applyChartUnits, not by callers. */
+  footerScale?: number;
   /** "bar" (default) or "line" — a cumulative quantity (see
    *  `cumulativeOf`) reads better as a rising line laid over the other
    *  series' bars than as one more bar competing for the same space. */
@@ -237,6 +241,7 @@ function TodayBarTrendChart({
   const gradientId = React.useId().replace(/[^a-zA-Z0-9]/g, "");
   // The chart style chosen in Application Settings overrides a series' own line/bar choice (automatic keeps it).
   const chartStyle = useChartStyle();
+  const u = useUnits();
   // The chart's own width, so the time labels can be spaced to fit it.
   const [box, setBox] = React.useState<HTMLDivElement | null>(null);
   const [boxWidth, setBoxWidth] = React.useState(0);
@@ -306,7 +311,7 @@ function TodayBarTrendChart({
           return;
         }
         const base = state.byKey[s.cumulativeOf!]?.[i];
-        if (base && base.avg !== null) running += (base.avg * (scaleByKey[s.cumulativeOf!] ?? 1) * base.covered) / 3600;
+        if (base && base.avg !== null) running += (base.avg * (scaleByKey[s.cumulativeOf!] ?? 1) * base.covered * (s.footerScale ?? 1)) / 3600;
         pts[i][s.key] = running;
       });
     }
@@ -483,7 +488,7 @@ function TodayBarTrendChart({
                     fillOpacity={0.05}
                     label={
                       r.energyKwh !== null
-                        ? { value: `${r.energyKwh.toFixed(1)} kWh`, position: "insideTop", fontSize: 10, fill: "var(--foreground)" }
+                        ? { value: u.format(r.energyKwh, "kWh", null, 1), position: "insideTop", fontSize: 10, fill: "var(--foreground)" }
                         : undefined
                     }
                   />
@@ -542,7 +547,7 @@ function TodayBarTrendChart({
                   label={
                     !r.endKey
                       ? {
-                          value: r.energyKwh !== null ? `${r.energyKwh.toFixed(1)} kWh so far` : "Session started",
+                          value: r.energyKwh !== null ? `${u.format(r.energyKwh, "kWh", null, 1)} so far` : "Session started",
                           position: "insideTopLeft",
                           fontSize: 10,
                           fill: "var(--foreground)",
@@ -570,12 +575,12 @@ function TodayBarTrendChart({
               const t = totals[s.key] ?? { sum: 0, wsum: 0, covered: 0, pos: 0, neg: 0 };
               if (s.signed && mode === "sum") {
                 return [s.signed.positive, s.signed.negative]
-                  .map((d, i) => `${(i === 0 ? t.pos : t.neg).toFixed(1)} ${s.footerUnit ?? footerUnit} ${d.footer}`)
+                  .map((d, i) => `${((i === 0 ? t.pos : t.neg) * (s.footerScale ?? 1)).toFixed(1)} ${s.footerUnit ?? footerUnit} ${d.footer}`)
                   .join(" · ");
               }
               return mode === "average"
                 ? `${(t.covered > 0 ? t.wsum / t.covered : 0).toFixed(1)} ${s.unit ?? unit} avg ${s.label.toLowerCase()}`
-                : `${t.sum.toFixed(1)} ${s.footerUnit ?? footerUnit} ${s.label.toLowerCase()}`;
+                : `${(t.sum * (s.footerScale ?? 1)).toFixed(1)} ${s.footerUnit ?? footerUnit} ${s.label.toLowerCase()}`;
             })
             .join(" · ")}{" "}
           so far today
@@ -589,7 +594,10 @@ export type BarTrendChartProps = React.ComponentProps<typeof TodayBarTrendChart>
 
 /** The trend chart every Monitoring / Overview tab uses. Inside a page with a range picker (RangeProvider) it follows
  *  the chosen range - today's 15-minute bars, or a 7 / 30 / 90-day or custom window; elsewhere it shows today. */
-export function BarTrendChart(props: BarTrendChartProps) {
+export function BarTrendChart(rawProps: BarTrendChartProps) {
+  // the person's unit choices (Application Settings > Units): another scale, label and total unit for the same readings
+  const { prefs } = useUnits();
+  const props = applyChartUnits(rawProps, prefs);
   const range = useRange();
   const goLive = useGoLive();
   // Go Live (every reading of today as the device reports it) replaces the chart while it is on.

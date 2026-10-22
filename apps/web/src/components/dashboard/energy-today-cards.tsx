@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { areaPoints, deltaPct, fmtKwh, recentPoints, RECENT_WINDOW_MS, peakOf, slotIndex, TODAY_COUNTER_KEYS as K } from "@/lib/energy-today";
+import { areaPoints, deltaPct, recentPoints, RECENT_WINDOW_MS, peakOf, slotIndex, TODAY_COUNTER_KEYS as K } from "@/lib/energy-today";
 import { istDayStart } from "@/lib/telemetry/combine";
 import { useLiveNumbers } from "@/lib/telemetry/live-values";
+import { useUnits } from "@/components/units-provider";
 import { useSeriesRange, useTodaySeries } from "@/lib/telemetry/react";
 import type { OverviewCardId } from "@/lib/overview-prefs";
 import { TodayStatCard } from "./today-stat-card";
@@ -25,7 +26,6 @@ function useYesterdayAtThisTime(deviceId: string, keys: string[], nowMs: number)
   return out;
 }
 
-const kwhNumber = (v: number | null) => (v === null ? "—" : v.toFixed(v >= 100 ? 0 : 1));
 const istClock = (ms: number) => new Date(ms + 19_800_000).toISOString().slice(11, 16);
 
 /** Overview's "today" cards, each opening its Monitoring tab: solar generated, grid, load consumption, battery, self-powered, sent to and
@@ -45,6 +45,10 @@ export function EnergyTodayCards({
   /** The cards to draw, in order. */
   cards: OverviewCardId[];
 }) {
+  // numbers in the unit the person chose for energy and power (Application Settings > Units), else as the inverter reports them
+  const u = useUnits();
+  const kwhNumber = (v: number | null, key?: string) => (v === null ? "—" : u.format(v, "kWh", key, v >= 100 ? 0 : 1, false));
+  const fmtKwh = (v: number | null, key?: string) => (v === null || !Number.isFinite(v) ? "—" : u.format(v, "kWh", key, v >= 100 ? 0 : 1));
   const solarKeys = pvKeys.length > 0 ? pvKeys : ["inverter_output_power_w"];
   const counterKeys = [K.solar, K.load, K.charged, K.discharged, K.imported, K.exported];
   const powerKeys = [...solarKeys, "load_total_power_w", "battery_power_w", "grid_total_power_w"];
@@ -87,7 +91,7 @@ export function EnergyTodayCards({
   const versus = (today: number | null, yest: number | null, curveOf: ReturnType<typeof curve>, higherIsGood: boolean) => {
     const d = deltaPct(today, yest);
     const peak = peakOf(curveOf.filter((p) => p.t >= dayStart)); // today's peak only
-    const detail = d !== null ? `${Math.abs(Math.round(d))}% ${d >= 0 ? "more" : "less"} than yesterday` : peak ? `Peak ${peak.v.toFixed(1)} kW at ${istClock(peak.t)}` : "No readings yet";
+    const detail = d !== null ? `${Math.abs(Math.round(d))}% ${d >= 0 ? "more" : "less"} than yesterday` : peak ? `Peak ${u.format(peak.v, "kW", null, 1)} at ${istClock(peak.t)}` : "No readings yet";
     return { detail, trend: d === null ? null : { direction: d >= 0 ? ("up" as const) : ("down" as const), good: (d >= 0) === higherIsGood } };
   };
 
@@ -102,8 +106,8 @@ export function EnergyTodayCards({
       <TodayStatCard
         title="Solar generated today"
         href={monitoring("solar")}
-        value={kwhNumber(n[K.solar])}
-        unit="kWh"
+        value={kwhNumber(n[K.solar], K.solar)}
+        unit={u.unit("kWh", K.solar)}
         trend={solar.trend}
         detail={solar.detail}
         points={recentPoints(solarCurve, series.nowMs)}
@@ -117,8 +121,8 @@ export function EnergyTodayCards({
       <TodayStatCard
         title="Grid usage today"
         href={monitoring("grid")}
-        value={kwhNumber(exported === null ? null : Math.abs(exported))}
-        unit="kWh"
+        value={kwhNumber(exported === null ? null : Math.abs(exported), K.exported)}
+        unit={u.unit("kWh", K.exported)}
         trend={exported === null ? null : { direction: exported >= 0 ? "up" : "down", good: exported >= 0 }}
         detail={`Net ${exported !== null && exported < 0 ? "import" : "export"} · ${fmtKwh(n[K.exported])} out, ${fmtKwh(n[K.imported])} in`}
         points={recentPoints(gridCurve, series.nowMs)}
@@ -134,8 +138,8 @@ export function EnergyTodayCards({
       <TodayStatCard
         title="Load consumption today"
         href={monitoring("load")}
-        value={kwhNumber(n[K.load])}
-        unit="kWh"
+        value={kwhNumber(n[K.load], K.load)}
+        unit={u.unit("kWh", K.load)}
         trend={load.trend}
         detail={load.detail}
         points={recentPoints(loadCurve, series.nowMs)}
@@ -149,8 +153,8 @@ export function EnergyTodayCards({
       <TodayStatCard
         title="Battery usage today"
         href={monitoring("battery")}
-        value={kwhNumber(stored === null ? null : Math.abs(stored))}
-        unit="kWh"
+        value={kwhNumber(stored === null ? null : Math.abs(stored), K.charged)}
+        unit={u.unit("kWh", K.charged)}
         trend={stored === null ? null : { direction: stored >= 0 ? "up" : "down", good: stored >= 0 }}
         detail={`Net ${stored !== null && stored < 0 ? "used" : "stored"} · ${fmtKwh(n[K.charged])} in, ${fmtKwh(n[K.discharged])} out`}
         points={recentPoints(batteryCurve, series.nowMs)}
@@ -187,8 +191,8 @@ export function EnergyTodayCards({
     <TodayStatCard
       title="Sent to the grid today"
       href={monitoring("grid")}
-      value={kwhNumber(n[K.exported])}
-      unit="kWh"
+      value={kwhNumber(n[K.exported], K.exported)}
+      unit={u.unit("kWh", K.exported)}
       trend={null}
       detail={n[K.exported] !== null && n[K.solar] !== null && n[K.solar]! > 0 ? `${Math.round((n[K.exported]! / n[K.solar]!) * 100)}% of the solar you made` : "Energy exported today"}
       points={recentPoints(gridCurve, series.nowMs)}
@@ -204,8 +208,8 @@ export function EnergyTodayCards({
     <TodayStatCard
       title="Bought from the grid today"
       href={monitoring("grid")}
-      value={kwhNumber(imported)}
-      unit="kWh"
+      value={kwhNumber(imported, K.imported)}
+      unit={u.unit("kWh", K.imported)}
       trend={null}
       detail={imported !== null && n[K.load] !== null && n[K.load]! > 0 ? `${Math.round((imported / n[K.load]!) * 100)}% of what your site used` : "Energy imported today"}
       points={recentPoints(gridCurve, series.nowMs)}

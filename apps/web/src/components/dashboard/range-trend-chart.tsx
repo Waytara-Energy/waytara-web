@@ -214,7 +214,7 @@ export function RangeTrendChart({
               const t = totals[s.key] ?? { sum: 0, wsum: 0, covered: 0 };
               return mode === "average"
                 ? `${(t.covered > 0 ? t.wsum / t.covered : 0).toFixed(1)} ${s.unit ?? unit} avg ${s.label.toLowerCase()}`
-                : `${t.sum.toFixed(1)} ${s.footerUnit ?? footerUnit} ${s.label.toLowerCase()}`;
+                : `${(t.sum * (s.footerScale ?? 1)).toFixed(1)} ${s.footerUnit ?? footerUnit} ${s.label.toLowerCase()}`;
             })
             .join(" · ")}{" "}
           in this period

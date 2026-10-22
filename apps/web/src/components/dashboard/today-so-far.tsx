@@ -1,5 +1,6 @@
 import { Card, CardContent } from "@/components/ui/card";
 import { formatFieldValue, type TemplateField } from "@/lib/template-field-format";
+import type { UnitPrefs } from "@/lib/unit-prefs";
 
 // The Overview dashboard_section's own 4 "today" totals (see
 // device-overview.ts's TODAY_ENERGY_KEYS, fetched alongside this same
@@ -22,10 +23,13 @@ export function TodaySoFar({
   fields: allFields,
   get,
   enabledKeys,
+  units,
 }: {
   fields: TemplateField[];
   get: (key: string) => number | null;
   enabledKeys: Set<string>;
+  /** The unit choices of the person (Application Settings > Units); the readings are shown in them. */
+  units?: UnitPrefs;
 }) {
   const byKey = new Map(allFields.map((f) => [f.key, f]));
   const fields = TODAY_KEY_ORDER.map((k) => byKey.get(k)).filter((f): f is TemplateField => f !== undefined && enabledKeys.has(f.key));
@@ -38,7 +42,7 @@ export function TodaySoFar({
           <Card key={field.key}>
             <CardContent className="p-4">
               <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">{field.label}</p>
-              <p className="mt-1 text-lg font-semibold text-foreground">{formatFieldValue(get(field.key), field)}</p>
+              <p className="mt-1 text-lg font-semibold text-foreground">{formatFieldValue(get(field.key), field, units)}</p>
             </CardContent>
           </Card>
         ))}

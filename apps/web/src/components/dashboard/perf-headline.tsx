@@ -8,6 +8,7 @@ import type { RangeWindow } from "@/lib/telemetry/ranges";
 import { cn } from "@/lib/utils";
 import { useDailyHistory } from "./perf-data";
 import { RangeBar, LONG_PRESETS } from "./range-bar";
+import { useUnits } from "@/components/units-provider";
 
 export type HeadlineSection = "inverter" | "solar" | "battery" | "load" | "grid";
 
@@ -20,8 +21,6 @@ const VISUALS: Record<HeadlineSection, { icon: LucideIcon; className: string }> 
   grid: { icon: Zap, className: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
 };
 
-const kwh = (v: number | null) => (v === null ? "—" : `${v.toFixed(1)} kWh`);
-const signedKwh = (v: number | null) => (v === null ? "—" : `${v >= 0 ? "+" : "−"}${Math.abs(v).toFixed(1)} kWh`);
 const percent = (v: number | null) => (v === null ? "—" : `${v.toFixed(0)}%`);
 
 interface Headline {
@@ -47,6 +46,10 @@ export function PerformanceHeadline({
   live: Record<string, number | null>;
   section: HeadlineSection;
 }) {
+  // energy figures in the unit the person chose (Application Settings > Units)
+  const u = useUnits();
+  const kwh = (v: number | null) => (v === null ? "—" : u.format(v, "kWh", null, 1));
+  const signedKwh = (v: number | null) => (v === null ? "—" : `${v >= 0 ? "+" : "−"}${u.format(Math.abs(v), "kWh", null, 1)}`);
   const history = useDailyHistory(deviceId, Object.values(DAY_KEYS), span);
   const days = (key: string) => dailySeries(history.days, history.counter(key), live[key], history.today).map((p) => p.value);
   const ready = !history.error;

@@ -4,6 +4,7 @@ import * as React from "react";
 import { resolveKind } from "@/lib/chart-style";
 import { ChartCore, type ChartRow } from "./chart-kit";
 import { useChartStyle } from "./chart-style";
+import { useSeriesUnit } from "@/components/units-provider";
 
 export interface DivergingPoint {
   date: string; // YYYY-MM-DD
@@ -36,10 +37,11 @@ export function DivergingBarChart({
   negativeColor?: string;
 }) {
   const kind = resolveKind(useChartStyle(), "bar");
+  const su = useSeriesUnit(unit);
   const withYear = data.length > 300;
   const rows = React.useMemo<ChartRow[]>(
-    () => data.map((d) => ({ __tick: formatLabel(d.date, withYear), __label: formatLabel(d.date, true), positive: d.positive, negative: -d.negative })),
-    [data, withYear]
+    () => data.map((d) => ({ __tick: formatLabel(d.date, withYear), __label: formatLabel(d.date, true), positive: su.map(d.positive), negative: -su.map(d.negative) })),
+    [data, withYear, su]
   );
   return (
     <ChartCore
@@ -51,7 +53,7 @@ export function DivergingBarChart({
       kind={kind}
       stacked
       zeroLine
-      format={(v) => ({ num: Math.abs(v).toFixed(1), unit })}
+      format={(v) => ({ num: Math.abs(v).toFixed(su.converted ? su.decimals : 1), unit: su.unit })}
     />
   );
 }

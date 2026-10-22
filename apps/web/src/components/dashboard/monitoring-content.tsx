@@ -30,6 +30,7 @@ import { EvHubCards, EvHubGroups } from "./ev-hub-live";
 import { temperatureRowsFor } from "@/lib/temperature-rows";
 import { valuesFor, enumToObject } from "@/lib/field-values";
 import { SessionReceiptCard, type ReceiptSection } from "./session-receipt-card";
+import { getUnitPrefs } from "@/lib/unit-prefs-server";
 import { DeviceParameterCards } from "./device-parameter-cards";
 import { ChargingSessionsCarousel } from "./charging-sessions-carousel";
 import { MonitoringTabs } from "./monitoring-tabs";
@@ -328,7 +329,7 @@ async function EvChargerMonitoring({ supabase, device }: { supabase: SupabaseSer
             recentStats={recentChargingStats}
           />
 
-          <SessionReceiptCard title="Charging Session Detail" sections={receiptSections} getValue={getValue} enumOptionsByRef={enumOptions} />
+          <SessionReceiptCard title="Charging Session Detail" sections={receiptSections} getValue={getValue} enumOptionsByRef={enumOptions} units={await getUnitPrefs()} />
         </TabsContent>
       </MonitoringTabs>
     </>

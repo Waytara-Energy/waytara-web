@@ -14,6 +14,7 @@ import { solarGenerationW } from "@/lib/solar-generation";
 import { EnergyFlowDiagram } from "./energy-flow-diagram";
 import { FaultBanner } from "./fault-banner";
 import { TodaySoFar } from "./today-so-far";
+import { useUnits } from "@/components/units-provider";
 
 /** Overview's numbers for a set of inverters (one device, or every inverter at a site), live. `initial` is what the
  *  server rendered; each live message then updates the figures in place - no page refresh, no refetch. */
@@ -162,6 +163,7 @@ export function LiveTodaySoFar({
   enabledKeys: string[];
 }) {
   const n = useSiteNumbers(inverterIds, initial);
+  const { prefs } = useUnits();
   const enabled = React.useMemo(() => new Set(enabledKeys), [enabledKeys]);
-  return <TodaySoFar fields={fields} get={(k) => n[k] ?? null} enabledKeys={enabled} />;
+  return <TodaySoFar fields={fields} get={(k) => n[k] ?? null} enabledKeys={enabled} units={prefs} />;
 }

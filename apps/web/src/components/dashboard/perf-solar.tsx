@@ -8,8 +8,9 @@ import { TEMPERATURE_MAX_C } from "@/lib/temperature-thresholds";
 import { DAY_MS, windowFor, type RangeWindow } from "@/lib/telemetry/ranges";
 import { ChartErrorCard } from "./chart-states";
 import { dayLabel, LONG_SPAN_DAYS, scaleCurve, useDailyHistory, useDayCurves, untilNow, usePeriodSeries } from "./perf-data";
-import { DailyBars, DonutShare, fmtKwhText, InsightList, Panel, RangeLines, StackedDailyBars, StatTile } from "./perf-kit";
+import { DailyBars, DonutShare, useKwhText, InsightList, Panel, RangeLines, StackedDailyBars, StatTile } from "./perf-kit";
 import { FLOW, PV_SHADES } from "./flow-colors";
+import { useUnits } from "@/components/units-provider";
 
 
 /** Adds several curves slot by slot (null where none of them has a reading). */
@@ -55,6 +56,8 @@ export function SolarSection({
   kwp: number | null;
   extras?: React.ReactNode;
 }) {
+  const u = useUnits();
+  const fmtKwhText = useKwhText();
   const inputs = pvKeys.map((key, i) => ({ key, n: inputNumber(key), color: PV_SHADES[i % PV_SHADES.length], volt: `pv${inputNumber(key)}_voltage_v`, amp: `pv${inputNumber(key)}_current_a` }));
   const curveKeys = inputs.flatMap((p) => [p.key, p.volt, p.amp]);
   const keys = curveKeys.length > 0 ? curveKeys : ["inverter_output_power_w"];
@@ -118,7 +121,7 @@ export function SolarSection({
         ) : (
           <StatTile label={`Best day · ${periodText}`} value={fmtKwhText(best?.value ?? null)} hint={best ? dayLabel(best.date) : undefined} tone="good" />
         )}
-        <StatTile label={`Peak power · ${when}`} value={peak ? `${peak.v.toFixed(2)} kW` : "—"} hint={peakText} />
+        <StatTile label={`Peak power · ${when}`} value={peak ? u.format(peak.v, "kW", null, 2) : "—"} hint={peakText} />
         {kwp !== null ? (
           <StatTile
             label={`Yield · ${when}`}

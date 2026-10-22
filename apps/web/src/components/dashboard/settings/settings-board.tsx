@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentProps } from "react";
-import { Bell, LayoutDashboard, MapPin, Palette, ShieldCheck, User, type LucideIcon } from "lucide-react";
+import { Bell, LayoutDashboard, MapPin, Palette, Ruler, ShieldCheck, User, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { AppearanceSetting } from "../appearance-setting";
 import { ChartStyleSetting } from "../chart-style-setting";
@@ -11,12 +11,14 @@ import { NotificationsSection } from "./notifications-section";
 import { OverviewSection } from "./overview-section";
 import { ProfileSection } from "./profile-section";
 import { SecuritySection } from "./security-section";
+import { UnitsSection } from "./units-section";
 
-type SectionId = "profile" | "appearance" | "overview" | "notifications" | "addresses" | "security";
+type SectionId = "profile" | "appearance" | "units" | "overview" | "notifications" | "addresses" | "security";
 
 const SECTIONS: { id: SectionId; label: string; hint: string; icon: LucideIcon }[] = [
   { id: "profile", label: "Profile", hint: "Photo, name, phone, e-mail", icon: User },
   { id: "appearance", label: "Appearance", hint: "Theme and charts", icon: Palette },
+  { id: "units", label: "Units", hint: "kW or W, kWh or MJ, °C or °F", icon: Ruler },
   { id: "overview", label: "Overview", hint: "Cards and background", icon: LayoutDashboard },
   { id: "notifications", label: "Notifications", hint: "What we e-mail you", icon: Bell },
   { id: "addresses", label: "Addresses & billing", hint: "Address, billing details", icon: MapPin },
@@ -29,12 +31,13 @@ export interface SettingsBoardProps {
   notifications: ComponentProps<typeof NotificationsSection>;
   addresses: ComponentProps<typeof AddressesSection>;
   overview: ComponentProps<typeof OverviewSection>;
+  units: ComponentProps<typeof UnitsSection>;
   security: ComponentProps<typeof SecuritySection>;
 }
 
 /** Application Settings: a list of sections on the left (a row of tabs on a phone) and the open one on the right. The open section is kept in
  *  the address (#security) so a reload or a shared link opens the same one. */
-export function SettingsBoard({ profile, notifications, addresses, overview, security }: SettingsBoardProps) {
+export function SettingsBoard({ profile, notifications, addresses, overview, units, security }: SettingsBoardProps) {
   const [section, open] = useHashTab(IDS, "profile");
   const current = SECTIONS.find((s) => s.id === section)!;
 
@@ -74,6 +77,7 @@ export function SettingsBoard({ profile, notifications, addresses, overview, sec
             <ChartStyleSetting />
           </div>
         )}
+        {section === "units" && <UnitsSection {...units} />}
         {section === "overview" && <OverviewSection {...overview} />}
         {section === "notifications" && <NotificationsSection {...notifications} />}
         {section === "addresses" && <AddressesSection {...addresses} />}

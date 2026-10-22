@@ -5,6 +5,7 @@
 export type NotificationKey =
   | "auth_signin"
   | "auth_signout"
+  | "network_lost"
   | "device_offline"
   | "device_online"
   | "faults"
@@ -44,8 +45,9 @@ export const NOTIFICATION_CATEGORIES: NotificationCategory[] = [
     title: "Devices",
     description: "Whether your inverter and charger are reachable.",
     items: [
-      { key: "device_offline", title: "Device offline", description: "When a device stops reporting, and a reminder while it stays offline.", default: true },
-      { key: "device_online", title: "Back online", description: "When a device that was offline reports again.", default: true },
+      { key: "network_lost", title: "Network connection lost", description: "When your monitoring unit stops reaching WayTara (its Wi-Fi or internet is down, or it lost power), with a reminder while it stays down.", default: true },
+      { key: "device_offline", title: "Inverter not answering", description: "When the monitoring unit is online but cannot read your inverter, with a reminder while it lasts.", default: true },
+      { key: "device_online", title: "Back online", description: "When a unit or inverter that was down reports again.", default: true },
     ],
   },
   {
@@ -75,7 +77,7 @@ export const NOTIFICATION_KEYS: NotificationKey[] = NOTIFICATION_CATEGORIES.flat
 const DEFAULTS = Object.fromEntries(NOTIFICATION_CATEGORIES.flatMap((c) => c.items.map((i) => [i.key, i.default]))) as Record<NotificationKey, boolean>;
 
 /** The keys the old single "alert e-mails" switch covered. */
-const LEGACY_ALERT_KEYS: readonly NotificationKey[] = ["device_offline", "device_online", "faults", "alarms", "tariff"];
+const LEGACY_ALERT_KEYS: readonly NotificationKey[] = ["network_lost", "device_offline", "device_online", "faults", "alarms", "tariff"];
 
 const asObject = (raw: unknown): Record<string, unknown> => (raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {});
 
@@ -102,11 +104,14 @@ export function mergeNotificationPrefs(raw: unknown, values: Record<Notification
 
 /** Which switch a device alert e-mail (from the alert cron) belongs to. */
 export function alertKey(kind: "offline" | "fault" | "alarm", event: "opened" | "reminder" | "resolved"): NotificationKey {
-  if (kind === "offline") return event === "resolved" ? "device_online" : "device_offline";
+  // a device that went silent is, from the alert job's side, a lost network connection (the unit stopped checking in)
+  if (kind === "offline") return event === "resolved" ? "device_online" : "network_lost";
   return kind === "fault" ? "faults" : "alarms";
 }
 
-/** Which switch a line of the device status digest belongs to. */
-export function digestKey(kind: "offline" | "still_offline" | "back_online"): NotificationKey {
-  return kind === "back_online" ? "device_online" : "device_offline";
+/** Which switch a line of the device status digest belongs to: coming back is one switch; going down is the network (the monitoring unit stopped
+ *  checking in) unless the unit is online and only the inverter is not answering. */
+export function digestKey(kind: "offline" | "still_offline" | "back_online", cause: "offline" | "device_unreachable" | null = null): NotificationKey {
+  if (kind === "back_online") return "device_online";
+  return cause === "device_unreachable" ? "device_offline" : "network_lost";
 }

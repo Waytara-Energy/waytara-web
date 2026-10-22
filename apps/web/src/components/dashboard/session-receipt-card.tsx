@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatFieldValue, type TemplateField, type FieldValue } from "@/lib/template-field-format";
+import type { UnitPrefs } from "@/lib/unit-prefs";
 import { lookupEnumLabel, type EnumOption } from "@/lib/instrument-catalog-data";
 
 // Durations arrive in raw seconds (session_duration_s and the like) —
@@ -17,7 +18,7 @@ function formatDuration(seconds: number): string {
   return `${s}s`;
 }
 
-function displayValue(field: TemplateField, raw: FieldValue, enumOptionsByRef?: Map<string, EnumOption[]>): string {
+function displayValue(field: TemplateField, raw: FieldValue, units: UnitPrefs | undefined, enumOptionsByRef?: Map<string, EnumOption[]>): string {
   if (field.unit === "s" && typeof raw === "number") return formatDuration(raw);
   if (field.valueKind === "enum" && field.enumRef && enumOptionsByRef) {
     return lookupEnumLabel(enumOptionsByRef, field.enumRef, raw as string | number | null) ?? "—";
@@ -25,7 +26,7 @@ function displayValue(field: TemplateField, raw: FieldValue, enumOptionsByRef?: 
   if ((field.valueKind === "bool" || field.unit === "bool") && raw !== null && raw !== undefined) {
     return Number(raw) === 1 || raw === "true" ? "Yes" : "No";
   }
-  return formatFieldValue(raw, field);
+  return formatFieldValue(raw, field, units);
 }
 
 export interface ReceiptSection {
@@ -46,11 +47,14 @@ export function SessionReceiptCard({
   sections,
   getValue,
   enumOptionsByRef,
+  units,
 }: {
   title: string;
   sections: ReceiptSection[];
   getValue: (key: string) => FieldValue;
   enumOptionsByRef?: Map<string, EnumOption[]>;
+  /** The unit choices of the person (Application Settings > Units). */
+  units?: UnitPrefs;
 }) {
   const nonEmpty = sections.filter((s) => s.fields.length > 0);
   if (nonEmpty.length === 0) return null;
@@ -69,7 +73,7 @@ export function SessionReceiptCard({
                 <div key={field.key} className="space-y-0.5">
                   <p className="truncate text-xs text-muted-foreground">{field.label}</p>
                   <p className="truncate text-base font-semibold tabular-nums text-foreground">
-                    {displayValue(field, getValue(field.key), enumOptionsByRef)}
+                    {displayValue(field, getValue(field.key), units, enumOptionsByRef)}
                   </p>
                 </div>
               ))}

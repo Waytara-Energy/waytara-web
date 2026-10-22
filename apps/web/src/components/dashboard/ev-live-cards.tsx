@@ -4,6 +4,7 @@ import { Zap, Gauge, BatteryCharging, Thermometer } from "lucide-react";
 import { useLiveNumbers } from "@/lib/telemetry/live-values";
 import { EV_CONNECTOR_TEMP_WARN_C } from "@/lib/ev-charger-catalog";
 import { LiveStatusCard } from "./live-status-card";
+import { useUnits } from "@/components/units-provider";
 
 const TEMP_WARN_C = EV_CONNECTOR_TEMP_WARN_C;
 const KEYS = ["power_active_import_kw", "power_offered_kw", "current_import_l1_a", "voltage_l1_n_v", "connector_temperature_c"];
@@ -25,6 +26,7 @@ export function EvLiveCards({
   which: "left" | "right";
 }) {
   const n = useLiveNumbers([chargerId], KEYS, initial);
+  const u = useUnits();
 
   const powerKw = n.power_active_import_kw;
   const offeredKw = n.power_offered_kw;
@@ -45,8 +47,8 @@ export function EvLiveCards({
         icon={Zap}
         iconTone={charging ? "good" : "neutral"}
         title="Charging Power"
-        subtitle={offeredKw !== null ? `Power Offered · ${offeredKw.toFixed(1)} kW` : "Live Charging"}
-        value={powerKw !== null ? `${powerKw.toFixed(2)} kW` : "—"}
+        subtitle={offeredKw !== null ? `Power Offered · ${u.format(offeredKw, "kW", "power_offered_kw", 1)}` : "Live Charging"}
+        value={powerKw !== null ? u.format(powerKw, "kW", "power_active_import_kw", 2) : "—"}
         statusLabel="Status"
         badgeLabel={charging ? "Charging" : "Idle"}
         badgeTone={charging ? "good" : "neutral"}
@@ -60,7 +62,7 @@ export function EvLiveCards({
         iconTone={drawing ? "good" : "neutral"}
         title="Current"
         subtitle={voltageV !== null ? `Voltage · ${Math.round(voltageV)} V` : "Live Draw"}
-        value={currentA !== null ? `${currentA.toFixed(1)} A` : "—"}
+        value={currentA !== null ? u.format(currentA, "A", "current_import_l1_a", 1) : "—"}
         statusLabel="Draw"
         badgeLabel={drawing ? "Drawing" : "Idle"}
         badgeTone={drawing ? "good" : "neutral"}
@@ -76,7 +78,7 @@ export function EvLiveCards({
         iconTone={tempC === null ? "neutral" : tempWarm ? "warn" : "good"}
         title="Connector Temperature"
         subtitle="Live Reading"
-        value={tempC !== null ? `${tempC.toFixed(1)} °C` : "—"}
+        value={tempC !== null ? u.format(tempC, "°C", "connector_temperature_c", 1) : "—"}
         statusLabel="Status"
         badgeLabel={tempC === null ? "—" : tempWarm ? "Warm" : "Normal"}
         badgeTone={tempC === null ? "neutral" : tempWarm ? "warn" : "good"}
@@ -90,7 +92,7 @@ export function EvLiveCards({
         iconTone={hasEnergyToday ? "good" : "neutral"}
         title="Energy Delivered Today"
         subtitle={costToday !== null ? `Cost · ₹${costToday.toLocaleString("en-IN", { maximumFractionDigits: 0 })}` : "Since midnight"}
-        value={todayEnergyKwh !== null ? `${todayEnergyKwh.toFixed(1)} kWh` : "—"}
+        value={todayEnergyKwh !== null ? u.format(todayEnergyKwh, "kWh", "ev_energy_today_kwh", 1) : "—"}
         statusLabel="Status"
         badgeLabel={hasEnergyToday ? "Charged" : "None yet"}
         badgeTone={hasEnergyToday ? "good" : "neutral"}

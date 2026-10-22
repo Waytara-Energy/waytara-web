@@ -1,24 +1,33 @@
 "use client";
 
+import * as React from "react";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { FLOW } from "./flow-colors";
 import type { CurvePoint } from "@/lib/ev-sessions";
+import { useSeriesUnit } from "@/components/units-provider";
 
 const ist = (t: number) => new Date(t).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
 
-const POWER_CONFIG = { kw: { label: "Power (kW)", color: FLOW.consuming } } satisfies ChartConfig;
-const SPLIT_CONFIG = {
-  solar: { label: "Solar (kW)", color: FLOW.producing },
-  battery: { label: "Battery (kW)", color: FLOW.drawing },
-  grid: { label: "Grid (kW)", color: FLOW.idle },
-} satisfies ChartConfig;
+const powerConfig = (unit: string) => ({ kw: { label: `Power (${unit})`, color: FLOW.consuming } }) satisfies ChartConfig;
+const splitConfig = (unit: string) =>
+  ({
+    solar: { label: `Solar (${unit})`, color: FLOW.producing },
+    battery: { label: `Battery (${unit})`, color: FLOW.drawing },
+    grid: { label: `Grid (${unit})`, color: FLOW.idle },
+  }) satisfies ChartConfig;
 
 const axis = { tickLine: false, axisLine: false, tick: { fontSize: 10, fill: "var(--muted-foreground)" } } as const;
 
 /** The charging power over the session and, when the site's readings were available, the same power split by source. */
-export function EvSessionCharts({ points }: { points: CurvePoint[] }) {
+export function EvSessionCharts({ points: raw }: { points: CurvePoint[] }) {
+  // the powers are in kW as the charger and the site report them; shown in the unit the person chose for power
+  const su = useSeriesUnit("kW");
+  const points = React.useMemo(
+    () => (su.converted ? raw.map((p) => ({ ...p, kw: p.kw === null ? null : su.map(p.kw), solar: p.solar === null ? null : su.map(p.solar), battery: p.battery === null ? null : su.map(p.battery), grid: p.grid === null ? null : su.map(p.grid) })) : raw),
+    [raw, su]
+  );
   if (points.length < 2) {
     return (
       <Card>
@@ -39,7 +48,7 @@ export function EvSessionCharts({ points }: { points: CurvePoint[] }) {
           <CardDescription>What the charger delivered to the car, reading by reading</CardDescription>
         </CardHeader>
         <CardContent>
-          <ChartContainer config={POWER_CONFIG} className="aspect-auto h-56 w-full">
+          <ChartContainer config={powerConfig(su.unit || "kW")} className="aspect-auto h-56 w-full">
             <AreaChart data={points} margin={{ left: 4, right: 8, top: 8 }}>
               <defs>
                 <linearGradient id="ev-power" x1="0" y1="0" x2="0" y2="1">
@@ -63,7 +72,7 @@ export function EvSessionCharts({ points }: { points: CurvePoint[] }) {
             <CardDescription>Solar first, then the battery, then the grid — an estimate from the inverter&apos;s readings</CardDescription>
           </CardHeader>
           <CardContent>
-            <ChartContainer config={SPLIT_CONFIG} className="aspect-auto h-56 w-full">
+            <ChartContainer config={splitConfig(su.unit || "kW")} className="aspect-auto h-56 w-full">
               <AreaChart data={points} margin={{ left: 4, right: 8, top: 8 }}>
                 <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />
                 <XAxis type="number" dataKey="t" domain={domain} tickFormatter={ist} scale="time" tickCount={5} {...axis} />

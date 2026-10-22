@@ -9,7 +9,7 @@ import type { ReportsBase } from "@/lib/reports/gather";
 import { cn } from "@/lib/utils";
 import { ChartEmptyState } from "./chart-empty-state";
 import { FLOW } from "./flow-colors";
-import { fmtKwhText, fmtPct, Panel, StatTile } from "./perf-kit";
+import { useKwhText, fmtPct, Panel, StatTile } from "./perf-kit";
 import { DailyBars } from "./chart-kit";
 
 const change = (cur: number, prev: number | undefined): string => {
@@ -26,6 +26,7 @@ const tone = (cur: number, prev: number | undefined, higherIsBetter = true) => {
 /** The period at a glance: energy, how it was used, the bill with and without solar, the carbon avoided, how it compares with the
  *  period before and the same dates a year ago, and the day-by-day bars. */
 export function ReportsSummary({ base, view, label }: { base: ReportsBase; view: PeriodView; label: string }) {
+  const fmtKwhText = useKwhText();
   const c = view.current;
   if (c.days === 0) return <ChartEmptyState />;
   const short = label || "period";

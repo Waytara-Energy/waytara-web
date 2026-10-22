@@ -6,6 +6,8 @@
  * pulling in template-fields.ts's Supabase server client.
  */
 
+import { displayValue, formatShown, type UnitPrefs } from "./unit-prefs";
+
 export interface TemplateField {
   key: string;
   label: string;
@@ -46,13 +48,18 @@ function formatTimestamp(value: string, valueKind: string): string {
  *  needs a DB round trip its own presentation-only sibling shouldn't
  *  have), a bool, a timestamp/date/time, or a currency figure, not just a
  *  number. */
-export function formatFieldValue(value: FieldValue, field: TemplateField): string {
+export function formatFieldValue(value: FieldValue, field: TemplateField, units?: UnitPrefs): string {
   if (value === null || value === undefined || value === "") return "—";
 
   switch (field.valueKind) {
     case "number": {
       const num = typeof value === "number" ? value : Number(value);
       if (!Number.isFinite(num)) return "—";
+      // the person's own choice of unit for this kind of reading (or for this one reading), when they made one
+      if (units) {
+        const shown = displayValue(num, field.unit, units, field.key);
+        if (shown.converted) return formatShown(shown, 0);
+      }
       const decimals = decimalsForUnit(field.unit);
       const rounded = decimals > 0 ? num.toFixed(decimals) : Math.round(num).toLocaleString("en-IN");
       return field.unit ? `${rounded} ${field.unit}` : rounded;

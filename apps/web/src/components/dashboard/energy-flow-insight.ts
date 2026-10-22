@@ -3,6 +3,7 @@
 // the solar covers, where the load's power comes from, how much solar is going to the grid, ...).
 
 import { fmtKw } from "./energy-flow-summary";
+import type { UnitPrefs } from "@/lib/unit-prefs";
 import type { NodeKind } from "./energy-flow-layout";
 
 export interface FlowReadings {
@@ -34,7 +35,7 @@ export function loadSupply(r: Pick<FlowReadings, "solarW" | "batteryW" | "gridW"
   return { solar: pct(fromSolar, load), battery: pct(fromBattery, load), grid: pct(fromGrid, load) };
 }
 
-export function insightFor(kind: NodeKind, r: FlowReadings): Insight {
+export function insightFor(kind: NodeKind, r: FlowReadings, units?: UnitPrefs): Insight {
   const solar = Math.max(0, r.solarW ?? 0);
   const load = Math.max(0, r.loadW ?? 0);
   const battery = r.batteryW ?? 0;
@@ -43,7 +44,7 @@ export function insightFor(kind: NodeKind, r: FlowReadings): Insight {
   switch (kind) {
     case "solar": {
       if (solar <= 0) return { headline: "Not generating right now (night, or heavy cloud)", rows: [] };
-      const rows = r.pvInputs.filter((p) => p.watts !== null).map((p) => ({ label: p.label, value: fmtKw(p.watts) }));
+      const rows = r.pvInputs.filter((p) => p.watts !== null).map((p) => ({ label: p.label, value: fmtKw(p.watts, units) }));
       if (load <= 0) return { headline: "Nothing is using it at the moment: it goes to the battery or the grid", rows };
       const covers = pct(solar, load);
       return { headline: covers >= 100 ? "Covers all of your load" : `Covers ${covers}% of your load`, rows };

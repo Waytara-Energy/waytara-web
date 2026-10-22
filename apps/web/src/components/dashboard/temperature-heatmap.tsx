@@ -12,6 +12,7 @@ import { ChartEmptyState } from "./chart-empty-state";
 import { ChartErrorCard } from "./chart-states";
 import { useDelayedLoading } from "./use-delayed-loading";
 import { useRange } from "./range-context";
+import { useUnits } from "@/components/units-provider";
 
 export interface HeatmapRow {
   key: string;
@@ -64,6 +65,7 @@ export function TemperatureHeatmap({
    *  its cell tooltips. */
   showRowLabels?: boolean;
 }) {
+  const u = useUnits();
   const rowKeys = React.useMemo(() => rows.map((r) => r.key), [rows]);
   // The shared store: one request per page, the interval combined locally, live ticks applied in place.
   const state = useTodaySeries(deviceId, rowKeys, bucketMinutes);
@@ -155,7 +157,7 @@ export function TemperatureHeatmap({
                       <TooltipContent>
                         <p className="font-medium">{row.label}</p>
                         <p>
-                          {v !== null ? `${v.toFixed(1)} °C` : "No data"} &middot; {formatBucketLabel(bk, bucketMinutes)}
+                          {v !== null ? u.format(v, "°C", null, 1) : "No data"} &middot; {formatBucketLabel(bk, bucketMinutes)}
                         </p>
                       </TooltipContent>
                     </Tooltip>

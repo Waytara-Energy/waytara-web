@@ -11,6 +11,8 @@ import { SidebarBrandToggle } from "@/components/dashboard/sidebar-brand-toggle"
 import { SessionWatcher } from "@/components/dashboard/session-watcher";
 import { IdleSignOut } from "@/components/dashboard/idle-sign-out";
 import { parseSessionPolicy } from "@/lib/session-policy";
+import { parseUnitPrefs } from "@/lib/unit-prefs";
+import { UnitsProvider } from "@/components/units-provider";
 import { ConnectionNotice } from "@/components/dashboard/connection-notice";
 import { RealtimeProvider } from "@waytara/ui/realtime-provider";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
@@ -94,9 +96,11 @@ export default async function DashboardLayout({
     createClient().then((supabase) => fetchCustomerAlerts(supabase, allDeviceIds)),
     createClient().then((supabase) => fetchActiveFaultCodes(supabase, allDeviceIds)),
     // how long this person lets a browser sit idle before it is signed out (Application Settings > Account & security)
-    profile ? createClient().then((supabase) => supabase.from("profiles").select("security_preferences").eq("id", profile.id).maybeSingle()) : Promise.resolve({ data: null }),
+    profile ? createClient().then((supabase) => supabase.from("profiles").select("security_preferences, ui_preferences").eq("id", profile.id).maybeSingle()) : Promise.resolve({ data: null }),
   ]);
   const sessionPolicy = parseSessionPolicy(securityRow.data?.security_preferences);
+  // the units this person chose to see numbers in (Application Settings > Units), applied by every reading on every page
+  const unitPrefs = parseUnitPrefs(securityRow.data?.ui_preferences);
   const sidebarOpen = cookieStore.get("sidebar_state")?.value === "true";
 
   // Site is the dashboard's navigation root now — every site-scoped page
@@ -145,6 +149,7 @@ export default async function DashboardLayout({
       <TelemetryProvider userId={profile?.id ?? "unknown"}>
       <SidebarProvider defaultOpen={sidebarOpen}>
       <ChartStyleProvider initial={parseChartStyle(cookieStore.get(CHART_STYLE_COOKIE)?.value)}>
+      <UnitsProvider initial={unitPrefs}>
       <HeaderSlotProvider>
         <SessionWatcher />
         <IdleSignOut idleMinutes={sessionPolicy.idleMinutes} scope={sessionPolicy.scope} />
@@ -192,6 +197,7 @@ export default async function DashboardLayout({
           </main>
         </SidebarInset>
       </HeaderSlotProvider>
+      </UnitsProvider>
       </ChartStyleProvider>
       </SidebarProvider>
       </TelemetryProvider>

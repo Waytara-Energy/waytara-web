@@ -13,7 +13,7 @@ import type { ReportsBase } from "@/lib/reports/gather";
 import type { RunView, SavedReportView } from "@/lib/reports/saved-report-view";
 import { cn } from "@/lib/utils";
 import { periodText } from "./perf-data";
-import { fmtKwhText } from "./perf-kit";
+import { useKwhText } from "./perf-kit";
 import { RangeBar, LONG_PRESETS } from "./range-bar";
 import { RangeProvider, useRange } from "./range-context";
 import { ReportsDownloads } from "./reports-downloads";
@@ -114,6 +114,7 @@ const VISUALS: Record<SectionId, string> = {
 /** The line above the tabs, like Performance's: the open tab's own headline figure and two more about it. Summary and Energy follow
  *  the period picker at the right; Generate is about the customer's own reports, so it has no period and no picker. */
 function Headline({ section, view, label, reports, runs }: { section: SectionId; view: PeriodView; label: string; reports: SavedReportView[]; runs: RunView[] }) {
+  const fmtKwhText = useKwhText();
   const c = view.current;
   const has = c.days > 0;
   const lastSent = runs.filter((r) => r.status === "sent").sort((a, b) => (b.finishedAt ?? b.startedAt).localeCompare(a.finishedAt ?? a.startedAt))[0];

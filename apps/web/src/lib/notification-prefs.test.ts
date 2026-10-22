@@ -15,7 +15,7 @@ describe("wants", () => {
   });
   it("lets the old alert switch, when it was off, silence the alert e-mails but not the others", () => {
     const old = { email_alerts: false };
-    for (const k of ["device_offline", "device_online", "faults", "alarms", "tariff"] as const) expect(wants(old, k), k).toBe(false);
+    for (const k of ["network_lost", "device_offline", "device_online", "faults", "alarms", "tariff"] as const) expect(wants(old, k), k).toBe(false);
     expect(wants(old, "auth_signin")).toBe(true);
     expect(wants(old, "support_emails")).toBe(true);
   });
@@ -31,7 +31,7 @@ describe("resolveNotificationPrefs / mergeNotificationPrefs", () => {
   });
   it("keeps other keys, replaces known ones and keeps email_alerts in step", () => {
     const all = resolveNotificationPrefs({});
-    const merged = mergeNotificationPrefs({ email_maintenance_updates: false, keep: 1 }, { ...all, faults: false, alarms: false, device_offline: false, device_online: false, tariff: false });
+    const merged = mergeNotificationPrefs({ email_maintenance_updates: false, keep: 1 }, { ...all, faults: false, alarms: false, network_lost: false, device_offline: false, device_online: false, tariff: false });
     expect(merged.keep).toBe(1);
     expect(merged.email_maintenance_updates).toBe(false);
     expect(merged.faults).toBe(false);
@@ -43,15 +43,17 @@ describe("resolveNotificationPrefs / mergeNotificationPrefs", () => {
 
 describe("which switch an e-mail belongs to", () => {
   it("maps the alert cron's e-mails", () => {
-    expect(alertKey("offline", "opened")).toBe("device_offline");
-    expect(alertKey("offline", "reminder")).toBe("device_offline");
+    expect(alertKey("offline", "opened")).toBe("network_lost");
+    expect(alertKey("offline", "reminder")).toBe("network_lost");
     expect(alertKey("offline", "resolved")).toBe("device_online");
     expect(alertKey("fault", "resolved")).toBe("faults");
     expect(alertKey("alarm", "opened")).toBe("alarms");
   });
   it("maps the device digest's lines", () => {
-    expect(digestKey("offline")).toBe("device_offline");
-    expect(digestKey("still_offline")).toBe("device_offline");
+    expect(digestKey("offline")).toBe("network_lost");
+    expect(digestKey("still_offline", "offline")).toBe("network_lost");
+    expect(digestKey("offline", "device_unreachable")).toBe("device_offline");
+    expect(digestKey("still_offline", "device_unreachable")).toBe("device_offline");
     expect(digestKey("back_online")).toBe("device_online");
   });
 });

@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatFieldValue, type TemplateField, type FieldValue } from "@/lib/template-field-format";
+import type { UnitPrefs } from "@/lib/unit-prefs";
 import { groupByIndex, type IndexedField } from "./indexed-group-card";
 
 interface HeadlineEntry {
@@ -37,11 +38,14 @@ export function ComparisonStripCard({
   itemLabel,
   fields,
   getValue,
+  units,
 }: {
   title: string;
   itemLabel: string;
   fields: TemplateField[];
   getValue: (key: string) => FieldValue;
+  /** The unit choices of the person (Application Settings > Units); the readings are shown in them. */
+  units?: UnitPrefs;
 }) {
   const grouped = groupByIndex(fields);
   if (!grouped || grouped.items.size === 0) return null;
@@ -82,7 +86,7 @@ export function ComparisonStripCard({
                     style={{ width: `${maxValue > 0 && num !== null ? Math.max(2, (num / maxValue) * 100) : 0}%` }}
                   />
                 </div>
-                <span className="w-20 shrink-0 text-right font-medium tabular-nums text-foreground">{formatFieldValue(raw, field)}</span>
+                <span className="w-20 shrink-0 text-right font-medium tabular-nums text-foreground">{formatFieldValue(raw, field, units)}</span>
               </div>
             ))}
           </div>
@@ -97,7 +101,7 @@ export function ComparisonStripCard({
               {grouped.items.get(index)!.map(({ field }) => (
                 <div key={field.key} className="flex items-center justify-between text-sm">
                   <span className="text-muted-foreground">{field.label}</span>
-                  <span className="font-medium text-foreground">{formatFieldValue(getValue(field.key), field)}</span>
+                  <span className="font-medium text-foreground">{formatFieldValue(getValue(field.key), field, units)}</span>
                 </div>
               ))}
             </div>

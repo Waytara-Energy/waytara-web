@@ -5,6 +5,7 @@ import { Area, AreaChart, Bar, BarChart, Cell, ReferenceDot, ReferenceLine, XAxi
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import { recentAxis, type AreaPoint } from "@/lib/energy-today";
 import { useChartStyle } from "./chart-style";
+import { useUnits } from "@/components/units-provider";
 import { CHART_CURSOR } from "./chart-cursor";
 
 const IST_MS = 19_800_000;
@@ -35,6 +36,7 @@ export function TodayAreaChart({
   unit?: string;
 }) {
   const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
+  const u = useUnits();
   const style = useChartStyle();
   const asBars = style === "bar";
   const signed = negColor !== undefined;
@@ -65,7 +67,7 @@ export function TodayAreaChart({
           <div className="rounded-md border bg-background px-2 py-1 text-[11px] shadow-sm">
             <span className="text-muted-foreground">{clock(p.t)}</span> · {label}{" "}
             <span className="font-medium tabular-nums">
-              {Math.abs(p.v).toFixed(2)} {unit}
+              {u.format(Math.abs(p.v), unit, null, 2)}
             </span>
           </div>
         );

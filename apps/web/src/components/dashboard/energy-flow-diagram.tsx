@@ -4,6 +4,8 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { BatteryCharging, Fuel, Home, Plug, Server, ShieldCheck, Sun, Zap, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useUnits } from "@/components/units-provider";
+import type { UnitPrefs } from "@/lib/unit-prefs";
 import { badgeFor, homeSourceOf, type StateBadge } from "./energy-flow-badge";
 import { insightFor, type FlowReadings } from "./energy-flow-insight";
 import { curvePath, HUB_R, layoutFlow, NODE_R, type NodeKind } from "./energy-flow-layout";
@@ -71,7 +73,8 @@ function makeNode(
   label: string,
   watts: number | null,
   socPct: number | null = null,
-  homeSource: Parameters<typeof badgeFor>[2] = "idle"
+  homeSource: Parameters<typeof badgeFor>[2] = "idle",
+  units?: UnitPrefs
 ): FlowNode {
   const w = watts ?? 0;
   let tone: Tone = "idle";
@@ -84,7 +87,7 @@ function makeNode(
   else if ((kind === "battery" || kind === "ups") && w < 0) [tone, dir] = ["drawing", "in"];
   else if ((kind === "home" || kind === "ev") && w > 0) [tone, dir] = ["consuming", "out"];
   const soc = (kind === "battery" || kind === "ups") && socPct !== null ? Math.round(socPct) : null;
-  return { id, kind, label, value: fmtKw(watts), soc, badge: badgeFor(kind, watts, homeSource), tone, dir, watts: Math.abs(w) };
+  return { id, kind, label, value: fmtKw(watts, units), soc, badge: badgeFor(kind, watts, homeSource), tone, dir, watts: Math.abs(w) };
 }
 
 // power_package says which equipment a site actually has — a null value (not yet configured for an existing site)
@@ -162,22 +165,23 @@ export function EnergyFlowDiagram({
   const router = useRouter();
   const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
   // Tapping or hovering a circle lights its line up and dims the rest.
+  const { prefs } = useUnits();
   const [focus, setFocus] = React.useState<string | null>(null);
 
   const nodes: FlowNode[] = [
-    ...(hasSolarPackage(powerPackage) && solarW !== null ? [makeNode("solar", "solar", "Solar", solarW)] : []),
-    ...(hasGridSource(powerSourceCategory) && gridW !== null ? [makeNode("grid", "grid", "Grid", gridW)] : []),
-    ...(hasBatteryPackage(powerPackage) && batteryW !== null ? [makeNode("battery", "battery", "Battery", batteryW, batterySocPct)] : []),
-    ...(loadW !== null ? [makeNode("home", "home", "Load", loadW, null, homeSourceOf(loadW, solarW, batteryW, gridW))] : []),
-    ...(hasEvPackage(powerPackage) && evW !== null ? [makeNode("ev", "ev", "EV Charger", evW)] : []),
-    ...extras.map((x) => makeNode(x.id, x.kind, x.label || DEFAULT_LABEL[x.kind], x.watts, x.socPct ?? null)),
+    ...(hasSolarPackage(powerPackage) && solarW !== null ? [makeNode("solar", "solar", "Solar", solarW, null, "idle", prefs)] : []),
+    ...(hasGridSource(powerSourceCategory) && gridW !== null ? [makeNode("grid", "grid", "Grid", gridW, null, "idle", prefs)] : []),
+    ...(hasBatteryPackage(powerPackage) && batteryW !== null ? [makeNode("battery", "battery", "Battery", batteryW, batterySocPct, "idle", prefs)] : []),
+    ...(loadW !== null ? [makeNode("home", "home", "Load", loadW, null, homeSourceOf(loadW, solarW, batteryW, gridW), prefs)] : []),
+    ...(hasEvPackage(powerPackage) && evW !== null ? [makeNode("ev", "ev", "EV Charger", evW, null, "idle", prefs)] : []),
+    ...extras.map((x) => makeNode(x.id, x.kind, x.label || DEFAULT_LABEL[x.kind], x.watts, x.socPct ?? null, "idle", prefs)),
   ];
 
   const layout = layoutFlow(nodes, (n) => n.kind);
   const { width: W, height: H, hub } = layout;
   const pctX = (x: number) => `${(x / W) * 100}%`;
   const pctY = (y: number) => `${(y / H) * 100}%`;
-  const summary = summarize(solarW, batteryW, gridW, loadW);
+  const summary = summarize(solarW, batteryW, gridW, loadW, prefs);
   // Each circle opens its own tab on the Monitoring page (the charger's circle opens the charger's page).
   const TAB: Record<NodeKind, string> = { solar: "solar", battery: "battery", ups: "battery", home: "load", grid: "grid", generator: "generator", ev: "hub" };
   const hrefFor = (kind: NodeKind | "hub"): string | null => {
@@ -343,7 +347,7 @@ export function EnergyFlowDiagram({
                 <TooltipContent side={labelAbove ? "top" : "bottom"} className="max-w-64">
                   {/* What the circle does for the rest of the site; its power and state are already written beside it. */}
                   {(() => {
-                    const insight = primary.has(item.id) ? insightFor(item.kind, readings) : { headline: item.badge.description, rows: [] };
+                    const insight = primary.has(item.id) ? insightFor(item.kind, readings, prefs) : { headline: item.badge.description, rows: [] };
                     return (
                       <>
                         <span className="block font-medium">{insight.headline}</span>

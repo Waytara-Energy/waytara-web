@@ -1,5 +1,8 @@
+"use client";
+
 import { TrendingDown, TrendingUp } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useUnits } from "@/components/units-provider";
 
 /** A simple horizontal gauge against the manual's own stated safe-operating
  *  ceiling for each temperature field (telemetry-catalog.ts's
@@ -19,6 +22,7 @@ export function TemperatureGauge({
   warnAboveC: number;
   previousValueC?: number | null;
 }) {
+  const u = useUnits();
   const pct = valueC === null ? 0 : Math.max(0, Math.min(100, (valueC / warnAboveC) * 100));
   const tone = pct >= 100 ? "bad" : pct >= 75 ? "warn" : "good";
   const delta = valueC !== null && previousValueC != null ? valueC - previousValueC : null;
@@ -39,7 +43,7 @@ export function TemperatureGauge({
               {Math.abs(delta).toFixed(1)}°
             </span>
           )}
-          {valueC === null ? "—" : `${valueC.toFixed(1)} °C`}
+          {valueC === null ? "—" : u.format(valueC, "°C", null, 1)}
         </span>
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">
