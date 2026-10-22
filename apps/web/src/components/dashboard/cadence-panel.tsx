@@ -16,6 +16,9 @@ import { ReportPeriodPicker } from "./report-period-picker";
 
 // Where the readings service lives. A literal `process.env.NEXT_PUBLIC_*` so Next can put it into the browser bundle.
 const GATEWAY_URL = process.env.NEXT_PUBLIC_GATEWAY_URL ?? "https://hub.waytaraenergy.com";
+/** The service refuses a browser on this computer (it answers only the live websites, over https), so on localhost the page asks through its
+ *  own server (app/api/hub), which asks the service on its behalf. On the live site the browser asks the service directly. */
+const hubBase = () => (typeof window !== "undefined" && ["localhost", "127.0.0.1"].includes(window.location.hostname) ? `${window.location.origin}/api/hub` : GATEWAY_URL);
 
 const DEFAULT_PICKS = ["pv1_power_w", "battery_soc_pct", "load_total_power_w"];
 const PREVIEW_ROWS = 40;
@@ -29,7 +32,7 @@ export function CadencePanel({ deviceId, today, firstDay }: { deviceId: string; 
   const client = React.useMemo(
     () =>
       createCadenceClient({
-        baseUrl: GATEWAY_URL,
+        baseUrl: hubBase(),
         getToken: async () => (await createClient().auth.getSession()).data.session?.access_token ?? null,
       }),
     []
