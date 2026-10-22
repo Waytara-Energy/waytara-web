@@ -2,9 +2,9 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ChevronLeft } from "lucide-react";
+import { ChevronDown, ChevronLeft, FileText } from "lucide-react";
 import { Composer, StatusPill, StatusSteps, Stars, Thread, type OutgoingMessage } from "@waytara/ui/support-ui";
-import { categoryLabel, roleName, ticketCode, type AttachmentView, type MessageView, type TicketView } from "@waytara/ui/support-model";
+import { categoryLabel, fileKind, roleName, ticketCode, type AttachmentView, type MessageView, type TicketView } from "@waytara/ui/support-model";
 import type { Assignee } from "@waytara/ui/support-client";
 import { useSupportThread } from "@waytara/ui/use-support-thread";
 import { cn } from "@waytara/ui/cn";
@@ -12,6 +12,20 @@ import { cn } from "@waytara/ui/cn";
 const btn = "inline-flex h-9 items-center justify-center rounded-md px-3 text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50";
 const primary = `${btn} bg-primary text-primary-foreground hover:opacity-90`;
 const outline = `${btn} border border-border bg-transparent text-foreground hover:bg-accent`;
+
+/** One card of the side panel; its title folds it away. */
+function Widget({ title, children, defaultOpen = true }: { title: string; children: React.ReactNode; defaultOpen?: boolean }) {
+  const [open, setOpen] = React.useState(defaultOpen);
+  return (
+    <section className="rounded-2xl border border-border bg-card">
+      <button type="button" aria-expanded={open} onClick={() => setOpen((o) => !o)} className="flex w-full items-center justify-between gap-2 px-4 py-3.5 text-left text-sm font-semibold">
+        {title}
+        <ChevronDown className={cn("size-4 text-muted-foreground transition-transform", open && "rotate-180")} />
+      </button>
+      {open && <div className="space-y-3 px-4 pb-4">{children}</div>}
+    </section>
+  );
+}
 
 const clock = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 
@@ -73,6 +87,7 @@ export function SupportDesk({
   const closed = ticket.status === "closed";
   const resolved = ticket.status === "resolved";
   const others = team.filter((p) => p.id !== ticket.assigned_to);
+  const files = [...attachmentsByMessage.values()].flat();
   const customerSeen = ticket.customer_last_read_at ? clock(ticket.customer_last_read_at) : null;
 
   return (
@@ -124,8 +139,7 @@ export function SupportDesk({
           </p>
         )}
 
-        <div className="space-y-3 rounded-lg border border-border bg-card p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Who has it</p>
+        <Widget title="Who has it">
           {ticket.assigned_name ? (
             <div className="flex items-center gap-2.5">
               <span className="flex size-9 items-center justify-center rounded-full bg-primary/15 text-sm font-semibold text-primary">{ticket.assigned_name.trim().charAt(0).toUpperCase()}</span>
@@ -167,10 +181,9 @@ export function SupportDesk({
               Put it back for the team
             </button>
           )}
-        </div>
+        </Widget>
 
-        <div className="space-y-2 rounded-lg border border-border bg-card p-4">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Status</p>
+        <Widget title="Status">
           <div className="flex flex-wrap gap-2">
             {!resolved && !closed && (
               <button type="button" disabled={busy} onClick={() => void act(() => api.setStatus(ticket.id, "resolved"))} className={primary}>
@@ -189,10 +202,9 @@ export function SupportDesk({
             )}
           </div>
           <p className="text-xs text-muted-foreground">{resolved ? "The customer has been asked to confirm and rate." : closed ? "Closed." : "Resolving e-mails the customer and asks them to confirm. Closing e-mails them and asks for a rating."}</p>
-        </div>
+        </Widget>
 
-        <div className="space-y-2 rounded-lg border border-border bg-card p-4 text-sm">
-          <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Details</p>
+        <Widget title="Details">
           <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5">
             <dt className="text-muted-foreground">Customer</dt>
             <dd className="truncate text-right">{ticket.customer_name ?? "—"}</dd>
@@ -211,14 +223,29 @@ export function SupportDesk({
             <dt className="text-muted-foreground">Customer saw</dt>
             <dd className="text-right">{customerSeen ?? "not yet"}</dd>
           </dl>
-        </div>
+        </Widget>
 
         {ticket.rating && (
-          <div className="space-y-2 rounded-lg border border-border bg-card p-4">
-            <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Customer rating</p>
+          <Widget title="Customer rating">
             <Stars value={ticket.rating} />
             {ticket.rating_comment && <p className="text-sm text-foreground">&ldquo;{ticket.rating_comment}&rdquo;</p>}
-          </div>
+          </Widget>
+        )}
+
+        {files.length > 0 && (
+          <Widget title={`Files shared (${files.length})`} defaultOpen={false}>
+            <ul className="space-y-1.5">
+              {files.map((f) => (
+                <li key={f.id}>
+                  <a href={urls[f.path]} target="_blank" rel="noreferrer" className="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-2 text-sm transition-colors hover:bg-accent">
+                    <FileText className="size-4 shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate">{f.file_name}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{fileKind(f.file_name, f.mime_type) === "image" ? "Photo" : "File"}</span>
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </Widget>
         )}
       </aside>
     </div>

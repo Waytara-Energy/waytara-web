@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { Search } from "lucide-react";
 import { StatusPill, Stars } from "@waytara/ui/support-ui";
-import { roleName, ticketCode } from "@waytara/ui/support-model";
+import { ticketCode } from "@waytara/ui/support-model";
 import { cn } from "@waytara/ui/cn";
 import { RealtimeRefresh } from "./realtime-refresh";
 
@@ -72,7 +72,7 @@ export function SupportBoard({ tickets, meId, isAdmin }: { tickets: BoardTicket[
   ];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-3">
+    <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-2xl border border-border bg-card p-4">
       <RealtimeRefresh table="support_tickets" event="UPDATE" />
       <RealtimeRefresh table="support_tickets" event="INSERT" />
 
@@ -81,11 +81,11 @@ export function SupportBoard({ tickets, meId, isAdmin }: { tickets: BoardTicket[
         <p className="mt-0.5 text-sm text-muted-foreground">{isAdmin ? "Every ticket, every site." : "The tickets of your sites."}</p>
       </div>
 
-      <div role="tablist" aria-label="Tickets" className="flex flex-wrap gap-x-1 border-b border-border">
+      <div role="tablist" aria-label="Tickets" className="grid grid-cols-4 gap-1 rounded-lg bg-muted p-1">
         {tabs.map((t) => (
-          <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={cn("-mb-px flex items-center gap-1.5 border-b-2 px-2.5 py-2 text-sm font-medium transition-colors", tab === t.id ? "border-primary text-primary" : "border-transparent text-muted-foreground hover:text-foreground")}>
+          <button key={t.id} role="tab" aria-selected={tab === t.id} onClick={() => setTab(t.id)} className={cn("flex items-center justify-center gap-1.5 rounded-md px-1.5 py-1.5 text-xs font-medium transition-colors", tab === t.id ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}>
             {t.label}
-            <span className={cn("rounded-full px-1.5 text-xs", t.id === "unassigned" && counts.unassigned > 0 ? "bg-amber-500/20 text-amber-700 dark:text-amber-300" : "bg-muted text-muted-foreground")}>{counts[t.id]}</span>
+            <span className={cn("text-xs", t.id === "unassigned" && counts.unassigned > 0 ? "font-semibold text-amber-600 dark:text-amber-400" : "text-muted-foreground")}>{counts[t.id]}</span>
           </button>
         ))}
       </div>
@@ -100,41 +100,40 @@ export function SupportBoard({ tickets, meId, isAdmin }: { tickets: BoardTicket[
           {query ? "No ticket matches that." : tab === "unassigned" ? "Nothing is waiting for someone to take it." : tab === "mine" ? "You have no open tickets." : tab === "open" ? "No open tickets." : "No closed tickets yet."}
         </div>
       ) : (
-        <ul className="min-h-0 flex-1 space-y-2 overflow-y-auto pr-1 max-lg:overflow-visible max-lg:pr-0">
+        <ul className="-mx-1 min-h-0 flex-1 space-y-1 overflow-y-auto px-1 max-lg:overflow-visible">
           {shown.map((t) => {
             const news = t.unread_staff > 0;
             const open = t.id === openId;
             const waitingH = !t.assigned_to && t.status === "open" ? (now - Date.parse(t.created_at)) / 3_600_000 : 0;
             return (
               <li key={t.id}>
-                <Link href={`/support/${t.id}`} aria-current={open ? "page" : undefined} className={cn("flex items-start gap-3 rounded-xl border px-3.5 py-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", open ? "border-primary/50 bg-primary/10" : "border-border bg-card hover:bg-accent/60")}>
-                  <span className={cn("mt-2 size-2 shrink-0 rounded-full", news ? "bg-primary" : "bg-transparent")} aria-hidden />
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-between gap-3">
-                      <p className={cn("truncate text-sm", news ? "font-semibold" : "font-medium")}>{t.subject}</p>
-                      <span className="shrink-0 text-xs text-muted-foreground">{ago(t.last_message_at ?? t.updated_at)}</span>
-                    </div>
-                    {t.last_message_preview && (
-                      <p className={cn("mt-0.5 truncate text-sm", news ? "text-foreground" : "text-muted-foreground")}>
-                        <span className="font-medium">{t.last_message_role === "customer" ? (t.customer_name?.split(" ")[0] ?? "Customer") : "Team"}:</span> {t.last_message_preview}
-                      </p>
-                    )}
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
-                      <StatusPill status={t.status} />
-                      <span>{ticketCode(t.ticket_no)}</span>
-                      <span>· {t.customer_name ?? "Customer"}</span>
-                      {t.site_name && <span>· {t.site_name}</span>}
-                      {t.assigned_name ? (
-                        <span className={cn(t.assigned_to === meId && "font-medium text-foreground")}>
-                          · {t.assigned_to === meId ? "You" : t.assigned_name} <span className="text-muted-foreground">({roleName(t.assigned_role, false).toLowerCase()})</span>
-                        </span>
-                      ) : t.status !== "closed" ? (
-                        <span className={cn("font-medium", waitingH >= 1 ? "text-destructive" : "text-amber-600 dark:text-amber-400")}>· Unassigned{waitingH >= 1 ? `, waiting ${ago(t.created_at)}` : ""}</span>
-                      ) : null}
-                      {t.status === "closed" && t.rating && <Stars value={t.rating} size="sm" />}
-                    </div>
+                <Link href={`/support/${t.id}`} aria-current={open ? "page" : undefined} className={cn("block rounded-xl px-3.5 py-3 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring", open ? "bg-primary/10 ring-1 ring-primary/40" : "hover:bg-accent/60")}>
+                  <div className="flex items-center justify-between gap-3">
+                    <p className={cn("flex min-w-0 items-center gap-2 text-sm", news ? "font-semibold" : "font-medium")}>
+                      {news && <span className="size-2 shrink-0 rounded-full bg-primary" aria-label={`${t.unread_staff} new`} />}
+                      <span className="truncate">{t.subject}</span>
+                    </p>
+                    <span className="shrink-0 text-xs text-muted-foreground">{ago(t.last_message_at ?? t.updated_at)}</span>
                   </div>
-                  {news && <span className="mt-1 shrink-0 rounded-full bg-primary px-2 py-0.5 text-xs font-medium text-primary-foreground">{t.unread_staff}</span>}
+                  {t.last_message_preview && (
+                    <p className={cn("mt-1 line-clamp-2 text-[13px] leading-snug", news ? "text-foreground" : "text-muted-foreground")}>
+                      <span className="font-medium">{t.last_message_role === "customer" ? (t.customer_name?.split(" ")[0] ?? "Customer") : "Team"}:</span> {t.last_message_preview}
+                    </p>
+                  )}
+                  <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-muted-foreground">
+                    <StatusPill status={t.status} />
+                    <span>{ticketCode(t.ticket_no)}</span>
+                    {t.assigned_name ? (
+                      <span className={cn(t.assigned_to === meId && "font-medium text-foreground")}>· {t.assigned_to === meId ? "You" : t.assigned_name}</span>
+                    ) : t.status !== "closed" ? (
+                      <span className={cn("font-medium", waitingH >= 1 ? "text-destructive" : "text-amber-600 dark:text-amber-400")}>· Unassigned{waitingH >= 1 ? `, waiting ${ago(t.created_at)}` : ""}</span>
+                    ) : null}
+                    {t.status === "closed" && t.rating && <Stars value={t.rating} size="sm" />}
+                  </div>
+                  <p className="mt-1 truncate text-xs text-muted-foreground">
+                    {t.customer_name ?? "Customer"}
+                    {t.site_name ? ` · ${t.site_name}` : ""}
+                  </p>
                 </Link>
               </li>
             );
