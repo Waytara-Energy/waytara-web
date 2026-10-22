@@ -1,29 +1,20 @@
-import { Receipt } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { getRequestProfile } from "@/lib/request-profile";
+import { periodProgress, summarisePayments, type PaymentRow } from "@/lib/billing-summary";
+import { BillingBoard, type BillingPlan, type BillingSubscription } from "@/components/dashboard/billing-board";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
-import { Badge } from "@/components/ui/badge";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
-const PAYMENT_STATUS_BADGE_VARIANT: Record<string, "default" | "alert" | "secondary"> = {
-  paid: "default",
-  pending: "alert",
-  failed: "alert",
-  refunded: "secondary",
-};
+/** The server's clock for how far into the subscription period it is (a function, so a render never reads the time itself). */
+const serverNow = () => Date.now();
 
+// Billing & Plan, in the same shape as Performance and Maintenance (a headline, then tabs): Plan and Payments. The page reads three
+// things that do not depend on each other, together; `payments` relies on RLS to scope to this customer, with a limit so a very
+// long-lived account cannot turn this into an unbounded fetch.
 export default async function BillingPage() {
   const profile = await getRequestProfile();
   const supabase = await createClient();
 
-  // Three independent reads (none depends on another's result) — fetched
-  // together instead of one after another. `payments` relies on RLS to
-  // scope to this customer (same "RLS scopes it, not the query" pattern
-  // used elsewhere), with a defensive limit so a very long-lived account
-  // can't turn this into an unbounded fetch.
-  const [{ data: customer }, { data: subscription }, { data: payments }] = await Promise.all([
+  const [{ data: customer }, { data: subscription }, { data: paymentRows }] = await Promise.all([
     profile
       ? supabase
           .from("customers")
@@ -42,110 +33,21 @@ export default async function BillingPage() {
       : Promise.resolve({ data: null }),
     supabase
       .from("payments")
-      .select("id, payment_type, amount, status, paid_at, created_at")
+      .select("id, payment_type, amount, status, method, paid_at, created_at")
       .order("created_at", { ascending: false })
       .limit(500),
   ]);
 
+  const payments: PaymentRow[] = paymentRows ?? [];
+  const plan: BillingPlan | null = customer?.plan ? { name: customer.plan.name, price: Number(customer.plan.price_monthly), since: customer.plan_started_at, accountStatus: customer.status } : null;
+  const sub: BillingSubscription | null = subscription
+    ? { status: subscription.status, start: subscription.current_period_start, end: subscription.current_period_end, progress: periodProgress(subscription.current_period_start, subscription.current_period_end, serverNow()) }
+    : null;
+
   return (
-    <div className="max-w-2xl space-y-6">
+    <>
       {profile && <RealtimeRefresh table="payments" event="UPDATE" filter={`customer_id=eq.${profile.id}`} />}
-      <div>
-        <h1 className="text-2xl font-semibold text-theme-primary">Billing &amp; Plan</h1>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Current Plan</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {customer?.plan ? (
-              <div className="text-sm">
-                <p className="text-foreground">
-                  {customer.plan.name} — ₹{Number(customer.plan.price_monthly).toLocaleString("en-IN")} one-time
-                </p>
-                <p className="mt-1 text-muted-foreground">
-                  Active since{" "}
-                  {customer.plan_started_at
-                    ? new Date(customer.plan_started_at).toLocaleDateString("en-IN")
-                    : "—"}
-                </p>
-              </div>
-            ) : (
-              <p className="text-sm text-muted-foreground">No plan assigned yet.</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card>
-          <CardHeader>
-            <CardTitle>Subscription</CardTitle>
-            <CardDescription>Ongoing monitoring &amp; dashboard access</CardDescription>
-          </CardHeader>
-          <CardContent>
-            {subscription ? (
-              <Badge variant={subscription.status === "active" ? "default" : "secondary"} className="capitalize">
-                {subscription.status}
-              </Badge>
-            ) : (
-              <p className="text-sm text-muted-foreground">No subscription record yet.</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Payment History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!payments || payments.length === 0 ? (
-            <Empty>
-              <EmptyHeader>
-                <EmptyMedia variant="icon">
-                  <Receipt />
-                </EmptyMedia>
-                <EmptyTitle>No payments yet</EmptyTitle>
-                <EmptyDescription>Payments you make will show up here.</EmptyDescription>
-              </EmptyHeader>
-            </Empty>
-          ) : (
-            <div className="overflow-x-auto rounded-lg border border-border">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Type</TableHead>
-                    <TableHead>Amount</TableHead>
-                    <TableHead>Date</TableHead>
-                    <TableHead className="text-right">Status</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {payments.map((p) => (
-                    <TableRow key={p.id}>
-                      <TableCell className="capitalize text-foreground">
-                        {p.payment_type.replace(/_/g, " ")}
-                      </TableCell>
-                      <TableCell className="tabular-nums text-foreground">
-                        ₹{Number(p.amount).toLocaleString("en-IN")}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">
-                        {new Date(p.paid_at ?? p.created_at).toLocaleDateString("en-IN")}
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <Badge variant={PAYMENT_STATUS_BADGE_VARIANT[p.status] ?? "secondary"} className="capitalize">
-                          {p.status}
-                        </Badge>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-    </div>
+      <BillingBoard plan={plan} subscription={sub} payments={payments} summary={summarisePayments(payments)} />
+    </>
   );
 }
