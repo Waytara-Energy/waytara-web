@@ -3,7 +3,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@waytara/supabase/server";
 import { getCurrentProfile } from "@waytara/supabase/auth";
-import { isStaffRole } from "@waytara/supabase/roles";
+import { isAdminAppRole } from "@waytara/supabase/roles";
 
 export async function login(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
@@ -22,12 +22,12 @@ export async function login(formData: FormData) {
 
   const profile = await getCurrentProfile(supabase);
 
-  if (!isStaffRole(profile?.role)) {
+  if (!isAdminAppRole(profile?.role)) {
     await supabase.auth.signOut();
     redirect(
       `/login?error=${encodeURIComponent("This app is for staff accounts only.")}`
     );
   }
 
-  redirect("/dashboard");
+  redirect(profile?.role === "site_engineer" ? "/support" : "/dashboard");
 }

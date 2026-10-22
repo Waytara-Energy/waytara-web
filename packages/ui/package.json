@@ -13,7 +13,11 @@
     "./realtime-provider": "./src/realtime-provider.tsx",
     "./notify": "./src/notify.ts",
     "./action-form": "./src/action-form.tsx",
-    "./error-fallback": "./src/error-fallback.tsx"
+    "./error-fallback": "./src/error-fallback.tsx",
+    "./support-model": "./src/support-model.ts",
+    "./support-client": "./src/support-client.ts",
+    "./support-ui": "./src/support-ui.tsx",
+    "./use-support-thread": "./src/use-support-thread.ts"
   },
   "scripts": {
     "typecheck": "tsc --noEmit"

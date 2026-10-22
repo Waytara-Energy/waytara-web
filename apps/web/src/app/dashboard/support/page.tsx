@@ -1,72 +1,39 @@
-import Link from "next/link";
-import { LifeBuoy } from "lucide-react";
+import { cookies } from "next/headers";
 import { createClient } from "@waytara/supabase/server";
 import { getRequestProfile } from "@/lib/request-profile";
-import { Badge } from "@/components/ui/badge";
-import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
-import { Item, ItemActions, ItemContent, ItemDescription, ItemGroup, ItemMedia, ItemTitle } from "@/components/ui/item";
+import { deviceDisplayId, getCustomerSites, resolveSelectedSite, SELECTED_SITE_COOKIE } from "@/lib/selected-site";
 import { NewSupportTicketDialog } from "@/components/dashboard/new-support-ticket-dialog";
-
-const STATUS_BADGE_VARIANT: Record<string, "alert" | "default" | "secondary"> = {
-  open: "alert",
-  in_progress: "default",
-  resolved: "secondary",
-  closed: "secondary",
-};
+import { SupportInbox, type InboxTicket } from "@/components/dashboard/support-inbox";
 
 export default async function SupportPage() {
-  const profile = await getRequestProfile();
+  const [profile, sites, cookieStore] = await Promise.all([getRequestProfile(), getCustomerSites(), cookies()]);
   const supabase = await createClient();
+  const selected = resolveSelectedSite(sites, cookieStore.get(SELECTED_SITE_COOKIE)?.value);
 
-  const { data: tickets } = profile
+  const { data } = profile
     ? await supabase
         .from("support_tickets")
-        .select("id, subject, status, updated_at")
+        .select("id, ticket_no, subject, status, site_id, assigned_name, assigned_role, last_message_at, last_message_preview, last_message_role, unread_customer, updated_at, rating")
         .order("updated_at", { ascending: false })
+        .limit(200)
     : { data: null };
 
+  const siteName = new Map(sites.map((s) => [s.id, s.name]));
+  const tickets: InboxTicket[] = (data ?? []).map((t) => ({ ...t, site_name: t.site_id ? (siteName.get(t.site_id) ?? null) : null }));
+
   return (
-    <div className="max-w-2xl space-y-6">
+    <div className="max-w-3xl space-y-5">
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-2xl font-semibold text-theme-primary">Support</h1>
-          <p className="mt-1 text-sm text-theme-muted">Open a ticket and chat with your assigned WayTara advisor.</p>
+          <p className="mt-1 text-sm text-theme-muted">Ask for help and follow it here. The team that looks after your site answers, and we e-mail you at every step.</p>
         </div>
-        <NewSupportTicketDialog />
+        <NewSupportTicketDialog
+          sites={sites.map((s) => ({ id: s.id, name: s.name, devices: s.devices.map((d) => ({ id: d.id, name: deviceDisplayId(d) })) }))}
+          defaultSiteId={selected?.id ?? sites[0]?.id ?? null}
+        />
       </div>
-
-      {!tickets || tickets.length === 0 ? (
-        <Empty className="border">
-          <EmptyHeader>
-            <EmptyMedia variant="icon">
-              <LifeBuoy />
-            </EmptyMedia>
-            <EmptyTitle>No support tickets yet</EmptyTitle>
-            <EmptyDescription>Open one and your assigned advisor will pick it up here.</EmptyDescription>
-          </EmptyHeader>
-        </Empty>
-      ) : (
-        <ItemGroup className="divide-y divide-border rounded-xl border border-border">
-          {tickets.map((t) => (
-            <Item key={t.id} asChild size="sm">
-              <Link href={`/dashboard/support/${t.id}`}>
-                <ItemMedia variant="icon">
-                  <LifeBuoy />
-                </ItemMedia>
-                <ItemContent>
-                  <ItemTitle>{t.subject}</ItemTitle>
-                  <ItemDescription>Updated {new Date(t.updated_at).toLocaleDateString("en-IN")}</ItemDescription>
-                </ItemContent>
-                <ItemActions>
-                  <Badge variant={STATUS_BADGE_VARIANT[t.status] ?? "secondary"} className="capitalize">
-                    {t.status.replace(/_/g, " ")}
-                  </Badge>
-                </ItemActions>
-              </Link>
-            </Item>
-          ))}
-        </ItemGroup>
-      )}
+      <SupportInbox tickets={tickets} customerId={profile?.id ?? ""} />
     </div>
   );
 }

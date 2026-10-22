@@ -35,11 +35,13 @@ const NAV_ITEMS = [
   { label: "Audit Log", href: "/audit", icon: ScrollText },
 ] as const;
 
-export function Sidebar() {
+export function Sidebar({ role }: { role?: string | null }) {
+  // a site engineer sees only Support
+  const items = role === "site_engineer" ? NAV_ITEMS.filter((i) => i.href === "/support") : NAV_ITEMS;
   return (
     <aside className="flex h-screen w-64 shrink-0 flex-col border-r border-border bg-card">
       <Link
-        href="/dashboard"
+        href={role === "site_engineer" ? "/support" : "/dashboard"}
         className="flex h-16 items-center gap-2 border-b border-border px-5"
       >
         <Image src="/images/icon.png" alt="" width={20} height={20} unoptimized className="h-5 w-5" />
@@ -49,7 +51,7 @@ export function Sidebar() {
       </Link>
 
       <nav className="flex-1 space-y-1 p-3">
-        {NAV_ITEMS.map(({ label, href, icon: Icon }) => (
+        {items.map(({ label, href, icon: Icon }) => (
           <Link
             key={href}
             href={href}

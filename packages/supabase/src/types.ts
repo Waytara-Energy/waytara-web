@@ -1240,6 +1240,7 @@ export type Database = {
           id: string
           is_verified: boolean
           key_name: string
+          map_cadence_seconds: number | null
           notes: string | null
           poll_enabled: boolean
           show_for_user: boolean
@@ -1258,6 +1259,7 @@ export type Database = {
           id?: string
           is_verified?: boolean
           key_name: string
+          map_cadence_seconds?: number | null
           notes?: string | null
           poll_enabled?: boolean
           show_for_user?: boolean
@@ -1276,6 +1278,7 @@ export type Database = {
           id?: string
           is_verified?: boolean
           key_name?: string
+          map_cadence_seconds?: number | null
           notes?: string | null
           poll_enabled?: boolean
           show_for_user?: boolean
@@ -1407,54 +1410,6 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }
-      equipment_rollup_15m_p20261013: {
-        Row: {
-          bucket: string
-          covered_s: number
-          created_at: string
-          equipment_id: string
-          is_test: boolean
-          key_name: string
-          last_value: number | null
-          max_value: number | null
-          min_value: number | null
-          n_samples: number
-          neg_wsum: number | null
-          pos_wsum: number | null
-          wsum: number
-        }
-        Insert: {
-          bucket: string
-          covered_s: number
-          created_at?: string
-          equipment_id: string
-          is_test?: boolean
-          key_name: string
-          last_value?: number | null
-          max_value?: number | null
-          min_value?: number | null
-          n_samples?: number
-          neg_wsum?: number | null
-          pos_wsum?: number | null
-          wsum: number
-        }
-        Update: {
-          bucket?: string
-          covered_s?: number
-          created_at?: string
-          equipment_id?: string
-          is_test?: boolean
-          key_name?: string
-          last_value?: number | null
-          max_value?: number | null
-          min_value?: number | null
-          n_samples?: number
-          neg_wsum?: number | null
-          pos_wsum?: number | null
-          wsum?: number
-        }
-        Relationships: []
       }
       equipment_rollup_15m_p20261014: {
         Row: {
@@ -1889,6 +1844,54 @@ export type Database = {
         Relationships: []
       }
       equipment_rollup_15m_p20261023: {
+        Row: {
+          bucket: string
+          covered_s: number
+          created_at: string
+          equipment_id: string
+          is_test: boolean
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          wsum: number
+        }
+        Insert: {
+          bucket: string
+          covered_s: number
+          created_at?: string
+          equipment_id: string
+          is_test?: boolean
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum: number
+        }
+        Update: {
+          bucket?: string
+          covered_s?: number
+          created_at?: string
+          equipment_id?: string
+          is_test?: boolean
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_15m_p20261024: {
         Row: {
           bucket: string
           covered_s: number
@@ -3541,13 +3544,64 @@ export type Database = {
           },
         ]
       }
+      support_attachments: {
+        Row: {
+          created_at: string
+          file_name: string
+          id: string
+          message_id: string
+          mime_type: string | null
+          path: string
+          size_bytes: number
+          ticket_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_name: string
+          id?: string
+          message_id: string
+          mime_type?: string | null
+          path: string
+          size_bytes: number
+          ticket_id: string
+        }
+        Update: {
+          created_at?: string
+          file_name?: string
+          id?: string
+          message_id?: string
+          mime_type?: string | null
+          path?: string
+          size_bytes?: number
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_attachments_message_id_fkey"
+            columns: ["message_id"]
+            isOneToOne: false
+            referencedRelation: "support_messages"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_attachments_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_messages: {
         Row: {
           attachment_path: string | null
           body: string
           created_at: string
+          event: string | null
           id: string
+          internal: boolean
           sender_id: string | null
+          sender_name: string | null
           sender_role: string
           ticket_id: string
         }
@@ -3555,8 +3609,11 @@ export type Database = {
           attachment_path?: string | null
           body: string
           created_at?: string
+          event?: string | null
           id?: string
+          internal?: boolean
           sender_id?: string | null
+          sender_name?: string | null
           sender_role: string
           ticket_id: string
         }
@@ -3564,8 +3621,11 @@ export type Database = {
           attachment_path?: string | null
           body?: string
           created_at?: string
+          event?: string | null
           id?: string
+          internal?: boolean
           sender_id?: string | null
+          sender_name?: string | null
           sender_role?: string
           ticket_id?: string
         }
@@ -3586,37 +3646,193 @@ export type Database = {
           },
         ]
       }
+      support_notifications: {
+        Row: {
+          attempts: number
+          audience: string
+          claimed_at: string | null
+          created_at: string
+          dedupe_key: string
+          due_at: string
+          id: number
+          kind: string
+          last_error: string | null
+          payload: Json
+          recipient_id: string
+          sent_at: string | null
+          ticket_id: string
+        }
+        Insert: {
+          attempts?: number
+          audience: string
+          claimed_at?: string | null
+          created_at?: string
+          dedupe_key: string
+          due_at?: string
+          id?: never
+          kind: string
+          last_error?: string | null
+          payload?: Json
+          recipient_id: string
+          sent_at?: string | null
+          ticket_id: string
+        }
+        Update: {
+          attempts?: number
+          audience?: string
+          claimed_at?: string | null
+          created_at?: string
+          dedupe_key?: string
+          due_at?: string
+          id?: never
+          kind?: string
+          last_error?: string | null
+          payload?: Json
+          recipient_id?: string
+          sent_at?: string | null
+          ticket_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "support_notifications_recipient_id_fkey"
+            columns: ["recipient_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_notifications_ticket_id_fkey"
+            columns: ["ticket_id"]
+            isOneToOne: false
+            referencedRelation: "support_tickets"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       support_tickets: {
         Row: {
+          assigned_at: string | null
+          assigned_name: string | null
+          assigned_role: string | null
+          assigned_to: string | null
+          category: string
+          closed_at: string | null
+          closed_by: string | null
           created_at: string
           customer_id: string
+          customer_last_read_at: string | null
+          customer_name: string | null
+          equipment_id: string | null
           id: string
+          last_message_at: string | null
+          last_message_preview: string | null
+          last_message_role: string | null
+          rated_at: string | null
+          rating: number | null
+          rating_comment: string | null
+          resolved_at: string | null
+          site_id: string | null
+          site_name: string | null
+          staff_last_read_at: string | null
+          staff_last_read_name: string | null
           status: string
           subject: string
+          ticket_no: number
+          unread_customer: number
+          unread_staff: number
           updated_at: string
         }
         Insert: {
+          assigned_at?: string | null
+          assigned_name?: string | null
+          assigned_role?: string | null
+          assigned_to?: string | null
+          category?: string
+          closed_at?: string | null
+          closed_by?: string | null
           created_at?: string
           customer_id: string
+          customer_last_read_at?: string | null
+          customer_name?: string | null
+          equipment_id?: string | null
           id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          last_message_role?: string | null
+          rated_at?: string | null
+          rating?: number | null
+          rating_comment?: string | null
+          resolved_at?: string | null
+          site_id?: string | null
+          site_name?: string | null
+          staff_last_read_at?: string | null
+          staff_last_read_name?: string | null
           status?: string
           subject: string
+          ticket_no?: number
+          unread_customer?: number
+          unread_staff?: number
           updated_at?: string
         }
         Update: {
+          assigned_at?: string | null
+          assigned_name?: string | null
+          assigned_role?: string | null
+          assigned_to?: string | null
+          category?: string
+          closed_at?: string | null
+          closed_by?: string | null
           created_at?: string
           customer_id?: string
+          customer_last_read_at?: string | null
+          customer_name?: string | null
+          equipment_id?: string | null
           id?: string
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          last_message_role?: string | null
+          rated_at?: string | null
+          rating?: number | null
+          rating_comment?: string | null
+          resolved_at?: string | null
+          site_id?: string | null
+          site_name?: string | null
+          staff_last_read_at?: string | null
+          staff_last_read_name?: string | null
           status?: string
           subject?: string
+          ticket_no?: number
+          unread_customer?: number
+          unread_staff?: number
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "support_tickets_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "support_tickets_customer_id_fkey"
             columns: ["customer_id"]
             isOneToOne: false
             referencedRelation: "customers"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "support_tickets_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
             referencedColumns: ["id"]
           },
         ]
@@ -3856,6 +4072,11 @@ export type Database = {
         Args: { p_io: boolean; p_now: string }
         Returns: undefined
       }
+      _offline_cause: { Args: { p_message: string }; Returns: string }
+      _offline_message: {
+        Args: { p_label: string; p_status: string }
+        Returns: string
+      }
       _record_activity: {
         Args: {
           p_action: string
@@ -3870,6 +4091,49 @@ export type Database = {
         Returns: undefined
       }
       _require_gateway_service: { Args: never; Returns: undefined }
+      _support_assign: {
+        Args: {
+          p_actor: string
+          p_notify?: boolean
+          p_ticket: string
+          p_to: string
+        }
+        Returns: undefined
+      }
+      _support_enqueue: {
+        Args: {
+          p_audience: string
+          p_dedupe: string
+          p_delay?: string
+          p_kind: string
+          p_payload: Json
+          p_recipient: string
+          p_ticket: string
+        }
+        Returns: undefined
+      }
+      _support_enqueue_staff: {
+        Args: {
+          p_delay?: string
+          p_key: string
+          p_kind: string
+          p_payload: Json
+          p_ticket: string
+        }
+        Returns: undefined
+      }
+      _support_event: {
+        Args: { p_event: string; p_text: string; p_ticket: string }
+        Returns: string
+      }
+      _support_name: { Args: { p_user: string }; Returns: string }
+      _support_pool: {
+        Args: { p_ticket: string }
+        Returns: {
+          staff_id: string
+        }[]
+      }
+      _support_preview: { Args: { p_text: string }; Returns: string }
       assign_child_equipment: {
         Args: {
           p_label?: string
@@ -4154,6 +4418,10 @@ export type Database = {
         }[]
       }
       gw_last_settings: { Args: { p_equipment: string }; Returns: Json }
+      gw_list_cadences: {
+        Args: { p_actor: string; p_equipment: string }
+        Returns: Json
+      }
       gw_live_active: { Args: { p_equipment: string }; Returns: boolean }
       gw_live_tick: {
         Args: { p_equipment: string; p_t: number; p_v: Json }
@@ -4232,6 +4500,15 @@ export type Database = {
       }
       gw_rotation_for_login: { Args: { p_key: string }; Returns: string }
       gw_rotation_staged: { Args: { p_rotation: string }; Returns: boolean }
+      gw_set_cadences: {
+        Args: {
+          p_actor: string
+          p_changes: Json
+          p_equipment: string
+          p_ip?: unknown
+        }
+        Returns: Json
+      }
       gw_set_push_interval: {
         Args: {
           p_actor: string
@@ -4314,6 +4591,66 @@ export type Database = {
       rollup_days: { Args: { p_days: string[] }; Returns: number }
       rollup_hours: { Args: { p_hours: string[] }; Returns: number }
       run_rollups: { Args: { p_now?: string }; Returns: Json }
+      support_assign: {
+        Args: { p_ticket: string; p_to: string }
+        Returns: undefined
+      }
+      support_assignees: {
+        Args: { p_ticket: string }
+        Returns: {
+          full_name: string
+          id: string
+          is_you: boolean
+          open_tickets: number
+          role: string
+        }[]
+      }
+      support_attach: {
+        Args: { p_files: Json; p_message: string }
+        Returns: number
+      }
+      support_can_access_as: {
+        Args: { p_ticket: string; p_user: string }
+        Returns: boolean
+      }
+      support_create_ticket: {
+        Args: {
+          p_body: string
+          p_category: string
+          p_equipment: string
+          p_site: string
+          p_subject: string
+        }
+        Returns: Json
+      }
+      support_customer_close: {
+        Args: { p_comment?: string; p_rating?: number; p_ticket: string }
+        Returns: undefined
+      }
+      support_customer_reopen: {
+        Args: { p_ticket: string }
+        Returns: undefined
+      }
+      support_mark_read: { Args: { p_ticket: string }; Returns: undefined }
+      support_object_ticket: { Args: { p_name: string }; Returns: string }
+      support_rate: {
+        Args: { p_comment?: string; p_rating: number; p_ticket: string }
+        Returns: undefined
+      }
+      support_send_message: {
+        Args: { p_body: string; p_internal?: boolean; p_ticket: string }
+        Returns: string
+      }
+      support_set_status: {
+        Args: { p_status: string; p_ticket: string }
+        Returns: undefined
+      }
+      support_staff_can_access: { Args: { p_ticket: string }; Returns: boolean }
+      support_staff_can_access_as: {
+        Args: { p_ticket: string; p_user: string }
+        Returns: boolean
+      }
+      support_take: { Args: { p_ticket: string }; Returns: undefined }
       telemetry_series: {
         Args: {
           p_equipment_id: string

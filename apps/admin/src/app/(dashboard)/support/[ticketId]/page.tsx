@@ -1,57 +1,33 @@
 import { notFound } from "next/navigation";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
-import { SupportThread } from "@/components/support-thread";
+import type { AttachmentView, MessageView, TicketView } from "@waytara/ui/support-model";
+import { SupportDesk } from "@/components/support-desk";
 
-export default async function SupportTicketPage({
-  params,
-}: {
-  params: Promise<{ ticketId: string }>;
-}) {
+export default async function SupportTicketPage({ params }: { params: Promise<{ ticketId: string }> }) {
   const { ticketId } = await params;
   const profile = await getCurrentProfile();
   const supabase = await createClient();
 
-  // RLS scopes this to a ticket the signed-in staff member can actually
-  // see — admin sees any, an employee only one for a customer assigned to
-  // them via customer_onboarding.employee_id. An unassigned employee gets
-  // null back here just like a nonexistent ticket id would, and both
-  // correctly 404 the same way rather than leaking that the ticket exists.
-  const { data: ticket } = await supabase
-    .from("support_tickets")
-    .select("id, subject, status, customer_id")
-    .eq("id", ticketId)
-    .maybeSingle();
-
+  // The row-level rules scope this to a ticket the signed-in person may work on (an admin: any; staff: the sites they are assigned to). A
+  // ticket they may not see comes back empty, like one that does not exist, and both 404.
+  const { data: ticket } = await supabase.from("support_tickets").select("*").eq("id", ticketId).maybeSingle();
   if (!ticket) notFound();
 
-  // Not a `customers -> profiles` join — see support/page.tsx's comment:
-  // profiles_self_or_admin RLS blocks an employee from reading an
-  // arbitrary customer's profile row, so the customer's display name comes
-  // from customer_onboarding -> leads instead, which the assigned employee
-  // can actually read.
-  let customerName = "Customer";
-  const { data: onboarding } = await supabase
-    .from("customer_onboarding")
-    .select("lead_id")
-    .eq("customer_id", ticket.customer_id)
-    .maybeSingle();
-  if (onboarding) {
-    const { data: lead } = await supabase.from("leads").select("full_name, email").eq("id", onboarding.lead_id).maybeSingle();
-    if (lead) customerName = lead.full_name || lead.email;
-  }
-
-  const { data: messages } = await supabase
-    .from("support_messages")
-    .select("id, sender_id, sender_role, body, attachment_path, created_at")
-    .eq("ticket_id", ticketId)
-    .order("created_at", { ascending: true });
+  const [{ data: messages }, { data: attachments }, device] = await Promise.all([
+    supabase.from("support_messages").select("*").eq("ticket_id", ticketId).order("created_at", { ascending: true }),
+    supabase.from("support_attachments").select("*").eq("ticket_id", ticketId).order("created_at", { ascending: true }),
+    ticket.equipment_id ? supabase.from("equipment").select("label, device_type:equipment_inventory(name, model_number)").eq("id", ticket.equipment_id).maybeSingle() : Promise.resolve({ data: null }),
+  ]);
+  const deviceName = device.data ? (device.data.label ?? device.data.device_type?.name ?? device.data.device_type?.model_number ?? null) : null;
 
   return (
-    <SupportThread
-      ticket={{ id: ticket.id, subject: ticket.subject, status: ticket.status, customerName }}
-      initialMessages={messages ?? []}
-      currentUserId={profile?.id ?? ""}
+    <SupportDesk
+      initialTicket={ticket as unknown as TicketView}
+      initialMessages={(messages ?? []) as unknown as MessageView[]}
+      initialAttachments={(attachments ?? []) as unknown as AttachmentView[]}
+      meId={profile?.id ?? ""}
+      deviceName={deviceName}
     />
   );
 }

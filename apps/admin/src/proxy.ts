@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createMiddlewareClient } from "@waytara/supabase/middleware";
 import { getCurrentProfile } from "@waytara/supabase/auth";
-import { isStaffRole } from "@waytara/supabase/roles";
+import { isAdminAppRole } from "@waytara/supabase/roles";
 
 // Route prefixes only an `admin` profile may reach — an `employee` hitting
 // one of these gets redirected to /unauthorized, not just a hidden nav item.
@@ -19,13 +19,22 @@ export async function proxy(request: NextRequest) {
   const profile = await getCurrentProfile(supabase);
 
   // customer-role accounts are blocked entirely — apps/admin is staff-only.
-  if (!profile || !isStaffRole(profile.role)) {
+  if (!profile || !isAdminAppRole(profile.role)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     url.searchParams.set(
       "error",
       profile ? "This app is for staff accounts only." : "Please sign in to continue."
     );
+    return NextResponse.redirect(url);
+  }
+
+  // A site engineer (an installer) is let in for one thing: the Support tickets of the sites they are assigned to. Everything else goes to
+  // Support (the row-level rules would show them nothing there anyway; this keeps them from landing on empty pages).
+  if (profile.role === "site_engineer" && !(pathname === "/support" || pathname.startsWith("/support/") || pathname === "/unauthorized")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/support";
+    url.search = "";
     return NextResponse.redirect(url);
   }
 
