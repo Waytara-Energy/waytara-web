@@ -36,7 +36,7 @@ const TILT_3D = { pitch: 58, bearing: -17 };
 /** How close the map is to the site by default (zoom): near enough to see the building and its neighbours. */
 const SITE_ZOOM = 18.5;
 /** On opening, and on Recenter, the map makes one slow turn around the site (3D only): one full turn in this many seconds. */
-const SPIN_SECONDS = 22;
+const SPIN_SECONDS = 60;
 /** The shortest distance (degrees) between two bearings. */
 const bearingGap = (a: number, b: number) => Math.abs(((a - b + 540) % 360) - 180);
 
@@ -56,26 +56,9 @@ const fromPlace = (p: Place): SiteAddressFields => ({ line1: p.line1 ?? "", city
 const mainLine = (p: Place) => p.line1 ?? p.label.split(",")[0];
 const restLine = (p: Place) => [p.city, p.state, p.pincode].filter(Boolean).join(", ");
 
-// The two icons on the map: the customer (a blue dot that pulses) and the site (a green home).
-function userDot(): HTMLElement {
-  const el = document.createElement("div");
-  el.title = "You are here";
-  el.className = "relative flex size-5 items-center justify-center";
-  el.innerHTML = '<span class="absolute inline-flex size-full animate-ping rounded-full bg-sky-500/50"></span><span class="relative size-3.5 rounded-full border-2 border-white bg-sky-500 shadow-lg"></span>';
-  return el;
-}
-function siteIcon(): HTMLElement {
-  const el = document.createElement("div");
-  el.title = "Site location";
-  el.className = "flex size-8 items-center justify-center rounded-full border-2 border-white bg-emerald-600 text-white shadow-lg";
-  el.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 10 9-7 9 7"/><path d="M5 9v11h14V9"/><path d="M10 20v-6h4v6"/></svg>';
-  return el;
-}
-
 /** The site on the map. It is only a picture until the customer presses Edit location (or while no location is saved yet): then the map can
  *  be moved under a fixed pin, searched, or set from their own position, the address at the pin fills in (and can be corrected), and nothing
- *  is saved until they press Save. The map always shows where the customer is (a blue dot) and where the site is (a green home), with the
- *  site's own building in green, and says how far away the site is. */
+ *  is saved until they press Save. The site is shown only by its own building in green (no markers), and the card says how far away it is. */
 export function SiteLocation({
   deviceId,
   siteName,
@@ -102,9 +85,6 @@ export function SiteLocation({
 }) {
   const box = React.useRef<HTMLDivElement>(null);
   const mapRef = React.useRef<import("maplibre-gl").Map | null>(null);
-  const mlRef = React.useRef<typeof import("maplibre-gl") | null>(null);
-  const siteMarkerRef = React.useRef<import("maplibre-gl").Marker | null>(null);
-  const userMarkerRef = React.useRef<import("maplibre-gl").Marker | null>(null);
   const watchRef = React.useRef<number | null>(null);
   const followRef = React.useRef<{ until: number } | null>(null);
   const targetRef = React.useRef<Point | null>(null);
@@ -166,7 +146,6 @@ export function SiteLocation({
     void (async () => {
       const ml = await import("maplibre-gl");
       if (cancelled || !box.current) return;
-      mlRef.current = ml;
       // The library cannot find its own worker once the bundler has moved it: serve it from this site (copied by scripts/copy-map-worker.mjs).
       ml.setWorkerUrl(`/maplibre/maplibre-gl-worker.mjs?v=${ml.getVersion()}`);
       map = new ml.Map({
@@ -207,10 +186,6 @@ export function SiteLocation({
     })();
     return () => {
       cancelled = true;
-      siteMarkerRef.current?.remove();
-      userMarkerRef.current?.remove();
-      siteMarkerRef.current = null;
-      userMarkerRef.current = null;
       map?.remove();
       mapRef.current = null;
     };
@@ -335,36 +310,12 @@ export function SiteLocation({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing, center, latitude, longitude, ready]);
 
-  // The site's icon, at the saved location.
-  React.useEffect(() => {
-    const map = mapRef.current;
-    const ml = mlRef.current;
-    if (!map || !ml || !ready) return;
-    if (!saved) {
-      siteMarkerRef.current?.remove();
-      siteMarkerRef.current = null;
-      return;
-    }
-    siteMarkerRef.current ??= new ml.Marker({ element: siteIcon() }).setLngLat([saved.lng, saved.lat]).addTo(map);
-    siteMarkerRef.current.setLngLat([saved.lng, saved.lat]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ready, latitude, longitude]);
-
-  // The customer's icon, wherever the browser says they are.
-  React.useEffect(() => {
-    const map = mapRef.current;
-    const ml = mlRef.current;
-    if (!map || !ml || !ready || !userPos) return;
-    userMarkerRef.current ??= new ml.Marker({ element: userDot() }).setLngLat([userPos.lng, userPos.lat]).addTo(map);
-    userMarkerRef.current.setLngLat([userPos.lng, userPos.lat]);
-  }, [ready, userPos]);
-
   const stopFollowing = React.useCallback(() => {
     followRef.current = null;
     setLocating(false);
   }, []);
 
-  // The customer's position: watched for as long as the page is open, so the blue dot and the distance are always current.
+  // The customer's position: watched for as long as the page is open, so the distance is always current.
   const startWatch = React.useCallback(() => {
     if (watchRef.current !== null || !("geolocation" in navigator)) return;
     watchRef.current = navigator.geolocation.watchPosition(
