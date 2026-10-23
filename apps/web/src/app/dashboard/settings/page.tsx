@@ -36,13 +36,9 @@ export default async function SettingsPage() {
   const devices: SignedInDevice[] = (sessionRows ?? []).map((s) => ({ id: s.id, lastActive: s.last_active, createdAt: s.created_at, userAgent: s.user_agent, ip: s.ip, isCurrent: s.is_current }));
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-theme-primary">Application Settings</h1>
-        <p className="mt-1 text-sm text-theme-muted">Your profile, how the app looks, and how your account is kept safe.</p>
-      </div>
-
+    <>
       <SettingsBoard
+        who={{ name: (row?.full_name ?? "").trim().split(/\s+/)[0] || (row?.email ?? profile.email ?? "").split("@")[0], devices: devices.length }}
         profile={{ userId: profile.id, fullName: row?.full_name ?? "", phone: row?.phone ?? "", email: row?.email ?? profile.email ?? "", avatarUrl: row?.avatar_url ?? null }}
         notifications={{ initial: resolveNotificationPrefs(row?.notification_preferences), alertRules: effectiveRules((ruleRows ?? []) as unknown as RuleRow[]), sites: allSites.map((s) => ({ id: s.id, name: s.name })) }}
         addresses={{ address: parseAddress(customer?.address), billing: customer?.billing_address ? parseAddress(customer.billing_address) : null, billingEmail: customer?.billing_email ?? "", gstin: customer?.gstin ?? "" }}
@@ -50,6 +46,6 @@ export default async function SettingsPage() {
         units={{ initial: parseUnitPrefs(row?.ui_preferences), values: unitValues }}
         security={{ policy: parseSessionPolicy(row?.security_preferences), devices, now: serverNow() }}
       />
-    </div>
+    </>
   );
 }

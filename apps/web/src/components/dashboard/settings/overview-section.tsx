@@ -105,7 +105,7 @@ export function OverviewSection({ userId, initial, imageUrl }: { userId: string;
   }
 
   return (
-    <div className="space-y-5">
+    <div className="grid items-start gap-5 xl:grid-cols-2">
       <SettingsCard
         title="Overview cards"
         description={`Pick ${OVERVIEW_CARD_COUNT} cards for your Overview. The first two sit to the left of the energy flow, the last two to the right.`}
@@ -210,7 +210,7 @@ export function OverviewSection({ userId, initial, imageUrl }: { userId: string;
         </div>
       </SettingsCard>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end xl:col-span-2">
         <Button type="button" size="sm" disabled={!dirty || saving || cards.length !== OVERVIEW_CARD_COUNT} onClick={() => void save()}>
           <ButtonSpinner show={saving} />
           {saving ? "Saving…" : "Save Overview"}

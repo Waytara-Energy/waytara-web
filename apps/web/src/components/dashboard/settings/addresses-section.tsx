@@ -78,7 +78,7 @@ export function AddressesSection({ address, billing, billingEmail, gstin }: { ad
   }
 
   return (
-    <form onSubmit={save} className="space-y-5">
+    <form onSubmit={save} className="grid items-start gap-5 xl:grid-cols-2">
       <SettingsCard title="Your address" description="Where you live or run your business. Your site's location is managed on the Site page.">
         <AddressFields idPrefix="addr" value={addr} onChange={setAddr} />
       </SettingsCard>
@@ -98,7 +98,7 @@ export function AddressesSection({ address, billing, billingEmail, gstin }: { ad
         </div>
       </SettingsCard>
 
-      <div className="flex justify-end">
+      <div className="flex justify-end xl:col-span-2">
         <Button type="submit" size="sm" disabled={!dirty || saving}>
           <ButtonSpinner show={saving} />
           {saving ? "Saving…" : "Save addresses"}

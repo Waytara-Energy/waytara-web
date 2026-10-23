@@ -1,6 +1,6 @@
 # Application Settings (customer app)
 
-`/dashboard/settings`, one section at a time, kept in the address (`#security`). Code: `apps/web/src/components/dashboard/settings/`.
+`/dashboard/settings`, built like Performance, Maintenance and Billing: a headline for the open tab, a row of seven tabs, and the tab's cards at the full width of the page (two columns on a wide screen, one on a phone); the open tab is kept in the address (`#security`). Code: `apps/web/src/components/dashboard/settings/`.
 
 | Section | What it does | Where it is stored |
 |---|---|---|

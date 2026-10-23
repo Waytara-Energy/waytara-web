@@ -153,10 +153,12 @@ function SessionCard({ initial }: { initial: SessionPolicy }) {
 /** Settings > Account & security: the password, how long a browser may sit idle, and where the account is signed in. */
 export function SecuritySection({ policy, devices, now }: { policy: SessionPolicy; devices: SignedInDevice[]; now: number }) {
   return (
-    <div className="space-y-5">
+    <div className="grid items-start gap-5 xl:grid-cols-2">
       <PasswordCard />
       <SessionCard initial={policy} />
-      <DevicesSetting devices={devices} now={now} />
+      <div className="xl:col-span-2">
+        <DevicesSetting devices={devices} now={now} />
+      </div>
     </div>
   );
 }

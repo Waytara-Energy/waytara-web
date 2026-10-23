@@ -63,7 +63,7 @@ export function AlertsManager({ rules, sites }: { rules: EffectiveRule[]; sites:
   }
 
   return (
-    <div className="space-y-5">
+    <div className="grid items-start gap-5 xl:grid-cols-2">
       <section className="rounded-2xl border border-border bg-card">
         <div className="flex items-start justify-between gap-4 p-5 pb-3 sm:p-6 sm:pb-3">
           <div>

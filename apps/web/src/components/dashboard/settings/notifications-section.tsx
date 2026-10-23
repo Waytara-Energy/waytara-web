@@ -54,6 +54,7 @@ export function NotificationsSection({ initial, alertRules, sites }: { initial: 
         <p className="text-sm text-muted-foreground">Choose which e-mails WayTara sends you. The bell in the app always shows everything; these only control e-mail.</p>
       </div>
 
+      <div className="grid items-start gap-5 xl:grid-cols-2">
       {NOTIFICATION_CATEGORIES.map((c) => {
         const Icon = ICON[c.id];
         const onCount = c.items.filter((i) => prefs[i.key]).length;
@@ -102,6 +103,7 @@ export function NotificationsSection({ initial, alertRules, sites }: { initial: 
           </section>
         );
       })}
+      </div>
 
       <div className="flex justify-end">
         <Button type="button" size="sm" disabled={!dirty || saving} onClick={() => void save()}>

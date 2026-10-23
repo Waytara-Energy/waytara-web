@@ -97,7 +97,7 @@ export function UnitsSection({ initial, values }: { initial: UnitPrefs; values: 
   }
 
   return (
-    <div className="space-y-5">
+    <div className="grid items-start gap-5 xl:grid-cols-2">
       <SettingsCard title="Units" description="Choose the unit numbers are shown in, everywhere in the dashboard: Overview, Monitoring, Performance, Reports and the charts. Nothing is recalculated or stored differently; only how it is shown changes.">
         <div className="divide-y divide-border">
           {PREF_QUANTITIES.map((q) => {
@@ -194,7 +194,7 @@ export function UnitsSection({ initial, values }: { initial: UnitPrefs; values: 
           ))}
       </SettingsCard>
 
-      <div className="flex flex-wrap items-center justify-end gap-2">
+      <div className="flex flex-wrap items-center justify-end gap-2 xl:col-span-2">
         {hasUnitChoices(prefs) && (
           <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => setLocal({ defaults: {}, overrides: {} })}>
             <RotateCcw className="size-3.5" />
