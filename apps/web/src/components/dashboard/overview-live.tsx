@@ -1,6 +1,10 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
+import { toast } from "sonner";
+import { startBody } from "@/lib/ev-control";
+import { callHub } from "./ev-charge-control";
 import { useDeviceLive } from "@/lib/telemetry/react";
 import { useLiveNumbers, type Agg } from "@/lib/telemetry/live-values";
 import { FAULT_BITMASK_KEYS_LIVE, SITE_OVERVIEW_KEYS, siteAgg } from "@/lib/overview-keys";
@@ -129,12 +133,33 @@ export function LiveEnergyFlow({
   /** The device's connection, so the drawing can freeze while the unit is offline or has lost the device. */
   sync: DeviceSyncInit;
   /** The charger's connector status, the energy it delivered today and whether it is connected, for the charger circle's label (given: the circle shows whenever the site has a charger). */
-  evInfo?: { status: string | null; sessionKwh: number | null; connected?: boolean | null };
+  evInfo?: { status: string | null; sessionKwh: number | null; connected?: boolean | null; sessionOpen?: boolean };
 }) {
+  const router = useRouter();
   const n = useSiteNumbers(inverterIds, initial, pvKeys);
   const { status } = useDeviceState(inverterIds[0] ?? "", sync);
   const ev = useLiveNumbers(chargerIds, ["power_active_import_kw"], { power_active_import_kw: initialEvW === null ? null : initialEvW / 1000 }, () => "sum");
   const evKw = ev.power_active_import_kw;
+  // The charger circle is the charging button: idle, a press asks the charger to start (through the hub; the car must be plugged in); while a charge runs, a
+  // press opens Monitoring's EV tab, where it can be stopped. The answer comes as a toast; the page itself catches up when the session appears.
+  const chargerId = chargerIds[0];
+  const sessionOpen = evInfo?.sessionOpen === true;
+  const offline = evInfo?.connected === false;
+  const pressEv = React.useCallback(async () => {
+    if (!chargerId) return;
+    if (sessionOpen) {
+      router.push(`/dashboard/monitoring?device=${chargerId}#ev`);
+      return;
+    }
+    if (offline) {
+      toast.error("The charger is not connected right now.");
+      return;
+    }
+    const id = toast.loading("Asking the charger to start...");
+    const r = await callHub(`/v1/ev/${encodeURIComponent(chargerId)}/remote-start`, startBody(null));
+    if (r.ok) toast.success("Charging requested. It starts in a few seconds (the car must be plugged in).", { id });
+    else toast.error(r.message, { id });
+  }, [chargerId, sessionOpen, offline, router]);
   const batteryRaw = n.battery_power_w ?? null;
   const flow = {
     solarW: solarGenerationW(n, pvKeys),
@@ -152,7 +177,7 @@ export function LiveEnergyFlow({
     frozen: status === "online" ? null : status,
     pvInputs: pvKeys.map((k) => ({ label: `PV${/^pv(\d+)_/.exec(k)?.[1] ?? ""}`, watts: n[k] ?? null })),
   };
-  return <EnergyFlowDiagram {...flow} />;
+  return <EnergyFlowDiagram {...flow} {...(chargerId ? { onEvPress: pressEv } : {})} />;
 }
 
 export function LiveTodaySoFar({

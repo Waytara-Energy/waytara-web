@@ -11,7 +11,6 @@ import { fetchSolarCardsProps } from "@/components/dashboard/solar-live-status-c
 import { OverviewBoard } from "@/components/dashboard/overview-board";
 import { HeaderSlot } from "@/components/dashboard/header-slot";
 import { FlowLegendButton } from "@/components/dashboard/flow-legend-button";
-import { EvChargeStrip } from "@/components/dashboard/ev-charge-strip";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { fetchEvOverview } from "@/lib/ev-overview";
 import { getLastSyncInfo } from "@/lib/device-sync";
@@ -79,7 +78,7 @@ export default async function DashboardOverviewPage() {
   // The first numbers of the cards beside the energy flow (the live channel keeps them current afterwards).
   const [solarCards, evOverview] = await Promise.all([fetchSolarCardsProps(supabase, site, syncInit, pvKeys), chargerIds.length > 0 ? fetchEvOverview(supabase, chargerIds[0]!) : Promise.resolve(null)]);
   // what the energy flow's charger circle says: today's energy and the connector's status
-  const evInfo = evOverview ? { status: evOverview.status, sessionKwh: evOverview.todayKwh, connected: evOverview.connected } : undefined;
+  const evInfo = evOverview ? { status: evOverview.status, sessionKwh: evOverview.todayKwh, connected: evOverview.connected, sessionOpen: !!evOverview.open } : undefined;
 
   return (
     <div className="space-y-4">
@@ -118,7 +117,6 @@ export default async function DashboardOverviewPage() {
             background={background}
             solar={solarCards}
             ev={null}
-            evStrip={evOverview ? <EvChargeStrip ev={evOverview} /> : null}
             flow={{
               inverterIds,
               chargerIds,

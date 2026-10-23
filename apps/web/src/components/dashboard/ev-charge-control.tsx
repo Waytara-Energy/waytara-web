@@ -11,7 +11,7 @@ import { START_POLL_MS, START_WAIT_MS, hubMessage, parseTarget, startBody } from
 /** The WayTara service that tells the charger (through its monitoring unit) to start and stop. */
 const GATEWAY_URL = process.env.NEXT_PUBLIC_GATEWAY_URL ?? "https://hub.waytaraenergy.com";
 
-async function callHub(path: string, body: unknown): Promise<{ ok: true } | { ok: false; message: string }> {
+export async function callHub(path: string, body: unknown): Promise<{ ok: true } | { ok: false; message: string }> {
   const token = (await createClient().auth.getSession()).data.session?.access_token;
   if (!token) return { ok: false, message: hubMessage(401) };
   let res: Response;

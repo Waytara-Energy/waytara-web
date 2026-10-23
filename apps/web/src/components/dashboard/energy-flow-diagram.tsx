@@ -141,6 +141,7 @@ export function EnergyFlowDiagram({
   batterySocPct,
   evW = null,
   evInfo,
+  onEvPress,
   powerPackage = null,
   powerSourceCategory = null,
   extras = [],
@@ -160,7 +161,9 @@ export function EnergyFlowDiagram({
   /** The site's EV charger, if it has one; omitted (no node, no line) when it has none or hasn't reported yet. */
   evW?: number | null;
   /** The charger's state for the circle's label: its connector status (Available, Preparing, Charging, Finishing, Faulted, or "Offline"), the energy it has delivered today, and whether the charger is connected. Given, the circle shows whenever the site has a charger. */
-  evInfo?: { status: string | null; sessionKwh: number | null; connected?: boolean | null };
+  evInfo?: { status: string | null; sessionKwh: number | null; connected?: boolean | null; sessionOpen?: boolean };
+  /** A press on the charger circle (the Overview starts a charge, or opens Monitoring's EV tab while one runs); without it the circle opens that tab. */
+  onEvPress?: () => void;
   /** The site's configured equipment combination (sites.power_package). */
   powerPackage?: string | null;
   /** The site's grid connection type (sites.power_source_category). */
@@ -347,11 +350,12 @@ export function EnergyFlowDiagram({
             onPointerLeave: (e: React.PointerEvent) => {
               if (e.pointerType === "mouse") setFocus((f) => (f === item.id ? null : f));
             },
-            onClick: () => go(hrefFor(item.kind)),
+            onClick: () => (item.kind === "ev" && onEvPress ? onEvPress() : go(hrefFor(item.kind))),
             onKeyDown: (e: React.KeyboardEvent) => {
               if (e.key === "Enter" || e.key === " ") {
                 e.preventDefault();
-                go(hrefFor(item.kind));
+                if (item.kind === "ev" && onEvPress) onEvPress();
+                else go(hrefFor(item.kind));
               }
             },
           };
