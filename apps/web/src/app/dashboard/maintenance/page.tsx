@@ -4,6 +4,7 @@ import { getSelectedSite, resolveDeviceInSite, deviceDisplayId } from "@/lib/sel
 import { todayIst } from "@/lib/report-types";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { fetchSolarHealthData, FAULT_HISTORY_DAYS } from "@/lib/maintenance-data";
+import { fetchEvMaintenance } from "@/lib/ev-maint-data";
 import { getServiceStatus, type ServiceStatus } from "@/lib/service-status";
 import { DeviceHealthContent } from "@/components/dashboard/device-health-content";
 import { LiveDynamicFieldGroup } from "@/components/dashboard/live-field-group";
@@ -17,7 +18,7 @@ const serverNow = () => Date.now();
 
 // Two tabs like Performance and Reports, each with its own headline. Health follows the device's live channel (connection, faults,
 // temperatures and the plain-language checks); the raw registers are kept in a collapsed panel for support. Service shows the plan,
-// warranty and visits, only for what exists. A problem is reported in Support (the fault and check buttons link there). A device that is not a solar inverter keeps its
+// warranty and visits, only for what exists. An EV charger gets checks like the inverter's (its unit, connection, connector, last charge) and its recent events above its records. A problem is reported in Support (the fault and check buttons link there). A device that is not a solar inverter keeps its
 // own health view in the Health tab.
 export default async function MaintenancePage({ searchParams }: { searchParams: Promise<{ device?: string }> }) {
   const [{ device: deviceIdParam }, site] = await Promise.all([searchParams, getSelectedSite()]);
@@ -39,10 +40,12 @@ export default async function MaintenancePage({ searchParams }: { searchParams: 
 
   const supabase = await createClient();
   const isSolar = device.deviceType?.category === "solar_inverter";
-  const [{ data: supportRows }, sync, solar] = await Promise.all([
+  const isEv = device.deviceType?.category === "ev_charger";
+  const [{ data: supportRows }, sync, solar, ev] = await Promise.all([
     supabase.from("support_tickets").select("subject").eq("equipment_id", device.id).neq("status", "closed"),
     getLastSyncInfo(device.id),
     isSolar ? fetchSolarHealthData(supabase, device) : Promise.resolve(null),
+    isEv ? fetchEvMaintenance(supabase, device) : Promise.resolve(null),
   ]);
   const serviceStatus: ServiceStatus | null = device.serviceId ? await getServiceStatus(device.serviceId) : null;
 
@@ -58,6 +61,7 @@ export default async function MaintenancePage({ searchParams }: { searchParams: 
     <>
       <RealtimeRefresh table="support_tickets" event="UPDATE" filter={`equipment_id=eq.${device.id}`} />
       <RealtimeRefresh table="support_tickets" event="INSERT" filter={`equipment_id=eq.${device.id}`} />
+      {isEv && <RealtimeRefresh table="ev_events" event="INSERT" filter={`equipment_id=eq.${device.id}`} />}
       <MaintenanceBoard
         deviceId={device.id}
         sync={sync}
@@ -74,6 +78,7 @@ export default async function MaintenancePage({ searchParams }: { searchParams: 
           }
         }
         health={isSolar ? null : <DeviceHealthContent supabase={supabase} device={device} />}
+        ev={ev}
         technical={solar && solar.technical.length > 0 ? <TechnicalGroups deviceId={device.id} groups={solar.technical} /> : null}
         service={<MaintenanceService status={serviceStatus} installedAt={device.installedAt} warrantyStart={device.warrantyStartDate} warrantyEnd={device.warrantyEndDate} now={serverNow()} />}
         serviceHeadline={serviceHeadline}

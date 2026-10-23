@@ -1,8 +1,7 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
-import { CalendarCheck, CheckCircle2, ChevronDown, HeartPulse, LifeBuoy, TriangleAlert, XCircle, type LucideIcon } from "lucide-react";
+import { CalendarCheck, ChevronDown, HeartPulse, TriangleAlert, type LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,18 +9,22 @@ import { agoText } from "@/lib/device-status-summary";
 import { getFaultInfo, type FaultEvent } from "@/lib/deye-fault-codes";
 import { inverterGuide } from "@/lib/troubleshooting-guide";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
-import { HEALTH_KEYS, VERDICT_LABEL, alreadyReported, buildHealthChecks, checkReportText, checkSubject, faultReportText, faultSubject, problemCount, verdictOf, type CheckState, type Verdict } from "@/lib/maintenance-health";
+import { HEALTH_KEYS, VERDICT_LABEL, buildHealthChecks, checkReportText, checkSubject, faultReportText, faultSubject, problemCount, verdictOf, type Verdict } from "@/lib/maintenance-health";
+import type { EvMaintData } from "@/lib/ev-maint-data";
 import { FAULT_BITMASK_KEYS_LIVE } from "@/lib/overview-keys";
 import { faultCodeOf } from "@/lib/notification-items";
 import { useLiveNumbers } from "@/lib/telemetry/live-values";
 import { cn } from "@/lib/utils";
 import { FaultHistoryCard } from "./fault-history-card";
-import { Button } from "@/components/ui/button";
 import { Alert } from "@/components/ui/alert";
 import { TroubleshootingGuide } from "./troubleshooting-guide";
 import { TemperatureGauge } from "./temperature-gauge";
 import { useDeviceState } from "./use-device-state";
 import { useHashTab } from "./use-hash-tab";
+import { EvMaintHealth, useEvMaintHealth } from "./ev-maint-health";
+import { CHECK_ICON, ReportButton, type ReportTarget } from "./maintenance-report";
+
+export type { ReportTarget } from "./maintenance-report";
 
 type SectionId = "health" | "service";
 const SECTIONS: { id: SectionId; label: string; icon: LucideIcon; active: string; circle: string }[] = [
@@ -34,14 +37,6 @@ export interface HeadlineData {
   label: string;
   value: string;
   figures: { label: string; value: string }[];
-}
-
-/** Where a report is filed: the device and site the page is about. */
-export interface ReportTarget {
-  deviceId: string;
-  deviceLabel: string;
-  siteId: string;
-  siteName: string | null;
 }
 
 export interface SolarHealthProps {
@@ -67,6 +62,7 @@ export function MaintenanceBoard({
   technical,
   service,
   serviceHeadline,
+  ev,
   report,
   openIssues,
 }: {
@@ -75,6 +71,8 @@ export function MaintenanceBoard({
   /** The live health of a solar inverter; null for other devices, which bring their own `health` content. */
   solar: SolarHealthProps | null;
   health: React.ReactNode;
+  /** What the Health tab needs about an EV charger (its unit, connector, last charge, events); null for any other device. */
+  ev: EvMaintData | null;
   technical: React.ReactNode;
   service: React.ReactNode;
   serviceHeadline: HeadlineData;
@@ -102,14 +100,17 @@ export function MaintenanceBoard({
   const verdict = verdictOf(state.status, checks);
   const problems = problemCount(checks);
   const lastRead = state.lastReadAt ? agoText(clock - new Date(state.lastReadAt).getTime()) : "—";
+  const evHealth = useEvMaintHealth(deviceId, sync, state, ev);
 
   const healthHeadline: HeadlineData = solar
     ? { label: "System health", value: VERDICT_LABEL[verdict], figures: [{ label: "Last data", value: lastRead }, { label: "Open issues", value: String(problems) }] }
-    : { label: "Device health", value: state.status === "online" ? "Reporting" : "Not reporting", figures: [{ label: "Last data", value: lastRead }] };
+    : evHealth
+      ? { label: "Charger health", value: VERDICT_LABEL[evHealth.verdict], figures: [{ label: "Last check-in", value: evHealth.lastCheckIn }, { label: "Open issues", value: String(evHealth.problems) }] }
+      : { label: "Device health", value: state.status === "online" ? "Reporting" : "Not reporting", figures: [{ label: "Last data", value: lastRead }] };
   const head = section === "service" ? serviceHeadline : healthHeadline;
   const meta = SECTIONS.find((s) => s.id === section)!;
   const Icon = meta.icon;
-  const tone: Verdict | null = section === "health" && solar ? verdict : null;
+  const tone: Verdict | null = section === "health" ? (solar ? verdict : evHealth ? evHealth.verdict : null) : null;
 
   return (
     <div className="space-y-5">
@@ -148,6 +149,11 @@ export function MaintenanceBoard({
         {section === "health" &&
           (solar ? (
             <SolarHealth solar={solar} checks={checks} faultCode={faultCode} value={value} technical={technical} report={report} openIssues={openIssues} />
+          ) : evHealth && ev ? (
+            <div className="space-y-4">
+              <EvMaintHealth health={evHealth} events={ev.events} report={report} openIssues={openIssues} />
+              {health}
+            </div>
           ) : (
             health
           ))}
@@ -156,12 +162,6 @@ export function MaintenanceBoard({
     </div>
   );
 }
-
-const CHECK_ICON: Record<CheckState, { Icon: LucideIcon; className: string }> = {
-  ok: { Icon: CheckCircle2, className: "text-emerald-500" },
-  warn: { Icon: TriangleAlert, className: "text-amber-500" },
-  bad: { Icon: XCircle, className: "text-destructive" },
-};
 
 function SolarHealth({ solar, checks, faultCode, value, technical, report, openIssues }: { solar: SolarHealthProps; checks: ReturnType<typeof buildHealthChecks>; faultCode: number | null; value: (key: string) => number | null; technical: React.ReactNode; report: ReportTarget | null; openIssues: string[] }) {
   const guide = React.useMemo(() => inverterGuide(), []);
@@ -236,28 +236,6 @@ function TechnicalDetails({ children }: { children: React.ReactNode }) {
       </CollapsibleTrigger>
       <CollapsibleContent className="space-y-4 pt-4">{children}</CollapsibleContent>
     </Collapsible>
-  );
-}
-
-/** A link to Support for something the page has shown: it opens the new-ticket form with the device, subject and message filled in, so the
- *  customer only has to read it and send. While a ticket about it is open it says so instead. */
-function ReportButton({ report, tag, subject, text, openIssues, label }: { report: ReportTarget; tag: string; subject: string; text: string; openIssues: string[]; label: string }) {
-  if (alreadyReported(openIssues, tag)) {
-    return (
-      <Link href="/dashboard/support" className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-border px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground">
-        <CheckCircle2 className="size-3.5 text-emerald-500" />
-        In Support
-      </Link>
-    );
-  }
-  const href = `/dashboard/support?${new URLSearchParams({ new: "1", device: report.deviceId, category: "device", subject, message: text })}`;
-  return (
-    <Button asChild variant="outline" size="sm" className="h-7 shrink-0 gap-1.5 px-2.5 text-xs">
-      <Link href={href}>
-        <LifeBuoy className="size-3.5" />
-        {label}
-      </Link>
-    </Button>
   );
 }
 
