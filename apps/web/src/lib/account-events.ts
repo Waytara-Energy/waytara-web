@@ -1,6 +1,6 @@
 // The account activity list (Application Settings > Security and the Account tab): what each kind of event is called and how it reads.
 
-export type AccountEventKind = "signin" | "signout" | "signout_idle" | "signout_others" | "signout_all" | "session_revoked" | "password_changed" | "email_changed" | "mfa_enabled" | "mfa_disabled";
+export type AccountEventKind = "signin" | "signout" | "signout_idle" | "signout_limit" | "signout_closed" | "signout_others" | "signout_all" | "session_revoked" | "password_changed" | "email_changed" | "mfa_enabled" | "mfa_disabled";
 
 export interface EventStyle {
   title: string;
@@ -12,6 +12,8 @@ const STYLE: Record<AccountEventKind, EventStyle> = {
   signin: { title: "Signed in", tone: "info" },
   signout: { title: "Signed out", tone: "info" },
   signout_idle: { title: "Signed out for being idle", tone: "info" },
+  signout_limit: { title: "Signed out at the session time limit", tone: "info" },
+  signout_closed: { title: "Signed out when the browser closed", tone: "info" },
   signout_others: { title: "Signed out the other devices", tone: "good" },
   signout_all: { title: "Signed out of every device", tone: "good" },
   session_revoked: { title: "A device was signed out", tone: "good" },

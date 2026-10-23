@@ -46,7 +46,7 @@ function ToastFromSearchParamsInner({
     shownForRef.current = key;
 
     if (error) notify.error(error, { important: true });
-    else if (success) notify.success(successMessage);
+    else if (success) notify.success(success === "1" ? successMessage : success);
 
     const next = new URLSearchParams(searchParams.toString());
     next.delete(errorParam);

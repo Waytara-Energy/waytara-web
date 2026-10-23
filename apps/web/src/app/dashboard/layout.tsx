@@ -155,7 +155,7 @@ export default async function DashboardLayout({
       <UnitsProvider initial={unitPrefs}>
       <HeaderSlotProvider>
         <SessionWatcher />
-        <IdleSignOut idleMinutes={sessionPolicy.idleMinutes} scope={sessionPolicy.scope} />
+        <IdleSignOut policy={sessionPolicy} />
         <AppearanceApplier prefs={appearance} />
         {/* An offline or unreachable inverter is announced by a toast (with Investigate) on every page, not only Overview. */}
         {noticeDevice && <ConnectionNotice deviceId={noticeDevice.id} sync={noticeDevice.sync} />}

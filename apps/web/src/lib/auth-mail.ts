@@ -3,7 +3,7 @@ import type { Mail } from "./support-mail";
 // The account-security e-mails: someone signed in, a device was signed out, the password changed. Pure, so the wording is tested; the sender
 // (auth-notify.ts) works out who, where and when. Each says what happened, on which device, and what to do if it was not the person.
 
-export type AuthKind = "signin" | "signout" | "signout_idle" | "signout_others" | "signout_all" | "session_revoked" | "password_changed" | "mfa_enabled" | "mfa_disabled";
+export type AuthKind = "signin" | "signout" | "signout_idle" | "signout_limit" | "signout_closed" | "signout_others" | "signout_all" | "session_revoked" | "password_changed" | "mfa_enabled" | "mfa_disabled";
 
 export interface AuthMailInput {
   kind: AuthKind;
@@ -40,6 +40,10 @@ function bodyFor(i: AuthMailInput): Body {
       return { subject: "You signed out of WayTara", lead: "This device was signed out of your WayTara account.", worry: "If this was not you, someone may have access to your account: change your password.", button: "Review your devices" };
     case "signout_idle":
       return { subject: "You were signed out of WayTara", lead: "This device was signed out of your WayTara account because it was idle for the time you chose.", worry: "You can change how long that is in Settings.", button: "Open Settings" };
+    case "signout_limit":
+      return { subject: "You were signed out of WayTara at your session limit", lead: "This device was signed out of your WayTara account because the session reached the time limit you chose.", worry: "You can change the limit in Settings.", button: "Open Settings" };
+    case "signout_closed":
+      return { subject: "You were signed out of WayTara when the browser closed", lead: "This device was signed out of your WayTara account because the browser was closed, as you chose.", worry: "You can change that in Settings.", button: "Open Settings" };
     case "signout_others":
       return { subject: "Your other devices were signed out of WayTara", lead: "All the other devices were signed out of your WayTara account. This one stayed signed in.", worry: "If this was not you, change your password now.", button: "Review your devices" };
     case "signout_all":

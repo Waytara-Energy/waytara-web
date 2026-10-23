@@ -44,6 +44,20 @@ export function buildEmailCodeMail(input: { name: string | null; code: string })
   return { subject: `${input.code} is your WayTara verification code`, text, html };
 }
 
+/** The e-mail with the code for changing the password, sent to the account's own address. */
+export function buildPasswordCodeMail(input: { name: string | null; code: string }): Mail {
+  const hello = first(input.name) ? `Hi ${first(input.name)},` : "Hi,";
+  const text = [hello, "", `Your WayTara code for changing your password is ${input.code}.`, "", "Enter it in Application Settings, with your new password. It works for 10 minutes. When the password changes, every device is signed out.", "", "If you did not ask for this, ignore this e-mail and your password stays as it is. If you keep getting these, change your password from the sign-in page.", "- The WayTara Team"].join("\n");
+  const html = `<div style="font-family:Segoe UI,Arial,sans-serif;color:#0f172a;max-width:520px">
+<p>${esc(hello)}</p>
+<p>Your WayTara code for changing your password is:</p>
+<p style="font-size:30px;letter-spacing:8px;font-weight:600;background:#f1f5f9;border-radius:10px;padding:12px 18px;display:inline-block;margin:4px 0">${esc(input.code)}</p>
+<p style="color:#475569;font-size:13px">Enter it in Application Settings, with your new password. It works for 10 minutes. When the password changes, every device is signed out.</p>
+<p style="color:#64748b;font-size:12px">If you did not ask for this, ignore this e-mail and your password stays as it is.<br>- The WayTara Team</p>
+</div>`;
+  return { subject: `${input.code} is your WayTara password code`, text, html };
+}
+
 /** The notice to the OLD address once the e-mail has changed. */
 export function buildEmailChangedMail(input: { name: string | null; newEmail: string }): Mail {
   const hello = first(input.name) ? `Hi ${first(input.name)},` : "Hi,";

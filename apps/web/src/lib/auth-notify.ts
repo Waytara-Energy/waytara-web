@@ -21,6 +21,8 @@ const SWITCH: Record<AuthKind, NotificationKey | null> = {
   signin: "auth_signin",
   signout: "auth_signout",
   signout_idle: "auth_signout",
+  signout_limit: "auth_signout",
+  signout_closed: "auth_signout",
   signout_others: "auth_signout",
   signout_all: "auth_signout",
   session_revoked: "auth_signout",

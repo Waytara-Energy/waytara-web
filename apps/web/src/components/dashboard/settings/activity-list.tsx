@@ -15,6 +15,8 @@ const ICON: Record<AccountEventKind, LucideIcon> = {
   signin: LogIn,
   signout: LogOut,
   signout_idle: LogOut,
+  signout_limit: LogOut,
+  signout_closed: LogOut,
   signout_others: Smartphone,
   signout_all: Smartphone,
   session_revoked: Smartphone,

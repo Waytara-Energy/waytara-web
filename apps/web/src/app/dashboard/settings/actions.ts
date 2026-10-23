@@ -3,15 +3,16 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@waytara/supabase/server";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
-import { verifyPassword } from "@waytara/supabase/verify-password";
 import { getCurrentProfile, requireCustomer } from "@waytara/supabase/auth";
 import type { Json } from "@waytara/supabase/types";
-import { EMAIL_PATTERN, MAX_ATTEMPTS, CODE_TTL_MS, buildEmailChangedMail, buildEmailCodeMail, canResend, codeExpired, codeMatches, generateCode, hashCode, normaliseEmail, secondsUntilResend } from "@/lib/email-otp";
+import { EMAIL_PATTERN, MAX_ATTEMPTS, CODE_TTL_MS, buildEmailChangedMail, buildEmailCodeMail, buildPasswordCodeMail, canResend, codeExpired, codeMatches, generateCode, hashCode, normaliseEmail, secondsUntilResend } from "@/lib/email-otp";
 import { GSTIN, addressProblems, addressToJson, normaliseGstin, type Address } from "@/lib/address";
 import { isBackgroundPathOf, overviewToJson, parseOverviewPrefs, type OverviewPrefs } from "@/lib/overview-prefs";
 import { layoutToJson, parseLayout, type WidgetItem } from "@/lib/overview-layout";
 import { policyToJson, parseSessionPolicy, type SessionPolicy } from "@/lib/session-policy";
 import { sendMail } from "@/lib/send-mail";
+import { passwordStrength } from "@/lib/password-strength";
+import { maskEmail } from "@/lib/mask-email";
 import { parseUnitPrefs, type UnitPrefs } from "@/lib/unit-prefs";
 import { metricOf, presetOf } from "@/lib/alert-rules";
 import { notifyAuthEvent, recordAccountEvent } from "@/lib/auth-notify";
@@ -19,6 +20,8 @@ import { describeDevice } from "@/lib/user-agent";
 import { NOTIFICATION_KEYS, mergeNotificationPrefs, type NotificationKey } from "@/lib/notification-prefs";
 
 const SETTINGS = "/dashboard/settings";
+/** What a password code is bound to (the same hashing as the e-mail change codes, a different purpose, so one cannot stand in for the other). */
+const PASSWORD_CODE_SCOPE = "password-change";
 const asJson = (v: unknown): Json => v as Json;
 
 // ---- profile: name and phone ------------------------------------------------------------------------------------------------------------
@@ -244,38 +247,91 @@ export async function saveUnits(prefs: UnitPrefs): Promise<void> {
 
 // ---- password and sign-in policy -------------------------------------------------------------------------------------------------------
 
-/** Changes the password after checking the current one. Optionally signs every other device out (a good idea after a suspected leak). */
-export async function changePassword(current: string, next: string, signOutOthers: boolean): Promise<void> {
+/** Sends a 6-digit code to the account's own e-mail. Changing the password needs it (confirmPasswordChange); nothing changes until then. */
+export async function requestPasswordChange(): Promise<{ sentTo: string }> {
   const profile = await requireCustomer();
-  if (next.length < 8) throw new Error("The new password needs at least 8 characters.");
-  if (next === current) throw new Error("Choose a password you have not used just now.");
-  if (!profile.email || !(await verifyPassword(profile.email, current))) throw new Error("The current password is not right.");
+  if (!profile.email) throw new Error("Your account has no e-mail address to send the code to.");
 
-  const supabase = await createClient();
-  const { error } = await supabase.auth.updateUser({ password: next });
-  if (error) throw new Error(error.message);
-  if (signOutOthers) await supabase.auth.signOut({ scope: "others" });
-  await notifyAuthEvent("password_changed", profile);
-  revalidatePath(SETTINGS);
+  const service = createServiceRoleClient();
+  const { data: pending } = await service.from("password_change_codes").select("created_at").eq("user_id", profile.id).maybeSingle();
+  if (pending && !canResend(pending.created_at, Date.now())) throw new Error(`Wait ${secondsUntilResend(pending.created_at, Date.now())} seconds before asking for another code.`);
+
+  const code = generateCode();
+  const { error } = await service.from("password_change_codes").upsert({
+    user_id: profile.id,
+    code_hash: hashCode(codeSecret(), profile.id, PASSWORD_CODE_SCOPE, code),
+    expires_at: new Date(Date.now() + CODE_TTL_MS).toISOString(),
+    attempts: 0,
+    created_at: new Date().toISOString(),
+  });
+  if (error) throw new Error("Could not start the change. Try again.");
+
+  const sent = await sendMail(profile.email, buildPasswordCodeMail({ name: profile.full_name, code }));
+  if (sent !== "sent") {
+    await service.from("password_change_codes").delete().eq("user_id", profile.id);
+    throw new Error("We could not send the code. Try again in a moment.");
+  }
+  return { sentTo: maskEmail(profile.email) };
 }
 
-/** How long a browser may sit idle before it is signed out, and whether that covers only that device or every device. */
+/** Checks the code and, if it is right, sets the new password and signs the account out of EVERY device, this one included (the caller then goes
+ *  to the sign-in page). */
+export async function confirmPasswordChange(codeRaw: string, next: string): Promise<void> {
+  const profile = await requireCustomer();
+  const code = codeRaw.replace(/\s+/g, "");
+  if (!/^\d{6}$/.test(code)) throw new Error("The code is 6 digits.");
+  if (next.length < 8) throw new Error("The new password needs at least 8 characters.");
+  if (next.length > 200) throw new Error("That password is too long.");
+  const strength = passwordStrength(next, profile.email ?? "");
+  if (strength.score < 2) throw new Error(strength.tips[0] ?? "Choose a stronger password.");
+
+  const service = createServiceRoleClient();
+  const { data: row } = await service.from("password_change_codes").select("code_hash, expires_at, attempts").eq("user_id", profile.id).maybeSingle();
+  if (!row) throw new Error("Ask for a code first.");
+  if (codeExpired(row.expires_at, Date.now())) {
+    await service.from("password_change_codes").delete().eq("user_id", profile.id);
+    throw new Error("That code has expired. Ask for a new one.");
+  }
+  if (row.attempts >= MAX_ATTEMPTS) {
+    await service.from("password_change_codes").delete().eq("user_id", profile.id);
+    throw new Error("Too many wrong tries. Ask for a new code.");
+  }
+  if (!codeMatches(codeSecret(), profile.id, PASSWORD_CODE_SCOPE, code, row.code_hash)) {
+    await service.from("password_change_codes").update({ attempts: row.attempts + 1 }).eq("user_id", profile.id);
+    const left = MAX_ATTEMPTS - row.attempts - 1;
+    throw new Error(left > 0 ? `That code is not right. ${left} ${left === 1 ? "try" : "tries"} left.` : "Too many wrong tries. Ask for a new code.");
+  }
+
+  const { error } = await service.auth.admin.updateUserById(profile.id, { password: next });
+  if (error) throw new Error(error.message);
+  await service.from("password_change_codes").delete().eq("user_id", profile.id);
+
+  // the password changed: tell the person, then end every session (this device's too)
+  await notifyAuthEvent("password_changed", profile);
+  const supabase = await createClient();
+  await supabase.auth.signOut({ scope: "global" });
+}
+
+/** When a browser is signed out by itself: after being idle (with a warning), at a most session time, when closed, for this device or all. The
+ *  other keys of security_preferences (the activity history choice) are kept. */
 export async function saveSessionPolicy(policy: SessionPolicy): Promise<void> {
   const profile = await requireCustomer();
   const clean = parseSessionPolicy(policyToJson(policy));
-  if (clean.idleMinutes !== policy.idleMinutes) throw new Error("Choose one of the times offered.");
+  if (JSON.stringify(clean) !== JSON.stringify(policy)) throw new Error("One of the choices is not allowed. Check the times and try again.");
   const supabase = await createClient();
-  const { error } = await supabase.from("profiles").update({ security_preferences: asJson(policyToJson(clean)) }).eq("id", profile.id);
+  const { data: current } = await supabase.from("profiles").select("security_preferences").eq("id", profile.id).maybeSingle();
+  const base = current?.security_preferences && typeof current.security_preferences === "object" && !Array.isArray(current.security_preferences) ? (current.security_preferences as Record<string, Json>) : {};
+  const { error } = await supabase.from("profiles").update({ security_preferences: asJson({ ...base, ...policyToJson(clean) }) }).eq("id", profile.id);
   if (error) throw new Error(error.message);
   revalidatePath("/dashboard", "layout");
 }
 
-/** The inactivity watcher's sign-out: this device, or all devices. */
-export async function idleSignOut(scope: "device" | "all"): Promise<void> {
+/** The session watcher's sign-out: after being idle, at the session's time limit, or when the browser was closed (this device, or all devices). */
+export async function idleSignOut(scope: "device" | "all", reason: "idle" | "limit" | "closed" = "idle"): Promise<void> {
   const supabase = await createClient();
   const profile = await getCurrentProfile(supabase);
   await supabase.auth.signOut({ scope: scope === "all" ? "global" : "local" });
-  if (profile) await notifyAuthEvent("signout_idle", profile);
+  if (profile) await notifyAuthEvent(reason === "limit" ? "signout_limit" : reason === "closed" ? "signout_closed" : "signout_idle", profile);
 }
 
 // ---- signed-in devices ------------------------------------------------------------------------------------------------------------------
@@ -335,7 +391,7 @@ export interface AlertInput {
 export async function saveAlertRule(input: AlertInput): Promise<void> {
   const profile = await requireCustomer();
   const preset = input.presetId ? presetOf(input.presetId) : null;
-  if (input.presetId && !preset) throw new Error("That ready-made alert does not exist.");
+  if (input.presetId && !preset) throw new Error("That alert does not exist.");
   const metric = preset ? preset.metric : input.metric;
   const op = preset ? preset.op : input.op;
   if (!metricOf(metric)) throw new Error("Choose what to watch.");
