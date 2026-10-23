@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { BatteryCharging, Fuel, Home, Plug, Server, ShieldCheck, Sun, Zap, type LucideIcon } from "lucide-react";
+import { BatteryCharging, CarFront, Fuel, Home, Server, ShieldCheck, Sun, Zap, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUnits } from "@/components/units-provider";
 import type { UnitPrefs } from "@/lib/unit-prefs";
@@ -22,6 +22,9 @@ const COLOR = {
   idle: "#94a3b8", // slate-400
 } as const;
 type Tone = keyof typeof COLOR;
+/** The colours and tones, for the colour key (flow-legend.tsx). */
+export const FLOW_COLOR = COLOR;
+export type FlowTone = Tone;
 
 // The same icons the Monitoring tabs use for these things (the load keeps the Home Load tab's icon).
 const ICON: Record<NodeKind, LucideIcon> = {
@@ -31,7 +34,7 @@ const ICON: Record<NodeKind, LucideIcon> = {
   battery: BatteryCharging,
   ups: ShieldCheck,
   home: Home,
-  ev: Plug,
+  ev: CarFront,
 };
 const DEFAULT_LABEL: Record<NodeKind, string> = {
   solar: "Solar",
@@ -65,6 +68,9 @@ interface FlowNode {
   /** Which way energy moves relative to the inverter: "in" = into it, "out" = away from it. */
   dir: "in" | "out" | "none";
   watts: number;
+  /** The charger node: its two label lines (power or status, then session and status) and whether it is offline. */
+  evText?: { line1: string; line2: string };
+  offline?: boolean;
 }
 
 function makeNode(
@@ -108,17 +114,24 @@ function hasGridSource(category: string | null): boolean {
   return category !== "off_grid";
 }
 
+/**
+ * The two lines under the charger's circle. Line 1: the live power while it is charging, otherwise its status. Line 2: the status with today's
+ * charged energy ("Charging · 3.2 kWh today", "Available · 0.0 kWh today"); an offline charger just says "Offline".
+ */
+export function evLabel(evW: number | null, status: string | null, sessionKwh: number | null, connected: boolean | null | undefined, fmtPower: (w: number) => string = (w) => `${(w / 1000).toFixed(1)} kW`): { line1: string; line2: string } {
+  if (connected === false) return { line1: "Offline", line2: "Offline" };
+  const state = status && status.trim() ? status.trim() : "Idle";
+  const today = sessionKwh === null ? null : `${sessionKwh.toFixed(1)} kWh today`;
+  return {
+    line1: evW !== null && evW > 0 ? fmtPower(evW) : state,
+    line2: today ? `${state} · ${today}` : state,
+  };
+}
+
 /** Half-length of the "not in use" cross, in drawing units. */
 const CROSS = 8;
 /** How many dots travel along an active line. */
 const DOTS = 3;
-
-const LEGEND: { tone: Tone; label: string }[] = [
-  { tone: "producing", label: "Producing · charging" },
-  { tone: "drawing", label: "Importing · discharging" },
-  { tone: "consuming", label: "Consuming · exporting" },
-  { tone: "idle", label: "Idle" },
-];
 
 export function EnergyFlowDiagram({
   solarW,
@@ -127,6 +140,7 @@ export function EnergyFlowDiagram({
   loadW,
   batterySocPct,
   evW = null,
+  evInfo,
   powerPackage = null,
   powerSourceCategory = null,
   extras = [],
@@ -145,6 +159,8 @@ export function EnergyFlowDiagram({
   batterySocPct: number | null;
   /** The site's EV charger, if it has one; omitted (no node, no line) when it has none or hasn't reported yet. */
   evW?: number | null;
+  /** The charger's state for the circle's label: its connector status (Available, Preparing, Charging, Finishing, Faulted, or "Offline"), the energy it has delivered today, and whether the charger is connected. Given, the circle shows whenever the site has a charger. */
+  evInfo?: { status: string | null; sessionKwh: number | null; connected?: boolean | null };
   /** The site's configured equipment combination (sites.power_package). */
   powerPackage?: string | null;
   /** The site's grid connection type (sites.power_source_category). */
@@ -173,7 +189,14 @@ export function EnergyFlowDiagram({
     ...(hasGridSource(powerSourceCategory) && gridW !== null ? [makeNode("grid", "grid", "Grid", gridW, null, "idle", prefs)] : []),
     ...(hasBatteryPackage(powerPackage) && batteryW !== null ? [makeNode("battery", "battery", "Battery", batteryW, batterySocPct, "idle", prefs)] : []),
     ...(loadW !== null ? [makeNode("home", "home", "Load", loadW, null, homeSourceOf(loadW, solarW, batteryW, gridW), prefs)] : []),
-    ...(hasEvPackage(powerPackage) && evW !== null ? [makeNode("ev", "ev", "EV Charger", evW, null, "idle", prefs)] : []),
+    ...((evInfo || (hasEvPackage(powerPackage) && evW !== null))
+      ? [
+          {
+            ...makeNode("ev", "ev", "EV Charger", evW, null, "idle", prefs),
+            ...(evInfo ? { evText: evLabel(evW, evInfo.status, evInfo.sessionKwh, evInfo.connected, (w) => fmtKw(w, prefs)), offline: evInfo.connected === false } : {}),
+          },
+        ]
+      : []),
     ...extras.map((x) => makeNode(x.id, x.kind, x.label || DEFAULT_LABEL[x.kind], x.watts, x.socPct ?? null, "idle", prefs)),
   ];
 
@@ -183,11 +206,20 @@ export function EnergyFlowDiagram({
   const pctY = (y: number) => `${(y / H) * 100}%`;
   const summary = summarize(solarW, batteryW, gridW, loadW, prefs);
   // Each circle opens its own tab on the Monitoring page (the charger's circle opens the charger's page).
-  const TAB: Record<NodeKind, string> = { solar: "solar", battery: "battery", ups: "battery", home: "load", grid: "grid", generator: "generator", ev: "hub" };
+  const TAB: Record<NodeKind, string> = { solar: "solar", battery: "battery", ups: "battery", home: "load", grid: "grid", generator: "generator", ev: "ev" };
   const hrefFor = (kind: NodeKind | "hub"): string | null => {
     const device = kind === "ev" ? chargerId : inverterId;
     if (!device) return null;
     return `/dashboard/monitoring?device=${device}#${kind === "hub" ? "hub" : TAB[kind]}`;
+  };
+  // The charger is fed by the home load, not by the inverter directly: its line runs from the load circle down to the charger circle (the inverter
+  // is used when there is no load circle).
+  const homeEntry = layout.nodes.find((e) => e.item.kind === "home");
+  const lineOf = (e: (typeof layout.nodes)[number]) => {
+    if (e.item.id === "ev" && homeEntry) return { from: { x: homeEntry.center.x, y: homeEntry.center.y + NODE_R }, to: { x: e.center.x, y: e.center.y - NODE_R }, vertical: true };
+    const from = e.item.dir === "out" ? e.hubAnchor : e.anchor;
+    const to = e.item.dir === "out" ? e.anchor : e.hubAnchor;
+    return { from, to, vertical: e.side === "top" || e.side === "bottom" };
   };
   const go = (href: string | null) => {
     if (href) router.push(href);
@@ -202,7 +234,7 @@ export function EnergyFlowDiagram({
         style={{
           aspectRatio: `${W} / ${H}`,
           // fit: as large as the column allows, but never taller than the room the board leaves (--flow-h, set by the board; less
-          // room for this drawing's colour key).
+          // room the drawing's neighbours take).
           ...(fit ? { width: `min(100%, calc(var(--flow-h, calc(max(100svh - 14rem, 26rem) - 3.5rem)) * ${W / H}))` } : {}),
         }}
         onPointerLeave={() => setFocus(null)}
@@ -214,9 +246,9 @@ export function EnergyFlowDiagram({
               <stop offset="0.5" stopColor="#ef4444" />
               <stop offset="1" stopColor="#b91c1c" />
             </linearGradient>
-            {layout.nodes.map(({ item, anchor, hubAnchor }) => {
-              const from = item.dir === "out" ? hubAnchor : anchor;
-              const to = item.dir === "out" ? anchor : hubAnchor;
+            {layout.nodes.map((entry) => {
+              const { item } = entry;
+              const { from, to } = lineOf(entry);
               const color = COLOR[item.tone];
               const active = item.dir !== "none";
               return (
@@ -228,10 +260,12 @@ export function EnergyFlowDiagram({
               );
             })}
           </defs>
-          {layout.nodes.map(({ item, side, anchor, hubAnchor }) => {
-            const from = item.dir === "out" ? hubAnchor : anchor;
-            const to = item.dir === "out" ? anchor : hubAnchor;
-            const d = curvePath(from, to, side === "top" || side === "bottom");
+          {layout.nodes.map((entry) => {
+            const { item } = entry;
+            const { from, to, vertical } = lineOf(entry);
+            const d = curvePath(from, to, vertical);
+            // A charger that is only idle shows a quiet grey line; the red cross is for a charger that is offline.
+            const cross = item.id === "ev" && item.evText ? !!item.offline : item.dir === "none";
             const durS = Math.min(5, Math.max(1.6, 5 - item.watts / 3000));
             const dur = `${durS.toFixed(1)}s`;
             const dim = focus !== null && focus !== item.id;
@@ -245,10 +279,10 @@ export function EnergyFlowDiagram({
                   strokeWidth={item.dir === "none" ? 2 : lineWidth(item.watts) + (lit ? 1 : 0)}
                   strokeLinecap="round"
                 />
-                {item.dir === "none" && (
+                {cross && (
                   // Not in use: a red cross on the line, at its midpoint (a symmetric curve passes through the average of its ends).
                   <g transform={`translate(${(from.x + to.x) / 2} ${(from.y + to.y) / 2})`} style={{ filter: "drop-shadow(0 0 3px rgba(239,68,68,0.55))" }}>
-                    <title>{`${item.label}: not in use`}</title>
+                    <title>{`${item.label}: ${item.offline ? "offline" : "not in use"}`}</title>
                     <path d={`M -${CROSS} -${CROSS} L ${CROSS} ${CROSS} M -${CROSS} ${CROSS} L ${CROSS} -${CROSS}`} stroke={`url(#${uid}-off)`} strokeWidth={3} strokeLinecap="round" fill="none" />
                   </g>
                 )}
@@ -300,7 +334,8 @@ export function EnergyFlowDiagram({
           const Icon = ICON[item.kind];
           const color = COLOR[item.tone];
           const idle = item.tone === "idle";
-          const labelAbove = side === "top";
+          // The load's own label goes above its circle when a charger hangs below it (the line to the charger would run through the text), if there is room.
+          const labelAbove = side === "top" || (item.kind === "home" && layout.nodes.some((n) => n.item.id === "ev") && center.y - NODE_R - 46 >= 0);
           const dim = focus !== null && focus !== item.id;
           // A mouse lights the line only while it is over this circle or its label; a finger taps to light / unlight it.
           const handlers = {
@@ -375,43 +410,27 @@ export function EnergyFlowDiagram({
                 {...handlers}
               >
                 <span className="font-semibold leading-tight tabular-nums text-theme-primary" style={{ fontSize: "clamp(11px, 2.1cqw, 17px)" }}>
-                  {item.value}
+                  {item.evText ? item.evText.line1 : item.value}
                   {item.soc !== null && ` · ${item.soc}%`}
                 </span>
                 <span className="leading-tight text-theme-muted" style={{ fontSize: "clamp(10px, 1.7cqw, 14px)" }}>
-                  {item.label}
-                  <span className="hidden font-medium @md:inline" style={{ color: idle ? "var(--text-muted)" : color }}>
-                    {" · "}
-                    {item.badge.label}
-                  </span>
+                  {item.evText ? (
+                    item.evText.line2
+                  ) : (
+                    <>
+                      {item.label}
+                      <span className="hidden font-medium @md:inline" style={{ color: idle ? "var(--text-muted)" : color }}>
+                        {" · "}
+                        {item.badge.label}
+                      </span>
+                    </>
+                  )}
                 </span>
               </div>
             </React.Fragment>
           );
         })}
       </div>
-
-      <ul className="mt-3 flex flex-wrap items-center justify-center gap-x-4 gap-y-1 text-xs text-theme-muted">
-        {LEGEND.map((l) => (
-          <li key={l.tone} className="flex items-center gap-1.5">
-            <span className="h-[3px] w-4 rounded-full" style={{ background: `linear-gradient(90deg, ${COLOR[l.tone]}, ${COLOR[l.tone]}1a)` }} />
-            {l.label}
-          </li>
-        ))}
-        <li className="flex items-center gap-1.5">
-          <svg viewBox="-6 -6 12 12" className="size-3" aria-hidden="true">
-            <defs>
-              <linearGradient id={`${uid}-offl`} x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stopColor="#fca5a5" />
-                <stop offset="0.5" stopColor="#ef4444" />
-                <stop offset="1" stopColor="#b91c1c" />
-              </linearGradient>
-            </defs>
-            <path d="M -4 -4 L 4 4 M -4 4 L 4 -4" stroke={`url(#${uid}-offl)`} strokeWidth={2.4} strokeLinecap="round" fill="none" />
-          </svg>
-          Not in use
-        </li>
-      </ul>
     </div>
   );
 }

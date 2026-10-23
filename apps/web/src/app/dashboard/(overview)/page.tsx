@@ -9,6 +9,11 @@ import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { SITE_OVERVIEW_KEYS } from "@/lib/overview-keys";
 import { fetchSolarCardsProps } from "@/components/dashboard/solar-live-status-cards";
 import { OverviewBoard } from "@/components/dashboard/overview-board";
+import { HeaderSlot } from "@/components/dashboard/header-slot";
+import { FlowLegendButton } from "@/components/dashboard/flow-legend-button";
+import { EvChargeStrip } from "@/components/dashboard/ev-charge-strip";
+import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
+import { fetchEvOverview } from "@/lib/ev-overview";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { backgroundCss, parseOverviewPrefs } from "@/lib/overview-prefs";
 
@@ -72,7 +77,9 @@ export default async function DashboardOverviewPage() {
   const overviewInitial: Record<string, number | null> = overview ? Object.fromEntries([...SITE_OVERVIEW_KEYS, ...pvKeys].map((k) => [k, overview.get(k)])) : {};
 
   // The first numbers of the cards beside the energy flow (the live channel keeps them current afterwards).
-  const solarCards = await fetchSolarCardsProps(supabase, site, syncInit, pvKeys);
+  const [solarCards, evOverview] = await Promise.all([fetchSolarCardsProps(supabase, site, syncInit, pvKeys), chargerIds.length > 0 ? fetchEvOverview(supabase, chargerIds[0]!) : Promise.resolve(null)]);
+  // what the energy flow's charger circle says: today's energy and the connector's status
+  const evInfo = evOverview ? { status: evOverview.status, sessionKwh: evOverview.todayKwh, connected: evOverview.connected } : undefined;
 
   return (
     <div className="space-y-4">
@@ -80,6 +87,17 @@ export default async function DashboardOverviewPage() {
           device's live channel - there is no page refresh on new readings. The channel is only open while this
           tab is visible. */}
       <LiveChannelKeeper deviceIds={[...inverterIds, ...chargerIds]} />
+      {/* The colour key of the energy flow is a button in the header (a click opens it). */}
+      <HeaderSlot>
+        <FlowLegendButton />
+      </HeaderSlot>
+      {/* A charging session opening is an INSERT on ev_sessions, closing it an UPDATE of the same row: both refresh the charger circle and the strip under the flow. */}
+      {chargerIds.length > 0 && (
+        <>
+          <RealtimeRefresh table="ev_sessions" event="INSERT" filter={`equipment_id=in.(${chargerIds.join(",")})`} />
+          <RealtimeRefresh table="ev_sessions" event="UPDATE" filter={`equipment_id=in.(${chargerIds.join(",")})`} />
+        </>
+      )}
       {/* The device status icons (each one a live connection) are in the page header on every page, and an offline device is announced by a toast
           at the top (both live in the dashboard layout). */}
 
@@ -100,6 +118,7 @@ export default async function DashboardOverviewPage() {
             background={background}
             solar={solarCards}
             ev={null}
+            evStrip={evOverview ? <EvChargeStrip ev={evOverview} /> : null}
             flow={{
               inverterIds,
               chargerIds,
@@ -109,6 +128,7 @@ export default async function DashboardOverviewPage() {
               powerSourceCategory: site.powerSourceCategory,
               pvKeys,
               sync: syncInit,
+              ...(evInfo ? { evInfo } : {}),
             }}
           />
         </>

@@ -5,7 +5,8 @@ import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
 import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
 import { fetchTodayChargingSessions, fetchRecentChargingStats, FAULT_BITMASK_KEYS } from "@/lib/device-overview";
 import { getLastSyncInfo } from "@/lib/device-sync";
-import { getErrorCodeLabel } from "@/lib/ev-charger-catalog";
+import { getConnectorStatusLabel, getErrorCodeLabel } from "@/lib/ev-charger-catalog";
+import { openSession, openTransactionId, type TabSession } from "@/lib/ev-tab";
 import {
   fetchDashboardFields,
   fetchFieldValues,
@@ -17,11 +18,7 @@ import {
 import { TEMPERATURE_MAX_C } from "@/lib/temperature-thresholds";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import {
-  TriangleAlert,
-  Plug,
-  History,
-} from "lucide-react";
+import { TriangleAlert, Plug, Zap } from "lucide-react";
 import { ChargerTrendGroup } from "./lazy-charts";
 import { SolarMonitoringView } from "./solar-monitoring-view";
 import { FLOW } from "./flow-colors";
@@ -34,6 +31,10 @@ import { getUnitPrefs } from "@/lib/unit-prefs-server";
 import { DeviceParameterCards } from "./device-parameter-cards";
 import { ChargingSessionsCarousel } from "./charging-sessions-carousel";
 import { MonitoringTabs } from "./monitoring-tabs";
+import { EvChargeControl } from "./ev-charge-control";
+import { EvLiveFigures } from "./ev-live-figures";
+import { EvTabSessions } from "./ev-tab-sessions";
+import { StatusPill } from "./status-pill";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -214,7 +215,9 @@ async function EvChargerMonitoring({ supabase, device }: { supabase: SupabaseSer
   // the same charger-hub status pill/fault banner the Overview page shows —
   // same cross-page reuse convention as the solar branch's
   // OVERVIEW_CROSSREF_KEYS above.
-  const [{ data: snapshotReadings }, chargingSummary, recentChargingStats, customerPlan, site, enumOptions] = await Promise.all([
+  const todayStart = new Date();
+  todayStart.setUTCHours(0, 0, 0, 0);
+  const [{ data: snapshotReadings }, chargingSummary, recentChargingStats, customerPlan, site, enumOptions, { data: tabRows }, sync] = await Promise.all([
     supabase
       .from("equipment_latest")
       .select("key_name, value, ts")
@@ -225,7 +228,20 @@ async function EvChargerMonitoring({ supabase, device }: { supabase: SupabaseSer
     getCustomerPlan(),
     getSelectedSite(),
     fetchEnumOptions(supabase, [...enumRefs, "connector_status", "error_code"]),
+    // the EV tab: today's sessions with their figures, and any session that is still open (it may have begun before midnight)
+    supabase
+      .from("ev_sessions")
+      .select("id, started_at, ended_at, status, ocpp_transaction_id, peak_power_kw, solar_share_pct, charging_seconds, meter_start_wh, meter_stop_wh, start_energy_kwh, end_energy_kwh")
+      .eq("equipment_id", device.id)
+      .or(`started_at.gte.${todayStart.toISOString()},ended_at.is.null`)
+      .order("started_at", { ascending: false })
+      .limit(100),
+    getLastSyncInfo(device.id),
   ]);
+  const tabSessions = (tabRows ?? []) as TabSession[];
+  const running = openSession(tabSessions);
+  const transactionId = openTransactionId(tabSessions);
+  const connected = sync.deviceOnline;
 
   const latest = new Map<string, number | null>();
   for (const r of snapshotReadings ?? []) {
@@ -240,6 +256,7 @@ async function EvChargerMonitoring({ supabase, device }: { supabase: SupabaseSer
   const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
   const showCost = site?.propertyType !== "residential_independent_villas";
 
+  const connectorStatus = connected === false ? { label: "Offline", tone: "bad" as const } : getConnectorStatusLabel(getValue("connector_status") as number | null, enumOptions.get("connector_status") ?? []);
   const sessionsToday = chargingSummary.sessions.length;
   const energyTodayKwh = chargingSummary.sessions.reduce((sum, s) => sum + (s.energyKwh ?? 0), 0);
 
@@ -250,13 +267,13 @@ async function EvChargerMonitoring({ supabase, device }: { supabase: SupabaseSer
           session history — different questions ("is it healthy right
           now?" vs. "what did it actually deliver?"), so they get their
           own tabs instead of being stacked on one page. */}
-      <MonitoringTabs key={device.id} defaultValue="hub" headlines={{}}>
+      <MonitoringTabs key={device.id} defaultValue="ev" headlines={{}} validValues={["ev", "hub"]} aliases={{ sessions: "ev" }}>
         <TabsList variant="line">
-          <TabsTrigger value="hub" variant="line">
-            <TabButtonContent icon={Plug} label="Charger Hub" />
+          <TabsTrigger value="ev" variant="line">
+            <TabButtonContent icon={Zap} label="EV" />
           </TabsTrigger>
-          <TabsTrigger value="sessions" variant="line">
-            <TabButtonContent icon={History} label="Charging Session" />
+          <TabsTrigger value="hub" variant="line">
+            <TabButtonContent icon={Plug} label="Charger data" />
           </TabsTrigger>
         </TabsList>
 
@@ -313,7 +330,36 @@ async function EvChargerMonitoring({ supabase, device }: { supabase: SupabaseSer
           />
         </TabsContent>
 
-        <TabsContent value="sessions" className="space-y-4">
+        <TabsContent value="ev" className="space-y-4">
+          {errorLabel ? (
+            <Alert variant="destructive">
+              <TriangleAlert />
+              <AlertTitle>Charger fault</AlertTitle>
+              <AlertDescription>{errorLabel}</AlertDescription>
+            </Alert>
+          ) : null}
+
+          {/* The charger now: its name and state, what it is delivering, and Start / Stop (a real charge, through the hub). */}
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-4">
+            <div className="flex items-center gap-3">
+              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+                <Zap className="size-5" />
+              </span>
+              <div>
+                <p className="text-sm font-semibold">{device.label ?? device.deviceType?.name ?? "EV charger"}</p>
+                <StatusPill label={connectorStatus.label} tone={connectorStatus.tone} />
+              </div>
+            </div>
+            <EvLiveFigures
+              deviceId={device.id}
+              initial={{ kw: powerKw, a: getValue("current_import_l1_a") as number | null, v: getValue("voltage_l1_n_v") as number | null }}
+              charging={!!running}
+            />
+            <EvChargeControl chargerId={device.id} sessionOpen={!!running} transactionId={transactionId} connected={connected} compact />
+          </div>
+
+          <EvTabSessions sessions={tabSessions} />
+
           <ChargingSessionsCarousel
             deviceId={device.id}
             sessions={chargingSummary.sessions}
@@ -327,6 +373,8 @@ async function EvChargerMonitoring({ supabase, device }: { supabase: SupabaseSer
             tariffRate={tariffRate}
             showCost={showCost}
             recentStats={recentChargingStats}
+            transactionId={transactionId}
+            connected={connected}
           />
 
           <SessionReceiptCard title="Charging Session Detail" sections={receiptSections} getValue={getValue} enumOptionsByRef={enumOptions} units={await getUnitPrefs()} />

@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps, CSSProperties } from "react";
+import type { ComponentProps, CSSProperties, ReactNode } from "react";
 import type { EvCardsProps } from "./ev-live-status-cards";
 import type { SolarCardsProps } from "./solar-live-status-cards";
 import { EvLiveCards } from "./ev-live-cards";
@@ -19,12 +19,15 @@ import { cn } from "@/lib/utils";
 export function OverviewBoard({
   solar,
   ev,
+  evStrip,
   flow,
   cards,
   background,
 }: {
   solar: SolarCardsProps | null;
   ev: EvCardsProps | null;
+  /** Under the energy flow, where the colour key used to be: the charger's Start button, or its charge in brief (null = the site has no charger). */
+  evStrip?: ReactNode;
   flow: ComponentProps<typeof LiveEnergyFlow>;
   cards: OverviewCardId[];
   background: string | null;
@@ -43,10 +46,11 @@ export function OverviewBoard({
           {ev && <EvLiveCards {...ev} which="left" />}
         </div>
         {/* The whole middle is the drawing: as tall as the board allows, less its colour key. */}
-        <div className="order-1 flex min-w-0 items-center justify-center lg:order-2" style={{ "--flow-h": "calc(max(100svh - 9.5rem, 30rem) - 3.5rem)" } as CSSProperties}>
+        <div className="order-1 flex min-w-0 flex-col items-center justify-center gap-3 lg:order-2" style={{ "--flow-h": "calc(max(100svh - 9.5rem, 30rem) - 3.5rem)" } as CSSProperties}>
           <div className="w-full">
             <LiveEnergyFlow {...flow} fit />
           </div>
+          {evStrip ? <div className="w-full max-w-sm">{evStrip}</div> : null}
         </div>
         <div className={`${side} lg:order-3`} style={style}>
           {solar && <EnergyTodayCards {...solar} cards={right} />}

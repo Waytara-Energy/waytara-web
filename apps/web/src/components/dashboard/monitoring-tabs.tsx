@@ -70,9 +70,15 @@ export function MonitoringTabs({
   defaultValue,
   headlines,
   actions,
+  aliases,
+  validValues,
   children,
 }: {
   defaultValue: string;
+  /** Old or alternative #hash names for a tab (for example `{ sessions: "ev" }`), so an older link still lands on the right one. */
+  aliases?: Record<string, string>;
+  /** The tab values this page has: a #hash that is none of them (or an alias of one) is ignored instead of showing an empty page. */
+  validValues?: string[];
   headlines: Record<string, TabHeadlineInfo>;
   /** Shown at the right of the headline, in line with its number (the period picker). */
   actions?: React.ReactNode;
@@ -88,8 +94,10 @@ export function MonitoringTabs({
     // the SSR-rendered `defaultValue` and trigger a hydration error. This
     // is exactly the "sync with a browser API unavailable during SSR"
     // case an effect is for.
+    const target = aliases?.[hash] ?? hash;
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (hash) setValue(hash);
+    if (target && (!validValues || validValues.includes(target))) setValue(target);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (

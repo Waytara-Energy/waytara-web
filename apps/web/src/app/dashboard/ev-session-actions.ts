@@ -1,5 +1,8 @@
 "use server";
 
+// THE SIMULATOR'S ACTIONS. These write ev_sessions rows that the charger simulator reacts to; they are no longer what the dashboard's Start/Stop
+// buttons call. A real charge is started and stopped through the hub (OCPP RemoteStart/RemoteStop): see components/dashboard/ev-charge-control.tsx.
+
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { requireCustomer } from "@waytara/supabase/auth";

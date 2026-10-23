@@ -6,8 +6,7 @@ import { Activity, AlertTriangle, BatteryCharging, ChevronLeft, ChevronRight, Ga
 import type { LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { SubmitButton } from "@/components/ui/submit-button";
-import { startChargingSession, stopChargingSession } from "@/app/dashboard/ev-session-actions";
+import { EvChargeControl } from "./ev-charge-control";
 import { getConnectorStatusLabel, type StatusInfo } from "@/lib/ev-charger-catalog";
 import type { EnumOption } from "@/lib/enum-labels";
 import type { ChargingSessionDetail, RecentChargingStats } from "@/lib/device-overview";
@@ -241,8 +240,10 @@ function IdleSlide({
   sessionCount,
   energyToday,
   recentStats,
+  connected,
 }: {
   deviceId: string;
+  connected: boolean | null;
   ratedPowerW: number;
   connectorStatus: number | null;
   connectorStatusOptions: EnumOption[];
@@ -285,12 +286,8 @@ function IdleSlide({
         </div>
       )}
 
-      <form action={startChargingSession.bind(null, deviceId)} className="mt-auto">
-        <SubmitButton size="lg" className="w-full rounded-full" pendingText="Starting…">
-          <Zap className="h-4 w-4" />
-          Start Charging
-        </SubmitButton>
-      </form>
+      {/* a real charge: the hub asks the charger to start (OCPP RemoteStartTransaction) */}
+      <EvChargeControl chargerId={deviceId} sessionOpen={false} transactionId={null} connected={connected} className="mt-auto" />
     </div>
   );
 }
@@ -310,8 +307,12 @@ function SessionSlide({
   connectorStatusOptions,
   tariffRate,
   showCost,
+  transactionId,
+  connected,
 }: {
   deviceId: string;
+  transactionId: number | null;
+  connected: boolean | null;
   session: ChargingSessionDetail;
   currentPowerW: number | null;
   currentA: number | null;
@@ -372,13 +373,7 @@ function SessionSlide({
         </span>
       </div>
 
-      {session.isOpen && (
-        <form action={stopChargingSession.bind(null, deviceId)} className="mt-auto">
-          <SubmitButton variant="outline" size="lg" className="w-full rounded-full" pendingText="Stopping…">
-            Stop Charging
-          </SubmitButton>
-        </form>
-      )}
+      {session.isOpen && <EvChargeControl chargerId={deviceId} sessionOpen transactionId={transactionId} connected={connected} className="mt-auto" />}
     </div>
   );
 }
@@ -393,9 +388,8 @@ type Slide = { kind: "idle" } | { kind: "session"; session: ChargingSessionDetai
  *  that, newest first. Combines what used to be two separate concerns
  *  (the hourly Energy Delivered bar/cost chart and the raw session data
  *  behind it) into one detailed, full-size view per session. Both Start
- *  and Stop call straight into the ev-session-actions Server Actions,
- *  which the simulator listens for to actually generate the session's
- *  telemetry. */
+ *  and Stop are <EvChargeControl/>, which asks the charger itself (through
+ *  the hub) to start or stop a real charge. */
 export function ChargingSessionsCarousel({
   deviceId,
   sessions,
@@ -409,8 +403,14 @@ export function ChargingSessionsCarousel({
   tariffRate,
   showCost = true,
   recentStats,
+  transactionId = null,
+  connected = null,
 }: {
   deviceId: string;
+  /** the OCPP transaction of the open session (what Stop asks the charger to end); null when none is open or it is not known */
+  transactionId?: number | null;
+  /** is the charger connected to WayTara right now (null = not known) */
+  connected?: boolean | null;
   sessions: ChargingSessionDetail[];
   ratedPowerW: number | null;
   currentPowerW: number | null;
@@ -552,6 +552,7 @@ export function ChargingSessionsCarousel({
                 sessionCount={sessions.length}
                 energyToday={energyToday}
                 recentStats={recentStats}
+                connected={connected}
               />
             ) : (
               <SessionSlide
@@ -565,6 +566,8 @@ export function ChargingSessionsCarousel({
                 connectorStatusOptions={connectorStatusOptions}
                 tariffRate={tariffRate}
                 showCost={showCost}
+                transactionId={transactionId}
+                connected={connected}
               />
             )}
           </div>

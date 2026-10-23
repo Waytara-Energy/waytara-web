@@ -114,6 +114,7 @@ export function LiveEnergyFlow({
   pvKeys = [],
   fit = false,
   sync,
+  evInfo,
 }: {
   inverterIds: string[];
   chargerIds?: string[];
@@ -127,6 +128,8 @@ export function LiveEnergyFlow({
   fit?: boolean;
   /** The device's connection, so the drawing can freeze while the unit is offline or has lost the device. */
   sync: DeviceSyncInit;
+  /** The charger's connector status, the energy it delivered today and whether it is connected, for the charger circle's label (given: the circle shows whenever the site has a charger). */
+  evInfo?: { status: string | null; sessionKwh: number | null; connected?: boolean | null };
 }) {
   const n = useSiteNumbers(inverterIds, initial, pvKeys);
   const { status } = useDeviceState(inverterIds[0] ?? "", sync);
@@ -140,6 +143,7 @@ export function LiveEnergyFlow({
     loadW: n.load_total_power_w ?? null,
     batterySocPct: n.battery_soc_pct ?? null,
     evW: evKw === null || evKw === undefined ? null : Math.round(evKw * 1000),
+    ...(evInfo ? { evInfo } : {}),
     powerPackage,
     powerSourceCategory,
     fit,
