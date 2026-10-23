@@ -179,6 +179,12 @@ export function buildCustomReport(input: ReportInput, def: CustomReportDef, toda
         return { key: m, label: monthLabel(m), rows: rows.filter((d) => d.day.slice(0, 7) === m), bill: periodBill(input.months, input.days, from, to) };
       })
     : rows.map((d) => ({ key: d.day, label: dayLabel(d.day), rows: [d], bill: null }));
+  // Day by day, a day with no reading from the device stays in the report as an empty place (its figures are missing, not zero), so a gap shows in the charts and the tables.
+  const gaps = daysWithoutReadings(rows, period.from, period.to, today);
+  if (!monthly && gaps.length > 0) {
+    for (const g of gaps) for (let d = g.from; d <= g.to; d = addDays(d, 1)) groups.push({ key: d, label: dayLabel(d), rows: [], bill: null });
+    groups.sort((a, b) => a.key.localeCompare(b.key));
+  }
 
   const prevWin = def.comparePrevious ? previousWindow(period.from, period.to) : null;
   const prevRows = prevWin ? daysIn(input.days, prevWin.from, prevWin.to) : [];
@@ -219,7 +225,7 @@ export function buildCustomReport(input: ReportInput, def: CustomReportDef, toda
     comparePrevious: !!def.comparePrevious,
     previousPeriod: prevWin,
     daysWithReadings: summarize(rows).days,
-    gaps: daysWithoutReadings(rows, period.from, period.to, today),
+    gaps,
     customerName: input.customerName,
     siteName: input.siteName,
     deviceLabel: input.deviceLabel,

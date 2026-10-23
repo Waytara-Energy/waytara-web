@@ -16,6 +16,7 @@ export function DataTable<TData>({
   footer,
   empty = "Nothing to show.",
   className,
+  rowClassName,
 }: {
   columns: ColumnDef<TData, unknown>[];
   data: TData[];
@@ -24,6 +25,8 @@ export function DataTable<TData>({
   footer?: React.ReactNode[];
   empty?: string;
   className?: string;
+  /** A class for a row (a tint for the rows of a data gap, say). */
+  rowClassName?: (row: TData) => string | undefined;
 }) {
   const [sorting, setSorting] = React.useState<SortingState>([]);
   // TanStack returns functions the React compiler lint cannot prove safe to memoise; the table is not memoised here.
@@ -80,7 +83,7 @@ export function DataTable<TData>({
               </TableRow>
             ) : (
               table.getRowModel().rows.map((row) => (
-                <TableRow key={row.id}>
+                <TableRow key={row.id} className={rowClassName?.(row.original)}>
                   {row.getVisibleCells().map((cell) => (
                     <TableCell key={cell.id} className={cn(right(cell.column.id) ? "text-right tabular-nums" : "text-foreground")}>
                       {flexRender(cell.column.columnDef.cell, cell.getContext())}

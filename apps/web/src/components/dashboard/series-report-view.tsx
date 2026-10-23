@@ -1,9 +1,9 @@
 "use client";
 
-import { gapLines, gapsSummary, type DataGap } from "@/lib/data-gaps";
+import { gapAt, gapLines, gapSlotRange, gapTint, gapsSummary, type DataGap } from "@/lib/data-gaps";
 import { DataGapsCard } from "./data-gap-note";
 import * as React from "react";
-import { Area, Bar, CartesianGrid, ComposedChart, XAxis, YAxis } from "recharts";
+import { Area, Bar, CartesianGrid, ComposedChart, ReferenceArea, XAxis, YAxis } from "recharts";
 import type { ColumnDef } from "@tanstack/react-table";
 import { cn } from "@/lib/utils";
 import { READING_GROUP, unitDecimals, type ReportPoint, type ReportSeries, type ReportSeriesSummary, type ReportType } from "@/lib/report-types";
@@ -18,6 +18,7 @@ import { useChartStyle } from "./chart-style";
 import { ChartTick } from "./bar-trend-chart";
 import { useBarHover } from "./bar-hover";
 import { CHART_CURSOR } from "./chart-cursor";
+import { GapHatch } from "./gap-hatch";
 
 export interface SeriesReportResponse {
   date: string;
@@ -36,6 +37,8 @@ export interface SeriesReportResponse {
 
 const INTERVAL_LABELS: Record<number, string> = { 15: "15 min", 30: "30 min", 60: "1 hour", 120: "2 hours", 1440: "1 day" };
 const fmtDay = (day: string) => new Date(`${day}T12:00:00`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+/** The start of a report slot (its "YYYY-MM-DDTHH:mm" key is India time) in milliseconds. */
+const slotMs = (time: string) => Date.parse(`${time.length > 10 ? time : `${time}T00:00`}:00+05:30`);
 const formatValue = (v: number | null, unit: string) => (v === null ? "—" : `${v.toFixed(unitDecimals(unit))} ${unit}`);
 
 /** A time-series report (solar power, battery, load, grid, temperatures...) for the chosen period: the chart(s) or a data table,
@@ -138,7 +141,7 @@ export function SeriesReportView({
             <CardTitle className="text-sm">{type.label}</CardTitle>
           </CardHeader>
           <CardContent>
-            {empty ?? <DataTable columns={columns} data={points} pageSize={20} />}
+            {empty ?? <DataTable columns={columns} data={points} pageSize={20} rowClassName={(r) => { const g = gapAt(data?.gaps ?? [], slotMs(String(r.time))); return g ? gapTint(g) : undefined; }} />}
             {!empty && note}
           </CardContent>
         </Card>
@@ -163,7 +166,6 @@ function SeriesChartCard({ title, series, data, loading, days, bucketMinutes, fo
   const chartConfig = React.useMemo(() => Object.fromEntries(series.map((s) => [s.id, { label: s.label, color: s.color }])) satisfies ChartConfig, [series]);
   const domain: [number | "auto", number | "auto"] = unit === "%" ? [0, 100] : unit === "kW" ? [0, "auto"] : ["auto", "auto"];
 
-  // A day is drawn from its first reading to its last, like the Monitoring charts (never fewer than a few slots).
   const [box, setBox] = React.useState<HTMLDivElement | null>(null);
   const [boxWidth, setBoxWidth] = React.useState(0);
   React.useEffect(() => {
@@ -172,17 +174,19 @@ function SeriesChartCard({ title, series, data, loading, days, bucketMinutes, fo
     ro.observe(box);
     return () => ro.disconnect();
   }, [box]);
-  const shown = React.useMemo(() => {
-    const all = data.points as unknown as Record<string, unknown>[];
-    if (days > 1) return all;
-    const has = (p: Record<string, unknown>) => series.some((s) => typeof p[s.id] === "number");
-    const f = all.findIndex(has);
-    if (f < 0) return all;
-    let l = all.length - 1;
-    while (l > f && !has(all[l])) l--;
-    return all.slice(Math.min(f, Math.max(0, l - 3)), l + 1);
-  }, [data.points, series, days]);
+  // The chart covers everything that was asked for (the period, the time of day and the interval), like the table, not only up to the last reading.
+  const shown = data.points as unknown as Record<string, unknown>[];
   const points = shown;
+  // Where the device sent no readings: a hatched band behind a line that runs on across it.
+  const gapBands = React.useMemo(() => {
+    const slots = shown.map((p) => slotMs(String(p.time)));
+    return (data.gaps ?? [])
+      .map((g) => {
+        const r = gapSlotRange(slots, g);
+        return r ? { startKey: String(shown[r.first].time), endKey: String(shown[r.last].time), from: g.fromMs } : null;
+      })
+      .filter((b): b is NonNullable<typeof b> => b !== null);
+  }, [shown, data.gaps]);
   // Time labels: as many whole hours apart as the width needs so none touch; the faint in-between marks only while each slot has room.
   const plotWidth = Math.max(0, boxWidth - 8);
   const bucketHours = Math.max(1, bucketMinutes / 60);
@@ -220,6 +224,7 @@ function SeriesChartCard({ title, series, data, loading, days, bucketMinutes, fo
         <ChartContainer config={chartConfig} className={cn("aspect-auto h-[280px] w-full transition-opacity", loading && "opacity-60")}>
           <ComposedChart accessibilityLayer data={shown} {...hover.chartProps} margin={{ left: 4, right: 4, top: 8 }}>
             <defs>
+              <GapHatch id={`${gradientId}-gap`} />
               {series.map((s) => (
                 <linearGradient key={s.id} id={`${gradientId}-${s.id}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={`var(--color-${s.id})`} stopOpacity={0.32} />
@@ -250,11 +255,14 @@ function SeriesChartCard({ title, series, data, loading, days, bucketMinutes, fo
               />
             )}
             <YAxis hide domain={domain} />
+            {gapBands.map((b) => (
+              <ReferenceArea key={`gap-${b.from}`} x1={b.startKey} x2={b.endKey} fill={`url(#${gradientId}-gap)`} stroke="none" />
+            ))}
             {/* The pointer position only; the value is written under the title. */}
             <ChartTooltip cursor={chartStyle === "bar" ? false : CHART_CURSOR} content={() => null} isAnimationActive={false} />
             {series.map((s) =>
               isLine(s) ? (
-                <Area key={s.id} type="monotone" dataKey={s.id} name={s.label} stroke={`var(--color-${s.id})`} strokeWidth={2} fill={`url(#${gradientId}-${s.id})`} baseValue="dataMin" dot={false} connectNulls={false} isAnimationActive={false} />
+                <Area key={s.id} type="monotone" dataKey={s.id} name={s.label} stroke={`var(--color-${s.id})`} strokeWidth={2} fill={`url(#${gradientId}-${s.id})`} baseValue="dataMin" dot={false} connectNulls isAnimationActive={false} />
               ) : (
                 <Bar key={s.id} dataKey={s.id} name={s.label} fill={`var(--color-${s.id})`} radius={bucketMinutes <= 15 ? 2 : 4} isAnimationActive={false}>
                   {hover.cells(shown.length, `var(--color-${s.id})`, (i) => typeof shown[i]?.[s.id] === "number")}

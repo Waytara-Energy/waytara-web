@@ -42,7 +42,11 @@ describe("buildCustomReport", () => {
     expect(r.name).toBe("Solar");
     expect(r.comparison).toBe(false);
     expect(r.granularity).toBe("day");
-    expect(r.buckets.map((b) => b.key)).toEqual(["2026-10-01", "2026-10-02", "2026-10-03"]);
+    // the days with a reading, then the days after the last one up to yesterday stay in as empty places (a gap)
+    expect(r.buckets.map((b) => b.key).slice(0, 4)).toEqual(["2026-10-01", "2026-10-02", "2026-10-03", "2026-10-04"]);
+    expect(r.series[0].values.slice(0, 3)).toEqual([20, 10, 30]);
+    expect(r.series[0].values.slice(3).every((v) => v === null)).toBe(true);
+    expect(r.gaps[0].from).toBe("2026-10-04");
     expect(r.series[0]).toMatchObject({ label: "My solar", unit: "kWh", total: 60, avg: 20, min: 10, max: 30 });
   });
 
@@ -73,7 +77,7 @@ describe("buildCustomReport", () => {
 
   it("leaves a value empty when the device does not report it", () => {
     const r = buildCustomReport(input, { name: "Battery", series: [{ param: "charged" }], period: "thisMonth" }, TODAY);
-    expect(r.series[0].values).toEqual([3, 1, null]);
+    expect(r.series[0].values.slice(0, 3)).toEqual([3, 1, null]);
     expect(r.series[0].total).toBe(4);
   });
 

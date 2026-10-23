@@ -151,6 +151,25 @@ export function explainGap(g: DataGap, outages: readonly OutageEvent[]): GapReas
   return reasonOf(cause);
 }
 
+/** The first and last of `slots` (start times, ascending) that fall inside a gap, as positions; null when none does. */
+export function gapSlotRange(slots: readonly number[], g: DataGap): { first: number; last: number } | null {
+  let first = -1;
+  let last = -1;
+  for (let i = 0; i < slots.length; i++) {
+    if (slots[i] >= g.fromMs && slots[i] < g.toMs) {
+      if (first < 0) first = i;
+      last = i;
+    }
+  }
+  return first < 0 ? null : { first, last };
+}
+
+/** The gap a moment falls in, if any. */
+export const gapAt = (gaps: readonly DataGap[], ms: number): DataGap | undefined => gaps.find((g) => ms >= g.fromMs && ms < g.toMs);
+
+/** How a gap's rows are tinted in a table: red when the unit was offline (or the cause is not known), amber when the unit was online but the inverter did not answer. */
+export const gapTint = (g: DataGap): string => (g.cause === "inverter_unreachable" ? "bg-amber-500/12 hover:bg-amber-500/15" : "bg-red-500/10 hover:bg-red-500/14");
+
 /** The same gaps with their cause filled in from the recorded outages (a report does this once, on the server). */
 export const withCauses = (gaps: readonly DataGap[], outages: readonly OutageEvent[]): DataGap[] => gaps.map((g) => ({ ...g, cause: explainGap(g, outages).cause }));
 

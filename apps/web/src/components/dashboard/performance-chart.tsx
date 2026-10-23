@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, XAxis } from "recharts";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, ReferenceArea, XAxis } from "recharts";
 import { ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -10,6 +10,8 @@ import { ChartEmptyState } from "./chart-empty-state";
 import { ChartReadout } from "./chart-kit";
 import { useChartStyle } from "./chart-style";
 import { CHART_CURSOR } from "./chart-cursor";
+import { findDayGaps } from "@/lib/data-gaps";
+import { GapHatch } from "./gap-hatch";
 import { useSeriesUnit } from "@/components/units-provider";
 
 export interface DailyPoint {
@@ -114,9 +116,26 @@ export function PerformanceChart({
       ? points.reduce((sum, p) => sum + p.value, 0)
       : (points[points.length - 1]?.value ?? 0);
 
-  const chartData = points.map((p) => ({ label: formatLabel(p.date, granularity), value: p.value }));
+  // Day by day, the days with no reading stay in the chart as empty places (a hatched band, with the line running on across), not squeezed out.
+  const { chartData, gapBands } = React.useMemo(() => {
+    const rows: { label: string; value: number | null }[] = [];
+    const bands: { from: string; startLabel: string; endLabel: string }[] = [];
+    if (granularity !== "daily" || points.length < 2) {
+      return { chartData: points.map((p) => ({ label: formatLabel(p.date, granularity), value: p.value as number | null })), gapBands: bands };
+    }
+    const byDay = new Map(points.map((p) => [p.date, p.value]));
+    const first = points[0].date;
+    const last = points[points.length - 1].date;
+    const dayAfter = (d: string) => new Date(Date.parse(`${d}T00:00:00Z`) + 86_400_000).toISOString().slice(0, 10);
+    for (let d = first; d <= last; d = dayAfter(d)) rows.push({ label: formatLabel(d, granularity), value: byDay.get(d) ?? null });
+    for (const g of findDayGaps(byDay.keys(), first, last)) bands.push({ from: g.from, startLabel: formatLabel(g.from, granularity), endLabel: formatLabel(g.to, granularity) });
+    return { chartData: rows, gapBands: bands };
+  }, [points, granularity]);
+  const gapFill = "url(#performanceGap)";
   // The value being pointed at (or the newest), written big above the chart instead of in a floating tooltip.
-  const shownIdx = hover !== null && hover < chartData.length ? hover : chartData.length - 1;
+  let newestIdx = chartData.length - 1;
+  while (newestIdx > 0 && chartData[newestIdx].value === null) newestIdx--;
+  const shownIdx = hover !== null && hover < chartData.length ? hover : newestIdx;
   const shownPoint = chartData[shownIdx];
   const parts = (v: number) => (valueFormat === "inr" ? { num: `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`, unit: "" } : { num: v.toFixed(1), unit });
   const pointAt = (state: { activeTooltipIndex?: unknown }) => {
@@ -150,7 +169,7 @@ export function PerformanceChart({
         {totalLabel}: <span className="font-medium text-foreground">{fmt(total)}</span>
       </p>
 
-      {points.length > 0 && shownPoint && <ChartReadout when={shownPoint.label} items={[{ key: "value", label: totalLabel === "Total this period" ? "Value" : "Delivered", color: "var(--chart-1)", value: parts(shownPoint.value) }]} />}
+      {points.length > 0 && shownPoint && <ChartReadout when={shownPoint.label} items={[{ key: "value", label: totalLabel === "Total this period" ? "Value" : "Delivered", color: "var(--chart-1)", value: shownPoint.value === null ? null : parts(shownPoint.value) }]} />}
 
       {points.length === 0 ? (
         <ChartEmptyState />
@@ -169,14 +188,21 @@ export function PerformanceChart({
             <ChartContainer config={chartConfig} className="aspect-auto h-[220px] w-full">
               {asBars ? (
               <BarChart data={chartData} margin={{ left: 4, right: 4, top: 8 }} {...handlers}>
+                <defs>
+                  <GapHatch id="performanceGap" />
+                </defs>
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} />
+                {gapBands.map((b) => (
+                  <ReferenceArea key={`gap-${b.from}`} x1={b.startLabel} x2={b.endLabel} fill={gapFill} stroke="none" />
+                ))}
                 <ChartTooltip content={() => null} cursor={asBars ? false : CHART_CURSOR} isAnimationActive={false} />
                 <Bar dataKey="value" fill="var(--color-value)" radius={[3, 3, 0, 0]} isAnimationActive={false} />
               </BarChart>
               ) : (
               <AreaChart data={chartData} margin={{ left: 4, right: 4, top: 8 }} {...handlers}>
                 <defs>
+                  <GapHatch id="performanceGap" />
                   <linearGradient id="performanceFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="var(--color-value)" stopOpacity={0.3} />
                     <stop offset="95%" stopColor="var(--color-value)" stopOpacity={0} />
@@ -184,9 +210,13 @@ export function PerformanceChart({
                 </defs>
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tickMargin={8} minTickGap={24} />
+                {gapBands.map((b) => (
+                  <ReferenceArea key={`gap-${b.from}`} x1={b.startLabel} x2={b.endLabel} fill={gapFill} stroke="none" />
+                ))}
                 <ChartTooltip content={() => null} cursor={asBars ? false : CHART_CURSOR} isAnimationActive={false} />
                 <Area
                   dataKey="value"
+                  connectNulls
                   type="monotone"
                   fill="url(#performanceFill)"
                   stroke="var(--color-value)"

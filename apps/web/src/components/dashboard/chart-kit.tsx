@@ -1,14 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ReferenceLine, Tooltip as ChartHoverTooltip, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Bar, BarChart, CartesianGrid, Cell, ReferenceArea, ReferenceLine, Tooltip as ChartHoverTooltip, XAxis, YAxis } from "recharts";
 import { ChartContainer, type ChartConfig } from "@/components/ui/chart";
 import { resolveKind } from "@/lib/chart-style";
+import { findGaps, gapSlotRange, MIN_GAP_MS } from "@/lib/data-gaps";
 import { cn } from "@/lib/utils";
 import { ChartEmptyState } from "./chart-empty-state";
 import { useChartStyle } from "./chart-style";
 import { usePanelCaption } from "./panel-context";
 import { CHART_CURSOR } from "./chart-cursor";
+import { GapHatch } from "./gap-hatch";
 import { useSeriesUnit } from "@/components/units-provider";
 
 // The charts of the Performance page, drawn the same way: no value axis (the number you point at is written big under the title, with
@@ -73,6 +75,7 @@ export function ChartCore({
   zeroLine = false,
   height = 220,
   tickEvery,
+  gapRanges = [],
 }: {
   rows: ChartRow[];
   series: ChartSeriesDef[];
@@ -83,6 +86,8 @@ export function ChartCore({
   zeroLine?: boolean;
   height?: number;
   tickEvery?: number;
+  /** Stretches with no readings, as the first and last row of each: drawn as a hatched band, with the line running on across it. */
+  gapRanges?: { first: number; last: number }[];
 }) {
   const [hover, setHover] = React.useState<number | null>(null);
   const caption = usePanelCaption();
@@ -132,6 +137,12 @@ export function ChartCore({
   const xAxis = <XAxis dataKey="__tick" interval={interval} tickLine={false} axisLine={false} tickMargin={8} tick={{ fontSize: 10, fill: "var(--muted-foreground)" }} />;
   const grid = <CartesianGrid vertical={false} stroke="var(--border)" strokeDasharray="3 3" />;
   const zero = zeroLine ? <ReferenceLine y={0} stroke="var(--border)" /> : null;
+  // The bands are placed by the x label of their first and last row, so they are only drawn when every row has a label of its own.
+  const gapId = `${uid}-gap`;
+  const labelsAreUnique = new Set(rows.map((r) => r.__tick)).size === rows.length;
+  const gapBands = labelsAreUnique
+    ? gapRanges.map((g) => <ReferenceArea key={`gap-${g.first}`} x1={rows[g.first].__tick} x2={rows[g.last].__tick} fill={`url(#${gapId})`} stroke="none" />)
+    : null;
   // The hover tooltip is replaced by the readout; this only supplies the pointer position (and the line under the pointer).
   const hoverPosition = <ChartHoverTooltip content={() => null} cursor={kind === "line" ? CHART_CURSOR : false} isAnimationActive={false} />;
 
@@ -141,10 +152,14 @@ export function ChartCore({
       <ChartContainer config={config} className="aspect-auto w-full" style={{ height }}>
         {kind === "bar" ? (
           <BarChart data={rows} margin={margin} {...handlers}>
+            <defs>
+              <GapHatch id={gapId} />
+            </defs>
             {grid}
             {xAxis}
             <YAxis hide domain={[(min: number) => Math.min(0, min), "auto"]} />
             {zero}
+            {gapBands}
             {hoverPosition}
             {series.map((s, si) => (
               <Bar
@@ -163,6 +178,7 @@ export function ChartCore({
         ) : (
           <AreaChart data={rows} margin={margin} {...handlers}>
             <defs>
+              <GapHatch id={gapId} />
               {series.map((s) => (
                 <linearGradient key={s.key} id={`${uid}-${s.key}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={s.color} stopOpacity={0.32} />
@@ -174,6 +190,7 @@ export function ChartCore({
             {xAxis}
             <YAxis hide domain={["auto", "auto"]} />
             {zero}
+            {gapBands}
             {hoverPosition}
             {series.map((s) => (
               <Area
@@ -188,7 +205,7 @@ export function ChartCore({
                 fill={s.dashed ? "none" : `url(#${uid}-${s.key})`}
                 baseValue="dataMin"
                 dot={rows.length <= 45}
-                connectNulls={false}
+                connectNulls
                 isAnimationActive={false}
               />
             ))}
@@ -209,6 +226,18 @@ export interface LineSeries {
   /** One value per slot of the axis (null = no reading). */
   values: (number | null)[];
   dashed?: boolean;
+}
+
+/** The stretches with no reading in a series chart, as row positions (see ChartCore): where none of the series that lead (not yesterday's dashed curve) has a value for half an hour or more, after the first reading. */
+function useGapRanges(axis: number[], series: LineSeries[], slotMs: number, trailing: boolean): { first: number; last: number }[] {
+  const [now] = React.useState(() => Date.now());
+  return React.useMemo(() => {
+    const lead = series.some((s) => !s.dashed) ? series.filter((s) => !s.dashed) : series;
+    const has = axis.map((_, i) => lead.some((s) => s.values[i] != null));
+    return findGaps(axis, has, slotMs, now, { minMs: Math.max(MIN_GAP_MS, slotMs), trailing })
+      .map((g) => gapSlotRange(axis, g))
+      .filter((r): r is { first: number; last: number } => r !== null);
+  }, [axis, series, slotMs, trailing, now]);
 }
 
 const fixed = (digits: number, unit: string) => (v: number) => ({ num: v.toFixed(digits === 0 ? 0 : 2), unit });
@@ -246,7 +275,8 @@ export function LineSeriesChart({
     [axis, series, su]
   );
   const defs = series.map(({ key, label, color, dashed }) => ({ key, label, color, dashed }));
-  return <ChartCore rows={rows} series={defs} kind={kind} format={fixed(su.converted ? su.decimals : digits, su.unit)} zeroLine={zeroLine} height={height} tickEvery={Math.max(1, Math.round(axis.length / 6))} />;
+  const gapRanges = useGapRanges(axis, series, axis.length > 1 ? axis[1] - axis[0] : 15 * 60_000, true);
+  return <ChartCore rows={rows} series={defs} kind={kind} format={fixed(su.converted ? su.decimals : digits, su.unit)} zeroLine={zeroLine} height={height} tickEvery={Math.max(1, Math.round(axis.length / 6))} gapRanges={gapRanges} />;
 }
 
 /** Readings over several days (a week ... two years): a label every few days, the slot's date and time under the title. */
@@ -284,7 +314,9 @@ export function PeriodLineChart({
   const defs = series.map(({ key, label, color, dashed }) => ({ key, label, color, dashed }));
   const slotsPerDay = 1440 / minutes;
   const stepDays = Math.max(1, Math.ceil(spanDays / 6));
-  return <ChartCore rows={rows} series={defs} kind={kind} format={fixed(su.converted ? su.decimals : digits, su.unit)} zeroLine={zeroLine} height={height} tickEvery={Math.max(1, Math.round(slotsPerDay * stepDays))} />;
+  // a day per point: today having no reading yet is not a gap, so only the days between readings count
+  const gapRanges = useGapRanges(axis, series, minutes * 60_000, minutes < 1440);
+  return <ChartCore rows={rows} series={defs} kind={kind} format={fixed(su.converted ? su.decimals : digits, su.unit)} zeroLine={zeroLine} height={height} tickEvery={Math.max(1, Math.round(slotsPerDay * stepDays))} gapRanges={gapRanges} />;
 }
 
 /** One chart for the chosen period: today's curve (with yesterday dashed) when the period is Today, otherwise the whole window. */

@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { Area, Bar, CartesianGrid, ComposedChart, XAxis, YAxis } from "recharts";
+import { Area, Bar, CartesianGrid, ComposedChart, ReferenceArea, XAxis, YAxis } from "recharts";
 import { useSeriesRange } from "@/lib/telemetry/react";
+import { findGaps, gapSlotRange, MIN_GAP_MS } from "@/lib/data-gaps";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -16,6 +17,7 @@ import { useBarHover } from "./bar-hover";
 import { useChartStyle } from "./chart-style";
 import { useDelayedLoading } from "./use-delayed-loading";
 import { CHART_CURSOR } from "./chart-cursor";
+import { GapHatch } from "./gap-hatch";
 
 const INTERVAL_LABEL: Record<number, string> = { 15: "15 min", 30: "30 min", 60: "1 hour", 120: "2 hours", 1440: "1 day" };
 
@@ -117,6 +119,19 @@ export function RangeTrendChart({
     [series]
   );
 
+  // Stretches of the window with no reading (the device offline, or its connection lost): a hatched band behind a line that runs on across it.
+  const [now] = React.useState(() => Date.now());
+  const gapBands = React.useMemo(() => {
+    const slotMs = state.minutes * 60_000;
+    const has = points.map((p) => series.some((s) => !s.cumulativeOf && typeof p[s.key] === "number"));
+    return findGaps(state.axis, has, slotMs, now, { minMs: Math.max(MIN_GAP_MS, slotMs), trailing: state.minutes < 1440 })
+      .map((g) => {
+        const r = gapSlotRange(state.axis, g);
+        return r ? { startKey: String(points[r.first].label), endKey: String(points[r.last].label), from: g.fromMs } : null;
+      })
+      .filter((b): b is NonNullable<typeof b> => b !== null);
+  }, [points, series, state.axis, state.minutes, now]);
+
   // The value being pointed at (or the newest reading), written big under the title instead of in a floating tooltip.
   const visibleSeries = series.filter((s) => !s.cumulativeOf);
   let newest = -1;
@@ -177,6 +192,7 @@ export function RangeTrendChart({
         <ChartContainer config={chartConfig} className="aspect-auto h-[240px] w-full">
           <ComposedChart accessibilityLayer data={points} {...hover.chartProps} margin={{ left: 4, right: 4, top: 8 }}>
             <defs>
+              <GapHatch id={`${gradientId}-gap`} />
               {visibleSeries.map((s) => (
                 <linearGradient key={s.key} id={`${gradientId}-${s.key}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={`var(--color-${s.key})`} stopOpacity={0.32} />
@@ -191,11 +207,14 @@ export function RangeTrendChart({
             {axisIds.map((id) => (
               <YAxis key={id} yAxisId={id} hide domain={["auto", "auto"]} />
             ))}
+            {gapBands.map((b) => (
+              <ReferenceArea key={`gap-${b.from}`} yAxisId={axisIds[0]} x1={b.startKey} x2={b.endKey} fill={`url(#${gradientId}-gap)`} stroke="none" />
+            ))}
             {series
               .filter((s) => !s.cumulativeOf)
               .map((s) =>
                 (chartStyle === "auto" ? s.chartType === "line" : chartStyle === "line") || state.axis.length > 200 ? (
-                  <Area key={s.key} type="monotone" dataKey={s.key} name={s.label} yAxisId={s.unit ?? unit} stroke={`var(--color-${s.key})`} strokeWidth={2} fill={`url(#${gradientId}-${s.key})`} baseValue="dataMin" dot={false} connectNulls={false} isAnimationActive={false} />
+                  <Area key={s.key} type="monotone" dataKey={s.key} name={s.label} yAxisId={s.unit ?? unit} stroke={`var(--color-${s.key})`} strokeWidth={2} fill={`url(#${gradientId}-${s.key})`} baseValue="dataMin" dot={false} connectNulls isAnimationActive={false} />
                 ) : (
                   <Bar key={s.key} dataKey={s.key} name={s.label} yAxisId={s.unit ?? unit} fill={`var(--color-${s.key})`} radius={state.axis.length > 60 ? 1 : 3} isAnimationActive={false}>
                     {hover.cells(points.length, `var(--color-${s.key})`, (i) => typeof points[i]?.[s.key] === "number")}

@@ -4,12 +4,14 @@ import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { DataTable } from "@/components/ui/data-table";
 import { resolveKind } from "@/lib/chart-style";
+import { dayGapLines, dayGapsSummary } from "@/lib/data-gaps";
 import { fmtDate } from "@/lib/savings";
 import { formatValue, unitGroups, type CustomReport, type ReportSeries } from "@/lib/reports/custom-report";
 import { cn } from "@/lib/utils";
 import { ChartEmptyState } from "./chart-empty-state";
 import { ChartCore, type ChartRow, type ChartSeriesDef } from "./chart-kit";
 import { useChartStyle } from "./chart-style";
+import { DataGapsCard } from "./data-gap-note";
 import { FLOW } from "./flow-colors";
 import { Panel, StatTile } from "./perf-kit";
 
@@ -35,6 +37,24 @@ const fixed = (unit: ReportSeries["unit"]) => (v: number) => {
   return i > 0 ? { num: text.slice(0, i), unit: text.slice(i).trim() } : { num: text.replace(/^₹/, ""), unit: unit === "₹" ? "₹" : "" };
 };
 
+/** The positions of a day-by-day report's rows that fall in a stretch of days without readings (none for a month-by-month report). */
+function gapRanges(report: CustomReport): { first: number; last: number }[] {
+  if (report.granularity !== "day") return [];
+  return report.gaps
+    .map((g) => {
+      let first = -1;
+      let last = -1;
+      report.buckets.forEach((b, i) => {
+        if (b.key >= g.from && b.key <= g.to) {
+          if (first < 0) first = i;
+          last = i;
+        }
+      });
+      return first < 0 ? null : { first, last };
+    })
+    .filter((r): r is { first: number; last: number } => r !== null);
+}
+
 /** A custom report, as charts (one per unit, so two scales never share a chart) or as tables. */
 export function CustomReportView({ report, view }: { report: CustomReport; view: "graph" | "table" }) {
   if (report.buckets.length === 0) return <ChartEmptyState label="No readings in this period" />;
@@ -59,9 +79,11 @@ function Tiles({ report }: { report: CustomReport }) {
 function Graphs({ report }: { report: CustomReport }) {
   const style = useChartStyle();
   const colors = React.useMemo(() => seriesColors(report.series), [report.series]);
+  const ranges = React.useMemo(() => gapRanges(report), [report]);
   return (
     <div className="space-y-4">
       <Tiles report={report} />
+      <DataGapsCard lines={dayGapLines(report.gaps)} summary={dayGapsSummary(report.gaps)} />
       <div className={cn("grid gap-4", unitGroups(report).length > 1 && "lg:grid-cols-2")}>
         {unitGroups(report).map((g) => {
           const rows: ChartRow[] = report.buckets.map((b, i) => ({ __tick: b.label, __label: report.granularity === "day" ? fmtDate(b.key) : b.label, ...Object.fromEntries(g.series.map((s) => [s.id, s.values[i]])) }));
@@ -69,7 +91,7 @@ function Graphs({ report }: { report: CustomReport }) {
           const kind = resolveKind(style, g.series.length > 1 || rows.length > 40 ? "line" : "bar");
           return (
             <Panel key={g.unit} chart title={g.series.map((s) => s.label).join(" and ")} description={`${report.period.label} · ${g.unit} each ${report.granularity}${report.comparison ? ` · ${g.series.map((s) => s.categoryLabel).filter((c, i, a) => a.indexOf(c) === i).join(" + ")}` : ""}`}>
-              <ChartCore rows={rows} series={defs} kind={kind} format={fixed(g.unit)} tickEvery={Math.max(1, Math.round(rows.length / 6))} />
+              <ChartCore rows={rows} series={defs} kind={kind} format={fixed(g.unit)} tickEvery={Math.max(1, Math.round(rows.length / 6))} gapRanges={ranges} />
             </Panel>
           );
         })}
@@ -112,13 +134,15 @@ function Tables({ report }: { report: CustomReport }) {
     [report.series, report.granularity]
   );
 
+  const inGap = new Set(gapRanges(report).flatMap((g) => report.buckets.slice(g.first, g.last + 1).map((b) => b.key)));
   return (
     <div className="space-y-4">
+      <DataGapsCard lines={dayGapLines(report.gaps)} summary={dayGapsSummary(report.gaps)} />
       <Panel title="At a glance" description={`${report.period.label} · ${fmtDate(report.period.from)} to ${fmtDate(report.period.to)} · ${report.daysWithReadings} day${report.daysWithReadings === 1 ? "" : "s"} with readings${report.series.some((s) => s.unit === "%") ? ". A percentage's total is the whole period's own ratio." : ""}`}>
         <DataTable columns={summaryColumns} data={summary} pageSize={10} />
       </Panel>
       <Panel title={report.granularity === "month" ? "Month by month" : "Day by day"} description="Click a heading to sort.">
-        <DataTable columns={dataColumns} data={rows} pageSize={15} footer={["Total", ...report.series.map((s) => formatValue(s.total, s.unit).replace(/ (kWh|kg)$/, ""))]} />
+        <DataTable columns={dataColumns} data={rows} pageSize={15} rowClassName={(r) => (inGap.has(r.key) ? "bg-red-500/10 hover:bg-red-500/14" : undefined)} footer={["Total", ...report.series.map((s) => formatValue(s.total, s.unit).replace(/ (kWh|kg)$/, ""))]} />
       </Panel>
     </div>
   );
