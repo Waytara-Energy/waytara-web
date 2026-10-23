@@ -2,18 +2,13 @@ import { Zap } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { getSelectedSite } from "@/lib/selected-site";
 import { getRequestProfile } from "@/lib/request-profile";
-import { fetchSiteOverview, fetchTodayChargingSessions, fetchRecentChargingStats } from "@/lib/device-overview";
-import { getCustomerPlan } from "@/lib/customer-plan";
+import { fetchSiteOverview } from "@/lib/device-overview";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { LiveChannelKeeper } from "@/components/dashboard/overview-live";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { SITE_OVERVIEW_KEYS } from "@/lib/overview-keys";
 import { fetchSolarCardsProps } from "@/components/dashboard/solar-live-status-cards";
-import { fetchEvCardsProps } from "@/components/dashboard/ev-live-status-cards";
 import { OverviewBoard } from "@/components/dashboard/overview-board";
-import { ChargingSessionsCarousel } from "@/components/dashboard/charging-sessions-carousel";
-import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
-import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { backgroundCss, parseOverviewPrefs } from "@/lib/overview-prefs";
 
@@ -61,14 +56,8 @@ export default async function DashboardOverviewPage() {
   const deviceIds = site.devices.map((d) => d.id);
   const chargerIds = site.devices.filter((d) => d.deviceType?.category === "ev_charger").map((d) => d.id);
   const inverterId = site.devices.find((d) => d.deviceType?.category === "solar_inverter")?.id;
-  const [overview, chargingSummary, recentChargingStats, customerPlan, connectorStatusOptions, inverterSync, uiRow] = await Promise.all([
+  const [overview, inverterSync, uiRow] = await Promise.all([
     deviceIds.length > 0 ? fetchSiteOverview(supabase, site) : Promise.resolve(null),
-    chargerIds.length > 0 ? fetchTodayChargingSessions(supabase, chargerIds[0]) : Promise.resolve(null),
-    chargerIds.length > 0 ? fetchRecentChargingStats(supabase, chargerIds[0]) : Promise.resolve(null),
-    getCustomerPlan(),
-    chargerIds.length > 0
-      ? fetchEnumOptions(supabase, ["connector_status"]).then((m) => m.get("connector_status") ?? [])
-      : Promise.resolve([]),
     inverterId ? getLastSyncInfo(inverterId) : Promise.resolve(null),
     // the person's own choices for this page (which four cards, what is behind it): see Application Settings
     profile ? supabase.from("profiles").select("ui_preferences").eq("id", profile.id).maybeSingle() : Promise.resolve({ data: null }),
@@ -76,7 +65,6 @@ export default async function DashboardOverviewPage() {
   const overviewPrefs = parseOverviewPrefs(uiRow.data?.ui_preferences);
   const backgroundUrl = overviewPrefs.background.kind === "image" ? supabase.storage.from("avatars").getPublicUrl(overviewPrefs.background.path).data.publicUrl : null;
   const background = backgroundCss(overviewPrefs.background, backgroundUrl, overviewPrefs.dim);
-  const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
   const inverterIds = site.devices.filter((d) => d.deviceType?.category === "solar_inverter").map((d) => d.id);
   // What the server saw; the live components take it from here (no page refresh).
   const syncInit: DeviceSyncInit = inverterSync ?? { lastTs: null, agentSeenTs: null, deviceOnline: null, intervalS: null, heartbeatS: null };
@@ -84,7 +72,7 @@ export default async function DashboardOverviewPage() {
   const overviewInitial: Record<string, number | null> = overview ? Object.fromEntries([...SITE_OVERVIEW_KEYS, ...pvKeys].map((k) => [k, overview.get(k)])) : {};
 
   // The first numbers of the cards beside the energy flow (the live channel keeps them current afterwards).
-  const [solarCards, evCards] = await Promise.all([fetchSolarCardsProps(supabase, site, syncInit, pvKeys), fetchEvCardsProps(supabase, site)]);
+  const solarCards = await fetchSolarCardsProps(supabase, site, syncInit, pvKeys);
 
   return (
     <div className="space-y-4">
@@ -92,18 +80,6 @@ export default async function DashboardOverviewPage() {
           device's live channel - there is no page refresh on new readings. The channel is only open while this
           tab is visible. */}
       <LiveChannelKeeper deviceIds={[...inverterIds, ...chargerIds]} />
-      {/* ev_sessions isn't reflected in equipment_telemetry at all (it's
-          a derived table, not a raw reading) — a session opening is an
-          INSERT, closing is an UPDATE on that same row, so both need their
-          own subscription for "Energy Delivered Today" and the EV cards to
-          catch up the moment a session starts or ends, not just whenever
-          the next equipment_telemetry tick happens to land. */}
-      {chargerIds.length > 0 && (
-        <>
-          <RealtimeRefresh table="ev_sessions" event="INSERT" filter={`equipment_id=in.(${chargerIds.join(",")})`} />
-          <RealtimeRefresh table="ev_sessions" event="UPDATE" filter={`equipment_id=in.(${chargerIds.join(",")})`} />
-        </>
-      )}
       {/* The device status icons (each one a live connection) are in the page header on every page, and an offline device is announced by a toast
           at the top (both live in the dashboard layout). */}
 
@@ -123,7 +99,7 @@ export default async function DashboardOverviewPage() {
             cards={overviewPrefs.cards}
             background={background}
             solar={solarCards}
-            ev={evCards}
+            ev={null}
             flow={{
               inverterIds,
               chargerIds,
@@ -135,23 +111,6 @@ export default async function DashboardOverviewPage() {
               sync: syncInit,
             }}
           />
-
-          {chargerIds.length > 0 && (
-            <ChargingSessionsCarousel
-              deviceId={chargerIds[0]}
-              sessions={chargingSummary?.sessions ?? []}
-              ratedPowerW={chargingSummary?.ratedPowerW ?? null}
-              currentPowerW={chargingSummary?.currentPowerW ?? null}
-              currentA={chargingSummary?.currentA ?? null}
-              voltageV={chargingSummary?.voltageV ?? null}
-              temperatureC={chargingSummary?.temperatureC ?? null}
-              connectorStatus={chargingSummary?.connectorStatus ?? null}
-              connectorStatusOptions={connectorStatusOptions}
-              tariffRate={tariffRate}
-              showCost={site.propertyType !== "residential_independent_villas"}
-              recentStats={recentChargingStats}
-            />
-          )}
         </>
       )}
     </div>
