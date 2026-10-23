@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BellOff, CheckCircle2, Circle, Download, History, LifeBuoy, Moon, Rocket, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, BellOff, CheckCircle2, Circle, History, LayoutGrid, LifeBuoy, Receipt, Moon, Rocket, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LEVEL_LABEL, nextSteps, profileCompleteness, securityScore, type CheckItem, type HealthInput } from "@/lib/account-health";
 import { cn } from "@/lib/utils";
@@ -81,90 +81,91 @@ export function AccountSection({ health, events, plan, pausedUntil, now }: Accou
         </section>
       )}
 
-      <div className="grid items-start gap-5 xl:grid-cols-3">
-        <div className="grid items-start gap-5 lg:grid-cols-2 xl:col-span-2">
-          <SettingsCard title="Your profile" description="The more the team knows, the faster they can help." icon={Sparkles} tone="emerald" badge={<Pill tone={profile.percent === 100 ? "emerald" : "amber"}>{profile.percent}% complete</Pill>}>
-            <div className="h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={profile.percent} aria-valuemin={0} aria-valuemax={100} aria-label="How complete your profile is">
-              <div className="h-full rounded-full bg-emerald-500 transition-all duration-700" style={{ width: `${profile.percent}%` }} />
-            </div>
-            <Checks items={profile.items} />
-          </SettingsCard>
-
-          <SettingsCard title="Security check" description="How well your account is protected." icon={ShieldCheck} tone="indigo" badge={<Pill tone={LEVEL_TONE[security.level]}>{LEVEL_LABEL[security.level]}</Pill>}>
-            <div className="flex items-center gap-4">
-              <ProgressRing percent={security.score} size={84} stroke={7} color={LEVEL_COLOR[security.level]}>
-                <span className="text-lg font-semibold tabular-nums text-foreground">{security.score}</span>
-              </ProgressRing>
-              <p className="text-sm text-muted-foreground">
-                {security.level === "strong" ? "Your account is well protected." : "Turn on what is missing below to raise the score."}
-              </p>
-            </div>
-            <Checks items={security.items} />
-          </SettingsCard>
-
-          <div className="lg:col-span-2">
-            <SettingsCard
-              title="Recent activity"
-              description="Sign-ins, sign-outs and changes to your account. If something here is not you, change your password."
-              icon={History}
-              tone="sky"
-              footer={
-                <Button type="button" variant="outline" size="sm" onClick={() => go("security")}>
-                  Open security
-                  <ArrowRight className="size-3.5" />
-                </Button>
-              }
-            >
-              <ActivityList events={events.slice(0, 6)} now={now} />
-            </SettingsCard>
+      <div className="-mb-5 columns-1 gap-5 lg:columns-2 2xl:columns-3 [&>*]:mb-5 [&>*]:break-inside-avoid">
+        <SettingsCard title="Your profile" description="The more the team knows, the faster they can help." icon={Sparkles} tone="emerald" badge={<Pill tone={profile.percent === 100 ? "emerald" : "amber"}>{profile.percent}% complete</Pill>}>
+          <div className="h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={profile.percent} aria-valuemin={0} aria-valuemax={100} aria-label="How complete your profile is">
+            <div className="h-full rounded-full bg-emerald-500 transition-all duration-700" style={{ width: `${profile.percent}%` }} />
           </div>
-        </div>
+          <Checks items={profile.items} />
+        </SettingsCard>
 
-        <div className="space-y-5">
-          {plan && (
-            <PlanCard
-              plan={plan}
-              action={
-                <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => go("billing")}>
-                  Billing &amp; payments
-                  <ArrowRight className="size-3.5" />
-                </Button>
-              }
-            />
-          )}
+        <SettingsCard title="Security check" description="How well your account is protected." icon={ShieldCheck} tone="indigo" badge={<Pill tone={LEVEL_TONE[security.level]}>{LEVEL_LABEL[security.level]}</Pill>}>
+          <div className="flex items-center gap-4">
+            <ProgressRing percent={security.score} size={84} stroke={7} color={LEVEL_COLOR[security.level]}>
+              <span className="text-lg font-semibold tabular-nums text-foreground">{security.score}</span>
+            </ProgressRing>
+            <p className="text-sm text-muted-foreground">
+              {security.level === "strong" ? "Your account is well protected." : "Turn on what is missing below to raise the score."}
+            </p>
+          </div>
+          <Checks items={security.items} />
+        </SettingsCard>
 
-          <SettingsCard title="Quick actions" icon={Rocket} tone="amber">
-            <ul className="-my-1 divide-y divide-border">
-              {[
-                { label: pausedLabel ? `Notifications paused until ${pausedLabel}` : "Pause notifications for a while", icon: BellOff, onClick: () => go("notifications") },
-                { label: "Choose light or dark", icon: Moon, onClick: () => go("appearance") },
-                { label: "Add an alert", icon: Sparkles, onClick: () => go("alerts") },
-              ].map((a) => (
-                <li key={a.label}>
-                  <button type="button" onClick={a.onClick} className="flex w-full items-center gap-3 py-3 text-left text-sm font-medium text-foreground outline-none transition-colors hover:text-emerald-600 focus-visible:text-emerald-600 dark:hover:text-emerald-400">
-                    <a.icon className="size-4 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 truncate">{a.label}</span>
-                    <ArrowRight className="size-3.5 text-muted-foreground" />
-                  </button>
-                </li>
-              ))}
-              <li>
-                <a href="/api/account/export" className="flex items-center gap-3 py-3 text-sm font-medium text-foreground transition-colors hover:text-emerald-600 dark:hover:text-emerald-400">
-                  <Download className="size-4 text-muted-foreground" />
-                  <span className="min-w-0 flex-1">Download my data</span>
-                  <ArrowRight className="size-3.5 text-muted-foreground" />
-                </a>
-              </li>
-              <li>
-                <Link href="/dashboard/support" className="flex items-center gap-3 py-3 text-sm font-medium text-foreground transition-colors hover:text-emerald-600 dark:hover:text-emerald-400">
-                  <LifeBuoy className="size-4 text-muted-foreground" />
-                  <span className="min-w-0 flex-1">Talk to support</span>
-                  <ArrowRight className="size-3.5 text-muted-foreground" />
-                </Link>
-              </li>
-            </ul>
+
+{plan && (
+          <PlanCard
+            plan={plan}
+            action={
+              <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => go("billing")}>
+                Billing &amp; payments
+                <ArrowRight className="size-3.5" />
+              </Button>
+            }
+          />
+        )}
+
+        <SettingsCard
+            title="Recent activity"
+            description="Sign-ins, sign-outs and changes to your account. If something here is not you, change your password."
+            icon={History}
+            tone="sky"
+            footer={
+              <Button type="button" variant="outline" size="sm" onClick={() => go("security")}>
+                Open security
+                <ArrowRight className="size-3.5" />
+              </Button>
+            }
+          >
+            <ActivityList events={events.slice(0, 6)} now={now} />
           </SettingsCard>
-        </div>
+        <SettingsCard title="Quick actions" icon={Rocket} tone="amber">
+          <ul className="-my-1 divide-y divide-border">
+            {[
+              { label: pausedLabel ? `Notifications paused until ${pausedLabel}` : "Pause notifications for a while", icon: BellOff, onClick: () => go("notifications") },
+              { label: "Choose light or dark", icon: Moon, onClick: () => go("appearance") },
+              { label: "Add an alert", icon: Sparkles, onClick: () => go("alerts") },
+            ].map((a) => (
+              <li key={a.label}>
+                <button type="button" onClick={a.onClick} className="flex w-full items-center gap-3 py-3 text-left text-sm font-medium text-foreground outline-none transition-colors hover:text-emerald-600 focus-visible:text-emerald-600 dark:hover:text-emerald-400">
+                  <a.icon className="size-4 text-muted-foreground" />
+                  <span className="min-w-0 flex-1 truncate">{a.label}</span>
+                  <ArrowRight className="size-3.5 text-muted-foreground" />
+                </button>
+              </li>
+            ))}
+            <li>
+              <button type="button" onClick={() => go("billing")} className="flex w-full items-center gap-3 py-3 text-left text-sm font-medium text-foreground outline-none transition-colors hover:text-emerald-600 focus-visible:text-emerald-600 dark:hover:text-emerald-400">
+                <Receipt className="size-4 text-muted-foreground" />
+                <span className="min-w-0 flex-1">Invoices and payments</span>
+                <ArrowRight className="size-3.5 text-muted-foreground" />
+              </button>
+            </li>
+            <li>
+              <Link href="/dashboard?customize=1" className="flex items-center gap-3 py-3 text-sm font-medium text-foreground transition-colors hover:text-emerald-600 dark:hover:text-emerald-400">
+                <LayoutGrid className="size-4 text-muted-foreground" />
+                <span className="min-w-0 flex-1">Arrange my Overview</span>
+                <ArrowRight className="size-3.5 text-muted-foreground" />
+              </Link>
+            </li>
+            <li>
+              <Link href="/dashboard/support" className="flex items-center gap-3 py-3 text-sm font-medium text-foreground transition-colors hover:text-emerald-600 dark:hover:text-emerald-400">
+                <LifeBuoy className="size-4 text-muted-foreground" />
+                <span className="min-w-0 flex-1">Talk to support</span>
+                <ArrowRight className="size-3.5 text-muted-foreground" />
+              </Link>
+            </li>
+          </ul>
+        </SettingsCard>
       </div>
     </div>
   );

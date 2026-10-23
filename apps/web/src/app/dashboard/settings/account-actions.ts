@@ -5,6 +5,7 @@ import { createClient } from "@waytara/supabase/server";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { getCurrentProfile, requireCustomer } from "@waytara/supabase/auth";
 import type { Json } from "@waytara/supabase/types";
+import { CLEARABLE_KINDS, RETENTION_CHOICES } from "@/lib/account-events";
 import { buildAlertEmail } from "@/lib/alert-rule-mail";
 import { appearanceToJson, parseAppearance, type AppearancePrefs } from "@/lib/appearance-prefs";
 import { notifyAuthEvent } from "@/lib/auth-notify";
@@ -145,4 +146,30 @@ export async function completeSignIn(): Promise<string> {
   if (needsSecondFactor(aal)) throw new Error("The code has not been accepted yet.");
   await notifyAuthEvent("signin", profile);
   return startPath(parseStartPage(profile.ui_preferences));
+}
+
+// ---- privacy: how long activity is kept, and clearing it -------------------------------------------------------------------------------
+
+/** How long the account activity is kept (30 days, 90 days or 1 year). Older lines are removed as new ones are written; the other keys of
+ *  security_preferences are kept. */
+export async function saveActivityRetention(days: number): Promise<void> {
+  const profile = await requireCustomer();
+  if (!RETENTION_CHOICES.some((c) => c.days === days)) throw new Error("Choose one of the times offered.");
+  const supabase = await createClient();
+  const { data: current } = await supabase.from("profiles").select("security_preferences").eq("id", profile.id).maybeSingle();
+  const { error } = await supabase.from("profiles").update({ security_preferences: asJson({ ...asObject(current?.security_preferences), activity_days: days }) }).eq("id", profile.id);
+  if (error) throw new Error(error.message);
+  // lines already older than the new time go now
+  const cutoff = new Date(Date.now() - days * 86_400_000).toISOString();
+  await createServiceRoleClient().from("account_events").delete().eq("customer_id", profile.id).lt("created_at", cutoff);
+  revalidatePath("/dashboard/settings");
+}
+
+/** Removes the person's sign-in and sign-out history. Password, e-mail and two-factor changes are kept (see CLEARABLE_KINDS). Returns how many went. */
+export async function clearActivityHistory(): Promise<{ removed: number }> {
+  const profile = await requireCustomer();
+  const { data, error } = await createServiceRoleClient().from("account_events").delete().eq("customer_id", profile.id).in("kind", CLEARABLE_KINDS).select("id");
+  if (error) throw new Error("Could not clear the history. Try again.");
+  revalidatePath("/dashboard/settings");
+  return { removed: data?.length ?? 0 };
 }

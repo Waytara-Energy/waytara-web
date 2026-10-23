@@ -29,8 +29,22 @@ export const describeEvent = (kind: string): EventStyle => (isAccountEventKind(k
 /** "Chrome on Windows · Chennai, Tamil Nadu, IN · 103.21.4.18": the parts that are known. */
 export const eventWhere = (e: { device: string | null; place: string | null; ip: string | null }): string => [e.device, e.place, e.ip].filter(Boolean).join(" · ");
 
-/** The newest events are kept for this long. */
+/** How long account activity is kept: the person chooses (Application Settings > Privacy & data); 90 days unless they did. */
+export const RETENTION_CHOICES: { days: number; label: string }[] = [
+  { days: 30, label: "30 days" },
+  { days: 90, label: "90 days" },
+  { days: 365, label: "1 year" },
+];
 export const EVENT_RETENTION_DAYS = 90;
+export const parseActivityDays = (raw: unknown): number => {
+  const v = raw && typeof raw === "object" ? (raw as Record<string, unknown>).activity_days : undefined;
+  return typeof v === "number" && RETENTION_CHOICES.some((c) => c.days === v) ? v : EVENT_RETENTION_DAYS;
+};
+
+/** What "Clear my history" removes: sign-ins and sign-outs. A changed password or e-mail and two-factor changes stay for the whole time, so that
+ *  somebody who got into the account cannot wipe the trace of what they changed. */
+export const CLEARABLE_KINDS: AccountEventKind[] = ["signin", "signout", "signout_idle", "signout_limit", "signout_closed", "signout_others", "signout_all", "session_revoked"];
+export const isClearable = (kind: string): boolean => (CLEARABLE_KINDS as string[]).includes(kind);
 
 /** "just now", "5 min ago", "3 h ago", "Yesterday, 4:10 pm", "12 Oct, 9:30 am": when an event happened, relative to `now` (passed in so a render never reads the clock). */
 export function whenText(iso: string, now: number): string {

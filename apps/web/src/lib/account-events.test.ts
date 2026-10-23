@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { describeEvent, eventWhere, isAccountEventKind, whenText } from "./account-events";
+import { CLEARABLE_KINDS, RETENTION_CHOICES, describeEvent, eventWhere, isAccountEventKind, isClearable, parseActivityDays, whenText } from "./account-events";
 
 describe("describeEvent", () => {
   it("names the known kinds and warns about the ones worth a look", () => {
@@ -30,5 +30,26 @@ describe("whenText", () => {
     expect(whenText("2026-10-23T07:00:00Z", now)).toBe("5 h ago");
     expect(whenText("2026-10-22T04:40:00Z", now)).toMatch(/^Yesterday, 10:10 am$/i);
     expect(whenText("2026-10-12T04:00:00Z", now)).toMatch(/^12 Oct, 9:30 am$/i);
+  });
+});
+
+describe("how long activity is kept", () => {
+  it("is 90 days unless the person chose one of the offered times", () => {
+    expect(parseActivityDays(null)).toBe(90);
+    expect(parseActivityDays({})).toBe(90);
+    expect(parseActivityDays({ activity_days: 30 })).toBe(30);
+    expect(parseActivityDays({ activity_days: 365 })).toBe(365);
+    expect(parseActivityDays({ activity_days: 7 })).toBe(90);
+    expect(parseActivityDays({ activity_days: "30" })).toBe(90);
+    expect(RETENTION_CHOICES.map((c) => c.days)).toEqual([30, 90, 365]);
+  });
+});
+
+describe("what clearing history removes", () => {
+  it("is sign-ins and sign-outs only, never a password, e-mail or two-factor change", () => {
+    expect(isClearable("signin")).toBe(true);
+    expect(isClearable("signout_idle")).toBe(true);
+    for (const k of ["password_changed", "email_changed", "mfa_enabled", "mfa_disabled", "unknown"]) expect(isClearable(k)).toBe(false);
+    for (const k of CLEARABLE_KINDS) expect(isAccountEventKind(k)).toBe(true);
   });
 });

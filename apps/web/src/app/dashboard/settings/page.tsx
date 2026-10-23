@@ -8,6 +8,8 @@ import type { RecentAlert } from "@/components/dashboard/settings/alerts-section
 import { effectiveRules, type RuleRow } from "@/lib/alert-rules";
 import { profileCompleteness, type HealthInput } from "@/lib/account-health";
 import { addressLine, isEmptyAddress, parseAddress } from "@/lib/address";
+import { CLEARABLE_KINDS, parseActivityDays } from "@/lib/account-events";
+import type { HeldRow } from "@/components/dashboard/settings/privacy-section";
 import { parseAppearance } from "@/lib/appearance-prefs";
 import { NOTIFICATION_KEYS, pausedUntil, resolveNotificationPrefs } from "@/lib/notification-prefs";
 import { parseOverviewPrefs } from "@/lib/overview-prefs";
@@ -44,6 +46,17 @@ export default async function SettingsPage() {
     supabase.auth.mfa.listFactors(),
     // the payments of the Billing tab (RLS scopes them to this customer; the limit keeps a very old account from an unbounded read)
     supabase.from("payments").select("id, payment_type, amount, status, method, paid_at, created_at").order("created_at", { ascending: false }).limit(500),
+  ]);
+
+  // what the account holds, as counts (RLS keeps every one of them to this customer's own rows)
+  const count = (table: "sites" | "equipment" | "alert_rules" | "support_tickets" | "account_events") => supabase.from(table).select("id", { count: "exact", head: true });
+  const [{ count: siteCount }, { count: deviceTotal }, { count: ruleCount }, { count: ticketCount }, { count: eventCount }, { count: clearableCount }] = await Promise.all([
+    count("sites"),
+    count("equipment"),
+    count("alert_rules"),
+    count("support_tickets"),
+    count("account_events"),
+    count("account_events").in("kind", CLEARABLE_KINDS),
   ]);
 
   const now = serverNow();
@@ -109,7 +122,18 @@ export default async function SettingsPage() {
       alerts={{ rules, sites: siteList, recent, emailOn: prefs.rule_alerts, paused: paused !== null, now }}
       billing={{ plan, payments, summary: summarisePayments(payments), addresses: addressesProps }}
       security={{ policy, devices, now, email, events }}
-      privacy={{ email }}
+      privacy={{
+        email,
+        held: [
+          { id: "sites", label: "Your sites", count: siteCount ?? 0, hint: "Where your system is installed", href: "/dashboard/site" },
+          { id: "devices", label: "Your devices", count: deviceTotal ?? 0, hint: "Inverters and chargers, and their readings", href: "/dashboard/devices" },
+          { id: "alerts", label: "Alerts you made", count: ruleCount ?? 0, hint: "Your own alerts and the changes you made to smart ones", tab: "alerts" },
+          { id: "tickets", label: "Support tickets", count: ticketCount ?? 0, hint: "Your conversations with the team", href: "/dashboard/support" },
+          { id: "payments", label: "Payments and invoices", count: payments.length, hint: "What you paid and its invoice", tab: "billing" },
+          { id: "activity", label: "Account activity", count: eventCount ?? 0, hint: "Sign-ins, sign-outs and changes", tab: "security" },
+        ] satisfies HeldRow[],
+        activity: { days: parseActivityDays(row?.security_preferences), total: eventCount ?? 0, clearable: clearableCount ?? 0 },
+      }}
     />
     </>
   );

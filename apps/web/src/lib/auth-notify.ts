@@ -2,7 +2,7 @@ import "server-only";
 import { headers } from "next/headers";
 import { after } from "next/server";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
-import { EVENT_RETENTION_DAYS, type AccountEventKind } from "./account-events";
+import { parseActivityDays, type AccountEventKind } from "./account-events";
 import { buildAuthEmail, type AuthKind } from "./auth-mail";
 import { wants, type NotificationKey } from "./notification-prefs";
 import { sendMail } from "./send-mail";
@@ -59,7 +59,9 @@ async function writeEvent(personId: string, kind: AccountEventKind, context: Req
   try {
     const service = createServiceRoleClient();
     await service.from("account_events").insert({ customer_id: personId, kind, device: context.device, place: context.place, ip: context.ip });
-    const cutoff = new Date(Date.now() - EVENT_RETENTION_DAYS * 86_400_000).toISOString();
+    // old lines go after the time the person chose (Settings > Privacy & data)
+    const { data: prefs } = await service.from("profiles").select("security_preferences").eq("id", personId).maybeSingle();
+    const cutoff = new Date(Date.now() - parseActivityDays(prefs?.security_preferences) * 86_400_000).toISOString();
     await service.from("account_events").delete().eq("customer_id", personId).lt("created_at", cutoff);
   } catch (error) {
     console.error("[auth-notify] could not record the account event:", error);
