@@ -1,5 +1,5 @@
 import { createClient } from "@waytara/supabase/server";
-import { Button } from "@waytara/ui/button";
+import { Button, TextSubmit } from "@waytara/ui/button";
 import { Input } from "@waytara/ui/input";
 import { ActionForm } from "@waytara/ui/action-form";
 import { Badge } from "@/components/ui/badge";
@@ -155,9 +155,7 @@ export default async function TariffsPage() {
                   <span className="font-medium">{r.state}</span> · {r.category} · ₹{Number(r.rate_per_kwh).toFixed(2)} from {fmtDate(r.effective_from)}
                 </span>
                 <ActionForm action={deleteScheduledTariff.bind(null, r.id)} loading="Removing…" success="Removed.">
-                  <button type="submit" className="text-xs text-muted-foreground hover:text-destructive hover:underline">
-                    Remove
-                  </button>
+                  <TextSubmit className="text-xs text-muted-foreground hover:text-destructive hover:underline" pendingText="Remove…">Remove</TextSubmit>
                 </ActionForm>
               </li>
             ))}

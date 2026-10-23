@@ -1,4 +1,7 @@
+"use client";
+
 import * as React from "react";
+import { useFormStatus } from "react-dom";
 import { Slot } from "@radix-ui/react-slot";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "./cn";
@@ -38,18 +41,48 @@ export interface ButtonProps
   asChild?: boolean;
 }
 
+const Spinner = () => <span aria-hidden className="size-3.5 shrink-0 animate-spin rounded-full border-2 border-current border-t-transparent" />;
+
+/**
+ * A button. A submit button inside a form whose action is running (a server action) disables itself and shows a spinner until the action is
+ * done, so a double click cannot send the form twice. Every other button, and a form that is not running an action, behaves as before.
+ */
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, children, disabled, ...props }, ref) => {
+    const { pending } = useFormStatus();
+    const submitting = pending && !asChild && props.type === "submit";
     const Comp = asChild ? Slot : "button";
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
         ref={ref}
+        disabled={disabled || submitting}
+        aria-busy={submitting || undefined}
         {...props}
-      />
+      >
+        {/* with asChild the child is the element: it must stay the only child */}
+        {asChild ? (
+          children
+        ) : (
+          <>
+            {submitting && <Spinner />}
+            {children}
+          </>
+        )}
+      </Comp>
     );
   }
 );
 Button.displayName = "Button";
 
-export { Button, buttonVariants };
+/** A small text-style submit button (a "Remove" or "Cancel" link inside a form): disabled while the form's action runs, and its text can change. */
+function TextSubmit({ children, pendingText, className, ...props }: Omit<React.ButtonHTMLAttributes<HTMLButtonElement>, "type"> & { pendingText?: React.ReactNode }) {
+  const { pending } = useFormStatus();
+  return (
+    <button type="submit" disabled={pending || props.disabled} aria-busy={pending || undefined} className={cn("disabled:pointer-events-none disabled:opacity-50", className)} {...props}>
+      {pending && pendingText !== undefined ? pendingText : children}
+    </button>
+  );
+}
+
+export { Button, TextSubmit, buttonVariants };

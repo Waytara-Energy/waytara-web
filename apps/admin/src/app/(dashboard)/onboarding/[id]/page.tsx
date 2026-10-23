@@ -1,7 +1,7 @@
 import { Fragment } from "react";
 import Link from "next/link";
 import { createClient } from "@waytara/supabase/server";
-import { Button } from "@waytara/ui/button";
+import { Button, TextSubmit } from "@waytara/ui/button";
 import { Input } from "@waytara/ui/input";
 import { MonitoringPanel } from "@waytara/ui/monitoring-panel";
 import { ActionForm } from "@waytara/ui/action-form";
@@ -517,9 +517,7 @@ export default async function OnboardingPipelinePage({
                               {c.label ? <span className="text-muted-foreground"> — {c.label}</span> : null}
                             </span>
                             <ActionForm action={retireChildEquipment.bind(null, onboarding.id, c.id)} loading="Removing…" success="Removed.">
-                              <button type="submit" className="text-xs text-muted-foreground hover:text-destructive hover:underline">
-                                Remove
-                              </button>
+                              <TextSubmit className="text-xs text-muted-foreground hover:text-destructive hover:underline" pendingText="Remove…">Remove</TextSubmit>
                             </ActionForm>
                           </div>
                         ))}

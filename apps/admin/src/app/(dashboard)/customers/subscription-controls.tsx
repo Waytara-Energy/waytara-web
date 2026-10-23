@@ -4,7 +4,7 @@ import * as React from "react";
 import * as DialogPrimitive from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
 import { ActionForm } from "@waytara/ui/action-form";
-import { Button } from "@waytara/ui/button";
+import { Button, TextSubmit } from "@waytara/ui/button";
 import { Input } from "@waytara/ui/input";
 import { recordSubscription, setSubscriptionStatus } from "./actions";
 
@@ -46,9 +46,7 @@ export function SubscriptionControls({
     <div className="flex items-center justify-end gap-3">
       {running && (
         <ActionForm action={setSubscriptionStatus.bind(null, current.id, "cancelled")} loading="Cancelling…" success="Subscription cancelled." onSubmit={(e) => { if (!window.confirm(`Cancel ${customerName}'s subscription?`)) e.preventDefault(); }}>
-          <button type="submit" className="text-xs text-muted-foreground underline-offset-2 hover:text-destructive hover:underline">
-            Cancel
-          </button>
+          <TextSubmit className="text-xs text-muted-foreground underline-offset-2 hover:text-destructive hover:underline" pendingText="Cancel…">Cancel</TextSubmit>
         </ActionForm>
       )}
 
