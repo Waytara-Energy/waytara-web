@@ -11,11 +11,10 @@ import { solarKwp, type ChildEquipment } from "@/lib/equipment-children";
 import { pvPowerKeys } from "@/lib/solar-generation";
 import { fetchReadKeys } from "@/lib/instrument-catalog-data";
 import { enumToObject, valuesFor } from "@/lib/field-values";
-import { PerformanceChart } from "./lazy-charts";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { aggregateDailyYield } from "@/lib/energy-aggregation";
-import { formatDuration } from "@/lib/format-duration";
+import { EvPerformanceBoard } from "./ev-performance-board";
+import { EV_PERF_COLUMNS, type EvPerfSession } from "@/lib/ev-perf-stats";
+import { getSelectedSite } from "@/lib/selected-site";
+import { DAY_KEYS } from "@/lib/performance-metrics";
 import { DeviceParameterCards } from "./device-parameter-cards";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -40,7 +39,7 @@ export async function PerformanceContent({ supabase, device, tariffRate = 8 }: {
     return <SolarInverterPerformance supabase={supabase} device={device} tariffRate={tariffRate} />;
   }
   if (category === "ev_charger") {
-    return <EvChargerPerformance supabase={supabase} device={device} />;
+    return <EvChargerPerformance supabase={supabase} device={device} tariffRate={tariffRate} />;
   }
 
   const parameters = await fetchDeviceParameterReadings(supabase, device);
@@ -143,110 +142,38 @@ async function SolarInverterPerformance({ supabase, device, tariffRate }: { supa
   return <PerformanceBoard deviceId={device.id} initial={initial} pvKeys={pvKeys} tariff={tariffRate} batteryProfile={batteryProfile} solarKwp={solarKwp(children)} extras={extras} />;
 }
 
-async function EvChargerPerformance({ supabase, device }: { supabase: SupabaseServerClient; device: CustomerDevice }) {
+async function EvChargerPerformance({ supabase, device, tariffRate }: { supabase: SupabaseServerClient; device: CustomerDevice; tariffRate: number }) {
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - HISTORY_DAYS);
 
-  // EV Performance's real template rows are all category "Platform
-  // Analytics", source: "platform" — every one of them is a session-
-  // history aggregate, not a register, so nothing here comes from
-  // equipment_telemetry/fetchFieldValues at all.
-  const sections = await fetchDashboardFields(supabase, device, "Performance");
-
-  // "Sessions & Billing" is its own dashboard_section (Billing's day/week/
-  // month/year/lifetime rollups + Tariff's rate configuration, 20 fields)
-  // — brand new, no existing screen rendered it before. Its natural home
-  // is this same page, alongside the existing Charging Sessions table,
-  // rather than a whole new nav destination for one EV-only section.
+  // "Sessions & Billing" is its own dashboard_section (Billing's day/week/month/year/lifetime rollups + Tariff's rate configuration): it stays under
+  // the board, as template fields.
   const billingSections = await fetchDashboardFields(supabase, device, "Sessions & Billing");
   const billingFields = billingSections.flatMap((s) => s.groups.flatMap((g) => g.fields));
   const billingKeys = billingFields.map((f) => f.key);
 
-  // energy_active_import_register_kwh is OCPP's lifetime meter register —
-  // monotonically non-decreasing, so the "max seen per day" aggregateDailyYield
-  // already computes is exactly the day's ending cumulative value (never
-  // resets, so max == last within a day). aggregationMode="last" below
-  // then makes weekly/monthly rollups take that latest value instead of
-  // summing it (summing a cumulative series would double-count).
-  const [energyRows, { data: sessions }, billingValues] = await Promise.all([
-    fetchDailyMaxReadings(supabase, device.id, ["energy_active_import_register_kwh"], since.toISOString()),
-    supabase
-      .from("ev_sessions")
-      .select("id, started_at, ended_at, start_energy_kwh, end_energy_kwh, stop_reason")
-      .eq("equipment_id", device.id)
-      .order("started_at", { ascending: false })
-      .limit(30),
+  // The home's energy use per day, from the site's inverter, to say how much of it went to the car (skipped when the site has none).
+  const site = await getSelectedSite();
+  const inverterId = site?.devices.find((d) => d.deviceType?.category === "solar_inverter")?.id ?? null;
+
+  const [{ data: sessionRows }, billingValues, loadRows] = await Promise.all([
+    supabase.from("ev_sessions").select(EV_PERF_COLUMNS).eq("equipment_id", device.id).gte("started_at", since.toISOString()).order("started_at", { ascending: false }).limit(2000),
     fetchFieldValues(supabase, device.id, billingKeys),
+    inverterId ? fetchDailyMaxReadings(supabase, inverterId, [DAY_KEYS.load], since.toISOString()).catch(() => []) : Promise.resolve([]),
   ]);
 
-  const daily = aggregateDailyYield(energyRows.map((r) => ({ device_id: device.id, value: r.value, ts: r.ts })));
-
-  // Only avg_session_energy_kwh/avg_session_duration_min have a clean,
-  // honest definition from data this app already tracks (ev_sessions'
-  // own energy/timestamp columns). The other 9 Platform Analytics fields
-  // (per-connector split, SOC-at-plug-in/unplug, derating time, uptime,
-  // success rate) have no tracked source yet — left as "no data" rather
-  // than invented, same principle as EvChargerOverview's co2_saved_today_kg.
-  const energyDeltas: number[] = [];
-  const durationsMin: number[] = [];
-  for (const s of sessions ?? []) {
-    if (s.start_energy_kwh === null || s.end_energy_kwh === null || s.ended_at === null) continue;
-    energyDeltas.push(s.end_energy_kwh - s.start_energy_kwh);
-    durationsMin.push((new Date(s.ended_at).getTime() - new Date(s.started_at).getTime()) / 60000);
-  }
-  const avgSessionEnergyKwh = energyDeltas.length > 0 ? energyDeltas.reduce((a, b) => a + b, 0) / energyDeltas.length : null;
-  const avgSessionDurationMin = durationsMin.length > 0 ? durationsMin.reduce((a, b) => a + b, 0) / durationsMin.length : null;
-
-  const platformValues = new Map<string, FieldValue>(billingValues);
-  if (avgSessionEnergyKwh !== null) platformValues.set("avg_session_energy_kwh", avgSessionEnergyKwh);
-  if (avgSessionDurationMin !== null) platformValues.set("avg_session_duration_min", avgSessionDurationMin);
-  const getValue = (key: string): FieldValue => platformValues.get(key) ?? null;
+  const sessions = (sessionRows ?? []) as unknown as EvPerfSession[];
+  const loadDaily = loadRows.filter((r) => typeof r.value === "number").map((r) => ({ ts: r.ts, value: r.value as number }));
+  const getValue = (key: string): FieldValue => billingValues.get(key) ?? null;
 
   return (
     <>
-      <div className="rounded-xl border border-theme-border bg-theme-bg p-4">
-        <PerformanceChart daily={daily} unit="kWh" aggregationMode="last" totalLabel="Total energy delivered" />
-      </div>
+      <EvPerformanceBoard deviceId={device.id} sessions={sessions} loadDaily={loadDaily} tariff={tariffRate > 0 ? tariffRate : null} />
 
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-sm">Charging Sessions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!sessions || sessions.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No charging sessions recorded yet.</p>
-          ) : (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Started</TableHead>
-                  <TableHead>Duration</TableHead>
-                  <TableHead className="text-right">Energy</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {sessions.map((s) => {
-                  const energy =
-                    s.end_energy_kwh !== null && s.start_energy_kwh !== null ? s.end_energy_kwh - s.start_energy_kwh : null;
-                  return (
-                    <TableRow key={s.id}>
-                      <TableCell className="text-foreground">
-                        {new Date(s.started_at).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })}
-                      </TableCell>
-                      <TableCell className="text-muted-foreground">{formatDuration(s.started_at, s.ended_at)}</TableCell>
-                      <TableCell className="text-right text-foreground">{energy !== null ? `${energy.toFixed(1)} kWh` : "—"}</TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
-
-      {[...sections, ...billingSections].map((section) =>
+      {billingSections.map((section) =>
         section.groups.map((group) => (
-          <LiveDynamicFieldGroup deviceId={device.id}
+          <LiveDynamicFieldGroup
+            deviceId={device.id}
             key={`${section.category}-${group.groupName ?? ""}`}
             title={groupTitle(section.category, group.groupName)}
             fields={group.fields}
