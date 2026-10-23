@@ -23,3 +23,24 @@ body {
 .theme-media-dark { display: none; }
 .dark .theme-media-light { display: none; }
 .dark .theme-media-dark { display: block; }
+
+/* The shimmer of the loading placeholders (the same as the customer app's): a pale band sweeping across each block. Pure CSS, so it runs before
+   hydration; switched off for people who ask for reduced motion. */
+@theme {
+  --animate-skeleton-shimmer: skeleton-shimmer 1.6s linear infinite;
+}
+
+@keyframes skeleton-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-skeleton-shimmer {
+    animation: none;
+  }
+}
