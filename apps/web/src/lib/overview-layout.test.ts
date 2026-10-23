@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { FIT_ROWS, GRID_COLS, MAX_WIDGETS, addWidget, defaultLayout, layoutToJson, moveWidget, parseLayout, removeWidget, resizeWidget, rowsOf, settle, themeWidget, type WidgetItem } from "./overview-layout";
+import { FIT_ROWS, GRID_COLS, MAX_WIDGETS, addWidget, addWidgetFitting, defaultLayout, fitToBoard, fitsBoard, shrinkOne, widgetMeta, layoutToJson, moveWidget, parseLayout, removeWidget, resizeWidget, rowsOf, settle, themeWidget, type WidgetItem } from "./overview-layout";
 
 const overlap = (a: WidgetItem, b: WidgetItem) => a.x < b.x + b.w && b.x < a.x + a.w && a.y < b.y + b.h && b.y < a.y + a.h;
 
@@ -182,5 +182,87 @@ describe("parseLayout / layoutToJson", () => {
   it("keeps no more than the most widgets", () => {
     const items = Array.from({ length: 40 }, (_, n) => ({ id: `clock-${n + 1}`, type: "clock", x: 0, y: n, w: 2, h: 1 }));
     expect(parseLayout({ overview_layout: { items } })!.length).toBeLessThanOrEqual(MAX_WIDGETS);
+  });
+});
+
+describe("a board that never grows", () => {
+  const full = defaultLayout(["solar", "grid", "load", "battery"], false);
+
+  it("fits exactly: the standard layout fills the rows and no more", () => {
+    expect(fitsBoard(full)).toBe(true);
+    expect(rowsOf(full)).toBe(FIT_ROWS);
+  });
+
+  it("makes room for a new widget by shrinking the others, and the board is still no taller", () => {
+    const l = addWidgetFitting(full, "clock");
+    expect(l).not.toBeNull();
+    expect(l!.find((i) => i.type === "clock")).toMatchObject({ w: 3, h: 2 });
+    expect(fitsBoard(l!)).toBe(true);
+    expect(l).toHaveLength(full.length + 1);
+    expectTidy(l!);
+    // somebody gave up room, and nobody went below their smallest size
+    expect(l!.some((i) => i.type !== "clock" && (i.w < full.find((f) => f.id === i.id)!.w || i.h < full.find((f) => f.id === i.id)!.h))).toBe(true);
+    for (const i of l!) {
+      const m = widgetMeta(i.type)!;
+      expect(i.w).toBeGreaterThanOrEqual(m.minW);
+      expect(i.h).toBeGreaterThanOrEqual(m.minH);
+    }
+  });
+
+  it("takes the biggest widget's rows first (the energy flow before the small cards)", () => {
+    const l = addWidgetFitting(full, "clock")!;
+    expect(l.find((i) => i.type === "flow")!.h).toBeLessThan(FIT_ROWS);
+    expect(l.find((i) => i.id === "solar-1")!.h).toBe(full.find((i) => i.id === "solar-1")!.h);
+  });
+
+  it("uses a free spot without touching anything when there is one", () => {
+    const small = [{ id: "clock-1", type: "clock", x: 0, y: 0, w: 3, h: 2, theme: "default" }] as WidgetItem[];
+    const l = addWidgetFitting(small, "battery")!;
+    expect(l.find((i) => i.id === "clock-1")).toEqual(small[0]);
+    expect(fitsBoard(l)).toBe(true);
+  });
+
+  it("can keep adding until the board is really full, always staying inside it", () => {
+    let l: WidgetItem[] = full;
+    let added = 0;
+    for (let n = 0; n < 40; n++) {
+      const next = addWidgetFitting(l, "clock");
+      if (!next) break;
+      l = next;
+      added++;
+      expect(fitsBoard(l)).toBe(true);
+      expectTidy(l);
+    }
+    expect(added).toBeGreaterThan(3);
+    expect(addWidgetFitting(l, "clock")).toBeNull();
+  });
+
+  it("refuses an unknown kind", () => {
+    expect(addWidgetFitting(full, "nonsense")).toBeNull();
+  });
+
+  it("shrinkOne gives up one row or column, and is null when everything is at its smallest", () => {
+    const one = shrinkOne(full)!;
+    expect(one.reduce((n, i) => n + i.w * i.h, 0)).toBe(full.reduce((n, i) => n + i.w * i.h, 0) - (full.find((i) => i.type === "flow")!.w));
+    let l: WidgetItem[] | null = full;
+    for (let n = 0; n < 200 && l; n++) {
+      const next = shrinkOne(l);
+      if (!next) break;
+      l = next;
+    }
+    expect(shrinkOne(l!)).toBeNull();
+  });
+
+  it("fitToBoard squeezes a layout that is too tall, and keeps one that fits", () => {
+    const tall = [item("solar-1", "solar", 0, 0, 3, 8), item("grid-1", "grid", 0, 8, 3, 8), item("flow-1", "flow", 3, 0, 6, 14)];
+    const l = fitToBoard(tall);
+    expect(fitsBoard(l)).toBe(true);
+    expect(l).toHaveLength(3);
+    expect(fitToBoard(full)).toEqual(full);
+  });
+
+  it("a stored layout that was too tall for the board is squeezed when it is read", () => {
+    const stored = { overview_layout: { items: [{ id: "flow-1", type: "flow", x: 0, y: 0, w: 12, h: 14, theme: "default" }, { id: "clock-1", type: "clock", x: 0, y: 14, w: 3, h: 2, theme: "default" }] } };
+    expect(fitsBoard(parseLayout(stored)!)).toBe(true);
   });
 });

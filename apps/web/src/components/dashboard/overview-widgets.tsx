@@ -2,9 +2,7 @@
 
 import * as React from "react";
 import type { ComponentProps } from "react";
-import Link from "next/link";
-import { BatteryCharging, CircleOff, Zap } from "lucide-react";
-import { Card } from "@/components/ui/card";
+import { BatteryCharging, CircleOff, Workflow, Zap } from "lucide-react";
 import { useUnits } from "@/components/units-provider";
 import { SITE_OVERVIEW_KEYS, siteAgg } from "@/lib/overview-keys";
 import { solarGenerationW } from "@/lib/solar-generation";
@@ -17,6 +15,7 @@ import type { EvCardsProps } from "./ev-live-status-cards";
 import { LiveEnergyFlow } from "./overview-live";
 import type { SolarCardsProps } from "./solar-live-status-cards";
 import { FLOW } from "./flow-colors";
+import { Figures, WidgetCard } from "./widget-ui";
 
 /** What a widget can draw from: the site's inverter numbers, its charger numbers and the energy-flow settings (each null when the site has no such
  *  device, and the widgets that need it then say so), and who is looking. */
@@ -46,12 +45,14 @@ export function WidgetBody({ type, ctx }: { type: WidgetType; ctx: WidgetContext
       return <EnergyTodayCards {...ctx.solar!} cards={[type]} />;
     case "flow":
       return (
-        // the drawing is as tall as the widget (the widget is a size container), less the colour key under it
-        <div className="flex h-full min-w-0 items-center justify-center" style={{ "--flow-h": "calc(100cqh - 3.5rem)" } as React.CSSProperties}>
-          <div className="w-full">
-            <LiveEnergyFlow {...ctx.flow!} fit />
+        <WidgetCard icon={Workflow} tone="emerald" title="Energy flow">
+          {/* the drawing is as tall as the widget (the widget is a size container), less the title and the colour key */}
+          <div className="flex min-h-0 min-w-0 flex-1 items-center justify-center" style={{ "--flow-h": "calc(100cqh - 8.5rem)" } as React.CSSProperties}>
+            <div className="w-full">
+              <LiveEnergyFlow {...ctx.flow!} fit />
+            </div>
           </div>
-        </div>
+        </WidgetCard>
       );
     case "battery_level":
       return <BatteryLevel solar={ctx.solar!} flow={ctx.flow} />;
@@ -69,7 +70,7 @@ export function WidgetBody({ type, ctx }: { type: WidgetType; ctx: WidgetContext
 
 function Unavailable({ label, what }: { label: string; what: string }) {
   return (
-    <div className="flex h-full flex-col items-center justify-center gap-1.5 rounded-2xl border border-dashed border-border p-3 text-center">
+    <div className="flex h-full flex-col items-center justify-center gap-1.5 rounded-3xl border border-dashed border-border p-3 text-center">
       <CircleOff className="size-5 text-muted-foreground" />
       <p className="text-sm font-medium text-foreground">{label}</p>
       <p className="text-xs text-muted-foreground">This site has no {what}.</p>
@@ -85,7 +86,7 @@ function useSite(solar: SolarCardsProps, flow: WidgetContext["flow"]) {
   return { n, pvKeys, deviceId: ids[0] ?? solar.inverterId };
 }
 
-/** A ring that fills with the battery's state of charge, with what the battery is doing under it. */
+/** The battery as a big percentage with a row of bars that fill with the charge (red when low, amber, green), and what it is doing under it. */
 function BatteryLevel({ solar, flow }: { solar: SolarCardsProps; flow: WidgetContext["flow"] }) {
   const { n, deviceId } = useSite(solar, flow);
   const u = useUnits();
@@ -95,95 +96,103 @@ function BatteryLevel({ solar, flow }: { solar: SolarCardsProps; flow: WidgetCon
   const charging = raw !== null && raw < -50;
   const discharging = raw !== null && raw > 50;
   const colour = pct === null ? FLOW.idle : pct < 20 ? "#ef4444" : pct < 50 ? FLOW.drawing : FLOW.producing;
-  const R = 42;
-  const C = 2 * Math.PI * R;
+  const BARS = 5;
+  const filled = pct === null ? 0 : Math.ceil((pct / 100) * BARS);
   return (
-    <Card className="h-full min-h-0 gap-0 py-0">
-      <Link href={`/dashboard/monitoring?device=${deviceId}#battery`} className="group flex h-full min-h-0 flex-col gap-2 p-4">
-        <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-          <BatteryCharging className="size-4 text-muted-foreground" />
-          Battery level
-        </span>
-        <div className="relative flex min-h-0 flex-1 items-center justify-center">
-          <svg viewBox="0 0 100 100" className="h-full max-h-full w-auto max-w-full" role="img" aria-label={pct === null ? "Battery level unknown" : `Battery ${Math.round(pct)} per cent`}>
-            <circle cx="50" cy="50" r={R} fill="none" stroke="currentColor" strokeOpacity="0.12" strokeWidth="9" />
-            {pct !== null && <circle cx="50" cy="50" r={R} fill="none" stroke={colour} strokeWidth="9" strokeLinecap="round" strokeDasharray={`${(C * pct) / 100} ${C}`} transform="rotate(-90 50 50)" />}
-            <text x="50" y="55" textAnchor="middle" className="fill-foreground text-[22px] font-semibold">
-              {pct === null ? "—" : `${Math.round(pct)}%`}
-            </text>
-          </svg>
+    <WidgetCard icon={BatteryCharging} tone="green" title="Battery level" href={`/dashboard/monitoring?device=${deviceId}#battery`}>
+      <div className="flex min-h-0 flex-1 items-end justify-between gap-3">
+        <div className="min-w-0 self-center">
+          <p className="truncate text-[clamp(1.75rem,12cqw,3.5rem)] font-semibold tabular-nums leading-none text-foreground" style={{ color: pct === null ? undefined : colour }}>
+            {pct === null ? "—" : `${Math.round(pct)}%`}
+          </p>
+          <p className="mt-1.5 truncate text-xs text-muted-foreground">
+            {raw === null ? "No reading yet" : charging ? `Charging · ${u.format(-raw / 1000, "kW", "battery_power_w", 2)}` : discharging ? `Discharging · ${u.format(raw / 1000, "kW", "battery_power_w", 2)}` : "Resting"}
+          </p>
         </div>
-        <p className="truncate text-center text-xs text-muted-foreground">
-          {raw === null ? "No reading yet" : charging ? `Charging · ${u.format(-raw / 1000, "kW", "battery_power_w", 2)}` : discharging ? `Discharging · ${u.format(raw / 1000, "kW", "battery_power_w", 2)}` : "Resting"}
-        </p>
-      </Link>
-    </Card>
+        <div className="flex h-full max-h-28 min-h-8 w-[38%] max-w-32 items-end gap-1.5" role="img" aria-label={pct === null ? "Battery level unknown" : `Battery ${Math.round(pct)} per cent`}>
+          {Array.from({ length: BARS }, (_, i) => (
+            <span key={i} className="min-w-0 flex-1 rounded-md transition-colors" style={{ height: `${40 + i * 15}%`, background: i < filled ? colour : "currentColor", opacity: i < filled ? 1 : 0.14 }} />
+          ))}
+        </div>
+      </div>
+    </WidgetCard>
   );
 }
 
-/** Four live numbers: what the panels make, what the site uses, and what the grid and the battery are doing. */
+/** Four live numbers in a row: what the panels make, what the site uses, and what the grid and the battery are doing. */
 function PowerNow({ solar, flow }: { solar: SolarCardsProps; flow: WidgetContext["flow"] }) {
   const { n, pvKeys, deviceId } = useSite(solar, flow);
   const u = useUnits();
-  const kw = (w: number | null | undefined, key: string) => (w === null || w === undefined ? "—" : u.format(w / 1000, "kW", key, 2));
+  const kw = (w: number | null | undefined, key: string) => (w === null || w === undefined ? "—" : u.format(w / 1000, "kW", key, 2, false));
   const grid = n.grid_total_power_w ?? null;
   const battery = n.battery_power_w ?? null;
-  const tiles: { label: string; value: string; note?: string; colour: string }[] = [
-    { label: "Solar", value: kw(solarGenerationW(n, pvKeys), "inverter_output_power_w"), colour: FLOW.producing },
-    { label: "Load", value: kw(n.load_total_power_w, "load_total_power_w"), colour: FLOW.consuming },
-    { label: "Grid", value: grid === null ? "—" : kw(Math.abs(grid), "grid_total_power_w"), note: grid === null ? undefined : grid >= 0 ? "importing" : "exporting", colour: FLOW.drawing },
-    { label: "Battery", value: battery === null ? "—" : kw(Math.abs(battery), "battery_power_w"), note: battery === null ? undefined : battery > 50 ? "discharging" : battery < -50 ? "charging" : "resting", colour: FLOW.idle },
+  const unit = u.unit("kW", null);
+  const items = [
+    { label: "Solar", value: kw(solarGenerationW(n, pvKeys), "inverter_output_power_w"), unit },
+    { label: "Load", value: kw(n.load_total_power_w, "load_total_power_w"), unit },
+    { label: grid === null ? "Grid" : grid >= 0 ? "Grid in" : "Grid out", value: grid === null ? "—" : kw(Math.abs(grid), "grid_total_power_w"), unit },
+    { label: battery === null ? "Battery" : battery > 50 ? "Battery out" : battery < -50 ? "Battery in" : "Battery", value: battery === null ? "—" : kw(Math.abs(battery), "battery_power_w"), unit },
   ];
+  const dots = [FLOW.producing, FLOW.consuming, FLOW.drawing, FLOW.idle];
   return (
-    <Card className="h-full min-h-0 gap-0 py-0">
-      <Link href={`/dashboard/monitoring?device=${deviceId}#hub`} className="group flex h-full min-h-0 flex-col gap-2 p-4">
-        <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-          <Zap className="size-4 text-muted-foreground" />
-          Power now
-        </span>
-        <div className="grid min-h-0 flex-1 grid-cols-2 content-center gap-x-4 gap-y-2 @min-[26rem]:grid-cols-4">
-          {tiles.map((t) => (
-            <div key={t.label} className="min-w-0">
-              <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className="size-2 shrink-0 rounded-full" style={{ background: t.colour }} />
-                {t.label}
-              </div>
-              <div className="truncate text-xl font-semibold tabular-nums leading-tight text-foreground">{t.value}</div>
-              {t.note && <div className="text-[11px] text-muted-foreground">{t.note}</div>}
-            </div>
+    <WidgetCard icon={Zap} tone="amber" title="Power now" href={`/dashboard/monitoring?device=${deviceId}#hub`}>
+      <div className="flex min-h-0 flex-1 flex-col justify-center gap-3">
+        <Figures items={items} />
+        <div className="flex h-1.5 overflow-hidden rounded-full bg-muted" aria-hidden>
+          {dots.map((c, i) => (
+            <span key={c} className="h-full" style={{ background: c, width: `${[40, 25, 20, 15][i]}%`, opacity: 0.85 }} />
           ))}
         </div>
-      </Link>
-    </Card>
+      </div>
+    </WidgetCard>
   );
 }
 
 const IST = "Asia/Kolkata";
-const hourIst = (ms: number) => Number(new Intl.DateTimeFormat("en-GB", { timeZone: IST, hour: "numeric", hourCycle: "h23" }).format(ms));
 
-/** The time and the date (India time, like the rest of the app) with a greeting by the hour. */
+/** Hours, minutes and seconds in India time, as the angle of each hand (degrees from 12 o'clock). */
+function handAngles(ms: number): { hour: number; minute: number; second: number; h24: number } {
+  const parts = new Intl.DateTimeFormat("en-GB", { timeZone: IST, hour: "numeric", minute: "numeric", second: "numeric", hourCycle: "h23" }).formatToParts(ms);
+  const get = (t: string) => Number(parts.find((p) => p.type === t)?.value ?? 0);
+  const h = get("hour");
+  const m = get("minute");
+  const s = get("second");
+  return { hour: ((h % 12) + m / 60) * 30, minute: (m + s / 60) * 6, second: s * 6, h24: h };
+}
+
+/** An analog clock face (India time) with a digital time and the date beside it when the widget is wide enough, and a greeting by the hour. */
 function Clock({ firstName }: { firstName: string }) {
   const [now, setNow] = React.useState(() => Date.now());
   React.useEffect(() => {
-    const t = window.setInterval(() => setNow(Date.now()), 15_000);
+    const t = window.setInterval(() => setNow(Date.now()), 1000);
     return () => window.clearInterval(t);
   }, []);
-  const h = hourIst(now);
-  const greeting = h < 5 ? "Good night" : h < 12 ? "Good morning" : h < 17 ? "Good afternoon" : h < 21 ? "Good evening" : "Good night";
+  const a = handAngles(now);
+  const greeting = a.h24 < 5 ? "Good night" : a.h24 < 12 ? "Good morning" : a.h24 < 17 ? "Good afternoon" : a.h24 < 21 ? "Good evening" : "Good night";
   return (
-    <Card className="h-full min-h-0 justify-center gap-0 py-0">
-      <div className="flex h-full min-h-0 flex-col justify-center px-4 @container">
-        <p className={cn("truncate text-xs text-muted-foreground")} suppressHydrationWarning>
+    <div className="flex h-full min-h-0 min-w-0 items-center gap-3 overflow-hidden rounded-3xl border border-border bg-card p-3 text-foreground shadow-sm">
+      <svg viewBox="0 0 100 100" className="aspect-square h-full max-h-full min-h-0 shrink-0" role="img" aria-label="Clock" suppressHydrationWarning>
+        <circle cx="50" cy="50" r="47" fill="none" stroke="currentColor" strokeOpacity="0.14" strokeWidth="2" />
+        {Array.from({ length: 12 }, (_, i) => (
+          <line key={i} x1="50" y1="9" x2="50" y2={i % 3 === 0 ? 17 : 13} stroke="currentColor" strokeOpacity={i % 3 === 0 ? 0.7 : 0.3} strokeWidth={i % 3 === 0 ? 2.4 : 1.4} strokeLinecap="round" transform={`rotate(${i * 30} 50 50)`} />
+        ))}
+        <line x1="50" y1="50" x2="50" y2="27" stroke="currentColor" strokeWidth="4" strokeLinecap="round" transform={`rotate(${a.hour} 50 50)`} suppressHydrationWarning />
+        <line x1="50" y1="50" x2="50" y2="16" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" transform={`rotate(${a.minute} 50 50)`} suppressHydrationWarning />
+        <line x1="50" y1="56" x2="50" y2="13" stroke="#ef4444" strokeWidth="1.4" strokeLinecap="round" transform={`rotate(${a.second} 50 50)`} suppressHydrationWarning />
+        <circle cx="50" cy="50" r="3" fill="#ef4444" />
+      </svg>
+      <div className={cn("ov-clock-text min-w-0 flex-1")}>
+        <p className="truncate text-xs text-muted-foreground" suppressHydrationWarning>
           {greeting}
           {firstName ? `, ${firstName}` : ""}
         </p>
-        <p className="text-3xl font-semibold tabular-nums leading-tight text-foreground" suppressHydrationWarning>
+        <p className="text-[clamp(1.25rem,9cqw,2.4rem)] font-semibold tabular-nums leading-tight" suppressHydrationWarning>
           {new Date(now).toLocaleTimeString("en-IN", { timeZone: IST, hour: "numeric", minute: "2-digit", hour12: true })}
         </p>
         <p className="truncate text-xs text-muted-foreground" suppressHydrationWarning>
           {new Date(now).toLocaleDateString("en-IN", { timeZone: IST, weekday: "long", day: "numeric", month: "long" })}
         </p>
       </div>
-    </Card>
+    </div>
   );
 }

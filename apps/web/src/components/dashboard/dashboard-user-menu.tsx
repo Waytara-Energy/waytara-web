@@ -8,6 +8,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Spinner } from "@/components/ui/spinner";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
 import { logout } from "@/app/dashboard/actions";
+import { useLiveProfile } from "@/components/profile-live";
 import { cn } from "@/lib/utils";
 
 function initials(name: string | null, email: string | null): string {
@@ -24,9 +25,9 @@ const ICON = "h-[clamp(15px,1vw,17px)] w-[clamp(15px,1vw,17px)]";
 /** The foot of the sidebar: Support, Home and Sign out as rows like the pages above them, and under them the account banner (picture, name,
  *  plan), which opens Application Settings. Nothing unfolds or pops up. */
 export function DashboardUserMenu({
-  fullName,
+  fullName: savedName,
   email,
-  avatarUrl,
+  avatarUrl: savedAvatar,
   planName,
 }: {
   fullName: string | null;
@@ -36,6 +37,8 @@ export function DashboardUserMenu({
 }) {
   const { isMobile, setOpenMobile, setOpen: setSidebarOpen } = useSidebar();
   const pathname = usePathname();
+  // a picture or name saved a moment ago shows at once (the server renders this from what it read before the save)
+  const { fullName, avatarUrl } = useLiveProfile({ fullName: savedName, avatarUrl: savedAvatar });
 
   // logout() redirects on completion, so this only shows the sign-out as busy until the page leaves.
   const [loggingOut, startLogoutTransition] = React.useTransition();

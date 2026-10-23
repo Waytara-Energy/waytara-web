@@ -5,6 +5,7 @@ import { BadgeCheck, CalendarDays, Cpu, LifeBuoy, LogOut, MapPin, Sparkles } fro
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { logout } from "@/app/dashboard/actions";
+import { useLiveProfile } from "@/components/profile-live";
 import { ProgressRing } from "./progress-ring";
 import { useSettingsNav } from "./settings-nav";
 
@@ -38,8 +39,12 @@ function Chip({ icon: Icon, children }: { icon: typeof Cpu; children: React.Reac
 
 /** The top of Application Settings: who this is, how complete the profile is (the ring), the plan, since when, how many sites and devices, and the
  *  two things people look for first: support and signing out. It stays above the tabs, so the page always says whose settings these are. */
-export function SettingsHero({ name, email, avatarUrl, completeness, planName, memberSince, sites, devices }: HeroProps) {
+export function SettingsHero({ name: savedName, email, avatarUrl: savedAvatar, completeness, planName, memberSince, sites, devices }: HeroProps) {
   const { go } = useSettingsNav();
+  // a picture or name saved a moment ago shows at once
+  const live = useLiveProfile({ fullName: savedName, avatarUrl: savedAvatar });
+  const name = live.fullName ?? "";
+  const avatarUrl = live.avatarUrl;
   return (
     <section className="relative overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-emerald-500/10 via-card to-sky-500/10 p-5 shadow-sm sm:p-6">
       <div aria-hidden className="pointer-events-none absolute -right-16 -top-16 size-64 rounded-full bg-emerald-500/10 blur-3xl" />

@@ -65,6 +65,7 @@ export const WIDGET_THEMES = [
   { id: "sunset", label: "Sunset", swatch: "linear-gradient(135deg, #c2410c, #f59e0b)" },
   { id: "violet", label: "Violet", swatch: "linear-gradient(135deg, #5b21b6, #a855f7)" },
   { id: "rose", label: "Rose", swatch: "linear-gradient(135deg, #be123c, #fb7185)" },
+  { id: "ink", label: "Ink", swatch: "#0b0b0c" },
   { id: "graphite", label: "Graphite", swatch: "linear-gradient(135deg, #111827, #374151)" },
 ] as const;
 export type WidgetTheme = (typeof WIDGET_THEMES)[number]["id"];
@@ -159,6 +160,77 @@ export function addWidget(items: readonly WidgetItem[], type: string, theme: Wid
 /** How many rows the layout is tall. */
 export const rowsOf = (items: readonly WidgetItem[]): number => items.reduce((n, i) => Math.max(n, i.y + i.h), 0);
 
+/** Does the layout fit the board's rows? The Overview never scrolls, so a layout may not be taller than FIT_ROWS. */
+export const fitsBoard = (items: readonly WidgetItem[]): boolean => rowsOf(items) <= FIT_ROWS;
+
+/** One step of making room: the widget that can give the most height gives one row; when none can, the one that can give the most width gives one
+ *  column. Null when every widget is already as small as it may be. */
+export function shrinkOne(items: readonly WidgetItem[]): WidgetItem[] | null {
+  const room = (i: WidgetItem, by: "h" | "w") => {
+    const m = widgetMeta(i.type)!;
+    return by === "h" ? i.h - m.minH : i.w - m.minW;
+  };
+  for (const by of ["h", "w"] as const) {
+    const pick = items.filter((i) => room(i, by) > 0).sort((a, b) => room(b, by) - room(a, by) || b.w * b.h - a.w * a.h)[0];
+    if (pick) return settle(items.map((i) => (i.id === pick.id ? { ...i, [by]: i[by] - 1 } : i)));
+  }
+  return null;
+}
+
+/** A layout squeezed into the board: widgets give up rows and columns until it fits; if even the smallest sizes do not fit, the last ones are dropped. */
+export function fitToBoard(items: readonly WidgetItem[]): WidgetItem[] {
+  let cur = settle(items);
+  for (let guard = 0; guard < 300 && !fitsBoard(cur); guard++) {
+    const smaller = shrinkOne(cur);
+    if (smaller) cur = smaller;
+    else {
+      const last = [...cur].sort((a, b) => b.y + b.h - (a.y + a.h) || b.x - a.x)[0];
+      cur = settle(cur.filter((i) => i.id !== last.id));
+    }
+  }
+  return cur;
+}
+
+/** The first free spot of this size inside the board (reading left to right, top to bottom), or null. */
+function freeSpot(items: readonly WidgetItem[], type: WidgetType, w: number, h: number, theme: WidgetTheme): WidgetItem[] | null {
+  const base: WidgetItem = { id: newWidgetId(items, type), type, x: 0, y: 0, w, h, theme };
+  for (let y = 0; y + h <= FIT_ROWS; y++) {
+    for (let x = 0; x <= GRID_COLS - w; x++) {
+      const spot = { ...base, x, y };
+      if (!items.some((i) => hit(i, spot))) return settle([...items, spot]);
+    }
+  }
+  return null;
+}
+
+/**
+ * Adds a widget to a board that must not grow: it goes in the first free spot at its first size; when there is none, the other widgets give up rows
+ * and columns (the biggest first, never below their smallest size) until it fits; when even that is not enough, it is tried smaller. Null when the
+ * board cannot hold it (or already holds MAX_WIDGETS).
+ */
+export function addWidgetFitting(items: readonly WidgetItem[], type: string, theme: WidgetTheme = "default"): WidgetItem[] | null {
+  const m = widgetMeta(type);
+  if (!m || items.length >= MAX_WIDGETS) return null;
+  const t = type as WidgetType;
+  let cur: WidgetItem[] = settle(items);
+  for (let guard = 0; guard < 300; guard++) {
+    const placed = freeSpot(cur, t, m.w, m.h, theme);
+    if (placed) return placed;
+    const smaller = shrinkOne(cur);
+    if (!smaller) break;
+    cur = smaller;
+  }
+  // everything is as small as it goes: the new one may be smaller than its first size
+  const sizes: [number, number][] = [];
+  for (let w = m.w; w >= m.minW; w--) for (let h = m.h; h >= m.minH; h--) sizes.push([w, h]);
+  sizes.sort((a, b) => b[0] * b[1] - a[0] * a[1]);
+  for (const [w, h] of sizes) {
+    const placed = freeSpot(cur, t, w, h, theme);
+    if (placed) return placed;
+  }
+  return null;
+}
+
 // ---- the default, and reading from storage ----------------------------------------------------------------------------------------------
 
 /**
@@ -192,7 +264,7 @@ export function parseLayout(raw: unknown): WidgetItem[] | null {
     const m = widgetMeta(o.type)!;
     items.push(fit({ id, type: o.type, x: num(o.x, 0), y: num(o.y, 0), w: num(o.w, m.w), h: num(o.h, m.h), theme: isWidgetTheme(o.theme) ? o.theme : "default" }));
   }
-  return settle(items);
+  return fitToBoard(items);
 }
 
 /** What is stored: only the fields that matter, in a stable order. */

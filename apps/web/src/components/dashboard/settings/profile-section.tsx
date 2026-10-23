@@ -10,6 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ButtonSpinner } from "@/components/ui/spinner";
 import { confirmEmailChange, requestEmailChange, saveAvatar, saveProfile } from "@/app/dashboard/settings/actions";
+import { announceProfile, useLiveProfile } from "@/components/profile-live";
 import { cn } from "@/lib/utils";
 import { AvatarEditor } from "./avatar-editor";
 import { FieldRow, SettingsCard, TwoColumns } from "./settings-card";
@@ -56,8 +57,9 @@ function AccountDetailsCard({ memberSince }: { memberSince: string | null }) {
   );
 }
 
-function PersonalCard({ userId, fullName, phone, email, avatarUrl }: { userId: string; fullName: string; phone: string; email: string; avatarUrl: string | null }) {
+function PersonalCard({ userId, fullName, phone, email, avatarUrl: savedAvatar }: { userId: string; fullName: string; phone: string; email: string; avatarUrl: string | null }) {
   const router = useRouter();
+  const { avatarUrl } = useLiveProfile({ fullName, avatarUrl: savedAvatar });
   const [name, setName] = React.useState(fullName);
   const [tel, setTel] = React.useState(phone);
   const [saving, setSaving] = React.useState(false);
@@ -70,14 +72,20 @@ function PersonalCard({ userId, fullName, phone, email, avatarUrl }: { userId: s
     setSaving(true);
     const ok = await withPromiseToast(saveProfile, { loading: "Saving…", success: "Profile saved." })({ fullName: name, phone: tel });
     setSaving(false);
-    if (ok) router.refresh();
+    if (ok) {
+      announceProfile({ fullName: name.trim() });
+      router.refresh();
+    }
   }
 
   async function savePhoto(blob: Blob) {
     const path = `${userId}/avatar-${Date.now()}.jpg`;
-    const { error } = await createClient().storage.from("avatars").upload(path, blob, { contentType: "image/jpeg", upsert: false });
+    const client = createClient();
+    const { error } = await client.storage.from("avatars").upload(path, blob, { contentType: "image/jpeg", upsert: false });
     if (error) throw new Error("The picture could not be uploaded. Try again.");
     await saveAvatar(path);
+    // shown everywhere at once; the page is also re-read from the server
+    announceProfile({ avatarUrl: client.storage.from("avatars").getPublicUrl(path).data.publicUrl });
     notify.success("Profile picture updated.");
     router.refresh();
   }
@@ -85,6 +93,7 @@ function PersonalCard({ userId, fullName, phone, email, avatarUrl }: { userId: s
   async function removePhoto() {
     try {
       await saveAvatar(null);
+      announceProfile({ avatarUrl: null });
       notify.success("Profile picture removed.");
       router.refresh();
     } catch (e) {

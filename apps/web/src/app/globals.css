@@ -574,8 +574,13 @@ html[data-reduce-motion="true"] *::after {
   border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
   backdrop-filter: blur(16px);
 }
-.ov-face:is([data-theme="emerald"], [data-theme="ocean"], [data-theme="sunset"], [data-theme="violet"], [data-theme="rose"], [data-theme="graphite"]) {
+.ov-face:is([data-theme="emerald"], [data-theme="ocean"], [data-theme="sunset"], [data-theme="violet"], [data-theme="rose"], [data-theme="ink"], [data-theme="graphite"]) {
   color: #fff;
+  --foreground: #fff;
+  --muted-foreground: rgb(255 255 255 / 0.72);
+  --muted: rgb(255 255 255 / 0.16);
+  --border: rgb(255 255 255 / 0.22);
+  --card: transparent;
   --color-foreground: #fff;
   --color-card-foreground: #fff;
   --color-muted-foreground: rgb(255 255 255 / 0.76);
@@ -596,3 +601,24 @@ html[data-reduce-motion="true"] *::after {
 .ov-face[data-theme="violet"] { background: linear-gradient(135deg, #5b21b6, #a855f7); }
 .ov-face[data-theme="rose"] { background: linear-gradient(135deg, #be123c, #fb7185); }
 .ov-face[data-theme="graphite"] { background: linear-gradient(135deg, #111827, #374151); }
+.ov-face[data-theme="ink"] { background: #0b0b0c; }
+/* the small coloured icon of a widget turns to a light disc on a coloured or dark widget */
+.ov-face:not([data-theme="default"]):not([data-theme="glass"]) .ov-bubble {
+  background: rgb(255 255 255 / 0.2);
+  color: #fff;
+}
+/* a short widget keeps its figures and drops the chart and the legend; a narrow clock drops the words */
+@container (max-height: 11.5rem) {
+  .ov-chart {
+    display: none;
+  }
+}
+@container (max-width: 8.5rem) {
+  .ov-clock-text {
+    display: none;
+  }
+}
+/* while the board is being arranged, the bottom bar needs room: the rows shrink so the board still fits the screen */
+.ov-board[data-editing="true"] {
+  --row: calc((max(100svh - 9.5rem - 4.5rem, 26rem) - 11 * var(--gap)) / 12);
+}

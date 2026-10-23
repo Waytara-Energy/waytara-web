@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Check, GripVertical, LayoutGrid, Palette, Plus, RotateCcw, Trash2, X } from "lucide-react";
+import { Check, GripVertical, Palette, Plus, RotateCcw, Trash2, X } from "lucide-react";
 import { notify } from "@waytara/ui/notify";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
@@ -15,11 +15,11 @@ import {
   WIDGETS,
   WIDGET_GROUPS,
   WIDGET_THEMES,
-  addWidget,
+  addWidgetFitting,
+  fitsBoard,
   moveWidget,
   removeWidget,
   resizeWidget,
-  rowsOf,
   themeWidget,
   widgetMeta,
   type WidgetItem,
@@ -29,6 +29,7 @@ import { saveOverviewLayout } from "@/app/dashboard/settings/actions";
 import { cn } from "@/lib/utils";
 import { OverviewBackdrop } from "./overview-backdrop";
 import { WidgetBody, type WidgetContext } from "./overview-widgets";
+import { WidgetThumb } from "./widget-thumb";
 
 type Gesture = { kind: "move" | "resize"; id: string; px: number; py: number; dx: number; dy: number; colStep: number; rowStep: number; start: WidgetItem };
 
@@ -72,16 +73,19 @@ export function OverviewCanvas({
   const base = draft ?? items;
 
   // while a widget is being dragged or stretched, everything else shows where it would go
-  const shown = React.useMemo(() => {
+  const candidate = React.useMemo(() => {
     if (!gesture) return base;
     const { start, dx, dy, colStep, rowStep } = gesture;
     const cx = Math.round(dx / colStep);
     const cy = Math.round(dy / rowStep);
     return gesture.kind === "move" ? moveWidget(base, gesture.id, start.x + cx, start.y + cy) : resizeWidget(base, gesture.id, start.w + cx, start.h + cy);
   }, [base, gesture]);
+  // the Overview never scrolls: a move or a stretch that would make the board taller than the screen is not taken (the widget turns red)
+  const blocked = !fitsBoard(candidate);
+  const shown = blocked ? base : candidate;
 
   const available = { inverter: ctx.solar !== null, charger: ctx.ev !== null };
-  const rows = Math.max(rowsOf(shown) + (editing ? 2 : 0), FIT_ROWS);
+  const rows = FIT_ROWS;
 
   function begin(kind: Gesture["kind"], id: string, e: React.PointerEvent<HTMLElement>) {
     if (e.button !== 0 || !board.current || !probe.current) return;
@@ -109,7 +113,8 @@ export function OverviewCanvas({
     const d = { ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1] }[e.key];
     if (d) {
       e.preventDefault();
-      setDraft(e.shiftKey ? resizeWidget(draft, id, item.w + d[0], item.h + d[1]) : moveWidget(draft, id, item.x + d[0], item.y + d[1]));
+      const next = e.shiftKey ? resizeWidget(draft, id, item.w + d[0], item.h + d[1]) : moveWidget(draft, id, item.x + d[0], item.y + d[1]);
+      if (fitsBoard(next)) setDraft(next);
     } else if (e.key === "Delete" || e.key === "Backspace") {
       e.preventDefault();
       setDraft(removeWidget(draft, id));
@@ -117,19 +122,26 @@ export function OverviewCanvas({
   }
 
   function add(type: string) {
-    const next = draft ? addWidget(draft, type) : null;
+    // the board always fits the screen: when it is full the other widgets give up some room
+    const next = draft ? addWidgetFitting(draft, type) : null;
     if (!next) {
-      notify.error(`The board holds ${MAX_WIDGETS} widgets at most.`);
+      notify.error(draft && draft.length >= MAX_WIDGETS ? `The board holds ${MAX_WIDGETS} widgets at most.` : "There is no room for that: remove a widget or make one smaller first.");
       return;
     }
     setDraft(next);
     notify.success(`${widgetMeta(type)?.label ?? "Widget"} added.`);
   }
 
+  /** The editor is opened from Application Settings, so closing it goes back there. */
+  function leave() {
+    setDraft(null);
+    router.push("/dashboard/settings#dashboard");
+  }
+
   async function done() {
     if (!draft) return;
     if (JSON.stringify(draft) === JSON.stringify(items)) {
-      setDraft(null);
+      leave();
       return;
     }
     setSaving(true);
@@ -138,7 +150,7 @@ export function OverviewCanvas({
       setItems(draft);
       setDraft(null);
       notify.success("Overview saved.");
-      router.refresh();
+      leave();
     } catch (e) {
       notify.error(e instanceof Error ? e.message : "Could not save. Try again.");
     } finally {
@@ -147,7 +159,7 @@ export function OverviewCanvas({
   }
 
   return (
-    <div className={cn(editing && "pb-24")}>
+    <div>
       {background && <OverviewBackdrop css={background} />}
 
       <div
@@ -174,7 +186,7 @@ export function OverviewCanvas({
               data-drag={dragged ? "true" : undefined}
               style={{ "--x": place.x, "--y": place.y, "--w": place.w, "--h": place.h, ...(dragged ? { transform: `translate(${gesture.dx}px, ${gesture.dy}px)` } : {}) } as React.CSSProperties}
             >
-              <div className={cn("ov-face", dragged && "shadow-2xl ring-2 ring-primary")} data-theme={item.theme}>
+              <div className={cn("ov-face", (dragged || (blocked && gesture?.id === item.id)) && cn("shadow-2xl ring-2", blocked ? "ring-destructive" : "ring-primary"))} data-theme={item.theme}>
                 <WidgetBody type={item.type} ctx={ctx} />
               </div>
 
@@ -238,12 +250,6 @@ export function OverviewCanvas({
           })()}
       </div>
 
-      {!editing && (
-        <Button type="button" size="sm" className="fixed bottom-6 right-6 z-30 hidden rounded-full shadow-lg lg:inline-flex" onClick={() => setDraft(items)}>
-          <LayoutGrid className="size-4" />
-          Customize
-        </Button>
-      )}
 
       {editing && (
         <div className="fixed bottom-6 left-1/2 z-50 flex -translate-x-1/2 items-center gap-1 rounded-full border border-border bg-card/95 p-1.5 shadow-xl backdrop-blur" role="toolbar" aria-label="Customize the Overview">
@@ -256,7 +262,7 @@ export function OverviewCanvas({
             Reset
           </Button>
           <span className="mx-1 h-5 w-px bg-border" />
-          <Button type="button" size="sm" variant="ghost" className="rounded-full" disabled={saving} onClick={() => setDraft(null)}>
+          <Button type="button" size="sm" variant="ghost" className="rounded-full" disabled={saving} onClick={leave}>
             <X className="size-4" />
             Cancel
           </Button>
@@ -272,7 +278,7 @@ export function OverviewCanvas({
         <SheetContent className="w-full overflow-y-auto sm:max-w-md">
           <SheetHeader>
             <SheetTitle>Add a widget</SheetTitle>
-            <SheetDescription>It lands in the first free spot. Drag it where you want it, and stretch it from its corner.</SheetDescription>
+            <SheetDescription>It lands in the first free spot. When the board is full, the other widgets make room by getting a little smaller: the Overview always fits the screen.</SheetDescription>
           </SheetHeader>
           <div className="space-y-6 px-4 pb-6">
             {WIDGET_GROUPS.map((group) => {
@@ -284,9 +290,7 @@ export function OverviewCanvas({
                   <ul className="space-y-2">
                     {list.map((w) => (
                       <li key={w.type} className="flex items-center gap-3 rounded-xl border border-border p-3">
-                        <div className="grid h-12 w-14 shrink-0 place-items-center rounded-lg bg-muted">
-                          <span className="rounded-sm border-2 border-primary/60 bg-primary/10" style={{ width: `${(w.w / 12) * 100 * 2.2}%`, maxWidth: "100%", aspectRatio: `${w.w} / ${w.h}`, maxHeight: "100%" }} />
-                        </div>
+                        <WidgetThumb type={w.type} />
                         <div className="min-w-0 flex-1">
                           <p className="text-sm font-medium text-foreground">{w.label}</p>
                           <p className="text-xs text-muted-foreground">{w.hint}</p>
