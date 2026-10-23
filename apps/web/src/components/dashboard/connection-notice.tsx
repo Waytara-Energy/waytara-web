@@ -66,7 +66,6 @@ export function ConnectionNotice({ deviceId, sync }: { deviceId: string; sync: D
         description: `${CAUSE[status as Exclude<ConnectionStatus, "online">]} The page shows the last readings.`,
         icon: <Icon className="size-4" />,
         duration: Infinity,
-        dismissible: false,
         action: { label: "Check device health", onClick: () => { dismiss(); router.push("/dashboard/maintenance#health"); } },
         cancel: { label: "Dismiss", onClick: dismiss },
       });
