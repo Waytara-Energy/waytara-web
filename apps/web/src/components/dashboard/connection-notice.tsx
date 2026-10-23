@@ -7,7 +7,6 @@ import { TriangleAlert, WifiOff } from "lucide-react";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { CONNECTION_LABEL, type ConnectionStatus } from "@/lib/device-state";
 import { clearedCookie, dismissalCookie, dismissedAtFromCookies, msUntilReshow, noticeCookieName, OFFLINE_NOTICE_REPEAT_MS } from "@/lib/offline-notice";
-import { cn } from "@/lib/utils";
 import { useDeviceState } from "./use-device-state";
 
 const TOAST_ID = "device-connection";
@@ -17,31 +16,6 @@ const CAUSE: Record<Exclude<ConnectionStatus, "online">, string> = {
   offline: "The monitoring unit has stopped checking in: power or internet may be down.",
   connection_lost: "The monitoring unit is online but the inverter is not answering it.",
 };
-
-function NoticeToast({ status, onDismiss, onInvestigate }: { status: Exclude<ConnectionStatus, "online">; onDismiss: () => void; onInvestigate: () => void }) {
-  const Icon = status === "offline" ? WifiOff : TriangleAlert;
-  const tint = status === "offline" ? "bg-red-500/12 text-red-600" : "bg-amber-500/12 text-amber-600";
-  // The same card as every other toast. It does not close by itself, so it keeps its own two buttons rather than a close icon.
-  return (
-    <div role="status" className="grid w-full grid-cols-[auto_1fr] items-start gap-x-3 gap-y-2.5 rounded-2xl border border-border bg-popover p-4 text-popover-foreground shadow-lg sm:w-[356px]">
-      <span className={cn("flex size-9 items-center justify-center rounded-xl", tint)}>
-        <Icon className="size-4" />
-      </span>
-      <span className="min-w-0">
-        <span className="block text-sm font-semibold leading-5">{CONNECTION_LABEL[status]}</span>
-        <span className="block text-xs leading-snug text-muted-foreground">{CAUSE[status]} The page shows the last readings.</span>
-      </span>
-      <span className="col-start-2 flex gap-2">
-        <button type="button" onClick={onInvestigate} className="h-8 rounded-lg bg-foreground px-3 text-xs font-medium text-background transition-opacity hover:opacity-90">
-          Check device health
-        </button>
-        <button type="button" onClick={onDismiss} className="h-8 rounded-lg bg-muted px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted/70">
-          Dismiss
-        </button>
-      </span>
-    </div>
-  );
-}
 
 /** On every dashboard page (it is mounted in the layout): while the device is offline or the unit has lost it, a toast sits at the top of the window (on a phone, the usual notification
  *  across the top) saying the page shows the last readings, with a button that opens Maintenance's health tab. It has a
@@ -84,10 +58,17 @@ export function ConnectionNotice({ deviceId, sync }: { deviceId: string; sync: D
         schedule(wait);
         return;
       }
-      toast.custom(() => <NoticeToast status={status as Exclude<ConnectionStatus, "online">} onDismiss={dismiss} onInvestigate={() => { dismiss(); router.push("/dashboard/maintenance#health"); }} />, {
+      const offline = status === "offline";
+      const Icon = offline ? WifiOff : TriangleAlert;
+      // The shared toast card (so it looks like every other toast); it never closes by itself, so it carries its own two buttons.
+      (offline ? toast.error : toast.warning)(CONNECTION_LABEL[status as Exclude<ConnectionStatus, "online">], {
         id: TOAST_ID,
+        description: `${CAUSE[status as Exclude<ConnectionStatus, "online">]} The page shows the last readings.`,
+        icon: <Icon className="size-4" />,
         duration: Infinity,
         dismissible: false,
+        action: { label: "Check device health", onClick: () => { dismiss(); router.push("/dashboard/maintenance#health"); } },
+        cancel: { label: "Dismiss", onClick: dismiss },
       });
     }
     show();
