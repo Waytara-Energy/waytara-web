@@ -604,7 +604,7 @@ export function SiteLocation({
           </div>
 
           {!editing && (
-            <div className="min-h-0 overflow-auto border-t border-border/50 px-4 py-3">
+            <div className="min-h-0 overflow-auto border-t border-border/50 px-4 py-3 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
               <AboutRows
                 rows={[
                   ["Address", savedAddress.line1],

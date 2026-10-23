@@ -29,15 +29,15 @@ export interface Point {
 }
 
 export const VIEW_W = 440;
-export const NODE_R = 30;
-export const HUB_R = 38;
+export const NODE_R = 36;
+export const HUB_R = 46;
 const HUB_X = VIEW_W / 2;
-const SIDE_X = 70; // centre of the left column (the right column mirrors it): the hub-to-node line is as long as the solar one
+const SIDE_X = 66; // centre of the left column (the right column mirrors it): the hub-to-node line is as long as the solar one
 const ROW_GAP = 124; // between nodes stacked on the left / right
 const COL_GAP = 158; // between nodes side by side on the top / bottom
 const MAX_PER_ROW = 3; // more than this wraps onto another row
 const ROW_PITCH = 104; // between wrapped rows
-const TOP_BOTTOM_DIST = 150; // hub centre to the first top / bottom row
+const TOP_BOTTOM_DIST = 140; // hub centre to the first top / bottom row
 const TEXT_BELOW = 46; // room for a node's value line and label under its circle
 const TEXT_ABOVE = 46;
 const EDGE_PAD = 8;
@@ -75,7 +75,9 @@ export function layoutFlow<T>(items: T[], kindOf: (item: T) => NodeKind): Layout
   const maxRows = Math.max(bySide.left.length, bySide.right.length, 1);
   const lrHalf = ((maxRows - 1) * ROW_GAP) / 2;
   // The first top / bottom row must clear the lowest / highest node of the side columns when those are crowded.
-  const firstRowDist = Math.max(TOP_BOTTOM_DIST, lrHalf > 0 ? lrHalf + NODE_R * 2 + TEXT_BELOW : 0);
+  // A single node above / below sits well clear of the side columns, so only a row of two or more needs that room.
+  const maxInRow = Math.min(MAX_PER_ROW, Math.max(bySide.top.length, bySide.bottom.length));
+  const firstRowDist = Math.max(TOP_BOTTOM_DIST, lrHalf > 0 && maxInRow >= 2 ? lrHalf + NODE_R * 2 + TEXT_BELOW : 0);
   const topDist = hasTop ? firstRowDist + (rowsOf(bySide.top.length) - 1) * ROW_PITCH : 0;
   const bottomDist = hasBottom ? firstRowDist + (rowsOf(bySide.bottom.length) - 1) * ROW_PITCH : 0;
   // Hub y is measured from the top of the content, which starts at the highest circle (plus its label when it's above).

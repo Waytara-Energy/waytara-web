@@ -7,7 +7,6 @@ import {
   TrendingUp,
   FileDown,
   Cpu,
-  PlugZap,
   MapPin,
   type LucideIcon,
 } from "lucide-react";
@@ -40,8 +39,7 @@ export const NAV_ITEMS: NavItem[] = [
   // inline there, not as a second nav item/redirect-gated route).
   { href: "/dashboard/performance", label: "Performance", icon: TrendingUp, featureKey: "performance" },
   { href: "/dashboard/reports", label: "Reports", icon: FileDown, featureKey: "reports" },
-  // Only for a customer with an EV charger: the layout sets features.ev_sessions from the devices, not from the plan.
-  { href: "/dashboard/ev-sessions", label: "Charging sessions", icon: PlugZap, featureKey: "ev_sessions" },
+  // A charger's sessions live on Monitoring (today), Performance and Reports (periods); the old Charging sessions menu entry is gone.
   { href: "/dashboard/maintenance", label: "Maintenance", icon: Wrench },
   // The site's map, kind and address: it was a tab of Devices. Not gated by the plan, like Devices itself.
   { href: "/dashboard/site", label: "Site", icon: MapPin },

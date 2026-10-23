@@ -6,10 +6,9 @@ const charger = { deviceType: { category: "ev_charger" } };
 const labels = (f: Record<string, boolean>) => visibleNavItems(f).map((i) => i.label);
 
 describe("the menu's charging pages", () => {
-  it("appear only while the selected site has an EV charger", () => {
-    expect(labels(navFeatures({}, [inverter, charger]))).toContain("Charging sessions");
+  it("are not a menu entry of their own (a charger is shown on Monitoring, Performance, Reports)", () => {
+    expect(labels(navFeatures({}, [inverter, charger]))).not.toContain("Charging sessions");
     expect(labels(navFeatures({}, [inverter]))).not.toContain("Charging sessions");
-    expect(labels(navFeatures({}, []))).not.toContain("Charging sessions");
   });
 
   it("follow the selected site, not the customer's other sites, and not the plan", () => {

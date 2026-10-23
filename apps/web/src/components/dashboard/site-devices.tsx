@@ -15,12 +15,13 @@ export interface SiteDevice {
 }
 
 const STATUS = {
-  online: { text: "Online", dot: "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]", label: "text-emerald-600 dark:text-emerald-400" },
-  connection_lost: { text: "Connection lost", dot: "bg-amber-500", label: "text-amber-600 dark:text-amber-400" },
-  offline: { text: "Offline", dot: "bg-red-500", label: "text-red-600 dark:text-red-400" },
+  online: { text: "Online", dot: "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]" },
+  connection_lost: { text: "Connection lost", dot: "bg-amber-500" },
+  offline: { text: "Offline", dot: "bg-red-500" },
 } as const;
 
 const ICON: Record<string, LucideIcon> = { ev_charger: PlugZap };
+const KIND: Record<string, string> = { ev_charger: "EV charger", solar_inverter: "Solar inverter" };
 
 /** One device of the site: its name and, live, whether it is reporting (the same verdict as the dots in the menu); a tap opens that device's page. */
 function Row({ device }: { device: SiteDevice }) {
@@ -37,10 +38,11 @@ function Row({ device }: { device: SiteDevice }) {
       </span>
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-medium text-foreground">{device.name}</span>
-        <span className={cn("mt-0.5 flex items-center gap-1.5 text-xs", s.label)}>
-          <span aria-hidden className={cn("size-1.5 rounded-full", s.dot)} />
-          {s.text}
-        </span>
+        <span className="mt-0.5 block truncate text-xs text-muted-foreground">{KIND[device.category ?? ""] ?? "Device"}</span>
+      </span>
+      {/* The status is the dot alone, next to the arrow (its words stay for screen readers and the hover). */}
+      <span title={s.text} className={cn("size-2 shrink-0 rounded-full", s.dot)}>
+        <span className="sr-only">{s.text}</span>
       </span>
       <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
     </Link>
