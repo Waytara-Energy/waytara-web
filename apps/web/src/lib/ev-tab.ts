@@ -1,6 +1,6 @@
 /** What the Monitoring page's EV tab works out from the charger's session rows. Pure functions, tested without a database. */
 
-import { sessionEnergyKwh, formatSeconds, type EvSessionRow } from "./ev-sessions";
+import { curvePoints, sessionEnergyKwh, formatSeconds, type EvSampleRow, type EvSessionRow, type SourceShare } from "./ev-sessions";
 
 export interface TabSession {
   id: string;
@@ -15,6 +15,12 @@ export interface TabSession {
   meter_stop_wh: number | null;
   start_energy_kwh: number | null;
   end_energy_kwh: number | null;
+  /** only read for the session that is running (the live tiles) */
+  target_kwh?: number | null;
+  energy_from_solar_kwh?: number | null;
+  energy_from_battery_kwh?: number | null;
+  energy_from_grid_kwh?: number | null;
+  energy_unattributed_kwh?: number | null;
 }
 
 /** The session that is running now (not ended), newest first when there are several; null when none is. */
@@ -59,4 +65,78 @@ export function energyOfSessions(rows: readonly TabSession[]): number {
   return rows.reduce((sum, r) => sum + (sessionEnergyKwh(r) ?? 0), 0);
 }
 
-export type { EvSessionRow };
+/** The charger's own energy count (kWh) when the running session began: its meter reading, or the older energy reading. Null when unknown. */
+export function sessionStartKwh(s: Pick<TabSession, "meter_start_wh" | "start_energy_kwh">): number | null {
+  if (s.meter_start_wh !== null) return s.meter_start_wh / 1000;
+  return s.start_energy_kwh;
+}
+
+export interface LiveInput {
+  kw: number | null;
+  /** the charger's energy count now (kWh) and when the session began (kWh), so the difference is this charge */
+  registerKwh: number | null;
+  startKwh: number | null;
+  ratedKw: number | null;
+  targetKwh: number | null;
+  startedAt: string | null;
+  charging: boolean;
+  now: number;
+}
+
+export interface LiveFigures {
+  /** the power as a share of the charger's rating, 0 to 100 */
+  powerPct: number | null;
+  sessionKwh: number | null;
+  /** this charge as a share of the target, 0 to 100 (null without a target) */
+  progressPct: number | null;
+  elapsedMin: number | null;
+  /** minutes to the target at the present power (null without a target or without power) */
+  remainingMin: number | null;
+}
+
+const clampPct = (v: number) => Math.max(0, Math.min(100, v));
+
+/** What the live tiles of the EV tab show for the charge that is running. Nothing is made up: without a charge every figure is null. */
+export function evLiveFigures(i: LiveInput): LiveFigures {
+  if (!i.charging) return { powerPct: null, sessionKwh: null, progressPct: null, elapsedMin: null, remainingMin: null };
+  const sessionKwh = i.registerKwh !== null && i.startKwh !== null ? Math.max(0, i.registerKwh - i.startKwh) : null;
+  const target = i.targetKwh !== null && i.targetKwh > 0 ? i.targetKwh : null;
+  const started = i.startedAt ? Date.parse(i.startedAt) : NaN;
+  return {
+    powerPct: i.kw !== null && i.ratedKw !== null && i.ratedKw > 0 ? clampPct((i.kw / i.ratedKw) * 100) : null,
+    sessionKwh,
+    progressPct: target !== null && sessionKwh !== null ? clampPct((sessionKwh / target) * 100) : null,
+    elapsedMin: Number.isFinite(started) ? Math.max(0, Math.round((i.now - started) / 60_000)) : null,
+    remainingMin: target !== null && sessionKwh !== null && i.kw !== null && i.kw > 0.2 ? Math.max(0, Math.round(((target - sessionKwh) / i.kw) * 60)) : null,
+  };
+}
+
+/** "58 min" / "1 h 05 min". */
+export function minutesText(min: number): string {
+  if (min < 60) return `${min} min`;
+  return `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")} min`;
+}
+
+export interface TodayPoint {
+  t: number;
+  kw: number | null;
+  solar: number | null;
+  battery: number | null;
+  grid: number | null;
+}
+
+/** Today's charging as one chart series: each session's samples in time order, with an empty point after each session so the line stops between charges instead of joining them. */
+export function todayChartPoints(sessions: readonly EvSampleRow[][]): TodayPoint[] {
+  const out: TodayPoint[] = [];
+  for (const rows of sessions) {
+    const pts = curvePoints([...rows]);
+    if (pts.length === 0) continue;
+    out.push(...pts);
+    out.push({ t: pts[pts.length - 1].t + 1000, kw: null, solar: null, battery: null, grid: null });
+  }
+  out.sort((a, b) => a.t - b.t);
+  while (out.length > 0 && out[out.length - 1].kw === null) out.pop();
+  return out;
+}
+
+export type { EvSessionRow, SourceShare };

@@ -10,7 +10,7 @@ const when = (ts: string) => new Date(ts).toLocaleTimeString("en-IN", { hour: "n
 const kwh = (v: number | null) => (v === null ? "—" : `${v.toFixed(v >= 10 ? 1 : 2)} kWh`);
 
 /** Today's charging sessions of one charger: when, how long, energy, peak power and the solar share, newest first, with a link to the whole history. */
-export function EvTabSessions({ sessions }: { sessions: TabSession[] }) {
+export function EvTabSessions({ sessions, deviceId }: { sessions: TabSession[]; deviceId: string }) {
   const total = energyOfSessions(sessions);
   return (
     <Card>
@@ -21,7 +21,7 @@ export function EvTabSessions({ sessions }: { sessions: TabSession[] }) {
             {sessions.length === 0 ? "No charge has started today." : `${sessions.length} ${sessions.length === 1 ? "session" : "sessions"} · ${kwh(total)}`}
           </CardDescription>
         </div>
-        <Link href="/dashboard/ev-sessions" className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
+        <Link href={`/dashboard/ev-sessions?device=${deviceId}`} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
           All sessions <ArrowRight className="size-3.5" />
         </Link>
       </CardHeader>
@@ -44,7 +44,11 @@ export function EvTabSessions({ sessions }: { sessions: TabSession[] }) {
                 const st = sessionStatusLabel(s.status);
                 return (
                   <TableRow key={s.id}>
-                    <TableCell className="tabular-nums">{when(s.started_at)}</TableCell>
+                    <TableCell className="tabular-nums">
+                      <Link href={`/dashboard/ev-sessions?session=${s.id}&device=${deviceId}`} className="font-medium underline-offset-4 hover:underline">
+                        {when(s.started_at)}
+                      </Link>
+                    </TableCell>
                     <TableCell className="tabular-nums">{s.ended_at ? f.duration : `${f.duration} so far`}</TableCell>
                     <TableCell className="text-right tabular-nums">{kwh(f.energyKwh)}</TableCell>
                     <TableCell className="text-right tabular-nums">{f.peakKw === null ? "—" : `${f.peakKw.toFixed(1)} kW`}</TableCell>

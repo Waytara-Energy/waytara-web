@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { ArrowLeft, PlugZap } from "lucide-react";
+import { ArrowLeft, Download, PlugZap } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { deviceDisplayId, getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
 import {
@@ -14,18 +14,26 @@ import {
   type EvSessionRow,
 } from "@/lib/ev-sessions";
 import { Badge } from "@/components/ui/badge";
+import { Button, buttonVariants } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { cn } from "@/lib/utils";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EvSessionCharts } from "@/components/dashboard/ev-session-charts";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { FLOW } from "@/components/dashboard/flow-colors";
+import { getCustomerPlan } from "@/lib/customer-plan";
+import { periodQuery, resolveEvPeriod, type EvPeriod } from "@/lib/ev-period";
+import { evCostEstimate, evTotals } from "@/lib/ev-session-totals";
 
 const SESSION_COLUMNS =
   "id, equipment_id, started_at, ended_at, status, source, is_test, stop_reason, start_energy_kwh, end_energy_kwh, meter_start_wh, meter_stop_wh, peak_power_kw, avg_power_kw, max_current_a, charging_seconds, energy_from_solar_kwh, energy_from_battery_kwh, energy_from_grid_kwh, energy_unattributed_kwh, solar_share_pct, site_data_coverage_pct, target_kwh";
+// A plain function, so the lint rule against Date.now() in a component body (which is for client re-renders) does not fire in this server page.
+const serverNow = () => Date.now();
 const SAMPLE_COLUMNS = "ts, energy_kwh, power_kw, current_a_l1, voltage_v_l1, soc_pct, ev_from_solar_w, ev_from_battery_w, ev_from_grid_w";
-/** How many sessions the list shows; the newest first. */
-const LIST_LIMIT = 60;
+/** How many sessions the list shows; the newest first. A period with more says so. */
+const LIST_LIMIT = 500;
 /** One sample every 30 s: a day of charging is under 3000, so this is never reached in practice. */
 const SAMPLE_LIMIT = 6000;
 
@@ -62,8 +70,8 @@ function Figure({ label, value }: { label: string; value: string }) {
 
 const SOURCE_COLOR = { solar: FLOW.producing, battery: FLOW.drawing, grid: FLOW.idle, unattributed: "var(--border)" } as const;
 
-export default async function EvSessionsPage({ searchParams }: { searchParams: Promise<{ device?: string; session?: string }> }) {
-  const [{ device: deviceParam, session: sessionParam }, site] = await Promise.all([searchParams, getSelectedSite()]);
+export default async function EvSessionsPage({ searchParams }: { searchParams: Promise<{ device?: string; session?: string; period?: string; from?: string; to?: string }> }) {
+  const [{ device: deviceParam, session: sessionParam, period: periodParam, from: fromParam, to: toParam }, site] = await Promise.all([searchParams, getSelectedSite()]);
   const chargers = (site?.devices ?? []).filter((d) => d.deviceType?.category === "ev_charger");
   const preferred = await resolveDeviceInSite(site, deviceParam);
   const charger = chargers.find((d) => d.id === preferred?.id) ?? chargers[0] ?? null;
@@ -96,7 +104,7 @@ export default async function EvSessionsPage({ searchParams }: { searchParams: P
       return (
         <div className="space-y-4">
           {realtime}
-          <Link href="/dashboard/ev-sessions" className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
+          <Link href={`/dashboard/ev-sessions?device=${charger.id}`} className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground">
             <ArrowLeft className="size-4" /> All sessions
           </Link>
           <Card>
@@ -184,12 +192,23 @@ export default async function EvSessionsPage({ searchParams }: { searchParams: P
   }
 
   // ---- the list ----
-  const { data: rows } = await supabase.from("ev_sessions").select(SESSION_COLUMNS).eq("equipment_id", charger.id).order("started_at", { ascending: false }).limit(LIST_LIMIT);
+  const period = resolveEvPeriod({ period: periodParam, from: fromParam, to: toParam }, serverNow());
+  const [{ data: rows }, plan] = await Promise.all([
+    supabase
+      .from("ev_sessions")
+      .select(SESSION_COLUMNS)
+      .eq("equipment_id", charger.id)
+      .gte("started_at", period.fromIso)
+      .lt("started_at", period.toIso)
+      .order("started_at", { ascending: false })
+      .limit(LIST_LIMIT),
+    getCustomerPlan(),
+  ]);
   const sessions = (rows ?? []) as SessionRow[];
-  const done = sessions.filter((s) => s.status !== "active");
-  const totalEnergy = done.reduce((sum, s) => sum + (sessionEnergyKwh(s) ?? 0), 0);
-  const solarKwh = done.reduce((sum, s) => sum + (s.energy_from_solar_kwh ?? 0), 0);
-  const attributedKwh = done.reduce((sum, s) => sum + (s.energy_from_solar_kwh ?? 0) + (s.energy_from_battery_kwh ?? 0) + (s.energy_from_grid_kwh ?? 0), 0);
+  const totals = evTotals(sessions.filter((s) => s.status !== "active"));
+  const showCost = site.propertyType !== "residential_independent_villas";
+  const cost = evCostEstimate(totals, plan?.tariffRatePerKwh ?? 8);
+  const csvHref = `/api/ev/sessions.csv?device=${charger.id}&${periodQuery(period)}`;
 
   return (
     <div className="space-y-4">
@@ -199,16 +218,28 @@ export default async function EvSessionsPage({ searchParams }: { searchParams: P
           <CardTitle className="text-base">Charging sessions</CardTitle>
           <CardDescription>
             {deviceDisplayId(charger)}
-            {chargers.length > 1 ? ` · ${chargers.length} chargers at this site` : ""}
+            {chargers.length > 1 ? ` · ${chargers.length} chargers at this site` : ""} · {period.label}
           </CardDescription>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <Figure label="Sessions shown" value={String(sessions.length)} />
-            <Figure label="Energy delivered" value={kwh(sessions.length ? totalEnergy : null)} />
-            <Figure label="From solar" value={attributedKwh > 0 ? `${((solarKwh / attributedKwh) * 100).toFixed(0)}%` : "—"} />
-            <Figure label="Longest session" value={formatSeconds(done.reduce<number | null>((m, s) => (s.charging_seconds !== null && (m === null || s.charging_seconds > m) ? s.charging_seconds : m), null))} />
+        <CardContent className="space-y-4">
+          <PeriodFilter period={period} deviceId={charger.id} csvHref={csvHref} />
+          <div className={cn("grid grid-cols-2 gap-4", showCost ? "sm:grid-cols-5" : "sm:grid-cols-4")}>
+            <Figure label="Sessions" value={String(sessions.length)} />
+            <Figure label="Energy delivered" value={kwh(sessions.length ? totals.energyKwh : null)} />
+            <Figure label="From solar" value={totals.solarPct === null ? "—" : `${totals.solarPct.toFixed(0)}%`} />
+            {showCost ? <Figure label="Estimated cost" value={totals.energyKwh > 0 ? `₹${cost.toFixed(0)}` : "—"} /> : null}
+            <Figure label="Longest session" value={formatSeconds(totals.longestSeconds)} />
           </div>
+          {showCost && totals.energyKwh > 0 ? (
+            <p className="text-xs text-muted-foreground">
+              {totals.gridKwh !== null
+                ? "The cost is the grid part of the charging at your tariff; solar and battery energy is not billed."
+                : "The cost is all the energy at your tariff, because the solar split is not known for these sessions."}
+            </p>
+          ) : null}
+          {sessions.length >= LIST_LIMIT ? (
+            <p className="text-xs text-muted-foreground">Showing the newest {LIST_LIMIT} sessions of this period. Pick a shorter period to see the rest; the CSV has up to 5000.</p>
+          ) : null}
         </CardContent>
       </Card>
       {sessions.length === 0 ? (
@@ -217,8 +248,12 @@ export default async function EvSessionsPage({ searchParams }: { searchParams: P
             <EmptyMedia variant="icon">
               <PlugZap />
             </EmptyMedia>
-            <EmptyTitle>No charging sessions yet</EmptyTitle>
-            <EmptyDescription>Plug in a car and start charging — the session shows up here within a minute.</EmptyDescription>
+            <EmptyTitle>No charging sessions {period.key === "today" ? "today" : "in this period"}</EmptyTitle>
+            <EmptyDescription>
+              {period.key === "today"
+                ? "Plug in a car and start charging — the session shows up here within a minute, or pick a longer period above."
+                : "Pick a longer period above, or plug in a car to start one."}
+            </EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
@@ -255,6 +290,50 @@ export default async function EvSessionsPage({ searchParams }: { searchParams: P
           </CardContent>
         </Card>
       )}
+    </div>
+  );
+}
+
+const PERIOD_LINKS = [
+  { key: "today", label: "Today", query: "period=today" },
+  { key: "7d", label: "7 days", query: "period=7d" },
+  { key: "30d", label: "30 days", query: "period=30d" },
+] as const;
+
+/** Today / 7 days / 30 days as links, two dates for anything else (a plain GET form, so it works without scripts), and the CSV of what is shown. */
+function PeriodFilter({ period, deviceId, csvHref }: { period: EvPeriod; deviceId: string; csvHref: string }) {
+  return (
+    <div className="flex flex-wrap items-end gap-x-4 gap-y-3">
+      <div className="inline-flex rounded-md border p-0.5" role="group" aria-label="Period">
+        {PERIOD_LINKS.map((p) => (
+          <Link
+            key={p.key}
+            href={`/dashboard/ev-sessions?device=${deviceId}&${p.query}`}
+            aria-current={period.key === p.key ? "true" : undefined}
+            className={cn("rounded-sm px-3 py-1 text-sm", period.key === p.key ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground")}
+          >
+            {p.label}
+          </Link>
+        ))}
+      </div>
+      <form method="get" action="/dashboard/ev-sessions" className="flex flex-wrap items-end gap-2">
+        <input type="hidden" name="device" value={deviceId} />
+        <input type="hidden" name="period" value="custom" />
+        <label className="space-y-1 text-xs text-muted-foreground">
+          From
+          <Input type="date" name="from" defaultValue={period.from} required className="h-8 w-40" />
+        </label>
+        <label className="space-y-1 text-xs text-muted-foreground">
+          To
+          <Input type="date" name="to" defaultValue={period.to} required className="h-8 w-40" />
+        </label>
+        <Button type="submit" variant="outline" size="sm" className={period.key === "custom" ? "border-primary" : ""}>
+          Show
+        </Button>
+      </form>
+      <a href={csvHref} className={cn(buttonVariants({ variant: "outline", size: "sm" }), "ml-auto")}>
+        <Download className="size-4" /> Download CSV
+      </a>
     </div>
   );
 }

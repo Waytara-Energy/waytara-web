@@ -1,12 +1,12 @@
 import { createClient } from "@waytara/supabase/server";
-import { getSelectedSite, type CustomerDevice } from "@/lib/selected-site";
-import { getCustomerPlan } from "@/lib/customer-plan";
+import { type CustomerDevice } from "@/lib/selected-site";
 import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
 import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
-import { fetchTodayChargingSessions, fetchRecentChargingStats, FAULT_BITMASK_KEYS } from "@/lib/device-overview";
+import { fetchTodayChargingSessions, FAULT_BITMASK_KEYS } from "@/lib/device-overview";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { getConnectorStatusLabel, getErrorCodeLabel } from "@/lib/ev-charger-catalog";
-import { openSession, openTransactionId, type TabSession } from "@/lib/ev-tab";
+import { energyOfSessions, openSession, openTransactionId, sessionStartKwh, todayChartPoints, type TabSession } from "@/lib/ev-tab";
+import { sourceShares, sessionEnergyKwh, type EvSampleRow } from "@/lib/ev-sessions";
 import {
   fetchDashboardFields,
   fetchFieldValues,
@@ -29,10 +29,10 @@ import { valuesFor, enumToObject } from "@/lib/field-values";
 import { SessionReceiptCard, type ReceiptSection } from "./session-receipt-card";
 import { getUnitPrefs } from "@/lib/unit-prefs-server";
 import { DeviceParameterCards } from "./device-parameter-cards";
-import { ChargingSessionsCarousel } from "./charging-sessions-carousel";
 import { MonitoringTabs } from "./monitoring-tabs";
 import { EvChargeControl } from "./ev-charge-control";
-import { EvLiveFigures } from "./ev-live-figures";
+import { EvLiveTiles } from "./ev-live-tiles";
+import { EvTodayChart } from "./ev-today-chart";
 import { EvTabSessions } from "./ev-tab-sessions";
 import { StatusPill } from "./status-pill";
 
@@ -217,21 +217,18 @@ async function EvChargerMonitoring({ supabase, device }: { supabase: SupabaseSer
   // OVERVIEW_CROSSREF_KEYS above.
   const todayStart = new Date();
   todayStart.setUTCHours(0, 0, 0, 0);
-  const [{ data: snapshotReadings }, chargingSummary, recentChargingStats, customerPlan, site, enumOptions, { data: tabRows }, sync] = await Promise.all([
+  const [{ data: snapshotReadings }, chargingSummary, enumOptions, { data: tabRows }, sync] = await Promise.all([
     supabase
       .from("equipment_latest")
       .select("key_name, value, ts")
       .eq("equipment_id", device.id)
-      .in("key_name", [...monitoringKeys, ...liveSessionKeys, "connector_status", "error_code"]),
+      .in("key_name", [...monitoringKeys, ...liveSessionKeys, "connector_status", "error_code", "energy_active_import_register_kwh"]),
     fetchTodayChargingSessions(supabase, device.id),
-    fetchRecentChargingStats(supabase, device.id),
-    getCustomerPlan(),
-    getSelectedSite(),
     fetchEnumOptions(supabase, [...enumRefs, "connector_status", "error_code"]),
     // the EV tab: today's sessions with their figures, and any session that is still open (it may have begun before midnight)
     supabase
       .from("ev_sessions")
-      .select("id, started_at, ended_at, status, ocpp_transaction_id, peak_power_kw, solar_share_pct, charging_seconds, meter_start_wh, meter_stop_wh, start_energy_kwh, end_energy_kwh")
+      .select("id, started_at, ended_at, status, ocpp_transaction_id, peak_power_kw, solar_share_pct, charging_seconds, meter_start_wh, meter_stop_wh, start_energy_kwh, end_energy_kwh, target_kwh, energy_from_solar_kwh, energy_from_battery_kwh, energy_from_grid_kwh, energy_unattributed_kwh")
       .eq("equipment_id", device.id)
       .or(`started_at.gte.${todayStart.toISOString()},ended_at.is.null`)
       .order("started_at", { ascending: false })
@@ -239,6 +236,32 @@ async function EvChargerMonitoring({ supabase, device }: { supabase: SupabaseSer
     getLastSyncInfo(device.id),
   ]);
   const tabSessions = (tabRows ?? []) as TabSession[];
+  // today's samples, session by session, for the day's power chart
+  const { data: sampleRows } = tabSessions.length
+    ? await supabase
+        .from("ev_session_samples")
+        .select("session_id, ts, energy_kwh, power_kw, current_a_l1, voltage_v_l1, soc_pct, ev_from_solar_w, ev_from_battery_w, ev_from_grid_w")
+        .in("session_id", tabSessions.map((x) => x.id))
+        .order("ts", { ascending: true })
+        .limit(6000)
+    : { data: [] as (EvSampleRow & { session_id: string })[] };
+  const samplesBySession = new Map<string, EvSampleRow[]>();
+  for (const r of (sampleRows ?? []) as (EvSampleRow & { session_id: string })[]) {
+    const list = samplesBySession.get(r.session_id) ?? [];
+    list.push(r);
+    samplesBySession.set(r.session_id, list);
+  }
+  const todayPoints = todayChartPoints([...samplesBySession.values()]);
+  const todayKwh = energyOfSessions(tabSessions);
+  const todayPeakKw = tabSessions.reduce<number | null>((m, x) => (x.peak_power_kw !== null && (m === null || x.peak_power_kw > m) ? x.peak_power_kw : m), null);
+  const todaySummary =
+    tabSessions.length === 0
+      ? "No charge today yet. The curve appears once a charge has started."
+      : `${todayKwh.toFixed(1)} kWh · ${tabSessions.length} ${tabSessions.length === 1 ? "charge" : "charges"}${todayPeakKw !== null ? ` · peak ${todayPeakKw.toFixed(1)} kW` : ""}`;
+  const finished = tabSessions.find((x) => x.ended_at !== null);
+  const lastCharge = finished
+    ? `Last charge ${(sessionEnergyKwh(finished) ?? 0).toFixed(1)} kWh, ${new Date(finished.started_at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })}`
+    : null;
   const running = openSession(tabSessions);
   const transactionId = openTransactionId(tabSessions);
   const connected = sync.deviceOnline;
@@ -253,10 +276,8 @@ async function EvChargerMonitoring({ supabase, device }: { supabase: SupabaseSer
   const powerKw = getValue("power_active_import_kw") as number | null;
   const offeredKw = getValue("power_offered_kw") as number | null;
 
-  const tariffRate = customerPlan?.tariffRatePerKwh ?? 8;
-  const showCost = site?.propertyType !== "residential_independent_villas";
-
   const connectorStatus = connected === false ? { label: "Offline", tone: "bad" as const } : getConnectorStatusLabel(getValue("connector_status") as number | null, enumOptions.get("connector_status") ?? []);
+  const ratedKw = chargingSummary.ratedPowerW !== null ? chargingSummary.ratedPowerW / 1000 : offeredKw;
   const sessionsToday = chargingSummary.sessions.length;
   const energyTodayKwh = chargingSummary.sessions.reduce((sum, s) => sum + (s.energyKwh ?? 0), 0);
 
@@ -339,45 +360,55 @@ async function EvChargerMonitoring({ supabase, device }: { supabase: SupabaseSer
             </Alert>
           ) : null}
 
-          {/* The charger now: its name and state, what it is delivering, and Start / Stop (a real charge, through the hub). */}
+          {/* The charger now: its name and state, how it is connected, and Start / Stop (a real charge, through the hub). */}
           <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-4">
             <div className="flex items-center gap-3">
               <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
                 <Zap className="size-5" />
               </span>
-              <div>
+              <div className="space-y-1">
                 <p className="text-sm font-semibold">{device.label ?? device.deviceType?.name ?? "EV charger"}</p>
-                <StatusPill label={connectorStatus.label} tone={connectorStatus.tone} />
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+                  <StatusPill label={connectorStatus.label} tone={connectorStatus.tone} />
+                  <span className="text-xs text-muted-foreground">
+                    {connected === false ? "Not connected right now" : connected === true ? "Connected through the monitoring unit" : "Connection not known yet"}
+                    {running ? ` · charging since ${new Date(running.started_at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })}` : ""}
+                  </span>
+                </div>
               </div>
             </div>
-            <EvLiveFigures
-              deviceId={device.id}
-              initial={{ kw: powerKw, a: getValue("current_import_l1_a") as number | null, v: getValue("voltage_l1_n_v") as number | null }}
-              charging={!!running}
-            />
-            <EvChargeControl chargerId={device.id} sessionOpen={!!running} transactionId={transactionId} connected={connected} compact />
+            <EvChargeControl chargerId={device.id} sessionOpen={!!running} transactionId={transactionId} connected={connected} compact={!!running} />
           </div>
 
-          <EvTabSessions sessions={tabSessions} />
-
-          <ChargingSessionsCarousel
+          <EvLiveTiles
             deviceId={device.id}
-            sessions={chargingSummary.sessions}
-            ratedPowerW={chargingSummary.ratedPowerW}
-            currentPowerW={chargingSummary.currentPowerW}
-            currentA={chargingSummary.currentA}
-            voltageV={chargingSummary.voltageV}
-            temperatureC={chargingSummary.temperatureC}
-            connectorStatus={chargingSummary.connectorStatus}
-            connectorStatusOptions={enumOptions.get("connector_status") ?? []}
-            tariffRate={tariffRate}
-            showCost={showCost}
-            recentStats={recentChargingStats}
-            transactionId={transactionId}
-            connected={connected}
+            initial={{ kw: powerKw, a: getValue("current_import_l1_a") as number | null, v: getValue("voltage_l1_n_v") as number | null, registerKwh: getValue("energy_active_import_register_kwh") as number | null }}
+            ratedKw={ratedKw}
+            charging={!!running}
+            session={
+              running
+                ? {
+                    startedAt: running.started_at,
+                    startKwh: sessionStartKwh(running),
+                    targetKwh: running.target_kwh ?? null,
+                    shares: sourceShares({
+                      energy_from_solar_kwh: running.energy_from_solar_kwh ?? null,
+                      energy_from_battery_kwh: running.energy_from_battery_kwh ?? null,
+                      energy_from_grid_kwh: running.energy_from_grid_kwh ?? null,
+                      energy_unattributed_kwh: running.energy_unattributed_kwh ?? null,
+                    }),
+                    solarPct: running.solar_share_pct,
+                  }
+                : null
+            }
+            lastCharge={lastCharge}
           />
 
-          <SessionReceiptCard title="Charging Session Detail" sections={receiptSections} getValue={getValue} enumOptionsByRef={enumOptions} units={await getUnitPrefs()} />
+          <EvTodayChart points={todayPoints} summary={todaySummary} />
+
+          <EvTabSessions sessions={tabSessions} deviceId={device.id} />
+
+          <SessionReceiptCard title="Live session details" sections={receiptSections} getValue={getValue} enumOptionsByRef={enumOptions} units={await getUnitPrefs()} />
         </TabsContent>
       </MonitoringTabs>
     </>
