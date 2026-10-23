@@ -8,7 +8,7 @@ import { START_PAGES, type StartPageId } from "@/lib/start-page";
 import { cn } from "@/lib/utils";
 import { saveDefaultSite, saveStartPage } from "@/app/dashboard/settings/account-actions";
 import { OverviewSection } from "./overview-section";
-import { SettingsCard } from "./settings-card";
+import { SettingsCard, TwoColumns } from "./settings-card";
 import type { ComponentProps } from "react";
 
 export interface DashboardSite {
@@ -48,7 +48,8 @@ export function DashboardSection({ startPage, sites, selectedSiteId, overview }:
 
   return (
     <div className="space-y-5">
-      <div className="-mb-5 columns-1 gap-5 xl:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
+      <TwoColumns
+        left={
         <SettingsCard title="Start page" description="The page the dashboard opens on when you sign in." icon={Rocket} tone="amber">
           <div role="radiogroup" aria-label="Start page" className="grid gap-2 sm:grid-cols-2">
             {START_PAGES.map((p) => {
@@ -72,7 +73,8 @@ export function DashboardSection({ startPage, sites, selectedSiteId, overview }:
             })}
           </div>
         </SettingsCard>
-
+        }
+        right={
         <SettingsCard title="Site" description={sites.length > 1 ? "Which of your sites the dashboard shows. You can also switch from the header." : "The site the dashboard shows."} icon={MapPin} tone="teal">
           {sites.length === 0 ? (
             <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">Your WayTara advisor adds your site during installation.</p>
@@ -106,7 +108,8 @@ export function DashboardSection({ startPage, sites, selectedSiteId, overview }:
             </div>
           )}
         </SettingsCard>
-      </div>
+        }
+      />
 
       <OverviewSection {...overview} />
     </div>

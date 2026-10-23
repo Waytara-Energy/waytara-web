@@ -3,15 +3,14 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Plus, RotateCcw, Ruler, SlidersHorizontal, Trash2 } from "lucide-react";
-import { withPromiseToast } from "@waytara/ui/notify";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ButtonSpinner } from "@/components/ui/spinner";
 import { useUnits } from "@/components/units-provider";
 import { MAX_OVERRIDES, PREF_QUANTITIES, QUANTITY_LABEL, UNIT_CHOICES, displayValue, formatShown, hasUnitChoices, type PrefQuantity, type UnitPrefs } from "@/lib/unit-prefs";
 import { saveUnits } from "@/app/dashboard/settings/actions";
 import { cn } from "@/lib/utils";
-import { SettingsCard } from "./settings-card";
+import { SettingsCard, TwoColumns } from "./settings-card";
+import { useAutoSave } from "./use-auto-save";
 
 /** A reading a person can pick for the "particular values" list (see lib/unit-fields.ts). */
 export interface PickableValue {
@@ -50,11 +49,15 @@ function Example({ quantity, chosen }: { quantity: PrefQuantity; chosen: string 
 export function UnitsSection({ initial, values }: { initial: UnitPrefs; values: PickableValue[] }) {
   const router = useRouter();
   const { setPrefs } = useUnits();
-  const [prefs, setLocal] = React.useState<UnitPrefs>(initial);
-  const [saved, setSaved] = React.useState<UnitPrefs>(initial);
-  const [saving, setSaving] = React.useState(false);
+  // every choice saves itself (no Save button); every open page follows at once
+  const { value: prefs, update: setLocal } = useAutoSave<UnitPrefs>(initial, saveUnits, {
+    message: "Units saved.",
+    onSaved: (saved) => {
+      setPrefs(saved);
+      router.refresh();
+    },
+  });
   const [pickKey, setPickKey] = React.useState<string>("");
-  const dirty = JSON.stringify(prefs) !== JSON.stringify(saved);
 
   const byKey = React.useMemo(() => new Map(values.map((v) => [v.key, v])), [values]);
   const overrideKeys = Object.keys(prefs.overrides);
@@ -85,20 +88,18 @@ export function UnitsSection({ initial, values }: { initial: UnitPrefs; values: 
     setPickKey("");
   }
 
-  async function save() {
-    setSaving(true);
-    const ok = await withPromiseToast(saveUnits, { loading: "Saving…", success: "Units saved." })(prefs);
-    setSaving(false);
-    if (ok) {
-      setSaved(prefs);
-      setPrefs(prefs); // every open page follows at once
-      router.refresh();
-    }
-  }
-
   return (
-    <div className="-mb-5 columns-1 gap-5 xl:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
+    <TwoColumns
+      left={
       <SettingsCard icon={Ruler} tone="sky" title="Units" description="Choose the unit numbers are shown in, everywhere in the dashboard: Overview, Monitoring, Performance, Reports and the charts. Nothing is recalculated or stored differently; only how it is shown changes.">
+        {hasUnitChoices(prefs) && (
+          <div className="-mt-1 flex justify-end">
+            <Button type="button" variant="outline" size="sm" onClick={() => setLocal({ defaults: {}, overrides: {} })}>
+              <RotateCcw className="size-3.5" />
+              Back to as reported
+            </Button>
+          </div>
+        )}
         <div className="divide-y divide-border">
           {PREF_QUANTITIES.map((q) => {
             const chosen = prefs.defaults[q];
@@ -130,7 +131,8 @@ export function UnitsSection({ initial, values }: { initial: UnitPrefs; values: 
           })}
         </div>
       </SettingsCard>
-
+      }
+      right={
       <SettingsCard icon={SlidersHorizontal} tone="violet" title="Particular values" description="Show one reading in a different unit from the rest. A choice here beats the choice for its kind above (for example, show the grid power in W while power is otherwise in kW).">
         {overrideKeys.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border px-4 py-5 text-center text-sm text-muted-foreground">No particular values yet.</p>
@@ -194,18 +196,7 @@ export function UnitsSection({ initial, values }: { initial: UnitPrefs; values: 
           ))}
       </SettingsCard>
 
-      <div className="flex flex-wrap items-center justify-end gap-2 xl:col-span-2">
-        {hasUnitChoices(prefs) && (
-          <Button type="button" variant="outline" size="sm" disabled={saving} onClick={() => setLocal({ defaults: {}, overrides: {} })}>
-            <RotateCcw className="size-3.5" />
-            Back to as reported
-          </Button>
-        )}
-        <Button type="button" size="sm" disabled={!dirty || saving} onClick={() => void save()}>
-          <ButtonSpinner show={saving} />
-          {saving ? "Saving…" : "Save units"}
-        </Button>
-      </div>
-    </div>
+      }
+    />
   );
 }

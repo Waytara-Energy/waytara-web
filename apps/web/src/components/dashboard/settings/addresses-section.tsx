@@ -12,7 +12,7 @@ import { ButtonSpinner } from "@/components/ui/spinner";
 import { INDIAN_STATES } from "@/lib/tariff";
 import { addressLine, normaliseGstin, sameAddress, type Address } from "@/lib/address";
 import { saveAddresses } from "@/app/dashboard/settings/actions";
-import { FieldRow, SettingsCard, ToggleRow } from "./settings-card";
+import { FieldRow, SettingsCard, ToggleRow, TwoColumns } from "./settings-card";
 
 function AddressFields({ idPrefix, value, onChange }: { idPrefix: string; value: Address; onChange: (a: Address) => void }) {
   const set = (k: keyof Address) => (e: React.ChangeEvent<HTMLInputElement>) => onChange({ ...value, [k]: e.target.value });
@@ -79,11 +79,15 @@ export function AddressesSection({ address, billing, billingEmail, gstin }: { ad
   }
 
   return (
-    <form onSubmit={save} className="-mb-5 columns-1 gap-5 xl:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
+    <form onSubmit={save}>
+      <TwoColumns
+        left={
       <SettingsCard icon={MapPin} tone="teal" title="Your address" description="Where you live or run your business. Your site's location is managed on the Site page.">
         <AddressFields idPrefix="addr" value={addr} onChange={setAddr} />
       </SettingsCard>
-
+        }
+        right={
+          <>
       <SettingsCard icon={Receipt} tone="sky" title="Billing details" description="What we put on bills and statements.">
         <ToggleRow title="Billing address is the same as my address" description={same ? addressLine(addr) || "Add your address above." : "Enter a different address below."}>
           <Switch checked={same} onCheckedChange={setSame} aria-label="Billing address is the same as my address" />
@@ -98,13 +102,15 @@ export function AddressesSection({ address, billing, billingEmail, gstin }: { ad
           </FieldRow>
         </div>
       </SettingsCard>
-
-      <div className="flex justify-end xl:col-span-2">
+      <div className="flex justify-end">
         <Button type="submit" size="sm" disabled={!dirty || saving}>
           <ButtonSpinner show={saving} />
           {saving ? "Saving…" : "Save addresses"}
         </Button>
       </div>
+          </>
+        }
+      />
     </form>
   );
 }

@@ -5,7 +5,7 @@
 | Section | What it does | Where it is stored |
 |---|---|---|
 | Account | The home tab: a "get the most out of WayTara" list of next steps (each jumps to the right tab), profile completeness, a security check score (0-100: two-factor, verified e-mail, sign-in e-mails, idle sign-out, few devices), recent account activity, the plan and quick actions. Nothing is stored here: it is worked out by `lib/account-health.ts` from the other tabs' data. | derived |
-| Profile | Photo (cropped to a square, shrunk in the browser, uploaded to the `avatars` bucket under the person's id), name, phone. E-mail changes only by a 6-digit code sent to the NEW address. | `profiles.avatar_url / full_name / phone`; pending codes in `email_change_codes` |
+| Profile | A photo editor (click the picture or drop a photo on it): drag the photo into a round window, zoom with the slider or the wheel, turn it in quarter turns, see it at the sizes it is shown, and save a 512-pixel square cut out in the browser; the name and phone (with a Save button, since they are typed); and the e-mail address, changed only by a code sent to the new address. The customer ID is not shown. | `profiles.avatar_url / full_name / phone`; pending codes in `email_change_codes`; pictures in the `avatars` bucket |
 | Appearance | Light, dark or auto theme (with previews); chart style; text size (small to extra large, scales the whole dashboard); reduce motion. Saved on each click and applied by `AppearanceApplier` in the dashboard layout. | theme and chart: the browser (cookies); text size and motion: `profiles.ui_preferences.appearance` |
 | Units | The unit numbers are shown in, for a whole kind (power W/kW/MW, energy Wh/kWh/MWh/MJ, temperature °C/°F/K, voltage V/kV, current mA/A) or for one reading ("particular values"), applied on every dashboard page. Nothing stored or measured changes; downloaded reports (PDF, CSV) and e-mails keep kW/kWh. | `profiles.ui_preferences.units` (`defaults`, `overrides` by reading key) |
 | Dashboard | Start page (where a sign-in lands: Overview, Monitoring, Performance, Reports, Devices or Support), the default site, and the Overview below. | `profiles.ui_preferences.start_page`; the site through `selectSite` (cookie) |
@@ -27,6 +27,14 @@
 - **Idle sign-out.** `IdleSignOut` (mounted in the dashboard layout) keeps the last-activity time in `localStorage` (shared by the tabs of one browser) and signs out when it is older than the person's limit, on the timer, when the tab becomes visible, and on arrival (so a browser reopened after a long absence is signed out at once). It is checked in the browser while the app is open: it cannot sign out a browser that stays closed.
 - **Signing out never ends other devices' sessions** unless asked (`signOut({ scope: "local" })`); "other devices" and "all devices" use Supabase's `others` and `global` scopes. Ending one other device's session is `waytara.revoke_my_session` (`auth.sessions` is not readable by the app; `my_sessions()` shows only the caller's own rows).
 - **Overview background pictures** live in the same public `avatars` bucket (`<person's id>/overview-<ms>.jpg`); the server action refuses any path outside the person's own folder, and deletes the picture a new one replaces.
+
+## Saving
+
+A setting that is a switch, a choice or a button saves itself the moment it changes (`use-auto-save.ts`: shown at once, saved one after another so quick changes cannot arrive out of order, put back with an error if a save fails, a short "Saved." otherwise): the notification switches, the units, the Overview background (a picture is uploaded when chosen, the darkening is saved when the handle is let go), staying signed in, appearance, start page and site. A Save button stays only where the customer types: the name and phone, the addresses and billing details, the alert and e-mail dialogs. The two-column pages (`TwoColumns` in `settings-card.tsx`) share their cards between two stacks, so no card overlaps another and a short one leaves no hole.
+
+## The sidebar
+
+Support, Home and Sign out are rows like the pages above them, always visible; the account banner at the foot (picture, name, plan) opens Application Settings. Nothing unfolds.
 
 ## Account e-mails and the switches
 

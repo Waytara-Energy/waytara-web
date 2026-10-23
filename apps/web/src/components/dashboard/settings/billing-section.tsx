@@ -14,7 +14,7 @@ import { inr } from "@/lib/savings";
 import { AddressesSection } from "./addresses-section";
 import { InvoiceDialog, sendInvoiceByEmail } from "./invoice-dialog";
 import { PlanCard, type PlanSummary } from "./plan-card";
-import { Pill, SettingsCard } from "./settings-card";
+import { Pill, SettingsCard, TwoColumns } from "./settings-card";
 
 export interface BillingProps {
   plan: PlanSummary | null;
@@ -50,9 +50,9 @@ export function BillingSection({ plan, payments, summary, addresses }: BillingPr
 
   return (
     <div className="space-y-5">
-      <div className="-mb-5 columns-1 gap-5 xl:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
-        {plan ? <PlanCard plan={plan} /> : <NoPlan />}
-
+      <TwoColumns
+        left={plan ? <PlanCard plan={plan} /> : <NoPlan />}
+        right={
         <SettingsCard title="Payments" description="What you have paid for your system." icon={Wallet} tone="sky">
           <div className="grid grid-cols-3 gap-3">
             <Tile label="Total paid" value={inr(summary.paid)} />
@@ -72,7 +72,8 @@ export function BillingSection({ plan, payments, summary, addresses }: BillingPr
             </Link>
           </Button>
         </SettingsCard>
-      </div>
+        }
+      />
 
       <SettingsCard
         title="Payment history"

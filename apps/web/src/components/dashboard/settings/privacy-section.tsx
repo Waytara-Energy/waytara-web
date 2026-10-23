@@ -11,7 +11,7 @@ import { RETENTION_CHOICES } from "@/lib/account-events";
 import type { SettingsTab } from "@/lib/account-health";
 import { clearActivityHistory, saveActivityRetention } from "@/app/dashboard/settings/account-actions";
 import { cn } from "@/lib/utils";
-import { IconBubble, Pill, SettingsCard, type Tone } from "./settings-card";
+import { IconBubble, Pill, SettingsCard, TwoColumns, type Tone } from "./settings-card";
 import { useSettingsNav } from "./settings-nav";
 
 export interface HeldRow {
@@ -104,7 +104,9 @@ export function PrivacySection({ email, held, activity }: PrivacyProps) {
 
   return (
     <div className="space-y-5">
-      <div className="-mb-5 columns-1 gap-5 xl:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
+      <TwoColumns
+        left={
+          <>
         <SettingsCard title="What WayTara keeps about you" description="Everything below belongs to your account. Open any of it to look at it or change it." icon={ScrollText} tone="sky">
           <ul className="-my-1 divide-y divide-border">
             {held.map((h) => {
@@ -136,7 +138,17 @@ export function PrivacySection({ email, held, activity }: PrivacyProps) {
             })}
           </ul>
         </SettingsCard>
-
+        <SettingsCard title="This browser" description="WayTara keeps a few small markers in this browser: the clock for staying signed in, and the mark that tells a closed browser from an open one." icon={MonitorX} tone="slate">
+          <Button type="button" variant="outline" size="sm" onClick={forgetBrowser}>
+            <Eraser className="size-3.5" />
+            Forget what this browser remembers
+          </Button>
+          <p className="text-xs text-muted-foreground">You stay signed in. The timers start again from now.</p>
+        </SettingsCard>
+          </>
+        }
+        right={
+          <>
         <SettingsCard
           title="Your sign-in history"
           description="Sign-ins, sign-outs and changes to your account, kept so you can spot anything that was not you. Choose how long, or clear it."
@@ -188,15 +200,6 @@ export function PrivacySection({ email, held, activity }: PrivacyProps) {
             </AlertDialog>
           </div>
         </SettingsCard>
-
-        <SettingsCard title="This browser" description="WayTara keeps a few small markers in this browser: the clock for staying signed in, and the mark that tells a closed browser from an open one." icon={MonitorX} tone="slate">
-          <Button type="button" variant="outline" size="sm" onClick={forgetBrowser}>
-            <Eraser className="size-3.5" />
-            Forget what this browser remembers
-          </Button>
-          <p className="text-xs text-muted-foreground">You stay signed in. The timers start again from now.</p>
-        </SettingsCard>
-
         <SettingsCard title="How your data is handled" description="What we do with it, and who to ask." icon={ScrollText} tone="violet">
           <ul className="-my-1 divide-y divide-border text-sm">
             <li>
@@ -225,7 +228,9 @@ export function PrivacySection({ email, held, activity }: PrivacyProps) {
             </Link>
           </Button>
         </SettingsCard>
-      </div>
+          </>
+        }
+      />
 
       <section className="overflow-hidden rounded-2xl border border-destructive/40 bg-destructive/5 shadow-sm">
         <div className="flex flex-wrap items-center gap-x-6 gap-y-4 p-5 sm:p-6">

@@ -12,7 +12,7 @@ import { CHART_STYLES, type ChartStyle } from "@/lib/chart-style";
 import { cn } from "@/lib/utils";
 import { saveAppearance } from "@/app/dashboard/settings/account-actions";
 import { useChartStyle, useSetChartStyle } from "../chart-style";
-import { SettingsCard, ToggleRow } from "./settings-card";
+import { SettingsCard, ToggleRow, TwoColumns } from "./settings-card";
 
 // ---- little pictures of the app in each theme and of each chart style (drawn with fixed colours, so they look right whatever theme is on) ------
 
@@ -123,24 +123,33 @@ export function AppearanceSection({ initial }: { initial: AppearancePrefs }) {
   }
 
   return (
-    <div className="-mb-5 columns-1 gap-5 xl:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
-      <SettingsCard title="Theme" description="How the whole app looks. It changes the moment you choose." icon={Palette} tone="violet">
+    <TwoColumns
+      left={
+        <>
+          <SettingsCard title="Theme" description="How the whole app looks. It changes the moment you choose." icon={Palette} tone="violet">
         <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 gap-3">
           {THEMES.map((t) => (
             <Choice key={t.mode} selected={mounted && mode === t.mode} onSelect={() => setMode(t.mode)} preview={<ThemePreview mode={t.mode} />} label={t.label} hint={t.hint} icon={t.icon} />
           ))}
         </div>
       </SettingsCard>
-
-      <SettingsCard title="Charts" description="How every chart is drawn: Overview, Monitoring, Performance." icon={BarChart3} tone="sky">
+          <SettingsCard title="Motion" description="Fewer animations, for a calmer screen or an older device." icon={Wind} tone="teal">
+        <ToggleRow title="Reduce motion" description="Charts and menus appear without sliding or fading.">
+          <Switch checked={prefs.reduceMotion} onCheckedChange={(v) => void change({ ...prefs, reduceMotion: v })} aria-label="Reduce motion" />
+        </ToggleRow>
+      </SettingsCard>
+        </>
+      }
+      right={
+        <>
+          <SettingsCard title="Charts" description="How every chart is drawn: Overview, Monitoring, Performance." icon={BarChart3} tone="sky">
         <div role="radiogroup" aria-label="Chart style" className="grid grid-cols-3 gap-3">
           {CHART_STYLES.map((s) => (
             <Choice key={s} selected={chartStyle === s} onSelect={() => setChartStyle(s)} preview={<div className="grid h-full w-full place-items-center p-4"><ChartPreview style={s} /></div>} label={CHARTS[s].label} hint={CHARTS[s].hint} icon={s === "auto" ? Sparkles : Gauge} />
           ))}
         </div>
       </SettingsCard>
-
-      <SettingsCard title="Text size" description="Make everything bigger or smaller. It follows you to every device." icon={Type} tone="amber">
+          <SettingsCard title="Text size" description="Make everything bigger or smaller. It follows you to every device." icon={Type} tone="amber">
         <div role="radiogroup" aria-label="Text size" className="grid grid-cols-4 gap-2">
           {TEXT_SIZES.map((s) => {
             const on = prefs.textSize === s.id;
@@ -163,12 +172,8 @@ export function AppearanceSection({ initial }: { initial: AppearancePrefs }) {
         </div>
         <p className="rounded-lg bg-muted/50 px-3 py-2 text-sm text-muted-foreground">The text of the whole dashboard follows this setting: the cards, the tables, the menus.</p>
       </SettingsCard>
-
-      <SettingsCard title="Motion" description="Fewer animations, for a calmer screen or an older device." icon={Wind} tone="teal">
-        <ToggleRow title="Reduce motion" description="Charts and menus appear without sliding or fading.">
-          <Switch checked={prefs.reduceMotion} onCheckedChange={(v) => void change({ ...prefs, reduceMotion: v })} aria-label="Reduce motion" />
-        </ToggleRow>
-      </SettingsCard>
-    </div>
+        </>
+      }
+    />
   );
 }

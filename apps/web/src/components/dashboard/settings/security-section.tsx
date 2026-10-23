@@ -17,7 +17,8 @@ import { cn } from "@/lib/utils";
 import { DevicesSetting, type SignedInDevice } from "../devices-setting";
 import { DurationPicker } from "./duration-picker";
 import { ActivityList, type ActivityEvent } from "./activity-list";
-import { FieldRow, SettingsCard, ToggleRow } from "./settings-card";
+import { FieldRow, SettingsCard, ToggleRow, TwoColumns } from "./settings-card";
+import { useAutoSave } from "./use-auto-save";
 import { TwoFactorCard } from "./two-factor-card";
 
 const METER = ["bg-destructive", "bg-destructive", "bg-amber-500", "bg-emerald-500", "bg-emerald-500"] as const;
@@ -152,35 +153,17 @@ const SCOPES: { id: IdleScope; label: string; hint: string }[] = [
 
 function SessionCard({ initial }: { initial: SessionPolicy }) {
   const router = useRouter();
-  const [policy, setPolicy] = React.useState<SessionPolicy>(initial);
-  const [saved, setSaved] = React.useState<SessionPolicy>(initial);
-  const [saving, setSaving] = React.useState(false);
-  const dirty = JSON.stringify(policy) !== JSON.stringify(saved);
-  const set = (patch: Partial<SessionPolicy>) => setPolicy((p) => ({ ...p, ...patch }));
+  // every choice saves itself the moment it is made (a typed time, once the field is left)
+  const { value: policy, update } = useAutoSave<SessionPolicy>(initial, saveSessionPolicy, { message: "Sign-in settings saved.", onSaved: () => router.refresh() });
+  const set = (patch: Partial<SessionPolicy>) => update((p) => ({ ...p, ...patch }));
   const reaches = policy.idleMinutes !== null || policy.maxSessionMinutes !== null;
-
-  async function save() {
-    setSaving(true);
-    const ok = await withPromiseToast(saveSessionPolicy, { loading: "Saving…", success: "Sign-in settings saved." })(policy);
-    setSaving(false);
-    if (ok) {
-      setSaved(policy);
-      router.refresh();
-    }
-  }
 
   return (
     <SettingsCard
       title="Staying signed in"
-      description="Decide when this account signs itself out: when you are away, after a time limit, or when the browser closes. This is checked on each device you use, whenever the app is open."
+      description="Decide when this account signs itself out: when you are away, after a time limit, or when the browser closes. Changes are saved as you make them. This is checked on each device you use, whenever the app is open."
       icon={Timer}
       tone="sky"
-      footer={
-        <Button type="button" size="sm" disabled={!dirty || saving} onClick={() => void save()}>
-          <ButtonSpinner show={saving} />
-          {saving ? "Saving…" : "Save changes"}
-        </Button>
-      }
     >
       <div className="space-y-2">
         <p className="text-sm font-medium text-foreground">When I am away</p>
@@ -252,14 +235,18 @@ function SessionCard({ initial }: { initial: SessionPolicy }) {
 export function SecuritySection({ policy, devices, now, email, events }: { policy: SessionPolicy; devices: SignedInDevice[]; now: number; email: string; events: ActivityEvent[] }) {
   return (
     <div className="space-y-5">
-      <div className="-mb-5 columns-1 gap-5 xl:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
-        <PasswordCard email={email} />
-        <TwoFactorCard />
-        <SessionCard initial={policy} />
-        <SettingsCard title="Account activity" description="Sign-ins, sign-outs and changes, newest first. If something here is not you, change your password and sign out of every device." icon={History} tone="sky">
-          <ActivityList events={events.slice(0, 12)} now={now} />
-        </SettingsCard>
-      </div>
+      <TwoColumns
+        left={
+          <>
+            <PasswordCard email={email} />
+            <TwoFactorCard />
+            <SettingsCard title="Account activity" description="Sign-ins, sign-outs and changes, newest first. If something here is not you, change your password and sign out of every device." icon={History} tone="sky">
+              <ActivityList events={events.slice(0, 12)} now={now} />
+            </SettingsCard>
+          </>
+        }
+        right={<SessionCard initial={policy} />}
+      />
       <DevicesSetting devices={devices} now={now} />
     </div>
   );

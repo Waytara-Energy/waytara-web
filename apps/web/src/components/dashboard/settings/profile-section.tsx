@@ -2,55 +2,48 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, Camera, Check, Copy, IdCard, Mail, Trash2, User } from "lucide-react";
+import { BadgeCheck, Camera, IdCard, Mail, Pencil, Trash2, User } from "lucide-react";
 import { createClient } from "@waytara/supabase/client";
 import { notify, withPromiseToast } from "@waytara/ui/notify";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ButtonSpinner } from "@/components/ui/spinner";
-import { pictureProblem, squareAvatar } from "@/lib/image-resize";
 import { confirmEmailChange, requestEmailChange, saveAvatar, saveProfile } from "@/app/dashboard/settings/actions";
-import { FieldRow, SettingsCard } from "./settings-card";
+import { cn } from "@/lib/utils";
+import { AvatarEditor } from "./avatar-editor";
+import { FieldRow, SettingsCard, TwoColumns } from "./settings-card";
 
 function initials(name: string, email: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   return parts.length > 0 ? (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase() : (email[0] ?? "?").toUpperCase();
 }
 
-/** Settings > Profile: the picture, the name and phone, and the e-mail address (changed only by entering the code sent to the new address). */
+/** Settings > Profile: the picture (opened in an editor), the name and phone, and the e-mail address (changed only by entering the code sent to
+ *  the new address). */
 export function ProfileSection({ userId, fullName, phone, email, avatarUrl, memberSince }: { userId: string; fullName: string; phone: string; email: string; avatarUrl: string | null; memberSince: string | null }) {
   return (
-    <div className="-mb-5 columns-1 gap-5 xl:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
-      <PersonalCard userId={userId} fullName={fullName} phone={phone} email={email} avatarUrl={avatarUrl} />
-      <div className="space-y-5">
-        <EmailCard email={email} />
-        <AccountDetailsCard userId={userId} memberSince={memberSince} />
-      </div>
-    </div>
+    <TwoColumns
+      left={<PersonalCard userId={userId} fullName={fullName} phone={phone} email={email} avatarUrl={avatarUrl} />}
+      right={
+        <>
+          <EmailCard email={email} />
+          <AccountDetailsCard memberSince={memberSince} />
+        </>
+      }
+    />
   );
 }
 
-/** What identifies the account: the customer number to quote to support (with a copy button), since when, and the time zone times are shown in. */
-function AccountDetailsCard({ userId, memberSince }: { userId: string; memberSince: string | null }) {
-  const [copied, setCopied] = React.useState(false);
-  async function copy() {
-    try {
-      await navigator.clipboard.writeText(userId);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 1500);
-    } catch {
-      notify.error("Could not copy. Select the number and copy it.");
-    }
-  }
+/** The basics of the account: since when, the kind of account, and the time zone times are shown in. */
+function AccountDetailsCard({ memberSince }: { memberSince: string | null }) {
   const rows: { label: string; value: React.ReactNode }[] = [
-    { label: "Customer ID", value: <span className="flex items-center gap-2"><code className="truncate rounded bg-muted px-1.5 py-0.5 text-xs">{userId}</code><Button type="button" variant="outline" size="icon" className="size-7 shrink-0" aria-label="Copy the customer ID" onClick={() => void copy()}>{copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}</Button></span> },
     { label: "Member since", value: memberSince ? new Date(memberSince).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "—" },
     { label: "Account type", value: "Customer" },
     { label: "Times are shown in", value: "India Standard Time (IST)" },
   ];
   return (
-    <SettingsCard title="Account details" description="Quote the customer ID if you ever write to support about your account." icon={IdCard} tone="slate">
+    <SettingsCard title="Account details" description="The basics of your account." icon={IdCard} tone="slate">
       <dl className="-my-1 divide-y divide-border text-sm">
         {rows.map((r) => (
           <div key={r.label} className="flex items-center justify-between gap-4 py-2.5">
@@ -68,8 +61,8 @@ function PersonalCard({ userId, fullName, phone, email, avatarUrl }: { userId: s
   const [name, setName] = React.useState(fullName);
   const [tel, setTel] = React.useState(phone);
   const [saving, setSaving] = React.useState(false);
-  const [photoBusy, setPhotoBusy] = React.useState(false);
-  const picker = React.useRef<HTMLInputElement>(null);
+  const [editor, setEditor] = React.useState<{ file: File | null } | null>(null);
+  const [over, setOver] = React.useState(false);
   const dirty = name.trim() !== fullName.trim() || tel.trim() !== phone.trim();
 
   async function save(e: React.FormEvent) {
@@ -80,85 +73,101 @@ function PersonalCard({ userId, fullName, phone, email, avatarUrl }: { userId: s
     if (ok) router.refresh();
   }
 
-  async function choose(file: File | undefined) {
-    if (!file) return;
-    const problem = pictureProblem(file);
-    if (problem) {
-      notify.error(problem);
-      return;
-    }
-    setPhotoBusy(true);
-    try {
-      const blob = await squareAvatar(file);
-      const path = `${userId}/avatar-${Date.now()}.jpg`;
-      const { error } = await createClient().storage.from("avatars").upload(path, blob, { contentType: "image/jpeg", upsert: false });
-      if (error) throw new Error("The picture could not be uploaded. Try again.");
-      await saveAvatar(path);
-      notify.success("Profile picture updated.");
-      router.refresh();
-    } catch (e) {
-      notify.error(e instanceof Error ? e.message : "The picture could not be updated.");
-    } finally {
-      setPhotoBusy(false);
-      if (picker.current) picker.current.value = "";
-    }
+  async function savePhoto(blob: Blob) {
+    const path = `${userId}/avatar-${Date.now()}.jpg`;
+    const { error } = await createClient().storage.from("avatars").upload(path, blob, { contentType: "image/jpeg", upsert: false });
+    if (error) throw new Error("The picture could not be uploaded. Try again.");
+    await saveAvatar(path);
+    notify.success("Profile picture updated.");
+    router.refresh();
   }
 
-  async function remove() {
-    setPhotoBusy(true);
-    const ok = await withPromiseToast(() => saveAvatar(null), { loading: "Removing…", success: "Profile picture removed." })();
-    setPhotoBusy(false);
-    if (ok) router.refresh();
+  async function removePhoto() {
+    try {
+      await saveAvatar(null);
+      notify.success("Profile picture removed.");
+      router.refresh();
+    } catch (e) {
+      notify.error(e instanceof Error ? e.message : "The picture could not be removed.");
+    }
   }
 
   return (
-    <form onSubmit={save}>
-      <SettingsCard
-        title="Profile"
-        icon={User}
-        tone="emerald"
-        description="Your name and picture show in the menu and in Support, so the team knows who they are talking to."
-        footer={
-          <Button type="submit" size="sm" disabled={!dirty || saving || !name.trim()}>
-            <ButtonSpinner show={saving} />
-            {saving ? "Saving…" : "Save changes"}
-          </Button>
-        }
-      >
-        <div className="flex flex-wrap items-center gap-4">
-          <Avatar className="size-20 text-xl">
-            {avatarUrl && <AvatarImage src={avatarUrl} alt="" />}
-            <AvatarFallback className="bg-primary/15 text-xl font-semibold text-primary">{initials(name, email)}</AvatarFallback>
-          </Avatar>
-          <div className="space-y-2">
-            <div className="flex flex-wrap gap-2">
-              <Button type="button" variant="outline" size="sm" disabled={photoBusy} onClick={() => picker.current?.click()}>
-                <ButtonSpinner show={photoBusy} />
-                {!photoBusy && <Camera className="size-3.5" />}
-                {avatarUrl ? "Change photo" : "Add a photo"}
-              </Button>
-              {avatarUrl && (
-                <Button type="button" variant="outline" size="sm" disabled={photoBusy} onClick={() => void remove()}>
-                  <Trash2 className="size-3.5" />
-                  Remove
+    <>
+      <form onSubmit={save}>
+        <SettingsCard
+          title="Profile"
+          icon={User}
+          tone="emerald"
+          description="Your name and picture show in the menu and in Support, so the team knows who they are talking to."
+          footer={
+            <Button type="submit" size="sm" disabled={!dirty || saving || !name.trim()}>
+              <ButtonSpinner show={saving} />
+              {saving ? "Saving…" : "Save changes"}
+            </Button>
+          }
+        >
+          <div className="flex flex-wrap items-center gap-5">
+            <button
+              type="button"
+              onClick={() => setEditor({ file: null })}
+              onDragOver={(e) => {
+                e.preventDefault();
+                setOver(true);
+              }}
+              onDragLeave={() => setOver(false)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setOver(false);
+                const file = e.dataTransfer.files?.[0];
+                if (file) setEditor({ file });
+              }}
+              aria-label={avatarUrl ? "Edit your photo" : "Add a photo"}
+              className={cn("group relative shrink-0 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring", over && "ring-4 ring-primary/50")}
+            >
+              <Avatar className="size-28 text-3xl">
+                {avatarUrl && <AvatarImage src={avatarUrl} alt="" />}
+                <AvatarFallback className="bg-primary/15 text-3xl font-semibold text-primary">{initials(name, email)}</AvatarFallback>
+              </Avatar>
+              <span className="absolute inset-0 grid place-items-center rounded-full bg-black/45 text-white opacity-0 transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100">
+                <Camera className="size-6" />
+              </span>
+              <span className="absolute -bottom-1 -right-1 grid size-9 place-items-center rounded-full border-2 border-card bg-primary text-primary-foreground shadow">
+                <Pencil className="size-4" />
+              </span>
+            </button>
+            <div className="min-w-0 space-y-2">
+              <p className="text-lg font-semibold leading-tight text-foreground">{name.trim() || "Your name"}</p>
+              <p className="truncate text-sm text-muted-foreground">{email}</p>
+              <div className="flex flex-wrap gap-2 pt-1">
+                <Button type="button" variant="outline" size="sm" onClick={() => setEditor({ file: null })}>
+                  <Camera className="size-3.5" />
+                  {avatarUrl ? "Edit photo" : "Add a photo"}
                 </Button>
-              )}
+                {avatarUrl && (
+                  <Button type="button" variant="ghost" size="sm" className="text-muted-foreground" onClick={() => void removePhoto()}>
+                    <Trash2 className="size-3.5" />
+                    Remove
+                  </Button>
+                )}
+              </div>
+              <p className="text-xs text-muted-foreground">Click the picture, or drop a photo on it.</p>
             </div>
-            <p className="text-xs text-muted-foreground">JPG, PNG or WebP. It is cropped to a square.</p>
           </div>
-          <input ref={picker} type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" aria-label="Choose a profile picture" onChange={(e) => void choose(e.target.files?.[0])} />
-        </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <FieldRow label="Full name" htmlFor="fullName">
-            <Input id="fullName" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} autoComplete="name" />
-          </FieldRow>
-          <FieldRow label="Phone" htmlFor="phone" hint="Optional. Digits, with + for a country code.">
-            <Input id="phone" value={tel} onChange={(e) => setTel(e.target.value)} inputMode="tel" autoComplete="tel" maxLength={20} placeholder="+91 98765 43210" />
-          </FieldRow>
-        </div>
-      </SettingsCard>
-    </form>
+          <div className="grid gap-4 sm:grid-cols-2">
+            <FieldRow label="Full name" htmlFor="fullName">
+              <Input id="fullName" value={name} onChange={(e) => setName(e.target.value)} maxLength={100} autoComplete="name" />
+            </FieldRow>
+            <FieldRow label="Phone" htmlFor="phone" hint="Optional. Digits, with + for a country code.">
+              <Input id="phone" value={tel} onChange={(e) => setTel(e.target.value)} inputMode="tel" autoComplete="tel" maxLength={20} placeholder="+91 98765 43210" />
+            </FieldRow>
+          </div>
+        </SettingsCard>
+      </form>
+
+      <AvatarEditor open={editor !== null} initialFile={editor?.file ?? null} hasPhoto={!!avatarUrl} onClose={() => setEditor(null)} onSave={savePhoto} onRemove={removePhoto} />
+    </>
   );
 }
 

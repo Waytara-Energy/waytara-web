@@ -8,7 +8,7 @@ import { cn } from "@/lib/utils";
 import { ActivityList, type ActivityEvent } from "./activity-list";
 import { PlanCard, type PlanSummary } from "./plan-card";
 import { ProgressRing } from "./progress-ring";
-import { IconBubble, Pill, SettingsCard, type Tone } from "./settings-card";
+import { IconBubble, Pill, SettingsCard, TwoColumns, type Tone } from "./settings-card";
 import { useSettingsNav } from "./settings-nav";
 
 export interface AccountProps {
@@ -81,54 +81,16 @@ export function AccountSection({ health, events, plan, pausedUntil, now }: Accou
         </section>
       )}
 
-      <div className="-mb-5 columns-1 gap-5 lg:columns-2 2xl:columns-3 [&>*]:mb-5 [&>*]:break-inside-avoid">
-        <SettingsCard title="Your profile" description="The more the team knows, the faster they can help." icon={Sparkles} tone="emerald" badge={<Pill tone={profile.percent === 100 ? "emerald" : "amber"}>{profile.percent}% complete</Pill>}>
+      <TwoColumns
+        left={
+          <>
+          <SettingsCard title="Your profile" description="The more the team knows, the faster they can help." icon={Sparkles} tone="emerald" badge={<Pill tone={profile.percent === 100 ? "emerald" : "amber"}>{profile.percent}% complete</Pill>}>
           <div className="h-2 overflow-hidden rounded-full bg-muted" role="progressbar" aria-valuenow={profile.percent} aria-valuemin={0} aria-valuemax={100} aria-label="How complete your profile is">
             <div className="h-full rounded-full bg-emerald-500 transition-all duration-700" style={{ width: `${profile.percent}%` }} />
           </div>
           <Checks items={profile.items} />
         </SettingsCard>
-
-        <SettingsCard title="Security check" description="How well your account is protected." icon={ShieldCheck} tone="indigo" badge={<Pill tone={LEVEL_TONE[security.level]}>{LEVEL_LABEL[security.level]}</Pill>}>
-          <div className="flex items-center gap-4">
-            <ProgressRing percent={security.score} size={84} stroke={7} color={LEVEL_COLOR[security.level]}>
-              <span className="text-lg font-semibold tabular-nums text-foreground">{security.score}</span>
-            </ProgressRing>
-            <p className="text-sm text-muted-foreground">
-              {security.level === "strong" ? "Your account is well protected." : "Turn on what is missing below to raise the score."}
-            </p>
-          </div>
-          <Checks items={security.items} />
-        </SettingsCard>
-
-
-{plan && (
-          <PlanCard
-            plan={plan}
-            action={
-              <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => go("billing")}>
-                Billing &amp; payments
-                <ArrowRight className="size-3.5" />
-              </Button>
-            }
-          />
-        )}
-
-        <SettingsCard
-            title="Recent activity"
-            description="Sign-ins, sign-outs and changes to your account. If something here is not you, change your password."
-            icon={History}
-            tone="sky"
-            footer={
-              <Button type="button" variant="outline" size="sm" onClick={() => go("security")}>
-                Open security
-                <ArrowRight className="size-3.5" />
-              </Button>
-            }
-          >
-            <ActivityList events={events.slice(0, 6)} now={now} />
-          </SettingsCard>
-        <SettingsCard title="Quick actions" icon={Rocket} tone="amber">
+          <SettingsCard title="Quick actions" icon={Rocket} tone="amber">
           <ul className="-my-1 divide-y divide-border">
             {[
               { label: pausedLabel ? `Notifications paused until ${pausedLabel}` : "Pause notifications for a while", icon: BellOff, onClick: () => go("notifications") },
@@ -166,7 +128,49 @@ export function AccountSection({ health, events, plan, pausedUntil, now }: Accou
             </li>
           </ul>
         </SettingsCard>
-      </div>
+          {plan && (
+          <PlanCard
+            plan={plan}
+            action={
+              <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => go("billing")}>
+                Billing &amp; payments
+                <ArrowRight className="size-3.5" />
+              </Button>
+            }
+          />
+        )}
+          </>
+        }
+        right={
+          <>
+          <SettingsCard title="Security check" description="How well your account is protected." icon={ShieldCheck} tone="indigo" badge={<Pill tone={LEVEL_TONE[security.level]}>{LEVEL_LABEL[security.level]}</Pill>}>
+          <div className="flex items-center gap-4">
+            <ProgressRing percent={security.score} size={84} stroke={7} color={LEVEL_COLOR[security.level]}>
+              <span className="text-lg font-semibold tabular-nums text-foreground">{security.score}</span>
+            </ProgressRing>
+            <p className="text-sm text-muted-foreground">
+              {security.level === "strong" ? "Your account is well protected." : "Turn on what is missing below to raise the score."}
+            </p>
+          </div>
+          <Checks items={security.items} />
+        </SettingsCard>
+          <SettingsCard
+            title="Recent activity"
+            description="Sign-ins, sign-outs and changes to your account. If something here is not you, change your password."
+            icon={History}
+            tone="sky"
+            footer={
+              <Button type="button" variant="outline" size="sm" onClick={() => go("security")}>
+                Open security
+                <ArrowRight className="size-3.5" />
+              </Button>
+            }
+          >
+            <ActivityList events={events.slice(0, 6)} now={now} />
+          </SettingsCard>
+          </>
+        }
+      />
     </div>
   );
 }

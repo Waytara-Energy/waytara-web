@@ -98,3 +98,14 @@ export function ToggleRow({ title, description, children }: { title: string; des
     </div>
   );
 }
+
+/** Two columns of cards on a wide screen (one under the other on a narrow one). Each column is its own stack, so a short card never leaves a
+ *  hole or overlaps its neighbour; the caller shares the cards between the columns so that both come out about as tall. */
+export function TwoColumns({ left, right, className }: { left: ReactNode; right: ReactNode; className?: string }) {
+  return (
+    <div className={cn("grid items-start gap-5 xl:grid-cols-2", className)}>
+      <div className="min-w-0 space-y-5">{left}</div>
+      <div className="min-w-0 space-y-5">{right}</div>
+    </div>
+  );
+}
