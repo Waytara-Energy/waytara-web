@@ -3,13 +3,13 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { BellRing, Mail, Pencil, Plus, Smartphone } from "lucide-react";
+import { alertLook } from "./alert-visuals";
 import { withPromiseToast } from "@waytara/ui/notify";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
 import { ButtonSpinner } from "@/components/ui/spinner";
 import { COOLDOWN_CHOICES, METRICS, METRIC_GROUPS, formatLimit, metricOf, presetOf, type EffectiveRule, type MetricGroup, type Op } from "@/lib/alert-rules";
 import { deleteAlertRule, saveAlertRule, type AlertInput } from "@/app/dashboard/settings/actions";
@@ -20,8 +20,6 @@ export interface AlertSite {
   id: string;
   name: string;
 }
-
-const SEVERITY_DOT: Record<EffectiveRule["severity"], string> = { info: "bg-sky-500", warning: "bg-amber-500", critical: "bg-rose-500" };
 
 const toInput = (r: EffectiveRule, over: Partial<AlertInput> = {}): AlertInput => ({
   id: r.presetId ? null : r.ruleId,
@@ -38,8 +36,9 @@ const toInput = (r: EffectiveRule, over: Partial<AlertInput> = {}): AlertInput =
   ...over,
 });
 
-/** The "My alerts" part of Settings > Notifications: WayTara's ready-made alerts for the battery, solar, grid, consumption and cost (some on from
- *  the start, each can be switched off or given another limit), and the customer's own ("tell me when the battery is below 25%"). */
+/** Settings > Alerts: a gallery of coloured tiles, like the shortcuts of a phone. Smart alerts are WayTara's own for the battery, solar, grid,
+ *  consumption and cost (some on from the start; each can be switched off or given another limit), and the customer's own ("tell me when the
+ *  battery is below 25%"), made from the first tile. */
 export function AlertsManager({ rules, sites }: { rules: EffectiveRule[]; sites: AlertSite[] }) {
   const router = useRouter();
   const [local, setLocal] = React.useState(rules);
@@ -64,42 +63,45 @@ export function AlertsManager({ rules, sites }: { rules: EffectiveRule[]; sites:
 
   return (
     <div className="space-y-5">
-      <section className="rounded-2xl border border-border bg-card shadow-sm">
-        <div className="flex items-start justify-between gap-4 p-5 pb-3 sm:p-6 sm:pb-3">
-          <div>
-            <h2 className="text-base font-semibold text-foreground">My own alerts</h2>
-            <p className="mt-0.5 text-sm text-muted-foreground">Tell me when something reaches a limit you choose, for example when the battery level is below 25%.</p>
-          </div>
-          <Button type="button" size="sm" className="shrink-0" onClick={() => setEditing({ rule: null })}>
-            <Plus className="size-3.5" />
-            Add an alert
-          </Button>
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+        <div className="mb-4">
+          <h2 className="text-base font-semibold text-foreground">My alerts</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">Tell me when something reaches a limit you choose, for example when the battery level is below 25%.</p>
         </div>
-        <div className="px-5 pb-4 sm:px-6">
-          {mine.length === 0 ? (
-            <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">You have not made an alert of your own yet.</p>
-          ) : (
-            <ul className="divide-y divide-border rounded-lg border border-border">
-              {mine.map((r) => (
-                <AlertRow key={r.key} rule={r} sites={sites} onToggle={(v) => void toggle(r, v)} onEdit={() => setEditing({ rule: r })} />
-              ))}
-            </ul>
-          )}
-        </div>
+        <ul className={TILES}>
+          <li>
+            <button
+              type="button"
+              onClick={() => setEditing({ rule: null })}
+              className="flex h-full min-h-36 w-full flex-col items-start justify-between rounded-3xl border-2 border-dashed border-border p-4 text-left outline-none transition-colors hover:border-primary hover:bg-primary/5 focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="grid size-10 place-items-center rounded-2xl bg-primary/10 text-primary">
+                <Plus className="size-5" />
+              </span>
+              <span>
+                <span className="block text-sm font-semibold text-foreground">New alert</span>
+                <span className="block text-xs text-muted-foreground">Pick what to watch and a limit</span>
+              </span>
+            </button>
+          </li>
+          {mine.map((r) => (
+            <AlertTile key={r.key} rule={r} sites={sites} onToggle={(v) => void toggle(r, v)} onEdit={() => setEditing({ rule: r })} />
+          ))}
+        </ul>
       </section>
 
-      <section className="rounded-2xl border border-border bg-card">
-        <div className="p-5 pb-3 sm:p-6 sm:pb-3">
-          <h2 className="text-base font-semibold text-foreground">Ready-made alerts</h2>
-          <p className="mt-0.5 text-sm text-muted-foreground">WayTara watches these for you. The ones marked On are on for everyone from the start; switch any off, or change its limit.</p>
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-sm sm:p-6">
+        <div className="mb-4">
+          <h2 className="text-base font-semibold text-foreground">Smart alerts</h2>
+          <p className="mt-0.5 text-sm text-muted-foreground">WayTara keeps an eye on these for you. The ones marked On by default are on for everyone from the start; switch any off, or tap the pencil to change its limit.</p>
         </div>
-        <div className="space-y-5 px-5 pb-5 sm:px-6">
+        <div className="space-y-6">
           {groups.map(({ group, items }) => (
             <div key={group}>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group}</p>
-              <ul className="divide-y divide-border rounded-lg border border-border">
+              <p className="mb-2.5 text-xs font-semibold uppercase tracking-wide text-muted-foreground">{group}</p>
+              <ul className={TILES}>
                 {items.map((r) => (
-                  <AlertRow key={r.key} rule={r} sites={sites} onToggle={(v) => void toggle(r, v)} onEdit={() => setEditing({ rule: r })} />
+                  <AlertTile key={r.key} rule={r} sites={sites} onToggle={(v) => void toggle(r, v)} onEdit={() => setEditing({ rule: r })} />
                 ))}
               </ul>
             </div>
@@ -112,25 +114,48 @@ export function AlertsManager({ rules, sites }: { rules: EffectiveRule[]; sites:
   );
 }
 
-function AlertRow({ rule, sites, onToggle, onEdit }: { rule: EffectiveRule; sites: AlertSite[]; onToggle: (on: boolean) => void; onEdit: () => void }) {
+const TILES = "grid gap-3 sm:grid-cols-2 xl:grid-cols-3";
+const SEVERITY_LABEL: Record<EffectiveRule["severity"], string | null> = { info: null, warning: "Heads-up", critical: "Urgent" };
+
+/** One alert as a coloured tile: its icon, its sentence, where it applies and how you hear about it, an on/off switch and a pencil. Off, it fades to grey. */
+function AlertTile({ rule, sites, onToggle, onEdit }: { rule: EffectiveRule; sites: AlertSite[]; onToggle: (on: boolean) => void; onEdit: () => void }) {
   const preset = rule.presetId ? presetOf(rule.presetId) : null;
   const siteName = rule.siteId ? sites.find((s) => s.id === rule.siteId)?.name : null;
+  const look = alertLook(rule.metric, rule.op);
+  const Icon = look.icon;
+  const level = SEVERITY_LABEL[rule.severity];
   return (
-    <li className="flex items-center gap-3 px-3.5 py-3">
-      <span className={cn("size-2.5 shrink-0 rounded-full", SEVERITY_DOT[rule.severity], !rule.enabled && "opacity-30")} aria-hidden />
-      <div className="min-w-0 flex-1">
-        <p className={cn("truncate text-sm font-medium", rule.enabled ? "text-foreground" : "text-muted-foreground")}>{rule.title}</p>
-        <p className="flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
-          <span className="truncate">{preset?.hint ?? (rule.siteId ? siteName ?? "One site" : "All my sites")}</span>
-          {rule.email && <Mail className="size-3" aria-label="E-mail" />}
-          {rule.app && <Smartphone className="size-3" aria-label="In the app" />}
-          {rule.presetId && rule.untouched && rule.enabled && <span className="rounded-full bg-emerald-500/15 px-1.5 text-[10px] font-medium text-emerald-600 dark:text-emerald-400">On by default</span>}
-        </p>
+    <li className={cn("relative flex min-h-36 flex-col justify-between gap-4 overflow-hidden rounded-3xl bg-gradient-to-br p-4 text-white shadow-sm transition-[filter,opacity]", look.gradient, !rule.enabled && "opacity-70 saturate-0")}>
+      <div className="flex items-start justify-between gap-2">
+        <span className="grid size-10 shrink-0 place-items-center rounded-2xl bg-white/25 shadow-inner">
+          <Icon className="size-5" />
+        </span>
+        <button
+          type="button"
+          role="switch"
+          aria-checked={rule.enabled}
+          aria-label={`${rule.title} on or off`}
+          onClick={() => onToggle(!rule.enabled)}
+          className={cn("relative h-6 w-10 shrink-0 rounded-full outline-none transition-colors focus-visible:ring-2 focus-visible:ring-white", rule.enabled ? "bg-white/45" : "bg-black/25")}
+        >
+          <span className={cn("absolute top-0.5 size-5 rounded-full bg-white shadow transition-[left]", rule.enabled ? "left-[1.125rem]" : "left-0.5")} />
+        </button>
       </div>
-      <Button type="button" variant="outline" size="icon" className="size-8 shrink-0" aria-label={`Edit ${rule.title}`} onClick={onEdit}>
-        <Pencil className="size-3.5" />
-      </Button>
-      <Switch checked={rule.enabled} onCheckedChange={onToggle} aria-label={`${rule.title} on or off`} />
+      <div className="min-w-0">
+        <p className="line-clamp-2 text-[15px] font-semibold leading-snug">{rule.title}</p>
+        <p className="mt-1 line-clamp-2 text-xs text-white/80">{preset?.hint ?? (rule.siteId ? siteName ?? "One site" : "All my sites")}</p>
+      </div>
+      <div className="flex items-center justify-between gap-2">
+        <span className="flex min-w-0 flex-wrap items-center gap-1.5 text-[11px] font-medium">
+          {rule.email && <Mail className="size-3.5" aria-label="E-mail" />}
+          {rule.app && <Smartphone className="size-3.5" aria-label="In the app" />}
+          {rule.presetId && rule.untouched && rule.enabled && <span className="rounded-full bg-white/25 px-2 py-0.5">On by default</span>}
+          {level && <span className="rounded-full bg-black/20 px-2 py-0.5">{level}</span>}
+        </span>
+        <button type="button" aria-label={`Edit ${rule.title}`} onClick={onEdit} className="grid size-8 shrink-0 place-items-center rounded-full bg-white/25 outline-none transition-colors hover:bg-white/40 focus-visible:ring-2 focus-visible:ring-white">
+          <Pencil className="size-3.5" />
+        </button>
+      </div>
     </li>
   );
 }

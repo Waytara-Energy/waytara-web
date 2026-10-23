@@ -35,7 +35,7 @@ export function buildAlertEmail(input: AlertMailInput): Mail {
   const lead = one ? "One of your alerts went off." : "Some of your alerts went off.";
   const lines = list.map((a) => `- ${a.metricLabel} is ${a.valueText} (${a.limitText})${a.siteName ? `, ${a.siteName}` : ""}`);
 
-  const text = [hello, "", lead, "", ...lines, "", `Open your dashboard: ${input.dashboardUrl}`, "", `You set these alerts yourself or left WayTara's ready-made ones on. Change or switch them off in Settings > Notifications: ${input.settingsUrl}`, "- The WayTara Team"].join("\n");
+  const text = [hello, "", lead, "", ...lines, "", `Open your dashboard: ${input.dashboardUrl}`, "", `You set these alerts yourself or left WayTara's smart alerts on. Change or switch them off in Settings > Notifications: ${input.settingsUrl}`, "- The WayTara Team"].join("\n");
 
   const rows = list
     .map(
@@ -48,7 +48,7 @@ export function buildAlertEmail(input: AlertMailInput): Mail {
 <p>${esc(lead)}</p>
 <table style="border-collapse:collapse;width:100%;font-size:14px">${rows}</table>
 <p style="margin-top:16px"><a href="${esc(input.dashboardUrl)}" style="background:#16a34a;color:#fff;padding:9px 16px;border-radius:8px;text-decoration:none;display:inline-block">Open your dashboard</a></p>
-<p style="color:#64748b;font-size:12px">You set these alerts yourself or left WayTara's ready-made ones on. <a href="${esc(input.settingsUrl)}" style="color:#64748b">Change or switch them off</a> in Settings &gt; Notifications.<br>- The WayTara Team</p>
+<p style="color:#64748b;font-size:12px">You set these alerts yourself or left WayTara's smart alerts on. <a href="${esc(input.settingsUrl)}" style="color:#64748b">Change or switch them off</a> in Settings &gt; Notifications.<br>- The WayTara Team</p>
 </div>`;
   return { subject, text, html };
 }

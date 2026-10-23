@@ -44,7 +44,7 @@ function Tile({ label, value, hint, tone }: { label: string; value: string; hint
   );
 }
 
-/** Settings > Alerts: how many alerts are on, what has gone off lately, a test, and the alerts themselves (ready-made and the person's own). */
+/** Settings > Alerts: how many alerts are on, what has gone off lately, a test, and the alerts themselves (smart alerts and the person's own). */
 export function AlertsSection({ rules, sites, recent, emailOn, paused, now }: AlertsProps) {
   const router = useRouter();
   const { go } = useSettingsNav();
@@ -90,7 +90,7 @@ export function AlertsSection({ rules, sites, recent, emailOn, paused, now }: Al
         <div className="xl:col-span-2">
           <AlertsManager rules={rules} sites={sites} />
         </div>
-        <div className="space-y-5">
+        <div className="space-y-5 xl:sticky xl:top-3">
           <SettingsCard
             title="Try it"
             description="See what an alert looks like before a real one goes off."

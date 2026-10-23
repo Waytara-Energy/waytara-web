@@ -63,7 +63,7 @@ export const NOTIFICATION_CATEGORIES: NotificationCategory[] = [
   {
     id: "alerts",
     title: "My alerts",
-    description: "Alerts you set up yourself, and the ready-made ones for your battery, solar, grid, consumption and cost (below).",
+    description: "Alerts you set up yourself, and the smart alerts for your battery, solar, grid, consumption and cost (below).",
     items: [{ key: "rule_alerts", title: "E-mail for my alerts", description: "An e-mail when one of your alerts goes off. Each alert also has its own e-mail and app choices below.", default: true }],
   },
   {
