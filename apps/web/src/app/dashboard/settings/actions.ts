@@ -13,7 +13,7 @@ import { policyToJson, parseSessionPolicy, type SessionPolicy } from "@/lib/sess
 import { sendMail } from "@/lib/send-mail";
 import { parseUnitPrefs, type UnitPrefs } from "@/lib/unit-prefs";
 import { metricOf, presetOf } from "@/lib/alert-rules";
-import { notifyAuthEvent } from "@/lib/auth-notify";
+import { notifyAuthEvent, recordAccountEvent } from "@/lib/auth-notify";
 import { describeDevice } from "@/lib/user-agent";
 import { NOTIFICATION_KEYS, mergeNotificationPrefs, type NotificationKey } from "@/lib/notification-prefs";
 
@@ -129,6 +129,7 @@ export async function confirmEmailChange(codeRaw: string): Promise<{ email: stri
 
   // a notice to the old address, and a fresh token so this browser carries the new address
   if (oldEmail) await sendMail(oldEmail, buildEmailChangedMail({ name: profile.full_name, newEmail: row.new_email }));
+  await recordAccountEvent("email_changed", profile.id);
   const supabase = await createClient();
   await supabase.auth.refreshSession();
   revalidatePath("/dashboard", "layout");

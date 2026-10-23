@@ -2,6 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createMiddlewareClient } from "@waytara/supabase/middleware";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { isCustomerRole } from "@waytara/supabase/roles";
+import { needsSecondFactor } from "@/lib/mfa";
 
 // apps/web is customer-facing only: /dashboard requires a session AND a
 // `customer` profile role — anyone else (no session, or a staff account)
@@ -28,6 +29,20 @@ export async function proxy(request: NextRequest) {
         : "Please sign in to continue."
     );
     return NextResponse.redirect(url);
+  }
+
+  // Two-factor sign-in: a session that has the password but not yet the code does not open the dashboard. Read from the session itself (no extra
+  // round trip); if it cannot be read the request is let through rather than locking anyone out.
+  try {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (needsSecondFactor(aal)) {
+      const url = request.nextUrl.clone();
+      url.pathname = "/login/verify";
+      url.search = "";
+      return NextResponse.redirect(url);
+    }
+  } catch {
+    /* fall through */
   }
 
   // Onboarding pipeline redesign, Phase 6: the real dashboard (monitoring,
@@ -95,5 +110,5 @@ export async function proxy(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/dashboard/:path*", "/api/reports/:path*"],
+  matcher: ["/dashboard/:path*", "/api/reports/:path*", "/api/account/:path*"],
 };

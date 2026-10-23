@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Plus, RotateCcw, Trash2 } from "lucide-react";
+import { Plus, RotateCcw, Ruler, SlidersHorizontal, Trash2 } from "lucide-react";
 import { withPromiseToast } from "@waytara/ui/notify";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -98,7 +98,7 @@ export function UnitsSection({ initial, values }: { initial: UnitPrefs; values: 
 
   return (
     <div className="grid items-start gap-5 xl:grid-cols-2">
-      <SettingsCard title="Units" description="Choose the unit numbers are shown in, everywhere in the dashboard: Overview, Monitoring, Performance, Reports and the charts. Nothing is recalculated or stored differently; only how it is shown changes.">
+      <SettingsCard icon={Ruler} tone="sky" title="Units" description="Choose the unit numbers are shown in, everywhere in the dashboard: Overview, Monitoring, Performance, Reports and the charts. Nothing is recalculated or stored differently; only how it is shown changes.">
         <div className="divide-y divide-border">
           {PREF_QUANTITIES.map((q) => {
             const chosen = prefs.defaults[q];
@@ -131,7 +131,7 @@ export function UnitsSection({ initial, values }: { initial: UnitPrefs; values: 
         </div>
       </SettingsCard>
 
-      <SettingsCard title="Particular values" description="Show one reading in a different unit from the rest. A choice here beats the choice for its kind above (for example, show the grid power in W while power is otherwise in kW).">
+      <SettingsCard icon={SlidersHorizontal} tone="violet" title="Particular values" description="Show one reading in a different unit from the rest. A choice here beats the choice for its kind above (for example, show the grid power in W while power is otherwise in kW).">
         {overrideKeys.length === 0 ? (
           <p className="rounded-lg border border-dashed border-border px-4 py-5 text-center text-sm text-muted-foreground">No particular values yet.</p>
         ) : (

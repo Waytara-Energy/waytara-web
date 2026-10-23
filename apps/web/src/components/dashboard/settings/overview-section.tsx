@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Check, ImagePlus, RotateCcw, Trash2 } from "lucide-react";
+import { Check, ImagePlus, LayoutDashboard, RotateCcw, Trash2 } from "lucide-react";
 import { createClient } from "@waytara/supabase/client";
 import { notify } from "@waytara/ui/notify";
 import { Button } from "@/components/ui/button";
@@ -108,6 +108,8 @@ export function OverviewSection({ userId, initial, imageUrl }: { userId: string;
     <div className="grid items-start gap-5 xl:grid-cols-2">
       <SettingsCard
         title="Overview cards"
+        icon={LayoutDashboard}
+        tone="amber"
         description={`Pick ${OVERVIEW_CARD_COUNT} cards for your Overview. The first two sit to the left of the energy flow, the last two to the right.`}
       >
         <div className="grid gap-2 sm:grid-cols-2">
@@ -150,7 +152,7 @@ export function OverviewSection({ userId, initial, imageUrl }: { userId: string;
         </div>
       </SettingsCard>
 
-      <SettingsCard title="Background" description="A colour or your own picture behind the Overview. The cards turn to frosted glass so the numbers stay easy to read.">
+      <SettingsCard icon={ImagePlus} tone="rose" title="Background" description="A colour or your own picture behind the Overview. The cards turn to frosted glass so the numbers stay easy to read.">
         <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-7">
           <button
             type="button"

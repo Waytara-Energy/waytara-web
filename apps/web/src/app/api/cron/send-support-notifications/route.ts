@@ -1,3 +1,4 @@
+import { wants } from "@/lib/notification-prefs";
 import { NextRequest, NextResponse } from "next/server";
 import { isCronAuthorized } from "@/lib/cron-auth";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
@@ -80,7 +81,7 @@ export async function GET(req: NextRequest) {
   const recipients = new Map<string, RecipientFacts>(
     [...people].map(([id, p]) => [
       id,
-      { id, email: p.email, deactivated_at: p.deactivated_at, deleted_at: p.deleted_at, support_emails: (p.notification_preferences as { support_emails?: boolean } | null)?.support_emails ?? null },
+      { id, email: p.email, deactivated_at: p.deactivated_at, deleted_at: p.deleted_at, support_emails: wants(p.notification_preferences, "support_emails") ? null : false },
     ]),
   );
   const plan = planSupportBatch(rows, facts, recipients);

@@ -2,15 +2,14 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Bell, BellRing, Cpu, Headset, Lock, ReceiptText, ShieldCheck, TriangleAlert, type LucideIcon } from "lucide-react";
+import { BellRing, Cpu, Headset, Lock, ReceiptText, ShieldCheck, TriangleAlert, type LucideIcon } from "lucide-react";
 import { withPromiseToast } from "@waytara/ui/notify";
 import { Button } from "@/components/ui/button";
 import { Switch } from "@/components/ui/switch";
 import { ButtonSpinner } from "@/components/ui/spinner";
 import { NOTIFICATION_CATEGORIES, NOTIFICATION_KEYS, type NotificationCategory, type NotificationKey } from "@/lib/notification-prefs";
 import { saveNotifications, type NotificationPrefs } from "@/app/dashboard/settings/actions";
-import type { EffectiveRule } from "@/lib/alert-rules";
-import { AlertsManager, type AlertSite } from "./alerts-manager";
+import { PauseCard } from "./pause-card";
 import { cn } from "@/lib/utils";
 
 const ICON: Record<NotificationCategory["id"], LucideIcon> = { account: ShieldCheck, devices: Cpu, faults: TriangleAlert, alerts: BellRing, billing: ReceiptText, support: Headset };
@@ -25,7 +24,7 @@ const TONE: Record<NotificationCategory["id"], string> = {
 
 /** Settings > Notifications: the e-mails WayTara sends, in categories (account and security, devices, faults and alarms, billing, support),
  *  each with its own switch. The bell in the app always shows everything; these only control e-mail. */
-export function NotificationsSection({ initial, alertRules, sites }: { initial: NotificationPrefs; alertRules: EffectiveRule[]; sites: AlertSite[] }) {
+export function NotificationsSection({ initial, pausedUntil, email }: { initial: NotificationPrefs; pausedUntil: string | null; email: string }) {
   const router = useRouter();
   const [prefs, setPrefs] = React.useState<NotificationPrefs>(initial);
   const [saved, setSaved] = React.useState<NotificationPrefs>(initial);
@@ -47,12 +46,7 @@ export function NotificationsSection({ initial, alertRules, sites }: { initial: 
 
   return (
     <div className="space-y-5">
-      <div className="flex items-start gap-3 rounded-2xl border border-border bg-card p-5 sm:p-6">
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-muted text-muted-foreground">
-          <Bell className="size-4" />
-        </span>
-        <p className="text-sm text-muted-foreground">Choose which e-mails WayTara sends you. The bell in the app always shows everything; these only control e-mail.</p>
-      </div>
+      <PauseCard pausedUntil={pausedUntil} email={email} />
 
       <div className="grid items-start gap-5 xl:grid-cols-2">
       {NOTIFICATION_CATEGORIES.map((c) => {
@@ -111,12 +105,6 @@ export function NotificationsSection({ initial, alertRules, sites }: { initial: 
           {saving ? "Saving…" : "Save changes"}
         </Button>
       </div>
-
-      <div className="space-y-1 pt-2">
-        <h2 className="text-lg font-semibold text-foreground">My alerts</h2>
-        <p className="text-sm text-muted-foreground">Alerts about your battery, solar, grid, consumption, rate and cost. Each one saves as soon as you change it.</p>
-      </div>
-      <AlertsManager rules={alertRules} sites={sites} />
     </div>
   );
 }

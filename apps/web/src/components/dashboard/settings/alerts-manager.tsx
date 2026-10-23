@@ -63,8 +63,8 @@ export function AlertsManager({ rules, sites }: { rules: EffectiveRule[]; sites:
   }
 
   return (
-    <div className="grid items-start gap-5 xl:grid-cols-2">
-      <section className="rounded-2xl border border-border bg-card">
+    <div className="space-y-5">
+      <section className="rounded-2xl border border-border bg-card shadow-sm">
         <div className="flex items-start justify-between gap-4 p-5 pb-3 sm:p-6 sm:pb-3">
           <div>
             <h2 className="text-base font-semibold text-foreground">My own alerts</h2>

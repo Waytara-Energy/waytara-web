@@ -3,7 +3,7 @@ import type { Mail } from "./support-mail";
 // The account-security e-mails: someone signed in, a device was signed out, the password changed. Pure, so the wording is tested; the sender
 // (auth-notify.ts) works out who, where and when. Each says what happened, on which device, and what to do if it was not the person.
 
-export type AuthKind = "signin" | "signout" | "signout_idle" | "signout_others" | "signout_all" | "session_revoked" | "password_changed";
+export type AuthKind = "signin" | "signout" | "signout_idle" | "signout_others" | "signout_all" | "session_revoked" | "password_changed" | "mfa_enabled" | "mfa_disabled";
 
 export interface AuthMailInput {
   kind: AuthKind;
@@ -46,6 +46,10 @@ function bodyFor(i: AuthMailInput): Body {
       return { subject: "You were signed out of WayTara everywhere", lead: "Every device was signed out of your WayTara account.", worry: "If this was not you, change your password now.", button: "Open Settings" };
     case "session_revoked":
       return { subject: "A device was signed out of your WayTara account", lead: `${i.target ? `${i.target} was` : "A device was"} signed out of your WayTara account.`, worry: "If this was not you, change your password now.", button: "Review your devices" };
+    case "mfa_enabled":
+      return { subject: "Two-factor sign-in is on for your WayTara account", lead: "Two-factor sign-in was turned on for your WayTara account. From now on, signing in needs a code from your authenticator app as well as your password.", worry: "If this was not you, contact WayTara support straight away.", button: "Review your security" };
+    case "mfa_disabled":
+      return { subject: "Two-factor sign-in was turned off for your WayTara account", lead: "Two-factor sign-in was turned off for your WayTara account. Signing in needs only your password again.", worry: "If this was not you, change your password and contact WayTara support straight away.", button: "Review your security" };
     case "password_changed":
       return { subject: "Your WayTara password was changed", lead: "The password of your WayTara account was changed.", worry: "If this was not you, contact WayTara support straight away.", button: "Open Settings" };
   }

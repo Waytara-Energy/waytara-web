@@ -5,6 +5,8 @@ import { createClient } from "@waytara/supabase/server";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { isCustomerRole } from "@waytara/supabase/roles";
 import { notifyAuthEvent } from "@/lib/auth-notify";
+import { needsSecondFactor } from "@/lib/mfa";
+import { parseStartPage, startPath } from "@/lib/start-page";
 
 export async function login(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
@@ -31,8 +33,13 @@ export async function login(formData: FormData) {
     );
   }
 
+  // someone with two-factor sign-in on owes a code before anything else: the sign-in is recorded and e-mailed once it has been given
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+  if (needsSecondFactor(aal)) redirect("/login/verify");
+
   // tell the person about the sign-in (if they want that e-mail); it is sent after the redirect, so it does not slow it down
   if (profile) await notifyAuthEvent("signin", profile);
 
-  redirect("/dashboard");
+  // open on the page the person chose in Settings (the Overview unless they chose another)
+  redirect(startPath(parseStartPage(profile?.ui_preferences)));
 }

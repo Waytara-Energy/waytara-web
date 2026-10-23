@@ -489,3 +489,13 @@ body {
 .dark .maplibregl-ctrl-attrib .maplibregl-ctrl-attrib-button {
   filter: invert(1);
 }
+
+/* Application Settings > Appearance > Reduce motion: no sliding, fading or spinning (AppearanceApplier sets the attribute). */
+html[data-reduce-motion="true"] *,
+html[data-reduce-motion="true"] *::before,
+html[data-reduce-motion="true"] *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}

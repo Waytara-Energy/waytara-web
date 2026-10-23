@@ -2,19 +2,41 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { MonitorSmartphone, Timer } from "lucide-react";
+import { History, KeyRound, MonitorSmartphone, Timer } from "lucide-react";
 import { withPromiseToast } from "@waytara/ui/notify";
 import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Switch } from "@/components/ui/switch";
 import { ButtonSpinner } from "@/components/ui/spinner";
+import { passwordStrength } from "@/lib/password-strength";
 import { IDLE_OPTIONS, type IdleScope, type SessionPolicy } from "@/lib/session-policy";
 import { changePassword, saveSessionPolicy } from "@/app/dashboard/settings/actions";
 import { cn } from "@/lib/utils";
 import { DevicesSetting, type SignedInDevice } from "../devices-setting";
+import { ActivityList, type ActivityEvent } from "./activity-list";
 import { FieldRow, SettingsCard, ToggleRow } from "./settings-card";
+import { TwoFactorCard } from "./two-factor-card";
 
-function PasswordCard() {
+const METER = ["bg-destructive", "bg-destructive", "bg-amber-500", "bg-emerald-500", "bg-emerald-500"] as const;
+
+/** A bar under the new password that fills as it gets stronger, with what would improve it. */
+function StrengthMeter({ password, email }: { password: string; email: string }) {
+  if (password.length === 0) return null;
+  const s = passwordStrength(password, email);
+  return (
+    <div className="space-y-1.5" aria-live="polite">
+      <div className="flex items-center gap-1.5">
+        {[1, 2, 3, 4].map((i) => (
+          <span key={i} className={cn("h-1.5 flex-1 rounded-full bg-muted transition-colors", s.score >= i && METER[s.score])} />
+        ))}
+        <span className="ml-2 w-16 text-right text-xs font-medium text-muted-foreground">{s.label}</span>
+      </div>
+      {s.tips[0] && <p className="text-xs text-muted-foreground">{s.tips[0]}</p>}
+    </div>
+  );
+}
+
+function PasswordCard({ email }: { email: string }) {
   const [current, setCurrent] = React.useState("");
   const [next, setNext] = React.useState("");
   const [again, setAgain] = React.useState("");
@@ -40,6 +62,8 @@ function PasswordCard() {
       <SettingsCard
         title="Password"
         description="Use at least 8 characters. You will need your current password to change it."
+        icon={KeyRound}
+        tone="indigo"
         footer={
           <Button type="submit" size="sm" disabled={!ready || saving}>
             <ButtonSpinner show={saving} />
@@ -56,6 +80,9 @@ function PasswordCard() {
           <FieldRow label="New password" htmlFor="newPassword">
             <PasswordInput id="newPassword" value={next} onChange={(e) => setNext(e.target.value)} autoComplete="new-password" />
           </FieldRow>
+          <div className="sm:col-span-2 sm:-mt-1 sm:order-last">
+            <StrengthMeter password={next} email={email} />
+          </div>
           <FieldRow label="New password again" htmlFor="newPasswordAgain" hint={mismatch ? "The two do not match." : undefined}>
             <PasswordInput id="newPasswordAgain" value={again} onChange={(e) => setAgain(e.target.value)} autoComplete="new-password" aria-invalid={mismatch} />
           </FieldRow>
@@ -94,6 +121,8 @@ function SessionCard({ initial }: { initial: SessionPolicy }) {
     <SettingsCard
       title="Staying signed in"
       description="Choose whether you stay signed in all the time, or are signed out after a while with no activity. This is checked on each device you use, whenever the app is open."
+      icon={Timer}
+      tone="sky"
       footer={
         <Button type="button" size="sm" disabled={!dirty || saving} onClick={() => void save()}>
           <ButtonSpinner show={saving} />
@@ -150,16 +179,20 @@ function SessionCard({ initial }: { initial: SessionPolicy }) {
   );
 }
 
-/** Settings > Account & security: the password, how long a browser may sit idle, and where the account is signed in. */
-export function SecuritySection({ policy, devices, now }: { policy: SessionPolicy; devices: SignedInDevice[]; now: number }) {
+/** Settings > Account & security: the password (with a strength bar), two-factor sign-in, how long a browser may sit idle, what happened on the
+ *  account lately, and where it is signed in. */
+export function SecuritySection({ policy, devices, now, email, events }: { policy: SessionPolicy; devices: SignedInDevice[]; now: number; email: string; events: ActivityEvent[] }) {
   return (
-    <div className="grid items-start gap-5 xl:grid-cols-2">
-      <PasswordCard />
-      <SessionCard initial={policy} />
-      <div className="xl:col-span-2">
-        <DevicesSetting devices={devices} now={now} />
+    <div className="space-y-5">
+      <div className="grid items-start gap-5 xl:grid-cols-2">
+        <PasswordCard email={email} />
+        <TwoFactorCard />
+        <SessionCard initial={policy} />
+        <SettingsCard title="Account activity" description="Sign-ins, sign-outs and changes, newest first. If something here is not you, change your password and sign out of every device." icon={History} tone="sky">
+          <ActivityList events={events.slice(0, 12)} now={now} />
+        </SettingsCard>
       </div>
+      <DevicesSetting devices={devices} now={now} />
     </div>
   );
 }
-

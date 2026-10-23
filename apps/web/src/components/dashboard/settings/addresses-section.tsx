@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { MapPin, Receipt } from "lucide-react";
 import { withPromiseToast } from "@waytara/ui/notify";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,11 +80,11 @@ export function AddressesSection({ address, billing, billingEmail, gstin }: { ad
 
   return (
     <form onSubmit={save} className="grid items-start gap-5 xl:grid-cols-2">
-      <SettingsCard title="Your address" description="Where you live or run your business. Your site's location is managed on the Site page.">
+      <SettingsCard icon={MapPin} tone="teal" title="Your address" description="Where you live or run your business. Your site's location is managed on the Site page.">
         <AddressFields idPrefix="addr" value={addr} onChange={setAddr} />
       </SettingsCard>
 
-      <SettingsCard title="Billing" description="What we put on bills and statements.">
+      <SettingsCard icon={Receipt} tone="sky" title="Billing details" description="What we put on bills and statements.">
         <ToggleRow title="Billing address is the same as my address" description={same ? addressLine(addr) || "Add your address above." : "Enter a different address below."}>
           <Switch checked={same} onCheckedChange={setSame} aria-label="Billing address is the same as my address" />
         </ToggleRow>

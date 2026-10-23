@@ -13,6 +13,8 @@ import { IdleSignOut } from "@/components/dashboard/idle-sign-out";
 import { parseSessionPolicy } from "@/lib/session-policy";
 import { parseUnitPrefs } from "@/lib/unit-prefs";
 import { UnitsProvider } from "@/components/units-provider";
+import { AppearanceApplier } from "@/components/appearance-applier";
+import { parseAppearance } from "@/lib/appearance-prefs";
 import { ConnectionNotice } from "@/components/dashboard/connection-notice";
 import { RealtimeProvider } from "@waytara/ui/realtime-provider";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
@@ -101,6 +103,7 @@ export default async function DashboardLayout({
   const sessionPolicy = parseSessionPolicy(securityRow.data?.security_preferences);
   // the units this person chose to see numbers in (Application Settings > Units), applied by every reading on every page
   const unitPrefs = parseUnitPrefs(securityRow.data?.ui_preferences);
+  const appearance = parseAppearance(securityRow.data?.ui_preferences);
   const sidebarOpen = cookieStore.get("sidebar_state")?.value === "true";
 
   // Site is the dashboard's navigation root now — every site-scoped page
@@ -153,6 +156,7 @@ export default async function DashboardLayout({
       <HeaderSlotProvider>
         <SessionWatcher />
         <IdleSignOut idleMinutes={sessionPolicy.idleMinutes} scope={sessionPolicy.scope} />
+        <AppearanceApplier prefs={appearance} />
         {/* An offline or unreachable inverter is announced by a toast (with Investigate) on every page, not only Overview. */}
         {noticeDevice && <ConnectionNotice deviceId={noticeDevice.id} sync={noticeDevice.sync} />}
         {/* The account, plan, sites and devices shown in the sidebar and header follow their rows as they change (no reload). */}

@@ -1,16 +1,21 @@
 # Application Settings (customer app)
 
-`/dashboard/settings`, built like Performance, Maintenance and Billing: a headline for the open tab, a row of seven tabs, and the tab's cards at the full width of the page (two columns on a wide screen, one on a phone); the open tab is kept in the address (`#security`). Code: `apps/web/src/components/dashboard/settings/`.
+`/dashboard/settings`, built like Performance, Maintenance and Billing: a hero (picture with a ring showing how complete the profile is, name, plan, member since, sites, devices), a row of ten coloured tabs, and the tab's cards at the full width of the page (two columns on a wide screen, one on a phone); the open tab is kept in the address (`#security`). Code: `apps/web/src/components/dashboard/settings/`.
 
 | Section | What it does | Where it is stored |
 |---|---|---|
+| Account | The home tab: a "get the most out of WayTara" list of next steps (each jumps to the right tab), profile completeness, a security check score (0-100: two-factor, verified e-mail, sign-in e-mails, idle sign-out, few devices), recent account activity, the plan and quick actions. Nothing is stored here: it is worked out by `lib/account-health.ts` from the other tabs' data. | derived |
 | Profile | Photo (cropped to a square, shrunk in the browser, uploaded to the `avatars` bucket under the person's id), name, phone. E-mail changes only by a 6-digit code sent to the NEW address. | `profiles.avatar_url / full_name / phone`; pending codes in `email_change_codes` |
-| Appearance | Light, dark or auto theme; chart style. | the browser (theme cookie / chart cookie) |
+| Appearance | Light, dark or auto theme (with previews); chart style; text size (small to extra large, scales the whole dashboard); reduce motion. Saved on each click and applied by `AppearanceApplier` in the dashboard layout. | theme and chart: the browser (cookies); text size and motion: `profiles.ui_preferences.appearance` |
 | Units | The unit numbers are shown in, for a whole kind (power W/kW/MW, energy Wh/kWh/MWh/MJ, temperature °C/°F/K, voltage V/kV, current mA/A) or for one reading ("particular values"), applied on every dashboard page. Nothing stored or measured changes; downloaded reports (PDF, CSV) and e-mails keep kW/kWh. | `profiles.ui_preferences.units` (`defaults`, `overrides` by reading key) |
+| Dashboard | Start page (where a sign-in lands: Overview, Monitoring, Performance, Reports, Devices or Support), the default site, and the Overview below. | `profiles.ui_preferences.start_page`; the site through `selectSite` (cookie) |
 | Overview | Which four cards sit beside the energy flow (two each side) out of seven, and a background (six gradients or the person's own picture, with a darken slider). | `profiles.ui_preferences` (`overview_cards`, `overview_background`, `overview_dim`) |
-| Notifications | E-mails in five categories, each with its own switch: Account & security (signed in, signed out; password or e-mail changed is always sent), Devices (network connection lost, inverter not answering, back online), Faults & alarms (fault e-mails, alarm e-mails), Billing & plan (tariff changes), Support (ticket updates). | `profiles.notification_preferences`, one true/false per key (`auth_signin`, `auth_signout`, `network_lost`, `device_offline`, `device_online`, `faults`, `alarms`, `tariff`, `support_emails`); an account that had switched the old `email_alerts` off keeps that for the device, fault and tariff e-mails |
+| Notifications | A pause card (mute every e-mail for 1 h, 8 h, 1 day or 1 week; security e-mails - sign-in, sign-out, password, e-mail and two-factor changes - are never paused), a test e-mail, and e-mails in five categories, each with its own switch: Account & security (signed in, signed out; password or e-mail changed is always sent), Devices (network connection lost, inverter not answering, back online), Faults & alarms (fault e-mails, alarm e-mails), Billing & plan (tariff changes), Support (ticket updates). | `profiles.notification_preferences`, one true/false per key (`auth_signin`, `auth_signout`, `network_lost`, `device_offline`, `device_online`, `faults`, `alarms`, `tariff`, `support_emails`); an account that had switched the old `email_alerts` off keeps that for the device, fault and tariff e-mails |
+| Alerts | The customer's own and ready-made alerts (see "My alerts"), a test alert (a sample in the bell and an e-mail, 30 s apart), recent alerts. | `alert_rules`; `notification_preferences.last_test_at` |
+| Billing | The plan card, links to payments and statements, and Addresses & billing. | as below |
 | Addresses & billing | Own address, billing address (or "same as my address"), billing e-mail, GST number. | `customers.address / billing_address / billing_email / gstin` |
-| Account & security | Password (current one checked first; option to sign every other device out), how long a browser may sit idle (never, 15 min, 30 min, 1 h, 4 h, 1 day) and whether that signs out only that device or all, and the list of signed-in devices with sign out per device / all others / all. | `profiles.security_preferences` (`idle_minutes`, `idle_scope`); sessions are Supabase's own (`auth.sessions`) |
+| Security | Password (with a strength meter), two-factor sign-in (authenticator app, see below), account activity (last 90 days), idle limit, signed-in devices. Details: password (current one checked first; option to sign every other device out), how long a browser may sit idle (never, 15 min, 30 min, 1 h, 4 h, 1 day) and whether that signs out only that device or all, and the list of signed-in devices with sign out per device / all others / all. | `profiles.security_preferences` (`idle_minutes`, `idle_scope`); sessions are Supabase's own (`auth.sessions`); activity in `account_events`; factors are Supabase's own (`auth.mfa_factors`) |
+| Privacy & data | Download my data (JSON of the profile, sites, devices, alerts, tickets, payments and activity, read through the person's own RLS session at `/api/account/export`), policy links, and a request to delete the account that opens a prefilled Support ticket (a person replies first; nothing is deleted automatically). | nothing stored |
 
 ## Units
 
@@ -35,13 +40,21 @@ Settings > Notifications, under the e-mail switches. `lib/alert-rules.ts` has th
 - **Evaluation:** `/api/cron/evaluate-alert-rules` every 5 minutes (pg_cron, like the other cron routes). Per customer and site it works out each metric from the latest readings of the site's inverters (readings older than 30 minutes are ignored), then: a limit just crossed and not fired within its cooldown fires once (a row for the bell, and one e-mail listing everything that fired, if the customer keeps "E-mail for my alerts" on); a value back in range by a small margin arms the rule again and marks its bell alert cleared. `?dry=1` reports what would fire and writes nothing.
 - Needs `CRON_SECRET`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY` and `CUSTOMER_APP_URL` on the web app, like the other jobs.
 
+## Account activity, two-factor sign-in and pausing
+
+- **Account activity.** `lib/auth-notify.ts` writes a row to `account_events` (service role only; the customer can only read their own, RLS) for every sign-in, sign-out, idle sign-out, device ended, password change, e-mail change and two-factor change, and prunes rows older than 90 days. The e-mail is separate and follows the notification switch.
+- **Two-factor sign-in (TOTP).** Settings > Security enrols an authenticator app (QR and secret), verifies one code, and can turn it off with a code. After the password, `login/actions.ts` redirects to `/login/verify` when the account has a verified factor and the session is not yet at AAL2; `proxy.ts` sends any dashboard request from such a session there too (fail-open if the check errors). `verify-form.tsx` calls `mfa.challengeAndVerify`, then `completeSignIn()` records the sign-in and returns the start page. Turning two-factor on makes Supabase end the person's other sessions. There is no recovery code: a lost phone is handled by support (an admin removes the factor).
+- **Pausing e-mail.** `profiles.notification_preferences.paused_until`; `wants()` returns false for everything except `auth_signin`/`auth_signout` while it is in the future, and the account e-mails for password, e-mail and two-factor changes are always sent.
+
 ## Migrations and tests
 
-`20261023050000_my_sessions`, `20261023060000_profile_preferences`, `20261023070000_customer_billing_details`, `20261023080000_alert_rules`; database tests 38, 39 and 40; web tests for `overview-prefs`, `session-policy`, `address`, `email-otp`, `unit-convert`, `user-agent`.
+`20261023050000_my_sessions`, `20261023060000_profile_preferences`, `20261023070000_customer_billing_details`, `20261023080000_alert_rules`, `20261023090000_account_events`; database tests 38, 39 and 40; web tests for `overview-prefs`, `session-policy`, `address`, `email-otp`, `unit-convert`, `user-agent`, `unit-prefs`, `notification-prefs`, `alert-rules`, `account-events`, `appearance-prefs`, `start-page`, `mfa`, `account-health`, `password-strength`, `billing-summary`.
 
 ## Not done
 
-- The unit choice is a converter tool, not an app-wide display preference (temperature in °F everywhere, for example).
 - Phone numbers are not verified.
-- No two-factor sign-in.
+- Two-factor sign-in has no recovery codes and no SMS option.
+- Downloading data does not include the readings from devices (those are on the Reports page).
+- Account deletion is a request to the team, not self-service (devices and warranty are involved).
+- `account_events` has no database test yet.
 - The admin app has no settings page (its sign-out is this-device-only).

@@ -18,6 +18,44 @@ export type Database = {
   }
   waytara: {
     Tables: {
+      account_events: {
+        Row: {
+          created_at: string
+          customer_id: string
+          device: string | null
+          id: string
+          ip: string | null
+          kind: string
+          place: string | null
+        }
+        Insert: {
+          created_at?: string
+          customer_id: string
+          device?: string | null
+          id?: string
+          ip?: string | null
+          kind: string
+          place?: string | null
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string
+          device?: string | null
+          id?: string
+          ip?: string | null
+          kind?: string
+          place?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "account_events_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       alert_rule_state: {
         Row: {
           active: boolean

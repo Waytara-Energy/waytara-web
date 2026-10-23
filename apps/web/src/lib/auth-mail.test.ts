@@ -16,7 +16,7 @@ describe("buildAuthEmail", () => {
     expect(m.text).not.toContain("Address:");
   });
   it("has a subject for every kind", () => {
-    const kinds: AuthKind[] = ["signin", "signout", "signout_idle", "signout_others", "signout_all", "session_revoked", "password_changed"];
+    const kinds: AuthKind[] = ["signin", "signout", "signout_idle", "signout_others", "signout_all", "session_revoked", "password_changed", "mfa_enabled", "mfa_disabled"];
     const subjects = kinds.map((kind) => buildAuthEmail({ ...base, kind, target: "Safari on iOS" }).subject);
     expect(new Set(subjects).size).toBe(kinds.length);
   });

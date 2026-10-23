@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { BadgeCheck, Camera, Mail, Trash2 } from "lucide-react";
+import { BadgeCheck, Camera, Check, Copy, IdCard, Mail, Trash2, User } from "lucide-react";
 import { createClient } from "@waytara/supabase/client";
 import { notify, withPromiseToast } from "@waytara/ui/notify";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -19,12 +19,47 @@ function initials(name: string, email: string): string {
 }
 
 /** Settings > Profile: the picture, the name and phone, and the e-mail address (changed only by entering the code sent to the new address). */
-export function ProfileSection({ userId, fullName, phone, email, avatarUrl }: { userId: string; fullName: string; phone: string; email: string; avatarUrl: string | null }) {
+export function ProfileSection({ userId, fullName, phone, email, avatarUrl, memberSince }: { userId: string; fullName: string; phone: string; email: string; avatarUrl: string | null; memberSince: string | null }) {
   return (
     <div className="grid items-start gap-5 xl:grid-cols-2">
       <PersonalCard userId={userId} fullName={fullName} phone={phone} email={email} avatarUrl={avatarUrl} />
-      <EmailCard email={email} />
+      <div className="space-y-5">
+        <EmailCard email={email} />
+        <AccountDetailsCard userId={userId} memberSince={memberSince} />
+      </div>
     </div>
+  );
+}
+
+/** What identifies the account: the customer number to quote to support (with a copy button), since when, and the time zone times are shown in. */
+function AccountDetailsCard({ userId, memberSince }: { userId: string; memberSince: string | null }) {
+  const [copied, setCopied] = React.useState(false);
+  async function copy() {
+    try {
+      await navigator.clipboard.writeText(userId);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch {
+      notify.error("Could not copy. Select the number and copy it.");
+    }
+  }
+  const rows: { label: string; value: React.ReactNode }[] = [
+    { label: "Customer ID", value: <span className="flex items-center gap-2"><code className="truncate rounded bg-muted px-1.5 py-0.5 text-xs">{userId}</code><Button type="button" variant="outline" size="icon" className="size-7 shrink-0" aria-label="Copy the customer ID" onClick={() => void copy()}>{copied ? <Check className="size-3.5" /> : <Copy className="size-3.5" />}</Button></span> },
+    { label: "Member since", value: memberSince ? new Date(memberSince).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric" }) : "—" },
+    { label: "Account type", value: "Customer" },
+    { label: "Times are shown in", value: "India Standard Time (IST)" },
+  ];
+  return (
+    <SettingsCard title="Account details" description="Quote the customer ID if you ever write to support about your account." icon={IdCard} tone="slate">
+      <dl className="-my-1 divide-y divide-border text-sm">
+        {rows.map((r) => (
+          <div key={r.label} className="flex items-center justify-between gap-4 py-2.5">
+            <dt className="shrink-0 text-muted-foreground">{r.label}</dt>
+            <dd className="min-w-0 text-right font-medium text-foreground">{r.value}</dd>
+          </div>
+        ))}
+      </dl>
+    </SettingsCard>
   );
 }
 
@@ -80,6 +115,8 @@ function PersonalCard({ userId, fullName, phone, email, avatarUrl }: { userId: s
     <form onSubmit={save}>
       <SettingsCard
         title="Profile"
+        icon={User}
+        tone="emerald"
         description="Your name and picture show in the menu and in Support, so the team knows who they are talking to."
         footer={
           <Button type="submit" size="sm" disabled={!dirty || saving || !name.trim()}>
@@ -181,7 +218,7 @@ function EmailCard({ email }: { email: string }) {
   }
 
   return (
-    <SettingsCard title="E-mail address" description="This is the address you sign in with and where we send alerts and replies. To change it we send a 6-digit code to the new address.">
+    <SettingsCard icon={Mail} tone="sky" title="E-mail address" description="This is the address you sign in with and where we send alerts and replies. To change it we send a 6-digit code to the new address.">
       <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-background px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-primary/15 text-primary">

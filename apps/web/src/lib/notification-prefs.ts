@@ -88,16 +88,30 @@ const LEGACY_ALERT_KEYS: readonly NotificationKey[] = ["network_lost", "device_o
 
 const asObject = (raw: unknown): Record<string, unknown> => (raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {});
 
-/** Does this person want this e-mail? Their own choice if they made one, else the old alert switch for the keys it covered, else the default. */
-export function wants(raw: unknown, key: NotificationKey): boolean {
+/** The e-mails that still arrive while notifications are paused: they are about the security of the account. */
+const NEVER_PAUSED: readonly NotificationKey[] = ["auth_signin", "auth_signout"];
+
+/** When notifications were paused until (epoch ms), or null when they are not paused (or the pause is over). */
+export function pausedUntil(raw: unknown, nowMs: number = Date.now()): number | null {
+  const v = asObject(raw).paused_until;
+  const t = typeof v === "string" ? Date.parse(v) : NaN;
+  return Number.isFinite(t) && t > nowMs ? t : null;
+}
+
+/** Does this person want this e-mail? While notifications are paused nothing but the security e-mails; otherwise their own choice if they made
+ *  one, else the old alert switch for the keys it covered, else the default. */
+export function wants(raw: unknown, key: NotificationKey, nowMs: number = Date.now()): boolean {
+  if (pausedUntil(raw, nowMs) !== null && !NEVER_PAUSED.includes(key)) return false;
   const o = asObject(raw);
   if (typeof o[key] === "boolean") return o[key] as boolean;
   if (LEGACY_ALERT_KEYS.includes(key) && o.email_alerts === false) return false;
   return DEFAULTS[key];
 }
 
+/** The person's switches as they set them (a pause is not applied here: it is shown and changed on its own). */
 export function resolveNotificationPrefs(raw: unknown): Record<NotificationKey, boolean> {
-  return Object.fromEntries(NOTIFICATION_KEYS.map((k) => [k, wants(raw, k)])) as Record<NotificationKey, boolean>;
+  const unpaused = { ...asObject(raw), paused_until: null };
+  return Object.fromEntries(NOTIFICATION_KEYS.map((k) => [k, wants(unpaused, k)])) as Record<NotificationKey, boolean>;
 }
 
 /** The stored value after a save: the other keys of the column are kept, the known keys are replaced, and the old `email_alerts` is kept in
