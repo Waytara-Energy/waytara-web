@@ -100,6 +100,7 @@ function Board({ deviceId, deviceLabel, customerName, siteName, tariffRate, tari
           <StatTile key={f.label} label={`${f.label} · ${period}`} value={has ? f.value : "—"} />
         ))}
       </div>
+      {report.stats.sample && has && <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">Sample data: this charger has no real charge yet, so this report is made from sample charges.</p>}
       {report.stats.cost && has && (
         <p className="text-xs text-muted-foreground">
           Priced at ₹{report.stats.cost.rate.toFixed(2)}/kWh{tariffNote ? ` (${tariffNote})` : ""}. Energy without a source split counts as grid.

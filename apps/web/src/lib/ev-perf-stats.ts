@@ -66,6 +66,8 @@ export interface EvCost {
 }
 
 export interface EvPerfStats {
+  /** True when the figures are of sample (test / simulated) sessions: the charger has no real one yet, so the sample data is shown, labelled. */
+  sample: boolean;
   sessions: number;
   energyKwh: number;
   /** Sessions whose energy is not known are not in the average. */
@@ -107,9 +109,13 @@ export function spanOfDays(from: string, to: string): EvSpan {
 
 /**
  * The figures of the sessions that started inside `span`. `rate` (rupees per kWh) prices them; without one there is no cost.
+ * Test and simulated sessions are left out once the charger has a real one; until then they are the figures (`sample` says so), so a charger
+ * set up with sample data shows it on every page instead of an empty one.
  */
 export function evPerfStats(all: readonly EvPerfSession[], span: EvSpan, rate: number | null = null): EvPerfStats {
-  const inSpan = all.filter((s) => !s.is_test && s.source !== "simulated").filter((s) => {
+  const isSample = (s: EvPerfSession) => !!s.is_test || s.source === "simulated";
+  const sample = !all.some((s) => !isSample(s)) && all.some(isSample);
+  const inSpan = all.filter((s) => sample || !isSample(s)).filter((s) => {
     const t = Date.parse(s.started_at);
     return t >= span.fromMs && t < span.toMs;
   });
@@ -179,6 +185,7 @@ export function evPerfStats(all: readonly EvPerfSession[], span: EvSpan, rate: n
       : null;
 
   return {
+    sample,
     sessions: inSpan.length,
     energyKwh: energy,
     avgSessionKwh: counted > 0 ? energy / counted : null,

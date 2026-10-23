@@ -71,6 +71,10 @@ function Board({ sessions, loadDaily, tariff }: EvPerformanceProps) {
         <RangeBar presets={LONG_PRESETS} />
       </div>
 
+      {stats.sample && has && (
+        <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">Sample data: this charger has no real charge yet, so these figures are from sample charges. They are replaced by the real ones with its first real charge.</p>
+      )}
+
       {!has && (
         <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">No charging sessions in this period. Pick a longer period, or start a charge from the Overview.</p>
       )}

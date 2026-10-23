@@ -67,6 +67,16 @@ describe("evPerfStats", () => {
     expect(s.rows.map((r) => r.id)).toEqual(["in"]);
   });
 
+  it("shows the sample sessions, labelled, only while the charger has no real one", () => {
+    const only = evPerfStats([make({ id: "test", is_test: true }), make({ id: "sim", source: "simulated" })], week);
+    expect(only.sample).toBe(true);
+    expect(only.rows.map((r) => r.id).sort()).toEqual(["sim", "test"]);
+    const mixed = evPerfStats([make({ id: "real" }), make({ id: "test", is_test: true })], week);
+    expect(mixed.sample).toBe(false);
+    expect(mixed.rows.map((r) => r.id)).toEqual(["real"]);
+    expect(evPerfStats([], week).sample).toBe(false);
+  });
+
   it("says nothing it does not know: no sessions, no energy count, no split", () => {
     const empty = evPerfStats([], week);
     expect(empty).toMatchObject({ sessions: 0, energyKwh: 0, avgSessionKwh: null, peakKw: null, avgKw: null, solarSharePct: null, cost: null });

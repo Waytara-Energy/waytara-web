@@ -22,7 +22,6 @@ import { TriangleAlert, Plug, Zap } from "lucide-react";
 import { ChargerTrendGroup } from "./lazy-charts";
 import { SolarMonitoringView } from "./solar-monitoring-view";
 import { FLOW } from "./flow-colors";
-import { TabButtonContent } from "./monitoring-shared";
 import { EvHubCards, EvHubGroups } from "./ev-hub-live";
 import { temperatureRowsFor } from "@/lib/temperature-rows";
 import { valuesFor, enumToObject } from "@/lib/field-values";
@@ -291,10 +290,13 @@ async function EvChargerMonitoring({ supabase, device }: { supabase: SupabaseSer
       <MonitoringTabs key={device.id} defaultValue="ev" headlines={{}} validValues={["ev", "hub"]} aliases={{ sessions: "ev" }}>
         <TabsList variant="line">
           <TabsTrigger value="ev" variant="line">
-            <TabButtonContent icon={Zap} label="EV" />
+            {/* written out here: this file is a server component and an icon cannot be passed to the client TabButtonContent */}
+            <Zap className="size-4 shrink-0 group-data-[state=active]:hidden" />
+            <span className="text-sm font-medium">EV</span>
           </TabsTrigger>
           <TabsTrigger value="hub" variant="line">
-            <TabButtonContent icon={Plug} label="Charger data" />
+            <Plug className="size-4 shrink-0 group-data-[state=active]:hidden" />
+            <span className="text-sm font-medium">Charger data</span>
           </TabsTrigger>
         </TabsList>
 
