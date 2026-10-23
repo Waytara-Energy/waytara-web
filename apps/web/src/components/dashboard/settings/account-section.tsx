@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { ArrowRight, BellOff, CheckCircle2, Circle, History, LayoutGrid, LifeBuoy, Receipt, Moon, Rocket, ShieldCheck, Sparkles } from "lucide-react";
+import { ArrowRight, BellOff, CheckCircle2, Circle, History, LifeBuoy, Receipt, Moon, Rocket, ShieldCheck, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { LEVEL_LABEL, nextSteps, profileCompleteness, securityScore, type CheckItem, type HealthInput } from "@/lib/account-health";
 import { cn } from "@/lib/utils";
@@ -111,13 +111,6 @@ export function AccountSection({ health, events, plan, pausedUntil, now }: Accou
                 <span className="min-w-0 flex-1">Invoices and payments</span>
                 <ArrowRight className="size-3.5 text-muted-foreground" />
               </button>
-            </li>
-            <li>
-              <Link href="/dashboard?customize=1" className="flex items-center gap-3 py-3 text-sm font-medium text-foreground transition-colors hover:text-emerald-600 dark:hover:text-emerald-400">
-                <LayoutGrid className="size-4 text-muted-foreground" />
-                <span className="min-w-0 flex-1">Arrange my Overview</span>
-                <ArrowRight className="size-3.5 text-muted-foreground" />
-              </Link>
             </li>
             <li>
               <Link href="/dashboard/support" className="flex items-center gap-3 py-3 text-sm font-medium text-foreground transition-colors hover:text-emerald-600 dark:hover:text-emerald-400">

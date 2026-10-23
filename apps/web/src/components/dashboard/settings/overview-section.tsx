@@ -1,65 +1,86 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Check, ImagePlus, LayoutGrid, RotateCcw, Trash2 } from "lucide-react";
+import { Check, ImagePlus, LayoutDashboard, RotateCcw, Trash2 } from "lucide-react";
 import { createClient } from "@waytara/supabase/client";
 import { notify } from "@waytara/ui/notify";
 import { Button } from "@/components/ui/button";
 import { Slider } from "@/components/ui/slider";
-import { ButtonSpinner } from "@/components/ui/spinner";
 import { pictureProblem, shrinkPicture } from "@/lib/image-resize";
-import { BACKGROUND_PRESETS, backgroundCss, type OverviewBackground, type OverviewPrefs } from "@/lib/overview-prefs";
-import { FIT_ROWS, WIDGET_THEMES, rowsOf, widgetMeta, type WidgetItem } from "@/lib/overview-layout";
-import { saveOverview, saveOverviewLayout } from "@/app/dashboard/settings/actions";
+import { BACKGROUND_PRESETS, DEFAULT_OVERVIEW_CARDS, OVERVIEW_CARDS, OVERVIEW_CARD_COUNT, backgroundCss, splitCards, type OverviewBackground, type OverviewCardId, type OverviewPrefs } from "@/lib/overview-prefs";
+import { saveOverview } from "@/app/dashboard/settings/actions";
 import { cn } from "@/lib/utils";
 import { SettingsCard, TwoColumns } from "./settings-card";
 import { useAutoSave } from "./use-auto-save";
 
-/** A small drawing of the Overview as it is arranged now: each widget where it sits, in its colour, over the chosen background. */
-function Preview({ layout, background }: { layout: WidgetItem[]; background: string | null }) {
-  const rows = Math.max(rowsOf(layout), FIT_ROWS);
+const label = (id: OverviewCardId) => OVERVIEW_CARDS.find((c) => c.id === id)?.label ?? id;
+
+/** A small drawing of the Overview as it will look: two cards, the energy flow, two cards, over the chosen background. */
+function Preview({ cards, background }: { cards: OverviewCardId[]; background: string | null }) {
+  const { left, right } = splitCards(cards.length === OVERVIEW_CARD_COUNT ? cards : DEFAULT_OVERVIEW_CARDS);
+  const tile = (id: OverviewCardId) => (
+    <div key={id} className={cn("flex flex-1 flex-col justify-between rounded-lg border p-2", background ? "border-white/20 bg-black/35 text-white backdrop-blur" : "border-border bg-card text-foreground")}>
+      <span className="text-[10px] font-medium leading-tight">{label(id)}</span>
+      <span className="mt-2 h-1.5 w-2/3 rounded-full bg-current opacity-25" />
+    </div>
+  );
   return (
     <div className="rounded-xl p-3" style={background ? { background } : { background: "var(--muted)" }}>
-      <div className="relative aspect-[16/10] w-full">
-        {layout.map((w) => {
-          const theme = WIDGET_THEMES.find((t) => t.id === w.theme) ?? WIDGET_THEMES[0];
-          const tinted = w.theme !== "default" && w.theme !== "glass";
-          return (
-            <div
-              key={w.id}
-              className={cn("absolute overflow-hidden rounded-md border p-1 text-[9px] font-medium leading-tight", tinted ? "border-transparent text-white" : background ? "border-white/20 bg-black/35 text-white" : "border-border bg-card text-foreground")}
-              style={{ left: `calc(${(w.x / 12) * 100}% + 1px)`, width: `calc(${(w.w / 12) * 100}% - 2px)`, top: `calc(${(w.y / rows) * 100}% + 1px)`, height: `calc(${(w.h / rows) * 100}% - 2px)`, ...(tinted ? { background: theme.swatch } : {}) }}
-            >
-              {widgetMeta(w.type)?.label ?? w.type}
-            </div>
-          );
-        })}
+      <div className="grid h-40 grid-cols-[1fr_1.2fr_1fr] gap-2">
+        <div className="flex flex-col gap-2">{left.map(tile)}</div>
+        <div className="flex items-center justify-center">
+          <div className={cn("grid size-20 place-items-center rounded-full border-2 border-dashed text-[10px] font-medium", background ? "border-white/50 text-white/80" : "border-border text-muted-foreground")}>Energy flow</div>
+        </div>
+        <div className="flex flex-col gap-2">{right.map(tile)}</div>
       </div>
     </div>
   );
 }
 
-type Saved = Pick<OverviewPrefs, "background" | "dim">;
+type Background = Pick<OverviewPrefs, "background" | "dim">;
 
-/** Settings > Dashboard > Overview: the widgets (arranged on the Overview itself: drag, stretch, colour, add; here is a picture of the board and
- *  the way in) and the picture or colour behind the page. The background saves itself when a colour is picked, a picture is chosen or the
- *  darkening is let go: there is no Save button. A picture is shrunk in the browser first. */
-export function OverviewSection({ userId, initial, imageUrl, layout }: { userId: string; initial: Saved; imageUrl: string | null; layout: WidgetItem[] }) {
+/** Settings > Dashboard > Overview: which four cards sit beside the energy flow (the first two on the left, the last two on the right), and the
+ *  picture or colour behind the page. Everything saves itself: the cards once exactly four are chosen, the background when a colour is picked, a
+ *  picture is chosen or the darkening is let go. A picture is shrunk in the browser first. */
+export function OverviewSection({ userId, initial, imageUrl }: { userId: string; initial: OverviewPrefs; imageUrl: string | null }) {
   const router = useRouter();
-  const { value, update, saving } = useAutoSave<Saved>(initial, saveOverview, { message: "Background saved.", onSaved: () => router.refresh() });
+  const [cards, setCards] = React.useState<OverviewCardId[]>(initial.cards);
+  // the background and the four cards are saved together, so each save carries the cards as last saved
+  const savedCards = React.useRef<OverviewCardId[]>(initial.cards);
+  const { value, update, saving } = useAutoSave<Background>(initial, (v) => saveOverview({ ...v, cards: savedCards.current }), { message: "Overview saved.", onSaved: () => router.refresh() });
   const bg: OverviewBackground = value.background;
-  // while the darkening handle is held it follows the finger; the value is saved when it is let go
   const [dimLive, setDimLive] = React.useState<number | null>(null);
   const dim = dimLive ?? value.dim;
   const [uploading, setUploading] = React.useState(false);
   const [pictureUrl, setPictureUrl] = React.useState<string | null>(imageUrl);
-  const [resetting, setResetting] = React.useState(false);
+  const [savingCards, setSavingCards] = React.useState(false);
   const picker = React.useRef<HTMLInputElement>(null);
 
   const previewCss = backgroundCss(bg, bg.kind === "image" ? pictureUrl : null, dim);
   const hasImage = bg.kind === "image";
+
+  async function saveCards(next: OverviewCardId[]) {
+    setSavingCards(true);
+    try {
+      await saveOverview({ ...value, cards: next });
+      savedCards.current = next;
+      notify.success("Overview saved.", { duration: 1500 });
+      router.refresh();
+    } catch (e) {
+      setCards(savedCards.current);
+      notify.error(e instanceof Error ? e.message : "Could not save. Try again.");
+    } finally {
+      setSavingCards(false);
+    }
+  }
+
+  // exactly four are needed, so a change is saved once there are four (removing one to swap it for another saves when the other is chosen)
+  function change(next: OverviewCardId[]) {
+    setCards(next);
+    if (next.length === OVERVIEW_CARD_COUNT && next.some((c, i) => c !== savedCards.current[i])) void saveCards(next);
+  }
+  const toggle = (id: OverviewCardId) => change(cards.includes(id) ? cards.filter((c) => c !== id) : cards.length < OVERVIEW_CARD_COUNT ? [...cards, id] : cards);
 
   async function choosePicture(file: File | undefined) {
     if (!file) return;
@@ -85,51 +106,58 @@ export function OverviewSection({ userId, initial, imageUrl, layout }: { userId:
     }
   }
 
-  async function resetLayout() {
-    setResetting(true);
-    try {
-      await saveOverviewLayout(null);
-      notify.success("The standard Overview is back.");
-      router.refresh();
-    } catch (e) {
-      notify.error(e instanceof Error ? e.message : "Could not reset. Try again.");
-    } finally {
-      setResetting(false);
-    }
-  }
-
   return (
     <TwoColumns
       left={
         <SettingsCard
-          title="Overview widgets"
-          icon={LayoutGrid}
+          title="Overview cards"
+          icon={LayoutDashboard}
           tone="amber"
-          description="Build your Overview like the home screen of a phone: choose the widgets, give each a colour, drag them where you want them and stretch them bigger or smaller."
-          footer={
-            <>
-              <Button type="button" variant="outline" size="sm" disabled={resetting} onClick={() => void resetLayout()}>
-                <ButtonSpinner show={resetting} />
-                {!resetting && <RotateCcw className="size-3.5" />}
-                Standard layout
-              </Button>
-              <Button asChild size="sm">
-                <Link href="/dashboard?customize=1">
-                  <LayoutGrid className="size-3.5" />
-                  Customize my Overview
-                </Link>
-              </Button>
-            </>
-          }
+          description={`Pick ${OVERVIEW_CARD_COUNT} cards for your Overview. The first two sit to the left of the energy flow, the last two to the right. Saved as soon as you have ${OVERVIEW_CARD_COUNT}.`}
         >
-          <Preview layout={layout} background={previewCss} />
-          <p className="text-xs text-muted-foreground">
-            {layout.length} {layout.length === 1 ? "widget" : "widgets"} on your Overview. Customizing opens the Overview itself, so you arrange it on the real thing. It needs a wide screen: on a phone the widgets are stacked.
-          </p>
+          <div className="grid gap-2 sm:grid-cols-2">
+            {OVERVIEW_CARDS.map((c) => {
+              const order = cards.indexOf(c.id);
+              const on = order >= 0;
+              const full = !on && cards.length >= OVERVIEW_CARD_COUNT;
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  role="checkbox"
+                  aria-checked={on}
+                  disabled={full || savingCards}
+                  onClick={() => toggle(c.id)}
+                  className={cn(
+                    "flex items-center gap-3 rounded-xl border px-3.5 py-3 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50",
+                    on ? "border-primary bg-primary/10" : "border-border hover:bg-accent",
+                  )}
+                >
+                  <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-full border text-xs font-semibold", on ? "border-primary bg-primary text-primary-foreground" : "border-border text-transparent")}>
+                    {on ? order + 1 : <Check className="size-3" />}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-sm font-medium text-foreground">{c.label}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{c.hint}</span>
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
+            <span className={cn(cards.length !== OVERVIEW_CARD_COUNT && "text-amber-600 dark:text-amber-400")}>
+              {cards.length} of {OVERVIEW_CARD_COUNT} chosen. Tap a chosen card to remove it; the order is the order you chose them.
+            </span>
+            <Button type="button" variant="outline" size="sm" disabled={savingCards} onClick={() => change(DEFAULT_OVERVIEW_CARDS)}>
+              <RotateCcw className="size-3.5" />
+              Reset to default
+            </Button>
+          </div>
+          <Preview cards={cards} background={previewCss} />
         </SettingsCard>
       }
       right={
-        <SettingsCard icon={ImagePlus} tone="rose" title="Background" description="A colour or your own picture behind the Overview. Plain widgets turn to frosted glass so the numbers stay easy to read. Changes are saved as you make them.">
+        <SettingsCard icon={ImagePlus} tone="rose" title="Background" description="A colour or your own picture behind the Overview. The cards turn to frosted glass so the numbers stay easy to read. Changes are saved as you make them.">
           <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 lg:grid-cols-7">
             <button
               type="button"
@@ -160,8 +188,7 @@ export function OverviewSection({ userId, initial, imageUrl, layout }: { userId:
 
           <div className="flex flex-wrap items-center gap-2">
             <Button type="button" variant="outline" size="sm" disabled={uploading || saving} onClick={() => picker.current?.click()}>
-              <ButtonSpinner show={uploading} />
-              {!uploading && <ImagePlus className="size-3.5" />}
+              <ImagePlus className="size-3.5" />
               {uploading ? "Uploading…" : hasImage ? "Choose another picture" : "Use my own picture"}
             </Button>
             {hasImage && (
