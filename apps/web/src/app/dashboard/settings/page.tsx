@@ -11,7 +11,8 @@ import { addressLine, isEmptyAddress, parseAddress } from "@/lib/address";
 import { parseAppearance } from "@/lib/appearance-prefs";
 import { NOTIFICATION_KEYS, pausedUntil, resolveNotificationPrefs } from "@/lib/notification-prefs";
 import { parseOverviewPrefs } from "@/lib/overview-prefs";
-import { periodProgress } from "@/lib/billing-summary";
+import { periodProgress, summarisePayments, type PaymentRow } from "@/lib/billing-summary";
+import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { getCustomerSites, getSelectedSite } from "@/lib/selected-site";
 import { parseSessionPolicy } from "@/lib/session-policy";
 import { parseStartPage } from "@/lib/start-page";
@@ -28,9 +29,9 @@ export default async function SettingsPage() {
   const profile = await requireCustomer();
   const supabase = await createClient();
   const [site, allSites] = await Promise.all([getSelectedSite(), getCustomerSites()]);
-  const [{ data: row }, { data: customer }, { data: subscription }, { data: sessionRows }, unitValues, { data: ruleRows }, { data: alertRows }, { data: eventRows }, factors] = await Promise.all([
+  const [{ data: row }, { data: customer }, { data: subscription }, { data: sessionRows }, unitValues, { data: ruleRows }, { data: alertRows }, { data: eventRows }, factors, { data: paymentRows }] = await Promise.all([
     supabase.from("profiles").select("full_name, phone, email, avatar_url, created_at, notification_preferences, ui_preferences, security_preferences").eq("id", profile.id).maybeSingle(),
-    supabase.from("customers").select("address, billing_address, billing_email, gstin, plan_started_at, plan:plans(name, price_monthly)").eq("id", profile.id).maybeSingle(),
+    supabase.from("customers").select("status, address, billing_address, billing_email, gstin, plan_started_at, plan:plans(name, price_monthly)").eq("id", profile.id).maybeSingle(),
     supabase.from("subscriptions").select("status, current_period_start, current_period_end").eq("customer_id", profile.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.rpc("my_sessions"),
     // the readings of the selected site's devices whose unit can be changed (for the "particular values" list of Units)
@@ -40,6 +41,8 @@ export default async function SettingsPage() {
     supabase.from("alerts").select("id, severity, message, ts, resolved_at").order("ts", { ascending: false }).limit(8),
     supabase.from("account_events").select("id, kind, device, place, ip, created_at").order("created_at", { ascending: false }).limit(20),
     supabase.auth.mfa.listFactors(),
+    // the payments of the Billing tab (RLS scopes them to this customer; the limit keeps a very old account from an unbounded read)
+    supabase.from("payments").select("id, payment_type, amount, status, method, paid_at, created_at").order("created_at", { ascending: false }).limit(500),
   ]);
 
   const now = serverNow();
@@ -82,14 +85,19 @@ export default async function SettingsPage() {
         status: subscription?.status ?? null,
         progress: subscription ? periodProgress(subscription.current_period_start, subscription.current_period_end, now) : null,
         periodEnd: subscription?.current_period_end ?? null,
+        since: customer.plan_started_at,
+        accountStatus: customer.status,
       }
     : null;
 
+  const payments: PaymentRow[] = paymentRows ?? [];
   const overviewProps = { userId: profile.id, initial: overview, imageUrl };
   const addressesProps = { address, billing, billingEmail: customer?.billing_email ?? "", gstin: customer?.gstin ?? "" };
 
   return (
-    <SettingsBoard
+    <>
+      <RealtimeRefresh table="payments" event="UPDATE" filter={`customer_id=eq.${profile.id}`} />
+      <SettingsBoard
       hero={{ name, email, avatarUrl: row?.avatar_url ?? null, completeness: profileCompleteness(health).percent, planName: customer?.plan?.name ?? null, memberSince: row?.created_at ?? null, sites: allSites.length, devices: deviceCount }}
       account={{ health, events, plan, pausedUntil: pausedIso, now }}
       profile={{ userId: profile.id, fullName: name, phone: row?.phone ?? "", email, avatarUrl: row?.avatar_url ?? null, memberSince: row?.created_at ?? null }}
@@ -98,9 +106,10 @@ export default async function SettingsPage() {
       dashboard={{ startPage: parseStartPage(row?.ui_preferences), sites: allSites.map((s) => ({ id: s.id, name: s.name, devices: s.devices.length, address: s.address ? addressLine(parseAddress(s.address)) || null : null })), selectedSiteId: site?.id ?? null, overview: overviewProps }}
       notifications={{ initial: prefs, pausedUntil: pausedIso, email }}
       alerts={{ rules, sites: siteList, recent, emailOn: prefs.rule_alerts, paused: paused !== null, now }}
-      billing={{ plan, addresses: addressesProps }}
+      billing={{ plan, payments, summary: summarisePayments(payments), addresses: addressesProps }}
       security={{ policy, devices, now, email, events }}
       privacy={{ email }}
     />
+    </>
   );
 }

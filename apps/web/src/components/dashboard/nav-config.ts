@@ -2,7 +2,6 @@ import {
   LayoutDashboard,
   Wrench,
   LifeBuoy,
-  CreditCard,
   Settings,
   Activity,
   TrendingUp,
@@ -55,7 +54,6 @@ export const NAV_ITEMS: NavItem[] = [
 // sidebar row.
 export const SECONDARY_NAV_ITEMS: NavItem[] = [
   { href: "/dashboard/support", label: "Support", icon: LifeBuoy },
-  { href: "/dashboard/billing", label: "Billing & Plan", icon: CreditCard },
   { href: "/dashboard/settings", label: "Application Settings", icon: Settings },
 ];
 

@@ -121,7 +121,17 @@ export function AccountSection({ health, events, plan, pausedUntil, now }: Accou
         </div>
 
         <div className="space-y-5">
-          {plan && <PlanCard plan={plan} />}
+          {plan && (
+            <PlanCard
+              plan={plan}
+              action={
+                <Button type="button" variant="outline" size="sm" className="w-full" onClick={() => go("billing")}>
+                  Billing &amp; payments
+                  <ArrowRight className="size-3.5" />
+                </Button>
+              }
+            />
+          )}
 
           <SettingsCard title="Quick actions" icon={Rocket} tone="amber">
             <ul className="-my-1 divide-y divide-border">

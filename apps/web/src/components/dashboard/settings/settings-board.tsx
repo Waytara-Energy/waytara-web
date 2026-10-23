@@ -59,6 +59,7 @@ export function SettingsBoard(props: SettingsBoardProps) {
     profile: props.hero.completeness < 100 ? { dot: "amber" } : undefined,
     security: account.health.twoFactor ? undefined : { dot: "amber" },
     notifications: account.pausedUntil ? { dot: "amber" } : undefined,
+    billing: props.billing.summary.pending > 0 ? { dot: "amber" } : undefined,
     alerts: { count: alerts.rules.filter((r) => r.enabled).length },
   };
 
