@@ -185,10 +185,12 @@ export function EnergyFlowDiagram({
   const [focus, setFocus] = React.useState<string | null>(null);
 
   const nodes: FlowNode[] = [
-    ...(hasSolarPackage(powerPackage) && solarW !== null ? [makeNode("solar", "solar", "Solar", solarW, null, "idle", prefs)] : []),
-    ...(hasGridSource(powerSourceCategory) && gridW !== null ? [makeNode("grid", "grid", "Grid", gridW, null, "idle", prefs)] : []),
-    ...(hasBatteryPackage(powerPackage) && batteryW !== null ? [makeNode("battery", "battery", "Battery", batteryW, batterySocPct, "idle", prefs)] : []),
-    ...(loadW !== null ? [makeNode("home", "home", "Load", loadW, null, homeSourceOf(loadW, solarW, batteryW, gridW), prefs)] : []),
+    // A circle is drawn when it has a reading, or - with no reading yet (the unit is offline, a new day without data) - when the site is known to have
+    // that equipment (its package says so): it then stays in place, greyed, with "-" instead of vanishing and leaving a hub on its own.
+    ...(hasSolarPackage(powerPackage) && (solarW !== null || powerPackage !== null) ? [makeNode("solar", "solar", "Solar", solarW, null, "idle", prefs)] : []),
+    ...(hasGridSource(powerSourceCategory) && (gridW !== null || powerSourceCategory !== null) ? [makeNode("grid", "grid", "Grid", gridW, null, "idle", prefs)] : []),
+    ...(hasBatteryPackage(powerPackage) && (batteryW !== null || powerPackage !== null) ? [makeNode("battery", "battery", "Battery", batteryW, batterySocPct, "idle", prefs)] : []),
+    ...(loadW !== null || powerPackage !== null ? [makeNode("home", "home", "Load", loadW, null, homeSourceOf(loadW, solarW, batteryW, gridW), prefs)] : []),
     ...((evInfo || (hasEvPackage(powerPackage) && evW !== null))
       ? [
           {
