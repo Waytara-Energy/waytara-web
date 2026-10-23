@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GAP_EXPLANATION, explainGap, MIN_GAP_MS, dayGapLines, dayGapText, dayGapsSummary, gapLines, gapsCsv, gapsSummary, durationText, findDayGaps, findGaps, gapRangeText, gapText, totalGapDays, totalGapMs } from "./data-gaps";
+import { GAP_EXPLANATION, explainGap, withCauses, MIN_GAP_MS, dayGapLines, dayGapText, dayGapsSummary, gapLines, gapsCsv, gapsSummary, durationText, findDayGaps, findGaps, gapRangeText, gapText, totalGapDays, totalGapMs } from "./data-gaps";
 
 const Q = 15 * 60_000;
 // 2026-10-23 00:00 IST is 2026-10-22 18:30 UTC
@@ -115,7 +115,7 @@ describe("findDayGaps", () => {
 describe("the lines of a report", () => {
   const gap = { fromMs: at(10, 15), toMs: at(11, 40), ongoing: false };
   it("writes a time gap with its date and length, and a gap still going on without an end", () => {
-    expect(gapLines([gap])).toEqual([{ from: "23 Oct 2026, 10:15", to: "23 Oct 2026, 11:40", length: "1 h 25 min" }]);
+    expect(gapLines([gap])).toEqual([{ from: "23 Oct 2026, 10:15", to: "23 Oct 2026, 11:40", length: "1 h 25 min", ongoing: false, reason: undefined }]);
     expect(gapLines([{ ...gap, ongoing: true }])[0].to).toBe("still no readings");
     expect(gapsSummary([gap, gap])).toBe("2 periods, 2 h 50 min without readings");
   });
@@ -157,5 +157,20 @@ describe("explainGap", () => {
   it("says the cause is unknown when nothing was recorded or the cause is not one we know", () => {
     expect(explainGap(gap, []).cause).toBe("unknown");
     expect(explainGap(gap, [{ sinceMs: at(15, 30), cause: null }]).cause).toBe("unknown");
+  });
+});
+
+describe("causes in a report", () => {
+  const gap = { fromMs: at(15, 30), toMs: at(16, 45), ongoing: true };
+  it("puts the cause on the gap and its words on the report line", () => {
+    const [g] = withCauses([gap], [{ sinceMs: at(15, 31), cause: "offline" }]);
+    expect(g.cause).toBe("unit_offline");
+    expect(gapLines([g])[0]).toMatchObject({ reason: "Monitoring unit offline", ongoing: true, length: "1 h 15 min so far" });
+  });
+  it("adds a Reason column to the CSV only when a line has a reason", () => {
+    const esc = (c: string | number) => `"${c}"`;
+    const [g] = withCauses([gap], []);
+    expect(gapsCsv(gapLines([g]), "s", esc)[2]).toBe('"From","To","Length","Reason"');
+    expect(gapsCsv(gapLines([gap]), "s", esc)[2]).toBe('"From","To","Length"');
   });
 });

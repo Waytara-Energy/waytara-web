@@ -1,4 +1,6 @@
+import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { CHART_STYLE_COOKIE, parseChartStyle } from "@/lib/chart-style";
 import { createClient } from "@waytara/supabase/server";
 import { gatherReportsBase } from "@/lib/reports/gather";
 import { PERIOD_PRESETS, buildCustomReport, type CustomReportDef, type PeriodSpec } from "@/lib/reports/custom-report";
@@ -58,5 +60,5 @@ export async function GET(req: NextRequest) {
   const filename = `waytara-${slug(report.name)}-${report.period.from}-to-${report.period.to}.${format}`;
   const headers = { "Content-Disposition": `attachment; filename="${filename}"`, "Cache-Control": "private, no-store" };
   if (format === "csv") return new NextResponse(customReportCsv(report), { headers: { ...headers, "Content-Type": "text/csv; charset=utf-8" } });
-  return new NextResponse(new Uint8Array(await generateCustomReportPdf(report)), { headers: { ...headers, "Content-Type": "application/pdf" } });
+  return new NextResponse(new Uint8Array(await generateCustomReportPdf(report, parseChartStyle((await cookies()).get(CHART_STYLE_COOKIE)?.value))), { headers: { ...headers, "Content-Type": "application/pdf" } });
 }

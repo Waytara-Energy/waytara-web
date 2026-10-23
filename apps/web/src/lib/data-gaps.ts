@@ -10,6 +10,8 @@ export interface DataGap {
   toMs: number;
   /** the readings have not come back yet */
   ongoing: boolean;
+  /** why, when it has been looked up (see withCauses) */
+  cause?: GapCause;
 }
 
 const MIN_MS = 60_000;
@@ -149,6 +151,9 @@ export function explainGap(g: DataGap, outages: readonly OutageEvent[]): GapReas
   return reasonOf(cause);
 }
 
+/** The same gaps with their cause filled in from the recorded outages (a report does this once, on the server). */
+export const withCauses = (gaps: readonly DataGap[], outages: readonly OutageEvent[]): DataGap[] => gaps.map((g) => ({ ...g, cause: explainGap(g, outages).cause }));
+
 // ---- whole days (the statements and period reports work in days) ----------------------------------------------------------------------
 
 export interface DayGap {
@@ -210,6 +215,10 @@ export interface GapLine {
   from: string;
   to: string;
   length: string;
+  /** the readings have not come back (there is no end) */
+  ongoing?: boolean;
+  /** what was wrong, when known: "Monitoring unit offline" */
+  reason?: string;
 }
 
 /** "23 Oct 2026, 10:15" (India time). */
@@ -220,7 +229,13 @@ function stamp(ms: number): string {
 
 /** The report rows of time gaps. A gap that is still going on says so instead of an end. */
 export const gapLines = (gaps: readonly DataGap[]): GapLine[] =>
-  gaps.map((g) => ({ from: stamp(g.fromMs), to: g.ongoing ? "still no readings" : stamp(g.toMs), length: durationText(g.toMs - g.fromMs) }));
+  gaps.map((g) => ({
+    from: stamp(g.fromMs),
+    to: g.ongoing ? "still no readings" : stamp(g.toMs),
+    length: `${durationText(g.toMs - g.fromMs)}${g.ongoing ? " so far" : ""}`,
+    ongoing: g.ongoing,
+    reason: g.cause ? reasonOf(g.cause).title : undefined,
+  }));
 
 const longDay = (day: string) => new Date(`${day}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric", timeZone: "UTC" });
 
@@ -239,5 +254,7 @@ export const GAP_EXPLANATION = "The device sent no readings in these periods (it
 /** The rows as CSV lines (a blank line, a heading, a header row and the gaps), to add to the end of a report file; empty when there are none. */
 export function gapsCsv(lines: readonly GapLine[], summary: string, esc: (cell: string | number) => string): string[] {
   if (lines.length === 0) return [];
-  return ["", [esc("Data gaps"), esc(summary)].join(","), [esc("From"), esc("To"), esc("Length")].join(","), ...lines.map((l) => [l.from, l.to, l.length].map(esc).join(",")), esc(GAP_EXPLANATION)];
+  const reasons = lines.some((l) => l.reason);
+  const head = reasons ? ["From", "To", "Length", "Reason"] : ["From", "To", "Length"];
+  return ["", [esc("Data gaps"), esc(summary)].join(","), head.map(esc).join(","), ...lines.map((l) => (reasons ? [l.from, l.to, l.length, l.reason ?? ""] : [l.from, l.to, l.length]).map(esc).join(",")), esc(GAP_EXPLANATION)];
 }

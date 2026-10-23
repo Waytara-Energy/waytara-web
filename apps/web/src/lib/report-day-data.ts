@@ -8,7 +8,8 @@ import { planRange } from "@/lib/telemetry/ranges";
 import { cadenceConfigured, readCadence } from "@/lib/cadence-hub";
 import { bucketCadenceForReport } from "@/lib/cadence-parse";
 import { CADENCE_GROUP_STEP_S, cadenceGroupOf } from "@/lib/cadence-keys";
-import { findGaps, MIN_GAP_MS, type DataGap } from "@/lib/data-gaps";
+import { findGaps, MIN_GAP_MS, withCauses, type DataGap } from "@/lib/data-gaps";
+import { loadOutages } from "@/lib/outages";
 import {
   REPORT_BUCKET_OPTIONS,
   DEFAULT_REPORT_BUCKET_MINUTES,
@@ -230,7 +231,9 @@ export async function gatherDayReport(params: {
   const slotMs = bucketMinutes * 60_000;
   const slotTimes = points.map((p) => Date.parse(`${p.time}:00+05:30`));
   const slotHas = points.map((p) => type.series.some((s) => typeof p[s.id] === "number"));
-  const gaps = slotTimes.length > 0 ? findGaps(slotTimes, slotHas, slotMs, Date.now(), { minMs: Math.max(MIN_GAP_MS, slotMs), endMs: slotTimes[slotTimes.length - 1] + slotMs }) : [];
+  const found = slotTimes.length > 0 ? findGaps(slotTimes, slotHas, slotMs, Date.now(), { minMs: Math.max(MIN_GAP_MS, slotMs), endMs: slotTimes[slotTimes.length - 1] + slotMs }) : [];
+  // why each one happened, from the outages the platform recorded (only looked up when there is a gap to explain)
+  const gaps: DataGap[] = found.length > 0 ? withCauses(found, await loadOutages(supabase, device.id, found[0].fromMs - 3_600_000)) : found;
 
   return { ok: true, report: { ...base, type, window, bucketMinutes, coarse, points, summaries, hasData, gaps } };
 }

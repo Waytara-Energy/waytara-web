@@ -4,6 +4,7 @@ import { formatValue, unitGroups, type CustomReport, type ReportSeries } from ".
 import { PdfLogo } from "./pdf-logo-image";
 import { PdfGaps } from "./gaps-pdf";
 import { dayGapLines, dayGapsSummary } from "@/lib/data-gaps";
+import { resolveKind, type ChartStyle } from "@/lib/chart-style";
 
 const PALETTE = ["#16A34A", "#3B82F6", "#F59E0B", "#8B5CF6", "#0D9488", "#EF4444"];
 
@@ -44,7 +45,7 @@ function niceMax(v: number): number {
 }
 
 /** Series sharing a unit on one chart: lines for several, or bars for one with a handful of points. */
-function Chart({ report, series, unit }: { report: CustomReport; series: ReportSeries[]; unit: string }) {
+function Chart({ report, series, unit, style }: { report: CustomReport; series: ReportSeries[]; unit: string; style: ChartStyle }) {
   const n = report.buckets.length;
   const all = series.flatMap((s) => s.values).filter((v): v is number => v !== null);
   const lo = Math.min(0, ...all);
@@ -54,7 +55,8 @@ function Chart({ report, series, unit }: { report: CustomReport; series: ReportS
   const ih = H - M.top - M.bottom;
   const x = (i: number) => M.left + (n <= 1 ? iw / 2 : (i / (n - 1)) * iw);
   const y = (v: number) => M.top + ih - ((v - lo) / span) * ih;
-  const bars = series.length === 1 && n <= 40;
+  // the style chosen in Application Settings, as on screen; on automatic: bars for one parameter with a handful of points, lines otherwise
+  const bars = resolveKind(style, series.length === 1 && n <= 40 ? "bar" : "line") === "bar";
   const slot = iw / Math.max(n, 1);
   return (
     <View style={styles.section} wrap={false}>
@@ -66,8 +68,12 @@ function Chart({ report, series, unit }: { report: CustomReport; series: ReportS
           <Line key={f} x1={M.left} x2={W - M.right} y1={M.top + ih * f} y2={M.top + ih * f} stroke="#E2E8F0" strokeWidth={0.6} />
         ))}
         {bars
-          ? series[0].values.map((v, i) =>
-              v === null ? null : <Rect key={i} x={M.left + i * slot + slot * 0.15} y={Math.min(y(v), y(0))} width={slot * 0.7} height={Math.abs(y(v) - y(0))} fill={colorOf(report, series[0])} />
+          ? series.flatMap((s, si) =>
+              s.values.map((v, i) => {
+                if (v === null) return null;
+                const w = (slot * 0.7) / series.length;
+                return <Rect key={`${s.id}-${i}`} x={M.left + i * slot + slot * 0.15 + si * w} y={Math.min(y(v), y(0))} width={w} height={Math.abs(y(v) - y(0))} fill={colorOf(report, s)} />;
+              })
             )
           : series.map((s) => {
               const pts = s.values.map((v, i) => (v === null ? null : `${x(i)},${y(v)}`)).filter((p): p is string => p !== null);
@@ -98,7 +104,7 @@ function Footer({ report }: { report: CustomReport }) {
   );
 }
 
-function ReportDocument({ report }: { report: CustomReport }) {
+function ReportDocument({ report, style }: { report: CustomReport; style: ChartStyle }) {
   const fmt = (v: number | null, s: ReportSeries) => formatValue(v, s.unit, true);
   const when = `${fmtDate(report.period.from)} to ${fmtDate(report.period.to)}`;
   return (
@@ -176,7 +182,7 @@ function ReportDocument({ report }: { report: CustomReport }) {
         </View>
 
         {report.buckets.length > 0 &&
-          unitGroups(report).map((g) => <Chart key={g.unit} report={report} series={g.series} unit={g.unit} />)}
+          unitGroups(report).map((g) => <Chart key={g.unit} report={report} series={g.series} unit={g.unit} style={style} />)}
 
         <PdfGaps lines={dayGapLines(report.gaps)} summary={dayGapsSummary(report.gaps)} />
 
@@ -213,6 +219,7 @@ function ReportDocument({ report }: { report: CustomReport }) {
   );
 }
 
-export async function generateCustomReportPdf(report: CustomReport): Promise<Buffer> {
-  return renderToBuffer(<ReportDocument report={report} />);
+/** `style` is the person's choice in Application Settings; a report sent by e-mail has no one asking, so it keeps each chart's own. */
+export async function generateCustomReportPdf(report: CustomReport, style: ChartStyle = "auto"): Promise<Buffer> {
+  return renderToBuffer(<ReportDocument report={report} style={style} />);
 }

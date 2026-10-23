@@ -1,4 +1,6 @@
+import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
+import { CHART_STYLE_COOKIE, parseChartStyle } from "@/lib/chart-style";
 import { gatherDayReport } from "@/lib/report-day-data";
 import { generateDayReportPdf } from "@/lib/report-day-pdf";
 
@@ -18,7 +20,7 @@ export async function GET(req: NextRequest) {
   if (!result.ok) return NextResponse.json({ error: result.error }, { status: result.status });
 
   const { report } = result;
-  const pdf = await generateDayReportPdf(report, new Date().toISOString());
+  const pdf = await generateDayReportPdf(report, new Date().toISOString(), parseChartStyle((await cookies()).get(CHART_STYLE_COOKIE)?.value));
   return new NextResponse(new Uint8Array(pdf), {
     headers: {
       "Content-Type": "application/pdf",

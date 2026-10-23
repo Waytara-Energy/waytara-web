@@ -1,6 +1,7 @@
 import { Document, Page, Text, View, StyleSheet, Svg, Rect, Line, Polyline, renderToBuffer } from "@react-pdf/renderer";
 import { PdfLogo } from "@/lib/reports/pdf-logo-image";
-import { PdfGaps } from "@/lib/reports/gaps-pdf";
+import { GapHatchPdf, PdfGaps } from "@/lib/reports/gaps-pdf";
+import { resolveKind, type ChartStyle } from "@/lib/chart-style";
 import { gapLines, gapsSummary } from "@/lib/data-gaps";
 import type { DayReport } from "@/lib/report-day-data";
 import { shiftDate, unitDecimals, windowText, type ReportPoint, type ReportSeries, type ReportSeriesSummary } from "@/lib/report-types";
@@ -102,25 +103,27 @@ function fmtAt(at: string | null, days: number): string {
   return days <= 1 ? at.slice(11, 16) : `${at.slice(8, 10)}/${at.slice(5, 7)} ${at.slice(11, 16)}`;
 }
 
-function DayChart({ report, series, colors }: { report: DayReport; series: ReportSeries[]; colors: Record<string, string> }) {
+function DayChart({ report, series, colors, style }: { report: DayReport; series: ReportSeries[]; colors: Record<string, string>; style: ChartStyle }) {
   const colorOf = (id: string) => colors[id] ?? "#475569";
   const unit = series[0].unit;
   const pts = report.points;
   const values = pts.flatMap((p) => series.map((s) => p[s.id]).filter((v): v is number => typeof v === "number"));
   const dataMax = values.length ? Math.max(...values) : 0;
   const dataMin = values.length ? Math.min(...values) : 0;
-  const isBar = series.every((s) => s.kind === "bar") && series.length <= 2; // 3+ series read better as lines (same rule as the on-screen chart)
+  // the style chosen in Application Settings, as on screen; on automatic each chart keeps its own (3+ series read better as lines)
+  const natural = series.every((s) => s.kind === "bar") && series.length <= 2 ? "bar" : "line";
+  const isBar = resolveKind(style, natural) === "bar";
   // Bars sit on zero; lines (SOC, temperatures) get a padded range of their own.
   const around = !isBar && (unit === "V" || unit === "A" || unit === "Hz");
   const pad = (dataMax - dataMin || Math.abs(dataMax) * 0.05 || 1) * 0.2;
-  const lo = isBar ? 0 : unit === "%" ? 0 : around ? dataMin - pad : Math.floor(Math.min(dataMin, 0) / 5) * 5;
+  const lo = isBar ? (dataMin < 0 ? -niceCeil(-dataMin) : 0) : unit === "%" ? 0 : around ? dataMin - pad : Math.floor(Math.min(dataMin, 0) / 5) * 5;
   const hi = unit === "%" ? 100 : around ? dataMax + pad : niceCeil(Math.max(dataMax, 0.001));
   const plotW = CHART_W - M.left - M.right;
   const plotH = CHART_H - M.top - M.bottom;
   const y = (v: number) => M.top + plotH - ((v - lo) / (hi - lo || 1)) * plotH;
   const n = pts.length;
   const slot = plotW / n;
-  const barSeries = series.filter((s) => s.kind === "bar");
+  const barSeries = isBar ? series : [];
   const barW = Math.max(0.6, (slot * 0.8) / Math.max(barSeries.length, 1));
 
   const ticks = [0, 1, 2, 3, 4].map((i) => lo + ((hi - lo) * i) / 4);
@@ -166,35 +169,29 @@ function DayChart({ report, series, colors }: { report: DayReport; series: Repor
             {tick.label}
           </Text>
         ))}
-        {/* where the device sent no readings: a pale red band behind the figures */}
+        {/* where the device sent no readings: red lines across a pale band behind the figures */}
         {gapBands.map((b, i) => (
-          <Rect key={`gap${i}`} x={M.left + b.i0 * slot} y={M.top} width={(b.i1 - b.i0 + 1) * slot} height={plotH} fill="#FEE2E2" fillOpacity={0.8} />
+          <GapHatchPdf key={`gap${i}`} x={M.left + b.i0 * slot} y={M.top} w={(b.i1 - b.i0 + 1) * slot} h={plotH} />
         ))}
         {isBar
           ? pts.flatMap((p, i) =>
               barSeries.map((s, si) => {
                 const v = p[s.id];
-                if (typeof v !== "number" || v <= 0) return null;
-                const h = Math.max(0.5, y(0) - y(v));
+                if (typeof v !== "number" || v === 0) return null;
+                const h = Math.max(0.5, Math.abs(y(v) - y(0)));
                 return (
-                  <Rect key={`${i}-${s.id}`} x={M.left + i * slot + slot * 0.1 + si * barW} y={y(v)} width={barW} height={h} fill={colorOf(s.id)} />
+                  <Rect key={`${i}-${s.id}`} x={M.left + i * slot + slot * 0.1 + si * barW} y={v > 0 ? y(0) - h : y(0)} width={barW} height={h} fill={colorOf(s.id)} />
                 );
               })
             )
           : series.map((s) => {
-              // A gap (no reading) breaks the line rather than being drawn as zero.
-              const runs: string[][] = [];
-              let cur: string[] = [];
+              // One line through every reading: a gap (no reading) is not drawn as zero, the line runs on across it (the red band marks it).
+              const run: string[] = [];
               pts.forEach((p, i) => {
                 const v = p[s.id];
-                if (typeof v === "number") cur.push(`${M.left + i * slot + slot / 2},${y(v)}`);
-                else if (cur.length) {
-                  runs.push(cur);
-                  cur = [];
-                }
+                if (typeof v === "number") run.push(`${M.left + i * slot + slot / 2},${y(v)}`);
               });
-              if (cur.length) runs.push(cur);
-              return runs.map((r, ri) => <Polyline key={`${s.id}-${ri}`} points={r.join(" ")} stroke={colorOf(s.id)} strokeWidth={1.4} fill="none" />);
+              return run.length > 1 ? <Polyline key={s.id} points={run.join(" ")} stroke={colorOf(s.id)} strokeWidth={1.4} fill="none" /> : null;
             })}
         <Line x1={M.left} x2={CHART_W - M.right} y1={y(lo)} y2={y(lo)} stroke="#94A3B8" strokeWidth={0.8} />
       </Svg>
@@ -257,7 +254,7 @@ function formatLongDate(date: string): string {
   });
 }
 
-function DayDocument({ report, generatedAt }: { report: DayReport; generatedAt: string }) {
+function DayDocument({ report, generatedAt, style }: { report: DayReport; generatedAt: string; style: ChartStyle }) {
   const series = report.type.series;
   const rows = summaryRows(report.points, series, report.days);
   // Readings in different units never share a scale: each unit gets its own chart.
@@ -284,7 +281,7 @@ function DayDocument({ report, generatedAt }: { report: DayReport; generatedAt: 
         <View style={styles.section}>
           {unitGroups.map((g) => (
             <View key={g[0].unit} style={{ marginBottom: 8 }}>
-              <DayChart report={report} series={g} colors={colors} />
+              <DayChart report={report} series={g} colors={colors} style={style} />
             </View>
           ))}
           <Text style={styles.note}>
@@ -341,6 +338,7 @@ function DayDocument({ report, generatedAt }: { report: DayReport; generatedAt: 
   );
 }
 
-export async function generateDayReportPdf(report: DayReport, generatedAt: string): Promise<Buffer> {
-  return renderToBuffer(<DayDocument report={report} generatedAt={generatedAt} />);
+/** `style` is the person's choice in Application Settings (bars, lines, or each chart's own); the route reads it from their cookie. */
+export async function generateDayReportPdf(report: DayReport, generatedAt: string, style: ChartStyle = "auto"): Promise<Buffer> {
+  return renderToBuffer(<DayDocument report={report} generatedAt={generatedAt} style={style} />);
 }

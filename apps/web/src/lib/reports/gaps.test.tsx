@@ -77,4 +77,19 @@ describe("the day report with a gap", () => {
     const without = await generateDayReportPdf({ ...report, gaps: [] }, "2026-10-22T10:00:00Z");
     expect(pdf.length).toBeGreaterThan(without.length);
   });
+
+  it("names the cause in the CSV and the PDF when it is known", async () => {
+    const named = { ...report, gaps: [{ fromMs: ms(2), toMs: ms(3, 30), ongoing: false, cause: "unit_offline" as const }] };
+    const lines = dayReportCsv(named).split("\r\n");
+    expect(lines).toContain('"From","To","Length","Reason"');
+    expect(lines).toContain('"22 Oct 2026, 02:00","22 Oct 2026, 03:30","1 h 30 min","Monitoring unit offline"');
+    expect((await generateDayReportPdf(named, "2026-10-22T10:00:00Z")).length).toBeGreaterThan((await generateDayReportPdf(report, "2026-10-22T10:00:00Z")).length);
+  });
+
+  it("draws the chart in the style chosen in Application Settings", async () => {
+    const bars = await generateDayReportPdf(report, "2026-10-22T10:00:00Z", "bar");
+    const lines = await generateDayReportPdf(report, "2026-10-22T10:00:00Z", "line");
+    expect(bars.subarray(0, 5).toString()).toBe("%PDF-");
+    expect(bars.equals(lines)).toBe(false);
+  });
 });

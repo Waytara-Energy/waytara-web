@@ -4,12 +4,11 @@ import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Check, EvCharger, LifeBuoy, Radio, RefreshCw, Server, SlidersHorizontal, Stethoscope, WifiOff } from "lucide-react";
-import { useRealtimeTable } from "@waytara/ui/realtime-provider";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { computeDeviceState, CONNECTION_LABEL, type ConnectionStatus } from "@/lib/device-state";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
-import { reasonOf } from "@/lib/data-gaps";
+import { durationText, reasonOf } from "@/lib/data-gaps";
 import { agoText, newestIso, worstStatus } from "@/lib/device-status-summary";
 import { useTelemetryStore } from "@/lib/telemetry/react";
 import { cn } from "@/lib/utils";
@@ -21,9 +20,6 @@ export interface StatusDevice {
   name: string;
   kind: "inverter" | "ev";
   sync: DeviceSyncInit;
-  /** When the device's settings were last asked for, and last read from the device (ISO). */
-  settingsRequestedAt?: string | null;
-  settingsReadAt?: string | null;
 }
 
 const KIND = {
@@ -46,44 +42,6 @@ const BTN_SECONDARY = "bg-muted text-foreground hover:bg-muted/70";
 const clockText = (ms: number) => new Date(ms).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", second: "2-digit" });
 /** How long the time of a new connection stays up before it fades and the icon comes back. */
 const MOMENT_MS = 3200;
-
-const STORAGE_KEY = "waytara:last-go-live";
-const goLiveListeners = new Set<() => void>();
-const readGoLive = () => {
-  try {
-    return window.localStorage.getItem(STORAGE_KEY) ?? "{}";
-  } catch {
-    return "{}";
-  }
-};
-/** When each device last went live, kept in this browser (going live is a thing this browser does), as JSON text. */
-function useGoLiveTimes(): Record<string, number> {
-  const raw = React.useSyncExternalStore(
-    (cb) => {
-      goLiveListeners.add(cb);
-      return () => void goLiveListeners.delete(cb);
-    },
-    readGoLive,
-    () => "{}"
-  );
-  return React.useMemo(() => {
-    try {
-      return JSON.parse(raw) as Record<string, number>;
-    } catch {
-      return {};
-    }
-  }, [raw]);
-}
-function rememberGoLive(deviceId: string) {
-  try {
-    const all = JSON.parse(readGoLive()) as Record<string, number>;
-    all[deviceId] = Date.now();
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(all));
-  } catch {
-    // storage can be blocked; the time just is not kept
-  }
-  goLiveListeners.forEach((l) => l());
-}
 
 const timeOnly = (ms: number) => new Date(ms).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
 const stamp = (ms: number, now: number) => {
@@ -149,7 +107,6 @@ export function DeviceStatusIcon({
   const [open, setOpen] = React.useState(false);
   const [switching, startSwitch] = React.useTransition();
   const [refreshing, startRefresh] = React.useTransition();
-  const [fetchedAt, setFetchedAt] = React.useState(() => Date.now());
 
   const status = worstStatus(states.map((s) => s.status));
   const lastRead = newestIso(states.map((s) => s.lastReadAt));
@@ -161,18 +118,6 @@ export function DeviceStatusIcon({
   const holdsSelected = devices.some((d) => d.id === selectedId);
   // The device the menu talks about: the one the page shows, or the first of this kind.
   const focus = devices.find((d) => d.id === selectedId) ?? devices[0];
-  const goLiveTimes = useGoLiveTimes();
-  // Settings times follow the device's own rows as they arrive; the server's values are the starting point.
-  const [seenSettings, setSeenSettings] = React.useState<Record<string, { requested?: string; read?: string }>>({});
-  useRealtimeTable<{ equipment_id: string; source: string | null; ts: string }>("equipment_configs", "INSERT", `equipment_id=in.(${devices.map((d) => d.id).join(",")})`, (p) => {
-    const row = p.new;
-    const agent = (row.source ?? "").startsWith("agent");
-    setSeenSettings((prev) => ({ ...prev, [row.equipment_id]: { ...prev[row.equipment_id], [agent ? "read" : "requested"]: row.ts } }));
-  });
-  const newestOf = (a: string | null | undefined, b: string | null | undefined) => (a && b ? (a > b ? a : b) : (a ?? b ?? null));
-  const settingsRequested = newestOf(focus?.settingsRequestedAt, seenSettings[focus?.id ?? ""]?.requested);
-  const settingsRead = newestOf(focus?.settingsReadAt, seenSettings[focus?.id ?? ""]?.read);
-
   // The moment the connection comes up: its time is shown for a while, then the icon returns with a different animation.
   const [momentAt, setMomentAt] = React.useState<number | null>(null);
   const [entrance, setEntrance] = React.useState<"drop" | "pop">("drop");
@@ -182,7 +127,6 @@ export function DeviceStatusIcon({
     previous.current = liveStatus;
     if (!cameUp) return;
     setMomentAt(Date.now());
-    rememberGoLive(selectedId);
     const timer = setTimeout(() => {
       setMomentAt(null);
       setEntrance("pop");
@@ -226,7 +170,6 @@ export function DeviceStatusIcon({
     startRefresh(async () => {
       await Promise.allSettled(devices.map((d) => store.refreshHeartbeat(d.id)));
       router.refresh();
-      setFetchedAt(Date.now());
     });
   }
 
@@ -332,24 +275,30 @@ export function DeviceStatusIcon({
           </ul>
         )}
 
-        {/* When things last happened, for the device the page shows. Opening this menu reads nothing again. */}
-        <dl className="space-y-1.5 border-y px-4 py-3 text-xs">
-          {(
-            [
-              ...(problem ? ([["Device", focus?.name ?? label]] as const) : []),
-              ["Last went live", goLiveTimes[focus?.id ?? ""] ? stamp(goLiveTimes[focus!.id], clock) : "Not yet"],
-              ["Last refresh", stamp(fetchedAt, clock)],
-              ["Last reading (sync)", lastRead ? `${stamp(new Date(lastRead).getTime(), clock)} · ${agoText(clock - new Date(lastRead).getTime())}` : "No reading yet"],
-              ["Settings read from device", settingsRead ? stamp(new Date(settingsRead).getTime(), clock) : "Not yet"],
-              ["Settings last changed", settingsRequested ? stamp(new Date(settingsRequested).getTime(), clock) : "No change yet"],
-            ] as const
-          ).map(([rowLabel, value]) => (
-            <div key={rowLabel} className="flex items-baseline justify-between gap-3">
-              <dt className="text-muted-foreground">{rowLabel}</dt>
-              <dd className="text-right font-medium tabular-nums text-foreground">{value}</dd>
-            </div>
-          ))}
-        </dl>
+        {/* Only what a customer wants to know, in the look of the chart-gap card: how long it has been silent, or when it last reported. */}
+        <div className="flex items-baseline justify-between gap-4 border-y px-4 py-2.5 text-xs">
+          {problem ? (
+            <>
+              <span className="min-w-0">
+                <span className="block text-sm font-medium tabular-nums text-foreground">{lastRead ? `since ${stamp(new Date(lastRead).getTime(), clock)}` : "No reading yet"}</span>
+                <span className="block truncate text-muted-foreground">{focus?.name ?? label}</span>
+              </span>
+              {lastRead && <span className="shrink-0 tabular-nums text-muted-foreground">{durationText(clock - new Date(lastRead).getTime())} so far</span>}
+            </>
+          ) : (
+            <>
+              <span className="min-w-0">
+                <span className="block text-sm font-medium text-foreground">Last reading</span>
+                <span className="block text-muted-foreground">{STATE_TEXT[focusStatus]}</span>
+              </span>
+              <span className="shrink-0 text-right tabular-nums text-muted-foreground">
+                {lastRead ? stamp(new Date(lastRead).getTime(), clock) : "No reading yet"}
+                {lastRead && <span className="block">{agoText(clock - new Date(lastRead).getTime())}</span>}
+              </span>
+            </>
+          )}
+        </div>
+        {problem && <p className="px-4 pt-3 text-xs leading-snug text-muted-foreground">The charts keep the line going and mark this time in red. The figures for it are missing, not zero.</p>}
 
         {/* Reporting: go live or refresh. Not reporting: look into it, or tell us. */}
         <div className="flex gap-2 p-4">
