@@ -2,6 +2,9 @@ import { Cpu, Settings2 } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { getLastSyncInfo } from "@/lib/device-sync";
+import { getRequestProfile } from "@/lib/request-profile";
+import { isStaffRole } from "@/lib/ev-settings";
+import { fetchEvConnection } from "@/lib/ev-settings-data";
 import { getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
 import { POWER_PACKAGE_LABELS, powerPackageIncludes } from "@/lib/site-catalog";
 import { getSettingFields, getSettingFieldsByCategory } from "@/lib/instrument-settings-catalog";
@@ -16,6 +19,7 @@ import { DeviceAbout } from "@/components/dashboard/device-about";
 import { DeviceActivity } from "@/components/dashboard/device-activity";
 import { DeviceCard } from "@/components/dashboard/device-card";
 import { DevicesBoard } from "@/components/dashboard/devices-board";
+import { EvSettingsSection } from "@/components/dashboard/ev-settings-section";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { SettingFieldRow } from "@/components/dashboard/setting-field-row";
 
@@ -49,7 +53,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
   const isCatalogDriven = category === "solar_inverter" || category === "ev_charger";
   const fallbackCategories = Array.from(new Set(getSettingFields(category).map((f) => f.category))).map((key) => ({ key, label: categoryLabel(key) }));
 
-  const [sync, settingsCatalog, fallbackRows, childRows, ownRow] = await Promise.all([
+  const [sync, settingsCatalog, fallbackRows, childRows, ownRow, evInfo, profile] = await Promise.all([
     getLastSyncInfo(device.id),
     canEditSettings && isCatalogDriven ? fetchDeviceSettingFields(supabase, device) : Promise.resolve(null),
     canEditSettings && !isCatalogDriven
@@ -63,6 +67,9 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
       .is("retired_at", null)
       .order("created_at", { ascending: true }),
     supabase.from("equipment").select("device_type:equipment_inventory(technical_specs, power_capacity_value, power_capacity_unit)").eq("id", device.id).maybeSingle(),
+    // an EV charger also shows how it is connected (OCPP) and its own settings
+    category === "ev_charger" ? fetchEvConnection(supabase, device.id) : Promise.resolve(null),
+    category === "ev_charger" ? getRequestProfile() : Promise.resolve(null),
   ]);
   const settingsMap = new Map<string, string>((fallbackRows?.data ?? []).map((row) => [`${row.setting_category}:${row.key_name}`, row.setting_value]));
 
@@ -141,6 +148,8 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
           ) : null
         }
       />
+
+      {evInfo ? <EvSettingsSection chargerId={device.id} info={evInfo} sync={sync} isStaff={isStaffRole(profile?.role)} /> : null}
 
       <DeviceActivity deviceId={device.id} />
     </div>
