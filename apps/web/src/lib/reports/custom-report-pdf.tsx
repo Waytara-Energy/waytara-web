@@ -2,6 +2,8 @@ import { Document, Line, Page, Polyline, Rect, StyleSheet, Svg, Text, View, rend
 import { fmtDate } from "@/lib/savings";
 import { formatValue, unitGroups, type CustomReport, type ReportSeries } from "./custom-report";
 import { PdfLogo } from "./pdf-logo-image";
+import { PdfGaps } from "./gaps-pdf";
+import { dayGapLines, dayGapsSummary } from "@/lib/data-gaps";
 
 const PALETTE = ["#16A34A", "#3B82F6", "#F59E0B", "#8B5CF6", "#0D9488", "#EF4444"];
 
@@ -175,6 +177,8 @@ function ReportDocument({ report }: { report: CustomReport }) {
 
         {report.buckets.length > 0 &&
           unitGroups(report).map((g) => <Chart key={g.unit} report={report} series={g.series} unit={g.unit} />)}
+
+        <PdfGaps lines={dayGapLines(report.gaps)} summary={dayGapsSummary(report.gaps)} />
 
         <Footer report={report} />
       </Page>

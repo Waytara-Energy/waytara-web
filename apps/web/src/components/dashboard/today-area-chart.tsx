@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { Area, AreaChart, Bar, BarChart, Cell, ReferenceDot, ReferenceLine, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, Bar, BarChart, Cell, ReferenceArea, ReferenceDot, ReferenceLine, XAxis, YAxis } from "recharts";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import { recentAxis, type AreaPoint } from "@/lib/energy-today";
+import { findGaps, type DataGap } from "@/lib/data-gaps";
 import { useChartStyle } from "./chart-style";
 import { useUnits } from "@/components/units-provider";
 import { CHART_CURSOR } from "./chart-cursor";
@@ -55,6 +56,14 @@ export function TodayAreaChart({
   const lastColor = last && signed && (last.v as number) < 0 ? negColor : posColor;
 
   const axis = recentAxis(points, now);
+  // Where the readings stopped for half an hour or more: a pale band behind the line (and the line breaks there, instead of joining the two sides).
+  const gaps: DataGap[] = React.useMemo(() => {
+    const slotMs = points.length > 1 ? points[1].t - points[0].t : 15 * 60_000;
+    return findGaps(points.map((p) => p.t), points.map((p) => p.v !== null), slotMs, now);
+  }, [points, now]);
+  const gapAreas = gaps.map((g) => (
+    <ReferenceArea key={`gap-${g.fromMs}`} x1={Math.max(g.fromMs, axis.start)} x2={Math.min(g.toMs, axis.end)} fill="var(--destructive)" fillOpacity={0.09} stroke="var(--destructive)" strokeOpacity={0.25} strokeDasharray="3 3" ifOverflow="hidden" label={g.toMs - g.fromMs >= 45 * 60_000 ? { value: "No data", position: "insideTop", fontSize: 9, fill: "var(--destructive)" } : undefined} />
+  ));
   const tickLabel = (t: number) => (t === axis.end ? "now" : clock(t));
   const tooltip = (
     <ChartTooltip
@@ -97,6 +106,7 @@ export function TodayAreaChart({
           {xAxis}
           <YAxis hide domain={signed ? ["auto", "auto"] : [0, "auto"]} />
           {signed && <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="3 3" />}
+          {gapAreas}
           {tooltip}
           <Bar dataKey="v" radius={3} isAnimationActive={false} maxBarSize={28}>
             {points.map((p) => (
@@ -124,8 +134,9 @@ export function TodayAreaChart({
           {xAxis}
           <YAxis hide domain={yDomain} />
           {signed && <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="3 3" />}
+          {gapAreas}
           {tooltip}
-          <Area dataKey="v" type="monotone" stroke={`url(#${uid}-line)`} strokeWidth={2} fill={`url(#${uid}-fill)`} dot={false} isAnimationActive={false} connectNulls baseValue={0} />
+          <Area dataKey="v" type="monotone" stroke={`url(#${uid}-line)`} strokeWidth={2} fill={`url(#${uid}-fill)`} dot={false} isAnimationActive={false} connectNulls={false} baseValue={0} />
           {last && <ReferenceDot x={last.t} y={last.v as number} r={4} fill="var(--card)" stroke={lastColor} strokeWidth={2} ifOverflow="visible" />}
         </AreaChart>
       )}

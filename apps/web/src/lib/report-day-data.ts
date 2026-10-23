@@ -8,6 +8,7 @@ import { planRange } from "@/lib/telemetry/ranges";
 import { cadenceConfigured, readCadence } from "@/lib/cadence-hub";
 import { bucketCadenceForReport } from "@/lib/cadence-parse";
 import { CADENCE_GROUP_STEP_S, cadenceGroupOf } from "@/lib/cadence-keys";
+import { findGaps, MIN_GAP_MS, type DataGap } from "@/lib/data-gaps";
 import {
   REPORT_BUCKET_OPTIONS,
   DEFAULT_REPORT_BUCKET_MINUTES,
@@ -57,6 +58,8 @@ export interface DayReport {
   points: ReportPoint[];
   summaries: ReportSeriesSummary[];
   hasData: boolean;
+  /** The stretches inside the report when the device sent no readings (offline, or its connection lost). */
+  gaps: DataGap[];
 }
 
 export type DayReportResult = { ok: true; report: DayReport } | { ok: false; status: number; error: string };
@@ -140,7 +143,7 @@ export async function gatherDayReport(params: {
   if (!isSolar) {
     return {
       ok: true,
-      report: { ...base, type: getReportType(params.type), window, bucketMinutes, coarse: false, points: [], summaries: [], hasData: false },
+      report: { ...base, type: getReportType(params.type), window, bucketMinutes, coarse: false, points: [], summaries: [], hasData: false, gaps: [] },
     };
   }
 
@@ -223,5 +226,11 @@ export async function gatherDayReport(params: {
   const summaries = type.series.map((s) => summarizeSeries(s, points, bucketMinutes, window ? {} : counters));
   const hasData = points.some((p) => type.series.some((s) => typeof p[s.id] === "number"));
 
-  return { ok: true, report: { ...base, type, window, bucketMinutes, coarse, points, summaries, hasData } };
+  // Data gaps: bucket by bucket, where no series has a reading for half an hour or more (the buckets are the report's own, in India time).
+  const slotMs = bucketMinutes * 60_000;
+  const slotTimes = points.map((p) => Date.parse(`${p.time}:00+05:30`));
+  const slotHas = points.map((p) => type.series.some((s) => typeof p[s.id] === "number"));
+  const gaps = slotTimes.length > 0 ? findGaps(slotTimes, slotHas, slotMs, Date.now(), { minMs: Math.max(MIN_GAP_MS, slotMs), endMs: slotTimes[slotTimes.length - 1] + slotMs }) : [];
+
+  return { ok: true, report: { ...base, type, window, bucketMinutes, coarse, points, summaries, hasData, gaps } };
 }

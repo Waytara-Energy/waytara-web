@@ -4,6 +4,8 @@ import * as React from "react";
 import { Area, Bar, CartesianGrid, ComposedChart, ReferenceArea, ReferenceLine, XAxis, YAxis } from "recharts";
 import { INTERVAL_OPTIONS, formatBucketLabel } from "@/lib/day-buckets";
 import { istSlotKey } from "@/lib/telemetry/combine";
+import { durationText, findGaps, MIN_GAP_MS, type DataGap } from "@/lib/data-gaps";
+import { DataGapNote } from "./data-gap-note";
 import { useTodaySeries } from "@/lib/telemetry/react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
@@ -318,6 +320,17 @@ function TodayBarTrendChart({
     return { points: pts, totals: tot };
   }, [state.axis, state.byKey, state.nowMs, fetchKeys, series, scaleByKey]);
 
+  // The stretches today with no reading at all (the inverter offline, or its connection lost): found from the fetched series themselves, since
+  // the running totals would carry on across them.
+  const gaps = React.useMemo<DataGap[]>(() => {
+    const slotMs = bucketMinutes * 60_000;
+    const has = state.axis.map((_, i) => fetchKeys.some((k) => {
+      const p = state.byKey[k]?.[i];
+      return !!p && p.avg !== null;
+    }));
+    return findGaps(state.axis, has, slotMs, state.nowMs, { minMs: Math.max(MIN_GAP_MS, slotMs) });
+  }, [state.axis, state.byKey, state.nowMs, fetchKeys, bucketMinutes]);
+
   const chartConfig = React.useMemo(
     () => Object.fromEntries(series.map((s) => [s.key, { label: s.label, color: s.color }])) satisfies ChartConfig,
     [series]
@@ -363,6 +376,15 @@ function TodayBarTrendChart({
     first = Math.min(first, Math.max(0, last - 3));
   }
   const shown = fromFirstData ? points.slice(first, last + 1) : points;
+  // Each gap as a band from its first slot to its last (cut to the slots that are drawn).
+  const shownKeys = new Set(shown.map((p) => p.time));
+  const gapBands = gaps
+    .map((g) => {
+      const inGap = state.axis.filter((t) => t >= g.fromMs && t < g.toMs);
+      const keys = inGap.map((t) => istSlotKey(t)).filter((k) => shownKeys.has(k));
+      return keys.length > 0 ? { startKey: keys[0], endKey: keys[keys.length - 1], slots: keys.length, gap: g } : null;
+    })
+    .filter((b): b is NonNullable<typeof b> => b !== null);
 
   // The value being pointed at (or the newest reading), written big under the title instead of in a floating tooltip.
   let newestShown = -1;
@@ -476,6 +498,21 @@ function TodayBarTrendChart({
               />
             ))}
             {showYAxis && <ReferenceLine yAxisId={axisIds[0]} y={0} stroke="var(--border)" />}
+            {/* where the readings were missing: a pale red band, with how long when it is wide enough to say */}
+            {gapBands.map((b) => (
+              <ReferenceArea
+                key={`gap-${b.gap.fromMs}`}
+                yAxisId={axisIds[0]}
+                x1={b.startKey}
+                x2={b.endKey}
+                fill="var(--destructive)"
+                fillOpacity={0.08}
+                stroke="var(--destructive)"
+                strokeOpacity={0.25}
+                strokeDasharray="3 3"
+                label={b.slots >= 4 ? { value: `No data · ${durationText(b.gap.toMs - b.gap.fromMs)}`, position: "insideTop", fontSize: 10, fill: "var(--destructive)" } : undefined}
+              />
+            ))}
             {sessionRanges.map(
               (r, i) =>
                 r.endKey && (
@@ -563,6 +600,7 @@ function TodayBarTrendChart({
           </ComposedChart>
         </ChartContainer>
         </div>
+        <DataGapNote gaps={gaps} className="mt-2" />
       </CardContent>
       {!hideFooter && <CardFooter className="flex-col items-start gap-2 text-sm">
         <div className="leading-none text-muted-foreground">

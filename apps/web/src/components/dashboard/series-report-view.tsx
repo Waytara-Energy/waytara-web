@@ -1,5 +1,7 @@
 "use client";
 
+import { gapLines, gapsSummary, type DataGap } from "@/lib/data-gaps";
+import { DataGapsCard } from "./data-gap-note";
 import * as React from "react";
 import { Area, Bar, CartesianGrid, ComposedChart, XAxis, YAxis } from "recharts";
 import type { ColumnDef } from "@tanstack/react-table";
@@ -24,6 +26,8 @@ export interface SeriesReportResponse {
   coarse: boolean;
   isSolar: boolean;
   hasData: boolean;
+  /** Stretches with no readings (offline or connection lost); absent in older responses. */
+  gaps?: DataGap[];
   points: ReportPoint[];
   summaries: ReportSeriesSummary[];
   /** The part of each day that was asked for (null = the whole day). */
@@ -110,6 +114,7 @@ export function SeriesReportView({
 
   return (
     <div className="space-y-4">
+      {data?.hasData && data.gaps && data.gaps.length > 0 && <DataGapsCard lines={gapLines(data.gaps)} summary={gapsSummary(data.gaps)} />}
       {data?.hasData && (
         <div className="grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-3">
           {data.summaries.map((sm) => {

@@ -1,6 +1,7 @@
 // A custom report as CSV (for a spreadsheet): one row per day or month, one column per parameter under the name the customer gave
 // it, then the totals and averages.
 
+import { dayGapLines, dayGapsSummary, gapsCsv } from "@/lib/data-gaps";
 import { formatValue, type CustomReport } from "./custom-report";
 
 const cell = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
@@ -18,7 +19,8 @@ export function customReportCsv(report: CustomReport): string {
     lines.push(["Period before, total", ...report.series.map((s) => num(s.previousTotal))]);
     lines.push(["Change", ...report.series.map((s) => (s.changePct === null ? "" : `${s.changePct.toFixed(0)}%`))]);
   }
-  return lines.map((l) => l.map(cell).join(",")).join("\r\n");
+  // the days with no reading follow the rows (nothing is added when there are none)
+  return [...lines.map((l) => l.map(cell).join(",")), ...gapsCsv(dayGapLines(report.gaps), dayGapsSummary(report.gaps), cell)].join("\r\n");
 }
 
 /** A one-line summary of what the report says, for the e-mail body and the saved-report card. */

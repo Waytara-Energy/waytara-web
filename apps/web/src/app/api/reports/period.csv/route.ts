@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
   if (!base.authorized) return NextResponse.json({ error: "Not available on your plan." }, { status: 403 });
   if (!base.isSolar) return NextResponse.json({ error: "Energy exports are available for solar inverters." }, { status: 404 });
 
-  return new NextResponse(periodCsv(daysIn(base.days, from, to)), {
+  return new NextResponse(periodCsv(daysIn(base.days, from, to), { from, to, today: base.today }), {
     headers: { "Content-Type": "text/csv; charset=utf-8", "Content-Disposition": `attachment; filename="waytara-energy-${from}-to-${to}.csv"` },
   });
 }

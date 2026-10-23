@@ -2,7 +2,9 @@
 
 import { treesEquivalent } from "@/lib/environmental-impact";
 import type { DayEnergy } from "@/lib/savings";
+import type { DayGap } from "@/lib/data-gaps";
 import type { ReportsBase } from "./gather";
+import { daysWithoutReadings } from "./gaps";
 import { addDays, completenessPct, daysIn, daysInclusive, lastYearWindow, monthBounds, periodBill, summarize, type EnergySummary, type PeriodBill } from "./period-math";
 
 export interface StatementData {
@@ -27,6 +29,8 @@ export interface StatementData {
   trees: number;
   daily: DayEnergy[];
   completeness: number;
+  /** The runs of days in the month with no reading (the device offline, or its connection lost). */
+  gaps: DayGap[];
   savedSinceCommissioning: number | null;
   tariffNote: string;
   tariffIndicative: boolean;
@@ -79,6 +83,7 @@ export function buildStatement(base: Input, month: string): StatementData {
     trees: treesEquivalent(co2Kg),
     daily,
     completeness: completenessPct(daily.length, bounds.from, to),
+    gaps: daysWithoutReadings(daily, bounds.from, to, base.today),
     savedSinceCommissioning: base.lifetimeBill?.saved ?? null,
     tariffNote: base.tariffNote,
     tariffIndicative: base.tariffIndicative,

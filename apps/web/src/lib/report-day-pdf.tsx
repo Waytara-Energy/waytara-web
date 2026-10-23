@@ -1,5 +1,7 @@
 import { Document, Page, Text, View, StyleSheet, Svg, Rect, Line, Polyline, renderToBuffer } from "@react-pdf/renderer";
 import { PdfLogo } from "@/lib/reports/pdf-logo-image";
+import { PdfGaps } from "@/lib/reports/gaps-pdf";
+import { gapLines, gapsSummary } from "@/lib/data-gaps";
 import type { DayReport } from "@/lib/report-day-data";
 import { shiftDate, unitDecimals, windowText, type ReportPoint, type ReportSeries, type ReportSeriesSummary } from "@/lib/report-types";
 
@@ -123,6 +125,15 @@ function DayChart({ report, series, colors }: { report: DayReport; series: Repor
 
   const ticks = [0, 1, 2, 3, 4].map((i) => lo + ((hi - lo) * i) / 4);
 
+  // each gap as the first and last bucket it covers
+  const times = pts.map((p) => Date.parse(`${p.time}:00+05:30`));
+  const gapBands = report.gaps
+    .map((g) => {
+      const inside = times.map((t, i) => (t >= g.fromMs && t < g.toMs ? i : -1)).filter((i) => i >= 0);
+      return inside.length > 0 ? { i0: inside[0], i1: inside[inside.length - 1] } : null;
+    })
+    .filter((b): b is { i0: number; i1: number } => b !== null);
+
   return (
     <View>
       <View style={styles.legend}>
@@ -134,6 +145,12 @@ function DayChart({ report, series, colors }: { report: DayReport; series: Repor
             </Text>
           </View>
         ))}
+        {gapBands.length > 0 && (
+          <View style={styles.legendItem}>
+            <View style={[styles.swatch, { backgroundColor: "#FECACA" }]} />
+            <Text>No data</Text>
+          </View>
+        )}
       </View>
       <Svg width={CHART_W} height={CHART_H}>
         {ticks.map((t, i) => (
@@ -148,6 +165,10 @@ function DayChart({ report, series, colors }: { report: DayReport; series: Repor
           <Text key={`xl${tick.i}`} x={M.left + (tick.i / n) * plotW} y={CHART_H - 6} style={{ fontSize: 7, fill: "#64748B", textAnchor: tick.i >= n ? "end" : "middle" }}>
             {tick.label}
           </Text>
+        ))}
+        {/* where the device sent no readings: a pale red band behind the figures */}
+        {gapBands.map((b, i) => (
+          <Rect key={`gap${i}`} x={M.left + b.i0 * slot} y={M.top} width={(b.i1 - b.i0 + 1) * slot} height={plotH} fill="#FEE2E2" fillOpacity={0.8} />
         ))}
         {isBar
           ? pts.flatMap((p, i) =>
@@ -282,6 +303,8 @@ function DayDocument({ report, generatedAt }: { report: DayReport; generatedAt: 
             </Text>
           )}
         </View>
+
+        <PdfGaps lines={gapLines(report.gaps)} summary={gapsSummary(report.gaps)} />
 
         <Text style={styles.footer} fixed>
           WayTara Energy Systems - Figures come from your device&apos;s readings. Contact your WayTara advisor with any questions.

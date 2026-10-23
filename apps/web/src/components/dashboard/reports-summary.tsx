@@ -4,6 +4,9 @@ import * as React from "react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { fmtDate, inr } from "@/lib/savings";
 import { pctChange } from "@/lib/reports/period-math";
+import { daysWithoutReadings } from "@/lib/reports/gaps";
+import { dayGapLines, dayGapsSummary } from "@/lib/data-gaps";
+import { DataGapsCard } from "./data-gap-note";
 import type { PeriodView } from "@/lib/reports/period-view";
 import type { ReportsBase } from "@/lib/reports/gather";
 import { cn } from "@/lib/utils";
@@ -35,6 +38,8 @@ export function ReportsSummary({ base, view, label }: { base: ReportsBase; view:
   const daily = view.rows.map((d) => ({ date: d.day, value: d.pvKwh ?? 0 }));
   const used = view.rows.map((d) => ({ date: d.day, value: d.loadKwh }));
   const bill = view.bill;
+  // the days in the period with no reading (the device offline, or its connection lost)
+  const gaps = daysWithoutReadings(view.rows, view.from, view.to, base.today);
 
   const rows: { name: string; cur: number; prev?: number; last?: number; good?: boolean }[] = [
     { name: "Generated", cur: c.pvKwh, prev: view.previous?.pvKwh, last: view.lastYear?.pvKwh },
@@ -62,6 +67,8 @@ export function ReportsSummary({ base, view, label }: { base: ReportsBase; view:
         <StatTile label={`CO₂ avoided · ${short}`} value={`${view.co2Kg.toFixed(view.co2Kg >= 100 ? 0 : 1)} kg`} hint={`About ${view.trees.toFixed(1)} trees a year`} />
         <StatTile label="Best day" value={c.best ? fmtKwhText(c.best.kwh) : "—"} hint={c.best ? fmtDate(c.best.day) : undefined} />
       </div>
+
+      <DataGapsCard lines={dayGapLines(gaps)} summary={dayGapsSummary(gaps)} />
 
       <Panel title="Compared with earlier" description={`The period before is ${fmtDate(view.previousWindow.from)} to ${fmtDate(view.previousWindow.to)}; a year ago is ${fmtDate(view.lastYearWindow.from)} to ${fmtDate(view.lastYearWindow.to)}. A comparison needs readings in both.`}>
         <div className="overflow-x-auto rounded-lg border border-border">

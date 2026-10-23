@@ -4,6 +4,8 @@
 
 import { selfConsumptionPct, selfSufficiencyPct } from "@/lib/performance-metrics";
 import { fmtDate, type DayEnergy, type MonthRow } from "@/lib/savings";
+import type { DayGap } from "@/lib/data-gaps";
+import { daysWithoutReadings } from "./gaps";
 import { PARAMETER_BY_ID, categoryLabel, type ParamCategoryId, type ParamUnit } from "./parameters";
 import { addDays, daysIn, daysInclusive, monthBounds, periodBill, previousWindow, summarize } from "./period-math";
 
@@ -93,6 +95,8 @@ export interface CustomReport {
   comparePrevious: boolean;
   previousPeriod: { from: string; to: string } | null;
   daysWithReadings: number;
+  /** The runs of days in the period with no reading (the device offline, or its connection lost). */
+  gaps: DayGap[];
   customerName: string;
   siteName: string | null;
   deviceLabel: string | null;
@@ -215,6 +219,7 @@ export function buildCustomReport(input: ReportInput, def: CustomReportDef, toda
     comparePrevious: !!def.comparePrevious,
     previousPeriod: prevWin,
     daysWithReadings: summarize(rows).days,
+    gaps: daysWithoutReadings(rows, period.from, period.to, today),
     customerName: input.customerName,
     siteName: input.siteName,
     deviceLabel: input.deviceLabel,

@@ -1,5 +1,6 @@
 // A monthly statement as CSV: the comparison, the bill, then the day-by-day rows (one sheet a spreadsheet can open).
 
+import { dayGapLines, dayGapsSummary, gapsCsv } from "@/lib/data-gaps";
 import type { StatementData } from "./statement-data";
 
 const cell = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
@@ -37,5 +38,6 @@ export function statementCsv(s: StatementData): string {
     ["CO2 factor", s.co2Note],
     ["Source", "The inverter's own counters, not the electricity board's meter; estimates."],
   ];
-  return lines.map((l) => l.map(cell).join(",")).join("\r\n");
+  // the days with no reading follow the rows (nothing is added when there are none)
+  return [...lines.map((l) => l.map(cell).join(",")), ...gapsCsv(dayGapLines(s.gaps), dayGapsSummary(s.gaps), cell)].join("\r\n");
 }

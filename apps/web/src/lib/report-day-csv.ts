@@ -1,4 +1,5 @@
 import type { DayReport } from "@/lib/report-day-data";
+import { gapLines, gapsCsv, gapsSummary } from "@/lib/data-gaps";
 import { unitDecimals } from "@/lib/report-types";
 
 const esc = (cell: string | number) => `"${String(cell).replace(/"/g, '""')}"`;
@@ -16,5 +17,7 @@ export function dayReportCsv(report: DayReport): string {
       return typeof v === "number" ? v.toFixed(s.unit === "kW" ? 3 : unitDecimals(s.unit)) : "";
     }),
   ]);
-  return "﻿" + [header, ...rows].map((r) => r.map(esc).join(",")).join("\r\n");
+  // when the device sent no readings, the periods follow the rows (nothing is added when there are none)
+  const gaps = gapsCsv(gapLines(report.gaps), gapsSummary(report.gaps), esc);
+  return "﻿" + [...[header, ...rows].map((r) => r.map(esc).join(",")), ...gaps].join("\r\n");
 }

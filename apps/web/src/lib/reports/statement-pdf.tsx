@@ -1,5 +1,7 @@
 import { Document, Page, Text, View, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import { PdfLogo } from "./pdf-logo-image";
+import { PdfGaps } from "./gaps-pdf";
+import { dayGapLines, dayGapsSummary } from "@/lib/data-gaps";
 import { fmtDate } from "@/lib/savings";
 import { pctChange } from "./period-math";
 import type { StatementData } from "./statement-data";
@@ -204,6 +206,8 @@ function Statement({ s }: { s: StatementData }) {
             </View>
           </View>
         )}
+
+        <PdfGaps lines={dayGapLines(s.gaps)} summary={dayGapsSummary(s.gaps)} />
 
         <Footer s={s} />
       </Page>

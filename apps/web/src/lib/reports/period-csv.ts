@@ -2,6 +2,8 @@
 
 import { selfConsumptionPct, selfSufficiencyPct } from "@/lib/performance-metrics";
 import type { DayEnergy } from "@/lib/savings";
+import { dayGapLines, dayGapsSummary, gapsCsv } from "@/lib/data-gaps";
+import { daysWithoutReadings } from "./gaps";
 import { summarize } from "./period-math";
 
 const cell = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
@@ -10,12 +12,14 @@ const pct = (n: number | null) => (n === null ? "" : n.toFixed(0));
 
 export const PERIOD_CSV_HEADER = ["Date", "Generated kWh", "Used kWh", "Bought from grid kWh", "Sent to grid kWh", "Solar used on site %", "Home covered by solar %"];
 
-export function periodCsv(rows: DayEnergy[]): string {
+export function periodCsv(rows: DayEnergy[], range?: { from: string; to: string; today: string }): string {
   const lines: (string | number)[][] = [PERIOD_CSV_HEADER];
   for (const d of rows) {
     lines.push([d.day, kwh(d.pvKwh ?? 0), kwh(d.loadKwh), kwh(d.importKwh), kwh(d.exportKwh), pct(selfConsumptionPct(d.pvKwh ?? 0, d.exportKwh)), pct(selfSufficiencyPct(d.loadKwh, d.importKwh))]);
   }
   const t = summarize(rows);
   lines.push(["Total", kwh(t.pvKwh), kwh(t.loadKwh), kwh(t.importKwh), kwh(t.exportKwh), pct(t.selfUsePct), pct(t.selfSufficiencyPct)]);
-  return lines.map((l) => l.map(cell).join(",")).join("\r\n");
+  // the days with no reading follow the rows, when the period is known
+  const gaps = range ? daysWithoutReadings(rows, range.from, range.to, range.today) : [];
+  return [...lines.map((l) => l.map(cell).join(",")), ...gapsCsv(dayGapLines(gaps), dayGapsSummary(gaps), cell)].join("\r\n");
 }
