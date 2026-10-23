@@ -9,7 +9,9 @@ import { useUnits } from "@/components/units-provider";
 const TEMP_WARN_C = EV_CONNECTOR_TEMP_WARN_C;
 const KEYS = ["power_active_import_kw", "power_offered_kw", "current_import_l1_a", "voltage_l1_n_v", "connector_temperature_c"];
 
-/** The EV charger's live-status row, live like SolarLiveCards. Energy Delivered Today comes from charging
+export type EvCardId = "power" | "current" | "temp" | "energy";
+
+/** The EV charger's live-status cards, live like SolarLiveCards. Energy Delivered Today comes from charging
  *  sessions (not telemetry), so it arrives from the server as-is and is refreshed when a session starts or ends. */
 export function EvLiveCards({
   chargerId,
@@ -22,8 +24,8 @@ export function EvLiveCards({
   initial: Record<string, number | null>;
   todayEnergyKwh: number | null;
   tariffRate: number;
-  /** Overview puts two cards on each side of the energy flow: Charging Power + Current on the left, Temperature + Energy on the right. */
-  which: "left" | "right";
+  /** One card of the four (an Overview widget each), or a pair: "left" is Charging Power + Current, "right" is Temperature + Energy. */
+  which: EvCardId | "left" | "right";
 }) {
   const n = useLiveNumbers([chargerId], KEYS, initial);
   const u = useUnits();
@@ -39,9 +41,10 @@ export function EvLiveCards({
   const drawing = currentA !== null && currentA > 0;
   const hasEnergyToday = todayEnergyKwh !== null && todayEnergyKwh > 0;
   const costToday = todayEnergyKwh !== null ? todayEnergyKwh * tariffRate : null;
+  const href = `/dashboard/monitoring?device=${chargerId}#hub`;
 
-  return which === "left" ? (
-    <>
+  const cards: Record<EvCardId, React.ReactNode> = {
+    power: (
       <LiveStatusCard
         compact
         icon={Zap}
@@ -52,10 +55,10 @@ export function EvLiveCards({
         statusLabel="Status"
         badgeLabel={charging ? "Charging" : "Idle"}
         badgeTone={charging ? "good" : "neutral"}
-        href={`/dashboard/monitoring?device=${chargerId}#hub`}
+        href={href}
       />
-
-
+    ),
+    current: (
       <LiveStatusCard
         compact
         icon={Gauge}
@@ -66,12 +69,10 @@ export function EvLiveCards({
         statusLabel="Draw"
         badgeLabel={drawing ? "Drawing" : "Idle"}
         badgeTone={drawing ? "good" : "neutral"}
-        href={`/dashboard/monitoring?device=${chargerId}#hub`}
+        href={href}
       />
-
-    </>
-  ) : (
-    <>
+    ),
+    temp: (
       <LiveStatusCard
         compact
         icon={Thermometer}
@@ -82,10 +83,10 @@ export function EvLiveCards({
         statusLabel="Status"
         badgeLabel={tempC === null ? "—" : tempWarm ? "Warm" : "Normal"}
         badgeTone={tempC === null ? "neutral" : tempWarm ? "warn" : "good"}
-        href={`/dashboard/monitoring?device=${chargerId}#hub`}
+        href={href}
       />
-
-
+    ),
+    energy: (
       <LiveStatusCard
         compact
         icon={BatteryCharging}
@@ -96,8 +97,12 @@ export function EvLiveCards({
         statusLabel="Status"
         badgeLabel={hasEnergyToday ? "Charged" : "None yet"}
         badgeTone={hasEnergyToday ? "good" : "neutral"}
-        href={`/dashboard/monitoring?device=${chargerId}#hub`}
+        href={href}
       />
-    </>
-  );
+    ),
+  };
+
+  if (which === "left") return <>{cards.power}{cards.current}</>;
+  if (which === "right") return <>{cards.temp}{cards.energy}</>;
+  return <>{cards[which]}</>;
 }

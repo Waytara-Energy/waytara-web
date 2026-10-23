@@ -48,7 +48,7 @@ export function DashboardSection({ startPage, sites, selectedSiteId, overview }:
 
   return (
     <div className="space-y-5">
-      <div className="grid items-start gap-5 xl:grid-cols-2">
+      <div className="-mb-5 columns-1 gap-5 xl:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
         <SettingsCard title="Start page" description="The page the dashboard opens on when you sign in." icon={Rocket} tone="amber">
           <div role="radiogroup" aria-label="Start page" className="grid gap-2 sm:grid-cols-2">
             {START_PAGES.map((p) => {

@@ -123,7 +123,7 @@ export function AppearanceSection({ initial }: { initial: AppearancePrefs }) {
   }
 
   return (
-    <div className="grid items-start gap-5 xl:grid-cols-2">
+    <div className="-mb-5 columns-1 gap-5 xl:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
       <SettingsCard title="Theme" description="How the whole app looks. It changes the moment you choose." icon={Palette} tone="violet">
         <div role="radiogroup" aria-label="Theme" className="grid grid-cols-3 gap-3">
           {THEMES.map((t) => (

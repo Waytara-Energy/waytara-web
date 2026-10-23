@@ -97,7 +97,7 @@ export function UnitsSection({ initial, values }: { initial: UnitPrefs; values: 
   }
 
   return (
-    <div className="grid items-start gap-5 xl:grid-cols-2">
+    <div className="-mb-5 columns-1 gap-5 xl:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
       <SettingsCard icon={Ruler} tone="sky" title="Units" description="Choose the unit numbers are shown in, everywhere in the dashboard: Overview, Monitoring, Performance, Reports and the charts. Nothing is recalculated or stored differently; only how it is shown changes.">
         <div className="divide-y divide-border">
           {PREF_QUANTITIES.map((q) => {

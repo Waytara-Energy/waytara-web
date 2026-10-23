@@ -79,7 +79,7 @@ export function AddressesSection({ address, billing, billingEmail, gstin }: { ad
   }
 
   return (
-    <form onSubmit={save} className="grid items-start gap-5 xl:grid-cols-2">
+    <form onSubmit={save} className="-mb-5 columns-1 gap-5 xl:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
       <SettingsCard icon={MapPin} tone="teal" title="Your address" description="Where you live or run your business. Your site's location is managed on the Site page.">
         <AddressFields idPrefix="addr" value={addr} onChange={setAddr} />
       </SettingsCard>

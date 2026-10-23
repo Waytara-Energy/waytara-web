@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { BACKGROUND_PRESETS, DEFAULT_OVERVIEW_CARDS, backgroundCss, isBackgroundPathOf, overviewToJson, parseOverviewPrefs, splitCards } from "./overview-prefs";
+import { BACKGROUND_PRESETS, DEFAULT_OVERVIEW_CARDS, backgroundCss, isBackgroundPathOf, overviewToJson, parseOverviewPrefs } from "./overview-prefs";
+import { defaultLayout, layoutToJson } from "./overview-layout";
 
 const UID = "11111111-2222-3333-4444-555555555555";
 
@@ -30,9 +31,14 @@ describe("parseOverviewPrefs", () => {
 });
 
 describe("overviewToJson / parse round trip", () => {
-  it("reads back what it wrote", () => {
-    const prefs = { cards: ["load", "solar", "grid", "imported"] as const, background: { kind: "preset", id: "dusk" } as const, dim: 50 };
-    expect(parseOverviewPrefs(overviewToJson({ ...prefs, cards: [...prefs.cards] }))).toEqual({ ...prefs, cards: [...prefs.cards] });
+  it("reads back the background it wrote", () => {
+    const prefs = { background: { kind: "preset", id: "dusk" } as const, dim: 50 };
+    expect(parseOverviewPrefs(overviewToJson(prefs))).toMatchObject(prefs);
+  });
+  it("has no layout until the person arranged one, and reads it back after", () => {
+    expect(parseOverviewPrefs({}).layout).toBeNull();
+    const layout = defaultLayout(DEFAULT_OVERVIEW_CARDS, false);
+    expect(parseOverviewPrefs({ overview_layout: layoutToJson(layout) }).layout).toEqual(layout);
   });
 });
 
@@ -44,14 +50,11 @@ describe("isBackgroundPathOf", () => {
   });
 });
 
-describe("backgroundCss and splitCards", () => {
+describe("backgroundCss", () => {
   it("paints a preset, darkens a picture, and is null for none or a picture without an address", () => {
     expect(backgroundCss({ kind: "preset", id: "aurora" }, null, 35)).toBe(BACKGROUND_PRESETS[0].css);
     expect(backgroundCss({ kind: "image", path: `${UID}/overview-1761200000000.jpg` }, "https://x.test/a.jpg", 50)).toContain("rgba(0,0,0,0.50)");
     expect(backgroundCss({ kind: "none" }, null, 35)).toBeNull();
     expect(backgroundCss({ kind: "image", path: `${UID}/overview-1761200000000.jpg` }, null, 35)).toBeNull();
-  });
-  it("puts two cards each side of the flow", () => {
-    expect(splitCards(["solar", "grid", "load", "battery"])).toEqual({ left: ["solar", "grid"], right: ["load", "battery"] });
   });
 });

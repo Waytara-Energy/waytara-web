@@ -29,7 +29,7 @@ const HELP = `/dashboard/support?${new URLSearchParams({ new: "1", category: "bi
 export function BillingSection({ plan, payments, summary, addresses }: BillingProps) {
   return (
     <div className="space-y-5">
-      <div className="grid items-start gap-5 xl:grid-cols-2">
+      <div className="-mb-5 columns-1 gap-5 xl:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
         {plan ? <PlanCard plan={plan} /> : <NoPlan />}
 
         <SettingsCard title="Payments" description="What you have paid for your system." icon={Wallet} tone="sky">

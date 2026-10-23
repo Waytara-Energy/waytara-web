@@ -48,7 +48,7 @@ export function NotificationsSection({ initial, pausedUntil, email }: { initial:
     <div className="space-y-5">
       <PauseCard pausedUntil={pausedUntil} email={email} />
 
-      <div className="grid items-start gap-5 xl:grid-cols-2">
+      <div className="-mb-5 columns-1 gap-5 xl:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
       {NOTIFICATION_CATEGORIES.map((c) => {
         const Icon = ICON[c.id];
         const onCount = c.items.filter((i) => prefs[i.key]).length;

@@ -21,7 +21,7 @@ function initials(name: string, email: string): string {
 /** Settings > Profile: the picture, the name and phone, and the e-mail address (changed only by entering the code sent to the new address). */
 export function ProfileSection({ userId, fullName, phone, email, avatarUrl, memberSince }: { userId: string; fullName: string; phone: string; email: string; avatarUrl: string | null; memberSince: string | null }) {
   return (
-    <div className="grid items-start gap-5 xl:grid-cols-2">
+    <div className="-mb-5 columns-1 gap-5 xl:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
       <PersonalCard userId={userId} fullName={fullName} phone={phone} email={email} avatarUrl={avatarUrl} />
       <div className="space-y-5">
         <EmailCard email={email} />

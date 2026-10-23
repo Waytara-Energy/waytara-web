@@ -27,7 +27,7 @@ export function PrivacySection({ email }: { email: string }) {
 
   return (
     <div className="space-y-5">
-      <div className="grid items-start gap-5 xl:grid-cols-2">
+      <div className="-mb-5 columns-1 gap-5 xl:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
         <SettingsCard
           title="Download my data"
           description="A copy of what WayTara holds for your account, as one file you can keep."

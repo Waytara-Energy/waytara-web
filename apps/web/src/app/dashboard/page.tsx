@@ -10,12 +10,13 @@ import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { SITE_OVERVIEW_KEYS } from "@/lib/overview-keys";
 import { fetchSolarCardsProps } from "@/components/dashboard/solar-live-status-cards";
 import { fetchEvCardsProps } from "@/components/dashboard/ev-live-status-cards";
-import { OverviewBoard } from "@/components/dashboard/overview-board";
+import { OverviewCanvas } from "@/components/dashboard/overview-canvas";
 import { ChargingSessionsCarousel } from "@/components/dashboard/charging-sessions-carousel";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { backgroundCss, parseOverviewPrefs } from "@/lib/overview-prefs";
+import { defaultLayout } from "@/lib/overview-layout";
 
 // Site-centric redesign: Overview is now the selected *site*'s overview —
 // a customer can have several sites, and each site can have several
@@ -27,8 +28,9 @@ import { backgroundCss, parseOverviewPrefs } from "@/lib/overview-prefs";
 // every charger's power summed into one energy-flow diagram
 // (fetchSiteOverview), and recent alerts pooled across every device at
 // the site.
-export default async function DashboardOverviewPage() {
+export default async function DashboardOverviewPage({ searchParams }: { searchParams: Promise<{ customize?: string }> }) {
   const supabase = await createClient();
+  const { customize } = await searchParams;
   // Independent of each other — getRequestProfile is cache()-deduped
   // against the layout's own call anyway (and free in the common case, see
   // @/lib/request-profile), but running it alongside the site lookup
@@ -85,6 +87,8 @@ export default async function DashboardOverviewPage() {
 
   // The first numbers of the cards beside the energy flow (the live channel keeps them current afterwards).
   const [solarCards, evCards] = await Promise.all([fetchSolarCardsProps(supabase, site, syncInit, pvKeys), fetchEvCardsProps(supabase, site)]);
+  // the widgets the customer arranged, or the standard board (the four cards they had picked beside the energy flow)
+  const standardLayout = defaultLayout(overviewPrefs.cards, evCards !== null);
 
   return (
     <div className="space-y-4">
@@ -119,20 +123,25 @@ export default async function DashboardOverviewPage() {
         </Empty>
       ) : (
         <>
-          <OverviewBoard
-            cards={overviewPrefs.cards}
+          <OverviewCanvas
+            layout={overviewPrefs.layout ?? standardLayout}
+            defaults={standardLayout}
             background={background}
-            solar={solarCards}
-            ev={evCards}
-            flow={{
-              inverterIds,
-              chargerIds,
-              initial: overviewInitial,
-              initialEvW: overview.evW,
-              powerPackage: site.powerPackage,
-              powerSourceCategory: site.powerSourceCategory,
-              pvKeys,
-              sync: syncInit,
+            startEditing={customize === "1"}
+            ctx={{
+              solar: solarCards,
+              ev: evCards,
+              firstName: profile?.full_name?.trim().split(/\s+/)[0] ?? "",
+              flow: {
+                inverterIds,
+                chargerIds,
+                initial: overviewInitial,
+                initialEvW: overview.evW,
+                powerPackage: site.powerPackage,
+                powerSourceCategory: site.powerSourceCategory,
+                pvKeys,
+                sync: syncInit,
+              },
             }}
           />
 

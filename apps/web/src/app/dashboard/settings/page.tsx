@@ -11,6 +11,7 @@ import { addressLine, isEmptyAddress, parseAddress } from "@/lib/address";
 import { parseAppearance } from "@/lib/appearance-prefs";
 import { NOTIFICATION_KEYS, pausedUntil, resolveNotificationPrefs } from "@/lib/notification-prefs";
 import { parseOverviewPrefs } from "@/lib/overview-prefs";
+import { defaultLayout } from "@/lib/overview-layout";
 import { periodProgress, summarisePayments, type PaymentRow } from "@/lib/billing-summary";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { getCustomerSites, getSelectedSite } from "@/lib/selected-site";
@@ -91,7 +92,7 @@ export default async function SettingsPage() {
     : null;
 
   const payments: PaymentRow[] = paymentRows ?? [];
-  const overviewProps = { userId: profile.id, initial: overview, imageUrl };
+  const overviewProps = { userId: profile.id, initial: overview, imageUrl, layout: overview.layout ?? defaultLayout(overview.cards, false) };
   const addressesProps = { address, billing, billingEmail: customer?.billing_email ?? "", gstin: customer?.gstin ?? "" };
 
   return (

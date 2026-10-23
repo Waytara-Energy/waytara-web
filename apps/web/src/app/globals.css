@@ -499,3 +499,100 @@ html[data-reduce-motion="true"] *::after {
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
+
+/* ---- Overview widget board --------------------------------------------------------------------------------------------------------------
+   A board of widgets the customer arranges (lib/overview-layout.ts, components/dashboard/overview-canvas.tsx). Each .ov-item carries its place
+   as custom properties (--x --y --w --h, in cells of a 12-column grid). From the lg width the items are placed by those numbers, in pixels
+   worked out here so they can slide to a new place; below it they stack in two columns, one after the other. The rows are sized so the
+   standard layout (12 rows) fits the screen without scrolling. */
+.ov-board {
+  --gap: 0.75rem;
+  --row: calc((max(100svh - 9.5rem, 30rem) - 11 * var(--gap)) / 12);
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--gap);
+}
+.ov-item {
+  position: relative;
+  min-width: 0;
+  min-height: min(calc(var(--h) * 4rem), 18rem);
+  container-type: size;
+  border-radius: 1rem;
+}
+.ov-item[data-wide="true"] {
+  grid-column: span 2;
+}
+.ov-item[data-type="flow"] {
+  order: -1;
+  min-height: 24rem;
+}
+@media (min-width: 1024px) {
+  .ov-board {
+    display: block;
+    position: relative;
+    height: calc(var(--rows) * (var(--row) + var(--gap)) - var(--gap));
+  }
+  .ov-item {
+    position: absolute;
+    order: 0;
+    min-height: 0;
+    left: calc(var(--x) * ((100% - 11 * var(--gap)) / 12 + var(--gap)));
+    width: calc(var(--w) * ((100% - 11 * var(--gap)) / 12) + (var(--w) - 1) * var(--gap));
+    top: calc(var(--y) * (var(--row) + var(--gap)));
+    height: calc(var(--h) * var(--row) + (var(--h) - 1) * var(--gap));
+    transition: left 0.22s ease, top 0.22s ease, width 0.22s ease, height 0.22s ease;
+  }
+  .ov-item[data-drag="true"] {
+    transition: none;
+    z-index: 40;
+  }
+}
+
+/* The face of a widget: its theme. "default" is the plain card; glass is frosted; the others tint the whole widget and turn the text light
+   (the colour tokens are redefined for everything inside, so the cards, numbers and charts of the widget follow). */
+.ov-face {
+  height: 100%;
+  overflow: hidden;
+  border-radius: 1rem;
+}
+.ov-face > * {
+  height: 100%;
+}
+/* over a picture or colour behind the page, the plain cards turn to frosted glass so the numbers stay readable */
+.ov-board[data-bg="true"] .ov-face[data-theme="default"] > * {
+  border-color: rgb(255 255 255 / 0.15);
+  background: color-mix(in oklab, var(--card) 60%, transparent);
+  backdrop-filter: blur(12px);
+}
+.ov-face:not([data-theme="default"]) > * {
+  background: transparent;
+  border-color: transparent;
+  box-shadow: none;
+}
+.ov-face[data-theme="glass"] {
+  background: color-mix(in oklab, var(--card) 55%, transparent);
+  border: 1px solid color-mix(in oklab, var(--border) 70%, transparent);
+  backdrop-filter: blur(16px);
+}
+.ov-face:is([data-theme="emerald"], [data-theme="ocean"], [data-theme="sunset"], [data-theme="violet"], [data-theme="rose"], [data-theme="graphite"]) {
+  color: #fff;
+  --color-foreground: #fff;
+  --color-card-foreground: #fff;
+  --color-muted-foreground: rgb(255 255 255 / 0.76);
+  --color-muted: rgb(255 255 255 / 0.18);
+  --color-border: rgb(255 255 255 / 0.22);
+  --color-card: transparent;
+  --color-accent: rgb(255 255 255 / 0.16);
+  --color-theme-surface: transparent;
+  --color-theme-primary: #fff;
+  --color-theme-secondary: rgb(255 255 255 / 0.85);
+  --color-theme-muted: rgb(255 255 255 / 0.72);
+  --color-theme-border: rgb(255 255 255 / 0.22);
+  --color-theme-surface-muted: rgb(255 255 255 / 0.16);
+}
+.ov-face[data-theme="emerald"] { background: linear-gradient(135deg, #047857, #10b981); }
+.ov-face[data-theme="ocean"] { background: linear-gradient(135deg, #0369a1, #0891b2); }
+.ov-face[data-theme="sunset"] { background: linear-gradient(135deg, #c2410c, #f59e0b); }
+.ov-face[data-theme="violet"] { background: linear-gradient(135deg, #5b21b6, #a855f7); }
+.ov-face[data-theme="rose"] { background: linear-gradient(135deg, #be123c, #fb7185); }
+.ov-face[data-theme="graphite"] { background: linear-gradient(135deg, #111827, #374151); }

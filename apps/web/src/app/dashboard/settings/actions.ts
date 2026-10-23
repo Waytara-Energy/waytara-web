@@ -9,6 +9,7 @@ import type { Json } from "@waytara/supabase/types";
 import { EMAIL_PATTERN, MAX_ATTEMPTS, CODE_TTL_MS, buildEmailChangedMail, buildEmailCodeMail, canResend, codeExpired, codeMatches, generateCode, hashCode, normaliseEmail, secondsUntilResend } from "@/lib/email-otp";
 import { GSTIN, addressProblems, addressToJson, normaliseGstin, type Address } from "@/lib/address";
 import { isBackgroundPathOf, overviewToJson, parseOverviewPrefs, type OverviewPrefs } from "@/lib/overview-prefs";
+import { layoutToJson, parseLayout, type WidgetItem } from "@/lib/overview-layout";
 import { policyToJson, parseSessionPolicy, type SessionPolicy } from "@/lib/session-policy";
 import { sendMail } from "@/lib/send-mail";
 import { parseUnitPrefs, type UnitPrefs } from "@/lib/unit-prefs";
@@ -183,13 +184,12 @@ export async function saveAddresses(input: AddressesInput): Promise<void> {
   revalidatePath(SETTINGS);
 }
 
-// ---- Overview: which four cards, and the background -------------------------------------------------------------------------------------
+// ---- Overview: the background, and the widget layout -------------------------------------------------------------------------------------
 
-/** Saves the Overview choices. A picture is accepted only if it is in the person's own folder; the one it replaces is deleted. */
-export async function saveOverview(prefs: OverviewPrefs): Promise<void> {
+/** Saves the Overview background. A picture is accepted only if it is in the person's own folder; the one it replaces is deleted. */
+export async function saveOverview(prefs: Pick<OverviewPrefs, "background" | "dim">): Promise<void> {
   const profile = await requireCustomer();
   const clean = parseOverviewPrefs(overviewToJson(prefs));
-  if (clean.cards.length !== 4 || clean.cards.some((c, i) => c !== prefs.cards[i])) throw new Error("Choose exactly four different cards.");
   if (clean.background.kind === "image" && !isBackgroundPathOf(clean.background.path, profile.id)) throw new Error("That picture is not allowed.");
 
   const supabase = await createClient();
@@ -201,6 +201,27 @@ export async function saveOverview(prefs: OverviewPrefs): Promise<void> {
   if (error) throw new Error(error.message);
 
   if (before.kind === "image" && (clean.background.kind !== "image" || clean.background.path !== before.path)) await supabase.storage.from("avatars").remove([before.path]);
+  revalidatePath("/dashboard", "layout");
+}
+
+/** Saves the widgets of the Overview and where they sit (null puts the standard layout back). Checked on the way in: an unknown widget, a
+ *  repeated id or a layout that had to be repaired is refused rather than silently changed. */
+export async function saveOverviewLayout(items: WidgetItem[] | null): Promise<void> {
+  const profile = await requireCustomer();
+  let stored: ReturnType<typeof layoutToJson> | null = null;
+  if (items !== null) {
+    const clean = parseLayout({ overview_layout: layoutToJson(items) });
+    if (!clean || clean.length !== items.length || clean.length === 0) throw new Error("That layout could not be saved. Add at least one widget and try again.");
+    stored = layoutToJson(clean);
+  }
+
+  const supabase = await createClient();
+  const { data: current } = await supabase.from("profiles").select("ui_preferences").eq("id", profile.id).maybeSingle();
+  const base = current?.ui_preferences && typeof current.ui_preferences === "object" && !Array.isArray(current.ui_preferences) ? { ...(current.ui_preferences as Record<string, Json>) } : {};
+  if (stored) base.overview_layout = asJson(stored);
+  else delete base.overview_layout;
+  const { error } = await supabase.from("profiles").update({ ui_preferences: asJson(base) }).eq("id", profile.id);
+  if (error) throw new Error(error.message);
   revalidatePath("/dashboard", "layout");
 }
 

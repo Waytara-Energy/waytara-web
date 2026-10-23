@@ -184,7 +184,7 @@ function SessionCard({ initial }: { initial: SessionPolicy }) {
 export function SecuritySection({ policy, devices, now, email, events }: { policy: SessionPolicy; devices: SignedInDevice[]; now: number; email: string; events: ActivityEvent[] }) {
   return (
     <div className="space-y-5">
-      <div className="grid items-start gap-5 xl:grid-cols-2">
+      <div className="-mb-5 columns-1 gap-5 xl:columns-2 [&>*]:mb-5 [&>*]:break-inside-avoid">
         <PasswordCard email={email} />
         <TwoFactorCard />
         <SessionCard initial={policy} />

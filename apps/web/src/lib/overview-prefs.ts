@@ -1,5 +1,9 @@
-// What a customer chooses about their Overview: which four cards sit beside the energy flow (two on each side) and what is behind the page.
+// What a customer chooses about their Overview: the widgets on it and where they sit (see overview-layout.ts) and what is behind the page.
 // Kept in profiles.ui_preferences. Everything read back is checked, so a damaged or hand-edited value falls back to the defaults.
+// `cards` is the older choice (four cards beside the energy flow, from before widgets); it only decides the first layout of somebody who has
+// not arranged their widgets yet.
+
+import { parseLayout, type WidgetItem } from "./overview-layout";
 
 export const OVERVIEW_CARDS = [
   { id: "solar", label: "Solar generated", hint: "Today's solar energy" },
@@ -35,12 +39,14 @@ export type OverviewBackground = { kind: "none" } | { kind: "preset"; id: Backgr
 
 export interface OverviewPrefs {
   cards: OverviewCardId[];
+  /** the widgets the person arranged, or null before they ever did (the page then uses defaultLayout(cards, ...)) */
+  layout: WidgetItem[] | null;
   background: OverviewBackground;
   /** how much a picture is darkened so the cards stay readable, 0 to 80 (per cent) */
   dim: number;
 }
 
-export const DEFAULT_OVERVIEW_PREFS: OverviewPrefs = { cards: DEFAULT_OVERVIEW_CARDS, background: { kind: "none" }, dim: 35 };
+export const DEFAULT_OVERVIEW_PREFS: OverviewPrefs = { cards: DEFAULT_OVERVIEW_CARDS, layout: null, background: { kind: "none" }, dim: 35 };
 
 /** A picture a person uploaded: `<their id>/overview-<digits>.<ext>` in the avatars bucket. Anything else is not accepted. */
 export const BACKGROUND_PATH = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/overview-\d{10,16}\.(jpg|jpeg|png|webp)$/;
@@ -60,12 +66,12 @@ export function parseOverviewPrefs(raw: unknown): OverviewPrefs {
   if (b.kind === "preset" && typeof b.id === "string" && PRESET_IDS.includes(b.id)) background = { kind: "preset", id: b.id as BackgroundPresetId };
   else if (b.kind === "image" && typeof b.path === "string" && BACKGROUND_PATH.test(b.path)) background = { kind: "image", path: b.path };
 
-  return { cards, background, dim: clampDim(o.overview_dim) };
+  return { cards, layout: parseLayout(o), background, dim: clampDim(o.overview_dim) };
 }
 
-/** The value stored in profiles.ui_preferences (the other keys of that column are kept by the caller). */
-export function overviewToJson(p: OverviewPrefs): { overview_cards: OverviewCardId[]; overview_background: OverviewBackground; overview_dim: number } {
-  return { overview_cards: p.cards, overview_background: p.background, overview_dim: clampDim(p.dim) };
+/** The background part stored in profiles.ui_preferences (the other keys of that column, the layout included, are kept by the caller). */
+export function overviewToJson(p: Pick<OverviewPrefs, "background" | "dim">): { overview_background: OverviewBackground; overview_dim: number } {
+  return { overview_background: p.background, overview_dim: clampDim(p.dim) };
 }
 
 /** The CSS that paints a background, or null for none. `imageUrl` is where the person's picture is served from. */
@@ -78,5 +84,3 @@ export function backgroundCss(bg: OverviewBackground, imageUrl: string | null, d
   return null;
 }
 
-/** The four cards as the two columns beside the energy flow. */
-export const splitCards = (cards: readonly OverviewCardId[]): { left: OverviewCardId[]; right: OverviewCardId[] } => ({ left: cards.slice(0, 2), right: cards.slice(2, 4) });
