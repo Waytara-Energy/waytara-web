@@ -99,6 +99,53 @@ export const gapText = (g: DataGap, withDate = false): string => `${gapRangeText
 /** The total time missing. */
 export const totalGapMs = (gaps: readonly DataGap[]): number => gaps.reduce((n, g) => n + (g.toMs - g.fromMs), 0);
 
+// ---- why a gap happened ---------------------------------------------------------------------------------------------------------------
+
+/** An outage the platform recorded: when it began and what kind it was ("offline": the monitoring unit stopped checking in; "device_unreachable": the unit is online but the inverter does not answer it). */
+export interface OutageEvent {
+  sinceMs: number;
+  cause: string | null;
+}
+
+export type GapCause = "unit_offline" | "inverter_unreachable" | "unknown";
+
+export interface GapReason {
+  cause: GapCause;
+  /** a few words: what was wrong */
+  title: string;
+  /** a sentence or two: what it means and what to look at */
+  detail: string;
+}
+
+const REASONS: Record<GapCause, Omit<GapReason, "cause">> = {
+  unit_offline: {
+    title: "Monitoring unit offline",
+    detail: "The monitoring unit stopped checking in, so power or internet at the site was probably down. Nothing could be recorded meanwhile.",
+  },
+  inverter_unreachable: {
+    title: "Inverter not answering",
+    detail: "The monitoring unit stayed online but the inverter did not answer it. Check the cable between them, or the inverter itself.",
+  },
+  unknown: {
+    title: "No readings received",
+    detail: "Readings stopped arriving and no cause was recorded. The device's health check shows what it is doing now.",
+  },
+};
+
+/** How far from the start of a gap the recorded start of an outage may be to count as the same event (the platform notes an outage a little after it begins). */
+const MATCH_SLACK_MS = 30 * 60_000;
+
+/** The reason for a gap: the recorded outage that began at about the same time (or during it). Without one, the cause is not known. */
+export function explainGap(g: DataGap, outages: readonly OutageEvent[]): GapReason {
+  let best: OutageEvent | null = null;
+  for (const o of outages) {
+    if (o.sinceMs < g.fromMs - MATCH_SLACK_MS || o.sinceMs > g.toMs) continue;
+    if (!best || Math.abs(o.sinceMs - g.fromMs) < Math.abs(best.sinceMs - g.fromMs)) best = o;
+  }
+  const cause: GapCause = best?.cause === "offline" ? "unit_offline" : best?.cause === "device_unreachable" ? "inverter_unreachable" : "unknown";
+  return { cause, ...REASONS[cause] };
+}
+
 // ---- whole days (the statements and period reports work in days) ----------------------------------------------------------------------
 
 export interface DayGap {

@@ -4,8 +4,8 @@ import * as React from "react";
 import { Area, Bar, CartesianGrid, ComposedChart, ReferenceArea, ReferenceLine, XAxis, YAxis } from "recharts";
 import { INTERVAL_OPTIONS, formatBucketLabel } from "@/lib/day-buckets";
 import { istSlotKey } from "@/lib/telemetry/combine";
-import { durationText, findGaps, MIN_GAP_MS, type DataGap } from "@/lib/data-gaps";
-import { DataGapNote } from "./data-gap-note";
+import { findGaps, MIN_GAP_MS, type DataGap } from "@/lib/data-gaps";
+import { DataGapChip, GapHatch } from "./data-gap-chip";
 import { useTodaySeries } from "@/lib/telemetry/react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
@@ -457,10 +457,12 @@ function TodayBarTrendChart({
               </div>
             )
         )}
-        <div ref={setBox}>
+        <div ref={setBox} className={`relative ${gaps.length > 0 ? "pt-7" : ""}`}>
+        <DataGapChip gaps={gaps} deviceId={deviceId} />
         <ChartContainer config={chartConfig} className="aspect-auto h-[240px] w-full">
           <ComposedChart accessibilityLayer data={shown} {...hover.chartProps} margin={{ left: 4, right: 4, top: 8 }}>
             <defs>
+              <GapHatch id={`${gradientId}-gap`} />
               {series.map((s) => (
                 <linearGradient key={s.key} id={`${gradientId}-${s.key}`} x1="0" y1="0" x2="0" y2="1">
                   <stop offset="0%" stopColor={`var(--color-${s.key})`} stopOpacity={0.32} />
@@ -498,20 +500,9 @@ function TodayBarTrendChart({
               />
             ))}
             {showYAxis && <ReferenceLine yAxisId={axisIds[0]} y={0} stroke="var(--border)" />}
-            {/* where the readings were missing: a pale red band, with how long when it is wide enough to say */}
+            {/* where the readings were missing: a quiet hatched band (the line runs on across it; the chip in the corner says why) */}
             {gapBands.map((b) => (
-              <ReferenceArea
-                key={`gap-${b.gap.fromMs}`}
-                yAxisId={axisIds[0]}
-                x1={b.startKey}
-                x2={b.endKey}
-                fill="var(--destructive)"
-                fillOpacity={0.08}
-                stroke="var(--destructive)"
-                strokeOpacity={0.25}
-                strokeDasharray="3 3"
-                label={b.slots >= 4 ? { value: `No data · ${durationText(b.gap.toMs - b.gap.fromMs)}`, position: "insideTop", fontSize: 10, fill: "var(--destructive)" } : undefined}
-              />
+              <ReferenceArea key={`gap-${b.gap.fromMs}`} yAxisId={axisIds[0]} x1={b.startKey} x2={b.endKey} fill={`url(#${gradientId}-gap)`} stroke="none" />
             ))}
             {sessionRanges.map(
               (r, i) =>
@@ -544,7 +535,7 @@ function TodayBarTrendChart({
                   fill={`url(#${gradientId}-${s.key})`}
                   baseValue="dataMin"
                   dot={false}
-                  connectNulls={false}
+                  connectNulls
                   isAnimationActive={false}
                 />
               ) : (
@@ -600,7 +591,6 @@ function TodayBarTrendChart({
           </ComposedChart>
         </ChartContainer>
         </div>
-        <DataGapNote gaps={gaps} className="mt-2" />
       </CardContent>
       {!hideFooter && <CardFooter className="flex-col items-start gap-2 text-sm">
         <div className="leading-none text-muted-foreground">

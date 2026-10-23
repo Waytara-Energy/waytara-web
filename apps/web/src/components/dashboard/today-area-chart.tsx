@@ -5,9 +5,11 @@ import { Area, AreaChart, Bar, BarChart, Cell, ReferenceArea, ReferenceDot, Refe
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import { recentAxis, type AreaPoint } from "@/lib/energy-today";
 import { findGaps, type DataGap } from "@/lib/data-gaps";
+import { cn } from "@/lib/utils";
 import { useChartStyle } from "./chart-style";
 import { useUnits } from "@/components/units-provider";
 import { CHART_CURSOR } from "./chart-cursor";
+import { DataGapChip, GapHatch } from "./data-gap-chip";
 
 const IST_MS = 19_800_000;
 const clock = (t: number) => new Date(t + IST_MS).toISOString().slice(11, 16);
@@ -24,6 +26,7 @@ export function TodayAreaChart({
   posLabel,
   negLabel,
   unit = "kW",
+  deviceId,
 }: {
   points: AreaPoint[];
   /** The newest moment (epoch ms): the right end of the graph. */
@@ -35,6 +38,8 @@ export function TodayAreaChart({
   posLabel: string;
   negLabel?: string;
   unit?: string;
+  /** The device the readings come from: names the reason of a gap and where to look into it. */
+  deviceId?: string;
 }) {
   const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
   const u = useUnits();
@@ -56,13 +61,14 @@ export function TodayAreaChart({
   const lastColor = last && signed && (last.v as number) < 0 ? negColor : posColor;
 
   const axis = recentAxis(points, now);
-  // Where the readings stopped for half an hour or more: a pale band behind the line (and the line breaks there, instead of joining the two sides).
+  // Where the readings stopped for half an hour or more: a quiet hatched band behind the line (the line itself runs on across it), and a chip in the corner that says why.
   const gaps: DataGap[] = React.useMemo(() => {
     const slotMs = points.length > 1 ? points[1].t - points[0].t : 15 * 60_000;
     return findGaps(points.map((p) => p.t), points.map((p) => p.v !== null), slotMs, now);
   }, [points, now]);
+  const gapFill = `url(#${uid}-gap)`;
   const gapAreas = gaps.map((g) => (
-    <ReferenceArea key={`gap-${g.fromMs}`} x1={Math.max(g.fromMs, axis.start)} x2={Math.min(g.toMs, axis.end)} fill="var(--destructive)" fillOpacity={0.09} stroke="var(--destructive)" strokeOpacity={0.25} strokeDasharray="3 3" ifOverflow="hidden" label={g.toMs - g.fromMs >= 45 * 60_000 ? { value: "No data", position: "insideTop", fontSize: 9, fill: "var(--destructive)" } : undefined} />
+    <ReferenceArea key={`gap-${g.fromMs}`} x1={Math.max(g.fromMs, axis.start)} x2={Math.min(g.toMs, axis.end)} fill={gapFill} stroke="none" ifOverflow="hidden" />
   ));
   const tickLabel = (t: number) => (t === axis.end ? "now" : clock(t));
   const tooltip = (
@@ -100,9 +106,14 @@ export function TodayAreaChart({
   const yDomain: [number | "auto", number | "auto"] = signed ? ["auto", "auto"] : [0, "auto"];
 
   return (
+    <div className={cn("relative h-full w-full", gaps.length > 0 && "pt-6")}>
+    <DataGapChip gaps={gaps} deviceId={deviceId} compact />
     <ChartContainer config={config} className="aspect-auto h-full w-full">
       {asBars ? (
         <BarChart data={points} margin={margin}>
+          <defs>
+            <GapHatch id={`${uid}-gap`} />
+          </defs>
           {xAxis}
           <YAxis hide domain={signed ? ["auto", "auto"] : [0, "auto"]} />
           {signed && <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="3 3" />}
@@ -117,6 +128,7 @@ export function TodayAreaChart({
       ) : (
         <AreaChart data={points} margin={margin}>
           <defs>
+            <GapHatch id={`${uid}-gap`} />
             {/* line: the colour above zero, the other colour below it */}
             <linearGradient id={`${uid}-line`} x1="0" y1="0" x2="0" y2="1">
               <stop offset={0} stopColor={colorAbove} />
@@ -136,10 +148,11 @@ export function TodayAreaChart({
           {signed && <ReferenceLine y={0} stroke="var(--border)" strokeDasharray="3 3" />}
           {gapAreas}
           {tooltip}
-          <Area dataKey="v" type="monotone" stroke={`url(#${uid}-line)`} strokeWidth={2} fill={`url(#${uid}-fill)`} dot={false} isAnimationActive={false} connectNulls={false} baseValue={0} />
+          <Area dataKey="v" type="monotone" stroke={`url(#${uid}-line)`} strokeWidth={2} fill={`url(#${uid}-fill)`} dot={false} isAnimationActive={false} connectNulls baseValue={0} />
           {last && <ReferenceDot x={last.t} y={last.v as number} r={4} fill="var(--card)" stroke={lastColor} strokeWidth={2} ifOverflow="visible" />}
         </AreaChart>
       )}
     </ChartContainer>
+    </div>
   );
 }

@@ -20,39 +20,32 @@ const CAUSE: Record<Exclude<ConnectionStatus, "online">, string> = {
 
 function NoticeToast({ status, onDismiss, onInvestigate }: { status: Exclude<ConnectionStatus, "online">; onDismiss: () => void; onInvestigate: () => void }) {
   const Icon = status === "offline" ? WifiOff : TriangleAlert;
+  const tint = status === "offline" ? "bg-red-500/12 text-red-600" : "bg-amber-500/12 text-amber-600";
+  // The same card as every other toast. It does not close by itself, so it keeps its own two buttons rather than a close icon.
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      onClick={onDismiss}
-      onKeyDown={(e) => (e.key === "Enter" || e.key === " ") && onDismiss()}
-      className={cn(
-        "flex w-full cursor-pointer items-center gap-3 rounded-xl border bg-popover px-4 py-3 text-popover-foreground shadow-lg outline-none focus-visible:ring-2 focus-visible:ring-ring sm:w-[356px]",
-        status === "offline" ? "border-red-500/50" : "border-amber-500/50"
-      )}
-    >
-      <Icon className={cn("size-5 shrink-0", status === "offline" ? "text-red-500" : "text-amber-500")} />
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-medium">{CONNECTION_LABEL[status]}</span>
-        <span className="block text-xs text-muted-foreground">{CAUSE[status]} Showing the last readings · tap to dismiss</span>
+    <div role="status" className="grid w-full grid-cols-[auto_1fr] items-start gap-x-3 gap-y-2.5 rounded-2xl border border-border bg-popover p-4 text-popover-foreground shadow-lg sm:w-[356px]">
+      <span className={cn("flex size-9 items-center justify-center rounded-xl", tint)}>
+        <Icon className="size-4" />
       </span>
-      <button
-        type="button"
-        onClick={(e) => {
-          e.stopPropagation(); // going to Maintenance, not just closing it
-          onInvestigate();
-        }}
-        className="shrink-0 rounded-md bg-foreground px-3 py-1.5 text-xs font-medium text-background transition-opacity hover:opacity-90"
-      >
-        Investigate
-      </button>
+      <span className="min-w-0">
+        <span className="block text-sm font-semibold leading-5">{CONNECTION_LABEL[status]}</span>
+        <span className="block text-xs leading-snug text-muted-foreground">{CAUSE[status]} The page shows the last readings.</span>
+      </span>
+      <span className="col-start-2 flex gap-2">
+        <button type="button" onClick={onInvestigate} className="h-8 rounded-lg bg-foreground px-3 text-xs font-medium text-background transition-opacity hover:opacity-90">
+          Check device health
+        </button>
+        <button type="button" onClick={onDismiss} className="h-8 rounded-lg bg-muted px-3 text-xs font-medium text-foreground transition-colors hover:bg-muted/70">
+          Dismiss
+        </button>
+      </span>
     </div>
   );
 }
 
 /** On every dashboard page (it is mounted in the layout): while the device is offline or the unit has lost it, a toast sits at the top of the window (on a phone, the usual notification
- *  across the top) saying the page shows the last readings, with an Investigate button that opens Maintenance. It has no close
- *  button: clicking it dismisses it, and the dismissal is kept in a cookie. If the device is still offline 3 hours later it comes
+ *  across the top) saying the page shows the last readings, with a button that opens Maintenance's health tab. It has a
+ *  Dismiss button (it never closes by itself); the dismissal is kept in a cookie. If the device is still offline 3 hours later it comes
  *  back, and so on every 3 hours until the problem is resolved (the device reports again, which also clears the cookie). */
 export function ConnectionNotice({ deviceId, sync }: { deviceId: string; sync: DeviceSyncInit }) {
   const { status } = useDeviceState(deviceId, sync);
@@ -91,7 +84,7 @@ export function ConnectionNotice({ deviceId, sync }: { deviceId: string; sync: D
         schedule(wait);
         return;
       }
-      toast.custom(() => <NoticeToast status={status as Exclude<ConnectionStatus, "online">} onDismiss={dismiss} onInvestigate={() => { dismiss(); router.push("/dashboard/maintenance"); }} />, {
+      toast.custom(() => <NoticeToast status={status as Exclude<ConnectionStatus, "online">} onDismiss={dismiss} onInvestigate={() => { dismiss(); router.push("/dashboard/maintenance#health"); }} />, {
         id: TOAST_ID,
         duration: Infinity,
         dismissible: false,

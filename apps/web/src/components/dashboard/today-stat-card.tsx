@@ -23,6 +23,7 @@ export function TodayStatCard({
   negColor,
   posLabel,
   negLabel,
+  deviceId,
 }: {
   title: string;
   href: string;
@@ -39,6 +40,8 @@ export function TodayStatCard({
   negColor?: string;
   posLabel: string;
   negLabel?: string;
+  /** The device the graph is of (names the reason when it has a gap). */
+  deviceId?: string;
 }) {
   const Arrow = trend?.direction === "down" ? ArrowDown : ArrowUp;
   return (
@@ -61,7 +64,7 @@ export function TodayStatCard({
         <p className="mt-2 text-xs text-muted-foreground">{detail}</p>
       </div>
       <div className="min-h-28 flex-1 lg:min-h-0">
-        <TodayAreaChart points={points} now={now} posColor={posColor} negColor={negColor} posLabel={posLabel} negLabel={negLabel} />
+        <TodayAreaChart points={points} now={now} posColor={posColor} negColor={negColor} posLabel={posLabel} negLabel={negLabel} deviceId={deviceId} />
       </div>
     </Link>
   );

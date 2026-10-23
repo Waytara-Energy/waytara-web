@@ -12,6 +12,7 @@
     "./use-session-signed-out": "./src/use-session-signed-out.ts",
     "./realtime-provider": "./src/realtime-provider.tsx",
     "./notify": "./src/notify.ts",
+    "./toast-style": "./src/toast-style.ts",
     "./action-form": "./src/action-form.tsx",
     "./error-fallback": "./src/error-fallback.tsx",
     "./support-model": "./src/support-model.ts",

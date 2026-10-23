@@ -1,27 +1,4 @@
-import { GAP_EXPLANATION, gapText, totalGapMs, durationText, type DataGap, type GapLine } from "@/lib/data-gaps";
-
-/** The line under a chart that has a data gap in it: a small key for the pale red band, and when and for how long the readings were missing. */
-export function DataGapNote({ gaps, className = "" }: { gaps: readonly DataGap[]; className?: string }) {
-  if (gaps.length === 0) return null;
-  const shown = gaps.slice(0, 3);
-  return (
-    <p className={`flex flex-wrap items-center gap-x-3 gap-y-1 text-[11px] text-muted-foreground ${className}`}>
-      <span className="inline-flex items-center gap-1.5 font-medium text-foreground/80">
-        <span aria-hidden className="size-2.5 rounded-sm border border-destructive/40 bg-destructive/15" />
-        No data
-      </span>
-      {shown.map((g) => (
-        <span key={g.fromMs} className="tabular-nums">
-          {gapText(g)}
-        </span>
-      ))}
-      {gaps.length > shown.length && <span>and {gaps.length - shown.length} more ({durationText(totalGapMs(gaps))} in all)</span>}
-    </p>
-  );
-}
-
-/** What a gap means, for a tooltip or a line in a report. */
-export const GAP_MEANING = "The inverter was offline or its connection was lost, so no readings arrived.";
+import { GAP_EXPLANATION, type GapLine } from "@/lib/data-gaps";
 
 /** The "Data gaps" card of the Reports page: when the device sent no readings, each period on a row with its length. Nothing without gaps. */
 export function DataGapsCard({ lines, summary }: { lines: readonly GapLine[]; summary: string }) {

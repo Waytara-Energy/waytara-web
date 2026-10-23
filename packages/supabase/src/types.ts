@@ -4150,10 +4150,12 @@ export type Database = {
           actor_name: string | null
           actor_role: string | null
           at: string | null
+          cause: string | null
           details: Json | null
           equipment_id: string | null
           id: number | null
           ip: unknown
+          since: string | null
           site_id: string | null
           source: string | null
           summary: string | null
@@ -4164,10 +4166,12 @@ export type Database = {
           actor_name?: string | null
           actor_role?: string | null
           at?: string | null
+          cause?: never
           details?: never
           equipment_id?: string | null
           id?: number | null
           ip?: never
+          since?: never
           site_id?: string | null
           source?: string | null
           summary?: string | null
@@ -4178,10 +4182,12 @@ export type Database = {
           actor_name?: string | null
           actor_role?: string | null
           at?: string | null
+          cause?: never
           details?: never
           equipment_id?: string | null
           id?: number | null
           ip?: never
+          since?: never
           site_id?: string | null
           source?: string | null
           summary?: string | null

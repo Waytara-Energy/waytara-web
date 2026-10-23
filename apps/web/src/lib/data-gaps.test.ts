@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { GAP_EXPLANATION, MIN_GAP_MS, dayGapLines, dayGapText, dayGapsSummary, gapLines, gapsCsv, gapsSummary, durationText, findDayGaps, findGaps, gapRangeText, gapText, totalGapDays, totalGapMs } from "./data-gaps";
+import { GAP_EXPLANATION, explainGap, MIN_GAP_MS, dayGapLines, dayGapText, dayGapsSummary, gapLines, gapsCsv, gapsSummary, durationText, findDayGaps, findGaps, gapRangeText, gapText, totalGapDays, totalGapMs } from "./data-gaps";
 
 const Q = 15 * 60_000;
 // 2026-10-23 00:00 IST is 2026-10-22 18:30 UTC
@@ -131,5 +131,31 @@ describe("the lines of a report", () => {
     expect(out[1]).toBe('"Data gaps","1 period, 1 h 25 min without readings"');
     expect(out[3]).toBe('"23 Oct 2026, 10:15","23 Oct 2026, 11:40","1 h 25 min"');
     expect(out[out.length - 1]).toBe(`"${GAP_EXPLANATION}"`);
+  });
+});
+
+describe("explainGap", () => {
+  const gap = { fromMs: at(15, 30), toMs: at(16, 45), ongoing: true };
+  it("names a unit that stopped checking in", () => {
+    const r = explainGap(gap, [{ sinceMs: at(15, 32), cause: "offline" }]);
+    expect(r.cause).toBe("unit_offline");
+    expect(r.title).toBe("Monitoring unit offline");
+  });
+  it("names an inverter that does not answer a unit that is online", () => {
+    expect(explainGap(gap, [{ sinceMs: at(15, 28), cause: "device_unreachable" }]).cause).toBe("inverter_unreachable");
+  });
+  it("picks the outage that began closest to the start of the gap", () => {
+    const r = explainGap(gap, [
+      { sinceMs: at(15, 5), cause: "device_unreachable" },
+      { sinceMs: at(15, 31), cause: "offline" },
+    ]);
+    expect(r.cause).toBe("unit_offline");
+  });
+  it("does not use an outage from another time", () => {
+    expect(explainGap(gap, [{ sinceMs: at(9, 0), cause: "offline" }, { sinceMs: at(18, 0), cause: "offline" }]).cause).toBe("unknown");
+  });
+  it("says the cause is unknown when nothing was recorded or the cause is not one we know", () => {
+    expect(explainGap(gap, []).cause).toBe("unknown");
+    expect(explainGap(gap, [{ sinceMs: at(15, 30), cause: null }]).cause).toBe("unknown");
   });
 });

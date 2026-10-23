@@ -35,7 +35,7 @@ export interface NotifyOptions {
 function toSonnerOptions(options?: NotifyOptions) {
   return {
     description: options?.description,
-    closeButton: !options?.important,
+    closeButton: false, // every toast hides itself; none carries a close button
     duration: options?.duration,
     action: options?.action,
   };
