@@ -1,9 +1,9 @@
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { ToastFromSearchParams } from "@/components/dashboard/toast-from-search-params";
 import { acceptCustomerInvite } from "./actions";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 export default async function CustomerInvitePage({
   params,
@@ -93,9 +93,7 @@ export default async function CustomerInvitePage({
               required
             />
           </div>
-          <Button type="submit" className="w-full">
-            Create account
-          </Button>
+          <SubmitButton className="w-full" pendingText="Creating your account…">Create account</SubmitButton>
         </form>
       </div>
     </div>

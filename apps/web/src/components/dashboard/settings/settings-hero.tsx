@@ -8,6 +8,7 @@ import { logout } from "@/app/dashboard/actions";
 import { useLiveProfile } from "@/components/profile-live";
 import { ProgressRing } from "./progress-ring";
 import { useSettingsNav } from "./settings-nav";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 export interface HeroProps {
   name: string;
@@ -92,10 +93,8 @@ export function SettingsHero({ name: savedName, email, avatarUrl: savedAvatar, c
             </Link>
           </Button>
           <form action={logout}>
-            <Button type="submit" variant="outline" size="sm" className="bg-background/70 backdrop-blur">
-              <LogOut className="size-3.5" />
-              Sign out
-            </Button>
+            <SubmitButton variant="outline" size="sm" className="bg-background/70 backdrop-blur" pendingText="Signing out…"><LogOut className="size-3.5" />
+              Sign out</SubmitButton>
           </form>
         </div>
       </div>

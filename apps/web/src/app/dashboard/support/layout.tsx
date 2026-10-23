@@ -6,10 +6,26 @@ import { deviceDisplayId, getCustomerSites, resolveSelectedSite, SELECTED_SITE_C
 import { NewSupportTicketDialog } from "@/components/dashboard/new-support-ticket-dialog";
 import { SupportInbox, type InboxTicket } from "@/components/dashboard/support-inbox";
 import { SupportShell } from "@/components/dashboard/support-shell";
+import { InboxSkeleton } from "@/components/dashboard/support-skeletons";
 
 // The ticket list stays on the left while the right side changes (the help, or a conversation): this layout is not rebuilt when a ticket is
-// opened. It follows the tickets live (see SupportInbox).
-export default async function SupportLayout({ children }: { children: React.ReactNode }) {
+// opened. It follows the tickets live (see SupportInbox). The frame renders at once and the list fills in behind its own skeleton, so opening
+// Support never shows a blank page or the wrong skeleton while the tickets are read.
+export default function SupportLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <SupportShell
+      list={
+        <Suspense fallback={<InboxSkeleton />}>
+          <Inbox />
+        </Suspense>
+      }
+    >
+      {children}
+    </SupportShell>
+  );
+}
+
+async function Inbox() {
   const [profile, sites, cookieStore] = await Promise.all([getRequestProfile(), getCustomerSites(), cookies()]);
   const supabase = await createClient();
   const selected = resolveSelectedSite(sites, cookieStore.get(SELECTED_SITE_COOKIE)?.value);
@@ -26,16 +42,10 @@ export default async function SupportLayout({ children }: { children: React.Reac
   const tickets: InboxTicket[] = (data ?? []).map((t) => ({ ...t, site_name: t.site_id ? (siteName.get(t.site_id) ?? null) : null }));
 
   return (
-    <SupportShell
-      list={
-        <SupportInbox
-          tickets={tickets}
-          customerId={profile?.id ?? ""}
-          action={<Suspense fallback={null}><NewSupportTicketDialog fromLink sites={sites.map((s) => ({ id: s.id, name: s.name, devices: s.devices.map((d) => ({ id: d.id, name: deviceDisplayId(d) })) }))} defaultSiteId={selected?.id ?? sites[0]?.id ?? null} /></Suspense>}
-        />
-      }
-    >
-      {children}
-    </SupportShell>
+    <SupportInbox
+      tickets={tickets}
+      customerId={profile?.id ?? ""}
+      action={<Suspense fallback={null}><NewSupportTicketDialog fromLink sites={sites.map((s) => ({ id: s.id, name: s.name, devices: s.devices.map((d) => ({ id: d.id, name: deviceDisplayId(d) })) }))} defaultSiteId={selected?.id ?? sites[0]?.id ?? null} /></Suspense>}
+    />
   );
 }

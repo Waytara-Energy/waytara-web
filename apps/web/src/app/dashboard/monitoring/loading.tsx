@@ -1,58 +1,24 @@
-import { Skeleton } from "@/components/ui/skeleton";
-import { SkeletonCard, SkeletonChart, SkeletonPageHeader } from "@/components/dashboard/skeletons";
+import { SkeletonChartCard, SkeletonHeadline, SkeletonLineTabs, SkeletonStatusCard } from "@/components/dashboard/skeletons";
 
+/** Monitoring: the open tab's headline (a round icon, what the number is, the number), the tabs (Hub, Solar, Battery, Load, Grid ...), then the
+ *  Hub: a row of status cards and the live charts. */
 export default function Loading() {
   return (
-    <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <SkeletonPageHeader />
-        <Skeleton className="h-6 w-28 rounded-full" />
-      </div>
-
-      <div className="flex flex-wrap gap-1.5">
-        {[0, 1, 2, 3, 4, 5, 6].map((i) => (
-          <Skeleton key={i} className="h-6 w-20 rounded-full" />
-        ))}
-      </div>
-
-      <SkeletonCard>
-        <SkeletonChart />
-      </SkeletonCard>
-
-      <SkeletonCard>
-        <SkeletonChart />
-      </SkeletonCard>
-
-      <SkeletonCard>
-        <SkeletonChart />
-      </SkeletonCard>
-
-      <SkeletonCard>
-        <div className="grid grid-cols-2 gap-4">
-          {[0, 1].map((i) => (
-            <div key={i} className="space-y-2 rounded-lg border border-theme-border p-3">
-              <Skeleton className="h-3 w-16" />
-              <Skeleton className="h-3 w-24" />
-              <Skeleton className="h-3 w-20" />
-              <Skeleton className="h-3 w-24" />
-            </div>
+    <div className="space-y-5">
+      <SkeletonHeadline figures={0} trailing="pill" />
+      <SkeletonLineTabs count={6} />
+      <div className="space-y-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {[0, 1, 2, 3].map((i) => (
+            <SkeletonStatusCard key={i} />
           ))}
         </div>
-      </SkeletonCard>
-
-      <SkeletonCard>
-        <div className="space-y-4">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="space-y-1.5">
-              <div className="flex items-center justify-between">
-                <Skeleton className="h-3 w-20" />
-                <Skeleton className="h-3 w-14" />
-              </div>
-              <Skeleton className="h-1.5 w-full rounded-full" />
-            </div>
-          ))}
+        <SkeletonChartCard height={240} legend />
+        <div className="grid gap-4 lg:grid-cols-2">
+          <SkeletonChartCard height={200} />
+          <SkeletonChartCard height={200} />
         </div>
-      </SkeletonCard>
+      </div>
     </div>
   );
 }

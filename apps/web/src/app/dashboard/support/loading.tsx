@@ -1,10 +1,6 @@
-import { SkeletonList, SkeletonPageHeader } from "@/components/dashboard/skeletons";
+import { HelpSkeleton } from "@/components/dashboard/support-skeletons";
 
+/** The right side of Support while no ticket is open (the ticket list on the left is the layout's own and has its own skeleton). */
 export default function Loading() {
-  return (
-    <div className="max-w-2xl space-y-6">
-      <SkeletonPageHeader withAction />
-      <SkeletonList rows={3} />
-    </div>
-  );
+  return <HelpSkeleton />;
 }

@@ -1,9 +1,9 @@
 import Link from "next/link";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { ToastFromSearchParams } from "@/components/dashboard/toast-from-search-params";
 import { requestPasswordReset } from "./actions";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 export default async function ForgotPasswordPage({
   searchParams,
@@ -34,9 +34,7 @@ export default async function ForgotPasswordPage({
               <Label htmlFor="email">Email</Label>
               <Input id="email" name="email" type="email" autoComplete="email" required />
             </div>
-            <Button type="submit" className="w-full">
-              Send reset link
-            </Button>
+            <SubmitButton className="w-full" pendingText="Sending…">Send reset link</SubmitButton>
           </form>
         )}
 

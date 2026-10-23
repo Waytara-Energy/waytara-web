@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Button } from "@/components/ui/button";
 import { submitQuoteAccept, submitQuoteReject, submitQuoteRevision } from "./actions";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 type Panel = "closed" | "accept" | "reject" | "revise";
 
@@ -74,9 +75,9 @@ export function QuoteResponseForm({ token, totalAmount }: { token: string; total
           </label>
         </div>
         <div className="flex gap-2">
-          <Button type="submit" className="flex-1">
+          <SubmitButton className="flex-1" pendingText="Confirming…">
             Confirm acceptance
-          </Button>
+          </SubmitButton>
           <Button type="button" variant="outline" onClick={() => setPanel("closed")}>
             Cancel
           </Button>
@@ -105,13 +106,13 @@ export function QuoteResponseForm({ token, totalAmount }: { token: string; total
         }
       />
       <div className="flex gap-2">
-        <Button
-          type="submit"
+        <SubmitButton
           variant={isReject ? "outline" : "default"}
           className={isReject ? "flex-1 border-theme-alert text-theme-alert hover:bg-theme-alert-subtle" : "flex-1"}
+          pendingText={isReject ? "Rejecting…" : "Sending…"}
         >
           {isReject ? "Confirm rejection" : "Submit request"}
-        </Button>
+        </SubmitButton>
         <Button type="button" variant="outline" onClick={() => setPanel("closed")}>
           Cancel
         </Button>

@@ -1,9 +1,9 @@
 import { createClient } from "@waytara/supabase/server";
 import { Label } from "@/components/ui/label";
-import { Button } from "@/components/ui/button";
 import { PasswordInput } from "@/components/ui/password-input";
 import { ToastFromSearchParams } from "@/components/dashboard/toast-from-search-params";
 import { setNewPassword } from "./actions";
+import { SubmitButton } from "@/components/ui/submit-button";
 
 export default async function ResetPasswordPage() {
   const supabase = await createClient();
@@ -50,9 +50,7 @@ export default async function ResetPasswordPage() {
               required
             />
           </div>
-          <Button type="submit" className="w-full">
-            Update password
-          </Button>
+          <SubmitButton className="w-full" pendingText="Saving…">Update password</SubmitButton>
         </form>
       </div>
     </div>

@@ -1,30 +1,37 @@
 import { Skeleton } from "@/components/ui/skeleton";
-import { SkeletonCard } from "@/components/dashboard/skeletons";
+import { SkeletonLineTabs, SkeletonSettingsCard } from "@/components/dashboard/skeletons";
 
-/** The shape of the page: the hero (picture, name, chips), the row of tabs, then two columns of cards. */
+/** Application Settings: the hero (a picture with its ring, the name, the e-mail, the chips, and the buttons at the right), the ten tabs, and two
+ *  columns of cards (each with its round icon, title and rows). */
 export default function Loading() {
   return (
     <div className="space-y-5">
-      <Skeleton className="h-36 w-full rounded-3xl" />
-      <div className="flex gap-6 overflow-hidden">
-        {[0, 1, 2, 3, 4, 5, 6, 7, 8, 9].map((i) => (
-          <Skeleton key={i} className="h-5 w-24 shrink-0" />
-        ))}
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-4 rounded-3xl border border-border bg-card p-5 shadow-sm sm:p-6">
+        <Skeleton className="size-[88px] shrink-0 rounded-full" />
+        <div className="min-w-0 flex-1 basis-64 space-y-3">
+          <Skeleton className="h-8 w-56 max-w-full" />
+          <Skeleton className="h-4 w-64 max-w-full" />
+          <div className="flex flex-wrap gap-2">
+            {[0, 1, 2, 3].map((i) => (
+              <Skeleton key={i} className="h-6 w-24 rounded-full" />
+            ))}
+          </div>
+        </div>
+        <div className="flex gap-2">
+          <Skeleton className="h-9 w-28 rounded-lg" />
+          <Skeleton className="h-9 w-24 rounded-lg" />
+        </div>
       </div>
-      <div className="grid gap-5 xl:grid-cols-2">
-        {[0, 1].map((c) => (
-          <SkeletonCard key={c} title={false}>
-            <div className="space-y-4">
-              {[0, 1, 2].map((i) => (
-                <div key={i} className="space-y-1.5">
-                  <Skeleton className="h-3 w-20" />
-                  <Skeleton className="h-9 w-full rounded-lg" />
-                </div>
-              ))}
-              <Skeleton className="h-9 w-28 rounded-xl" />
-            </div>
-          </SkeletonCard>
-        ))}
+      <SkeletonLineTabs count={10} />
+      <div className="grid items-start gap-5 xl:grid-cols-2">
+        <div className="space-y-5">
+          <SkeletonSettingsCard rows={4} />
+          <SkeletonSettingsCard rows={3} />
+        </div>
+        <div className="space-y-5">
+          <SkeletonSettingsCard rows={3} />
+          <SkeletonSettingsCard rows={4} />
+        </div>
       </div>
     </div>
   );
