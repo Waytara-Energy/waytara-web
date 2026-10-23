@@ -2681,6 +2681,48 @@ export type Database = {
           },
         ]
       }
+      gateway_chargers: {
+        Row: {
+          charge_point_id: string
+          charger_equipment_id: string
+          created_at: string
+          created_by: string | null
+          gateway_equipment_id: string
+          id: string
+        }
+        Insert: {
+          charge_point_id: string
+          charger_equipment_id: string
+          created_at?: string
+          created_by?: string | null
+          gateway_equipment_id: string
+          id?: string
+        }
+        Update: {
+          charge_point_id?: string
+          charger_equipment_id?: string
+          created_at?: string
+          created_by?: string | null
+          gateway_equipment_id?: string
+          id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "gateway_chargers_charger_equipment_id_fkey"
+            columns: ["charger_equipment_id"]
+            isOneToOne: true
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "gateway_chargers_gateway_equipment_id_fkey"
+            columns: ["gateway_equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       gateway_devices: {
         Row: {
           claimed_at: string | null
@@ -4459,6 +4501,20 @@ export type Database = {
         Args: { p_actor: string; p_equipment: string }
         Returns: boolean
       }
+      gw_add_gateway_charger: {
+        Args: {
+          p_actor: string
+          p_cp: string
+          p_existing?: string
+          p_gateway: string
+          p_label: string
+        }
+        Returns: {
+          out_charge_point_id: string
+          out_equipment_id: string
+          out_label: string
+        }[]
+      }
       gw_begin_rotation: {
         Args: {
           p_actor: string
@@ -4599,6 +4655,22 @@ export type Database = {
         Returns: undefined
       }
       gw_ev_site_figures: { Args: { p_equipment: string }; Returns: Json }
+      gw_gateway_access: {
+        Args: { p_actor: string; p_equipment: string }
+        Returns: string
+      }
+      gw_gateway_charger: {
+        Args: { p_cp: string; p_gateway: string }
+        Returns: string
+      }
+      gw_gateway_chargers: {
+        Args: { p_gateway: string }
+        Returns: {
+          out_charge_point_id: string
+          out_equipment_id: string
+          out_label: string
+        }[]
+      }
       gw_get_push_interval: {
         Args: { p_actor: string; p_equipment: string }
         Returns: number
@@ -4675,6 +4747,10 @@ export type Database = {
       }
       gw_release_board: {
         Args: { p_actor: string; p_equipment: string; p_ip?: unknown }
+        Returns: boolean
+      }
+      gw_remove_gateway_charger: {
+        Args: { p_cp: string; p_gateway: string }
         Returns: boolean
       }
       gw_report_heartbeat: {
