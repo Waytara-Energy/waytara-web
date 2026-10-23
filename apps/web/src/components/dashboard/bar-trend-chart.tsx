@@ -5,7 +5,7 @@ import { Area, Bar, CartesianGrid, ComposedChart, ReferenceArea, ReferenceLine, 
 import { INTERVAL_OPTIONS, formatBucketLabel } from "@/lib/day-buckets";
 import { istSlotKey } from "@/lib/telemetry/combine";
 import { findGaps, MIN_GAP_MS, type DataGap } from "@/lib/data-gaps";
-import { DataGapChip, GapHatch } from "./data-gap-chip";
+import { GapHatch } from "./gap-hatch";
 import { useTodaySeries } from "@/lib/telemetry/react";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartConfig, ChartContainer, ChartTooltip } from "@/components/ui/chart";
@@ -457,8 +457,7 @@ function TodayBarTrendChart({
               </div>
             )
         )}
-        <div ref={setBox} className={`relative ${gaps.length > 0 ? "pt-7" : ""}`}>
-        <DataGapChip gaps={gaps} deviceId={deviceId} />
+        <div ref={setBox}>
         <ChartContainer config={chartConfig} className="aspect-auto h-[240px] w-full">
           <ComposedChart accessibilityLayer data={shown} {...hover.chartProps} margin={{ left: 4, right: 4, top: 8 }}>
             <defs>
@@ -500,7 +499,7 @@ function TodayBarTrendChart({
               />
             ))}
             {showYAxis && <ReferenceLine yAxisId={axisIds[0]} y={0} stroke="var(--border)" />}
-            {/* where the readings were missing: a quiet hatched band (the line runs on across it; the chip in the corner says why) */}
+            {/* where the readings were missing: a quiet hatched band (the line runs on across it) */}
             {gapBands.map((b) => (
               <ReferenceArea key={`gap-${b.gap.fromMs}`} yAxisId={axisIds[0]} x1={b.startKey} x2={b.endKey} fill={`url(#${gradientId}-gap)`} stroke="none" />
             ))}

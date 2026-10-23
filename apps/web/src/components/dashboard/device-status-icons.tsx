@@ -3,13 +3,13 @@
 import * as React from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
-import { Check, EvCharger, Radio, RefreshCw, Server, SlidersHorizontal } from "lucide-react";
+import { Check, EvCharger, LifeBuoy, Radio, RefreshCw, Server, SlidersHorizontal, Stethoscope, WifiOff } from "lucide-react";
 import { useRealtimeTable } from "@waytara/ui/realtime-provider";
-import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Spinner } from "@/components/ui/spinner";
 import { computeDeviceState, CONNECTION_LABEL, type ConnectionStatus } from "@/lib/device-state";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
+import { reasonOf } from "@/lib/data-gaps";
 import { agoText, newestIso, worstStatus } from "@/lib/device-status-summary";
 import { useTelemetryStore } from "@/lib/telemetry/react";
 import { cn } from "@/lib/utils";
@@ -38,6 +38,10 @@ const TONE: Record<ConnectionStatus, string> = {
 };
 const DOT: Record<ConnectionStatus, string> = { online: "bg-emerald-500", connection_lost: "bg-amber-500", offline: "bg-red-500" };
 const STATE_TEXT: Record<ConnectionStatus, string> = { online: "Online", connection_lost: CONNECTION_LABEL.connection_lost, offline: CONNECTION_LABEL.offline };
+
+const BTN = "inline-flex h-8 flex-1 items-center justify-center gap-1.5 whitespace-nowrap rounded-lg px-3 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-60";
+const BTN_PRIMARY = "bg-foreground text-background hover:opacity-90";
+const BTN_SECONDARY = "bg-muted text-foreground hover:bg-muted/70";
 
 const clockText = (ms: number) => new Date(ms).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", second: "2-digit" });
 /** How long the time of a new connection stays up before it fades and the icon comes back. */
@@ -232,6 +236,22 @@ export function DeviceStatusIcon({
 
   const spinning = refreshing;
 
+  // The device the menu talks about, and whether it is reporting. Whatever is going live (or failed to) keeps Go live and Refresh in reach.
+  const focusState = states[Math.max(0, devices.findIndex((d) => d.id === focus?.id))];
+  const focusStatus: ConnectionStatus = focusState?.status ?? "online";
+  const focusRead = focusState?.lastReadAt ?? null;
+  const problem = focusStatus !== "online" && !active && !failed;
+  const reason = reasonOf(focusStatus === "offline" ? "unit_offline" : "inverter_unreachable");
+  const settingsHref = `/dashboard/devices${focus ? `?device=${focus.id}` : ""}${kind === "inverter" ? "#settings-basic" : ""}`;
+  const healthHref = `/dashboard/maintenance${focus ? `?device=${focus.id}` : ""}#health`;
+  const reportHref = `/dashboard/support?${new URLSearchParams({
+    new: "1",
+    category: "device",
+    subject: `${focus?.name ?? label} is not reporting`,
+    message: `${reason.title}: ${reason.detail}${focusRead ? ` Last reading ${stamp(new Date(focusRead).getTime(), clock)}.` : ""}`,
+    ...(focus ? { device: focus.id } : {}),
+  }).toString()}`;
+
   return (
     <div className="flex items-center gap-1.5">
     <Popover open={open} onOpenChange={openMenu}>
@@ -270,77 +290,99 @@ export function DeviceStatusIcon({
         </button>
       </PopoverTrigger>
 
-      <PopoverContent align="end" className="w-72 p-1.5">
-        <p className="px-2 pb-1 pt-1.5 text-xs font-medium text-muted-foreground">
-          {label}
-          {plural}
-        </p>
-        <ul className="space-y-0.5">
-          {devices.map((d, i) => (
-            <li key={d.id}>
-              <button
-                type="button"
-                onClick={() => pick(d.id)}
-                disabled={switching}
-                className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
-              >
-                <span className={cn("size-2 shrink-0 rounded-full", DOT[states[i].status])} title={STATE_TEXT[states[i].status]} />
-                <span className="min-w-0 flex-1 truncate">{d.name}</span>
-                {d.id === selectedId && <Check className="size-4 shrink-0 text-primary" />}
-              </button>
-            </li>
-          ))}
-        </ul>
-
-        <div className="my-1.5 h-px bg-border" />
-        <div className="grid grid-cols-2 gap-1.5 p-0.5">
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            className={cn(
-              "h-8 gap-1.5 px-2 text-xs",
-              isLive && "border-emerald-500/50 text-emerald-600 dark:text-emerald-400",
-              connecting && "border-orange-500/50 text-orange-600 dark:text-orange-400",
-              failed && "border-red-500/50 text-red-600 dark:text-red-400"
-            )}
-            onClick={toggleLive}
-            disabled={!holdsSelected}
-            title={holdsSelected ? undefined : "Pick a device of this kind first"}
+      <PopoverContent align="end" className="w-[22rem] max-w-[calc(100vw-1rem)] rounded-2xl p-0">
+        {/* What the device is doing, in words: its name when it is fine, what is wrong when it is not. The settings button is always here. */}
+        <div className="flex items-start gap-3 p-4">
+          <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl", problem ? (focusStatus === "offline" ? "bg-red-500/12 text-red-600" : "bg-amber-500/12 text-amber-600") : "bg-emerald-500/12 text-emerald-600")}>
+            {problem ? <WifiOff className="size-4" /> : <Icon className="size-4" />}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-sm font-semibold leading-5">{problem ? reason.title : (focus?.name ?? label)}</p>
+            <p className="text-xs leading-snug text-muted-foreground">
+              {problem ? reason.detail : `${label} · ${STATE_TEXT[focusStatus]}${focusRead ? ` · last reading ${agoText(clock - new Date(focusRead).getTime())}` : ""}`}
+            </p>
+          </div>
+          <Link
+            href={settingsHref}
+            onClick={() => setOpen(false)}
+            aria-label="Open device settings"
+            title="Open device settings"
+            className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-foreground outline-none transition-colors hover:bg-muted/70 focus-visible:ring-2 focus-visible:ring-ring"
           >
-            <Radio className={cn("size-3.5", connecting && "motion-safe:animate-pulse")} />
-            {liveText}
-          </Button>
-          <Button type="button" variant="outline" size="sm" className="h-8 gap-1.5 px-2 text-xs" onClick={refresh} disabled={refreshing}>
-            {refreshing ? <Spinner className="size-3.5" /> : <RefreshCw className="size-3.5" />}
-            Refresh
-          </Button>
+            <SlidersHorizontal className="size-4" />
+          </Link>
         </div>
+
+        {devices.length > 1 && (
+          <ul className="space-y-0.5 border-t p-1.5">
+            {devices.map((d, i) => (
+              <li key={d.id}>
+                <button
+                  type="button"
+                  onClick={() => pick(d.id)}
+                  disabled={switching}
+                  className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+                >
+                  <span className={cn("size-2 shrink-0 rounded-full", DOT[states[i].status])} title={STATE_TEXT[states[i].status]} />
+                  <span className="min-w-0 flex-1 truncate">{d.name}</span>
+                  {d.id === selectedId && <Check className="size-4 shrink-0 text-primary" />}
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+
         {/* When things last happened, for the device the page shows. Opening this menu reads nothing again. */}
-        <dl className="mt-2 space-y-1 border-t pt-2 text-xs">
+        <dl className="space-y-1.5 border-y px-4 py-3 text-xs">
           {(
             [
+              ...(problem ? ([["Device", focus?.name ?? label]] as const) : []),
               ["Last went live", goLiveTimes[focus?.id ?? ""] ? stamp(goLiveTimes[focus!.id], clock) : "Not yet"],
               ["Last refresh", stamp(fetchedAt, clock)],
               ["Last reading (sync)", lastRead ? `${stamp(new Date(lastRead).getTime(), clock)} · ${agoText(clock - new Date(lastRead).getTime())}` : "No reading yet"],
               ["Settings read from device", settingsRead ? stamp(new Date(settingsRead).getTime(), clock) : "Not yet"],
               ["Settings last changed", settingsRequested ? stamp(new Date(settingsRequested).getTime(), clock) : "No change yet"],
             ] as const
-          ).map(([label, value]) => (
-            <div key={label} className="flex items-baseline justify-between gap-3 px-2">
-              <dt className="text-muted-foreground">{label}</dt>
+          ).map(([rowLabel, value]) => (
+            <div key={rowLabel} className="flex items-baseline justify-between gap-3">
+              <dt className="text-muted-foreground">{rowLabel}</dt>
               <dd className="text-right font-medium tabular-nums text-foreground">{value}</dd>
             </div>
           ))}
         </dl>
-        <Link
-          href={`/dashboard/devices${focus ? `?device=${focus.id}` : ""}${kind === "inverter" ? "#settings-basic" : ""}`}
-          onClick={() => setOpen(false)}
-          className="mt-2 flex items-center justify-center gap-1.5 rounded-md border px-2 py-1.5 text-xs font-medium text-foreground outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <SlidersHorizontal className="size-3.5" />
-          Open device settings
-        </Link>
+
+        {/* Reporting: go live or refresh. Not reporting: look into it, or tell us. */}
+        <div className="flex gap-2 p-4">
+          {problem ? (
+            <>
+              <Link href={healthHref} onClick={() => setOpen(false)} className={cn(BTN, BTN_PRIMARY)}>
+                <Stethoscope className="size-3.5" />
+                Check device health
+              </Link>
+              <Link href={reportHref} onClick={() => setOpen(false)} className={cn(BTN, BTN_SECONDARY)}>
+                <LifeBuoy className="size-3.5" />
+                Report a problem
+              </Link>
+            </>
+          ) : (
+            <>
+              <button
+                type="button"
+                onClick={toggleLive}
+                disabled={!holdsSelected}
+                title={holdsSelected ? undefined : "Pick a device of this kind first"}
+                className={cn(BTN, BTN_PRIMARY, isLive && "bg-emerald-600 text-white", connecting && "bg-orange-500 text-white", failed && "bg-red-600 text-white")}
+              >
+                <Radio className={cn("size-3.5", connecting && "motion-safe:animate-pulse")} />
+                {liveText}
+              </button>
+              <button type="button" onClick={refresh} disabled={refreshing} className={cn(BTN, BTN_SECONDARY)}>
+                {refreshing ? <Spinner className="size-3.5" /> : <RefreshCw className="size-3.5" />}
+                Refresh
+              </button>
+            </>
+          )}
+        </div>
       </PopoverContent>
     </Popover>
     {/* The count, outside the button, and only when there is more than one device to choose between. */}

@@ -105,7 +105,6 @@ export function EnergyTodayCards({
   const solarCard = (
       <TodayStatCard
         title="Solar generated today"
-        deviceId={inverterId}
         href={monitoring("solar")}
         value={kwhNumber(n[K.solar], K.solar)}
         unit={u.unit("kWh", K.solar)}
@@ -121,7 +120,6 @@ export function EnergyTodayCards({
   const gridCard = (
       <TodayStatCard
         title="Grid usage today"
-        deviceId={inverterId}
       href={monitoring("grid")}
         value={kwhNumber(exported === null ? null : Math.abs(exported), K.exported)}
         unit={u.unit("kWh", K.exported)}
@@ -139,7 +137,6 @@ export function EnergyTodayCards({
   const loadCard = (
       <TodayStatCard
         title="Load consumption today"
-        deviceId={inverterId}
         href={monitoring("load")}
         value={kwhNumber(n[K.load], K.load)}
         unit={u.unit("kWh", K.load)}
@@ -155,7 +152,6 @@ export function EnergyTodayCards({
   const batteryCard = (
       <TodayStatCard
         title="Battery usage today"
-        deviceId={inverterId}
         href={monitoring("battery")}
         value={kwhNumber(stored === null ? null : Math.abs(stored), K.charged)}
         unit={u.unit("kWh", K.charged)}
@@ -177,7 +173,6 @@ export function EnergyTodayCards({
   const selfPoweredCard = (
     <TodayStatCard
       title="Self-powered today"
-      deviceId={inverterId}
       href={monitoring("grid")}
       value={selfPowered === null ? "—" : selfPowered.toFixed(0)}
       unit="%"
@@ -195,7 +190,6 @@ export function EnergyTodayCards({
   const exportedCard = (
     <TodayStatCard
       title="Sent to the grid today"
-      deviceId={inverterId}
       href={monitoring("grid")}
       value={kwhNumber(n[K.exported], K.exported)}
       unit={u.unit("kWh", K.exported)}
@@ -213,7 +207,6 @@ export function EnergyTodayCards({
   const importedCard = (
     <TodayStatCard
       title="Bought from the grid today"
-      deviceId={inverterId}
       href={monitoring("grid")}
       value={kwhNumber(imported, K.imported)}
       unit={u.unit("kWh", K.imported)}

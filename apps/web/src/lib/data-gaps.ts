@@ -132,6 +132,9 @@ const REASONS: Record<GapCause, Omit<GapReason, "cause">> = {
   },
 };
 
+/** The words for a cause (what was wrong, and what to look at). */
+export const reasonOf = (cause: GapCause): GapReason => ({ cause, ...REASONS[cause] });
+
 /** How far from the start of a gap the recorded start of an outage may be to count as the same event (the platform notes an outage a little after it begins). */
 const MATCH_SLACK_MS = 30 * 60_000;
 
@@ -143,7 +146,7 @@ export function explainGap(g: DataGap, outages: readonly OutageEvent[]): GapReas
     if (!best || Math.abs(o.sinceMs - g.fromMs) < Math.abs(best.sinceMs - g.fromMs)) best = o;
   }
   const cause: GapCause = best?.cause === "offline" ? "unit_offline" : best?.cause === "device_unreachable" ? "inverter_unreachable" : "unknown";
-  return { cause, ...REASONS[cause] };
+  return reasonOf(cause);
 }
 
 // ---- whole days (the statements and period reports work in days) ----------------------------------------------------------------------
