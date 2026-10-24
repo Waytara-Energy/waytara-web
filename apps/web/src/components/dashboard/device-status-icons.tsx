@@ -275,6 +275,21 @@ export function DeviceStatusIcon({
           </ul>
         )}
 
+        {/* A site with one inverter and one charger has no list to pick from: this is how the pages (Monitoring, Performance, Reports, Maintenance) switch to this device. */}
+        {devices.length === 1 && !holdsSelected && focus && (
+          <div className="border-t p-1.5">
+            <button
+              type="button"
+              onClick={() => pick(focus.id)}
+              disabled={switching}
+              className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-left text-sm font-medium outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring disabled:opacity-60"
+            >
+              <Icon className="size-4 shrink-0 text-muted-foreground" />
+              <span className="min-w-0 flex-1 truncate">Show this {label.toLowerCase()} on the pages</span>
+            </button>
+          </div>
+        )}
+
         {/* Only what a customer wants to know, in the look of the chart-gap card: how long it has been silent, or when it last reported. */}
         <div className="flex items-baseline justify-between gap-4 border-y px-4 py-2.5 text-xs">
           {problem ? (
