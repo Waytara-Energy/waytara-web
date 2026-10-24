@@ -35,4 +35,5 @@ Built and looked at in the browser with sample data (the real charger has not se
 - [x] Old firmware restore note kept (`backups/RESTORE-esp32-office-before-sim-20261023.txt`). Backup checksums verified, files read-only, old commit tagged `fw-0.3.0-t16e-before-sim`
 
 ## E. Cleanup
-- [ ] Remove test rows and test equipment; docs updated (runbook: SIM, charger network, restore). The runbook is being written; the sample EV data is still in the database on purpose
+- [x] Docs updated: runbook for the SIM, the charger network and the restore is in `docs/GATEWAY_SIM_EV_RUNBOOK.md`
+- [ ] Remove test rows and test equipment. The sample EV data is still in the database on purpose (`EV Web Socket/sample-data/cleanup.sql` removes it)
