@@ -2,12 +2,12 @@ import { describe, expect, it } from "vitest";
 import { chartStyleCookie, parseChartStyle, resolveKind } from "./chart-style";
 
 describe("chart style", () => {
-  it("reads line and bar, and anything else as automatic", () => {
+  it("reads line, bar, auto, and anything else as line (default)", () => {
     expect(parseChartStyle("line")).toBe("line");
     expect(parseChartStyle("bar")).toBe("bar");
     expect(parseChartStyle("auto")).toBe("auto");
-    expect(parseChartStyle("pie")).toBe("auto");
-    expect(parseChartStyle(undefined)).toBe("auto");
+    expect(parseChartStyle("pie")).toBe("line");
+    expect(parseChartStyle(undefined)).toBe("line");
   });
   it("lets the person's choice override a chart's natural style, and automatic keep it", () => {
     expect(resolveKind("auto", "line")).toBe("line");

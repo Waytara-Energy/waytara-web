@@ -3,7 +3,7 @@
 import * as React from "react";
 import { chartStyleCookie, type ChartStyle } from "@/lib/chart-style";
 
-const ChartStyleContext = React.createContext<{ style: ChartStyle; setStyle: (s: ChartStyle) => void }>({ style: "auto", setStyle: () => {} });
+const ChartStyleContext = React.createContext<{ style: ChartStyle; setStyle: (s: ChartStyle) => void }>({ style: "line", setStyle: () => {} });
 
 /** The person's chart style (from their cookie, read by the layout), shared by every chart under it. Changing it redraws them at once
  *  and remembers the choice. */

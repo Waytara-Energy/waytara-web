@@ -14,6 +14,9 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip
 import { cn } from "@/lib/utils";
 import { Skeleton } from "@/components/ui/skeleton";
 import { istDayStart } from "@/lib/telemetry/combine";
+import { useWeatherOverlay } from "@/components/appearance-provider";
+import { useSunTimes } from "./sun-context";
+import { SunTimeLabel } from "./sun-time-label";
 import {
   GoLiveSession,
   decimateMinMax,
@@ -340,6 +343,8 @@ export function LiveRawChart({
   unit?: string;
 }) {
   const live = useGoLive();
+  const weatherOverlay = useWeatherOverlay();
+  const sunTimes = useSunTimes();
   const [dayStart] = React.useState(() => istDayStart(Date.now()));
   // The moment pointed at (mouse or finger) along the day; null = follow the newest reading.
   const [pointedT, setPointedT] = React.useState<number | null>(null);
@@ -441,6 +446,40 @@ export function LiveRawChart({
             />
             <YAxis hide domain={["auto", "auto"]} />
             {pointedAt !== null && <ReferenceLine x={pointedAt} stroke={CHART_CURSOR.stroke} strokeWidth={CHART_CURSOR.strokeWidth} strokeOpacity={CHART_CURSOR.strokeOpacity} strokeLinecap="round" />}
+            {weatherOverlay && sunTimes.sunriseMs && sunTimes.sunriseMs >= dayStart && sunTimes.sunriseMs <= dayStart + 86_400_000 && (
+              <ReferenceLine
+                x={sunTimes.sunriseMs}
+                stroke="#f59e0b"
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                strokeOpacity={0.8}
+                ifOverflow="extendDomain"
+                label={(props: { viewBox?: { x?: number; y?: number; width?: number; height?: number } }) => (
+                  <SunTimeLabel
+                    viewBox={props.viewBox}
+                    type="sunrise"
+                    timeText={sunTimes.sunriseClock}
+                  />
+                )}
+              />
+            )}
+            {weatherOverlay && sunTimes.sunsetMs && sunTimes.sunsetMs >= dayStart && sunTimes.sunsetMs <= dayStart + 86_400_000 && (
+              <ReferenceLine
+                x={sunTimes.sunsetMs}
+                stroke="#f97316"
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                strokeOpacity={0.8}
+                ifOverflow="extendDomain"
+                label={(props: { viewBox?: { x?: number; y?: number; width?: number; height?: number } }) => (
+                  <SunTimeLabel
+                    viewBox={props.viewBox}
+                    type="sunset"
+                    timeText={sunTimes.sunsetClock}
+                  />
+                )}
+              />
+            )}
             {data.map(({ s, points }) => (
               <Area key={s.key} data={points} dataKey="v" name={s.label} type="stepAfter" stroke={`var(--color-${s.key})`} strokeWidth={1.75} fill={`url(#live-${s.key})`} baseValue="dataMin" dot={false} isAnimationActive={false} />
             ))}

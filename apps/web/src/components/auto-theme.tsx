@@ -3,7 +3,7 @@
 import * as React from "react";
 import { useTheme } from "next-themes";
 
-export type ThemeMode = "light" | "dark" | "auto";
+export type ThemeMode = "auto" | "light" | "dark";
 
 const KEY = "theme_auto";
 const listeners = new Set<() => void>();
@@ -38,11 +38,11 @@ export function themeForHour(hour: number): "light" | "dark" {
   return hour >= 6 && hour < 18 ? "light" : "dark";
 }
 
-/** The appearance choice (light, dark or auto) and how to change it. Auto is kept beside the theme and applies light or dark itself. */
+/** The appearance choice (auto, light or dark) and how to change it. Auto is default and applies light or dark based on the clock. */
 export function useThemeMode(): { mode: ThemeMode; setMode: (mode: ThemeMode) => void } {
   const { theme, setTheme } = useTheme();
   const flag = useAutoFlag();
-  const mode: ThemeMode = flag === "1" ? "auto" : theme === "dark" ? "dark" : theme === "light" ? "light" : "auto";
+  const mode: ThemeMode = flag === "0" ? (theme === "dark" ? "dark" : "light") : "auto";
   const setMode = React.useCallback(
     (next: ThemeMode) => {
       write(next === "auto" ? "1" : "0");
@@ -58,9 +58,11 @@ export function AutoThemeSync() {
   const { theme, setTheme } = useTheme();
   const flag = useAutoFlag();
   React.useEffect(() => {
-    // Someone who had "System" before has no choice stored yet: that becomes Auto.
-    if (flag === null && theme === "system") {
+    // Fresh visit or someone with no explicit choice stored yet: defaults to Auto
+    if (flag === null) {
       write("1");
+      const want = themeForHour(new Date().getHours());
+      if (theme !== want) setTheme(want);
       return;
     }
     if (flag !== "1") return;

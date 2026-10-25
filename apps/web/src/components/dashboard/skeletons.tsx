@@ -59,7 +59,7 @@ export function SkeletonHeadline({ figures = 2, trailing = null }: { figures?: n
 /** The line tabs under a headline (an underline marks the open one). */
 export function SkeletonLineTabs({ count = 5 }: { count?: number }) {
   return (
-    <div className="flex gap-6 overflow-hidden border-b border-border pb-2.5">
+    <div className="flex gap-6 overflow-x-auto no-scrollbar border-b border-border pb-2.5">
       {Array.from({ length: count }).map((_, i) => (
         <Skeleton key={i} className="h-5 w-20 shrink-0" />
       ))}

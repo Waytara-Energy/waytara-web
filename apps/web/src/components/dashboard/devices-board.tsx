@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { BatteryCharging, CalendarClock, Info, Plug, SlidersHorizontal, Wrench, Zap, type LucideIcon } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { agoText } from "@/lib/device-status-summary";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import type { ConfigLogRow, EnumOption, SettingField } from "@/lib/instrument-catalog-data";
@@ -143,12 +143,12 @@ export function DevicesBoard({
               </TabsTrigger>
             ))}
           </TabsList>
-        </Tabs>
 
-        <div key={tab.id} className="space-y-4">
-          {tab.description && <p className="text-sm text-theme-muted">{tab.description}</p>}
-          {tab.kind === "settings" && tab.fields.length > 0 ? <SettingsPane fields={tab.fields} /> : tab.node}
-        </div>
+          <TabsContent value={tab.id} className="mt-4 space-y-4 outline-none">
+            {tab.description && <p className="text-sm text-theme-muted">{tab.description}</p>}
+            {tab.kind === "settings" && tab.fields.length > 0 ? <SettingsPane fields={tab.fields} /> : tab.node}
+          </TabsContent>
+        </Tabs>
       </div>
     </SettingsProvider>
   );

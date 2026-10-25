@@ -2,7 +2,7 @@
 
 import type { ComponentProps } from "react";
 import { Bell, BellRing, CreditCard, Gauge, LayoutDashboard, LockKeyhole, Palette, Ruler, ShieldCheck, User, type LucideIcon } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { SettingsTab } from "@/lib/account-health";
 import { cn } from "@/lib/utils";
 import { useHashTab } from "../use-hash-tab";
@@ -82,20 +82,20 @@ export function SettingsBoard(props: SettingsBoardProps) {
               );
             })}
           </TabsList>
-        </Tabs>
 
-        <div key={tab} className="min-w-0">
-          {tab === "account" && <AccountSection {...account} />}
-          {tab === "profile" && <ProfileSection {...props.profile} />}
-          {tab === "appearance" && <AppearanceSection {...props.appearance} />}
-          {tab === "units" && <UnitsSection {...props.units} />}
-          {tab === "dashboard" && <DashboardSection {...props.dashboard} />}
-          {tab === "notifications" && <NotificationsSection {...props.notifications} />}
-          {tab === "alerts" && <AlertsSection {...props.alerts} />}
-          {tab === "billing" && <BillingSection {...props.billing} />}
-          {tab === "security" && <SecuritySection {...props.security} />}
-          {tab === "privacy" && <PrivacySection {...props.privacy} />}
-        </div>
+          <TabsContent value={tab} className="mt-4 min-w-0 outline-none">
+            {tab === "account" && <AccountSection {...account} />}
+            {tab === "profile" && <ProfileSection {...props.profile} />}
+            {tab === "appearance" && <AppearanceSection {...props.appearance} />}
+            {tab === "units" && <UnitsSection {...props.units} />}
+            {tab === "dashboard" && <DashboardSection {...props.dashboard} />}
+            {tab === "notifications" && <NotificationsSection {...props.notifications} />}
+            {tab === "alerts" && <AlertsSection {...props.alerts} />}
+            {tab === "billing" && <BillingSection {...props.billing} />}
+            {tab === "security" && <SecuritySection {...props.security} />}
+            {tab === "privacy" && <PrivacySection {...props.privacy} />}
+          </TabsContent>
+        </Tabs>
       </div>
     </SettingsNavProvider>
   );

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { BatteryCharging, Cpu, Home, Sun, Zap, type LucideIcon } from "lucide-react";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLiveNumbers } from "@/lib/telemetry/live-values";
 import { PERFORMANCE_LIVE_KEYS, pvInputKeys } from "@/lib/performance-metrics";
 import type { BatteryProfile } from "@/lib/battery-health";
@@ -99,15 +99,15 @@ function Board({ deviceId, initial, pvKeys, tariff, batteryProfile, solarKwp, ex
             </TabsTrigger>
           ))}
         </TabsList>
-      </Tabs>
 
-      <div key={section}>
-        {section === "solar" && <SolarSection {...props} kwp={solarKwp} extras={extras.solar} />}
-        {section === "inverter" && <InverterSection {...props} extras={extras.inverter} />}
-        {section === "battery" && <BatterySection {...props} profile={batteryProfile} extras={extras.battery} />}
-        {section === "load" && <LoadSection {...props} extras={extras.load} />}
-        {section === "grid" && <GridSection {...props} extras={extras.grid} />}
-      </div>
+        <TabsContent value={section} className="mt-4 outline-none">
+          {section === "solar" && <SolarSection {...props} kwp={solarKwp} extras={extras.solar} />}
+          {section === "inverter" && <InverterSection {...props} extras={extras.inverter} />}
+          {section === "battery" && <BatterySection {...props} profile={batteryProfile} extras={extras.battery} />}
+          {section === "load" && <LoadSection {...props} extras={extras.load} />}
+          {section === "grid" && <GridSection {...props} extras={extras.grid} />}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

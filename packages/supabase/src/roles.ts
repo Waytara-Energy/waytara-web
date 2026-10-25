@@ -17,5 +17,5 @@ export function isStaffRole(role: Role | null | undefined): boolean {
 }
 
 export function isCustomerRole(role: Role | null | undefined): boolean {
-  return role === "customer";
+  return role === "customer" || role === "admin";
 }

@@ -8,7 +8,7 @@ describe("parseAppearance", () => {
     expect(parseAppearance({ appearance: { text_size: "huge", reduce_motion: "yes" } })).toEqual(DEFAULT_APPEARANCE);
   });
   it("reads a valid choice and round-trips", () => {
-    const p = { textSize: "lg" as const, reduceMotion: true };
+    const p = { textSize: "lg" as const, reduceMotion: true, weatherOverlay: true };
     expect(parseAppearance({ appearance: appearanceToJson(p) })).toEqual(p);
   });
   it("gives the percentage of a size", () => {

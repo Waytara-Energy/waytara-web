@@ -4,7 +4,7 @@ import * as React from "react";
 import { useRouter } from "next/navigation";
 import { FileBarChart, FilePlus2, Zap, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { inr } from "@/lib/savings";
 import { istDate } from "@/lib/telemetry/combine";
 import { buildPeriodView, type PeriodView } from "@/lib/reports/period-view";
@@ -93,13 +93,13 @@ function Board({ base, customerId, reports, runs, available }: { base: ReportsBa
             </TabsTrigger>
           ))}
         </TabsList>
-      </Tabs>
 
-      <div key={section}>
-        {section === "summary" && <ReportsSummary base={base} view={view} label={label} />}
-        {section === "energy" && <ReportsEnergy base={base} view={view} />}
-        {section === "downloads" && <ReportsDownloads base={base} customerId={customerId} reports={reports} runs={runs} available={available} />}
-      </div>
+        <TabsContent value={section} className="mt-4 outline-none">
+          {section === "summary" && <ReportsSummary base={base} view={view} label={label} />}
+          {section === "energy" && <ReportsEnergy base={base} view={view} />}
+          {section === "downloads" && <ReportsDownloads base={base} customerId={customerId} reports={reports} runs={runs} available={available} />}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

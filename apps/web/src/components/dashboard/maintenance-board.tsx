@@ -4,7 +4,7 @@ import * as React from "react";
 import { CalendarCheck, ChevronDown, HeartPulse, TriangleAlert, type LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { agoText } from "@/lib/device-status-summary";
 import { getFaultInfo, type FaultEvent } from "@/lib/deye-fault-codes";
 import { inverterGuide } from "@/lib/troubleshooting-guide";
@@ -143,22 +143,22 @@ export function MaintenanceBoard({
             </TabsTrigger>
           ))}
         </TabsList>
-      </Tabs>
 
-      <div key={section}>
-        {section === "health" &&
-          (solar ? (
-            <SolarHealth solar={solar} checks={checks} faultCode={faultCode} value={value} technical={technical} report={report} openIssues={openIssues} />
-          ) : evHealth && ev ? (
-            <div className="space-y-4">
-              <EvMaintHealth health={evHealth} events={ev.events} report={report} openIssues={openIssues} />
-              {health}
-            </div>
-          ) : (
-            health
-          ))}
-        {section === "service" && service}
-      </div>
+        <TabsContent value={section} className="mt-4 outline-none">
+          {section === "health" &&
+            (solar ? (
+              <SolarHealth solar={solar} checks={checks} faultCode={faultCode} value={value} technical={technical} report={report} openIssues={openIssues} />
+            ) : evHealth && ev ? (
+              <div className="space-y-4">
+                <EvMaintHealth health={evHealth} events={ev.events} report={report} openIssues={openIssues} />
+                {health}
+              </div>
+            ) : (
+              health
+            ))}
+          {section === "service" && service}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

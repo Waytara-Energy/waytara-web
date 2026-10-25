@@ -23,6 +23,9 @@ import { useChartStyle } from "./chart-style";
 import { CHART_CURSOR } from "./chart-cursor";
 import { useUnits } from "@/components/units-provider";
 import { applyChartUnits } from "@/lib/chart-units";
+import { useWeatherOverlay } from "@/components/appearance-provider";
+import { useSunTimes } from "./sun-context";
+import { SunTimeLabel } from "./sun-time-label";
 
 export interface BarTrendSeries {
   key: string;
@@ -244,6 +247,16 @@ function TodayBarTrendChart({
   // The chart style chosen in Application Settings overrides a series' own line/bar choice (automatic keeps it).
   const chartStyle = useChartStyle();
   const u = useUnits();
+  const weatherOverlay = useWeatherOverlay();
+  const sunTimes = useSunTimes();
+  const sunriseKey = React.useMemo(
+    () => (sunTimes.sunriseIso ? slotKeyFor(sunTimes.sunriseIso, bucketMinutes) : null),
+    [sunTimes.sunriseIso, bucketMinutes]
+  );
+  const sunsetKey = React.useMemo(
+    () => (sunTimes.sunsetIso ? slotKeyFor(sunTimes.sunsetIso, bucketMinutes) : null),
+    [sunTimes.sunsetIso, bucketMinutes]
+  );
   // The chart's own width, so the time labels can be spaced to fit it.
   const [box, setBox] = React.useState<HTMLDivElement | null>(null);
   const [boxWidth, setBoxWidth] = React.useState(0);
@@ -587,6 +600,44 @@ function TodayBarTrendChart({
                 )}
               </React.Fragment>
             ))}
+            {weatherOverlay && sunriseKey && shownKeys.has(sunriseKey) && (
+              <ReferenceLine
+                key="weather-sunrise"
+                yAxisId={axisIds[0]}
+                x={sunriseKey}
+                stroke="#f59e0b"
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                strokeOpacity={0.8}
+                ifOverflow="extendDomain"
+                label={(props: { viewBox?: { x?: number; y?: number; width?: number; height?: number } }) => (
+                  <SunTimeLabel
+                    viewBox={props.viewBox}
+                    type="sunrise"
+                    timeText={sunTimes.sunriseClock}
+                  />
+                )}
+              />
+            )}
+            {weatherOverlay && sunsetKey && shownKeys.has(sunsetKey) && (
+              <ReferenceLine
+                key="weather-sunset"
+                yAxisId={axisIds[0]}
+                x={sunsetKey}
+                stroke="#f97316"
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                strokeOpacity={0.8}
+                ifOverflow="extendDomain"
+                label={(props: { viewBox?: { x?: number; y?: number; width?: number; height?: number } }) => (
+                  <SunTimeLabel
+                    viewBox={props.viewBox}
+                    type="sunset"
+                    timeText={sunTimes.sunsetClock}
+                  />
+                )}
+              />
+            )}
           </ComposedChart>
         </ChartContainer>
         </div>

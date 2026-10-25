@@ -1,10 +1,13 @@
 "use client";
 
 import * as React from "react";
-import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
+import { Area, AreaChart, CartesianGrid, ReferenceLine, XAxis, YAxis } from "recharts";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { useSeriesUnit } from "@/components/units-provider";
+import { useWeatherOverlay } from "@/components/appearance-provider";
+import { useSunTimes } from "./sun-context";
+import { SunTimeLabel } from "./sun-time-label";
 import type { TodayPoint } from "@/lib/ev-tab";
 import { FLOW } from "./flow-colors";
 
@@ -19,6 +22,8 @@ const axis = { tickLine: false, axisLine: false, tick: { fontSize: 10, fill: "va
 export function EvTodayChart({ points: raw, summary }: { points: TodayPoint[]; summary: string }) {
   const su = useSeriesUnit("kW");
   const unit = su.unit || "kW";
+  const weatherOverlay = useWeatherOverlay();
+  const sunTimes = useSunTimes();
   const points = React.useMemo(() => {
     const m = (v: number | null) => (v === null ? null : su.converted ? su.map(v) : v);
     return raw.map((p) => ({ t: p.t, kw: m(p.kw), solar: m(p.solar), battery: m(p.battery), grid: m(p.grid) }));
@@ -69,6 +74,40 @@ export function EvTodayChart({ points: raw, summary }: { points: TodayPoint[]; s
               </>
             ) : (
               <Area dataKey="kw" type="monotone" stroke="var(--color-kw)" strokeWidth={1.75} fill="url(#ev-today-power)" dot={false} isAnimationActive={false} />
+            )}
+            {weatherOverlay && sunTimes.sunriseMs && sunTimes.sunriseMs >= domain[0] && sunTimes.sunriseMs <= domain[1] && (
+              <ReferenceLine
+                x={sunTimes.sunriseMs}
+                stroke="#f59e0b"
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                strokeOpacity={0.8}
+                ifOverflow="extendDomain"
+                label={(props: { viewBox?: { x?: number; y?: number; width?: number; height?: number } }) => (
+                  <SunTimeLabel
+                    viewBox={props.viewBox}
+                    type="sunrise"
+                    timeText={sunTimes.sunriseClock}
+                  />
+                )}
+              />
+            )}
+            {weatherOverlay && sunTimes.sunsetMs && sunTimes.sunsetMs >= domain[0] && sunTimes.sunsetMs <= domain[1] && (
+              <ReferenceLine
+                x={sunTimes.sunsetMs}
+                stroke="#f97316"
+                strokeDasharray="4 4"
+                strokeWidth={1.5}
+                strokeOpacity={0.8}
+                ifOverflow="extendDomain"
+                label={(props: { viewBox?: { x?: number; y?: number; width?: number; height?: number } }) => (
+                  <SunTimeLabel
+                    viewBox={props.viewBox}
+                    type="sunset"
+                    timeText={sunTimes.sunsetClock}
+                  />
+                )}
+              />
             )}
           </AreaChart>
         </ChartContainer>

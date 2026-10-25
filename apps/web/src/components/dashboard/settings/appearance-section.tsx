@@ -1,9 +1,10 @@
 "use client";
 
 import * as React from "react";
-import { BarChart3, Gauge, Moon, Palette, Sparkles, Sun, SunMoon, Type, Wind } from "lucide-react";
+import { BarChart3, LineChart, Moon, Palette, Sparkles, Sun, SunMoon, Sunrise, Type, Wind } from "lucide-react";
 import { withPromiseToast } from "@waytara/ui/notify";
 import { applyAppearance } from "@/components/appearance-applier";
+import { useAppearance } from "@/components/appearance-provider";
 import { useThemeMode, type ThemeMode } from "@/components/auto-theme";
 import { Switch } from "@/components/ui/switch";
 import { useHasMounted } from "@/hooks/use-has-mounted";
@@ -70,14 +71,14 @@ function ChartPreview({ style }: { style: ChartStyle }) {
 }
 
 const THEMES: { mode: ThemeMode; label: string; hint: string; icon: typeof Sun }[] = [
+  { mode: "auto", label: "Auto", hint: "Light by day (6 am to 6 pm), dark at night (default)", icon: SunMoon },
   { mode: "light", label: "Light", hint: "Always light", icon: Sun },
   { mode: "dark", label: "Dark", hint: "Always dark", icon: Moon },
-  { mode: "auto", label: "Auto", hint: "Light by day (6 am to 6 pm), dark at night", icon: SunMoon },
 ];
 
 const CHARTS: Record<ChartStyle, { label: string; hint: string }> = {
+  line: { label: "Line", hint: "Every chart as a line (default)" },
   auto: { label: "Automatic", hint: "Each chart in the style that suits it" },
-  line: { label: "Line", hint: "Every chart as a line" },
   bar: { label: "Bar", hint: "Every chart as bars" },
 };
 
@@ -109,15 +110,18 @@ export function AppearanceSection({ initial }: { initial: AppearancePrefs }) {
   const mounted = useHasMounted();
   const chartStyle = useChartStyle();
   const setChartStyle = useSetChartStyle();
+  const { setPrefs: setContextPrefs } = useAppearance();
   const [prefs, setPrefs] = React.useState<AppearancePrefs>(initial);
 
   async function change(next: AppearancePrefs) {
     const before = prefs;
     setPrefs(next);
+    setContextPrefs(next);
     applyAppearance(next);
     const ok = await withPromiseToast(saveAppearance, { loading: "Saving…", success: "Saved." })(next);
     if (!ok) {
       setPrefs(before);
+      setContextPrefs(before);
       applyAppearance(before);
     }
   }
@@ -133,6 +137,11 @@ export function AppearanceSection({ initial }: { initial: AppearancePrefs }) {
           ))}
         </div>
       </SettingsCard>
+          <SettingsCard title="Weather & Sun" description="Environmental indicators on your monitoring charts." icon={Sunrise} tone="amber">
+        <ToggleRow title="Sunrise & sunset overlay" description="Show Apple Weather-style vertical lines for today's sunrise and sunset on monitoring graphs.">
+          <Switch checked={prefs.weatherOverlay} onCheckedChange={(v) => void change({ ...prefs, weatherOverlay: v })} aria-label="Sunrise & sunset overlay" />
+        </ToggleRow>
+      </SettingsCard>
           <SettingsCard title="Motion" description="Fewer animations, for a calmer screen or an older device." icon={Wind} tone="teal">
         <ToggleRow title="Reduce motion" description="Charts and menus appear without sliding or fading.">
           <Switch checked={prefs.reduceMotion} onCheckedChange={(v) => void change({ ...prefs, reduceMotion: v })} aria-label="Reduce motion" />
@@ -145,7 +154,7 @@ export function AppearanceSection({ initial }: { initial: AppearancePrefs }) {
           <SettingsCard title="Charts" description="How every chart is drawn: Overview, Monitoring, Performance." icon={BarChart3} tone="sky">
         <div role="radiogroup" aria-label="Chart style" className="grid grid-cols-3 gap-3">
           {CHART_STYLES.map((s) => (
-            <Choice key={s} selected={chartStyle === s} onSelect={() => setChartStyle(s)} preview={<div className="grid h-full w-full place-items-center p-4"><ChartPreview style={s} /></div>} label={CHARTS[s].label} hint={CHARTS[s].hint} icon={s === "auto" ? Sparkles : Gauge} />
+            <Choice key={s} selected={chartStyle === s} onSelect={() => setChartStyle(s)} preview={<div className="grid h-full w-full place-items-center p-4"><ChartPreview style={s} /></div>} label={CHARTS[s].label} hint={CHARTS[s].hint} icon={s === "auto" ? Sparkles : s === "line" ? LineChart : BarChart3} />
           ))}
         </div>
       </SettingsCard>

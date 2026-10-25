@@ -499,3 +499,46 @@ html[data-reduce-motion="true"] *::after {
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
+
+/* Hide scrollbar utility for sleek horizontal tab lists */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Instagram-style tab transitions */
+@keyframes tabSlideFromRight {
+  0% {
+    opacity: 0.85;
+    transform: translate3d(24px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes tabSlideFromLeft {
+  0% {
+    opacity: 0.85;
+    transform: translate3d(-24px, 0, 0);
+  }
+  100% {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.animate-tab-slide-left,
+.animate-tab-slide-next {
+  animation: tabSlideFromRight 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+.animate-tab-slide-right,
+.animate-tab-slide-prev {
+  animation: tabSlideFromLeft 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+

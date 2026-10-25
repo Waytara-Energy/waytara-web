@@ -14,6 +14,8 @@ import { parseSessionPolicy } from "@/lib/session-policy";
 import { parseUnitPrefs } from "@/lib/unit-prefs";
 import { UnitsProvider } from "@/components/units-provider";
 import { AppearanceApplier } from "@/components/appearance-applier";
+import { AppearanceProvider } from "@/components/appearance-provider";
+import { SunProvider } from "@/components/dashboard/sun-context";
 import { parseAppearance } from "@/lib/appearance-prefs";
 import { ConnectionNotice } from "@/components/dashboard/connection-notice";
 import { RealtimeProvider } from "@waytara/ui/realtime-provider";
@@ -104,6 +106,10 @@ export default async function DashboardLayout({
   // the units this person chose to see numbers in (Application Settings > Units), applied by every reading on every page
   const unitPrefs = parseUnitPrefs(securityRow.data?.ui_preferences);
   const appearance = parseAppearance(securityRow.data?.ui_preferences);
+  const weatherCookie = cookieStore.get("weather_overlay")?.value;
+  if (weatherCookie !== undefined) {
+    appearance.weatherOverlay = weatherCookie === "1";
+  }
   const sidebarOpen = cookieStore.get("sidebar_state")?.value === "true";
 
   // Site is the dashboard's navigation root now — every site-scoped page
@@ -140,6 +146,8 @@ export default async function DashboardLayout({
       <SidebarProvider defaultOpen={sidebarOpen}>
       <ChartStyleProvider initial={parseChartStyle(cookieStore.get(CHART_STYLE_COOKIE)?.value)}>
       <UnitsProvider initial={unitPrefs}>
+      <AppearanceProvider initial={appearance}>
+      <SunProvider coordinates={selectedSite ? { latitude: selectedSite.latitude, longitude: selectedSite.longitude } : null}>
       <HeaderSlotProvider>
         <SessionWatcher />
         <IdleSignOut policy={sessionPolicy} />
@@ -188,6 +196,8 @@ export default async function DashboardLayout({
           </main>
         </SidebarInset>
       </HeaderSlotProvider>
+      </SunProvider>
+      </AppearanceProvider>
       </UnitsProvider>
       </ChartStyleProvider>
       </SidebarProvider>

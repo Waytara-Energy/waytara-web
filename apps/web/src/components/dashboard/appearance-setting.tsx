@@ -6,9 +6,9 @@ import { useHasMounted } from "@/hooks/use-has-mounted";
 import { cn } from "@/lib/utils";
 
 const OPTIONS: { value: ThemeMode; label: string; hint: string; icon: typeof Sun }[] = [
+  { value: "auto", label: "Auto", hint: "Light by day (6 am to 6 pm), dark at night (default)", icon: SunMoon },
   { value: "light", label: "Light", hint: "Always light", icon: Sun },
   { value: "dark", label: "Dark", hint: "Always dark", icon: Moon },
-  { value: "auto", label: "Auto", hint: "Light by day (6 am to 6 pm), dark at night", icon: SunMoon },
 ];
 
 /** Application Settings: light, dark, or Auto (follows the time of day on this device). It applies the moment it is chosen and is

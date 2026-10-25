@@ -6,8 +6,8 @@ import { cn } from "@/lib/utils";
 import { useChartStyle, useSetChartStyle } from "./chart-style";
 
 const OPTIONS: Record<ChartStyle, { label: string; hint: string; icon: typeof LineChart }> = {
+  line: { label: "Line", hint: "Every chart as a line (default)", icon: LineChart },
   auto: { label: "Automatic", hint: "Each chart in the style that suits it", icon: Sparkles },
-  line: { label: "Line", hint: "Every chart as a line", icon: LineChart },
   bar: { label: "Bar", hint: "Every chart as bars", icon: BarChart3 },
 };
 
