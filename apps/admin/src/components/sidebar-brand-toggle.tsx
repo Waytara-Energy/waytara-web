@@ -7,13 +7,12 @@ import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
 
 /**
- * The round button at the top left that opens the sidebar when it is folded away (the brand mark; it turns into the open icon under the pointer).
- * While the sidebar is open it is not there: the sidebar has its own collapse icon. On a phone it is always there, as there is no header.
- * `alerts` puts a dot on it when something needs attention, so a folded sidebar still shows it.
+ * The round button at the top left that opens the sidebar on a phone, where it is a sheet and there is no header. On a computer the sidebar folds to a
+ * rail of icons that has its own toggle, so this is not shown. `alerts` puts a dot on it when something needs attention.
  */
 export function SidebarBrandToggle({ alerts = 0 }: { alerts?: number }) {
-  const { toggleSidebar, state, isMobile } = useSidebar();
-  const visible = isMobile || state === "collapsed";
+  const { toggleSidebar, isMobile } = useSidebar();
+  const visible = isMobile;
   return (
     <button
       type="button"

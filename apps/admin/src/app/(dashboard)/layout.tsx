@@ -42,7 +42,7 @@ export default async function DashboardLayout({
         />
         <SidebarBrandToggle alerts={total} />
         <SidebarInset className="min-w-0">
-          <main className="flex-1 px-4 pb-10 pt-14 sm:px-6 md:pt-6 md:peer-data-[state=collapsed]:pt-14">{children}</main>
+          <main className="flex-1 px-4 pb-10 pt-14 sm:px-6 md:pt-6">{children}</main>
         </SidebarInset>
       </SidebarProvider>
     </RealtimeProvider>

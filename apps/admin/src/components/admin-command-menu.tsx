@@ -27,11 +27,11 @@ export function AdminCommandMenu({ groups }: { groups: NavGroup[] }) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="flex h-8 w-full items-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/40 px-2.5 text-left text-[13px] text-sidebar-foreground/60 outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring"
+        aria-label="Search pages" className="flex h-8 w-full items-center gap-2 rounded-lg border border-sidebar-border bg-sidebar-accent/40 px-2.5 text-left text-[13px] text-sidebar-foreground/60 outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring group-data-[collapsible=icon]:size-8 group-data-[collapsible=icon]:justify-center group-data-[collapsible=icon]:border-0 group-data-[collapsible=icon]:bg-transparent group-data-[collapsible=icon]:p-0"
       >
         <Search className="size-4" />
-        <span className="flex-1">Search pages</span>
-        <kbd className="rounded border border-sidebar-border px-1 text-[10px] font-medium">Ctrl K</kbd>
+        <span className="flex-1 group-data-[collapsible=icon]:hidden">Search pages</span>
+        <kbd className="rounded group-data-[collapsible=icon]:hidden border border-sidebar-border px-1 text-[10px] font-medium">Ctrl K</kbd>
       </button>
       <CommandDialog open={open} onOpenChange={setOpen} title="Search pages" description="Jump to a page">
         <CommandInput placeholder="Go to…" />

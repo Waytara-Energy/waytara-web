@@ -40,16 +40,16 @@ export function AdminUserMenu({ account }: { account: AdminAccount }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button type="button" className="flex w-full items-center gap-2.5 rounded-lg p-2 text-left outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring data-[state=open]:bg-sidebar-accent">
+        <button type="button" className="flex w-full items-center gap-2.5 rounded-lg p-2 text-left outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring data-[state=open]:bg-sidebar-accent group-data-[collapsible=icon]:p-0">
           <Avatar className="size-8 shrink-0 border-0">
             {account.avatarUrl ? <AvatarImage src={account.avatarUrl} alt={name} /> : null}
-            <AvatarFallback className="text-xs">{initials(account.fullName, account.email)}</AvatarFallback>
+            <AvatarFallback className="bg-primary/15 text-xs font-semibold text-primary">{initials(account.fullName, account.email)}</AvatarFallback>
           </Avatar>
-          <span className="min-w-0 flex-1">
+          <span className="min-w-0 flex-1 group-data-[collapsible=icon]:hidden">
             <span className="block truncate text-sm font-medium leading-tight text-sidebar-foreground">{name}</span>
             <span className="block truncate text-xs leading-tight text-sidebar-foreground/60">{ROLE_LABEL[account.role ?? ""] ?? account.role ?? "Staff"}</span>
           </span>
-          <ChevronsUpDown className="size-4 shrink-0 text-sidebar-foreground/60" />
+          <ChevronsUpDown className="size-4 shrink-0 text-sidebar-foreground/60 group-data-[collapsible=icon]:hidden" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent side="top" align="start" className="w-60">
