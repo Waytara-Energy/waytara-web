@@ -48,8 +48,10 @@ export function SunProvider({
   const lat = coordinates?.latitude ?? DEFAULT_COORDS.latitude;
   const lng = coordinates?.longitude ?? DEFAULT_COORDS.longitude;
 
+  // The day the times are worked out for is read once when the provider mounts (a page opened tomorrow starts again).
+  const [today] = React.useState(() => istDate(Date.now()));
+
   const value = React.useMemo<SunTimesInfo>(() => {
-    const today = istDate(Date.now());
     const day: SunDay = sunDay(today, lat, lng);
     return {
       sunriseIso: day.sunrise,
@@ -59,7 +61,7 @@ export function SunProvider({
       sunriseClock: formatClock(day.sunrise),
       sunsetClock: formatClock(day.sunset),
     };
-  }, [lat, lng]);
+  }, [today, lat, lng]);
 
   return <SunContext.Provider value={value}>{children}</SunContext.Provider>;
 }
