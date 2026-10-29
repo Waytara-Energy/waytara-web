@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { STATUS_OPTIONS, statusLabel, type StockRow } from "../stock-types";
+import { CategorySelect } from "./category-select";
 import { PoDocumentField } from "./po-document-field";
 import { SpecsEditor, WarrantyEditor } from "./specs-editor";
 
@@ -104,7 +105,7 @@ export function StockForm({
   cancelHref,
 }: {
   defaults?: StockRow;
-  /** the categories in use, offered while typing one */
+  /** the categories in use, to choose from */
   categories: string[];
   action: (formData: FormData) => Promise<unknown>;
   loading: string;
@@ -122,14 +123,7 @@ export function StockForm({
         </CardHeader>
         <CardContent className="grid gap-5 sm:grid-cols-2">
           <Field label="Name" name="name" required defaultValue={defaults?.name} placeholder="e.g. Deye 8kW Hybrid Inverter" />
-          <div className="grid gap-2">
-            <Field label="Category" name="category" required defaultValue={defaults?.category} placeholder="e.g. solar_inverter" list="stock-categories" />
-            <datalist id="stock-categories">
-              {categories.map((c) => (
-                <option key={c} value={c} />
-              ))}
-            </datalist>
-          </div>
+          <CategorySelect categories={categories} defaultValue={defaults?.category} />
           <Field label="Brand" name="brand" defaultValue={defaults?.brand} />
           <Field label="Model" name="model" defaultValue={defaults?.model} />
           <Field label="Serial number" name="serialNumber" defaultValue={defaults?.serial_number} hint="One physical unit has one serial number. Leave it empty for bulk items such as cable." />
