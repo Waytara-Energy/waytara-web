@@ -62,7 +62,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
     // The parts installed under this device (solar panels, battery ...) and what each one is.
     supabase
       .from("equipment")
-      .select("id, label, quantity, installed_at, warranty_end_date, device_type:equipment_inventory(category, name, manufacturer, brand, model, model_number, serial_number, power_capacity_value, power_capacity_unit, technical_specs)")
+      .select("id, label, quantity, serial_number, installed_at, warranty_end_date, device_type:equipment_inventory(category, name, manufacturer, brand, model, model_number, power_capacity_value, power_capacity_unit, technical_specs)")
       .eq("parent_id", device.id)
       .is("retired_at", null)
       .order("created_at", { ascending: true }),
@@ -85,7 +85,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
     brand: e.device_type?.brand ?? null,
     model: e.device_type?.model ?? null,
     modelNumber: e.device_type?.model_number ?? null,
-    serialNumber: e.device_type?.serial_number ?? null,
+    serialNumber: e.serial_number ?? null,
     powerValue: e.device_type?.power_capacity_value ?? null,
     powerUnit: e.device_type?.power_capacity_unit ?? null,
     specs: (e.device_type?.technical_specs as Record<string, unknown> | null) ?? null,

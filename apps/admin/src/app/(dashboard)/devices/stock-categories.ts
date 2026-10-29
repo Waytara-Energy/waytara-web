@@ -4,11 +4,11 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
 
 export interface CategoryChoice {
   name: string;
-  /** how many stock items are in it: a category with items cannot be removed */
+  /** how many models are in it: a category with models cannot be removed */
   items: number;
 }
 
-/** The categories to offer: the saved list together with any category a stock item already carries, each with how many items are in it. */
+/** The categories to offer: the saved list together with any category a stock item already carries, each with how many models are in it. */
 export async function loadStockCategories(supabase: Supabase): Promise<CategoryChoice[]> {
   const [{ data: saved }, { data: used }] = await Promise.all([
     supabase.from("stock_categories").select("name"),

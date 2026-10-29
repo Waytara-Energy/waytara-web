@@ -15,7 +15,7 @@ import { categoryLabel, PROTECTED_CATEGORIES } from "../stock-types";
 /**
  * The category of a stock item: open the list, type to search it, pick one. When what was typed is not in the list, the first line offers to add it
  * as a new category, right there (it is saved to the list at once). An X at the end of a line removes a category nobody uses; the two the system
- * depends on have none, and a category with stock items says how many instead of going. The form receives the chosen name as `category`.
+ * depends on have none, and a category with models says how many instead of going. The form receives the chosen name as `category`.
  */
 export function CategorySelect({ categories, defaultValue }: { categories: CategoryChoice[]; defaultValue?: string | null }) {
   const [open, setOpen] = React.useState(false);
@@ -100,7 +100,7 @@ export function CategorySelect({ categories, defaultValue }: { categories: Categ
                         <button
                           type="button"
                           disabled={busy}
-                          title={c.items > 0 ? `${c.items} stock ${c.items === 1 ? "item is" : "items are"} in this category` : "Remove this category"}
+                          title={c.items > 0 ? `${c.items} ${c.items === 1 ? "model is" : "models are"} in this category` : "Remove this category"}
                           aria-label={`Remove ${categoryLabel(c.name)}`}
                           onClick={(e) => {
                             e.stopPropagation();

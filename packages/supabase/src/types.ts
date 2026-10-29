@@ -762,6 +762,7 @@ export type Database = {
           parent_id: string | null
           quantity: number
           retired_at: string | null
+          serial_number: string | null
           service_id: string | null
           site_id: string
           stock_id: string
@@ -782,6 +783,7 @@ export type Database = {
           parent_id?: string | null
           quantity?: number
           retired_at?: string | null
+          serial_number?: string | null
           service_id?: string | null
           site_id: string
           stock_id: string
@@ -802,6 +804,7 @@ export type Database = {
           parent_id?: string | null
           quantity?: number
           retired_at?: string | null
+          serial_number?: string | null
           service_id?: string | null
           site_id?: string
           stock_id?: string

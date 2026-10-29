@@ -24,7 +24,7 @@ export async function discardDocuments(supabase: Supabase, files: PlacedFile[]):
 }
 
 /** Checks that a file the browser says it uploaded is really in the bucket (and is acceptable), and returns what to record. Size and kind come from the bucket, not the form. */
-async function checkUploaded(supabase: Supabase, slot: DocSlot, path: string, name: string): Promise<StoredDocument> {
+export async function checkUploaded(supabase: Supabase, slot: DocSlot, path: string, name: string): Promise<StoredDocument> {
   const bucket = supabase.storage.from(DOC_SLOTS[slot].bucket);
   if (!DOCUMENT_PATH.test(path)) throw new Error(`The ${DOC_SLOTS[slot].label.toLowerCase()} didn't upload properly. Choose the file again.`);
   const slash = path.indexOf("/");
@@ -46,10 +46,10 @@ async function checkUploaded(supabase: Supabase, slot: DocSlot, path: string, na
  * `current` is the item as it is now (for a save of an existing one), so a replaced or removed file can be taken down afterwards. Anything the form
  * does not mention stays as it is. Throws, with the files of this save already taken down, when a file is not acceptable.
  */
-export async function planDocuments(supabase: Supabase, formData: FormData, current: object | null): Promise<DocumentPlan> {
+export async function planDocuments(supabase: Supabase, formData: FormData, current: object | null, slots: readonly DocSlot[] = DOC_SLOT_KEYS): Promise<DocumentPlan> {
   const plan: DocumentPlan = { columns: {}, added: [], replaced: [] };
   try {
-    for (const slot of DOC_SLOT_KEYS) {
+    for (const slot of slots) {
       const path = String(formData.get(`${slot}Path`) ?? "").trim();
       const name = String(formData.get(`${slot}Name`) ?? "").trim();
       const remove = formData.get(`${slot}Remove`) === "on";

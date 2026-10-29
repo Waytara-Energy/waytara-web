@@ -179,14 +179,14 @@ export async function gatherReportsBaseForCustomer(customerId: string, equipment
   const [{ data: profile }, { data: customer }, { data: sites }] = await Promise.all([
     supabase.from("profiles").select("full_name, email").eq("id", customerId).maybeSingle(),
     supabase.from("customers").select("tariff_rate_per_kwh, plan:plans(name, features)").eq("id", customerId).maybeSingle(),
-    supabase.from("sites").select("name, property_type, address, equipment(id, label, parent_id, device_type:equipment_inventory(category, serial_number, model_number))").eq("customer_id", customerId),
+    supabase.from("sites").select("name, property_type, address, equipment(id, label, parent_id, serial_number, device_type:equipment_inventory(category, model_number))").eq("customer_id", customerId),
   ]);
   if (!profile || !customer) return null;
   const features = (customer.plan?.features as Record<string, boolean> | undefined) ?? {};
   if (!features.reports) return null;
 
   // The report's device, among the customer's own devices (or their first inverter when it was not named).
-  type Dev = { id: string; label: string | null; parent_id: string | null; device_type: { category: string; serial_number: string | null; model_number: string | null } | null };
+  type Dev = { id: string; label: string | null; parent_id: string | null; serial_number: string | null; device_type: { category: string; model_number: string | null } | null };
   const owned = (sites ?? []).flatMap((s) => ((s.equipment ?? []) as unknown as Dev[]).filter((d) => d.parent_id === null).map((d) => ({ site: s, device: d })));
   const hit = owned.find((o) => o.device.id === equipmentId) ?? owned.find((o) => o.device.device_type?.category === "solar_inverter");
   if (!hit || hit.device.device_type?.category !== "solar_inverter") return null;
@@ -198,7 +198,7 @@ export async function gatherReportsBaseForCustomer(customerId: string, equipment
     customerEmail: profile.email ?? null,
     planName: customer.plan?.name ?? "—",
     site: { name: hit.site.name, address: hit.site.address, propertyType: hit.site.property_type },
-    device: { id: hit.device.id, label: hit.device.label || hit.device.device_type?.serial_number || hit.device.device_type?.model_number || "Device" },
+    device: { id: hit.device.id, label: hit.device.label || hit.device.serial_number || hit.device.device_type?.model_number || "Device" },
     accountRate: Number(customer.tariff_rate_per_kwh ?? 8),
     invested: (payments ?? []).reduce((sum, p) => sum + Number(p.amount), 0),
   });

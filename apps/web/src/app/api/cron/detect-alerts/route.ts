@@ -27,7 +27,8 @@ import { isMonitoredCategory } from "@/lib/equipment-children";
 type Device = {
   id: string;
   label: string | null;
-  device_type: { serial_number: string | null; model_number: string | null; category: string | null } | null;
+  serial_number: string | null;
+  device_type: { model_number: string | null; category: string | null } | null;
   site: { name: string | null; customer_id: string | null } | null;
 };
 
@@ -66,7 +67,7 @@ export async function GET(req: NextRequest) {
 
   const { data: deviceRows, error: devicesError } = await supabase
     .from("equipment")
-    .select("id, label, device_type:equipment_inventory(serial_number, model_number, category), site:sites(name, customer_id)")
+    .select("id, label, serial_number, device_type:equipment_inventory(model_number, category), site:sites(name, customer_id)")
     .eq("device_status", "active");
   if (devicesError) return NextResponse.json({ error: devicesError.message }, { status: 500 });
 
@@ -112,7 +113,7 @@ export async function GET(req: NextRequest) {
   const monitored = new Set<string>();
 
   for (const device of devices) {
-    const label = device.label || device.device_type?.serial_number || device.device_type?.model_number || "Device";
+    const label = device.label || device.serial_number || device.device_type?.model_number || "Device";
     const offline = offlineStatus(beatBy.get(device.id) ?? null, latestTs.get(device.id) ?? null, now);
     if (offline.monitored) monitored.add(device.id);
 
@@ -183,7 +184,7 @@ export async function GET(req: NextRequest) {
     if (!device || !profile) return false;
     // the person's own switch for this kind of e-mail (offline, back online, fault, alarm): see Settings > Notifications
     if (!wants(profile.prefs, alertKey(kind, event))) return false;
-    const deviceLabel = device.label || device.device_type?.serial_number || device.device_type?.model_number || "Your device";
+    const deviceLabel = device.label || device.serial_number || device.device_type?.model_number || "Your device";
     const sent = await sendDeviceAlertEmail(profile.email, { kind, event, customerName: profile.full_name, deviceLabel, siteName: device.site?.name ?? null, message, ...extra });
     if (sent) emails += 1;
     return sent;

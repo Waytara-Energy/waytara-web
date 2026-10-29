@@ -4,8 +4,8 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
-import { copyModelDocuments, discardDocuments, planDocuments } from "@/lib/stock-documents-server";
-import { PROTECTED_CATEGORIES, STATUS_OPTIONS, STOCK_COLUMNS, type StockRow } from "./stock-types";
+import { checkUploaded, discardDocuments, planDocuments } from "@/lib/stock-documents-server";
+import { MANUAL_STATUSES, PROTECTED_CATEGORIES } from "./stock-types";
 
 // Numeric/date form fields all follow the same "empty string -> null,
 // otherwise parse" rule — <input type="number"> and <input type="date">
@@ -23,11 +23,8 @@ function toTextOrNull(raw: FormDataEntryValue | null): string | null {
   return str || null;
 }
 
-// technical_specs / warranty_info are free-form jsonb — the form just
-// takes raw JSON text so the catalog isn't limited to a fixed set of spec
-// fields (a wire's spec sheet looks nothing like an inverter's). Invalid
-// JSON fails the save with a clear error rather than silently storing a
-// string.
+// technical_specs / warranty_info are free-form jsonb — the form builds them from friendly name/value rows and sends JSON text. Invalid JSON
+// fails the save with a clear error rather than silently storing a string.
 function toJsonOrNull(raw: FormDataEntryValue | null): { value: unknown; error?: string } {
   const str = String(raw ?? "").trim();
   if (!str) return { value: null };
@@ -40,33 +37,16 @@ function toJsonOrNull(raw: FormDataEntryValue | null): { value: unknown; error?:
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
-/** A serial number belongs to one physical unit: say so, with the item that has it, before the database refuses it (the unique index is the last guard). */
-async function assertSerialFree(supabase: Supabase, serial: unknown, exceptId?: string): Promise<void> {
-  if (typeof serial !== "string" || !serial.trim()) return;
-  let query = supabase
-    .from("equipment_inventory")
-    .select("id, name")
-    .ilike("serial_number", serial.trim().replace(/[\\%_]/g, "\\$&"))
-    .limit(1);
-  if (exceptId) query = query.neq("id", exceptId);
-  const { data } = await query;
-  if (data && data.length > 0) {
-    throw new Error(`The serial number ${serial.trim()} is already used by “${data[0]!.name}”. Each unit needs its own.`);
-  }
-}
+type ReadModelResult = { ok: true; fields: Record<string, unknown> } | { ok: false; error: string };
 
-function friendlyDbError(error: { message: string; code?: string }): Error {
-  if (error.code === "23505") return new Error("That serial number is already used by another stock item.");
-  return new Error(error.message);
-}
-
-type ReadStockFieldsResult = { ok: true; fields: Record<string, unknown> } | { ok: false; error: string };
-
-function readStockFields(formData: FormData): ReadStockFieldsResult {
+/** The model's own fields (what the product is). Stock (serial numbers, quantities, purchases) is never part of this: it is received. */
+function readModelFields(formData: FormData): ReadModelResult {
   const technicalSpecs = toJsonOrNull(formData.get("technicalSpecs"));
   if (technicalSpecs.error) return { ok: false, error: `Technical specs ${technicalSpecs.error}.` };
   const warrantyInfo = toJsonOrNull(formData.get("warrantyInfo"));
   if (warrantyInfo.error) return { ok: false, error: `Warranty info ${warrantyInfo.error}.` };
+  const tracking = String(formData.get("tracking") ?? "serial");
+  if (tracking !== "serial" && tracking !== "lot") return { ok: false, error: "Choose how this model's stock is counted." };
 
   return {
     ok: true,
@@ -77,79 +57,67 @@ function readStockFields(formData: FormData): ReadStockFieldsResult {
       model: toTextOrNull(formData.get("model")),
       model_number: toTextOrNull(formData.get("modelNumber")),
       manufacturer: toTextOrNull(formData.get("manufacturer")),
-      serial_number: toTextOrNull(formData.get("serialNumber")),
-      status: toTextOrNull(formData.get("status")) ?? "active",
+      tracking,
+      reorder_level: Math.max(0, Math.floor(toNumberOrNull(formData.get("reorderLevel")) ?? 0)),
       power_capacity_value: toNumberOrNull(formData.get("powerCapacityValue")),
       power_capacity_unit: toTextOrNull(formData.get("powerCapacityUnit")),
       size_value: toNumberOrNull(formData.get("sizeValue")),
       size_unit: toTextOrNull(formData.get("sizeUnit")),
       technical_specs: technicalSpecs.value,
       warranty_info: warrantyInfo.value,
-      quantity: toNumberOrNull(formData.get("quantity")) ?? 0,
       pack_size: toNumberOrNull(formData.get("packSize")),
       primary_uom: toTextOrNull(formData.get("primaryUom")),
-      purchase_price_amount: toNumberOrNull(formData.get("purchasePriceAmount")),
       unit_price: toNumberOrNull(formData.get("unitPrice")),
-      purchase_date: toTextOrNull(formData.get("purchaseDate")),
-      supplier: toTextOrNull(formData.get("supplier")),
-      po_reference: toTextOrNull(formData.get("poReference")),
       phase_count: toNumberOrNull(formData.get("phaseCount")),
     },
   };
 }
 
+/** The manual and the data sheet belong to the model (the purchase order belongs to a delivery, see receiveStock). */
+const MODEL_DOCUMENTS = ["manual", "datasheet"] as const;
+
 export async function createStockItem(formData: FormData): Promise<void> {
   await requireAdmin();
-  const result = readStockFields(formData);
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
+  const result = readModelFields(formData);
+  if (!result.ok) throw new Error(result.error);
   const { fields } = result;
-
-  if (!fields.name || !fields.category) {
-    throw new Error("Name and category are required.");
-  }
+  if (!fields.name || !fields.category) throw new Error("Name and category are required.");
 
   const supabase = await createClient();
-  await assertSerialFree(supabase, fields.serial_number);
-  // the files the browser uploaded (purchase order, manual, data sheet) are checked first, and taken down again if the item can't be saved
-  const docs = await planDocuments(supabase, formData, null);
+  // the files the browser uploaded are checked first, and taken down again if the model can't be saved
+  const docs = await planDocuments(supabase, formData, null, MODEL_DOCUMENTS);
   const { data, error } = await supabase.from("equipment_inventory").insert({ ...fields, ...docs.columns } as never).select("id").single();
-
   if (error || !data) {
     await discardDocuments(supabase, docs.added);
-    throw error ? friendlyDbError(error) : new Error("Couldn't add the stock item.");
+    throw new Error(error?.message ?? "Couldn't add the model.");
   }
 
   revalidatePath("/devices");
-  // on success the person lands on the new item's own page
+  // on success the person lands on the new model's own page, ready to receive its first stock
   redirect(`/devices/stock/${data.id}`);
 }
 
 export async function updateStockItem(stockId: string, formData: FormData): Promise<void> {
   await requireAdmin();
-  const result = readStockFields(formData);
-  if (!result.ok) {
-    throw new Error(result.error);
-  }
+  const result = readModelFields(formData);
+  if (!result.ok) throw new Error(result.error);
   const { fields } = result;
-
-  if (!fields.name || !fields.category) {
-    throw new Error("Name and category are required.");
-  }
+  if (!fields.name || !fields.category) throw new Error("Name and category are required.");
 
   const supabase = await createClient();
-  await assertSerialFree(supabase, fields.serial_number, stockId);
+  // how the stock is counted cannot change once there is stock (a serial number and a lot are different things)
+  const { data: current } = await supabase.from("equipment_inventory").select("tracking, manual_document_path, datasheet_document_path, manual_document_name, datasheet_document_name, manual_document_type, datasheet_document_type, manual_document_size, datasheet_document_size").eq("id", stockId).maybeSingle();
+  if (!current) throw new Error("This model was not found. It may have been deleted.");
+  if (current.tracking !== fields.tracking) {
+    const { count } = await supabase.from("stock_units").select("id", { count: "exact", head: true }).eq("model_id", stockId);
+    if (count) throw new Error("This model already has stock, so how it is counted can't change.");
+  }
 
-  // each file: a new upload replaces the old one; "remove" clears it; otherwise it stays as it is
-  const { data: current } = await supabase.from("equipment_inventory").select(STOCK_COLUMNS).eq("id", stockId).maybeSingle();
-  const docs = await planDocuments(supabase, formData, current);
-
+  const docs = await planDocuments(supabase, formData, current, MODEL_DOCUMENTS);
   const { error } = await supabase.from("equipment_inventory").update({ ...fields, ...docs.columns } as never).eq("id", stockId);
-
   if (error) {
     await discardDocuments(supabase, docs.added);
-    throw friendlyDbError(error);
+    throw new Error(error.message);
   }
   // the old files are only taken down once the new state is saved
   await discardDocuments(supabase, docs.replaced);
@@ -158,77 +126,128 @@ export async function updateStockItem(stockId: string, formData: FormData): Prom
   revalidatePath(`/devices/stock/${stockId}`);
 }
 
+// ---- Receiving stock -------------------------------------------------------------------------------------------------------------------------
+
+export type ActionResult = { ok: true; message?: string } | { ok: false; error: string };
+
+/** Serial numbers pasted or typed: one per line, or separated by commas, semicolons or tabs. */
+function splitSerials(raw: string): string[] {
+  return raw.split(/[\n\r,;\t]+/).map((s) => s.trim()).filter(Boolean);
+}
+
 /**
- * A copy of an existing item: everything that describes the MODEL (category, make and model, power, size, unit, unit price, technical details,
- * warranty) is taken from the original here on the server, and the admin gives only what is unique to the copy: its serial number, how many, its
- * status, and the purchase (date, PO, price, supplier). An original with a serial number needs the copy to have its own.
+ * A delivery arrives: the units (one per serial number) or the lot (a quantity and a lot id), with the supplier, the purchase order and its file, the
+ * date and the cost. Done in one database step, so a failed delivery leaves nothing half-recorded. Returns the model to go to.
  */
-export async function duplicateStockItem(sourceId: string, formData: FormData): Promise<void> {
+export async function receiveStock(formData: FormData): Promise<ActionResult & { modelId?: string }> {
   await requireAdmin();
+  const modelId = String(formData.get("modelId") ?? "");
+  if (!modelId) return { ok: false, error: "Choose which model arrived." };
+
   const supabase = await createClient();
+  const { data: model } = await supabase.from("equipment_inventory").select("id, tracking").eq("id", modelId).maybeSingle();
+  if (!model) return { ok: false, error: "That model was not found." };
 
-  const { data } = await supabase.from("equipment_inventory").select(STOCK_COLUMNS).eq("id", sourceId).maybeSingle();
-  if (!data) throw new Error("The item to copy was not found. It may have been deleted.");
-  const src = data as unknown as StockRow;
+  const serial = model.tracking === "serial";
+  const serials = serial ? splitSerials(String(formData.get("serials") ?? "")) : [String(formData.get("lotId") ?? "").trim()].filter(Boolean);
+  const quantity = serial ? serials.length : Math.floor(toNumberOrNull(formData.get("quantity")) ?? 0);
+  if (serial && serials.length === 0) return { ok: false, error: "Enter at least one serial number." };
+  if (!serial && quantity < 1) return { ok: false, error: "Enter how many arrived." };
 
-  const name = String(formData.get("name") ?? "").trim() || src.name;
-  const serial = toTextOrNull(formData.get("serialNumber"));
-  if (src.serial_number && !serial) throw new Error("Give the copy its own serial number.");
-
-  const quantity = toNumberOrNull(formData.get("quantity"));
-  if (quantity === null || quantity < 0) throw new Error("Enter how many the copy has (0 or more).");
-
-  const status = String(formData.get("status") ?? "in_stock");
-  if (!(STATUS_OPTIONS as readonly string[]).includes(status)) throw new Error("Choose a status for the copy.");
-
-  await assertSerialFree(supabase, serial);
-
-  const fields = {
-    // taken from the original
-    category: src.category,
-    brand: src.brand,
-    model: src.model,
-    model_number: src.model_number,
-    manufacturer: src.manufacturer,
-    power_capacity_value: src.power_capacity_value,
-    power_capacity_unit: src.power_capacity_unit,
-    size_value: src.size_value,
-    size_unit: src.size_unit,
-    technical_specs: src.technical_specs,
-    warranty_info: src.warranty_info,
-    pack_size: src.pack_size,
-    primary_uom: src.primary_uom,
-    unit_price: src.unit_price,
-    phase_count: src.phase_count,
-    // the copy's own
-    name,
-    serial_number: serial,
-    quantity,
-    status,
-    purchase_date: toTextOrNull(formData.get("purchaseDate")),
-    po_reference: toTextOrNull(formData.get("poReference")),
-    purchase_price_amount: toNumberOrNull(formData.get("purchasePriceAmount")),
-    supplier: toTextOrNull(formData.get("supplier")),
-  };
-
-  // the copy gets its own purchase order (uploaded by the browser), and its own copies of the model's manual and data sheet
-  const docs = await planDocuments(supabase, formData, null);
-  let model: Awaited<ReturnType<typeof copyModelDocuments>>;
-  try {
-    model = await copyModelDocuments(supabase, src);
-  } catch (e) {
-    await discardDocuments(supabase, docs.added);
-    throw e;
+  // the purchase order file the browser uploaded, checked against the bucket
+  let po: { path: string; name: string; type: string; size: number } | null = null;
+  const poPath = String(formData.get("poPath") ?? "").trim();
+  const poName = String(formData.get("poName") ?? "").trim();
+  if (poPath && poName) {
+    try {
+      const stored = await checkUploaded(supabase, "po", poPath, poName);
+      po = { path: stored.path, name: stored.name, type: stored.type, size: stored.size };
+    } catch (e) {
+      return { ok: false, error: e instanceof Error ? e.message : "The purchase order file couldn't be checked." };
+    }
   }
-  const { data: created, error } = await supabase.from("equipment_inventory").insert({ ...fields, ...model.columns, ...docs.columns } as never).select("id").single();
-  if (error || !created) {
-    await discardDocuments(supabase, [...docs.added, ...model.added]);
-    throw error ? friendlyDbError(error) : new Error("Couldn't copy the stock item.");
+
+  const { error } = await supabase.rpc("receive_stock", {
+    p_model: modelId,
+    p_serials: serials,
+    p_quantity: quantity,
+    p_supplier: toTextOrNull(formData.get("supplier")),
+    p_po_reference: toTextOrNull(formData.get("poReference")),
+    p_received_on: toTextOrNull(formData.get("receivedOn")),
+    p_unit_cost: toNumberOrNull(formData.get("unitCost")),
+    p_location: toTextOrNull(formData.get("location")),
+    p_notes: toTextOrNull(formData.get("notes")),
+    p_po: po,
+    // the database function treats an empty value as "not given"; its generated argument types don't allow null
+  } as never);
+  if (error) {
+    if (po) await discardDocuments(supabase, [{ slot: "po", path: po.path }]);
+    return { ok: false, error: error.message };
   }
 
   revalidatePath("/devices");
-  redirect(`/devices/stock/${created.id}`);
+  revalidatePath(`/devices/stock/${modelId}`);
+  return { ok: true, modelId, message: serial ? `${quantity} ${quantity === 1 ? "unit" : "units"} added to stock.` : `${quantity} added to stock.` };
 }
+
+// ---- Units: reserve, release, change status, remove -----------------------------------------------------------------------------------------
+
+async function afterUnitChange(supabase: Supabase, unitId: string) {
+  const { data } = await supabase.from("stock_units").select("model_id").eq("id", unitId).maybeSingle();
+  revalidatePath("/devices");
+  if (data) revalidatePath(`/devices/stock/${data.model_id}`);
+}
+
+/** Holds a unit for a customer (and one of their sites), so it can't be given to anyone else. */
+export async function reserveUnit(unitId: string, customerId: string, siteId: string | null): Promise<ActionResult> {
+  await requireAdmin();
+  if (!customerId) return { ok: false, error: "Choose the customer." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("reserve_unit", { p_unit: unitId, p_customer: customerId, p_site: siteId ?? undefined });
+  if (error) return { ok: false, error: error.message };
+  await afterUnitChange(supabase, unitId);
+  return { ok: true, message: "Reserved." };
+}
+
+export async function releaseUnit(unitId: string): Promise<ActionResult> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("release_unit", { p_unit: unitId });
+  if (error) return { ok: false, error: error.message };
+  await afterUnitChange(supabase, unitId);
+  return { ok: true, message: "Released back to stock." };
+}
+
+export async function setUnitStatus(unitId: string, status: string, note: string | null): Promise<ActionResult> {
+  await requireAdmin();
+  if (!(MANUAL_STATUSES as readonly string[]).includes(status)) return { ok: false, error: "Choose a status." };
+  const supabase = await createClient();
+  const { error } = await supabase.rpc("set_unit_status", { p_unit: unitId, p_status: status, p_note: note?.trim() || undefined });
+  if (error) return { ok: false, error: error.message };
+  await afterUnitChange(supabase, unitId);
+  return { ok: true, message: "Status updated." };
+}
+
+/** Takes a unit that was entered by mistake off the books. Only a unit that was never reserved or installed can go; the history keeps a note of it. */
+export async function deleteUnit(unitId: string): Promise<ActionResult> {
+  await requireAdmin();
+  const supabase = await createClient();
+  const { data: unit } = await supabase.from("stock_units").select("id, model_id, serial_number, status, quantity, remaining").eq("id", unitId).maybeSingle();
+  if (!unit) return { ok: false, error: "That unit was not found." };
+  if (unit.status !== "in_stock" || unit.remaining !== unit.quantity) return { ok: false, error: "Only a unit that is still in stock and untouched can be removed. Retire it instead." };
+
+  const { count } = await supabase.from("equipment").select("id", { count: "exact", head: true }).eq("stock_unit_id", unitId);
+  if (count) return { ok: false, error: "A device at a customer uses this unit." };
+
+  await supabase.from("stock_movements").insert({ model_id: unit.model_id, unit_id: null, kind: "removed", quantity: unit.quantity, from_status: "in_stock", note: `Entered by mistake: ${unit.serial_number}` });
+  const { error } = await supabase.from("stock_units").delete().eq("id", unitId);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/devices");
+  revalidatePath(`/devices/stock/${unit.model_id}`);
+  return { ok: true, message: "Removed." };
+}
+
+// ---- Categories -----------------------------------------------------------------------------------------------------------------------------
 
 export type CategoryResult = { ok: true; name: string } | { ok: false; error: string };
 
@@ -256,7 +275,7 @@ export async function removeStockCategory(name: string): Promise<CategoryResult>
 
   const supabase = await createClient();
   const { count } = await supabase.from("equipment_inventory").select("id", { count: "exact", head: true }).eq("category", name);
-  if (count) return { ok: false, error: `${count} stock ${count === 1 ? "item is" : "items are"} in this category. Move ${count === 1 ? "it" : "them"} to another category first.` };
+  if (count) return { ok: false, error: `${count} ${count === 1 ? "model is" : "models are"} in this category. Move ${count === 1 ? "it" : "them"} to another category first.` };
 
   const { error } = await supabase.from("stock_categories").delete().eq("name", name);
   if (error) return { ok: false, error: error.message };

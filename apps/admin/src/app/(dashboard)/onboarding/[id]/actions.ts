@@ -366,11 +366,12 @@ function warrantyYearsFrom(warrantyInfo: unknown): number | null {
 // require every register to be known yet.
 export async function addDevice(onboardingId: string, siteId: string, formData: FormData): Promise<void> {
   await requireStaff();
-  const stockId = String(formData.get("stockId") ?? "");
+  // the form's choice is a stock UNIT (a serial number); the device is that unit's model
+  const unitId = String(formData.get("stockId") ?? "");
   const label = String(formData.get("label") ?? "").trim() || null;
   const variant = String(formData.get("variant") ?? "");
 
-  if (!stockId) {
+  if (!unitId) {
     throw new Error("Pick a device.");
   }
   if (!isTemplateVariant(variant)) {
@@ -378,6 +379,11 @@ export async function addDevice(onboardingId: string, siteId: string, formData: 
   }
 
   const supabase = await createClient();
+  const { data: unit } = await supabase.from("stock_units").select("id, model_id").eq("id", unitId).maybeSingle();
+  if (!unit) {
+    throw new Error("That serial number is no longer in stock. Pick another.");
+  }
+  const stockId = unit.model_id;
 
   // Deliberately not setting installed_at or warranty dates here — this
   // step (Site & Device Setup) just registers the device in the system,
@@ -400,6 +406,13 @@ export async function addDevice(onboardingId: string, siteId: string, formData: 
     throw new Error(error?.message ?? "Failed to add device.");
   }
 
+  // the unit is taken out of stock and installed at this customer's site (the database checks it is free, or reserved for this customer)
+  const { error: installError } = await supabase.rpc("install_unit", { p_unit: unit.id, p_equipment: device.id });
+  if (installError) {
+    await supabase.from("equipment").delete().eq("id", device.id);
+    throw new Error(installError.message);
+  }
+
   const { error: cloneError } = await cloneTemplateIntoEquipment(supabase, device.id, variant);
   if (cloneError) {
     throw new Error(`Device added, but registers couldn't be mapped: ${cloneError}`);
@@ -412,14 +425,24 @@ export async function addDevice(onboardingId: string, siteId: string, formData: 
 // tested: the database function checks the rules, takes the units off the stock count and creates the row in one step.
 export async function addChildEquipment(onboardingId: string, parentId: string, formData: FormData): Promise<void> {
   await requireStaff();
-  const stockId = String(formData.get("stockId") ?? "");
+  // the choice is "unit:<id>" (one serial-numbered item) or "model:<id>" (a lot item such as panels, drawn oldest first)
+  const choice = String(formData.get("stockId") ?? "");
   const quantity = Number(formData.get("quantity") ?? 1);
   const label = String(formData.get("label") ?? "").trim();
-  if (!stockId) throw new Error("Pick the equipment.");
+  if (!choice) throw new Error("Pick the equipment.");
   if (!Number.isInteger(quantity) || quantity < 1) throw new Error("Quantity must be a whole number, at least 1.");
 
   const supabase = await createClient();
-  const { error } = await supabase.rpc("assign_child_equipment", { p_parent: parentId, p_stock: stockId, p_quantity: quantity, p_label: label || undefined });
+  let stockId = choice.startsWith("model:") ? choice.slice("model:".length) : "";
+  let unitId: string | undefined;
+  if (choice.startsWith("unit:")) {
+    unitId = choice.slice("unit:".length);
+    const { data: unit } = await supabase.from("stock_units").select("model_id").eq("id", unitId).maybeSingle();
+    if (!unit) throw new Error("That serial number is no longer in stock. Pick another.");
+    stockId = unit.model_id;
+  }
+  if (!stockId) throw new Error("Pick the equipment.");
+  const { error } = await supabase.rpc("assign_child_equipment", { p_parent: parentId, p_stock: stockId, p_quantity: unitId ? 1 : quantity, p_label: label || undefined, p_unit: unitId });
   if (error) throw new Error(error.message);
   revalidatePath(`/onboarding/${onboardingId}`);
 }

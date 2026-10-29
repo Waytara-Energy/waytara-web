@@ -38,9 +38,10 @@ import { isMonitoredCategory } from "@/lib/equipment-kinds";
 // this same helper).
 function deviceIdentity(d: {
   label: string | null;
-  device_type: { serial_number: string | null; model_number: string | null } | null;
+  serial_number: string | null;
+  device_type: { model_number: string | null } | null;
 }): string {
-  return d.label || d.device_type?.serial_number || d.device_type?.model_number || "Device";
+  return d.label || d.serial_number || d.device_type?.model_number || "Device";
 }
 
 const PROPERTY_TYPE_LABELS: Record<string, string> = {
@@ -135,9 +136,9 @@ export default async function OnboardingPipelinePage({
     label: string | null;
     device_status: string;
     installed_at: string | null;
+    serial_number: string | null;
     device_type: {
       name: string;
-      serial_number: string | null;
       model_number: string | null;
     } | null;
     // This device's own read-direction equipment_metrics, cloned in from
@@ -148,7 +149,8 @@ export default async function OnboardingPipelinePage({
   // Child equipment (panels, a battery ...) listed under the device it belongs to.
   let childrenByParent = new Map<string, { id: string; label: string | null; quantity: number; name: string }[]>();
   let unassignedEquipment: { id: string; name: string; quantity: number }[] = [];
-  let childStock: { id: string; name: string; category: string; quantity: number }[] = [];
+  // What can be installed: stock units (serial numbers) that are in stock or reserved for this customer. `id` is what the form sends back.
+  let childStock: { id: string; name: string }[] = [];
   let deviceTypes: { id: string; name: string }[] = [];
   let testSession: {
     id: string;
@@ -183,7 +185,7 @@ export default async function OnboardingPipelinePage({
     if (site) {
       const { data: deviceRows } = await supabase
         .from("equipment")
-        .select("id, label, device_status, installed_at, parent_id, quantity, retired_at, device_type:equipment_inventory(name, category, serial_number, model_number)")
+        .select("id, label, device_status, installed_at, parent_id, quantity, retired_at, serial_number, device_type:equipment_inventory(name, category, model_number)")
         .eq("site_id", site.id)
         .order("created_at", { ascending: false });
 
@@ -223,9 +225,29 @@ export default async function OnboardingPipelinePage({
     }
 
     if (onboarding.current_stage === "site_setup") {
-      const { data: deviceTypeRows } = await supabase.from("equipment_inventory").select("id, name, category, quantity").order("name");
-      deviceTypes = (deviceTypeRows ?? []).filter((r) => isMonitoredCategory(r.category)).map((r) => ({ id: r.id, name: r.name }));
-      childStock = (deviceTypeRows ?? []).filter((r) => !isMonitoredCategory(r.category) && r.quantity > 0).map((r) => ({ id: r.id, name: r.name, category: r.category, quantity: r.quantity }));
+      const [{ data: modelRows }, { data: unitRows }] = await Promise.all([
+        supabase.from("equipment_inventory").select("id, name, category, tracking, primary_uom").order("name"),
+        supabase.from("stock_units").select("id, model_id, serial_number, status, customer_id, remaining").in("status", ["in_stock", "reserved"]).order("created_at"),
+      ]);
+      const models = new Map((modelRows ?? []).map((m) => [m.id, m]));
+      // reserved for this customer, or free: a unit reserved for someone else is not offered
+      const usable = (unitRows ?? []).filter((u) => u.status === "in_stock" || u.customer_id === onboarding.customer_id);
+      const byReservedFirst = (a: { status: string }, b: { status: string }) => Number(b.status === "reserved") - Number(a.status === "reserved");
+      const unitLabel = (u: { serial_number: string; status: string }, name: string) => `${name} — ${u.serial_number}${u.status === "reserved" ? " (reserved for this customer)" : ""}`;
+      deviceTypes = usable
+        .filter((u) => isMonitoredCategory(models.get(u.model_id)?.category))
+        .sort(byReservedFirst)
+        .map((u) => ({ id: u.id, name: unitLabel(u, models.get(u.model_id)?.name ?? "Device") }));
+      const serialOptions = usable
+        .filter((u) => models.get(u.model_id) && !isMonitoredCategory(models.get(u.model_id)?.category) && models.get(u.model_id)?.tracking === "serial")
+        .sort(byReservedFirst)
+        .map((u) => ({ id: `unit:${u.id}`, name: unitLabel(u, models.get(u.model_id)?.name ?? "Equipment") }));
+      const lotOptions = [...models.values()]
+        .filter((m) => m.tracking === "lot" && !isMonitoredCategory(m.category))
+        .map((m) => ({ m, left: usable.filter((u) => u.model_id === m.id && u.status === "in_stock").reduce((n, u) => n + u.remaining, 0) }))
+        .filter((x) => x.left > 0)
+        .map((x) => ({ id: `model:${x.m.id}`, name: `${x.m.name} (${x.left}${x.m.primary_uom ? ` ${x.m.primary_uom}` : ""} in stock)` }));
+      childStock = [...serialOptions, ...lotOptions];
     }
 
     if (onboarding.current_stage === "connection_test" && site) {
@@ -534,11 +556,11 @@ export default async function OnboardingPipelinePage({
                               </option>
                               {childStock.map((cs) => (
                                 <option key={cs.id} value={cs.id}>
-                                  {cs.name} ({cs.quantity} in stock)
+                                  {cs.name}
                                 </option>
                               ))}
                             </select>
-                            <Input name="quantity" type="number" min={1} step={1} defaultValue={1} className="h-8 w-20 text-xs" aria-label="Quantity" />
+                            <Input name="quantity" type="number" min={1} step={1} defaultValue={1} className="h-8 w-20 text-xs" aria-label="Quantity (for lots; a serial-numbered item is one)" />
                             <Input name="label" placeholder="Label (optional)" className="h-8 w-36 text-xs" />
                             <Button type="submit" size="sm" variant="outline">
                               Add equipment
@@ -558,7 +580,7 @@ export default async function OnboardingPipelinePage({
                   className="flex flex-wrap items-end gap-2"
                 >
                   <div className="space-y-1.5">
-                    <label className="text-xs font-medium">Device type</label>
+                    <label className="text-xs font-medium">Device (serial number)</label>
                     <select
                       name="stockId"
                       className="h-9 rounded-md border border-border bg-background px-2 text-sm"
@@ -574,6 +596,15 @@ export default async function OnboardingPipelinePage({
                         </option>
                       ))}
                     </select>
+                    {deviceTypes.length === 0 ? (
+                      <p className="max-w-56 text-xs text-muted-foreground">
+                        No inverter or charger is in stock for this customer.{" "}
+                        <Link href="/devices/stock/receive" className="text-primary hover:underline">
+                          Receive stock
+                        </Link>{" "}
+                        first.
+                      </p>
+                    ) : null}
                   </div>
                   <div className="space-y-1.5">
                     <label className="text-xs font-medium">Type, phase &amp; grid mode</label>

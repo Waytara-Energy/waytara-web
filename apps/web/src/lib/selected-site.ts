@@ -42,7 +42,7 @@ export const getCustomerSites = cache(async function getCustomerSites(): Promise
   const { data } = await supabase
     .from("sites")
     .select(
-      "id, name, property_type, power_source_category, power_package, latitude, longitude, address, equipment(id, label, device_status, parent_id, created_at, installed_at, warranty_start_date, warranty_end_date, service_id, device_type:equipment_inventory(id, category, name, manufacturer, brand, model, serial_number, model_number))"
+      "id, name, property_type, power_source_category, power_package, latitude, longitude, address, equipment(id, label, serial_number, device_status, parent_id, created_at, installed_at, warranty_start_date, warranty_end_date, service_id, device_type:equipment_inventory(id, category, name, manufacturer, brand, model, model_number))"
     )
     // A site hidden from the customer (hidden_at set by staff) is left out here and so everywhere: the site list, the device
     // icons, and every page's scoping. Nothing is deleted.
@@ -81,7 +81,7 @@ export const getCustomerSites = cache(async function getCustomerSites(): Promise
               manufacturer: d.device_type.manufacturer,
               brand: d.device_type.brand,
               model: d.device_type.model,
-              serialNumber: d.device_type.serial_number,
+              serialNumber: d.serial_number,
               modelNumber: d.device_type.model_number,
             }
           : null,

@@ -21,7 +21,7 @@ export default async function DeviceRegistersPage({
 
   const { data: device } = await supabase
     .from("equipment")
-    .select("id, label, device_type:equipment_inventory(name, category, serial_number, model_number)")
+    .select("id, label, serial_number, device_type:equipment_inventory(name, category, model_number)")
     .eq("id", deviceId)
     .maybeSingle();
 
@@ -78,7 +78,7 @@ export default async function DeviceRegistersPage({
         </h1>
         <p className="mt-1 text-sm text-muted-foreground">
           {device.device_type?.name}
-          {device.device_type?.serial_number ? ` · Serial ${device.device_type.serial_number}` : ""}
+          {device.serial_number ? ` · Serial ${device.serial_number}` : ""}
           {device.device_type?.model_number ? ` · ${device.device_type.model_number}` : ""} — this device&apos;s own
           register map, independent of every other unit of the same model.
         </p>

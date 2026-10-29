@@ -7,14 +7,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import type { CategoryChoice } from "../stock-categories";
 import { documentHref, documentOf, type DocSlot } from "@/lib/stock-documents";
-import { STATUS_OPTIONS, statusLabel, type StockRow } from "../stock-types";
+import type { CategoryChoice } from "../stock-categories";
+import type { StockRow } from "../stock-types";
 import { CategorySelect } from "./category-select";
 import { DocumentField, type ExistingDocument } from "./document-field";
 import { SpecsEditor, WarrantyEditor } from "./specs-editor";
 
-/** The units a stock item can be counted in. An item that already has another one keeps it. */
+/** The units a model's stock can be counted in. A model that already has another one keeps it. */
 const UOMS = ["piece", "meter", "pack", "box", "set", "kg"];
 
 export function Field({
@@ -72,36 +72,39 @@ export function UomSelect({ defaultValue }: { defaultValue?: string | null }) {
   );
 }
 
-export function StatusSelect({ defaultValue }: { defaultValue?: string | null }) {
+/** How a model's stock is counted: by serial number (every unit has its own) or by lot (a batch with an id and a quantity). Fixed once there is stock. */
+function TrackingSelect({ defaultValue, locked }: { defaultValue: string; locked: boolean }) {
   return (
     <div className="grid gap-2">
-      <Label>Status</Label>
-      <Select name="status" defaultValue={defaultValue ?? "in_stock"}>
-        <SelectTrigger className="w-full capitalize">
+      <Label>How stock is counted</Label>
+      {locked ? <input type="hidden" name="tracking" value={defaultValue} /> : null}
+      <Select name={locked ? undefined : "tracking"} defaultValue={defaultValue} disabled={locked}>
+        <SelectTrigger className="w-full">
           <SelectValue />
         </SelectTrigger>
         <SelectContent>
-          {STATUS_OPTIONS.map((s) => (
-            <SelectItem key={s} value={s} className="capitalize">
-              {statusLabel(s)}
-            </SelectItem>
-          ))}
+          <SelectItem value="serial">By serial number (every unit has its own)</SelectItem>
+          <SelectItem value="lot">By lot (a batch with a quantity)</SelectItem>
         </SelectContent>
       </Select>
+      <p className="text-xs text-muted-foreground">
+        {locked ? "This model already has stock, so this can't change." : "Inverters, chargers, batteries, meters and hubs have serial numbers; panels, cable and breakers come in lots."}
+      </p>
     </div>
   );
 }
 
-/** The file an existing item has in a slot, as the field shows it. */
+/** The file an existing model has in a slot, as the field shows it. */
 export function existingDocument(item: StockRow | undefined, slot: DocSlot): ExistingDocument | null {
   const doc = item ? documentOf(item, slot) : null;
   return item && doc ? { name: doc.name, size: doc.size, viewHref: documentHref(item.id, slot), downloadHref: documentHref(item.id, slot, true) } : null;
 }
 
 /**
- * The form of one stock item. The essentials (what it is, how many, its price) are always in view; everything else is in sections that open on
- * demand: more about the item, the purchase, the technical details and the warranty (the last two as rows to fill, never as JSON). A section that
- * is closed still keeps its fields in the form, so closing one never wipes what it holds. The same form creates an item and edits one.
+ * The form of one MODEL (what the product is): its name and category, how its stock is counted, then sections that open on demand: more about it, its
+ * manual and data sheet, its technical details and its warranty (the last two as rows to fill, never as JSON). A section that is closed still keeps its
+ * fields in the form. Stock itself (serial numbers, quantities, purchases) is never typed here: it is received, see the Receive stock page. The same
+ * form creates a model and edits one.
  */
 export function StockForm({
   defaults,
@@ -111,6 +114,7 @@ export function StockForm({
   success,
   submitLabel,
   cancelHref,
+  hasStock = false,
 }: {
   defaults?: StockRow;
   /** the categories in use, to choose from */
@@ -120,32 +124,33 @@ export function StockForm({
   success: string;
   submitLabel: string;
   cancelHref: string;
+  /** the model already has units: how it is counted is then fixed */
+  hasStock?: boolean;
 }) {
   const editing = !!defaults;
   return (
     <ActionForm action={action} loading={loading} success={success} className="grid gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>The item</CardTitle>
-          <CardDescription>{editing ? "What it is and how much there is." : "Only the name and the category are required; the rest can be filled in later."}</CardDescription>
+          <CardTitle>The model</CardTitle>
+          <CardDescription>{editing ? "What the product is." : "What the product is. You add its stock afterwards, by receiving it."}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-5 sm:grid-cols-2">
           <Field label="Name" name="name" required defaultValue={defaults?.name} placeholder="e.g. Deye 8kW Hybrid Inverter" />
           <CategorySelect categories={categories} defaultValue={defaults?.category} />
           <Field label="Brand" name="brand" defaultValue={defaults?.brand} />
           <Field label="Model" name="model" defaultValue={defaults?.model} />
-          <Field label="Serial number" name="serialNumber" defaultValue={defaults?.serial_number} hint="One physical unit has one serial number. Leave it empty for bulk items such as cable." />
-          <StatusSelect defaultValue={defaults?.status} />
-          <Field label="Quantity" name="quantity" type="number" defaultValue={defaults?.quantity ?? 1} />
+          <TrackingSelect defaultValue={defaults?.tracking ?? "serial"} locked={hasStock} />
           <UomSelect defaultValue={defaults?.primary_uom} />
-          <Field label="Unit price (₹)" name="unitPrice" type="number" defaultValue={defaults?.unit_price} />
+          <Field label="Unit price (₹)" name="unitPrice" type="number" defaultValue={defaults?.unit_price} hint="What one costs when sold or quoted." />
+          <Field label="Reorder level" name="reorderLevel" type="number" defaultValue={defaults?.reorder_level ?? 0} hint="Flagged as low when this many or fewer are in stock. 0 means no warning." />
         </CardContent>
       </Card>
 
       <Card className="py-0">
-        <Accordion type="multiple" defaultValue={editing ? ["more", "purchase", "documents", "specs", "warranty"] : []} className="px-6">
+        <Accordion type="multiple" defaultValue={editing ? ["more", "documents", "specs", "warranty"] : []} className="px-6">
           <AccordionItem value="more">
-            <AccordionTrigger className="text-base font-semibold">More about the item</AccordionTrigger>
+            <AccordionTrigger className="text-base font-semibold">More about the model</AccordionTrigger>
             <AccordionContent forceMount className="grid gap-5 sm:grid-cols-2">
               <Field label="Manufacturer" name="manufacturer" defaultValue={defaults?.manufacturer} />
               <Field label="Model number" name="modelNumber" defaultValue={defaults?.model_number} />
@@ -168,17 +173,6 @@ export function StockForm({
               <Field label="Size" name="sizeValue" type="number" defaultValue={defaults?.size_value} />
               <Field label="Size unit" name="sizeUnit" placeholder="mm, sq mm…" defaultValue={defaults?.size_unit} />
               <Field label="Pack size" name="packSize" type="number" defaultValue={defaults?.pack_size} hint="How many pieces one pack holds." />
-            </AccordionContent>
-          </AccordionItem>
-
-          <AccordionItem value="purchase">
-            <AccordionTrigger className="text-base font-semibold">Purchase and supplier</AccordionTrigger>
-            <AccordionContent forceMount className="grid gap-5 sm:grid-cols-2">
-              <Field label="Supplier" name="supplier" defaultValue={defaults?.supplier} />
-              <Field label="PO reference" name="poReference" defaultValue={defaults?.po_reference} />
-              <Field label="Purchase date" name="purchaseDate" type="date" defaultValue={defaults?.purchase_date} />
-              <Field label="Purchase price (₹)" name="purchasePriceAmount" type="number" defaultValue={defaults?.purchase_price_amount} hint="What was paid for this purchase." />
-              <DocumentField slot="po" existing={existingDocument(defaults, "po")} />
             </AccordionContent>
           </AccordionItem>
 

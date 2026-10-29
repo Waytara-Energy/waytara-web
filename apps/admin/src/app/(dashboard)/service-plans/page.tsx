@@ -42,7 +42,7 @@ export default async function ServicePlansPage() {
       .order("name"),
     supabase
       .from("equipment")
-      .select("id, label, service_id, device_type:equipment_inventory(name, serial_number), site:sites(name)")
+      .select("id, label, service_id, serial_number, device_type:equipment_inventory(name), site:sites(name)")
       .order("created_at", { ascending: false }),
   ]);
 
@@ -101,7 +101,7 @@ export default async function ServicePlansPage() {
               </option>
               {(devices ?? []).map((d) => (
                 <option key={d.id} value={d.id}>
-                  {d.site?.name ?? "Site"} — {d.label || d.device_type?.serial_number || d.device_type?.name || "Device"}
+                  {d.site?.name ?? "Site"} — {d.label || d.serial_number || d.device_type?.name || "Device"}
                   {d.service_id ? " (has a contract)" : ""}
                 </option>
               ))}
