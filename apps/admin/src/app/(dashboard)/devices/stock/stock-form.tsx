@@ -1,20 +1,19 @@
 import Link from "next/link";
 import { ActionForm } from "@waytara/ui/action-form";
 import { FormSubmit } from "@/components/form-submit";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { STATUS_OPTIONS, statusLabel, type StockRow } from "../stock-types";
+import { SpecsEditor, WarrantyEditor } from "./specs-editor";
 
-function jsonToText(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  return JSON.stringify(value, null, 2);
-}
+/** The units a stock item can be counted in. An item that already has another one keeps it. */
+const UOMS = ["piece", "meter", "pack", "box", "set", "kg"];
 
-function Field({
+export function Field({
   label,
   name,
   type = "text",
@@ -22,6 +21,7 @@ function Field({
   placeholder,
   defaultValue,
   hint,
+  list,
   className,
 }: {
   label: string;
@@ -31,6 +31,7 @@ function Field({
   placeholder?: string;
   defaultValue?: string | number | null;
   hint?: string;
+  list?: string;
   className?: string;
 }) {
   return (
@@ -39,18 +40,62 @@ function Field({
         {label}
         {required ? <span className="text-destructive"> *</span> : null}
       </Label>
-      <Input id={name} name={name} type={type} required={required} placeholder={placeholder} defaultValue={defaultValue ?? ""} step={type === "number" ? "any" : undefined} />
+      <Input id={name} name={name} type={type} required={required} placeholder={placeholder} defaultValue={defaultValue ?? ""} step={type === "number" ? "any" : undefined} list={list} />
       {hint ? <p className="text-xs text-muted-foreground">{hint}</p> : null}
     </div>
   );
 }
 
+export function UomSelect({ defaultValue }: { defaultValue?: string | null }) {
+  const current = defaultValue ?? "piece";
+  const options = UOMS.includes(current) ? UOMS : [...UOMS, current];
+  return (
+    <div className="grid gap-2">
+      <Label>Counted in</Label>
+      <Select name="primaryUom" defaultValue={current}>
+        <SelectTrigger className="w-full capitalize">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((u) => (
+            <SelectItem key={u} value={u} className="capitalize">
+              {u}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
+export function StatusSelect({ defaultValue }: { defaultValue?: string | null }) {
+  return (
+    <div className="grid gap-2">
+      <Label>Status</Label>
+      <Select name="status" defaultValue={defaultValue ?? "in_stock"}>
+        <SelectTrigger className="w-full capitalize">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {STATUS_OPTIONS.map((s) => (
+            <SelectItem key={s} value={s} className="capitalize">
+              {statusLabel(s)}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </div>
+  );
+}
+
 /**
- * The form of one stock item, in sections by what an admin is filling in: who it is, what it is physically, and what was bought and is on hand.
- * The same form creates an item and edits one (`defaults` is the item being edited).
+ * The form of one stock item. The essentials (what it is, how many, its price) are always in view; everything else is in sections that open on
+ * demand: more about the item, the purchase, the technical details and the warranty (the last two as rows to fill, never as JSON). A section that
+ * is closed still keeps its fields in the form, so closing one never wipes what it holds. The same form creates an item and edits one.
  */
 export function StockForm({
   defaults,
+  categories,
   action,
   loading,
   success,
@@ -58,104 +103,95 @@ export function StockForm({
   cancelHref,
 }: {
   defaults?: StockRow;
+  /** the categories in use, offered while typing one */
+  categories: string[];
   action: (formData: FormData) => Promise<unknown>;
   loading: string;
   success: string;
   submitLabel: string;
   cancelHref: string;
 }) {
+  const editing = !!defaults;
   return (
     <ActionForm action={action} loading={loading} success={success} className="grid gap-6">
       <Card>
         <CardHeader>
-          <CardTitle>Identity</CardTitle>
-          <CardDescription>What the item is called and who made it.</CardDescription>
+          <CardTitle>The item</CardTitle>
+          <CardDescription>{editing ? "What it is and how much there is." : "Only the name and the category are required; the rest can be filled in later."}</CardDescription>
         </CardHeader>
         <CardContent className="grid gap-5 sm:grid-cols-2">
-          <Field label="Name" name="name" required defaultValue={defaults?.name} />
-          <Field label="Category" name="category" required placeholder="e.g. solar_inverter" defaultValue={defaults?.category} />
+          <Field label="Name" name="name" required defaultValue={defaults?.name} placeholder="e.g. Deye 8kW Hybrid Inverter" />
+          <div className="grid gap-2">
+            <Field label="Category" name="category" required defaultValue={defaults?.category} placeholder="e.g. solar_inverter" list="stock-categories" />
+            <datalist id="stock-categories">
+              {categories.map((c) => (
+                <option key={c} value={c} />
+              ))}
+            </datalist>
+          </div>
           <Field label="Brand" name="brand" defaultValue={defaults?.brand} />
-          <Field label="Manufacturer" name="manufacturer" defaultValue={defaults?.manufacturer} />
           <Field label="Model" name="model" defaultValue={defaults?.model} />
-          <Field label="Model number" name="modelNumber" defaultValue={defaults?.model_number} />
-          <Field label="Serial number" name="serialNumber" defaultValue={defaults?.serial_number} />
-          <div className="grid gap-2">
-            <Label>Status</Label>
-            <Select name="status" defaultValue={defaults?.status ?? "in_stock"}>
-              <SelectTrigger className="w-full capitalize">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                {STATUS_OPTIONS.map((s) => (
-                  <SelectItem key={s} value={s} className="capitalize">
-                    {statusLabel(s)}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-          </div>
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Specifications</CardTitle>
-          <CardDescription>Power, phase and physical size.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-5 sm:grid-cols-2">
-          <Field label="Power capacity" name="powerCapacityValue" type="number" defaultValue={defaults?.power_capacity_value} />
-          <Field label="Power capacity unit" name="powerCapacityUnit" placeholder="kW" defaultValue={defaults?.power_capacity_unit} />
-          <div className="grid gap-2 sm:col-span-2">
-            <Label>Phase</Label>
-            <Select name="phaseCount" defaultValue={defaults?.phase_count ? String(defaults.phase_count) : "none"}>
-              <SelectTrigger className="w-full">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="none">Not set</SelectItem>
-                <SelectItem value="1">Single-phase (including split-phase 2-leg wiring: still one AC phase)</SelectItem>
-                <SelectItem value="3">Three-phase</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-xs text-muted-foreground">The electrical phase count, not the number of wires. It is only a label here; it doesn&apos;t change which registers the model reads or writes.</p>
-          </div>
-          <Field label="Size" name="sizeValue" type="number" defaultValue={defaults?.size_value} />
-          <Field label="Size unit" name="sizeUnit" placeholder="mm, sq mm…" defaultValue={defaults?.size_unit} />
-        </CardContent>
-      </Card>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Inventory and purchase</CardTitle>
-          <CardDescription>How much is on hand, and what it cost.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-5 sm:grid-cols-2">
-          <Field label="Quantity" name="quantity" type="number" defaultValue={defaults?.quantity ?? 0} />
-          <Field label="Unit of measure" name="primaryUom" placeholder="piece, meter, pack…" defaultValue={defaults?.primary_uom} />
-          <Field label="Pack size" name="packSize" type="number" defaultValue={defaults?.pack_size} />
-          <Field label="Supplier" name="supplier" defaultValue={defaults?.supplier} />
+          <Field label="Serial number" name="serialNumber" defaultValue={defaults?.serial_number} hint="One physical unit has one serial number. Leave it empty for bulk items such as cable." />
+          <StatusSelect defaultValue={defaults?.status} />
+          <Field label="Quantity" name="quantity" type="number" defaultValue={defaults?.quantity ?? 1} />
+          <UomSelect defaultValue={defaults?.primary_uom} />
           <Field label="Unit price (₹)" name="unitPrice" type="number" defaultValue={defaults?.unit_price} />
-          <Field label="Purchase price (₹)" name="purchasePriceAmount" type="number" defaultValue={defaults?.purchase_price_amount} />
-          <Field label="Purchase date" name="purchaseDate" type="date" defaultValue={defaults?.purchase_date} />
-          <Field label="PO reference" name="poReference" defaultValue={defaults?.po_reference} />
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Technical details</CardTitle>
-          <CardDescription>Free-form JSON, because a wire&apos;s spec sheet looks nothing like an inverter&apos;s. Leave empty if there is nothing to record.</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-5">
-          <div className="grid gap-2">
-            <Label htmlFor="technicalSpecs">Technical specs (JSON)</Label>
-            <Textarea id="technicalSpecs" name="technicalSpecs" rows={6} className="font-mono text-xs" defaultValue={jsonToText(defaults?.technical_specs)} />
-          </div>
-          <div className="grid gap-2">
-            <Label htmlFor="warrantyInfo">Warranty info (JSON)</Label>
-            <Textarea id="warrantyInfo" name="warrantyInfo" rows={4} className="font-mono text-xs" defaultValue={jsonToText(defaults?.warranty_info)} />
-          </div>
-        </CardContent>
+      <Card className="py-0">
+        <Accordion type="multiple" defaultValue={editing ? ["more", "purchase", "specs", "warranty"] : []} className="px-6">
+          <AccordionItem value="more">
+            <AccordionTrigger className="text-base font-semibold">More about the item</AccordionTrigger>
+            <AccordionContent forceMount className="grid gap-5 sm:grid-cols-2">
+              <Field label="Manufacturer" name="manufacturer" defaultValue={defaults?.manufacturer} />
+              <Field label="Model number" name="modelNumber" defaultValue={defaults?.model_number} />
+              <Field label="Power capacity" name="powerCapacityValue" type="number" defaultValue={defaults?.power_capacity_value} />
+              <Field label="Power unit" name="powerCapacityUnit" placeholder="kW" defaultValue={defaults?.power_capacity_unit} />
+              <div className="grid gap-2 sm:col-span-2">
+                <Label>Phase</Label>
+                <Select name="phaseCount" defaultValue={defaults?.phase_count ? String(defaults.phase_count) : "none"}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Not set</SelectItem>
+                    <SelectItem value="1">Single-phase (including split-phase 2-leg wiring: still one AC phase)</SelectItem>
+                    <SelectItem value="3">Three-phase</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">The electrical phase count, not the number of wires. It is only a label here.</p>
+              </div>
+              <Field label="Size" name="sizeValue" type="number" defaultValue={defaults?.size_value} />
+              <Field label="Size unit" name="sizeUnit" placeholder="mm, sq mm…" defaultValue={defaults?.size_unit} />
+              <Field label="Pack size" name="packSize" type="number" defaultValue={defaults?.pack_size} hint="How many pieces one pack holds." />
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="purchase">
+            <AccordionTrigger className="text-base font-semibold">Purchase and supplier</AccordionTrigger>
+            <AccordionContent forceMount className="grid gap-5 sm:grid-cols-2">
+              <Field label="Supplier" name="supplier" defaultValue={defaults?.supplier} />
+              <Field label="PO reference" name="poReference" defaultValue={defaults?.po_reference} />
+              <Field label="Purchase date" name="purchaseDate" type="date" defaultValue={defaults?.purchase_date} />
+              <Field label="Purchase price (₹)" name="purchasePriceAmount" type="number" defaultValue={defaults?.purchase_price_amount} hint="What was paid for this purchase." />
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="specs">
+            <AccordionTrigger className="text-base font-semibold">Technical details</AccordionTrigger>
+            <AccordionContent forceMount>
+              <SpecsEditor name="technicalSpecs" initial={defaults?.technical_specs} category={defaults?.category ?? ""} />
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="warranty" className="border-b-0">
+            <AccordionTrigger className="text-base font-semibold">Warranty</AccordionTrigger>
+            <AccordionContent forceMount>
+              <WarrantyEditor name="warrantyInfo" initial={defaults?.warranty_info} />
+            </AccordionContent>
+          </AccordionItem>
+        </Accordion>
       </Card>
 
       <div className="flex items-center justify-end gap-2">

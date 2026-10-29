@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Cpu, ExternalLink } from "lucide-react";
+import { ArrowLeft, Copy, Cpu, ExternalLink } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
@@ -52,6 +52,9 @@ export default async function StockItemPage({ params }: { params: Promise<{ id: 
   const { data: customers } = customerIds.length ? await supabase.from("profiles").select("id, full_name, email").in("id", customerIds) : { data: [] };
   const customerName = new Map((customers ?? []).map((c) => [c.id, c.full_name || c.email || "Customer"]));
 
+  const { data: categoryRows } = await supabase.from("equipment_inventory").select("category");
+  const categories = [...new Set((categoryRows ?? []).map((r) => r.category))].sort();
+
   const value = item.unit_price === null ? null : Math.max(0, item.quantity) * Number(item.unit_price);
 
   return (
@@ -86,12 +89,20 @@ export default async function StockItemPage({ params }: { params: Promise<{ id: 
             {item.serial_number ? ` · serial ${item.serial_number}` : ""}
           </p>
         </div>
-        <Button asChild variant="outline">
-          <Link href="/devices">
-            <ArrowLeft />
-            Back to stock catalog
-          </Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline">
+            <Link href={`/devices/stock/new?from=${item.id}`}>
+              <Copy />
+              Duplicate
+            </Link>
+          </Button>
+          <Button asChild variant="outline">
+            <Link href="/devices">
+              <ArrowLeft />
+              Back to stock catalog
+            </Link>
+          </Button>
+        </div>
       </div>
 
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -104,6 +115,7 @@ export default async function StockItemPage({ params }: { params: Promise<{ id: 
       <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_24rem]">
         <StockForm
           defaults={item}
+          categories={categories}
           action={updateStockItem.bind(null, item.id)}
           loading={`Saving ${item.name}…`}
           success={`${item.name} saved.`}

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
+import { STATUS_OPTIONS, STOCK_COLUMNS, type StockRow } from "./stock-types";
 
 // Numeric/date form fields all follow the same "empty string -> null,
 // otherwise parse" rule — <input type="number"> and <input type="date">
@@ -34,6 +35,28 @@ function toJsonOrNull(raw: FormDataEntryValue | null): { value: unknown; error?:
   } catch {
     return { value: null, error: "must be valid JSON" };
   }
+}
+
+type Supabase = Awaited<ReturnType<typeof createClient>>;
+
+/** A serial number belongs to one physical unit: say so, with the item that has it, before the database refuses it (the unique index is the last guard). */
+async function assertSerialFree(supabase: Supabase, serial: unknown, exceptId?: string): Promise<void> {
+  if (typeof serial !== "string" || !serial.trim()) return;
+  let query = supabase
+    .from("equipment_inventory")
+    .select("id, name")
+    .ilike("serial_number", serial.trim().replace(/[\\%_]/g, "\\$&"))
+    .limit(1);
+  if (exceptId) query = query.neq("id", exceptId);
+  const { data } = await query;
+  if (data && data.length > 0) {
+    throw new Error(`The serial number ${serial.trim()} is already used by “${data[0]!.name}”. Each unit needs its own.`);
+  }
+}
+
+function friendlyDbError(error: { message: string; code?: string }): Error {
+  if (error.code === "23505") return new Error("That serial number is already used by another stock item.");
+  return new Error(error.message);
 }
 
 type ReadStockFieldsResult = { ok: true; fields: Record<string, unknown> } | { ok: false; error: string };
@@ -87,10 +110,11 @@ export async function createStockItem(formData: FormData): Promise<void> {
   }
 
   const supabase = await createClient();
+  await assertSerialFree(supabase, fields.serial_number);
   const { data, error } = await supabase.from("equipment_inventory").insert(fields as never).select("id").single();
 
   if (error || !data) {
-    throw new Error(error?.message ?? "Couldn't add the stock item.");
+    throw error ? friendlyDbError(error) : new Error("Couldn't add the stock item.");
   }
 
   revalidatePath("/devices");
@@ -111,12 +135,73 @@ export async function updateStockItem(stockId: string, formData: FormData): Prom
   }
 
   const supabase = await createClient();
+  await assertSerialFree(supabase, fields.serial_number, stockId);
   const { error } = await supabase.from("equipment_inventory").update(fields as never).eq("id", stockId);
 
   if (error) {
-    throw new Error(error.message);
+    throw friendlyDbError(error);
   }
 
   revalidatePath("/devices");
   revalidatePath(`/devices/stock/${stockId}`);
+}
+
+/**
+ * A copy of an existing item: everything that describes the MODEL (category, make and model, power, size, unit, unit price, technical details,
+ * warranty) is taken from the original here on the server, and the admin gives only what is unique to the copy: its serial number, how many, its
+ * status, and the purchase (date, PO, price, supplier). An original with a serial number needs the copy to have its own.
+ */
+export async function duplicateStockItem(sourceId: string, formData: FormData): Promise<void> {
+  await requireAdmin();
+  const supabase = await createClient();
+
+  const { data } = await supabase.from("equipment_inventory").select(STOCK_COLUMNS).eq("id", sourceId).maybeSingle();
+  if (!data) throw new Error("The item to copy was not found. It may have been deleted.");
+  const src = data as unknown as StockRow;
+
+  const name = String(formData.get("name") ?? "").trim() || src.name;
+  const serial = toTextOrNull(formData.get("serialNumber"));
+  if (src.serial_number && !serial) throw new Error("Give the copy its own serial number.");
+
+  const quantity = toNumberOrNull(formData.get("quantity"));
+  if (quantity === null || quantity < 0) throw new Error("Enter how many the copy has (0 or more).");
+
+  const status = String(formData.get("status") ?? "in_stock");
+  if (!(STATUS_OPTIONS as readonly string[]).includes(status)) throw new Error("Choose a status for the copy.");
+
+  await assertSerialFree(supabase, serial);
+
+  const fields = {
+    // taken from the original
+    category: src.category,
+    brand: src.brand,
+    model: src.model,
+    model_number: src.model_number,
+    manufacturer: src.manufacturer,
+    power_capacity_value: src.power_capacity_value,
+    power_capacity_unit: src.power_capacity_unit,
+    size_value: src.size_value,
+    size_unit: src.size_unit,
+    technical_specs: src.technical_specs,
+    warranty_info: src.warranty_info,
+    pack_size: src.pack_size,
+    primary_uom: src.primary_uom,
+    unit_price: src.unit_price,
+    phase_count: src.phase_count,
+    // the copy's own
+    name,
+    serial_number: serial,
+    quantity,
+    status,
+    purchase_date: toTextOrNull(formData.get("purchaseDate")),
+    po_reference: toTextOrNull(formData.get("poReference")),
+    purchase_price_amount: toNumberOrNull(formData.get("purchasePriceAmount")),
+    supplier: toTextOrNull(formData.get("supplier")),
+  };
+
+  const { data: created, error } = await supabase.from("equipment_inventory").insert(fields as never).select("id").single();
+  if (error || !created) throw error ? friendlyDbError(error) : new Error("Couldn't copy the stock item.");
+
+  revalidatePath("/devices");
+  redirect(`/devices/stock/${created.id}`);
 }

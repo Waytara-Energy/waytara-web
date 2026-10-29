@@ -93,6 +93,7 @@ export function StockTable({ items }: { items: StockRow[] }) {
               <TableHead>Name</TableHead>
               <TableHead>Category</TableHead>
               <TableHead>Brand / Manufacturer</TableHead>
+              <TableHead>Serial number</TableHead>
               <TableHead className="text-right">Quantity</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="w-24 text-right">
@@ -103,7 +104,7 @@ export function StockTable({ items }: { items: StockRow[] }) {
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={7} className="py-10 text-center text-sm text-muted-foreground">
                   No stock items match your filters.
                 </TableCell>
               </TableRow>
@@ -117,6 +118,7 @@ export function StockTable({ items }: { items: StockRow[] }) {
                   </TableCell>
                   <TableCell className="text-muted-foreground">{item.category}</TableCell>
                   <TableCell className="text-muted-foreground">{makeAndModel(item)}</TableCell>
+                  <TableCell className="font-mono text-xs text-muted-foreground">{item.serial_number || "—"}</TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">
                     {item.quantity}
                     {item.primary_uom ? ` ${item.primary_uom}` : ""}
