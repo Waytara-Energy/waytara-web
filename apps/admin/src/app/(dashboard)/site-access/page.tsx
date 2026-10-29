@@ -1,8 +1,14 @@
+import { Building2, Search, UserCheck, Users } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { Input } from "@waytara/ui/input";
-import { Button } from "@waytara/ui/button";
-import { cn } from "@waytara/ui/cn";
 import { ActionForm } from "@waytara/ui/action-form";
+import { FormSubmit } from "@/components/form-submit";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { EmptyState, LoadError, PageHeader, StatCard, StatGrid, ToneBadge } from "@/components/page-kit";
+import { cn } from "@/lib/utils";
 import { assignStaff, removeStaff } from "./actions";
 
 // Admin-only route (enforced in proxy.ts). Who may work on which site: any number of employees and site engineers per site, each with an
@@ -49,64 +55,73 @@ export default async function SiteAccessPage({ searchParams }: { searchParams: P
   }
 
   const today = todayIst();
+  const withStaff = (sites ?? []).filter((s) => (assignedBySite.get(s.id) ?? []).length > 0).length;
+  const loadError = sitesError ?? assignError;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Site access</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          Which employees and site engineers may work on which site. Add as many as you need to a site, optionally until a date. They see that site&apos;s
-          devices, readings and settings, can set up its monitoring unit and make its device keys, and nothing of any other site. Admins see every site
-          already, and a customer sees their own.
-        </p>
-      </div>
+      <PageHeader
+        title="Site access"
+        description="Which employees and site engineers may work on which site, optionally until a date. They see that site's devices, readings and settings, can set up its monitoring unit and make its device keys, and nothing of any other site. Admins see every site already, and a customer sees their own."
+      />
 
-      <form method="get" className="flex flex-wrap items-end gap-2">
-        <div className="space-y-1.5">
-          <label className="text-xs font-medium text-muted-foreground" htmlFor="q">
-            Find a site
-          </label>
-          <Input id="q" name="q" defaultValue={search} placeholder="Site name" className="h-9 w-64" />
+      <StatGrid>
+        <StatCard icon={Building2} title="Sites" value={sites?.length ?? 0} detail={search ? "Matching your search" : "All sites"} />
+        <StatCard icon={UserCheck} title="With staff assigned" value={withStaff} detail={`${(sites?.length ?? 0) - withStaff} with nobody yet`} />
+        <StatCard icon={Users} title="Assignments" value={assignments?.length ?? 0} detail="Active, across all sites" />
+        <StatCard icon={Users} title="Staff to assign" value={staff?.length ?? 0} detail="Active employees and site engineers" />
+      </StatGrid>
+
+      <form method="get" className="flex flex-wrap items-center gap-2">
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+          <Input name="q" defaultValue={search} placeholder="Find a site by name" aria-label="Find a site" className="w-72 pl-8" />
         </div>
-        <Button type="submit" size="sm" variant="outline">
+        <Button type="submit" variant="outline">
           Search
         </Button>
+        {search ? (
+          <Button asChild variant="ghost">
+            <a href="/site-access">Clear</a>
+          </Button>
+        ) : null}
       </form>
 
-      {sitesError || assignError ? (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">
-          Couldn&apos;t load the sites: {(sitesError ?? assignError)?.message}
-        </div>
+      {loadError ? (
+        <LoadError message={`Couldn't load the sites: ${loadError.message}`} />
       ) : !sites || sites.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-6 text-center text-sm text-muted-foreground">{search ? "No site has that name." : "There are no sites yet."}</div>
+        <Card className="py-0">
+          <EmptyState icon={Building2} title={search ? "No site has that name" : "There are no sites yet"} />
+        </Card>
       ) : (
-        <div className="space-y-4">
-          {sites.length === SITE_LIMIT && <p className="text-xs text-muted-foreground">Showing the first {SITE_LIMIT} sites. Use the search to find another.</p>}
+        <div className="grid gap-4 xl:grid-cols-2">
+          {sites.length === SITE_LIMIT ? <p className="text-xs text-muted-foreground xl:col-span-2">Showing the first {SITE_LIMIT} sites. Use the search to find another.</p> : null}
           {sites.map((site) => {
             const here = assignedBySite.get(site.id) ?? [];
             const assignedIds = new Set(here.map((a) => a.staff_id));
             const candidates = (staff ?? []).filter((p) => !assignedIds.has(p.id));
             return (
-              <section key={site.id} className="rounded-lg border border-border bg-card">
-                <div className="flex flex-wrap items-baseline justify-between gap-2 border-b border-border px-4 py-3">
-                  <h2 className="text-sm font-semibold">{site.name}</h2>
-                  <p className="text-xs text-muted-foreground">{customerName.get(site.customer_id) ?? "Customer"}</p>
-                </div>
+              <Card key={site.id} className="gap-4">
+                <CardHeader className="flex flex-row items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <CardTitle className="truncate text-base">{site.name}</CardTitle>
+                    <p className="truncate text-xs text-muted-foreground">{customerName.get(site.customer_id) ?? "Customer"}</p>
+                  </div>
+                  <ToneBadge tone={here.length > 0 ? "good" : "neutral"}>{here.length === 0 ? "Nobody assigned" : `${here.length} assigned`}</ToneBadge>
+                </CardHeader>
 
-                <div className="space-y-3 px-4 py-3">
-                  {here.length === 0 ? (
-                    <p className="text-sm text-muted-foreground">No employee or site engineer is assigned to this site.</p>
-                  ) : (
-                    <ul className="divide-y divide-border">
+                <CardContent className="grid gap-4">
+                  {here.length > 0 ? (
+                    <ul className="divide-y rounded-lg border">
                       {here.map((a) => {
                         const person = staffById.get(a.staff_id);
                         const expired = a.expires_at !== null && isPast(a.expires_at);
                         return (
-                          <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 py-2">
+                          <li key={a.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2">
                             <div className="min-w-0">
                               <p className="truncate text-sm font-medium">
                                 {person?.full_name?.trim() || person?.email || "A person who is no longer active"}
-                                {person && <span className="ml-2 text-xs font-normal text-muted-foreground">{ROLE_LABEL[person.role] ?? person.role}</span>}
+                                {person ? <span className="ml-2 text-xs font-normal text-muted-foreground">{ROLE_LABEL[person.role] ?? person.role}</span> : null}
                               </p>
                               <p className={cn("text-xs", expired ? "text-destructive" : "text-muted-foreground")}>
                                 {a.expires_at ? (expired ? `Ended ${dayText(a.expires_at)}` : `Until ${dayText(a.expires_at)}`) : "No end date"}
@@ -122,41 +137,43 @@ export default async function SiteAccessPage({ searchParams }: { searchParams: P
                         );
                       })}
                     </ul>
-                  )}
+                  ) : null}
 
                   {candidates.length > 0 ? (
-                    <ActionForm action={assignStaff} loading="Adding…" success="Added." className="flex flex-wrap items-end gap-2 border-t border-border pt-3">
+                    <ActionForm action={assignStaff} loading="Adding…" success="Added." className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_9.5rem]">
                       <input type="hidden" name="site_id" value={site.id} />
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Add a person</label>
-                        <select name="staff_id" required defaultValue="" className="h-9 w-64 rounded-md border border-border bg-background px-2 text-sm">
-                          <option value="" disabled>
-                            Choose…
-                          </option>
-                          {candidates.map((p) => (
-                            <option key={p.id} value={p.id}>
-                              {(p.full_name?.trim() || p.email) + " · " + (ROLE_LABEL[p.role] ?? p.role)}
-                            </option>
-                          ))}
-                        </select>
+                      <div className="grid gap-2">
+                        <Label>Add a person</Label>
+                        <Select name="staff_id" required>
+                          <SelectTrigger className="w-full">
+                            <SelectValue placeholder="Choose…" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {candidates.map((p) => (
+                              <SelectItem key={p.id} value={p.id}>
+                                {`${p.full_name?.trim() || p.email} · ${ROLE_LABEL[p.role] ?? p.role}`}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Until (optional)</label>
-                        <Input type="date" name="until" min={today} className="h-9 w-40" />
+                      <div className="grid gap-2">
+                        <Label htmlFor={`until-${site.id}`}>Until (optional)</Label>
+                        <Input id={`until-${site.id}`} type="date" name="until" min={today} />
                       </div>
-                      <div className="space-y-1.5">
-                        <label className="text-xs font-medium text-muted-foreground">Note (optional)</label>
-                        <Input name="note" maxLength={200} placeholder="For example: installation week" className="h-9 w-56" />
+                      <div className="grid gap-2 sm:col-span-2 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+                        <div className="grid gap-2">
+                          <Label htmlFor={`note-${site.id}`}>Note (optional)</Label>
+                          <Input id={`note-${site.id}`} name="note" maxLength={200} placeholder="For example: installation week" />
+                        </div>
+                        <FormSubmit pendingText="Adding…">Add</FormSubmit>
                       </div>
-                      <Button type="submit" size="sm">
-                        Add
-                      </Button>
                     </ActionForm>
-                  ) : (
-                    (staff ?? []).length === 0 && <p className="border-t border-border pt-3 text-xs text-muted-foreground">There are no active employees or site engineers to add yet (invite them on the Employees page).</p>
-                  )}
-                </div>
-              </section>
+                  ) : (staff ?? []).length === 0 ? (
+                    <p className="text-xs text-muted-foreground">There are no active employees or site engineers to add yet. Invite them on the Employees page.</p>
+                  ) : null}
+                </CardContent>
+              </Card>
             );
           })}
         </div>

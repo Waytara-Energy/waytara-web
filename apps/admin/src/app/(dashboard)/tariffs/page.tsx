@@ -1,15 +1,17 @@
+import { CalendarClock, CheckCircle2, MapPin, Zap } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { Button, TextSubmit } from "@waytara/ui/button";
-import { Input } from "@waytara/ui/input";
 import { ActionForm } from "@waytara/ui/action-form";
-import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { LoadError, PageHeader, StatCard, StatGrid, ToneBadge } from "@/components/page-kit";
 import { INDIAN_STATES, TARIFF_CATEGORIES } from "@/lib/india-states";
 import { saveTariff, deleteScheduledTariff } from "./actions";
+import { RateDialog } from "./rate-dialog";
 
-// Admin-only (see proxy.ts). The electricity rate of every state, per kind of property: what the customer's Cost & Savings
-// page values a unit at, by the state in the site's address. A rate has the date it takes effect; a daily job turns each rate
-// whose date has arrived into a recorded change and e-mails the customers it affects. Enter a regulator's order as soon as it is
-// published, with its effective date, and customers hear on that day.
+// Admin-only (see proxy.ts). The electricity rate of every state, per kind of property: what the customer's Cost & Savings page values a unit at,
+// by the state in the site's address. A rate has the date it takes effect; a daily job turns each rate whose date has arrived into a recorded
+// change and e-mails the customers it affects. Enter a regulator's order as soon as it is published, with its effective date.
 
 type Row = {
   id: string;
@@ -28,7 +30,7 @@ const fmtDate = (iso: string) => new Date(`${iso}T00:00:00Z`).toLocaleDateString
 
 export default async function TariffsPage() {
   const supabase = await createClient();
-  const { data } = await supabase
+  const { data, error } = await supabase
     .from("electricity_tariffs")
     .select("id, state, category, rate_per_kwh, export_rate_per_kwh, effective_from, source_url, confidence, slabs, free_units")
     .order("effective_from", { ascending: false });
@@ -41,178 +43,98 @@ export default async function TariffsPage() {
   }
   const scheduled = rows.filter((r) => r.effective_from > today).sort((a, b) => a.effective_from.localeCompare(b.effective_from));
   const missing = INDIAN_STATES.filter((s) => !current.has(`${s}|residential`)).length;
-  const field = "h-9 w-full rounded-md border border-border bg-background px-2 text-sm";
+  const inForce = [...current.values()];
+  const verified = inForce.filter((r) => r.confidence === "verified").length;
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Electricity rates</h1>
-        <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-          The tariff a customer&apos;s bill is worked out with - by the state in the site&apos;s address and its kind of property (homes are
-          residential, offices and hotels commercial, factories industrial): slab bands, free units, duty. The figure beside each state is the
-          typical ₹ per unit (the average cost of a unit at 250 units a month); the savings themselves use the bands. Where no tariff is set
-          for a state, that customer&apos;s own account rate is used. Add a tariff with the date it takes effect; a daily job (06:00) records
-          each change as its date arrives and e-mails the customers it affects. <strong>Indicative</strong> tariffs are read from published
-          tables and not yet checked; replace them with the regulator&apos;s order and mark them <strong>verified</strong>.
-        </p>
-      </div>
+      <PageHeader
+        title="Electricity rates"
+        description="The tariff a customer's bill is worked out with, by the state in the site's address and its kind of property: slab bands, free units, duty. Where no tariff is set for a state, the customer's own account rate is used. Indicative rates are read from published tables and not yet checked; replace them with the regulator's order and mark them verified."
+        actions={<RateDialog action={saveTariff} today={today} />}
+      />
 
-      <ActionForm action={saveTariff} loading="Saving rate…" success="Rate saved." className="space-y-4 rounded-lg border p-4">
-        <h2 className="text-base font-semibold">Add a rate</h2>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">State</span>
-            <select name="state" required defaultValue="" className={field}>
-              <option value="" disabled>
-                Select…
-              </option>
-              {INDIAN_STATES.map((s) => (
-                <option key={s} value={s}>
-                  {s}
-                </option>
+      <StatGrid>
+        <StatCard icon={Zap} title="Rates in force" value={inForce.length} detail="States and property kinds with a rate" />
+        <StatCard icon={CheckCircle2} title="Verified" value={verified} detail={`${inForce.length - verified} are estimates`} tone={inForce.length - verified > 0 ? "warn" : "good"} />
+        <StatCard icon={CalendarClock} title="Scheduled" value={scheduled.length} detail="Take effect on a later date" />
+        <StatCard icon={MapPin} title="States without a home rate" value={missing} detail={`Of ${INDIAN_STATES.length} states and territories`} tone={missing > 0 ? "warn" : "good"} />
+      </StatGrid>
+
+      {scheduled.length > 0 ? (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Scheduled changes</CardTitle>
+            <CardDescription>These take effect on their date; customers are e-mailed then.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ul className="divide-y rounded-lg border">
+              {scheduled.map((r) => (
+                <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm">
+                  <span>
+                    <span className="font-medium">{r.state}</span> <span className="capitalize text-muted-foreground">· {r.category}</span> · ₹{Number(r.rate_per_kwh).toFixed(2)} from {fmtDate(r.effective_from)}
+                  </span>
+                  <ActionForm action={deleteScheduledTariff.bind(null, r.id)} loading="Removing…" success="Removed.">
+                    <Button type="submit" variant="ghost" size="sm">
+                      Remove
+                    </Button>
+                  </ActionForm>
+                </li>
               ))}
-            </select>
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">Kind of property</span>
-            <select name="category" required defaultValue="residential" className={field}>
-              {TARIFF_CATEGORIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">Single rate (₹ per kWh)</span>
-            <Input name="rate" type="number" step="0.01" min="0" max="100" placeholder="only if there are no slabs" />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">Export rate (optional)</span>
-            <Input name="exportRate" type="number" step="0.01" min="0" max="100" placeholder="blank = netted against imports" />
-          </label>
-          <label className="space-y-1 text-sm sm:col-span-2 lg:col-span-4">
-            <span className="font-medium">Slabs (one per line: top of the band in units per bill, then ₹ per unit)</span>
-            <textarea name="slabs" rows={5} placeholder={"100 3.50\n300 6.00\n400 7.50\n9.75   ← last line: just the rate, for everything above"} className="w-full rounded-md border border-border bg-background px-2 py-1.5 font-mono text-sm" />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">Bill covers</span>
-            <select name="billingMonths" defaultValue="1" className={field}>
-              <option value="1">1 month</option>
-              <option value="2">2 months (e.g. Tamil Nadu)</option>
-            </select>
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">Electricity duty (%)</span>
-            <Input name="dutyPct" type="number" step="0.1" min="0" max="50" defaultValue="0" />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">Fuel / wheeling (₹ per unit)</span>
-            <Input name="surcharge" type="number" step="0.01" min="0" max="20" defaultValue="0" />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">Free units per bill</span>
-            <Input name="freeUnits" type="number" step="1" min="0" max="1000" defaultValue="0" />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">Free units stop above (units)</span>
-            <Input name="freeUnitsCap" type="number" step="1" min="0" placeholder="blank = never" />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">Free units left above that</span>
-            <Input name="freeUnitsOverCap" type="number" step="1" min="0" defaultValue="0" />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">Takes effect on</span>
-            <Input name="effectiveFrom" type="date" defaultValue={today} required />
-          </label>
-          <label className="space-y-1 text-sm">
-            <span className="font-medium">Status</span>
-            <select name="confidence" defaultValue="verified" className={field}>
-              <option value="verified">Verified (from the regulator&apos;s order)</option>
-              <option value="indicative">Indicative (an estimate)</option>
-            </select>
-          </label>
-          <label className="space-y-1 text-sm lg:col-span-2">
-            <span className="font-medium">Link to the order</span>
-            <Input name="sourceUrl" type="url" placeholder="https://…" />
-          </label>
-          <label className="space-y-1 text-sm lg:col-span-4">
-            <span className="font-medium">Note (optional)</span>
-            <Input name="sourceNote" placeholder="e.g. TNERC order no. 6 of 2025, LT commercial" />
-          </label>
-        </div>
-        <Button type="submit">Save rate</Button>
-      </ActionForm>
+            </ul>
+          </CardContent>
+        </Card>
+      ) : null}
 
-      {scheduled.length > 0 && (
-        <div className="space-y-2 rounded-lg border p-4">
-          <h2 className="text-base font-semibold">Scheduled changes</h2>
-          <ul className="space-y-2 text-sm">
-            {scheduled.map((r) => (
-              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2">
-                <span>
-                  <span className="font-medium">{r.state}</span> · {r.category} · ₹{Number(r.rate_per_kwh).toFixed(2)} from {fmtDate(r.effective_from)}
-                </span>
-                <ActionForm action={deleteScheduledTariff.bind(null, r.id)} loading="Removing…" success="Removed.">
-                  <TextSubmit className="text-xs text-muted-foreground hover:text-destructive hover:underline" pendingText="Remove…">Remove</TextSubmit>
-                </ActionForm>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <div className="space-y-2">
-        <h2 className="text-base font-semibold">Rates in force</h2>
-        <p className="text-xs text-muted-foreground">{missing} of {INDIAN_STATES.length} states have no residential rate yet.</p>
-        <div className="overflow-x-auto rounded-lg border">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b bg-muted/40 text-left text-xs text-muted-foreground">
-                <th className="px-3 py-2 font-medium">State</th>
+      {error ? (
+        <LoadError message={`Couldn't load the rates: ${error.message}`} />
+      ) : (
+        <Card className="gap-0 overflow-hidden py-0">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>State</TableHead>
                 {TARIFF_CATEGORIES.map((c) => (
-                  <th key={c} className="px-3 py-2 font-medium capitalize">
+                  <TableHead key={c} className="capitalize">
                     {c}
-                  </th>
+                  </TableHead>
                 ))}
-              </tr>
-            </thead>
-            <tbody>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
               {INDIAN_STATES.map((s) => (
-                <tr key={s} className="border-b last:border-0">
-                  <td className="px-3 py-2 font-medium">{s}</td>
+                <TableRow key={s}>
+                  <TableCell className="font-medium">{s}</TableCell>
                   {TARIFF_CATEGORIES.map((c) => {
                     const r = current.get(`${s}|${c}`);
                     return (
-                      <td key={c} className="px-3 py-2">
+                      <TableCell key={c}>
                         {r ? (
-                          <span className="flex flex-wrap items-center gap-1.5">
-                            <span className="tabular-nums">₹{Number(r.rate_per_kwh).toFixed(2)}</span>
+                          <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                            <span className="font-medium tabular-nums">₹{Number(r.rate_per_kwh).toFixed(2)}</span>
+                            <ToneBadge tone={r.confidence === "verified" ? "good" : "warn"}>{r.confidence === "verified" ? "Verified" : "Estimate"}</ToneBadge>
                             <span className="text-xs text-muted-foreground">
                               {r.slabs && r.slabs.length > 1 ? `${r.slabs.length} slabs` : "flat"}
-                              {Number(r.free_units) > 0 ? ` · ${Number(r.free_units)} free` : ""}
+                              {Number(r.free_units) > 0 ? ` · ${Number(r.free_units)} free` : ""} · since {fmtDate(r.effective_from)}
                             </span>
-                            <Badge variant={r.confidence === "verified" ? "default" : "secondary"}>{r.confidence === "verified" ? "verified" : "estimate"}</Badge>
-                            <span className="text-xs text-muted-foreground">since {fmtDate(r.effective_from)}</span>
-                            {r.source_url && (
+                            {r.source_url ? (
                               <a href={r.source_url} target="_blank" rel="noreferrer" className="text-xs text-primary hover:underline">
                                 source
                               </a>
-                            )}
-                          </span>
+                            ) : null}
+                          </div>
                         ) : (
-                          <span className="text-xs text-muted-foreground">not set</span>
+                          <span className="text-xs text-muted-foreground">Not set</span>
                         )}
-                      </td>
+                      </TableCell>
                     );
                   })}
-                </tr>
+                </TableRow>
               ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            </TableBody>
+          </Table>
+        </Card>
+      )}
     </div>
   );
 }

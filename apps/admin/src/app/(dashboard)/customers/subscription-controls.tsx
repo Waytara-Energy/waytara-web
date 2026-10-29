@@ -1,11 +1,13 @@
 "use client";
 
 import * as React from "react";
-import * as DialogPrimitive from "@radix-ui/react-dialog";
-import { X } from "lucide-react";
 import { ActionForm } from "@waytara/ui/action-form";
-import { Button, TextSubmit } from "@waytara/ui/button";
-import { Input } from "@waytara/ui/input";
+import { FormSubmit } from "@/components/form-submit";
+import { Button } from "@/components/ui/button";
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { recordSubscription, setSubscriptionStatus } from "./actions";
 
 export interface PlanOption {
@@ -14,7 +16,6 @@ export interface PlanOption {
   price: number;
 }
 
-const field = "h-9 w-full rounded-md border border-border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring";
 const LENGTHS = [
   { months: 1, label: "1 month" },
   { months: 3, label: "3 months" },
@@ -43,103 +44,111 @@ export function SubscriptionControls({
   const running = current && (current.status === "active" || current.status === "trialing");
 
   return (
-    <div className="flex items-center justify-end gap-3">
-      {running && (
-        <ActionForm action={setSubscriptionStatus.bind(null, current.id, "cancelled")} loading="Cancelling…" success="Subscription cancelled." onSubmit={(e) => { if (!window.confirm(`Cancel ${customerName}'s subscription?`)) e.preventDefault(); }}>
-          <TextSubmit className="text-xs text-muted-foreground underline-offset-2 hover:text-destructive hover:underline" pendingText="Cancel…">Cancel</TextSubmit>
+    <div className="flex items-center justify-end gap-1">
+      {running ? (
+        <ActionForm
+          action={setSubscriptionStatus.bind(null, current.id, "cancelled")}
+          loading="Cancelling…"
+          success="Subscription cancelled."
+          onSubmit={(e) => {
+            if (!window.confirm(`Cancel ${customerName}'s subscription?`)) e.preventDefault();
+          }}
+        >
+          <FormSubmit variant="ghost" size="sm" className="text-muted-foreground hover:text-destructive" pendingText="Cancelling…">
+            Cancel
+          </FormSubmit>
         </ActionForm>
-      )}
+      ) : null}
 
-      <DialogPrimitive.Root open={open} onOpenChange={setOpen}>
-        <DialogPrimitive.Trigger asChild>
-          <button type="button" className="text-primary hover:underline">
+      <Dialog open={open} onOpenChange={setOpen}>
+        <DialogTrigger asChild>
+          <Button variant="outline" size="sm">
             {current ? "Renew" : "Record subscription"}
-          </button>
-        </DialogPrimitive.Trigger>
-        <DialogPrimitive.Portal>
-          <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/60" />
-          <DialogPrimitive.Content className="fixed left-1/2 top-1/2 z-50 w-[calc(100%-2rem)] max-w-md -translate-x-1/2 -translate-y-1/2 rounded-xl border border-border bg-card p-6 shadow-2xl">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <DialogPrimitive.Title className="text-lg font-semibold">{current ? "Renew subscription" : "Record subscription"}</DialogPrimitive.Title>
-                <DialogPrimitive.Description className="mt-1 text-sm text-muted-foreground">For {customerName}. They see it on their Billing &amp; Plan page.</DialogPrimitive.Description>
-              </div>
-              <DialogPrimitive.Close className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground" aria-label="Close">
-                <X className="size-4" />
-              </DialogPrimitive.Close>
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>{current ? "Renew subscription" : "Record subscription"}</DialogTitle>
+            <DialogDescription>For {customerName}. They see it on their Billing &amp; Plan page.</DialogDescription>
+          </DialogHeader>
+
+          <ActionForm
+            action={async (formData) => {
+              await recordSubscription(customerId, formData);
+              setOpen(false);
+            }}
+            loading="Recording…"
+            success="Subscription recorded."
+            className="grid gap-4"
+          >
+            <div className="grid gap-2">
+              <Label>Plan</Label>
+              <Select name="planId" required defaultValue={current?.planId}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Choose a plan" />
+                </SelectTrigger>
+                <SelectContent>
+                  {plans.map((p) => (
+                    <SelectItem key={p.id} value={p.id}>
+                      {p.name} · ₹{p.price.toLocaleString("en-IN")}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
 
-            <ActionForm
-              action={async (formData) => {
-                await recordSubscription(customerId, formData);
-                setOpen(false);
-              }}
-              loading="Recording…"
-              success="Subscription recorded."
-              className="mt-5 space-y-4"
-            >
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium text-muted-foreground" htmlFor={`plan-${customerId}`}>
-                  Plan
-                </label>
-                <select id={`plan-${customerId}`} name="planId" required defaultValue={current?.planId ?? ""} className={field}>
-                  <option value="" disabled>
-                    Choose a plan…
-                  </option>
-                  {plans.map((p) => (
-                    <option key={p.id} value={p.id}>
-                      {p.name} · ₹{p.price.toLocaleString("en-IN")}
-                    </option>
-                  ))}
-                </select>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-2">
+                <Label htmlFor={`start-${customerId}`}>Starts on</Label>
+                <Input id={`start-${customerId}`} type="date" name="start" defaultValue={today} required />
               </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground" htmlFor={`start-${customerId}`}>
-                    Starts on
-                  </label>
-                  <Input id={`start-${customerId}`} type="date" name="start" defaultValue={today} required className="h-9" />
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground" htmlFor={`months-${customerId}`}>
-                    Runs for
-                  </label>
-                  <select id={`months-${customerId}`} name="months" defaultValue="12" className={field}>
+              <div className="grid gap-2">
+                <Label>Runs for</Label>
+                <Select name="months" defaultValue="12">
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
                     {LENGTHS.map((l) => (
-                      <option key={l.months} value={l.months}>
+                      <SelectItem key={l.months} value={String(l.months)}>
                         {l.label}
-                      </option>
+                      </SelectItem>
                     ))}
-                  </select>
-                </div>
+                  </SelectContent>
+                </Select>
               </div>
+            </div>
 
-              <div className="grid grid-cols-2 gap-3">
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground" htmlFor={`status-${customerId}`}>
-                    State
-                  </label>
-                  <select id={`status-${customerId}`} name="status" defaultValue="active" className={field}>
-                    <option value="active">Active</option>
-                    <option value="trialing">Trial</option>
-                  </select>
-                </div>
-                <div className="space-y-1.5">
-                  <label className="text-xs font-medium text-muted-foreground" htmlFor={`ref-${customerId}`}>
-                    Payment reference <span className="font-normal">(optional)</span>
-                  </label>
-                  <Input id={`ref-${customerId}`} name="ref" maxLength={120} placeholder="e.g. UPI ref" className="h-9" />
-                </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-2">
+                <Label>State</Label>
+                <Select name="status" defaultValue="active">
+                  <SelectTrigger className="w-full">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">Active</SelectItem>
+                    <SelectItem value="trialing">Trial</SelectItem>
+                  </SelectContent>
+                </Select>
               </div>
+              <div className="grid gap-2">
+                <Label htmlFor={`ref-${customerId}`}>
+                  Payment reference <span className="font-normal text-muted-foreground">(optional)</span>
+                </Label>
+                <Input id={`ref-${customerId}`} name="ref" maxLength={120} placeholder="e.g. UPI ref" />
+              </div>
+            </div>
 
-              <Button type="submit" className="w-full">
-                Record subscription
+            <DialogFooter>
+              <Button type="button" variant="outline" onClick={() => setOpen(false)}>
+                Cancel
               </Button>
-            </ActionForm>
-          </DialogPrimitive.Content>
-        </DialogPrimitive.Portal>
-      </DialogPrimitive.Root>
+              <FormSubmit pendingText="Recording…">Record subscription</FormSubmit>
+            </DialogFooter>
+          </ActionForm>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

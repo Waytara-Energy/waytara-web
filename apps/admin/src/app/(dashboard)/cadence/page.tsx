@@ -1,4 +1,7 @@
+import { Activity } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
+import { Card } from "@/components/ui/card";
+import { EmptyState, LoadError, PageHeader } from "@/components/page-kit";
 import { CadenceDownload, type DeviceOption } from "./cadence-download";
 
 // Open to admins and to employees: the list below is whatever the database lets the signed-in person see (an admin sees every
@@ -26,19 +29,14 @@ export default async function CadencePage() {
 
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Cadence data</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          The readings exactly as a unit took them (every 5, 10 or 30 seconds), for the last 4 weeks. Pick a device, the readings and the days, look at the first rows, and download the file.
-        </p>
-      </div>
+      <PageHeader title="Cadence data" description="The readings exactly as a unit took them (every 5, 10 or 30 seconds), for the last 4 weeks. Pick a device, the readings and the days, look at the first rows, and download the file." />
 
       {error ? (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">Couldn&apos;t load the devices: {error.message}</div>
+        <LoadError message={`Couldn't load the devices: ${error.message}`} />
       ) : devices.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-6 text-center text-sm text-muted-foreground">
-          No devices to show. Admins see every device; employees see the devices on the sites they are assigned to.
-        </div>
+        <Card className="py-0">
+          <EmptyState icon={Activity} title="No devices to show" description="Admins see every device; employees see the devices on the sites they are assigned to." />
+        </Card>
       ) : (
         <CadenceDownload devices={devices} />
       )}

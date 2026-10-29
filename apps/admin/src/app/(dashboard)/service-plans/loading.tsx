@@ -1,10 +1,11 @@
-import { FormPanel, PageTitle, Panel } from "@/components/skeletons";
+import { FormPanel, PageTitle, Panel, StatsSkeleton } from "@/components/skeletons";
 
 /** Service plans: the title, the card to add a plan, the plans, and the card to attach a plan to a device. */
 export default function Loading() {
   return (
     <div className="space-y-6" aria-busy="true" aria-label="Loading">
       <PageTitle width="w-44" />
+      <StatsSkeleton />
       <FormPanel fields={4} />
       <div className="space-y-4">
         {[0, 1].map((i) => (

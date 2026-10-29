@@ -154,3 +154,14 @@ export function DetailPanel({ rows = 6 }: { rows?: number }) {
     </Panel>
   );
 }
+
+/** The row of figure cards above a table (the stat cards of a list page). */
+export function StatsSkeleton({ count = 4 }: { count?: number }) {
+  return (
+    <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      {Array.from({ length: count }).map((_, i) => (
+        <Skeleton key={i} className="h-28 rounded-xl" />
+      ))}
+    </div>
+  );
+}

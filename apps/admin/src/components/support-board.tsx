@@ -7,7 +7,7 @@ import { Search } from "lucide-react";
 import { StatusPill, Stars } from "@waytara/ui/support-ui";
 import { ticketCode } from "@waytara/ui/support-model";
 import { cn } from "@waytara/ui/cn";
-import { RealtimeRefresh } from "./realtime-refresh";
+import { Input } from "@/components/ui/input";
 
 export interface BoardTicket {
   id: string;
@@ -72,10 +72,7 @@ export function SupportBoard({ tickets, meId, isAdmin }: { tickets: BoardTicket[
   ];
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-2xl border border-border bg-card p-4">
-      <RealtimeRefresh table="support_tickets" event="UPDATE" />
-      <RealtimeRefresh table="support_tickets" event="INSERT" />
-
+    <div className="flex min-h-0 flex-1 flex-col gap-4 rounded-xl border bg-card p-4 shadow-xs">
       <div>
         <h1 className="text-2xl font-semibold tracking-tight">Support</h1>
         <p className="mt-0.5 text-sm text-muted-foreground">{isAdmin ? "Every ticket, every site." : "The tickets of your sites."}</p>
@@ -92,7 +89,7 @@ export function SupportBoard({ tickets, meId, isAdmin }: { tickets: BoardTicket[
 
       <label className="relative block">
         <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-        <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search ticket, customer, site" aria-label="Search tickets" className="h-9 w-full rounded-md border border-border bg-background pl-8 pr-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring" />
+        <Input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search ticket, customer, site" aria-label="Search tickets" className="pl-8" />
       </label>
 
       {shown.length === 0 ? (

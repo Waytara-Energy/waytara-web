@@ -6,7 +6,7 @@ import { createClient } from "@waytara/supabase/client";
 import { CadenceApiError, createCadenceClient, saveBlob, type PreviewAnswer } from "@waytara/cadence/client";
 import { cadenceText, filterKeys, groupKeys, keyTitle, type CadenceKey } from "@waytara/cadence/pick";
 import { CADENCE_MAX_DAYS, CADENCE_MAX_KEYS, addDays, oldestDay, planPeriod, todayIst } from "@waytara/cadence/range";
-import { Button } from "@waytara/ui/button";
+import { Button } from "@/components/ui/button";
 import { cn } from "@waytara/ui/cn";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 

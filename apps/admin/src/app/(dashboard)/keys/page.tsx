@@ -1,4 +1,7 @@
+import { Cpu, KeyRound, RefreshCw, WifiOff } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
+import { Card } from "@/components/ui/card";
+import { EmptyState, LoadError, PageHeader, StatCard, StatGrid } from "@/components/page-kit";
 import { KeysManager, type KeyDevice } from "./keys-manager";
 
 // Open to admins and to employees: the list is whatever the database lets the signed-in person see (an admin sees every device, an
@@ -49,25 +52,31 @@ export default async function KeysPage() {
     }))
     .sort((a, b) => a.site.localeCompare(b.site) || a.name.localeCompare(b.name));
 
+  const withKey = devices.filter((d) => d.keys.length > 0).length;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight">Device keys</h1>
-        <p className="mt-1 text-sm text-muted-foreground">
-          The secret each monitoring unit or EV charger uses to talk to WayTara. A unit gets its key when it is set up (setup page, Finish) and nobody ever
-          sees it. Here you can change a unit&apos;s key while it is online (nothing is cut off), or cut a lost unit off. An EV charger&apos;s secret is typed into
-          the charger, so it is made and replaced here and shown once.
-        </p>
-      </div>
+      <PageHeader
+        title="Device keys"
+        description="The secret each monitoring unit or EV charger uses to talk to WayTara. A unit gets its key when it is set up (setup page, Finish) and nobody ever sees it. Here you can change a unit's key while it is online (nothing is cut off), or cut a lost unit off. An EV charger's secret is typed into the charger, so it is made and replaced here and shown once."
+      />
 
       {error ? (
-        <div className="rounded-lg border border-destructive/40 bg-destructive/10 p-4 text-sm text-destructive">Couldn&apos;t load the devices: {error.message}</div>
+        <LoadError message={`Couldn't load the devices: ${error.message}`} />
       ) : devices.length === 0 ? (
-        <div className="rounded-lg border border-border bg-card p-6 text-center text-sm text-muted-foreground">
-          No devices to show. Admins see every device; employees see the devices on the sites they are assigned to.
-        </div>
+        <Card className="py-0">
+          <EmptyState icon={KeyRound} title="No devices to show" description="Admins see every device; employees see the devices on the sites they are assigned to." />
+        </Card>
       ) : (
-        <KeysManager devices={devices} />
+        <>
+          <StatGrid>
+            <StatCard icon={Cpu} title="Devices" value={devices.length} detail="Inverters and EV chargers" />
+            <StatCard icon={KeyRound} title="With a key" value={withKey} detail="Can talk to WayTara" tone="good" />
+            <StatCard icon={WifiOff} title="Without a key" value={devices.length - withKey} detail="Not set up, or cut off" tone={devices.length - withKey > 0 ? "warn" : undefined} />
+            <StatCard icon={RefreshCw} title="Key change under way" value={devices.filter((d) => d.keyChange).length} detail="Being delivered to a unit" />
+          </StatGrid>
+          <KeysManager devices={devices} />
+        </>
       )}
     </div>
   );

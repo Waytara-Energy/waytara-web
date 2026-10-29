@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { Check, Copy, KeyRound, PlugZap, Cpu, X } from "lucide-react";
 import { createClient } from "@waytara/supabase/client";
 import { KeysApiError, chargerAddress, createKeysClient, type IssuedKey } from "@waytara/cadence/keys";
-import { Button } from "@waytara/ui/button";
+import { Button } from "@/components/ui/button";
 import { notify } from "@waytara/ui/notify";
 import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
