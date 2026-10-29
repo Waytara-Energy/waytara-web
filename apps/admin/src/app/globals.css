@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* The dark theme is the .dark class next-themes puts on <html> (the shadcn components use the dark: variant). */
+@custom-variant dark (&:is(.dark *));
+
 /* Tailwind v4's automatic content scanning doesn't cross the workspace
    package boundary into node_modules — @waytara/ui's component source
    lives in packages/ui/src, so without this its classes never generate
