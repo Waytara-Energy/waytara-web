@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { Label } from "@/components/ui/label";
+import { categoryLabel } from "../stock-types";
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export interface CopyChoice {
@@ -29,7 +30,7 @@ export function CopyPicker({ items, selected }: { items: CopyChoice[]; selected:
             .sort((a, b) => a[0].localeCompare(b[0]))
             .map(([category, list]) => (
               <SelectGroup key={category}>
-                <SelectLabel>{category}</SelectLabel>
+                <SelectLabel>{categoryLabel(category)}</SelectLabel>
                 {list.map((i) => (
                   <SelectItem key={i.id} value={i.id}>
                     {i.name}

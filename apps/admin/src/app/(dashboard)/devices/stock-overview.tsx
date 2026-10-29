@@ -1,7 +1,7 @@
 import { AlertTriangle, CheckCircle2, IndianRupee, Package, Truck } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { formatMoney, isOutOfStock, STATUS_OPTIONS, statusLabel, type StockRow } from "./stock-types";
+import { categoryLabel, formatMoney, isOutOfStock, STATUS_OPTIONS, statusLabel, type StockRow } from "./stock-types";
 
 /** A piece of equipment that is in use at a customer's site (a row of `equipment` that points at a stock item). */
 export interface Allocation {
@@ -77,7 +77,7 @@ export function StockOverview({ items, allocations }: { items: StockRow[]; alloc
             {byCategory.length === 0 ? <p className="text-sm text-muted-foreground">No stock items yet.</p> : null}
             {byCategory.map(([name, n]) => (
               <div key={name} className="grid grid-cols-[minmax(0,10rem)_1fr_2rem] items-center gap-3 text-sm">
-                <span className="truncate text-muted-foreground">{name}</span>
+                <span className="truncate text-muted-foreground">{categoryLabel(name)}</span>
                 <span className="h-2 overflow-hidden rounded-full bg-muted">
                   <span className="block h-full rounded-full bg-primary" style={{ width: `${(n / maxCategory) * 100}%` }} />
                 </span>

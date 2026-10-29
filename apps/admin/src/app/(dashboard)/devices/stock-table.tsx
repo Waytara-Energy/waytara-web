@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { StockStatusBadge } from "./stock-status-badge";
-import { makeAndModel, STATUS_OPTIONS, statusLabel, type StockRow } from "./stock-types";
+import { categoryLabel, makeAndModel, STATUS_OPTIONS, statusLabel, type StockRow } from "./stock-types";
 
 /** The stock catalog's table: search and filters above it; a row (or its View button) opens the item's own page. */
 export function StockTable({ items }: { items: StockRow[] }) {
@@ -46,7 +46,7 @@ export function StockTable({ items }: { items: StockRow[] }) {
             <SelectItem value="all">All categories</SelectItem>
             {categories.map((c) => (
               <SelectItem key={c} value={c}>
-                {c}
+                {categoryLabel(c)}
               </SelectItem>
             ))}
           </SelectContent>
@@ -108,7 +108,7 @@ export function StockTable({ items }: { items: StockRow[] }) {
                       {item.name}
                     </Link>
                   </TableCell>
-                  <TableCell className="text-muted-foreground">{item.category}</TableCell>
+                  <TableCell className="text-muted-foreground">{categoryLabel(item.category)}</TableCell>
                   <TableCell className="text-muted-foreground">{makeAndModel(item)}</TableCell>
                   <TableCell className="font-mono text-xs text-muted-foreground">{item.serial_number || "—"}</TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">

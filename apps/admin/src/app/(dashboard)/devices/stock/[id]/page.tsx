@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatFileSize, poKindLabel } from "@/lib/po-document";
 import { StockStatusBadge } from "../../stock-status-badge";
-import { formatMoney, makeAndModel, STOCK_COLUMNS, type StockRow } from "../../stock-types";
+import { categoryLabel, formatMoney, makeAndModel, STOCK_COLUMNS, type StockRow } from "../../stock-types";
 import { updateStockItem } from "../../actions";
 import { StockForm } from "../stock-form";
 
@@ -72,7 +72,7 @@ export default async function StockItemPage({ params }: { params: Promise<{ id: 
             <StockStatusBadge item={item} />
           </div>
           <p className="text-sm text-muted-foreground">
-            {item.category} · {makeAndModel(item)}
+            {categoryLabel(item.category)} · {makeAndModel(item)}
             {item.serial_number ? ` · serial ${item.serial_number}` : ""}
           </p>
         </div>

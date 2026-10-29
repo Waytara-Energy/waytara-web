@@ -36,6 +36,13 @@ export const STOCK_COLUMNS =
 
 export const STATUS_OPTIONS = ["in_stock", "allocated", "installed", "damaged", "returned"] as const;
 
+/**
+ * How a category reads on screen. The stored name never changes (the database and the dashboards look for "solar_inverter" and "ev_charger"
+ * exactly); only these two are written out for people.
+ */
+const CATEGORY_LABELS: Record<string, string> = { solar_inverter: "Solar Inverter", ev_charger: "EV Charger" };
+export const categoryLabel = (c: string) => CATEGORY_LABELS[c] ?? c;
+
 export const statusLabel = (s: string) => s.replace(/_/g, " ");
 
 /** An item that is marked in stock but has none left. */

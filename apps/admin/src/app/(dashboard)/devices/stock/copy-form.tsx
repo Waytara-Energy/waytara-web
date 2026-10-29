@@ -4,7 +4,7 @@ import { ActionForm } from "@waytara/ui/action-form";
 import { FormSubmit } from "@/components/form-submit";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatMoney, makeAndModel, type StockRow } from "../stock-types";
+import { categoryLabel, formatMoney, makeAndModel, type StockRow } from "../stock-types";
 import { PoDocumentField } from "./po-document-field";
 import { Field, StatusSelect } from "./stock-form";
 
@@ -12,7 +12,7 @@ function copiedLines(src: StockRow): string[] {
   const specs = src.technical_specs && typeof src.technical_specs === "object" ? Object.keys(src.technical_specs as object).length : 0;
   const warranty = src.warranty_info && typeof src.warranty_info === "object" ? (src.warranty_info as Record<string, unknown>) : null;
   const lines = [
-    `Category: ${src.category}`,
+    `Category: ${categoryLabel(src.category)}`,
     `Make and model: ${makeAndModel(src)}${src.model_number ? ` (${src.model_number})` : ""}`,
     src.power_capacity_value !== null ? `Power: ${src.power_capacity_value} ${src.power_capacity_unit ?? ""}`.trim() : null,
     src.phase_count ? `${src.phase_count === 3 ? "Three" : "Single"}-phase` : null,
