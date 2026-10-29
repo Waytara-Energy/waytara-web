@@ -5,6 +5,7 @@ import { FormSubmit } from "@/components/form-submit";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatMoney, makeAndModel, type StockRow } from "../stock-types";
+import { PoDocumentField } from "./po-document-field";
 import { Field, StatusSelect } from "./stock-form";
 
 function copiedLines(src: StockRow): string[] {
@@ -65,6 +66,7 @@ export function CopyForm({ source, action }: { source: StockRow; action: (formDa
           <Field label="Purchase date" name="purchaseDate" type="date" />
           <Field label="PO reference" name="poReference" />
           <Field label="Purchase price (₹)" name="purchasePriceAmount" type="number" hint="What was paid for this purchase." />
+          <PoDocumentField />
         </CardContent>
       </Card>
 

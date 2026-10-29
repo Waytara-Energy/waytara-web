@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { STATUS_OPTIONS, statusLabel, type StockRow } from "../stock-types";
+import { PoDocumentField } from "./po-document-field";
 import { SpecsEditor, WarrantyEditor } from "./specs-editor";
 
 /** The units a stock item can be counted in. An item that already has another one keeps it. */
@@ -175,6 +176,13 @@ export function StockForm({
               <Field label="PO reference" name="poReference" defaultValue={defaults?.po_reference} />
               <Field label="Purchase date" name="purchaseDate" type="date" defaultValue={defaults?.purchase_date} />
               <Field label="Purchase price (₹)" name="purchasePriceAmount" type="number" defaultValue={defaults?.purchase_price_amount} hint="What was paid for this purchase." />
+              <PoDocumentField
+                existing={
+                  defaults?.po_document_path
+                    ? { name: defaults.po_document_name ?? "Purchase order", size: defaults.po_document_size, viewHref: `/devices/stock/${defaults.id}/po`, downloadHref: `/devices/stock/${defaults.id}/po?download=1` }
+                    : null
+                }
+              />
             </AccordionContent>
           </AccordionItem>
 

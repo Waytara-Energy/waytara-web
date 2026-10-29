@@ -24,11 +24,15 @@ export interface StockRow {
   purchase_date: string | null;
   supplier: string | null;
   po_reference: string | null;
+  po_document_path: string | null;
+  po_document_name: string | null;
+  po_document_type: string | null;
+  po_document_size: number | null;
   phase_count: number | null;
 }
 
 export const STOCK_COLUMNS =
-  "id, name, category, brand, model, model_number, manufacturer, serial_number, status, power_capacity_value, power_capacity_unit, size_value, size_unit, technical_specs, warranty_info, quantity, pack_size, primary_uom, purchase_price_amount, unit_price, purchase_date, supplier, po_reference, phase_count";
+  "id, name, category, brand, model, model_number, manufacturer, serial_number, status, power_capacity_value, power_capacity_unit, size_value, size_unit, technical_specs, warranty_info, quantity, pack_size, primary_uom, purchase_price_amount, unit_price, purchase_date, supplier, po_reference, po_document_path, po_document_name, po_document_type, po_document_size, phase_count";
 
 export const STATUS_OPTIONS = ["in_stock", "allocated", "installed", "damaged", "returned"] as const;
 

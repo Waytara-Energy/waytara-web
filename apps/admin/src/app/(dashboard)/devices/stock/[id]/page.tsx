@@ -1,11 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ArrowLeft, Copy, Cpu, ExternalLink } from "lucide-react";
+import { ArrowLeft, Copy, Cpu, Download, ExternalLink, FileText } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { formatFileSize, poKindLabel } from "@/lib/po-document";
 import { formatMoney, isOutOfStock, makeAndModel, STOCK_COLUMNS, statusLabel, type StockRow } from "../../stock-types";
 import { updateStockItem } from "../../actions";
 import { StockForm } from "../stock-form";
@@ -124,6 +125,44 @@ export default async function StockItemPage({ params }: { params: Promise<{ id: 
         />
 
         <div className="grid gap-6 xl:sticky xl:top-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Purchase order</CardTitle>
+              <CardDescription>{item.po_reference ? `Reference ${item.po_reference}` : "No PO reference noted."}</CardDescription>
+            </CardHeader>
+            <CardContent>
+              {item.po_document_path ? (
+                <div className="grid gap-3">
+                  <div className="flex items-start gap-3 rounded-lg border p-3">
+                    <span className="grid size-8 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
+                      <FileText className="size-4" />
+                    </span>
+                    <div className="grid min-w-0 flex-1 gap-0.5 text-sm">
+                      <span className="truncate font-medium">{item.po_document_name}</span>
+                      <span className="text-xs text-muted-foreground">{[poKindLabel(item.po_document_name), formatFileSize(item.po_document_size)].filter(Boolean).join(" · ")}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button asChild variant="outline" size="sm">
+                      <a href={`/devices/stock/${item.id}/po`} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink />
+                        View
+                      </a>
+                    </Button>
+                    <Button asChild variant="outline" size="sm">
+                      <a href={`/devices/stock/${item.id}/po?download=1`}>
+                        <Download />
+                        Download
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">No file uploaded. Add one under &ldquo;Purchase and supplier&rdquo;.</p>
+              )}
+            </CardContent>
+          </Card>
+
           <Card>
             <CardHeader>
               <CardTitle>In use</CardTitle>
