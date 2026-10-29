@@ -20,7 +20,7 @@ import {
   useSidebar,
 } from "@/components/ui/sidebar";
 import type { AdminAlerts } from "@/lib/admin-alerts";
-import { visibleNavGroups } from "./admin-nav";
+import { OVERVIEW_ITEM, visibleNavGroups } from "./admin-nav";
 import { AdminCommandMenu } from "./admin-command-menu";
 import { AdminNotificationCenter } from "./admin-notification-center";
 import { AdminUserMenu, type AdminAccount } from "./admin-user-menu";
@@ -59,8 +59,25 @@ export function AdminSidebar({ role, alerts, account }: { role?: string | null; 
 
       <SidebarContent className="gap-0 pb-2">
         <SidebarGroup className="pb-1 pt-0">
-          <AdminCommandMenu groups={groups} />
+          <AdminCommandMenu groups={role === "site_engineer" ? groups : [{ label: "Home", items: [OVERVIEW_ITEM] }, ...groups]} />
         </SidebarGroup>
+
+        {role !== "site_engineer" ? (
+          <SidebarGroup className="py-1">
+            <SidebarGroupContent>
+              <SidebarMenu>
+                <SidebarMenuItem>
+                  <SidebarMenuButton asChild isActive={pathname === OVERVIEW_ITEM.href} tooltip={OVERVIEW_ITEM.label}>
+                    <Link href={OVERVIEW_ITEM.href} onClick={handleNavClick}>
+                      <OVERVIEW_ITEM.icon className={ICON} />
+                      <span className={LABEL}>{OVERVIEW_ITEM.label}</span>
+                    </Link>
+                  </SidebarMenuButton>
+                </SidebarMenuItem>
+              </SidebarMenu>
+            </SidebarGroupContent>
+          </SidebarGroup>
+        ) : null}
 
         {groups.map((group) => (
           <SidebarGroup key={group.label} className="py-1">

@@ -1,4 +1,4 @@
-import { Activity, Bell, ClipboardCheck, Cpu, KeyRound, Layers, LifeBuoy, ScrollText, UserCheck, UserCircle2, Users, UsersRound, Wrench, Zap, History, type LucideIcon } from "lucide-react";
+import { Activity, Bell, LayoutDashboard, ClipboardCheck, Cpu, KeyRound, Layers, LifeBuoy, ScrollText, UserCheck, UserCircle2, Users, UsersRound, Wrench, Zap, History, type LucideIcon } from "lucide-react";
 
 /** Which count in AdminAlerts a nav line wears as its badge. */
 export type NavBadge = "leads" | "support" | "alerts";
@@ -16,6 +16,9 @@ export interface NavGroup {
   label: string;
   items: NavItem[];
 }
+
+/** The overview, shown on its own under the search (not in a group). */
+export const OVERVIEW_ITEM: NavItem = { label: "Overview", href: "/dashboard", icon: LayoutDashboard };
 
 /** The staff dashboard's pages, in the groups the sidebar shows. */
 export const NAV_GROUPS: NavGroup[] = [
