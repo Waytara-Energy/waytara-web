@@ -765,6 +765,7 @@ export type Database = {
           service_id: string | null
           site_id: string
           stock_id: string
+          stock_unit_id: string | null
           updated_at: string
           warranty_end_date: string | null
           warranty_start_date: string | null
@@ -784,6 +785,7 @@ export type Database = {
           service_id?: string | null
           site_id: string
           stock_id: string
+          stock_unit_id?: string | null
           updated_at?: string
           warranty_end_date?: string | null
           warranty_start_date?: string | null
@@ -803,6 +805,7 @@ export type Database = {
           service_id?: string | null
           site_id?: string
           stock_id?: string
+          stock_unit_id?: string | null
           updated_at?: string
           warranty_end_date?: string | null
           warranty_start_date?: string | null
@@ -841,6 +844,13 @@ export type Database = {
             columns: ["parent_id"]
             isOneToOne: false
             referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "equipment_stock_unit_id_fkey"
+            columns: ["stock_unit_id"]
+            isOneToOne: false
+            referencedRelation: "stock_units"
             referencedColumns: ["id"]
           },
         ]
@@ -1103,7 +1113,17 @@ export type Database = {
           brand: string | null
           category: string
           created_at: string
+          datasheet_document_name: string | null
+          datasheet_document_path: string | null
+          datasheet_document_size: number | null
+          datasheet_document_type: string | null
+          datasheet_document_uploaded_at: string | null
           id: string
+          manual_document_name: string | null
+          manual_document_path: string | null
+          manual_document_size: number | null
+          manual_document_type: string | null
+          manual_document_uploaded_at: string | null
           manufacturer: string | null
           model: string | null
           model_number: string | null
@@ -1115,16 +1135,6 @@ export type Database = {
           po_document_size: number | null
           po_document_type: string | null
           po_document_uploaded_at: string | null
-          datasheet_document_name: string | null
-          datasheet_document_path: string | null
-          datasheet_document_size: number | null
-          datasheet_document_type: string | null
-          datasheet_document_uploaded_at: string | null
-          manual_document_name: string | null
-          manual_document_path: string | null
-          manual_document_size: number | null
-          manual_document_type: string | null
-          manual_document_uploaded_at: string | null
           po_reference: string | null
           power_capacity_unit: string | null
           power_capacity_value: number | null
@@ -1132,12 +1142,14 @@ export type Database = {
           purchase_date: string | null
           purchase_price_amount: number | null
           quantity: number
+          reorder_level: number
           serial_number: string | null
           size_unit: string | null
           size_value: number | null
           status: Database["waytara"]["Enums"]["stock_status"]
           supplier: string | null
           technical_specs: Json | null
+          tracking: string
           unit_price: number | null
           warranty_info: Json | null
         }
@@ -1145,7 +1157,17 @@ export type Database = {
           brand?: string | null
           category: string
           created_at?: string
+          datasheet_document_name?: string | null
+          datasheet_document_path?: string | null
+          datasheet_document_size?: number | null
+          datasheet_document_type?: string | null
+          datasheet_document_uploaded_at?: string | null
           id?: string
+          manual_document_name?: string | null
+          manual_document_path?: string | null
+          manual_document_size?: number | null
+          manual_document_type?: string | null
+          manual_document_uploaded_at?: string | null
           manufacturer?: string | null
           model?: string | null
           model_number?: string | null
@@ -1157,16 +1179,6 @@ export type Database = {
           po_document_size?: number | null
           po_document_type?: string | null
           po_document_uploaded_at?: string | null
-          datasheet_document_name?: string | null
-          datasheet_document_path?: string | null
-          datasheet_document_size?: number | null
-          datasheet_document_type?: string | null
-          datasheet_document_uploaded_at?: string | null
-          manual_document_name?: string | null
-          manual_document_path?: string | null
-          manual_document_size?: number | null
-          manual_document_type?: string | null
-          manual_document_uploaded_at?: string | null
           po_reference?: string | null
           power_capacity_unit?: string | null
           power_capacity_value?: number | null
@@ -1174,12 +1186,14 @@ export type Database = {
           purchase_date?: string | null
           purchase_price_amount?: number | null
           quantity?: number
+          reorder_level?: number
           serial_number?: string | null
           size_unit?: string | null
           size_value?: number | null
           status?: Database["waytara"]["Enums"]["stock_status"]
           supplier?: string | null
           technical_specs?: Json | null
+          tracking?: string
           unit_price?: number | null
           warranty_info?: Json | null
         }
@@ -1187,7 +1201,17 @@ export type Database = {
           brand?: string | null
           category?: string
           created_at?: string
+          datasheet_document_name?: string | null
+          datasheet_document_path?: string | null
+          datasheet_document_size?: number | null
+          datasheet_document_type?: string | null
+          datasheet_document_uploaded_at?: string | null
           id?: string
+          manual_document_name?: string | null
+          manual_document_path?: string | null
+          manual_document_size?: number | null
+          manual_document_type?: string | null
+          manual_document_uploaded_at?: string | null
           manufacturer?: string | null
           model?: string | null
           model_number?: string | null
@@ -1199,16 +1223,6 @@ export type Database = {
           po_document_size?: number | null
           po_document_type?: string | null
           po_document_uploaded_at?: string | null
-          datasheet_document_name?: string | null
-          datasheet_document_path?: string | null
-          datasheet_document_size?: number | null
-          datasheet_document_type?: string | null
-          datasheet_document_uploaded_at?: string | null
-          manual_document_name?: string | null
-          manual_document_path?: string | null
-          manual_document_size?: number | null
-          manual_document_type?: string | null
-          manual_document_uploaded_at?: string | null
           po_reference?: string | null
           power_capacity_unit?: string | null
           power_capacity_value?: number | null
@@ -1216,12 +1230,14 @@ export type Database = {
           purchase_date?: string | null
           purchase_price_amount?: number | null
           quantity?: number
+          reorder_level?: number
           serial_number?: string | null
           size_unit?: string | null
           size_value?: number | null
           status?: Database["waytara"]["Enums"]["stock_status"]
           supplier?: string | null
           technical_specs?: Json | null
+          tracking?: string
           unit_price?: number | null
           warranty_info?: Json | null
         }
@@ -3885,6 +3901,239 @@ export type Database = {
         }
         Relationships: []
       }
+      stock_movements: {
+        Row: {
+          actor: string | null
+          created_at: string
+          customer_id: string | null
+          from_status: string | null
+          id: string
+          kind: string
+          model_id: string
+          note: string | null
+          quantity: number
+          site_id: string | null
+          to_status: string | null
+          unit_id: string | null
+        }
+        Insert: {
+          actor?: string | null
+          created_at?: string
+          customer_id?: string | null
+          from_status?: string | null
+          id?: string
+          kind: string
+          model_id: string
+          note?: string | null
+          quantity?: number
+          site_id?: string | null
+          to_status?: string | null
+          unit_id?: string | null
+        }
+        Update: {
+          actor?: string | null
+          created_at?: string
+          customer_id?: string | null
+          from_status?: string | null
+          id?: string
+          kind?: string
+          model_id?: string
+          note?: string | null
+          quantity?: number
+          site_id?: string | null
+          to_status?: string | null
+          unit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_movements_actor_fkey"
+            columns: ["actor"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_movements_unit_id_fkey"
+            columns: ["unit_id"]
+            isOneToOne: false
+            referencedRelation: "stock_units"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_receipts: {
+        Row: {
+          created_at: string
+          id: string
+          model_id: string
+          notes: string | null
+          po_document_name: string | null
+          po_document_path: string | null
+          po_document_size: number | null
+          po_document_type: string | null
+          po_document_uploaded_at: string | null
+          po_reference: string | null
+          quantity: number
+          received_by: string | null
+          received_on: string
+          supplier: string | null
+          unit_cost: number | null
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          model_id: string
+          notes?: string | null
+          po_document_name?: string | null
+          po_document_path?: string | null
+          po_document_size?: number | null
+          po_document_type?: string | null
+          po_document_uploaded_at?: string | null
+          po_reference?: string | null
+          quantity: number
+          received_by?: string | null
+          received_on?: string
+          supplier?: string | null
+          unit_cost?: number | null
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          model_id?: string
+          notes?: string | null
+          po_document_name?: string | null
+          po_document_path?: string | null
+          po_document_size?: number | null
+          po_document_type?: string | null
+          po_document_uploaded_at?: string | null
+          po_reference?: string | null
+          quantity?: number
+          received_by?: string | null
+          received_on?: string
+          supplier?: string | null
+          unit_cost?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_receipts_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_receipts_received_by_fkey"
+            columns: ["received_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stock_units: {
+        Row: {
+          created_at: string
+          customer_id: string | null
+          id: string
+          installed_at: string | null
+          location: string | null
+          model_id: string
+          notes: string | null
+          quantity: number
+          receipt_id: string | null
+          remaining: number
+          reserved_at: string | null
+          serial_number: string
+          site_id: string | null
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          installed_at?: string | null
+          location?: string | null
+          model_id: string
+          notes?: string | null
+          quantity?: number
+          receipt_id?: string | null
+          remaining?: number
+          reserved_at?: string | null
+          serial_number: string
+          site_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          customer_id?: string | null
+          id?: string
+          installed_at?: string | null
+          location?: string | null
+          model_id?: string
+          notes?: string | null
+          quantity?: number
+          receipt_id?: string | null
+          remaining?: number
+          reserved_at?: string | null
+          serial_number?: string
+          site_id?: string | null
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stock_units_customer_id_fkey"
+            columns: ["customer_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_units_model_id_fkey"
+            columns: ["model_id"]
+            isOneToOne: false
+            referencedRelation: "equipment_inventory"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_units_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "stock_receipts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "stock_units_site_id_fkey"
+            columns: ["site_id"]
+            isOneToOne: false
+            referencedRelation: "sites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       subscriptions: {
         Row: {
           created_at: string
@@ -4535,6 +4784,7 @@ export type Database = {
           p_parent: string
           p_quantity?: number
           p_stock: string
+          p_unit?: string
         }
         Returns: string
       }
@@ -4982,6 +5232,10 @@ export type Database = {
         }
         Returns: Json
       }
+      install_unit: {
+        Args: { p_equipment: string; p_unit: string }
+        Returns: undefined
+      }
       invoke_cron_route: { Args: { p_path: string }; Returns: undefined }
       is_admin: { Args: never; Returns: boolean }
       is_gateway_service: { Args: never; Returns: boolean }
@@ -5026,6 +5280,21 @@ export type Database = {
         Returns: number
       }
       purge_old_ev_samples: { Args: never; Returns: number }
+      receive_stock: {
+        Args: {
+          p_location: string
+          p_model: string
+          p_notes: string
+          p_po?: Json
+          p_po_reference: string
+          p_quantity: number
+          p_received_on: string
+          p_serials: string[]
+          p_supplier: string
+          p_unit_cost: number
+        }
+        Returns: string
+      }
       record_subscription: {
         Args: {
           p_customer: string
@@ -5038,11 +5307,16 @@ export type Database = {
         Returns: string
       }
       refresh_device_status: { Args: never; Returns: number }
+      release_unit: { Args: { p_unit: string }; Returns: undefined }
       rename_device: {
         Args: { p_equipment: string; p_label: string }
         Returns: string
       }
       request_live: { Args: { p_equipment_id: string }; Returns: string }
+      reserve_unit: {
+        Args: { p_customer: string; p_site?: string; p_unit: string }
+        Returns: undefined
+      }
       revoke_my_session: { Args: { p_id: string }; Returns: undefined }
       rollup_days: { Args: { p_days: string[] }; Returns: number }
       rollup_hours: { Args: { p_hours: string[] }; Returns: number }
@@ -5052,6 +5326,10 @@ export type Database = {
           p_id: string
           p_status: Database["waytara"]["Enums"]["subscription_status"]
         }
+        Returns: undefined
+      }
+      set_unit_status: {
+        Args: { p_note?: string; p_status: string; p_unit: string }
         Returns: undefined
       }
       support_assign: {
@@ -5115,6 +5393,7 @@ export type Database = {
         Returns: boolean
       }
       support_take: { Args: { p_ticket: string }; Returns: undefined }
+      sync_model_stock: { Args: { p_model: string }; Returns: undefined }
       telemetry_series: {
         Args: {
           p_equipment_id: string
