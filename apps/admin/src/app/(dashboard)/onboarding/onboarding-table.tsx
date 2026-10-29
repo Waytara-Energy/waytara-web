@@ -8,7 +8,8 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { EmptyState, ToneBadge, type Tone } from "@/components/page-kit";
+import { EmptyState, ToneBadge } from "@/components/page-kit";
+import { STAGES } from "@/lib/pipeline";
 
 export interface OnboardingRow {
   id: string;
@@ -17,18 +18,6 @@ export interface OnboardingRow {
   name: string | null;
   email: string | null;
 }
-
-/** The stages of the pipeline, in order, with how each reads and its colour. */
-export const STAGES: { value: string; label: string; tone: Tone }[] = [
-  { value: "quotation_sent", label: "Quotation sent", tone: "info" },
-  { value: "quotation_accepted", label: "Quotation accepted", tone: "info" },
-  { value: "payment_pending", label: "Payment pending", tone: "warn" },
-  { value: "account_created", label: "Account created", tone: "violet" },
-  { value: "site_setup", label: "Site setup", tone: "violet" },
-  { value: "connection_test", label: "Connection test", tone: "violet" },
-  { value: "install_scheduled", label: "Install scheduled", tone: "warn" },
-  { value: "install_completed", label: "Install completed", tone: "good" },
-];
 
 /** Every customer moving through the pipeline: search, filter by stage, open one. */
 export function OnboardingTable({ rows }: { rows: OnboardingRow[] }) {

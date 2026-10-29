@@ -8,6 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState, ToneBadge, type Tone } from "@/components/page-kit";
+import { LEAD_STATUSES } from "@/lib/pipeline";
 import { cn } from "@/lib/utils";
 
 export interface LeadRow {
@@ -22,8 +23,6 @@ export interface LeadRow {
   accepted_at: string | null;
   assignee_name: string | null;
 }
-
-export const LEAD_STATUSES = ["new", "assigned", "quoted", "converted", "lost"] as const;
 
 const TONES: Record<string, Tone> = { new: "info", assigned: "warn", quoted: "violet", converted: "good", lost: "neutral" };
 

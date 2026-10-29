@@ -7,8 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { PageHeader, StatCard, StatGrid, ToneBadge } from "@/components/page-kit";
 import { loadAdminAlerts } from "@/lib/admin-alerts";
 import { summarizeUnits, stockLevel, type StockRow } from "../devices/stock-types";
-import { STAGES } from "../onboarding/onboarding-table";
-import { LEAD_STATUSES } from "../leads/leads-table";
+import { LEAD_STATUSES, STAGES } from "@/lib/pipeline";
 
 const inr = (n: number) => `₹${Math.round(n).toLocaleString("en-IN")}`;
 
