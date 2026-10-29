@@ -37,7 +37,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning className={inter.variable}>
-      <body className={`${inter.className} min-h-screen bg-background text-foreground antialiased`}>
+      {/* suppressHydrationWarning: browser extensions (ColorZilla's cz-shortcut-listen, password managers) add attributes to <body> before React loads */}
+      <body suppressHydrationWarning className={`${inter.className} min-h-screen bg-background text-foreground antialiased`}>
         <ThemeProvider
           attribute="class"
           defaultTheme="system"
