@@ -6,6 +6,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatFileSize, poKindLabel } from "@/lib/po-document";
+import { loadStockCategories } from "../../stock-categories";
 import { StockStatusBadge } from "../../stock-status-badge";
 import { categoryLabel, formatMoney, makeAndModel, STOCK_COLUMNS, type StockRow } from "../../stock-types";
 import { updateStockItem } from "../../actions";
@@ -45,8 +46,7 @@ export default async function StockItemPage({ params }: { params: Promise<{ id: 
   const { data: customers } = customerIds.length ? await supabase.from("profiles").select("id, full_name, email").in("id", customerIds) : { data: [] };
   const customerName = new Map((customers ?? []).map((c) => [c.id, c.full_name || c.email || "Customer"]));
 
-  const { data: categoryRows } = await supabase.from("equipment_inventory").select("category");
-  const categories = [...new Set((categoryRows ?? []).map((r) => r.category))].sort();
+  const categories = await loadStockCategories(supabase);
 
   const value = item.unit_price === null ? null : Math.max(0, item.quantity) * Number(item.unit_price);
 

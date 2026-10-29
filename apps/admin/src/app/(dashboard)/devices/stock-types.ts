@@ -41,6 +41,9 @@ export const STATUS_OPTIONS = ["in_stock", "allocated", "installed", "damaged", 
  * exactly); only these two are written out for people.
  */
 const CATEGORY_LABELS: Record<string, string> = { solar_inverter: "Solar Inverter", ev_charger: "EV Charger" };
+/** The two categories the system itself depends on: they are always offered and can never be removed. */
+export const PROTECTED_CATEGORIES: readonly string[] = ["solar_inverter", "ev_charger"];
+
 export const categoryLabel = (c: string) => CATEGORY_LABELS[c] ?? c;
 
 export const statusLabel = (s: string) => s.replace(/_/g, " ");

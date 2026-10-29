@@ -5,7 +5,7 @@ import { redirect } from "next/navigation";
 import { requireAdmin } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 import { removePoDocument, readPoFile, uploadPoDocument, type StoredPoDocument } from "@/lib/po-document";
-import { STATUS_OPTIONS, STOCK_COLUMNS, type StockRow } from "./stock-types";
+import { PROTECTED_CATEGORIES, STATUS_OPTIONS, STOCK_COLUMNS, type StockRow } from "./stock-types";
 
 // Numeric/date form fields all follow the same "empty string -> null,
 // otherwise parse" rule — <input type="number"> and <input type="date">
@@ -229,4 +229,37 @@ export async function duplicateStockItem(sourceId: string, formData: FormData): 
 
   revalidatePath("/devices");
   redirect(`/devices/stock/${created.id}`);
+}
+
+export type CategoryResult = { ok: true; name: string } | { ok: false; error: string };
+
+/** Adds a category to the list (or returns the one that is already there under the same name, whatever its capitals). */
+export async function addStockCategory(rawName: string): Promise<CategoryResult> {
+  await requireAdmin();
+  const name = rawName.trim().replace(/\s+/g, " ");
+  if (!name) return { ok: false, error: "Type a name for the category." };
+  if (name.length > 60) return { ok: false, error: "A category name can be 60 letters at most." };
+
+  const supabase = await createClient();
+  const { data: existing } = await supabase.from("stock_categories").select("name");
+  const same = (existing ?? []).find((c) => c.name.toLowerCase() === name.toLowerCase());
+  if (same) return { ok: true, name: same.name };
+
+  const { error } = await supabase.from("stock_categories").insert({ name });
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, name };
+}
+
+/** Removes a category that no stock item is in. The two the system depends on, and any with items, stay. */
+export async function removeStockCategory(name: string): Promise<CategoryResult> {
+  await requireAdmin();
+  if (PROTECTED_CATEGORIES.includes(name)) return { ok: false, error: "The system uses this category, so it can't be removed." };
+
+  const supabase = await createClient();
+  const { count } = await supabase.from("equipment_inventory").select("id", { count: "exact", head: true }).eq("category", name);
+  if (count) return { ok: false, error: `${count} stock ${count === 1 ? "item is" : "items are"} in this category. Move ${count === 1 ? "it" : "them"} to another category first.` };
+
+  const { error } = await supabase.from("stock_categories").delete().eq("name", name);
+  if (error) return { ok: false, error: error.message };
+  return { ok: true, name };
 }

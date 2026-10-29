@@ -3840,6 +3840,21 @@ export type Database = {
           },
         ]
       }
+      stock_categories: {
+        Row: {
+          created_at: string
+          name: string
+        }
+        Insert: {
+          created_at?: string
+          name: string
+        }
+        Update: {
+          created_at?: string
+          name?: string
+        }
+        Relationships: []
+      }
       subscriptions: {
         Row: {
           created_at: string

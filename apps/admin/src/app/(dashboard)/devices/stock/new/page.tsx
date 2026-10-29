@@ -5,6 +5,7 @@ import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbP
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { createStockItem, duplicateStockItem } from "../../actions";
+import { loadStockCategories } from "../../stock-categories";
 import { STOCK_COLUMNS, type StockRow } from "../../stock-types";
 import { CopyForm } from "../copy-form";
 import { CopyPicker } from "../copy-picker";
@@ -21,7 +22,7 @@ export default async function NewStockItemPage({ searchParams }: { searchParams:
   const { data } = await supabase.from("equipment_inventory").select(STOCK_COLUMNS).order("name");
   const items = (data ?? []) as unknown as StockRow[];
   const source = from ? (items.find((i) => i.id === from) ?? null) : null;
-  const categories = [...new Set(items.map((i) => i.category))].sort();
+  const categories = await loadStockCategories(supabase);
 
   return (
     <div className="space-y-6">

@@ -7,6 +7,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { CategoryChoice } from "../stock-categories";
 import { STATUS_OPTIONS, statusLabel, type StockRow } from "../stock-types";
 import { CategorySelect } from "./category-select";
 import { PoDocumentField } from "./po-document-field";
@@ -106,7 +107,7 @@ export function StockForm({
 }: {
   defaults?: StockRow;
   /** the categories in use, to choose from */
-  categories: string[];
+  categories: CategoryChoice[];
   action: (formData: FormData) => Promise<unknown>;
   loading: string;
   success: string;
