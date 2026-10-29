@@ -1,5 +1,6 @@
 "use server";
 
+import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@waytara/supabase/server";
 import { getCurrentProfile } from "@waytara/supabase/auth";
@@ -32,6 +33,9 @@ export async function login(formData: FormData) {
       `/login?error=${encodeURIComponent("This app is for customer accounts only.")}`
     );
   }
+
+  // A new sign-in starts with the sidebar closed, whatever it was left at last time (the toggle remembers its state in this cookie for a week).
+  (await cookies()).set("sidebar_state", "false", { path: "/", maxAge: 60 * 60 * 24 * 7 });
 
   // someone with two-factor sign-in on owes a code before anything else: the sign-in is recorded and e-mailed once it has been given
   const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
