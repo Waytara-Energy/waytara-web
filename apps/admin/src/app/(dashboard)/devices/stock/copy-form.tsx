@@ -5,7 +5,7 @@ import { FormSubmit } from "@/components/form-submit";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { categoryLabel, formatMoney, makeAndModel, type StockRow } from "../stock-types";
-import { PoDocumentField } from "./po-document-field";
+import { DocumentField } from "./document-field";
 import { Field, StatusSelect } from "./stock-form";
 
 function copiedLines(src: StockRow): string[] {
@@ -20,6 +20,8 @@ function copiedLines(src: StockRow): string[] {
     src.primary_uom ? `Counted in ${src.primary_uom}${src.pack_size ? ` (pack of ${src.pack_size})` : ""}` : null,
     src.unit_price !== null ? `Unit price: ${formatMoney(src.unit_price)}` : null,
     specs > 0 ? `${specs} technical ${specs === 1 ? "detail" : "details"}` : null,
+    src.manual_document_path ? "User manual" : null,
+    src.datasheet_document_path ? "Data sheet" : null,
     warranty ? `Warranty${typeof warranty.years === "number" ? `: ${warranty.years} ${warranty.years === 1 ? "year" : "years"}` : ""}` : null,
   ];
   return lines.filter((l): l is string => !!l);
@@ -66,7 +68,7 @@ export function CopyForm({ source, action }: { source: StockRow; action: (formDa
           <Field label="Purchase date" name="purchaseDate" type="date" />
           <Field label="PO reference" name="poReference" />
           <Field label="Purchase price (₹)" name="purchasePriceAmount" type="number" hint="What was paid for this purchase." />
-          <PoDocumentField />
+          <DocumentField slot="po" />
         </CardContent>
       </Card>
 

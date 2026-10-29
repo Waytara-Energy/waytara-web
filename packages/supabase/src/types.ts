@@ -1115,6 +1115,16 @@ export type Database = {
           po_document_size: number | null
           po_document_type: string | null
           po_document_uploaded_at: string | null
+          datasheet_document_name: string | null
+          datasheet_document_path: string | null
+          datasheet_document_size: number | null
+          datasheet_document_type: string | null
+          datasheet_document_uploaded_at: string | null
+          manual_document_name: string | null
+          manual_document_path: string | null
+          manual_document_size: number | null
+          manual_document_type: string | null
+          manual_document_uploaded_at: string | null
           po_reference: string | null
           power_capacity_unit: string | null
           power_capacity_value: number | null
@@ -1147,6 +1157,16 @@ export type Database = {
           po_document_size?: number | null
           po_document_type?: string | null
           po_document_uploaded_at?: string | null
+          datasheet_document_name?: string | null
+          datasheet_document_path?: string | null
+          datasheet_document_size?: number | null
+          datasheet_document_type?: string | null
+          datasheet_document_uploaded_at?: string | null
+          manual_document_name?: string | null
+          manual_document_path?: string | null
+          manual_document_size?: number | null
+          manual_document_type?: string | null
+          manual_document_uploaded_at?: string | null
           po_reference?: string | null
           power_capacity_unit?: string | null
           power_capacity_value?: number | null
@@ -1179,6 +1199,16 @@ export type Database = {
           po_document_size?: number | null
           po_document_type?: string | null
           po_document_uploaded_at?: string | null
+          datasheet_document_name?: string | null
+          datasheet_document_path?: string | null
+          datasheet_document_size?: number | null
+          datasheet_document_type?: string | null
+          datasheet_document_uploaded_at?: string | null
+          manual_document_name?: string | null
+          manual_document_path?: string | null
+          manual_document_size?: number | null
+          manual_document_type?: string | null
+          manual_document_uploaded_at?: string | null
           po_reference?: string | null
           power_capacity_unit?: string | null
           power_capacity_value?: number | null

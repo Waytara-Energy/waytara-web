@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { requireAdmin } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
-import { removePoDocument, readPoFile, uploadPoDocument, type StoredPoDocument } from "@/lib/po-document";
+import { copyModelDocuments, discardDocuments, planDocuments } from "@/lib/stock-documents-server";
 import { PROTECTED_CATEGORIES, STATUS_OPTIONS, STOCK_COLUMNS, type StockRow } from "./stock-types";
 
 // Numeric/date form fields all follow the same "empty string -> null,
@@ -112,13 +112,12 @@ export async function createStockItem(formData: FormData): Promise<void> {
 
   const supabase = await createClient();
   await assertSerialFree(supabase, fields.serial_number);
-  // the purchase order file goes up first (it checks the file), and is taken down again if the item can't be saved
-  const file = readPoFile(formData);
-  const doc: StoredPoDocument | null = file ? await uploadPoDocument(supabase, file) : null;
-  const { data, error } = await supabase.from("equipment_inventory").insert({ ...fields, ...(doc ?? {}) } as never).select("id").single();
+  // the files the browser uploaded (purchase order, manual, data sheet) are checked first, and taken down again if the item can't be saved
+  const docs = await planDocuments(supabase, formData, null);
+  const { data, error } = await supabase.from("equipment_inventory").insert({ ...fields, ...docs.columns } as never).select("id").single();
 
   if (error || !data) {
-    await removePoDocument(supabase, doc?.po_document_path);
+    await discardDocuments(supabase, docs.added);
     throw error ? friendlyDbError(error) : new Error("Couldn't add the stock item.");
   }
 
@@ -142,25 +141,18 @@ export async function updateStockItem(stockId: string, formData: FormData): Prom
   const supabase = await createClient();
   await assertSerialFree(supabase, fields.serial_number, stockId);
 
-  // the purchase order file: a new one replaces the old; "remove" clears it; otherwise it stays as it is
-  const file = readPoFile(formData);
-  const remove = formData.get("removePoDocument") === "on";
-  const { data: current } = await supabase.from("equipment_inventory").select("po_document_path").eq("id", stockId).maybeSingle();
-  const doc: StoredPoDocument | null = file ? await uploadPoDocument(supabase, file) : null;
-  const documentColumns = doc
-    ? doc
-    : remove
-      ? { po_document_path: null, po_document_name: null, po_document_type: null, po_document_size: null, po_document_uploaded_at: null }
-      : {};
+  // each file: a new upload replaces the old one; "remove" clears it; otherwise it stays as it is
+  const { data: current } = await supabase.from("equipment_inventory").select(STOCK_COLUMNS).eq("id", stockId).maybeSingle();
+  const docs = await planDocuments(supabase, formData, current);
 
-  const { error } = await supabase.from("equipment_inventory").update({ ...fields, ...documentColumns } as never).eq("id", stockId);
+  const { error } = await supabase.from("equipment_inventory").update({ ...fields, ...docs.columns } as never).eq("id", stockId);
 
   if (error) {
-    await removePoDocument(supabase, doc?.po_document_path);
+    await discardDocuments(supabase, docs.added);
     throw friendlyDbError(error);
   }
-  // the old file is only taken down once the new state is saved
-  if (doc || remove) await removePoDocument(supabase, current?.po_document_path);
+  // the old files are only taken down once the new state is saved
+  await discardDocuments(supabase, docs.replaced);
 
   revalidatePath("/devices");
   revalidatePath(`/devices/stock/${stockId}`);
@@ -219,11 +211,18 @@ export async function duplicateStockItem(sourceId: string, formData: FormData): 
     supplier: toTextOrNull(formData.get("supplier")),
   };
 
-  const file = readPoFile(formData);
-  const doc: StoredPoDocument | null = file ? await uploadPoDocument(supabase, file) : null;
-  const { data: created, error } = await supabase.from("equipment_inventory").insert({ ...fields, ...(doc ?? {}) } as never).select("id").single();
+  // the copy gets its own purchase order (uploaded by the browser), and its own copies of the model's manual and data sheet
+  const docs = await planDocuments(supabase, formData, null);
+  let model: Awaited<ReturnType<typeof copyModelDocuments>>;
+  try {
+    model = await copyModelDocuments(supabase, src);
+  } catch (e) {
+    await discardDocuments(supabase, docs.added);
+    throw e;
+  }
+  const { data: created, error } = await supabase.from("equipment_inventory").insert({ ...fields, ...model.columns, ...docs.columns } as never).select("id").single();
   if (error || !created) {
-    await removePoDocument(supabase, doc?.po_document_path);
+    await discardDocuments(supabase, [...docs.added, ...model.added]);
     throw error ? friendlyDbError(error) : new Error("Couldn't copy the stock item.");
   }
 

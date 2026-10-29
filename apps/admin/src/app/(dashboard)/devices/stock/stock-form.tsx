@@ -8,9 +8,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import type { CategoryChoice } from "../stock-categories";
+import { documentHref, documentOf, type DocSlot } from "@/lib/stock-documents";
 import { STATUS_OPTIONS, statusLabel, type StockRow } from "../stock-types";
 import { CategorySelect } from "./category-select";
-import { PoDocumentField } from "./po-document-field";
+import { DocumentField, type ExistingDocument } from "./document-field";
 import { SpecsEditor, WarrantyEditor } from "./specs-editor";
 
 /** The units a stock item can be counted in. An item that already has another one keeps it. */
@@ -91,6 +92,12 @@ export function StatusSelect({ defaultValue }: { defaultValue?: string | null })
   );
 }
 
+/** The file an existing item has in a slot, as the field shows it. */
+export function existingDocument(item: StockRow | undefined, slot: DocSlot): ExistingDocument | null {
+  const doc = item ? documentOf(item, slot) : null;
+  return item && doc ? { name: doc.name, size: doc.size, viewHref: documentHref(item.id, slot), downloadHref: documentHref(item.id, slot, true) } : null;
+}
+
 /**
  * The form of one stock item. The essentials (what it is, how many, its price) are always in view; everything else is in sections that open on
  * demand: more about the item, the purchase, the technical details and the warranty (the last two as rows to fill, never as JSON). A section that
@@ -136,7 +143,7 @@ export function StockForm({
       </Card>
 
       <Card className="py-0">
-        <Accordion type="multiple" defaultValue={editing ? ["more", "purchase", "specs", "warranty"] : []} className="px-6">
+        <Accordion type="multiple" defaultValue={editing ? ["more", "purchase", "documents", "specs", "warranty"] : []} className="px-6">
           <AccordionItem value="more">
             <AccordionTrigger className="text-base font-semibold">More about the item</AccordionTrigger>
             <AccordionContent forceMount className="grid gap-5 sm:grid-cols-2">
@@ -171,13 +178,15 @@ export function StockForm({
               <Field label="PO reference" name="poReference" defaultValue={defaults?.po_reference} />
               <Field label="Purchase date" name="purchaseDate" type="date" defaultValue={defaults?.purchase_date} />
               <Field label="Purchase price (₹)" name="purchasePriceAmount" type="number" defaultValue={defaults?.purchase_price_amount} hint="What was paid for this purchase." />
-              <PoDocumentField
-                existing={
-                  defaults?.po_document_path
-                    ? { name: defaults.po_document_name ?? "Purchase order", size: defaults.po_document_size, viewHref: `/devices/stock/${defaults.id}/po`, downloadHref: `/devices/stock/${defaults.id}/po?download=1` }
-                    : null
-                }
-              />
+              <DocumentField slot="po" existing={existingDocument(defaults, "po")} />
+            </AccordionContent>
+          </AccordionItem>
+
+          <AccordionItem value="documents">
+            <AccordionTrigger className="text-base font-semibold">Manual and data sheet</AccordionTrigger>
+            <AccordionContent forceMount className="grid gap-5">
+              <DocumentField slot="manual" existing={existingDocument(defaults, "manual")} />
+              <DocumentField slot="datasheet" existing={existingDocument(defaults, "datasheet")} />
             </AccordionContent>
           </AccordionItem>
 

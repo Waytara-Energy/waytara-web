@@ -5,7 +5,7 @@ import { createClient } from "@waytara/supabase/server";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { formatFileSize, poKindLabel } from "@/lib/po-document";
+import { DOC_SLOT_KEYS, DOC_SLOTS, documentHref, documentKindLabel, documentOf, formatFileSize } from "@/lib/stock-documents";
 import { loadStockCategories } from "../../stock-categories";
 import { StockStatusBadge } from "../../stock-status-badge";
 import { categoryLabel, formatMoney, makeAndModel, STOCK_COLUMNS, type StockRow } from "../../stock-types";
@@ -113,39 +113,49 @@ export default async function StockItemPage({ params }: { params: Promise<{ id: 
         <div className="grid gap-6 xl:sticky xl:top-4">
           <Card>
             <CardHeader>
-              <CardTitle>Purchase order</CardTitle>
-              <CardDescription>{item.po_reference ? `Reference ${item.po_reference}` : "No PO reference noted."}</CardDescription>
+              <CardTitle>Documents</CardTitle>
+              <CardDescription>{item.po_reference ? `Purchase order ${item.po_reference}` : "Purchase order, user manual and data sheet."}</CardDescription>
             </CardHeader>
-            <CardContent>
-              {item.po_document_path ? (
-                <div className="grid gap-3">
-                  <div className="flex items-start gap-3 rounded-lg border p-3">
-                    <span className="grid size-8 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
-                      <FileText className="size-4" />
-                    </span>
-                    <div className="grid min-w-0 flex-1 gap-0.5 text-sm">
-                      <span className="truncate font-medium">{item.po_document_name}</span>
-                      <span className="text-xs text-muted-foreground">{[poKindLabel(item.po_document_name), formatFileSize(item.po_document_size)].filter(Boolean).join(" · ")}</span>
+            <CardContent className="grid gap-3">
+              {DOC_SLOT_KEYS.map((slot) => {
+                const doc = documentOf(item, slot);
+                return (
+                  <div key={slot} className="grid gap-2 rounded-lg border p-3">
+                    <div className="flex items-start gap-3">
+                      <span className="grid size-8 shrink-0 place-items-center rounded-md bg-muted text-muted-foreground">
+                        <FileText className="size-4" />
+                      </span>
+                      <div className="grid min-w-0 flex-1 gap-0.5 text-sm">
+                        <span className="font-medium">{DOC_SLOTS[slot].label}</span>
+                        {doc ? (
+                          <>
+                            <span className="truncate text-muted-foreground">{doc.name}</span>
+                            <span className="text-xs text-muted-foreground">{[documentKindLabel(doc.name), formatFileSize(doc.size)].filter(Boolean).join(" · ")}</span>
+                          </>
+                        ) : (
+                          <span className="text-muted-foreground">Not uploaded. Add it in the form.</span>
+                        )}
+                      </div>
                     </div>
+                    {doc ? (
+                      <div className="flex gap-2">
+                        <Button asChild variant="outline" size="sm">
+                          <a href={documentHref(item.id, slot)} target="_blank" rel="noopener noreferrer">
+                            <ExternalLink />
+                            View
+                          </a>
+                        </Button>
+                        <Button asChild variant="outline" size="sm">
+                          <a href={documentHref(item.id, slot, true)}>
+                            <Download />
+                            Download
+                          </a>
+                        </Button>
+                      </div>
+                    ) : null}
                   </div>
-                  <div className="flex gap-2">
-                    <Button asChild variant="outline" size="sm">
-                      <a href={`/devices/stock/${item.id}/po`} target="_blank" rel="noopener noreferrer">
-                        <ExternalLink />
-                        View
-                      </a>
-                    </Button>
-                    <Button asChild variant="outline" size="sm">
-                      <a href={`/devices/stock/${item.id}/po?download=1`}>
-                        <Download />
-                        Download
-                      </a>
-                    </Button>
-                  </div>
-                </div>
-              ) : (
-                <p className="text-sm text-muted-foreground">No file uploaded. Add one under &ldquo;Purchase and supplier&rdquo;.</p>
-              )}
+                );
+              })}
             </CardContent>
           </Card>
 
