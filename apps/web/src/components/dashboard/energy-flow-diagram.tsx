@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { BatteryCharging, CarFront, Fuel, Home, Server, ShieldCheck, Sun, Zap, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -10,7 +11,6 @@ import { badgeFor, homeSourceOf, type StateBadge } from "./energy-flow-badge";
 import { insightFor, type FlowReadings } from "./energy-flow-insight";
 import { curvePath, HUB_R, layoutFlow, NODE_R, type NodeKind } from "./energy-flow-layout";
 import { fmtKw, lineWidth, summarize } from "./energy-flow-summary";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 
 /** Colors encode *direction*, not identity: green = producing or storing (solar producing, battery charging),
  *  amber = drawing on a source (grid import, battery discharging, generator), blue = energy leaving to a consumer
@@ -130,6 +130,108 @@ export function evLabel(evW: number | null, status: string | null, sessionKwh: n
 
 /** Half-length of the "not in use" cross, in drawing units. */
 const CROSS = 8;
+/** What the spotlight shows for the circle under the pointer. */
+interface SpotInfo {
+  id: string;
+  title: string;
+  value: string;
+  badge: string;
+  color: string;
+  idle: boolean;
+  kind: NodeKind | "hub";
+  headline: string;
+  rows: { label: string; value: string }[];
+}
+
+/** The hover effect: everything around the diagram goes dark behind a soft translucent veil, the circle under the pointer is lifted above it with a glow
+ *  and a slow pulse, and a card with its details fades in beside it. It is drawn on the page (a portal), so it works whatever the board around the
+ *  diagram looks like, and it fades in and out instead of switching. It takes no clicks: the real circle underneath keeps them. */
+function FlowSpotlight({ info, getTarget }: { info: SpotInfo | null; getTarget: () => HTMLElement | null }) {
+  const [view, setView] = React.useState<{ info: SpotInfo; rect: DOMRect } | null>(null);
+  const [open, setOpen] = React.useState(false);
+  const closeTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Re-draws when the circle changes or what it says changes (a live reading); `getTarget` only reads the circle's element.
+  const key = info ? `${info.id}|${info.value}|${info.badge}|${info.headline}` : "";
+
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
+  React.useEffect(() => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    const target = info ? getTarget() : null;
+    if (info && target) {
+      setView({ info, rect: target.getBoundingClientRect() });
+      const raf = requestAnimationFrame(() => setOpen(true));
+      return () => cancelAnimationFrame(raf);
+    }
+    setOpen(false);
+    closeTimer.current = setTimeout(() => setView(null), 260);
+    return () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current);
+    };
+  }, [key]);
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
+
+  if (!view || typeof document === "undefined") return null;
+  const { info: it, rect } = view;
+  const cx = rect.left + rect.width / 2;
+  const cy = rect.top + rect.height / 2;
+  const CARD_W = 272;
+  const GAP = 18;
+  const vw = window.innerWidth;
+  const vh = window.innerHeight;
+  const toRight = cx < vw / 2;
+  const left = Math.max(12, Math.min(vw - CARD_W - 12, toRight ? rect.right + GAP : rect.left - GAP - CARD_W));
+  const top = Math.max(12, Math.min(vh - 220, cy - 70));
+  const Icon = it.kind === "hub" ? Server : ICON[it.kind];
+
+  return createPortal(
+    <div className="pointer-events-none fixed inset-0 z-[70]" aria-hidden="true">
+      <div className={cn("absolute inset-0 bg-black/60 backdrop-blur-[2px] transition-opacity duration-300 ease-out", open ? "opacity-100" : "opacity-0")} />
+      {/* the circle, lifted above the veil: a soft halo that breathes, and the circle itself a little larger */}
+      <div
+        className={cn("absolute rounded-full transition-all duration-300 ease-out", open ? "scale-100 opacity-100" : "scale-75 opacity-0")}
+        style={{ left: rect.left - 14, top: rect.top - 14, width: rect.width + 28, height: rect.height + 28, background: `radial-gradient(circle, ${it.color}55 0%, ${it.color}22 55%, transparent 72%)` }}
+      />
+      <div
+        className={cn("absolute flex items-center justify-center rounded-full border-2 bg-theme-surface transition-all duration-300 ease-out", open ? "scale-110 opacity-100" : "scale-100 opacity-0")}
+        style={{ left: rect.left, top: rect.top, width: rect.width, height: rect.height, borderColor: it.idle ? "var(--border)" : it.color, boxShadow: `0 0 28px ${it.color}66` }}
+      >
+        <Icon className={cn("size-[46%]", it.idle && "text-theme-muted")} style={it.idle ? undefined : { color: it.color }} strokeWidth={1.75} />
+      </div>
+      <div
+        className={cn(
+          "absolute rounded-2xl border border-white/15 bg-black/55 p-4 text-white shadow-2xl backdrop-blur-md transition-all duration-300 ease-out",
+          open ? "translate-x-0 opacity-100" : toRight ? "-translate-x-3 opacity-0" : "translate-x-3 opacity-0"
+        )}
+        style={{ left, top, width: CARD_W }}
+      >
+        <div className="flex items-baseline justify-between gap-3">
+          <span className="text-sm font-semibold">{it.title}</span>
+          <span className="rounded-full px-2 py-0.5 text-[11px] font-medium" style={{ background: `${it.color}33`, color: it.idle ? "#cbd5e1" : it.color }}>
+            {it.badge}
+          </span>
+        </div>
+        <div className="mt-1 text-2xl font-semibold tabular-nums leading-tight">{it.value}</div>
+        <p className="mt-2 text-xs leading-snug text-white/80">{it.headline}</p>
+        {it.rows.length > 0 && (
+          <div className="mt-3 space-y-1 border-t border-white/15 pt-2.5">
+            {it.rows.map((row, i) => (
+              <div
+                key={row.label}
+                className={cn("flex justify-between gap-6 text-xs tabular-nums transition-all duration-300 ease-out", open ? "translate-y-0 opacity-100" : "translate-y-1 opacity-0")}
+                style={{ transitionDelay: `${90 + i * 45}ms` }}
+              >
+                <span className="text-white/65">{row.label}</span>
+                <span className="font-medium">{row.value}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>,
+    document.body
+  );
+}
+
 /** How many dots travel along an active line. */
 const DOTS = 3;
 
@@ -186,6 +288,9 @@ export function EnergyFlowDiagram({
   // Tapping or hovering a circle lights its line up and dims the rest.
   const { prefs } = useUnits();
   const [focus, setFocus] = React.useState<string | null>(null);
+  // The circle under the pointer, for the spotlight (the hub is lit without dimming the lines).
+  const els = React.useRef<Record<string, HTMLElement | null>>({});
+  const dimmed = focus !== null && focus !== "hub" ? focus : null;
 
   const nodes: FlowNode[] = [
     // A circle is drawn when it has a reading, or - with no reading yet (the unit is offline, a new day without data) - when the site is known to have
@@ -232,6 +337,27 @@ export function EnergyFlowDiagram({
   const readings: FlowReadings = { solarW, batteryW, gridW, loadW, evW, pvInputs };
   const primary = new Set(["solar", "grid", "battery", "home", "ev"]);
 
+  const spot: SpotInfo | null = (() => {
+    if (!focus) return null;
+    if (focus === "hub") return { id: "hub", title: "Inverter", value: summary.mode, badge: "Hub", color: "#10b981", idle: false, kind: "hub", headline: summary.text, rows: [] };
+    const entry = layout.nodes.find((e) => e.item.id === focus);
+    if (!entry) return null;
+    const { item } = entry;
+    // What the circle does for the rest of the site; its power and state are the headline numbers.
+    const insight = primary.has(item.id) ? insightFor(item.kind, readings, prefs) : { headline: item.badge.description, rows: [] };
+    return {
+      id: item.id,
+      title: item.label,
+      value: item.evText ? item.evText.line1 : `${item.value}${item.soc !== null ? ` · ${item.soc}%` : ""}`,
+      badge: item.badge.label,
+      color: COLOR[item.tone],
+      idle: item.tone === "idle",
+      kind: item.kind,
+      headline: insight.headline,
+      rows: insight.rows,
+    };
+  })();
+
   return (
     <div className={cn("mx-auto w-full", !fit && "max-w-xl")} role="group" aria-label="Energy flow">
       <div
@@ -273,7 +399,7 @@ export function EnergyFlowDiagram({
             const cross = item.id === "ev" && item.evText ? !!item.offline : item.dir === "none";
             const durS = Math.min(5, Math.max(1.6, 5 - item.watts / 3000));
             const dur = `${durS.toFixed(1)}s`;
-            const dim = focus !== null && focus !== item.id;
+            const dim = dimmed !== null && dimmed !== item.id;
             const lit = focus === item.id;
             return (
               <g key={item.id} className="transition-opacity" opacity={dim ? 0.2 : 1}>
@@ -287,7 +413,6 @@ export function EnergyFlowDiagram({
                 {cross && (
                   // Not in use: a red cross on the line, at its midpoint (a symmetric curve passes through the average of its ends).
                   <g transform={`translate(${(from.x + to.x) / 2} ${(from.y + to.y) / 2})`} style={{ filter: "drop-shadow(0 0 3px rgba(239,68,68,0.55))" }}>
-                    <title>{`${item.label}: ${item.offline ? "offline" : "not in use"}`}</title>
                     <path d={`M -${CROSS} -${CROSS} L ${CROSS} ${CROSS} M -${CROSS} ${CROSS} L ${CROSS} -${CROSS}`} stroke={`url(#${uid}-off)`} strokeWidth={3} strokeLinecap="round" fill="none" />
                   </g>
                 )}
@@ -308,32 +433,35 @@ export function EnergyFlowDiagram({
         </svg>
 
         {/* The hub: the inverter every line meets, with the site's overall mode at larger sizes. */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div
-              tabIndex={0}
-              onClick={() => go(hrefFor("hub"))}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  go(hrefFor("hub"));
-                }
-              }}
-              aria-label={`Inverter: ${summary.text}`}
-              className="absolute flex aspect-square -translate-x-1/2 -translate-y-1/2 cursor-default flex-col items-center justify-center rounded-full border-2 bg-theme-surface outline-none focus-visible:ring-2 focus-visible:ring-theme-highlight border-theme-active"
-              style={{ left: pctX(hub.x), top: pctY(hub.y), width: `${((2 * HUB_R) / W) * 100}%` }}
-            >
-              <Server className="size-[38%] text-theme-secondary @md:size-[32%]" strokeWidth={1.75} />
-              <span className="mt-0.5 hidden font-medium leading-none text-theme-secondary @md:block" style={{ fontSize: "clamp(8px, 1.3cqw, 11px)" }}>
-                {summary.mode}
-              </span>
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="bottom" className="max-w-64">
-            <span className="block font-medium">Inverter</span>
-            <span className="block opacity-80">{summary.text}</span>
-          </TooltipContent>
-        </Tooltip>
+        <div
+          ref={(el) => {
+            els.current.hub = el;
+          }}
+          tabIndex={0}
+          onPointerEnter={(e) => {
+            if (e.pointerType === "mouse") setFocus("hub");
+          }}
+          onPointerLeave={(e) => {
+            if (e.pointerType === "mouse") setFocus((f) => (f === "hub" ? null : f));
+          }}
+          onFocus={() => setFocus("hub")}
+          onBlur={() => setFocus(null)}
+          onClick={() => go(hrefFor("hub"))}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" || e.key === " ") {
+              e.preventDefault();
+              go(hrefFor("hub"));
+            }
+          }}
+          aria-label={`Inverter: ${summary.text}`}
+          className="absolute flex aspect-square -translate-x-1/2 -translate-y-1/2 cursor-default flex-col items-center justify-center rounded-full border-2 bg-theme-surface outline-none focus-visible:ring-2 focus-visible:ring-theme-highlight border-theme-active"
+          style={{ left: pctX(hub.x), top: pctY(hub.y), width: `${((2 * HUB_R) / W) * 100}%` }}
+        >
+          <Server className="size-[38%] text-theme-secondary @md:size-[32%]" strokeWidth={1.75} />
+          <span className="mt-0.5 hidden font-medium leading-none text-theme-secondary @md:block" style={{ fontSize: "clamp(8px, 1.3cqw, 11px)" }}>
+            {summary.mode}
+          </span>
+        </div>
 
         {layout.nodes.map(({ item, side, center }) => {
           const Icon = ICON[item.kind];
@@ -341,7 +469,7 @@ export function EnergyFlowDiagram({
           const idle = item.tone === "idle";
           // The load's own label goes above its circle when a charger hangs below it (the line to the charger would run through the text), if there is room.
           const labelAbove = side === "top" || (item.kind === "home" && layout.nodes.some((n) => n.item.id === "ev") && center.y - NODE_R - 46 >= 0);
-          const dim = focus !== null && focus !== item.id;
+          const dim = dimmed !== null && dimmed !== item.id;
           // A mouse lights the line only while it is over this circle or its label; a finger taps to light / unlight it.
           const handlers = {
             onPointerEnter: (e: React.PointerEvent) => {
@@ -361,52 +489,30 @@ export function EnergyFlowDiagram({
           };
           return (
             <React.Fragment key={item.id}>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <div
-                    role="button"
-                    tabIndex={0}
-                    aria-label={`${item.label}: ${item.value}, ${item.badge.label}`}
-                    onFocus={() => setFocus(item.id)}
-                    onBlur={() => setFocus(null)}
-                    {...handlers}
-                    className={cn(
-                      "absolute flex aspect-square -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-2 bg-theme-surface outline-none transition-opacity focus-visible:ring-2 focus-visible:ring-theme-highlight",
-                      dim && "opacity-30"
-                    )}
-                    style={{
-                      left: pctX(center.x),
-                      top: pctY(center.y),
-                      width: `${((2 * NODE_R) / W) * 100}%`,
-                      borderColor: idle ? "var(--border)" : color,
-                      boxShadow: idle ? undefined : `0 0 16px ${color}33`,
-                    }}
-                  >
-                    <Icon className={cn("size-[46%]", idle && "text-theme-muted")} style={idle ? undefined : { color }} strokeWidth={1.75} />
-                      </div>
-                </TooltipTrigger>
-                <TooltipContent side={labelAbove ? "top" : "bottom"} className="max-w-64">
-                  {/* What the circle does for the rest of the site; its power and state are already written beside it. */}
-                  {(() => {
-                    const insight = primary.has(item.id) ? insightFor(item.kind, readings, prefs) : { headline: item.badge.description, rows: [] };
-                    return (
-                      <>
-                        <span className="block font-medium">{insight.headline}</span>
-                        {insight.rows.length > 0 && (
-                          <span className="mt-1 block space-y-0.5">
-                            {insight.rows.map((row) => (
-                              <span key={row.label} className="flex justify-between gap-6 tabular-nums opacity-80">
-                                <span>{row.label}</span>
-                                <span>{row.value}</span>
-                              </span>
-                            ))}
-                          </span>
-                        )}
-                      </>
-                    );
-                  })()}
-                </TooltipContent>
-              </Tooltip>
+              <div
+                role="button"
+                tabIndex={0}
+                aria-label={`${item.label}: ${item.value}, ${item.badge.label}`}
+                ref={(el) => {
+                  els.current[item.id] = el;
+                }}
+                onFocus={() => setFocus(item.id)}
+                onBlur={() => setFocus(null)}
+                {...handlers}
+                className={cn(
+                  "absolute flex aspect-square -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full border-2 bg-theme-surface outline-none transition-opacity focus-visible:ring-2 focus-visible:ring-theme-highlight",
+                  dim && "opacity-30"
+                )}
+                style={{
+                  left: pctX(center.x),
+                  top: pctY(center.y),
+                  width: `${((2 * NODE_R) / W) * 100}%`,
+                  borderColor: idle ? "var(--border)" : color,
+                  boxShadow: idle ? undefined : `0 0 16px ${color}33`,
+                }}
+              >
+                <Icon className={cn("size-[46%]", idle && "text-theme-muted")} style={idle ? undefined : { color }} strokeWidth={1.75} />
+              </div>
               <div
                 className={cn("absolute flex -translate-x-1/2 cursor-pointer flex-col items-center whitespace-nowrap text-center transition-opacity", dim && "opacity-30")}
                 style={{
@@ -436,6 +542,7 @@ export function EnergyFlowDiagram({
             </React.Fragment>
           );
         })}
+        <FlowSpotlight info={spot} getTarget={() => (focus ? (els.current[focus] ?? null) : null)} />
       </div>
     </div>
   );
