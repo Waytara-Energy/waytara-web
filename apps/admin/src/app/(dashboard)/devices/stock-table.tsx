@@ -4,21 +4,13 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronRight, Plus, Search } from "lucide-react";
-import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { isOutOfStock, makeAndModel, STATUS_OPTIONS, statusLabel, type StockRow } from "./stock-types";
-
-const STATUS_VARIANT: Record<string, BadgeProps["variant"]> = {
-  in_stock: "secondary",
-  allocated: "outline",
-  installed: "default",
-  damaged: "destructive",
-  returned: "outline",
-};
+import { StockStatusBadge } from "./stock-status-badge";
+import { makeAndModel, STATUS_OPTIONS, statusLabel, type StockRow } from "./stock-types";
 
 /** The stock catalog's table: search and filters above it; a row (or its View button) opens the item's own page. */
 export function StockTable({ items }: { items: StockRow[] }) {
@@ -124,13 +116,7 @@ export function StockTable({ items }: { items: StockRow[] }) {
                     {item.primary_uom ? ` ${item.primary_uom}` : ""}
                   </TableCell>
                   <TableCell>
-                    {isOutOfStock(item) ? (
-                      <Badge variant="destructive">Out of stock</Badge>
-                    ) : (
-                      <Badge variant={STATUS_VARIANT[item.status] ?? "secondary"} className="capitalize">
-                        {statusLabel(item.status)}
-                      </Badge>
-                    )}
+                    <StockStatusBadge item={item} />
                   </TableCell>
                   <TableCell className="text-right">
                     <Button asChild variant="ghost" size="sm">

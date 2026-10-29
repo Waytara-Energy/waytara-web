@@ -2,22 +2,14 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, Copy, Cpu, Download, ExternalLink, FileText } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { Badge, type BadgeProps } from "@/components/ui/badge";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { formatFileSize, poKindLabel } from "@/lib/po-document";
-import { formatMoney, isOutOfStock, makeAndModel, STOCK_COLUMNS, statusLabel, type StockRow } from "../../stock-types";
+import { StockStatusBadge } from "../../stock-status-badge";
+import { formatMoney, makeAndModel, STOCK_COLUMNS, type StockRow } from "../../stock-types";
 import { updateStockItem } from "../../actions";
 import { StockForm } from "../stock-form";
-
-const STATUS_VARIANT: Record<string, BadgeProps["variant"]> = {
-  in_stock: "secondary",
-  allocated: "outline",
-  installed: "default",
-  damaged: "destructive",
-  returned: "outline",
-};
 
 function SummaryCard({ title, value, detail }: { title: string; value: React.ReactNode; detail?: React.ReactNode }) {
   return (
@@ -77,13 +69,7 @@ export default async function StockItemPage({ params }: { params: Promise<{ id: 
           </Breadcrumb>
           <div className="flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight">{item.name}</h1>
-            {isOutOfStock(item) ? (
-              <Badge variant="destructive">Out of stock</Badge>
-            ) : (
-              <Badge variant={STATUS_VARIANT[item.status] ?? "secondary"} className="capitalize">
-                {statusLabel(item.status)}
-              </Badge>
-            )}
+            <StockStatusBadge item={item} />
           </div>
           <p className="text-sm text-muted-foreground">
             {item.category} · {makeAndModel(item)}
