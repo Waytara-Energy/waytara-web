@@ -1,33 +1,30 @@
 import Link from "next/link";
 import { LibraryBig, History } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { Button } from "@waytara/ui/button";
-import { StockTable, type StockRow } from "./stock-table";
+import { Button } from "@/components/ui/button";
+import { StockOverview, type Allocation } from "./stock-overview";
+import { StockTable } from "./stock-table";
+import { STOCK_COLUMNS, type StockRow } from "./stock-types";
 
-// Admin-only route (enforced in middleware.ts). Originally a bare 4-column
-// device_types catalog (Task 8.4); the underlying table is now
-// `equipment_inventory` — a real inventory record (brand/model/specs
-// alongside serial number, quantity, unit of measure, purchase price and
-// supplier), not just a name employees pick from a dropdown. Rendered as a
-// searchable/filterable table (see ./stock-table.tsx) rather than one long
-// always-expanded form per row, now that there are ~20 fields per item.
+// Admin-only route (enforced in middleware.ts). The stock catalog: `equipment_inventory` is a real inventory record (brand/model/specs alongside
+// serial number, quantity, unit of measure, purchase price and supplier), not just a name employees pick from a dropdown. The cards above the table
+// are the overview (how much there is, what is in use, what needs attention, what it is worth); a row of the table opens that item's own page
+// (/devices/stock/[id]) where it is edited and where its allocations are listed.
 //
-// Registers no longer live here at all — equipment_metrics scopes them
-// per physical DEVICE, not per stock model (a model can't have "its"
-// registers since two units of the same model may be wired differently,
-// e.g. on-grid vs off-grid). Mapping registers now happens per device,
-// during onboarding (variant selection clones the matching
-// equipment_templates rows in) or later via that device's own "Edit
-// Registers" page.
+// Registers no longer live here at all — equipment_metrics scopes them per physical DEVICE, not per stock model (a model can't have "its"
+// registers since two units of the same model may be wired differently, e.g. on-grid vs off-grid). Mapping registers now happens per device,
+// during onboarding (variant selection clones the matching equipment_templates rows in) or later via that device's own "Edit Registers" page.
 export default async function DevicesPage() {
   const supabase = await createClient();
 
-  const { data: stockItems } = await supabase
-    .from("equipment_inventory")
-    .select(
-      "id, name, category, brand, model, model_number, manufacturer, serial_number, status, power_capacity_value, power_capacity_unit, size_value, size_unit, technical_specs, warranty_info, quantity, pack_size, primary_uom, purchase_price_amount, unit_price, purchase_date, supplier, po_reference, phase_count"
-    )
-    .order("name");
+  const [{ data: stockItems }, { data: inUse }] = await Promise.all([
+    supabase.from("equipment_inventory").select(STOCK_COLUMNS).order("name"),
+    // the pieces of equipment in use at a site (each points at the stock item it is)
+    supabase.from("equipment").select("stock_id, site_id").not("stock_id", "is", null).is("retired_at", null),
+  ]);
+
+  const items = (stockItems ?? []) as unknown as StockRow[];
+  const allocations: Allocation[] = (inUse ?? []).map((e) => ({ stock_id: e.stock_id as string, site_id: e.site_id }));
 
   return (
     <div className="space-y-6">
@@ -35,27 +32,28 @@ export default async function DevicesPage() {
         <div>
           <h1 className="text-2xl font-semibold tracking-tight">Stock Catalog</h1>
           <p className="mt-1 text-sm text-muted-foreground">
-            Every device model in inventory — specs, purchase details, and inventory tracking. What employees pick
-            from during Site &amp; Device Setup.
+            Every device model in inventory — specs, purchase details, and inventory tracking. What employees pick from during Site &amp; Device Setup.
           </p>
         </div>
         <div className="flex gap-2">
           <Button asChild variant="outline" size="sm">
             <Link href="/devices/catalog">
-              <LibraryBig className="size-4" />
+              <LibraryBig />
               Equipment Enum
             </Link>
           </Button>
           <Button asChild variant="outline" size="sm">
             <Link href="/devices/settings-history">
-              <History className="size-4" />
+              <History />
               Settings History
             </Link>
           </Button>
         </div>
       </div>
 
-      <StockTable items={(stockItems ?? []) as StockRow[]} />
+      <StockOverview items={items} allocations={allocations} />
+
+      <StockTable items={items} />
     </div>
   );
 }

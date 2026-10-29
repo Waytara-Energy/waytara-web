@@ -1,43 +1,16 @@
 "use client";
 
 import * as React from "react";
-import { Plus, Search } from "lucide-react";
-import { Input } from "@waytara/ui/input";
-import { Button } from "@waytara/ui/button";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { ChevronRight, Plus, Search } from "lucide-react";
 import { Badge, type BadgeProps } from "@/components/ui/badge";
-import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription, SheetTrigger } from "@/components/ui/sheet";
-import { withPromiseToast } from "@waytara/ui/notify";
-import { createStockItem, updateStockItem } from "./actions";
-
-export interface StockRow {
-  id: string;
-  name: string;
-  category: string;
-  brand: string | null;
-  model: string | null;
-  model_number: string | null;
-  manufacturer: string | null;
-  serial_number: string | null;
-  status: string;
-  power_capacity_value: number | null;
-  power_capacity_unit: string | null;
-  size_value: number | null;
-  size_unit: string | null;
-  technical_specs: unknown;
-  warranty_info: unknown;
-  quantity: number;
-  pack_size: number | null;
-  primary_uom: string | null;
-  purchase_price_amount: number | null;
-  unit_price: number | null;
-  purchase_date: string | null;
-  supplier: string | null;
-  po_reference: string | null;
-  phase_count: number | null;
-}
-
-const STATUS_OPTIONS = ["in_stock", "allocated", "installed", "damaged", "returned"] as const;
+import { Button } from "@/components/ui/button";
+import { Card } from "@/components/ui/card";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { isOutOfStock, makeAndModel, STATUS_OPTIONS, statusLabel, type StockRow } from "./stock-types";
 
 const STATUS_VARIANT: Record<string, BadgeProps["variant"]> = {
   in_stock: "secondary",
@@ -47,187 +20,12 @@ const STATUS_VARIANT: Record<string, BadgeProps["variant"]> = {
   returned: "outline",
 };
 
-const inputClass = "h-9 w-full rounded-md border border-border bg-background px-2 text-sm";
-const selectClass = "h-9 rounded-md border border-border bg-background px-2 text-sm";
-const textareaClass = "min-h-16 w-full rounded-md border border-border bg-background px-2 py-1.5 text-xs font-mono";
-
-function jsonToText(value: unknown): string {
-  if (value === null || value === undefined) return "";
-  return JSON.stringify(value, null, 2);
-}
-
-function formatMoney(value: number | null): string {
-  if (value === null) return "—";
-  return `₹${value.toLocaleString("en-IN")}`;
-}
-
-// The full edit/create form — 22 fields grouped by what an admin is
-// actually filling in (identity, physical specs, purchase/inventory
-// tracking). Lives inside a Sheet now rather than always rendered inline,
-// so the table itself stays scannable.
-function StockFields({ defaults }: { defaults?: StockRow }) {
-  return (
-    <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-      <Field label="Name" name="name" required defaultValue={defaults?.name} />
-      <Field label="Category" name="category" required placeholder="e.g. Inverters" defaultValue={defaults?.category} />
-      <Field label="Brand" name="brand" defaultValue={defaults?.brand ?? ""} />
-      <Field label="Model" name="model" defaultValue={defaults?.model ?? ""} />
-      <Field label="Model number" name="modelNumber" defaultValue={defaults?.model_number ?? ""} />
-      <Field label="Manufacturer" name="manufacturer" defaultValue={defaults?.manufacturer ?? ""} />
-      <Field label="Serial number" name="serialNumber" defaultValue={defaults?.serial_number ?? ""} />
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium text-muted-foreground">Status</label>
-        <select name="status" defaultValue={defaults?.status ?? "in_stock"} className={inputClass}>
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>
-              {s.replace(/_/g, " ")}
-            </option>
-          ))}
-        </select>
-      </div>
-
-      <Field label="Power capacity" name="powerCapacityValue" type="number" defaultValue={defaults?.power_capacity_value ?? ""} />
-      <Field label="Power capacity unit" name="powerCapacityUnit" placeholder="kW" defaultValue={defaults?.power_capacity_unit ?? ""} />
-      <div className="space-y-1.5">
-        <label className="text-xs font-medium text-muted-foreground">Phase</label>
-        <select name="phaseCount" defaultValue={defaults?.phase_count ?? ""} className={inputClass}>
-          <option value="">Not set</option>
-          <option value="1">Single-phase (incl. split-phase 2-leg wiring — still 1 AC phase)</option>
-          <option value="3">Three-phase</option>
-        </select>
-        <p className="text-xs text-muted-foreground">
-          Electrical phase count, not leg/wire count — admin-UI label only, doesn&apos;t affect what registers this model
-          reads/writes.
-        </p>
-      </div>
-      <Field label="Size" name="sizeValue" type="number" defaultValue={defaults?.size_value ?? ""} />
-      <Field label="Size unit" name="sizeUnit" placeholder="mm, sq mm…" defaultValue={defaults?.size_unit ?? ""} />
-
-      <Field label="Quantity" name="quantity" type="number" defaultValue={defaults?.quantity ?? 0} />
-      <Field label="Pack size" name="packSize" type="number" defaultValue={defaults?.pack_size ?? ""} />
-      <Field label="Primary UOM" name="primaryUom" placeholder="piece, meter, box…" defaultValue={defaults?.primary_uom ?? ""} />
-      <Field label="Supplier" name="supplier" defaultValue={defaults?.supplier ?? ""} />
-
-      <Field label="Purchase price" name="purchasePriceAmount" type="number" defaultValue={defaults?.purchase_price_amount ?? ""} />
-      <Field label="Unit price" name="unitPrice" type="number" defaultValue={defaults?.unit_price ?? ""} />
-      <Field label="Purchase date" name="purchaseDate" type="date" defaultValue={defaults?.purchase_date ?? ""} />
-      <Field label="PO reference" name="poReference" defaultValue={defaults?.po_reference ?? ""} />
-
-      <div className="space-y-1.5 sm:col-span-2">
-        <label className="text-xs font-medium text-muted-foreground">Technical specs (JSON)</label>
-        <textarea name="technicalSpecs" className={textareaClass} defaultValue={jsonToText(defaults?.technical_specs)} />
-      </div>
-      <div className="space-y-1.5 sm:col-span-2">
-        <label className="text-xs font-medium text-muted-foreground">Warranty info (JSON)</label>
-        <textarea name="warrantyInfo" className={textareaClass} defaultValue={jsonToText(defaults?.warranty_info)} />
-      </div>
-    </div>
-  );
-}
-
-function Field({
-  label,
-  name,
-  type = "text",
-  required,
-  placeholder,
-  defaultValue,
-}: {
-  label: string;
-  name: string;
-  type?: string;
-  required?: boolean;
-  placeholder?: string;
-  defaultValue?: string | number;
-}) {
-  return (
-    <div className="space-y-1.5">
-      <label className="text-xs font-medium text-muted-foreground">{label}</label>
-      <Input name={name} type={type} required={required} placeholder={placeholder} defaultValue={defaultValue} className={inputClass} />
-    </div>
-  );
-}
-
-function DetailSheet({
-  item,
-  open,
-  onOpenChange,
-}: {
-  item: StockRow | null;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  async function handleSave(formData: FormData) {
-    if (!item) return;
-    const ok = await withPromiseToast(updateStockItem.bind(null, item.id), {
-      loading: "Saving…",
-      success: "Saved.",
-    })(formData);
-    if (ok) onOpenChange(false);
-  }
-
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent>
-        {item && (
-          <>
-            <SheetHeader>
-              <SheetTitle>{item.name}</SheetTitle>
-              <SheetDescription>
-                {item.category}
-                {item.brand ? ` · ${item.brand}` : ""}
-                {item.model ? ` ${item.model}` : ""}
-              </SheetDescription>
-            </SheetHeader>
-
-            <div className="mt-4 grid grid-cols-2 gap-3 rounded-lg border border-border bg-muted/30 p-3 text-sm sm:grid-cols-4">
-              <SummaryStat label="Quantity" value={`${item.quantity}${item.primary_uom ? ` ${item.primary_uom}` : ""}`} />
-              <SummaryStat label="Unit price" value={formatMoney(item.unit_price)} />
-              <SummaryStat label="Purchase price" value={formatMoney(item.purchase_price_amount)} />
-              <SummaryStat label="Status" value={item.status.replace(/_/g, " ")} />
-            </div>
-
-            <form action={handleSave} className="mt-6 space-y-3">
-              <StockFields defaults={item} />
-              <Button type="submit" size="sm">
-                Save
-              </Button>
-            </form>
-
-            <p className="border-t border-border pt-4 text-xs text-muted-foreground">
-              Registers are mapped per physical device now, not per model here — pick a variant during onboarding
-              (Site &amp; Device Setup) to clone the matching template, then fine-tune addresses on that device&apos;s
-              own &quot;Edit Registers&quot; page.
-            </p>
-          </>
-        )}
-      </SheetContent>
-    </Sheet>
-  );
-}
-
-function SummaryStat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-0.5 font-medium capitalize text-foreground">{value}</p>
-    </div>
-  );
-}
-
+/** The stock catalog's table: search and filters above it; a row (or its View button) opens the item's own page. */
 export function StockTable({ items }: { items: StockRow[] }) {
+  const router = useRouter();
   const [search, setSearch] = React.useState("");
   const [category, setCategory] = React.useState("all");
   const [status, setStatus] = React.useState("all");
-  const [selected, setSelected] = React.useState<StockRow | null>(null);
-  const [addOpen, setAddOpen] = React.useState(false);
-
-  async function handleAdd(formData: FormData) {
-    const ok = await withPromiseToast(createStockItem, { loading: "Adding…", success: "Stock item added." })(
-      formData
-    );
-    if (ok) setAddOpen(false);
-  }
 
   const categories = React.useMemo(() => Array.from(new Set(items.map((i) => i.category))).sort(), [items]);
 
@@ -237,9 +35,7 @@ export function StockTable({ items }: { items: StockRow[] }) {
       if (category !== "all" && item.category !== category) return false;
       if (status !== "all" && item.status !== status) return false;
       if (!q) return true;
-      return [item.name, item.brand, item.model, item.model_number, item.manufacturer, item.serial_number]
-        .filter(Boolean)
-        .some((field) => field!.toLowerCase().includes(q));
+      return [item.name, item.brand, item.model, item.model_number, item.manufacturer, item.serial_number].filter(Boolean).some((field) => field!.toLowerCase().includes(q));
     });
   }, [items, search, category, status]);
 
@@ -248,57 +44,49 @@ export function StockTable({ items }: { items: StockRow[] }) {
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input
-            placeholder="Search name, brand, model, serial…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="h-9 w-64 pl-8"
-          />
+          <Input placeholder="Search name, brand, model, serial…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-72 pl-8" />
         </div>
-        <select value={category} onChange={(e) => setCategory(e.target.value)} className={selectClass}>
-          <option value="all">All categories</option>
-          {categories.map((c) => (
-            <option key={c} value={c}>
-              {c}
-            </option>
-          ))}
-        </select>
-        <select value={status} onChange={(e) => setStatus(e.target.value)} className={selectClass}>
-          <option value="all">All statuses</option>
-          {STATUS_OPTIONS.map((s) => (
-            <option key={s} value={s}>
-              {s.replace(/_/g, " ")}
-            </option>
-          ))}
-        </select>
+        <Select value={category} onValueChange={setCategory}>
+          <SelectTrigger className="w-48" aria-label="Category">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All categories</SelectItem>
+            {categories.map((c) => (
+              <SelectItem key={c} value={c}>
+                {c}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={status} onValueChange={setStatus}>
+          <SelectTrigger className="w-40" aria-label="Status">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All statuses</SelectItem>
+            {STATUS_OPTIONS.map((s) => (
+              <SelectItem key={s} value={s} className="capitalize">
+                {statusLabel(s)}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
 
-        <div className="ml-auto text-xs text-muted-foreground">
-          {filtered.length} of {items.length} items
-        </div>
-
-        <Sheet open={addOpen} onOpenChange={setAddOpen}>
-          <SheetTrigger asChild>
-            <Button size="sm">
-              <Plus className="size-4" />
+        <div className="ml-auto flex items-center gap-3">
+          <span className="text-xs text-muted-foreground">
+            {filtered.length} of {items.length} items
+          </span>
+          <Button asChild>
+            <Link href="/devices/stock/new">
+              <Plus />
               Add stock item
-            </Button>
-          </SheetTrigger>
-          <SheetContent>
-            <SheetHeader>
-              <SheetTitle>Add a stock item</SheetTitle>
-              <SheetDescription>Creates a new catalog/inventory row.</SheetDescription>
-            </SheetHeader>
-            <form action={handleAdd} className="mt-4 space-y-3">
-              <StockFields />
-              <Button type="submit" size="sm">
-                Add
-              </Button>
-            </form>
-          </SheetContent>
-        </Sheet>
+            </Link>
+          </Button>
+        </div>
       </div>
 
-      <div className="rounded-lg border border-border">
+      <Card className="gap-0 overflow-hidden py-0">
         <Table>
           <TableHeader>
             <TableRow>
@@ -307,41 +95,55 @@ export function StockTable({ items }: { items: StockRow[] }) {
               <TableHead>Brand / Manufacturer</TableHead>
               <TableHead className="text-right">Quantity</TableHead>
               <TableHead>Status</TableHead>
+              <TableHead className="w-24 text-right">
+                <span className="sr-only">Open</span>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={5} className="py-8 text-center text-sm text-muted-foreground">
+                <TableCell colSpan={6} className="py-10 text-center text-sm text-muted-foreground">
                   No stock items match your filters.
                 </TableCell>
               </TableRow>
             ) : (
               filtered.map((item) => (
-                <TableRow key={item.id} className="cursor-pointer" onClick={() => setSelected(item)}>
-                  <TableCell className="font-medium text-foreground">{item.name}</TableCell>
-                  <TableCell className="text-muted-foreground">{item.category}</TableCell>
-                  <TableCell className="text-muted-foreground">
-                    {item.brand || item.manufacturer || "—"}
-                    {item.model ? ` ${item.model}` : ""}
+                <TableRow key={item.id} className="cursor-pointer" onClick={() => router.push(`/devices/stock/${item.id}`)}>
+                  <TableCell className="font-medium text-foreground">
+                    <Link href={`/devices/stock/${item.id}`} className="hover:underline" onClick={(e) => e.stopPropagation()}>
+                      {item.name}
+                    </Link>
                   </TableCell>
+                  <TableCell className="text-muted-foreground">{item.category}</TableCell>
+                  <TableCell className="text-muted-foreground">{makeAndModel(item)}</TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">
                     {item.quantity}
                     {item.primary_uom ? ` ${item.primary_uom}` : ""}
                   </TableCell>
                   <TableCell>
-                    <Badge variant={STATUS_VARIANT[item.status] ?? "secondary"} className="capitalize">
-                      {item.status.replace(/_/g, " ")}
-                    </Badge>
+                    {isOutOfStock(item) ? (
+                      <Badge variant="destructive">Out of stock</Badge>
+                    ) : (
+                      <Badge variant={STATUS_VARIANT[item.status] ?? "secondary"} className="capitalize">
+                        {statusLabel(item.status)}
+                      </Badge>
+                    )}
+                  </TableCell>
+                  <TableCell className="text-right">
+                    <Button asChild variant="ghost" size="sm">
+                      <Link href={`/devices/stock/${item.id}`} onClick={(e) => e.stopPropagation()}>
+                        View
+                        <ChevronRight />
+                      </Link>
+                    </Button>
                   </TableCell>
                 </TableRow>
               ))
             )}
           </TableBody>
         </Table>
-      </div>
-
-      <DetailSheet item={selected} open={selected !== null} onOpenChange={(open) => !open && setSelected(null)} />
+      </Card>
     </div>
   );
 }

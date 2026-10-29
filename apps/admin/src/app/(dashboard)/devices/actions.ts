@@ -1,6 +1,7 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
+import { redirect } from "next/navigation";
 import { requireAdmin } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 
@@ -86,13 +87,15 @@ export async function createStockItem(formData: FormData): Promise<void> {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.from("equipment_inventory").insert(fields as never);
+  const { data, error } = await supabase.from("equipment_inventory").insert(fields as never).select("id").single();
 
-  if (error) {
-    throw new Error(error.message);
+  if (error || !data) {
+    throw new Error(error?.message ?? "Couldn't add the stock item.");
   }
 
   revalidatePath("/devices");
+  // on success the person lands on the new item's own page
+  redirect(`/devices/stock/${data.id}`);
 }
 
 export async function updateStockItem(stockId: string, formData: FormData): Promise<void> {
@@ -115,4 +118,5 @@ export async function updateStockItem(stockId: string, formData: FormData): Prom
   }
 
   revalidatePath("/devices");
+  revalidatePath(`/devices/stock/${stockId}`);
 }
