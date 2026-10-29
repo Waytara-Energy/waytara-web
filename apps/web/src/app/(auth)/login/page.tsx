@@ -19,7 +19,14 @@ const LEGAL_LINKS = [
 const HEADER_ICON_CLASS =
   "p-2 rounded-lg text-theme-primary transition-all duration-200 hover:text-theme-highlight hover:bg-theme-surface flex items-center justify-center";
 
-export default function LoginPage() {
+export default async function LoginPage({
+  searchParams,
+}: {
+  searchParams?: Promise<{ email?: string; error?: string; success?: string }>;
+}) {
+  const params = await searchParams;
+  const prefillEmail = params?.email ?? "";
+
   return (
     <div className="flex min-h-screen bg-theme-bg">
       {/* Left: hero photo, theme-swapped — hidden below lg so the form gets
@@ -78,7 +85,7 @@ export default function LoginPage() {
             <form action={login} className="space-y-4">
               <div className="space-y-1.5">
                 <Label htmlFor="email">Email</Label>
-                <Input id="email" name="email" type="email" autoComplete="email" required />
+                <Input id="email" name="email" type="email" autoComplete="email" defaultValue={prefillEmail} required />
               </div>
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between">
