@@ -17,11 +17,13 @@ import { useHasMounted } from "@/hooks/use-has-mounted";
 // been removed.
 const TEMP_USE_HERO_TEST_IMAGE = true;
 
-// The photo and the cut-out of the house are the same 2000 x 1116 picture, so the cut-out lines up with the photo exactly.
-// The headline sits between them: the roof hides the foot of its last line, which gives the "text behind the house" depth.
+// The photo is 2000 x 1116. It is laid out like object-fit: cover, anchored to the bottom, so the headline can be centred in the
+// open sky between the nav and the roof's top edge, wherever that edge ends up on the screen.
 const SCENE_RATIO = 2000 / 1116;
 // Where the roof's top edge falls in the picture (top of the panels, 515 of 1116 px).
 const ROOF_TOP_PCT = 46;
+// Height of the fixed nav bar; the sky gap starts below it.
+const NAV_HEIGHT = "4.5rem";
 
 export function Hero() {
   // Same mounted-guard pattern as shared/theme-toggle.tsx: `resolvedTheme`
@@ -81,20 +83,23 @@ export function Hero() {
   return (
     // container-type:size lets the scene below be sized from the hero's own width and height (cqw / cqh), like object-fit: cover.
     <section className="relative w-full h-[100dvh] min-h-[620px] [container-type:size] overflow-hidden select-none bg-black">
-      {/* 1. The scene: photo, headline and house cut-out, all in one box with the picture's own proportions */}
+      {/* 1. The photo, in a box with the picture's own proportions (cover, anchored to the bottom) */}
       <div
         className="absolute bottom-0 left-1/2 -translate-x-1/2 [container-type:inline-size]"
         style={{ width: `max(100cqw, calc(100cqh * ${SCENE_RATIO.toFixed(4)}))`, aspectRatio: "2000 / 1116" }}
       >
         {TEMP_USE_HERO_TEST_IMAGE ? (
           <>
-            <Image src="/images/hero-bg-light-v3.webp" alt="" fill priority sizes="100vw" className="object-cover pointer-events-none" />
-            {/* Dark theme: a night sky fades in over the photo (and its house); the cut-out house is dimmed to match. */}
-            <div
-              aria-hidden="true"
+            {/* Dark theme: the same photo, dimmed and cooled to dusk (so the house and the layout stay the same). */}
+            <Image
+              src="/images/hero-bg-light-v3.webp"
+              alt=""
+              fill
+              priority
+              sizes="100vw"
               className={cn(
-                "absolute inset-0 bg-gradient-to-b from-[#020617] via-[#0b1f40] to-[#1b3a68] pointer-events-none transition-opacity duration-[1200ms] ease-in-out",
-                isDark ? "opacity-100" : "opacity-0"
+                "object-cover pointer-events-none transition-[filter] duration-[1200ms] ease-in-out",
+                isDark && "brightness-[0.5] saturate-[0.8] hue-rotate-[8deg]"
               )}
             />
           </>
@@ -110,35 +115,23 @@ export function Hero() {
             Your browser does not support the video tag.
           </video>
         )}
+      </div>
 
-        {/* The headline: big, centred, its last line dipping behind the roof */}
-        <Reveal
-          direction="up"
-          delay={150}
-          duration={900}
-          distance={30}
-          className="absolute inset-x-0 z-10 flex justify-center px-4 text-center text-[min(5.6cqw,max(7vw,2.1rem))]"
-          style={{ bottom: `calc(${100 - ROOF_TOP_PCT}% - 0.27em)` }}
-        >
-          <h1 className="font-extrabold tracking-tight leading-[0.98] text-white text-balance drop-shadow-[0_4px_24px_rgba(0,20,60,0.35)]">
-            <span className="block sm:whitespace-nowrap">Your property&rsquo;s energy,</span>
-            <span className="block sm:whitespace-nowrap">built as one system.</span>
+      {/* The headline: centred in the open sky, between the nav and the roof's top edge. The last line fades towards its foot. */}
+      <div
+        className="absolute inset-x-0 z-20 flex items-center justify-center px-4 text-center"
+        style={{
+          top: NAV_HEIGHT,
+          // sky gap = roof top (hero height minus the part of the picture below the roof's edge) minus the nav
+          height: `calc(100cqh - ${((100 - ROOF_TOP_PCT) / 100).toFixed(2)} * max(${(100 / SCENE_RATIO).toFixed(2)}cqw, 100cqh) - ${NAV_HEIGHT})`,
+        }}
+      >
+        <Reveal direction="up" delay={150} duration={900} distance={30}>
+          <h1 className="font-bold tracking-tight leading-[1.05] text-white text-balance text-[clamp(2rem,4.6vw,4.6rem)]">
+            <span className="block sm:whitespace-nowrap drop-shadow-[0_2px_14px_rgba(0,20,60,0.35)]">Your property&rsquo;s energy,</span>
+            <span className="block sm:whitespace-nowrap bg-gradient-to-b from-white via-white/75 to-white/15 bg-clip-text text-transparent">built as one system.</span>
           </h1>
         </Reveal>
-
-        {TEMP_USE_HERO_TEST_IMAGE && (
-          <Image
-            src="/images/hero-house-cutout.webp"
-            alt=""
-            fill
-            priority
-            sizes="100vw"
-            className={cn(
-              "z-20 object-cover pointer-events-none transition-[filter] duration-[1200ms] ease-in-out",
-              isDark && "brightness-[0.55] saturate-[0.85]"
-            )}
-          />
-        )}
       </div>
 
       {/* 2. Soft shading so the nav and the bottom text stay readable */}
