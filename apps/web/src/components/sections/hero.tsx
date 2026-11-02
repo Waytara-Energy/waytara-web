@@ -17,6 +17,12 @@ import { useHasMounted } from "@/hooks/use-has-mounted";
 // been removed.
 const TEMP_USE_HERO_TEST_IMAGE = true;
 
+// The photo and the cut-out of the house are the same 2000 x 1116 picture, so the cut-out lines up with the photo exactly.
+// The headline sits between them: the roof hides the foot of its last line, which gives the "text behind the house" depth.
+const SCENE_RATIO = 2000 / 1116;
+// Where the roof's top edge falls in the picture (top of the panels, 515 of 1116 px).
+const ROOF_TOP_PCT = 46;
+
 export function Hero() {
   // Same mounted-guard pattern as shared/theme-toggle.tsx: `resolvedTheme`
   // is undefined until after hydration (defaultTheme="system" in
@@ -73,29 +79,21 @@ export function Hero() {
   };
 
   return (
-    <section className="relative w-full min-h-[100dvh] flex flex-col justify-start items-center text-center overflow-hidden select-none bg-black px-[var(--page-gutter)] pt-24 pb-20 sm:pb-24">
-      
-      {/* 1. Full-Bleed Background Video - Shifted down so top arc sits towards the center */}
-      <div className="absolute inset-0 z-0 w-full h-full overflow-hidden flex items-center justify-center bg-black">
+    // container-type:size lets the scene below be sized from the hero's own width and height (cqw / cqh), like object-fit: cover.
+    <section className="relative w-full h-[100dvh] min-h-[620px] [container-type:size] overflow-hidden select-none bg-black">
+      {/* 1. The scene: photo, headline and house cut-out, all in one box with the picture's own proportions */}
+      <div
+        className="absolute bottom-0 left-1/2 -translate-x-1/2 [container-type:inline-size]"
+        style={{ width: `max(100cqw, calc(100cqh * ${SCENE_RATIO.toFixed(4)}))`, aspectRatio: "2000 / 1116" }}
+      >
         {TEMP_USE_HERO_TEST_IMAGE ? (
           <>
-            {/* Day image is always the base layer; the night image
-                crossfades in on top of it — smoother than swapping `src`
-                (which would pop/reload) and avoids a blank gap mid-toggle. */}
-            <Image
-              src="/images/hero-bg-light-v3.webp"
-              alt=""
-              fill
-              priority
-              className="object-cover pointer-events-none"
-            />
-            <Image
-              src="/images/hero-bg-dark-v2.png"
-              alt=""
-              fill
-              priority
+            <Image src="/images/hero-bg-light-v3.webp" alt="" fill priority sizes="100vw" className="object-cover pointer-events-none" />
+            {/* Dark theme: a night sky fades in over the photo (and its house); the cut-out house is dimmed to match. */}
+            <div
+              aria-hidden="true"
               className={cn(
-                "object-cover pointer-events-none transition-opacity duration-[1200ms] ease-in-out",
+                "absolute inset-0 bg-gradient-to-b from-[#020617] via-[#0b1f40] to-[#1b3a68] pointer-events-none transition-opacity duration-[1200ms] ease-in-out",
                 isDark ? "opacity-100" : "opacity-0"
               )}
             />
@@ -106,64 +104,90 @@ export function Hero() {
             loop
             muted
             playsInline
-            className="w-full h-full min-w-full min-h-full object-cover pointer-events-none translate-y-[14%] sm:translate-y-[18%] lg:translate-y-[22%] scale-110 sm:scale-115 transition-transform duration-500"
+            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
           >
             <source src="/videos/hero-bg.mp4" type="video/mp4" />
             Your browser does not support the video tag.
           </video>
         )}
 
-        {/* Subtle Vignette Gradient Overlay for Text Legibility */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-black/10 to-black/60 pointer-events-none" />
-      </div>
-
-      {/* 2. Content: sits in the open sky above the house, so the roof stays clear */}
-      <div className="relative z-10 max-w-5xl mx-auto flex flex-col items-center">
-
-        <Reveal direction="up" delay={150} duration={850} distance={28}>
-          <h1 className="text-[clamp(2.1rem,4.2vw,3.9rem)] font-semibold tracking-tight leading-[1.08] text-white text-balance drop-shadow-lg">
+        {/* The headline: big, centred, its last line dipping behind the roof */}
+        <Reveal
+          direction="up"
+          delay={150}
+          duration={900}
+          distance={30}
+          className="absolute inset-x-0 z-10 flex justify-center px-4 text-center text-[min(5.6cqw,max(7vw,2.1rem))]"
+          style={{ bottom: `calc(${100 - ROOF_TOP_PCT}% - 0.27em)` }}
+        >
+          <h1 className="font-extrabold tracking-tight leading-[0.98] text-white text-balance drop-shadow-[0_4px_24px_rgba(0,20,60,0.35)]">
             <span className="block sm:whitespace-nowrap">Your property&rsquo;s energy,</span>
             <span className="block sm:whitespace-nowrap">built as one system.</span>
           </h1>
         </Reveal>
 
-        <Reveal direction="up" delay={350} duration={850} distance={20}>
-          <p className="mt-4 sm:mt-5 max-w-2xl text-[clamp(1rem,1.25vw,1.15rem)] leading-relaxed text-white/90 drop-shadow-md">
-            Solar, battery storage and EV charging, designed, installed and managed together. Lower bills, reliable power, and one team to call.
-          </p>
-        </Reveal>
-
-        <Reveal direction="zoom" delay={550} duration={800}>
-          <div className="mt-6 sm:mt-8 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-7">
-            {TEMP_HIDE_LANDING_SECTIONS ? (
-              <Link href="/solutions" className={primaryButtonClass}>
-                <span>Plan my system</span>
-                {primaryArrow}
-              </Link>
-            ) : (
-              <button type="button" onClick={scrollToPlanner} className={primaryButtonClass}>
-                <span>Plan my system</span>
-                {primaryArrow}
-              </button>
+        {TEMP_USE_HERO_TEST_IMAGE && (
+          <Image
+            src="/images/hero-house-cutout.webp"
+            alt=""
+            fill
+            priority
+            sizes="100vw"
+            className={cn(
+              "z-20 object-cover pointer-events-none transition-[filter] duration-[1200ms] ease-in-out",
+              isDark && "brightness-[0.55] saturate-[0.85]"
             )}
-
-            <Link
-              href="/contact"
-              className="text-sm sm:text-base font-semibold text-white/95 underline decoration-white/40 underline-offset-[6px] drop-shadow-md transition-colors hover:text-white hover:decoration-white"
-            >
-              Talk to an engineer
-            </Link>
-          </div>
-        </Reveal>
-
+          />
+        )}
       </div>
 
-      {/* 3. Subtle Scroll Down Indicator at bottom center */}
+      {/* 2. Soft shading so the nav and the bottom text stay readable */}
+      <div className="absolute inset-x-0 top-0 z-30 h-28 bg-gradient-to-b from-black/35 to-transparent pointer-events-none" />
+      <div className="absolute inset-x-0 bottom-0 z-30 h-[55%] sm:h-[48%] bg-gradient-to-t from-black/80 via-black/40 to-transparent pointer-events-none" />
+
+      {/* 3. Bottom row: what WayTara does (left) and what to do next (right) */}
+      <div className="absolute inset-x-0 bottom-0 z-40 px-[var(--page-gutter)] pb-8 sm:pb-12">
+        <div className="mx-auto max-w-7xl flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+          <Reveal direction="up" delay={400} duration={850} distance={20} className="max-w-xl text-left">
+            <p className="text-[clamp(1.1rem,1.8vw,1.65rem)] font-semibold leading-snug text-white">
+              Solar, battery storage and EV charging, designed, installed and managed together.
+            </p>
+            <p className="mt-2 text-sm sm:text-base leading-relaxed text-white/75">
+              Lower bills, reliable power, and one team to call.
+            </p>
+          </Reveal>
+
+          <Reveal direction="zoom" delay={600} duration={800}>
+            <div className="flex flex-col items-start sm:flex-row sm:items-center gap-4 sm:gap-7">
+              {TEMP_HIDE_LANDING_SECTIONS ? (
+                <Link href="/solutions" className={primaryButtonClass}>
+                  <span>Plan my system</span>
+                  {primaryArrow}
+                </Link>
+              ) : (
+                <button type="button" onClick={scrollToPlanner} className={primaryButtonClass}>
+                  <span>Plan my system</span>
+                  {primaryArrow}
+                </button>
+              )}
+
+              <Link
+                href="/contact"
+                className="text-sm sm:text-base font-semibold text-white/95 underline decoration-white/40 underline-offset-[6px] transition-colors hover:text-white hover:decoration-white"
+              >
+                Talk to an engineer
+              </Link>
+            </div>
+          </Reveal>
+        </div>
+      </div>
+
+      {/* 4. Subtle Scroll Down Indicator at bottom center (large screens, where the bottom row leaves room) */}
       <Reveal
         direction="fade"
         delay={1000}
         duration={900}
-        className="absolute bottom-5 sm:bottom-7 left-1/2 -translate-x-1/2 z-10"
+        className="hidden lg:block absolute bottom-3 left-1/2 -translate-x-1/2 z-40"
       >
         <button
           onClick={scrollToNextSection}
@@ -173,7 +197,6 @@ export function Hero() {
           <ChevronDown className="h-5 w-5 lg:h-6 lg:w-6 animate-bounce" />
         </button>
       </Reveal>
-
     </section>
   );
 }
