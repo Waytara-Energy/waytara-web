@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Navigation } from "@/components/sections/navigation";
 import { Hero } from "@/components/sections/hero";
+import { OurApproach } from "@/components/sections/our-approach";
 import { WhoWeAre } from "@/components/sections/who-we-are";
 import { CustomerSegments } from "@/components/sections/customer-segments";
 import { EnergyPlanner } from "@/components/sections/energy-planner";
@@ -41,6 +42,9 @@ export function HomePageContent() {
       <main className="flex-1">
         {/* 4.2 Hero Section with Background Video */}
         <Hero />
+
+        {/* 4.2.5 Our Approach (one coordinated system: solar, storage, EV charging, energy management) */}
+        <OurApproach />
 
         {/* 4.3 Who We Are (About Us Section) */}
         <WhoWeAre />
