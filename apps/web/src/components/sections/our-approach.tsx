@@ -3,20 +3,41 @@
 import * as React from "react";
 import { ArrowDown, Sun, BatteryCharging, PlugZap, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { SolarIllustration, BatteryIllustration, EvIllustration, DashboardIllustration } from "./approach-illustrations";
 
-interface SystemNode {
+interface SystemPart {
   icon: React.ElementType;
   title: string;
-  /** Where the node sits around the centre on a computer (the grid is 3 x 3 with the centre in the middle). */
-  place: string;
+  description: string;
+  art: React.ReactNode;
 }
 
 // The four parts of the system, in the order the homepage copy lists them.
-const NODES: SystemNode[] = [
-  { icon: Sun, title: "Solar Generation", place: "md:col-start-2 md:row-start-1" },
-  { icon: BatteryCharging, title: "Energy Storage", place: "md:col-start-1 md:row-start-2" },
-  { icon: PlugZap, title: "EV Charging", place: "md:col-start-3 md:row-start-2" },
-  { icon: Activity, title: "Energy Management", place: "md:col-start-2 md:row-start-3" },
+const PARTS: SystemPart[] = [
+  {
+    icon: Sun,
+    title: "Solar Generation",
+    description: "Rooftop solar panels and an inverter turn sunlight into power your property can use.",
+    art: <SolarIllustration />,
+  },
+  {
+    icon: BatteryCharging,
+    title: "Energy Storage",
+    description: "A battery keeps spare solar power for the evening, and for when the grid goes down.",
+    art: <BatteryIllustration />,
+  },
+  {
+    icon: PlugZap,
+    title: "EV Charging",
+    description: "Charge your vehicles from your own solar and battery, at the times that suit you.",
+    art: <EvIllustration />,
+  },
+  {
+    icon: Activity,
+    title: "Energy Management",
+    description: "One dashboard to monitor generation, usage, storage and loads, and to control them.",
+    art: <DashboardIllustration />,
+  },
 ];
 
 const FULL_LINE_1 = "One energy system,";
@@ -133,48 +154,50 @@ export function OurApproach() {
           </p>
         </div>
 
-        {/* 3. The system: four parts around one centre label - fades & slides in after typing completes */}
+        {/* 3. The four parts as cards, each with its own drawing - fade & slide in after typing completes */}
         <div
           className={cn(
-            "relative mx-auto max-w-3xl grid grid-cols-2 gap-x-6 gap-y-8 md:grid-cols-3 md:grid-rows-3 md:gap-y-10 transition-all duration-700 delay-150 ease-out",
+            "grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6 transition-all duration-700 delay-150 ease-out",
             typingComplete
               ? "opacity-100 translate-y-0"
               : "opacity-0 translate-y-5 pointer-events-none"
           )}
         >
-          {/* Lines from the centre to the four parts (computer screens only) */}
-          <div aria-hidden="true" className="hidden md:block absolute left-1/2 top-[16%] bottom-[16%] w-px -translate-x-1/2 bg-gradient-to-b from-emerald-500/10 via-emerald-500/40 to-emerald-500/10" />
-          <div aria-hidden="true" className="hidden md:block absolute top-1/2 left-[14%] right-[14%] h-px -translate-y-1/2 bg-gradient-to-r from-emerald-500/10 via-emerald-500/40 to-emerald-500/10" />
-
-          {NODES.map((node, idx) => {
-            const Icon = node.icon;
+          {PARTS.map((part, idx) => {
+            const Icon = part.icon;
             return (
-              <div
-                key={node.title}
-                className={cn("relative z-10 flex flex-col items-center text-center group", node.place)}
+              <article
+                key={part.title}
+                className="group relative flex flex-col sm:flex-row sm:items-center gap-4 overflow-hidden rounded-2xl border border-theme-border bg-theme-surface p-6 sm:p-7 transition-all duration-300 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-600/5"
                 style={{ transitionDelay: `${200 + idx * 100}ms` }}
               >
-                <div className="w-14 h-14 rounded-full bg-theme-surface border border-theme-border flex items-center justify-center text-theme-primary mb-3 shadow-sm group-hover:bg-emerald-500/10 group-hover:text-emerald-500 dark:group-hover:text-emerald-400 group-hover:border-emerald-500/30 transition-colors">
-                  <Icon className="w-6 h-6 stroke-[1.75]" />
+                <div className="relative z-10 sm:w-[44%] sm:shrink-0">
+                  <div className="mb-5 flex size-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
+                    <Icon className="size-5 stroke-[1.75]" />
+                  </div>
+                  <h3 className="text-lg sm:text-xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 mb-2">
+                    {part.title}
+                  </h3>
+                  <p className="text-sm text-theme-secondary leading-relaxed">{part.description}</p>
                 </div>
-                <h3 className="text-base sm:text-lg font-bold tracking-tight text-theme-primary">
-                  {node.title}
-                </h3>
-              </div>
+
+                <div className="mx-auto w-full max-w-[19rem] sm:max-w-none sm:flex-1 transition-transform duration-500 group-hover:-translate-y-1">
+                  {part.art}
+                </div>
+              </article>
             );
           })}
-
-          {/* Centre label */}
-          <div className="relative z-10 col-span-2 order-first flex items-center justify-center md:order-none md:col-span-1 md:col-start-2 md:row-start-2">
-            <div className="relative flex size-36 sm:size-40 items-center justify-center rounded-full bg-theme-bg">
-              <span aria-hidden="true" className="absolute inset-0 rounded-full border border-emerald-500/40 motion-safe:animate-pulse" />
-              <span aria-hidden="true" className="absolute inset-2 rounded-full bg-gradient-to-br from-emerald-500/15 to-emerald-500/5 border border-emerald-500/25" />
-              <span className="relative px-6 text-center text-[0.7rem] sm:text-xs font-bold uppercase leading-snug tracking-[0.16em] text-theme-primary">
-                Integrated Energy System
-              </span>
-            </div>
-          </div>
         </div>
+
+        {/* 4. One line tying the four together */}
+        <p
+          className={cn(
+            "mt-8 text-center text-sm font-medium text-theme-secondary transition-all duration-700 delay-500 ease-out",
+            typingComplete ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"
+          )}
+        >
+          Four parts, designed, installed and managed together as one integrated energy system.
+        </p>
 
       </div>
     </section>
