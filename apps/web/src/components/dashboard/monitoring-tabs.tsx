@@ -34,7 +34,7 @@ const TAB_VISUALS: Record<string, { icon: LucideIcon; iconClassName: string }> =
  *  shown anywhere else instead. Reads `headlines`/`TAB_VISUALS` by the
  *  current `value` so it's this component's own Radix-driven tab state
  *  deciding which one shows, no group-data/CSS trick needed. */
-function TabHeadlineBar({ tabValue, headline, actions }: { tabValue: string; headline: TabHeadlineInfo; actions?: React.ReactNode }) {
+export function TabHeadlineBar({ tabValue, headline, actions }: { tabValue: string; headline: TabHeadlineInfo; actions?: React.ReactNode }) {
   const visual = TAB_VISUALS[tabValue] ?? TAB_VISUALS.hub;
   const Icon = visual.icon;
   return (
