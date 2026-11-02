@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useTheme } from "next-themes";
-import { ChevronDown, Sparkles, PhoneCall, ArrowUpRight } from "lucide-react";
+import { ChevronDown, PhoneCall, ArrowRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Reveal } from "@/components/shared/reveal";
 import { TEMP_HIDE_LANDING_SECTIONS } from "@/config/landing-flags";
@@ -44,20 +44,18 @@ export function Hero() {
     return () => clearTimeout(timer);
   }, [resolvedTheme, mounted]);
 
-  // TEMP_HIDE_LANDING_SECTIONS (src/config/landing-flags.ts): the Energy
-  // Planner section this button used to jump to is hidden while the flag
-  // is on, so the primary action points at Who We Are instead — restored
-  // automatically once the flag flips back.
-  const heroPrimaryTargetId = TEMP_HIDE_LANDING_SECTIONS ? "about-us" : "energy-planner";
-  const heroPrimaryLabel = TEMP_HIDE_LANDING_SECTIONS ? "Explore WayTara" : "Plan with Tara AI";
-
-  const scrollToHeroPrimaryTarget = (e: React.MouseEvent) => {
+  // "Plan my system": while the Energy Planner section is hidden
+  // (TEMP_HIDE_LANDING_SECTIONS, src/config/landing-flags.ts) there is
+  // nothing on this page to jump to, so the button opens the Solutions page,
+  // where a visitor can pick a package and book a site assessment. Once the
+  // flag flips off it scrolls to the planner again.
+  const scrollToPlanner = (e: React.MouseEvent) => {
     e.preventDefault();
-    const el = document.getElementById(heroPrimaryTargetId);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth" });
-    }
+    document.getElementById("energy-planner")?.scrollIntoView({ behavior: "smooth" });
   };
+
+  const primaryButtonClass =
+    "h-11 sm:h-12 lg:h-13 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-green-600 hover:from-emerald-400 hover:via-emerald-500 hover:to-green-500 text-white font-semibold text-xs sm:text-sm lg:text-base tracking-wide shadow-lg shadow-emerald-600/30 border-0 transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer";
 
   const scrollToNextSection = () => {
     // Pre-existing bug, fixed in passing: WhoWeAre's actual DOM id is
@@ -70,7 +68,7 @@ export function Hero() {
   };
 
   return (
-    <section className="relative w-full h-[100dvh] min-h-[580px] flex flex-col justify-center items-center text-center overflow-hidden select-none bg-black px-[var(--page-gutter)]">
+    <section className="relative w-full min-h-[100dvh] flex flex-col justify-center items-center text-center overflow-hidden select-none bg-black px-[var(--page-gutter)] pt-24 pb-20 sm:pt-28 sm:pb-24">
       
       {/* 1. Full-Bleed Background Video - Shifted down so top arc sits towards the center */}
       <div className="absolute inset-0 z-0 w-full h-full overflow-hidden flex items-center justify-center bg-black">
@@ -111,43 +109,59 @@ export function Hero() {
         )}
 
         {/* Subtle Vignette Gradient Overlay for Text Legibility */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/20 to-black/85 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/85 pointer-events-none" />
       </div>
 
       {/* 2. Vertically & Horizontally Centered Content Lockup */}
-      <div className="relative z-10 max-w-6xl 2xl:max-w-7xl mx-auto flex flex-col items-center">
-        
-        {/* Headline strictly locked to 2 clean lines */}
+      <div className="relative z-10 max-w-5xl 2xl:max-w-6xl mx-auto flex flex-col items-center">
+
+        {/* Eyebrow: what WayTara is, in the visitor's first second */}
+        <Reveal direction="fade" delay={100} duration={700}>
+          <p className="mb-5 sm:mb-6 inline-flex flex-wrap items-center justify-center gap-x-3 gap-y-0.5 rounded-2xl sm:rounded-full border border-white/15 bg-black/40 px-4 py-2 text-[0.66rem] sm:text-xs font-semibold uppercase tracking-[0.16em] text-emerald-200 backdrop-blur-sm">
+            <span>Energy Management System</span>
+            <span aria-hidden="true" className="hidden sm:block size-1 rounded-full bg-emerald-300/80" />
+            <span>Engineering, Procurement &amp; Construction</span>
+          </p>
+        </Reveal>
+
+        {/* Headline: two lines on a computer, wraps naturally on a phone */}
         <Reveal direction="up" delay={200} duration={850} distance={28}>
-          <h1 className="text-[clamp(2.1rem,4.5vw,4.85rem)] font-bold tracking-tight leading-[1.24] max-w-6xl mx-auto py-1">
-            <span className="block text-white drop-shadow-md sm:whitespace-nowrap pb-1">
-              Powering your property as
-            </span>
-            <span className="inline-block bg-gradient-to-b from-white via-white/85 to-white/40 bg-clip-text text-transparent drop-shadow-sm sm:whitespace-nowrap pb-3 sm:pb-4">
-              one intelligent system
+          <h1 className="text-[clamp(1.9rem,3.9vw,4rem)] font-bold tracking-tight leading-[1.2] mx-auto py-1 text-balance">
+            <span className="block text-white drop-shadow-md pb-1">Your property&rsquo;s energy,</span>
+            <span className="block bg-gradient-to-b from-white via-white/85 to-white/45 bg-clip-text text-transparent drop-shadow-sm pb-2 sm:pb-3">
+              designed as one integrated system.
             </span>
           </h1>
         </Reveal>
 
-        {/* Subtitle */}
+        {/* Supporting copy */}
         <Reveal direction="up" delay={450} duration={850} distance={20}>
-          <p className="mt-2 sm:mt-3 lg:mt-4 text-[clamp(0.9rem,1.35vw,1.3rem)] font-medium text-white/90 tracking-wide drop-shadow-md">
-            Solar &bull; Inverter &bull; Battery Storage &bull; EV Charging
-          </p>
+          <div className="mt-2 sm:mt-3 max-w-3xl space-y-3 drop-shadow-md">
+            <p className="text-[clamp(0.95rem,1.35vw,1.25rem)] font-medium leading-relaxed text-white/90">
+              WayTara designs, builds and manages custom energy systems that bring generation, storage, EV charging and intelligent energy management together around your property&rsquo;s needs.
+            </p>
+            <p className="text-[clamp(0.85rem,1.15vw,1.05rem)] leading-relaxed text-white/85">
+              Meet your energy demand, lower your energy costs, and monitor and control your power sources and loads through one integrated system.
+            </p>
+          </div>
         </Reveal>
 
         {/* Centered Dual Action Buttons */}
         <Reveal direction="zoom" delay={700} duration={800}>
-          <div className="mt-7 sm:mt-9 lg:mt-11 grid grid-cols-1 sm:grid-cols-2 gap-3.5 w-full max-w-md lg:max-w-xl">
-            <Button
-              size="default"
-              onClick={scrollToHeroPrimaryTarget}
-              className="h-11 sm:h-12 lg:h-13 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-green-600 hover:from-emerald-400 hover:via-emerald-500 hover:to-green-500 text-white font-semibold text-xs sm:text-sm lg:text-base tracking-wide shadow-lg shadow-emerald-600/30 border-0 transition-all duration-200 hover:scale-105 active:scale-95 group cursor-pointer"
-            >
-              <Sparkles className="w-4 h-4 text-emerald-200 mr-2 transition-transform group-hover:rotate-12" />
-              <span>{heroPrimaryLabel}</span>
-              <ArrowUpRight className="w-4 h-4 ml-1.5 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-            </Button>
+          <div className="mt-7 sm:mt-9 lg:mt-10 grid grid-cols-1 sm:grid-cols-2 gap-3.5 w-full max-w-md lg:max-w-xl">
+            {TEMP_HIDE_LANDING_SECTIONS ? (
+              <Button asChild size="default" className={primaryButtonClass}>
+                <Link href="/solutions" className="inline-flex items-center justify-center gap-2">
+                  <span>Plan my system</span>
+                  <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5" />
+                </Link>
+              </Button>
+            ) : (
+              <Button size="default" onClick={scrollToPlanner} className={primaryButtonClass}>
+                <span>Plan my system</span>
+                <ArrowRight className="w-4 h-4 ml-2 transition-transform group-hover:translate-x-0.5" />
+              </Button>
+            )}
 
             <Button
               asChild
@@ -156,7 +170,7 @@ export function Hero() {
             >
               <Link href="/contact" className="inline-flex items-center justify-center gap-2">
                 <PhoneCall className="w-4 h-4 text-emerald-600 group-hover:scale-110 transition-transform" />
-                <span>Speak with an Advisor</span>
+                <span>Talk to an engineer</span>
               </Link>
             </Button>
           </div>
