@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Image from "next/image";
-import { Sun, BatteryCharging, PlugZap, Cpu, Home } from "lucide-react";
+import { Sun, BatteryCharging, PlugZap, Cpu } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // One real scene of the whole system (day and night photos). Everything laid over it is placed in the photo's own units
@@ -56,7 +56,7 @@ function usePrefersReducedMotion() {
   return reduce;
 }
 
-/** The scene: the photo, the glowing energy line, four pins and a dashboard card. `active` is the part the visitor is pointing at. */
+/** The scene: the photo, the glowing energy line and the pins on the equipment. `active` is the part the visitor is pointing at (4, the dashboard, has no pin). */
 export function SystemScene({ active }: { active: 1 | 2 | 3 | 4 | null }) {
   const reduce = usePrefersReducedMotion();
   const dim = active !== null;
@@ -82,7 +82,7 @@ export function SystemScene({ active }: { active: 1 | 2 | 3 | 4 | null }) {
             <feGaussianBlur stdDeviation="7" />
           </filter>
         </defs>
-        <g fill="none" strokeLinecap="round" strokeLinejoin="round" className={cn("transition-opacity duration-300", dim && active === 4 ? "opacity-100" : "")}>
+        <g fill="none" strokeLinecap="round" strokeLinejoin="round">
           {FLOW.map((d) => (
             <g key={d}>
               <path d={d} stroke="#34d399" strokeOpacity={0.55} strokeWidth={14} filter="url(#flow-glow)" />
@@ -130,42 +130,6 @@ export function SystemScene({ active }: { active: 1 | 2 | 3 | 4 | null }) {
           </div>
         );
       })}
-
-      {/* the dashboard: it watches the whole system */}
-      <div
-        className={cn(
-          "absolute right-[2.5%] top-[4%] z-10 hidden w-[26%] min-w-[11rem] rounded-2xl border border-white/70 bg-white/80 p-3 lg:p-4 shadow-xl backdrop-blur-md transition-all duration-300 sm:block dark:border-white/15 dark:bg-slate-900/70",
-          active === 4 && "scale-[1.03] ring-2 ring-emerald-500/70",
-          dim && active !== 4 && "opacity-60"
-        )}
-      >
-        <div className="flex items-center justify-between">
-          <span className="flex items-center gap-1.5 text-[0.7rem] lg:text-xs font-bold text-slate-900 dark:text-white">
-            <span className="flex size-5 items-center justify-center rounded-md bg-emerald-600 text-[0.6rem] font-bold text-white">4</span>
-            Energy dashboard
-          </span>
-          <span className="flex items-center gap-1 text-[0.6rem] lg:text-[0.65rem] font-semibold text-emerald-700 dark:text-emerald-400">
-            <span className="size-1.5 rounded-full bg-emerald-500 motion-safe:animate-pulse" />
-            Live
-          </span>
-        </div>
-        <ul className="mt-2.5 space-y-2">
-          {[
-            { icon: Sun, label: "Solar", w: "78%" },
-            { icon: BatteryCharging, label: "Battery", w: "56%" },
-            { icon: Home, label: "Home", w: "42%" },
-            { icon: PlugZap, label: "EV", w: "64%" },
-          ].map(({ icon: Icon, label, w }) => (
-            <li key={label} className="flex items-center gap-2 text-[0.62rem] lg:text-[0.7rem] font-medium text-slate-600 dark:text-slate-300">
-              <Icon className="size-3 lg:size-3.5 shrink-0 text-emerald-600 dark:text-emerald-400" />
-              <span className="w-10 shrink-0 lg:w-12">{label}</span>
-              <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-slate-900/10 dark:bg-white/15">
-                <span className="block h-full rounded-full bg-gradient-to-r from-emerald-500 to-emerald-400" style={{ width: w }} />
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
     </div>
   );
 }
