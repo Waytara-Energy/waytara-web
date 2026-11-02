@@ -346,6 +346,23 @@ body {
   }
 }
 
+/* A pulse of energy crossing one segment of the Our Approach rail. It moves during the first quarter of the cycle and rests
+   (off the segment, which clips it) for the rest, so four segments delayed by a quarter each read as one pulse travelling
+   along the whole rail. */
+@theme {
+  --animate-energy-flow: energy-flow 3.2s ease-in-out infinite;
+}
+
+@keyframes energy-flow {
+  0% {
+    transform: translateX(-100%);
+  }
+  25%,
+  100% {
+    transform: translateX(400%);
+  }
+}
+
 
 /* Pure-CSS replacements for the two framer-motion effects the app used
    (skeleton shimmer, button spinner width-in) — framer-motion cost ~50 KB of
