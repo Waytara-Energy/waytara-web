@@ -4,6 +4,7 @@ import * as React from "react";
 import { ArrowDown, Sun, BatteryCharging, PlugZap, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { SystemScene } from "./approach-scene";
+import { ApproachParts } from "./approach-parts";
 
 interface SystemPart {
   n: 1 | 2 | 3 | 4;
@@ -156,7 +157,17 @@ export function OurApproach() {
           </p>
         </div>
 
-        {/* 3. One scene with the whole system, then the four parts as a quiet list - fade & slide in after typing completes */}
+        {/* 3. The equipment: panel, inverter and battery, each with what it does - fade & slide in after typing completes */}
+        <div
+          className={cn(
+            "mb-20 transition-all duration-700 delay-100 ease-out",
+            typingComplete ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5 pointer-events-none"
+          )}
+        >
+          <ApproachParts />
+        </div>
+
+        {/* 4. One scene with the whole system, then the four parts as a quiet list - fade & slide in after typing completes */}
         <div
           className={cn(
             "transition-all duration-700 delay-150 ease-out",
