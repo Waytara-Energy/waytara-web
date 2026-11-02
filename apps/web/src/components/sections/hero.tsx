@@ -78,7 +78,7 @@ export function Hero() {
                 crossfades in on top of it — smoother than swapping `src`
                 (which would pop/reload) and avoids a blank gap mid-toggle. */}
             <Image
-              src="/images/hero-bg-light-v2.png"
+              src="/images/hero-bg-light-v3.webp"
               alt=""
               fill
               priority
@@ -109,7 +109,7 @@ export function Hero() {
         )}
 
         {/* Subtle Vignette Gradient Overlay for Text Legibility */}
-        <div className="absolute inset-0 bg-gradient-to-b from-black/55 via-black/35 to-black/85 pointer-events-none" />
+        <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/25 to-black/80 pointer-events-none" />
       </div>
 
       {/* 2. Vertically & Horizontally Centered Content Lockup */}
