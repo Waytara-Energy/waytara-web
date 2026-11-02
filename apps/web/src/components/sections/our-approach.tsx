@@ -3,40 +3,40 @@
 import * as React from "react";
 import { ArrowDown, Sun, BatteryCharging, PlugZap, Activity } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SolarIllustration, BatteryIllustration, EvIllustration, DashboardIllustration } from "./approach-illustrations";
+import { SystemScene } from "./approach-scene";
 
 interface SystemPart {
+  n: 1 | 2 | 3 | 4;
   icon: React.ElementType;
   title: string;
   description: string;
-  art: React.ReactNode;
 }
 
 // The four parts of the system, in the order the homepage copy lists them.
 const PARTS: SystemPart[] = [
   {
+    n: 1,
     icon: Sun,
     title: "Solar Generation",
     description: "Rooftop solar panels and an inverter turn sunlight into power your property can use.",
-    art: <SolarIllustration />,
   },
   {
+    n: 2,
     icon: BatteryCharging,
     title: "Energy Storage",
     description: "A battery keeps spare solar power for the evening, and for when the grid goes down.",
-    art: <BatteryIllustration />,
   },
   {
+    n: 3,
     icon: PlugZap,
     title: "EV Charging",
     description: "Charge your vehicles from your own solar and battery, at the times that suit you.",
-    art: <EvIllustration />,
   },
   {
+    n: 4,
     icon: Activity,
     title: "Energy Management",
     description: "One dashboard to monitor generation, usage, storage and loads, and to control them.",
-    art: <DashboardIllustration />,
   },
 ];
 
@@ -50,6 +50,8 @@ export function OurApproach() {
   const [line2, setLine2] = React.useState("");
   const [currentLine, setCurrentLine] = React.useState<1 | 2>(1);
   const [typingComplete, setTypingComplete] = React.useState(false);
+  // The part the visitor is pointing at (hover or keyboard focus on the list below the scene); its pins light up in the scene.
+  const [active, setActive] = React.useState<1 | 2 | 3 | 4 | null>(null);
 
   // Trigger typing once when user scrolls into the section
   React.useEffect(() => {
@@ -154,50 +156,44 @@ export function OurApproach() {
           </p>
         </div>
 
-        {/* 3. The four parts as cards, each with its own drawing - fade & slide in after typing completes */}
+        {/* 3. One scene with the whole system, then the four parts as a quiet list - fade & slide in after typing completes */}
         <div
           className={cn(
-            "grid grid-cols-1 md:grid-cols-2 gap-5 lg:gap-6 transition-all duration-700 delay-150 ease-out",
-            typingComplete
-              ? "opacity-100 translate-y-0"
-              : "opacity-0 translate-y-5 pointer-events-none"
+            "transition-all duration-700 delay-150 ease-out",
+            typingComplete ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5 pointer-events-none"
           )}
         >
-          {PARTS.map((part, idx) => {
-            const Icon = part.icon;
-            return (
-              <article
-                key={part.title}
-                className="group relative flex flex-col sm:flex-row sm:items-center gap-4 overflow-hidden rounded-2xl border border-theme-border bg-theme-surface p-6 sm:p-7 transition-all duration-300 hover:border-emerald-500/40 hover:shadow-lg hover:shadow-emerald-600/5"
-                style={{ transitionDelay: `${200 + idx * 100}ms` }}
-              >
-                <div className="relative z-10 sm:w-[44%] sm:shrink-0">
-                  <div className="mb-5 flex size-10 items-center justify-center rounded-lg bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-                    <Icon className="size-5 stroke-[1.75]" />
+          <SystemScene active={active} />
+
+          <ol className="mt-8 grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-4" onMouseLeave={() => setActive(null)}>
+            {PARTS.map((part) => {
+              const Icon = part.icon;
+              return (
+                <li
+                  key={part.title}
+                  tabIndex={0}
+                  onMouseEnter={() => setActive(part.n)}
+                  onFocus={() => setActive(part.n)}
+                  onBlur={() => setActive(null)}
+                  className="group rounded-xl outline-none transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500/60"
+                >
+                  <div className="mb-3 flex items-center gap-3">
+                    <span className="flex size-7 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">{part.n}</span>
+                    <Icon className="size-5 stroke-[1.75] text-emerald-600 dark:text-emerald-400" />
                   </div>
-                  <h3 className="text-lg sm:text-xl font-bold tracking-tight text-emerald-600 dark:text-emerald-400 mb-2">
+                  <h3 className="mb-1.5 text-base sm:text-lg font-bold tracking-tight text-theme-primary transition-colors group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
                     {part.title}
                   </h3>
                   <p className="text-sm text-theme-secondary leading-relaxed">{part.description}</p>
-                </div>
+                </li>
+              );
+            })}
+          </ol>
 
-                <div className="mx-auto w-full max-w-[19rem] sm:max-w-none sm:flex-1 transition-transform duration-500 group-hover:-translate-y-1">
-                  {part.art}
-                </div>
-              </article>
-            );
-          })}
+          <p className="mt-10 text-center text-sm font-medium text-theme-secondary">
+            Four parts, designed, installed and managed together as one integrated energy system.
+          </p>
         </div>
-
-        {/* 4. One line tying the four together */}
-        <p
-          className={cn(
-            "mt-8 text-center text-sm font-medium text-theme-secondary transition-all duration-700 delay-500 ease-out",
-            typingComplete ? "opacity-100 translate-y-0" : "opacity-0 translate-y-3 pointer-events-none"
-          )}
-        >
-          Four parts, designed, installed and managed together as one integrated energy system.
-        </p>
 
       </div>
     </section>
