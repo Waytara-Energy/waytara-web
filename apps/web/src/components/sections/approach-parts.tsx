@@ -42,7 +42,7 @@ const DIVIDERS = ["", "border-t sm:border-t-0 sm:border-l", "border-t", "border-
 export function ApproachParts() {
   return (
     <div>
-      <ul className="mx-auto grid max-w-4xl grid-cols-1 sm:grid-cols-2">
+      <ul className="mx-auto grid max-w-6xl grid-cols-1 sm:grid-cols-2">
         {PARTS.map(({ Vignette, title, body }, i) => (
           <li key={title} className={cn("border-theme-border", DIVIDERS[i])}>
             <Reveal direction="up" duration={800} delay={i * 120} distance={24} className="flex flex-col items-center px-6 pb-12 pt-10 text-center">
