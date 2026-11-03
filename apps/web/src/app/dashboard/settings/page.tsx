@@ -104,8 +104,8 @@ export default async function SettingsPage() {
     : null;
 
   const payments: PaymentRow[] = paymentRows ?? [];
-  // the Overview has one slide per inverter: these are the ones the person can choose to open it on (grouped by site when there are several)
-  const overviewDevices = allSites.flatMap((s) => s.devices.filter((d) => d.deviceType?.category === "solar_inverter").map((d) => ({ id: d.id, name: deviceDisplayId(d), site: s.name })));
+  // the Overview has one slide per device (inverters and chargers): these are the ones the person can choose to open it on
+  const overviewDevices = allSites.flatMap((s) => s.devices.filter((d) => d.deviceType?.category === "solar_inverter" || d.deviceType?.category === "ev_charger").map((d) => ({ id: d.id, name: deviceDisplayId(d), site: s.name, siteId: s.id })));
   const overviewProps = { userId: profile.id, initial: overview, imageUrl, devices: overviewDevices, severalSites: allSites.length > 1 };
   const addressesProps = { address, billing, billingEmail: customer?.billing_email ?? "", gstin: customer?.gstin ?? "" };
 

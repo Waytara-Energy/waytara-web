@@ -48,6 +48,7 @@ export interface OverviewDeviceOption {
   id: string;
   name: string;
   site: string;
+  siteId: string;
 }
 
 const FIRST_DEVICE = "first";
@@ -56,6 +57,8 @@ export function OverviewSection({ userId, initial, imageUrl, devices, severalSit
   const router = useRouter();
   const [cards, setCards] = React.useState<OverviewCardId[]>(initial.cards);
   const [device, setDevice] = React.useState<string>(initial.device ?? FIRST_DEVICE);
+  // the Overview is a carousel only at a site with two or more devices, so there is only something to choose when one has
+  const hasCarousel = devices.some((d) => devices.filter((o) => o.siteId === d.siteId).length > 1);
   // the background, the four cards and the device are saved together, so each save carries the others as last saved
   const savedCards = React.useRef<OverviewCardId[]>(initial.cards);
   const savedDevice = React.useRef<string | null>(initial.device);
@@ -134,12 +137,12 @@ export function OverviewSection({ userId, initial, imageUrl, devices, severalSit
 
   return (
     <div className="space-y-4">
-      {devices.length > 1 && (
+      {hasCarousel && (
         <SettingsCard
           title="Device to show first"
           icon={Server}
           tone="sky"
-          description="The Overview has one page for each of your inverters: swipe, or use the arrows at the top, to move between them. Choose the one it opens on."
+          description="At a site with more than one device, the Overview has a page for each (inverters and chargers): swipe, or use the arrows at the top, to move between them. Choose the one it opens on."
         >
           <div className="max-w-sm">
             <Select value={device} onValueChange={(v) => void saveDevice(v)}>
@@ -156,7 +159,7 @@ export function OverviewSection({ userId, initial, imageUrl, devices, severalSit
               </SelectContent>
             </Select>
           </div>
-          {severalSites && <p className="text-xs text-muted-foreground">If this device is at another site, the Overview opens on the first inverter of the site you are looking at.</p>}
+          {severalSites && <p className="text-xs text-muted-foreground">If this device is at another site, the Overview opens on the first device of the site you are looking at.</p>}
         </SettingsCard>
       )}
       <TwoColumns

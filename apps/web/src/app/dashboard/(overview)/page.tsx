@@ -8,6 +8,10 @@ import { LiveChannelKeeper } from "@/components/dashboard/overview-live";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { SITE_OVERVIEW_KEYS } from "@/lib/overview-keys";
 import { fetchSolarCardsProps } from "@/components/dashboard/solar-live-status-cards";
+import { fetchEvCardsProps } from "@/components/dashboard/ev-live-status-cards";
+import { EvChargerHub } from "@/components/dashboard/ev-charger-hub";
+import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
+import { fetchEvOverview } from "@/lib/ev-overview";
 import { OverviewBoard } from "@/components/dashboard/overview-board";
 import { OverviewCarousel, type OverviewSlide } from "@/components/dashboard/overview-carousel";
 import { HeaderSlot } from "@/components/dashboard/header-slot";
@@ -60,20 +64,31 @@ export default async function DashboardOverviewPage() {
   const inverters = site.devices.filter((d) => d.deviceType?.category === "solar_inverter");
   const inverterIds = inverters.map((d) => d.id);
 
-  // One Overview per inverter (a slide each): the same fetches as before, but for a site made of that one device, so each slide's flow and
-  // cards are that device's own and not the site's sum.
+  // One Overview per device (a slide each, in the order the devices were added): an inverter's energy flow and cards, a charger's status and
+  // cards. Each is fetched for a site made of that one device, so a slide shows that device's own numbers and not the site's sum.
   const emptySync: DeviceSyncInit = { lastTs: null, agentSeenTs: null, deviceOnline: null, intervalS: null, heartbeatS: null };
+  type SlideData =
+    | { kind: "inverter"; device: (typeof site.devices)[number]; syncInit: DeviceSyncInit; pvKeys: string[]; initial: Record<string, number | null>; solar: Awaited<ReturnType<typeof fetchSolarCardsProps>> }
+    | { kind: "charger"; device: (typeof site.devices)[number]; cards: Awaited<ReturnType<typeof fetchEvCardsProps>>; ev: Awaited<ReturnType<typeof fetchEvOverview>> };
   const [slideData, uiRow] = await Promise.all([
     Promise.all(
-      inverters.map(async (device) => {
+      site.devices.map(async (device): Promise<SlideData | null> => {
         const one = { ...site, devices: [device] };
-        const [overview, sync] = await Promise.all([fetchSiteOverview(supabase, one), getLastSyncInfo(device.id)]);
-        const syncInit: DeviceSyncInit = sync ?? emptySync;
-        const pvKeys = overview.pvKeys ?? [];
-        const initial: Record<string, number | null> = Object.fromEntries([...SITE_OVERVIEW_KEYS, ...pvKeys].map((k) => [k, overview.get(k)]));
-        // The first numbers of the cards beside the energy flow (the live channel keeps them current afterwards).
-        const solar = await fetchSolarCardsProps(supabase, one, syncInit, pvKeys);
-        return { device, syncInit, pvKeys, initial, solar };
+        const category = device.deviceType?.category;
+        if (category === "solar_inverter") {
+          const [overview, sync] = await Promise.all([fetchSiteOverview(supabase, one), getLastSyncInfo(device.id)]);
+          const syncInit: DeviceSyncInit = sync ?? emptySync;
+          const pvKeys = overview.pvKeys ?? [];
+          const initial: Record<string, number | null> = Object.fromEntries([...SITE_OVERVIEW_KEYS, ...pvKeys].map((k) => [k, overview.get(k)]));
+          // The first numbers of the cards beside the energy flow (the live channel keeps them current afterwards).
+          const solar = await fetchSolarCardsProps(supabase, one, syncInit, pvKeys);
+          return { kind: "inverter", device, syncInit, pvKeys, initial, solar };
+        }
+        if (category === "ev_charger") {
+          const [cards, ev] = await Promise.all([fetchEvCardsProps(supabase, one), fetchEvOverview(supabase, device.id)]);
+          return { kind: "charger", device, cards, ev };
+        }
+        return null;
       }),
     ),
     // the person's own choices for this page (which four cards, what is behind it, which device it opens on): see Application Settings
@@ -83,27 +98,59 @@ export default async function DashboardOverviewPage() {
   const backgroundUrl = overviewPrefs.background.kind === "image" ? supabase.storage.from("avatars").getPublicUrl(overviewPrefs.background.path).data.publicUrl : null;
   const background = backgroundCss(overviewPrefs.background, backgroundUrl, overviewPrefs.dim);
 
-  const slides: OverviewSlide[] = slideData.map((d) => ({
-    id: d.device.id,
-    name: deviceDisplayId(d.device),
-    content: (
-      <OverviewBoard
-        cards={overviewPrefs.cards}
-        background={background}
-        backdrop={false}
-        solar={d.solar}
-        ev={null}
-        flow={{
-          inverterIds: [d.device.id],
-          initial: d.initial,
-          powerPackage: site.powerPackage,
-          powerSourceCategory: site.powerSourceCategory,
-          pvKeys: d.pvKeys,
-          sync: d.syncInit,
-        }}
-      />
-    ),
-  }));
+  const slides: OverviewSlide[] = slideData.flatMap((d): OverviewSlide[] => {
+    if (!d) return [];
+    if (d.kind === "inverter") {
+      return [
+        {
+          id: d.device.id,
+          name: deviceDisplayId(d.device),
+          content: (
+            <OverviewBoard
+              cards={overviewPrefs.cards}
+              background={background}
+              backdrop={false}
+              solar={d.solar}
+              ev={null}
+              flow={{
+                inverterIds: [d.device.id],
+                initial: d.initial,
+                powerPackage: site.powerPackage,
+                powerSourceCategory: site.powerSourceCategory,
+                pvKeys: d.pvKeys,
+                sync: d.syncInit,
+              }}
+            />
+          ),
+        },
+      ];
+    }
+    return [
+      {
+        id: d.device.id,
+        name: deviceDisplayId(d.device),
+        content: (
+          <OverviewBoard
+            cards={overviewPrefs.cards}
+            background={background}
+            backdrop={false}
+            solar={null}
+            ev={d.cards}
+            center={
+              <EvChargerHub
+                chargerId={d.device.id}
+                initialPowerKw={d.cards?.initial.power_active_import_kw ?? null}
+                status={d.ev.status}
+                connected={d.ev.connected}
+                todayKwh={d.ev.todayKwh}
+                open={d.ev.open ? { transactionId: d.ev.open.transactionId, kwh: d.ev.open.kwh } : null}
+              />
+            }
+          />
+        ),
+      },
+    ];
+  });
 
   return (
     <div className="space-y-4">
@@ -115,6 +162,13 @@ export default async function DashboardOverviewPage() {
       <HeaderSlot>
         <FlowLegendButton />
       </HeaderSlot>
+      {/* A charging session opening is an INSERT on ev_sessions, closing it an UPDATE of the same row: both refresh a charger's slide. */}
+      {chargerIds.length > 0 && (
+        <>
+          <RealtimeRefresh table="ev_sessions" event="INSERT" filter={`equipment_id=in.(${chargerIds.join(",")})`} />
+          <RealtimeRefresh table="ev_sessions" event="UPDATE" filter={`equipment_id=in.(${chargerIds.join(",")})`} />
+        </>
+      )}
       {/* The device status icons (each one a live connection) are in the page header on every page, and an offline device is announced by a toast
           at the top (both live in the dashboard layout). */}
 
@@ -124,12 +178,12 @@ export default async function DashboardOverviewPage() {
             <EmptyMedia variant="icon">
               <Zap />
             </EmptyMedia>
-            <EmptyTitle>{site.devices.length > 0 ? "No inverter yet" : "No devices yet"}</EmptyTitle>
-            <EmptyDescription>{site.devices.length > 0 ? "The Overview shows each of your inverters. Your other devices are on their own pages." : "Your WayTara advisor sets this up during installation."}</EmptyDescription>
+            <EmptyTitle>No devices yet</EmptyTitle>
+            <EmptyDescription>Your WayTara advisor sets this up during installation.</EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
-        <OverviewCarousel slides={slides} initialIndex={initialSlideIndex(inverterIds, overviewPrefs.device)} background={background} />
+        <OverviewCarousel slides={slides} initialIndex={initialSlideIndex(slides.map((s) => s.id), overviewPrefs.device)} background={background} />
       )}
     </div>
   );

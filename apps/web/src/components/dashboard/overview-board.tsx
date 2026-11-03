@@ -1,6 +1,6 @@
 "use client";
 
-import type { ComponentProps, CSSProperties } from "react";
+import type { ComponentProps, CSSProperties, ReactNode } from "react";
 import type { EvCardsProps } from "./ev-live-status-cards";
 import type { SolarCardsProps } from "./solar-live-status-cards";
 import { EvLiveCards } from "./ev-live-cards";
@@ -20,21 +20,26 @@ export function OverviewBoard({
   solar,
   ev,
   flow,
+  center,
   cards,
   background,
   backdrop = true,
 }: {
+  /** The four "today" cards (an inverter's Overview); null for a charger's. */
   solar: SolarCardsProps | null;
+  /** The charger's four cards, two each side (a charger's Overview), or two shorter ones under the solar cards when both are given. */
   ev: EvCardsProps | null;
-  /** Under the energy flow, where the colour key used to be: the charger's Start button, or its charge in brief (null = the site has no charger). */
-  flow: ComponentProps<typeof LiveEnergyFlow>;
+  /** The energy flow of an inverter's Overview. */
+  flow?: ComponentProps<typeof LiveEnergyFlow>;
+  /** What fills the middle instead of the energy flow (a charger's Overview). */
+  center?: ReactNode;
   cards: OverviewCardId[];
   background: string | null;
   /** Paint the background layer here. A carousel of boards paints it once itself and turns this off (the cards still turn to glass). */
   backdrop?: boolean;
 }) {
-  // Two tall cards per side; with a charger, two shorter charger cards under them.
-  const rows = ev ? "2fr 2fr 1fr 1fr" : "1fr 1fr";
+  // Two tall cards per side; with both solar and charger cards, two shorter charger cards under them.
+  const rows = solar && ev ? "2fr 2fr 1fr 1fr" : "1fr 1fr";
   const side = "order-2 grid min-h-0 grid-cols-2 gap-3 lg:h-full lg:grid-cols-1 lg:[grid-template-rows:var(--rows)]";
   const style = { "--rows": rows } as CSSProperties;
   const { left, right } = splitCards(cards);
@@ -48,9 +53,7 @@ export function OverviewBoard({
         </div>
         {/* The whole middle is the drawing: as tall as the board allows, less its colour key. */}
         <div className="order-1 flex min-w-0 flex-col items-center justify-center gap-3 lg:order-2" style={{ "--flow-h": "calc(max(100svh - 9.5rem, 30rem) - 3.5rem)" } as CSSProperties}>
-          <div className="w-full">
-            <LiveEnergyFlow {...flow} fit />
-          </div>
+          <div className="w-full">{center ?? (flow ? <LiveEnergyFlow {...flow} fit /> : null)}</div>
         </div>
         <div className={`${side} lg:order-3`} style={style}>
           {solar && <EnergyTodayCards {...solar} cards={right} />}
