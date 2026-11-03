@@ -188,14 +188,20 @@ export async function saveAddresses(input: AddressesInput): Promise<void> {
 
 // ---- Overview: which four cards, and the background -------------------------------------------------------------------------------------
 
-/** Saves the Overview choices (four cards, the background). A picture is accepted only if it is in the person's own folder; the one it replaces is deleted. */
+/** Saves the Overview choices (four cards, the background, the device it opens on). A picture is accepted only if it is in the person's own folder; the one it replaces is deleted. */
 export async function saveOverview(prefs: OverviewPrefs): Promise<void> {
   const profile = await requireCustomer();
   const clean = parseOverviewPrefs(overviewToJson(prefs));
   if (clean.cards.length !== 4 || clean.cards.some((c, i) => c !== prefs.cards[i])) throw new Error("Choose exactly four different cards.");
   if (clean.background.kind === "image" && !isBackgroundPathOf(clean.background.path, profile.id)) throw new Error("That picture is not allowed.");
+  if (clean.device !== (prefs.device ? prefs.device.toLowerCase() : null)) throw new Error("Choose one of your devices.");
 
   const supabase = await createClient();
+  // the device must be one of this customer's own (RLS hides everyone else's equipment, so a foreign id finds nothing)
+  if (clean.device) {
+    const { data: own } = await supabase.from("equipment").select("id").eq("id", clean.device).maybeSingle();
+    if (!own) throw new Error("Choose one of your devices.");
+  }
   const { data: current } = await supabase.from("profiles").select("ui_preferences").eq("id", profile.id).maybeSingle();
   const base = current?.ui_preferences && typeof current.ui_preferences === "object" && !Array.isArray(current.ui_preferences) ? (current.ui_preferences as Record<string, Json>) : {};
   const before = parseOverviewPrefs(base).background;

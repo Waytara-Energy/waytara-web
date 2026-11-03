@@ -22,6 +22,7 @@ export function OverviewBoard({
   flow,
   cards,
   background,
+  backdrop = true,
 }: {
   solar: SolarCardsProps | null;
   ev: EvCardsProps | null;
@@ -29,6 +30,8 @@ export function OverviewBoard({
   flow: ComponentProps<typeof LiveEnergyFlow>;
   cards: OverviewCardId[];
   background: string | null;
+  /** Paint the background layer here. A carousel of boards paints it once itself and turns this off (the cards still turn to glass). */
+  backdrop?: boolean;
 }) {
   // Two tall cards per side; with a charger, two shorter charger cards under them.
   const rows = ev ? "2fr 2fr 1fr 1fr" : "1fr 1fr";
@@ -37,7 +40,7 @@ export function OverviewBoard({
   const { left, right } = splitCards(cards);
   return (
     <div className={cn(background && "[&_[data-slot=card]]:border-white/15 [&_[data-slot=card]]:bg-card/60 [&_[data-slot=card]]:backdrop-blur-md [&_a.group]:border-white/15 [&_a.group]:bg-card/60 [&_a.group]:backdrop-blur-md")}>
-      {background && <OverviewBackdrop css={background} />}
+      {background && backdrop && <OverviewBackdrop css={background} />}
       <div className="grid gap-4 lg:h-[max(calc(100svh-9.5rem),30rem)] lg:grid-cols-[minmax(15rem,1fr)_minmax(0,42rem)_minmax(15rem,1fr)]">
         <div className={`${side} lg:order-1`} style={style}>
           {solar && <EnergyTodayCards {...solar} cards={left} />}

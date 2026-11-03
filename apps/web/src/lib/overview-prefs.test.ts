@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { BACKGROUND_PRESETS, DEFAULT_OVERVIEW_CARDS, backgroundCss, isBackgroundPathOf, overviewToJson, parseOverviewPrefs, splitCards } from "./overview-prefs";
+import { BACKGROUND_PRESETS, DEFAULT_OVERVIEW_CARDS, backgroundCss, initialSlideIndex, isBackgroundPathOf, overviewToJson, parseOverviewPrefs, splitCards } from "./overview-prefs";
 
 const UID = "11111111-2222-3333-4444-555555555555";
 
@@ -29,9 +29,27 @@ describe("parseOverviewPrefs", () => {
   });
 });
 
+describe("the device the Overview opens on", () => {
+  const A = "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee";
+  it("keeps a device id and nothing that is not one", () => {
+    expect(parseOverviewPrefs({ overview_device: A }).device).toBe(A);
+    expect(parseOverviewPrefs({ overview_device: A.toUpperCase() }).device).toBe(A);
+    expect(parseOverviewPrefs({ overview_device: "not-an-id" }).device).toBeNull();
+    expect(parseOverviewPrefs({ overview_device: 5 }).device).toBeNull();
+    expect(parseOverviewPrefs(null).device).toBeNull();
+  });
+  it("opens on the chosen device's slide, else the first", () => {
+    const ids = ["11111111-1111-1111-1111-111111111111", A];
+    expect(initialSlideIndex(ids, A)).toBe(1);
+    expect(initialSlideIndex(ids, null)).toBe(0);
+    expect(initialSlideIndex(ids, "99999999-9999-9999-9999-999999999999")).toBe(0);
+    expect(initialSlideIndex([], A)).toBe(0);
+  });
+});
+
 describe("overviewToJson / parse round trip", () => {
   it("reads back what it wrote", () => {
-    const prefs = { cards: ["load", "solar", "grid", "imported"] as const, background: { kind: "preset", id: "dusk" } as const, dim: 50 };
+    const prefs = { cards: ["load", "solar", "grid", "imported"] as const, background: { kind: "preset", id: "dusk" } as const, dim: 50, device: "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee" };
     expect(parseOverviewPrefs(overviewToJson({ ...prefs, cards: [...prefs.cards] }))).toEqual({ ...prefs, cards: [...prefs.cards] });
   });
 });

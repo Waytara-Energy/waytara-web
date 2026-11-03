@@ -1,4 +1,5 @@
-// What a customer chooses about their Overview: which four cards sit beside the energy flow (two on each side) and what is behind the page.
+// What a customer chooses about their Overview: which four cards sit beside the energy flow (two on each side), what is behind the page and
+// which device the Overview opens on (it has one slide per inverter).
 // Kept in profiles.ui_preferences. Everything read back is checked, so a damaged or hand-edited value falls back to the defaults.
 
 export const OVERVIEW_CARDS = [
@@ -38,9 +39,14 @@ export interface OverviewPrefs {
   background: OverviewBackground;
   /** how much a picture is darkened so the cards stay readable, 0 to 80 (per cent) */
   dim: number;
+  /** The device whose slide the Overview opens on; null (or one that is not at the site being shown) = the first. */
+  device: string | null;
 }
 
-export const DEFAULT_OVERVIEW_PREFS: OverviewPrefs = { cards: DEFAULT_OVERVIEW_CARDS, background: { kind: "none" }, dim: 35 };
+export const DEFAULT_OVERVIEW_PREFS: OverviewPrefs = { cards: DEFAULT_OVERVIEW_CARDS, background: { kind: "none" }, dim: 35, device: null };
+
+const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+export const isDeviceId = (v: unknown): v is string => typeof v === "string" && UUID.test(v);
 
 /** A picture a person uploaded: `<their id>/overview-<digits>.<ext>` in the avatars bucket. Anything else is not accepted. */
 export const BACKGROUND_PATH = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}\/overview-\d{10,16}\.(jpg|jpeg|png|webp)$/;
@@ -60,12 +66,18 @@ export function parseOverviewPrefs(raw: unknown): OverviewPrefs {
   if (b.kind === "preset" && typeof b.id === "string" && PRESET_IDS.includes(b.id)) background = { kind: "preset", id: b.id as BackgroundPresetId };
   else if (b.kind === "image" && typeof b.path === "string" && BACKGROUND_PATH.test(b.path)) background = { kind: "image", path: b.path };
 
-  return { cards, background, dim: clampDim(o.overview_dim) };
+  return { cards, background, dim: clampDim(o.overview_dim), device: isDeviceId(o.overview_device) ? o.overview_device.toLowerCase() : null };
 }
 
 /** The value stored in profiles.ui_preferences (the other keys of that column are kept by the caller). */
-export function overviewToJson(p: OverviewPrefs): { overview_cards: OverviewCardId[]; overview_background: OverviewBackground; overview_dim: number } {
-  return { overview_cards: p.cards, overview_background: p.background, overview_dim: clampDim(p.dim) };
+export function overviewToJson(p: OverviewPrefs): { overview_cards: OverviewCardId[]; overview_background: OverviewBackground; overview_dim: number; overview_device: string | null } {
+  return { overview_cards: p.cards, overview_background: p.background, overview_dim: clampDim(p.dim), overview_device: isDeviceId(p.device) ? p.device.toLowerCase() : null };
+}
+
+/** Which slide the Overview opens on: the chosen device's, or the first when none is chosen or it is not one of these devices. */
+export function initialSlideIndex(deviceIds: readonly string[], chosen: string | null): number {
+  const i = chosen ? deviceIds.indexOf(chosen) : -1;
+  return i >= 0 ? i : 0;
 }
 
 /** The CSS that paints a background, or null for none. `imageUrl` is where the person's picture is served from. */

@@ -2,10 +2,11 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { Check, ImagePlus, LayoutDashboard, RotateCcw, Trash2 } from "lucide-react";
+import { Check, ImagePlus, LayoutDashboard, RotateCcw, Server, Trash2 } from "lucide-react";
 import { createClient } from "@waytara/supabase/client";
 import { notify } from "@waytara/ui/notify";
 import { Button } from "@/components/ui/button";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Slider } from "@/components/ui/slider";
 import { pictureProblem, shrinkPicture } from "@/lib/image-resize";
 import { BACKGROUND_PRESETS, DEFAULT_OVERVIEW_CARDS, OVERVIEW_CARDS, OVERVIEW_CARD_COUNT, backgroundCss, splitCards, type OverviewBackground, type OverviewCardId, type OverviewPrefs } from "@/lib/overview-prefs";
@@ -43,12 +44,22 @@ type Background = Pick<OverviewPrefs, "background" | "dim">;
 /** Settings > Dashboard > Overview: which four cards sit beside the energy flow (the first two on the left, the last two on the right), and the
  *  picture or colour behind the page. Everything saves itself: the cards once exactly four are chosen, the background when a colour is picked, a
  *  picture is chosen or the darkening is let go. A picture is shrunk in the browser first. */
-export function OverviewSection({ userId, initial, imageUrl }: { userId: string; initial: OverviewPrefs; imageUrl: string | null }) {
+export interface OverviewDeviceOption {
+  id: string;
+  name: string;
+  site: string;
+}
+
+const FIRST_DEVICE = "first";
+
+export function OverviewSection({ userId, initial, imageUrl, devices, severalSites }: { userId: string; initial: OverviewPrefs; imageUrl: string | null; devices: OverviewDeviceOption[]; severalSites: boolean }) {
   const router = useRouter();
   const [cards, setCards] = React.useState<OverviewCardId[]>(initial.cards);
-  // the background and the four cards are saved together, so each save carries the cards as last saved
+  const [device, setDevice] = React.useState<string>(initial.device ?? FIRST_DEVICE);
+  // the background, the four cards and the device are saved together, so each save carries the others as last saved
   const savedCards = React.useRef<OverviewCardId[]>(initial.cards);
-  const { value, update, saving } = useAutoSave<Background>(initial, (v) => saveOverview({ ...v, cards: savedCards.current }), { message: "Overview saved.", onSaved: () => router.refresh() });
+  const savedDevice = React.useRef<string | null>(initial.device);
+  const { value, update, saving } = useAutoSave<Background>(initial, (v) => saveOverview({ ...v, cards: savedCards.current, device: savedDevice.current }), { message: "Overview saved.", onSaved: () => router.refresh() });
   const bg: OverviewBackground = value.background;
   const [dimLive, setDimLive] = React.useState<number | null>(null);
   const dim = dimLive ?? value.dim;
@@ -63,7 +74,7 @@ export function OverviewSection({ userId, initial, imageUrl }: { userId: string;
   async function saveCards(next: OverviewCardId[]) {
     setSavingCards(true);
     try {
-      await saveOverview({ ...value, cards: next });
+      await saveOverview({ ...value, cards: next, device: savedDevice.current });
       savedCards.current = next;
       notify.success("Overview saved.", { duration: 1500 });
       router.refresh();
@@ -72,6 +83,21 @@ export function OverviewSection({ userId, initial, imageUrl }: { userId: string;
       notify.error(e instanceof Error ? e.message : "Could not save. Try again.");
     } finally {
       setSavingCards(false);
+    }
+  }
+
+  async function saveDevice(next: string) {
+    const previous = device;
+    setDevice(next);
+    const id = next === FIRST_DEVICE ? null : next;
+    try {
+      await saveOverview({ ...value, cards: savedCards.current, device: id });
+      savedDevice.current = id;
+      notify.success("Overview saved.", { duration: 1500 });
+      router.refresh();
+    } catch (e) {
+      setDevice(previous);
+      notify.error(e instanceof Error ? e.message : "Could not save. Try again.");
     }
   }
 
@@ -107,7 +133,33 @@ export function OverviewSection({ userId, initial, imageUrl }: { userId: string;
   }
 
   return (
-    <TwoColumns
+    <div className="space-y-4">
+      {devices.length > 1 && (
+        <SettingsCard
+          title="Device to show first"
+          icon={Server}
+          tone="sky"
+          description="The Overview has one page for each of your inverters: swipe, or use the arrows at the top, to move between them. Choose the one it opens on."
+        >
+          <div className="max-w-sm">
+            <Select value={device} onValueChange={(v) => void saveDevice(v)}>
+              <SelectTrigger className="w-full" aria-label="Device to show first">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value={FIRST_DEVICE}>The first one</SelectItem>
+                {devices.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>
+                    {severalSites ? `${d.name} · ${d.site}` : d.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          {severalSites && <p className="text-xs text-muted-foreground">If this device is at another site, the Overview opens on the first inverter of the site you are looking at.</p>}
+        </SettingsCard>
+      )}
+      <TwoColumns
       left={
         <SettingsCard
           title="Overview cards"
@@ -223,6 +275,7 @@ export function OverviewSection({ userId, initial, imageUrl }: { userId: string;
           )}
         </SettingsCard>
       }
-    />
+      />
+    </div>
   );
 }

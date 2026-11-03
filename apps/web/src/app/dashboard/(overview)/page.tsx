@@ -1,6 +1,6 @@
 import { Zap } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { getSelectedSite } from "@/lib/selected-site";
+import { deviceDisplayId, getSelectedSite } from "@/lib/selected-site";
 import { getRequestProfile } from "@/lib/request-profile";
 import { fetchSiteOverview } from "@/lib/device-overview";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -9,10 +9,11 @@ import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { SITE_OVERVIEW_KEYS } from "@/lib/overview-keys";
 import { fetchSolarCardsProps } from "@/components/dashboard/solar-live-status-cards";
 import { OverviewBoard } from "@/components/dashboard/overview-board";
+import { OverviewCarousel, type OverviewSlide } from "@/components/dashboard/overview-carousel";
 import { HeaderSlot } from "@/components/dashboard/header-slot";
 import { FlowLegendButton } from "@/components/dashboard/flow-legend-button";
 import { getLastSyncInfo } from "@/lib/device-sync";
-import { backgroundCss, parseOverviewPrefs } from "@/lib/overview-prefs";
+import { backgroundCss, initialSlideIndex, parseOverviewPrefs } from "@/lib/overview-prefs";
 
 // Site-centric redesign: Overview is now the selected *site*'s overview —
 // a customer can have several sites, and each site can have several
@@ -55,26 +56,54 @@ export default async function DashboardOverviewPage() {
     );
   }
 
-  const deviceIds = site.devices.map((d) => d.id);
   const chargerIds = site.devices.filter((d) => d.deviceType?.category === "ev_charger").map((d) => d.id);
-  const inverterId = site.devices.find((d) => d.deviceType?.category === "solar_inverter")?.id;
-  const [overview, inverterSync, uiRow] = await Promise.all([
-    deviceIds.length > 0 ? fetchSiteOverview(supabase, site) : Promise.resolve(null),
-    inverterId ? getLastSyncInfo(inverterId) : Promise.resolve(null),
-    // the person's own choices for this page (which four cards, what is behind it): see Application Settings
+  const inverters = site.devices.filter((d) => d.deviceType?.category === "solar_inverter");
+  const inverterIds = inverters.map((d) => d.id);
+
+  // One Overview per inverter (a slide each): the same fetches as before, but for a site made of that one device, so each slide's flow and
+  // cards are that device's own and not the site's sum.
+  const emptySync: DeviceSyncInit = { lastTs: null, agentSeenTs: null, deviceOnline: null, intervalS: null, heartbeatS: null };
+  const [slideData, uiRow] = await Promise.all([
+    Promise.all(
+      inverters.map(async (device) => {
+        const one = { ...site, devices: [device] };
+        const [overview, sync] = await Promise.all([fetchSiteOverview(supabase, one), getLastSyncInfo(device.id)]);
+        const syncInit: DeviceSyncInit = sync ?? emptySync;
+        const pvKeys = overview.pvKeys ?? [];
+        const initial: Record<string, number | null> = Object.fromEntries([...SITE_OVERVIEW_KEYS, ...pvKeys].map((k) => [k, overview.get(k)]));
+        // The first numbers of the cards beside the energy flow (the live channel keeps them current afterwards).
+        const solar = await fetchSolarCardsProps(supabase, one, syncInit, pvKeys);
+        return { device, syncInit, pvKeys, initial, solar };
+      }),
+    ),
+    // the person's own choices for this page (which four cards, what is behind it, which device it opens on): see Application Settings
     profile ? supabase.from("profiles").select("ui_preferences").eq("id", profile.id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
   const overviewPrefs = parseOverviewPrefs(uiRow.data?.ui_preferences);
   const backgroundUrl = overviewPrefs.background.kind === "image" ? supabase.storage.from("avatars").getPublicUrl(overviewPrefs.background.path).data.publicUrl : null;
   const background = backgroundCss(overviewPrefs.background, backgroundUrl, overviewPrefs.dim);
-  const inverterIds = site.devices.filter((d) => d.deviceType?.category === "solar_inverter").map((d) => d.id);
-  // What the server saw; the live components take it from here (no page refresh).
-  const syncInit: DeviceSyncInit = inverterSync ?? { lastTs: null, agentSeenTs: null, deviceOnline: null, intervalS: null, heartbeatS: null };
-  const pvKeys = overview?.pvKeys ?? [];
-  const overviewInitial: Record<string, number | null> = overview ? Object.fromEntries([...SITE_OVERVIEW_KEYS, ...pvKeys].map((k) => [k, overview.get(k)])) : {};
 
-  // The first numbers of the cards beside the energy flow (the live channel keeps them current afterwards).
-  const solarCards = await fetchSolarCardsProps(supabase, site, syncInit, pvKeys);
+  const slides: OverviewSlide[] = slideData.map((d) => ({
+    id: d.device.id,
+    name: deviceDisplayId(d.device),
+    content: (
+      <OverviewBoard
+        cards={overviewPrefs.cards}
+        background={background}
+        backdrop={false}
+        solar={d.solar}
+        ev={null}
+        flow={{
+          inverterIds: [d.device.id],
+          initial: d.initial,
+          powerPackage: site.powerPackage,
+          powerSourceCategory: site.powerSourceCategory,
+          pvKeys: d.pvKeys,
+          sync: d.syncInit,
+        }}
+      />
+    ),
+  }));
 
   return (
     <div className="space-y-4">
@@ -89,33 +118,18 @@ export default async function DashboardOverviewPage() {
       {/* The device status icons (each one a live connection) are in the page header on every page, and an offline device is announced by a toast
           at the top (both live in the dashboard layout). */}
 
-      {!overview ? (
+      {slides.length === 0 ? (
         <Empty className="border">
           <EmptyHeader>
             <EmptyMedia variant="icon">
               <Zap />
             </EmptyMedia>
-            <EmptyTitle>No devices yet</EmptyTitle>
-            <EmptyDescription>Your WayTara advisor sets this up during installation.</EmptyDescription>
+            <EmptyTitle>{site.devices.length > 0 ? "No inverter yet" : "No devices yet"}</EmptyTitle>
+            <EmptyDescription>{site.devices.length > 0 ? "The Overview shows each of your inverters. Your other devices are on their own pages." : "Your WayTara advisor sets this up during installation."}</EmptyDescription>
           </EmptyHeader>
         </Empty>
       ) : (
-        <>
-          <OverviewBoard
-            cards={overviewPrefs.cards}
-            background={background}
-            solar={solarCards}
-            ev={null}
-            flow={{
-              inverterIds,
-              initial: overviewInitial,
-              powerPackage: site.powerPackage,
-              powerSourceCategory: site.powerSourceCategory,
-              pvKeys,
-              sync: syncInit,
-            }}
-          />
-        </>
+        <OverviewCarousel slides={slides} initialIndex={initialSlideIndex(inverterIds, overviewPrefs.device)} background={background} />
       )}
     </div>
   );

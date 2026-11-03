@@ -15,7 +15,7 @@ import { NOTIFICATION_KEYS, pausedUntil, resolveNotificationPrefs } from "@/lib/
 import { parseOverviewPrefs } from "@/lib/overview-prefs";
 import { periodProgress, summarisePayments, type PaymentRow } from "@/lib/billing-summary";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
-import { getCustomerSites, getSelectedSite } from "@/lib/selected-site";
+import { deviceDisplayId, getCustomerSites, getSelectedSite } from "@/lib/selected-site";
 import { parseSessionPolicy } from "@/lib/session-policy";
 import { parseStartPage } from "@/lib/start-page";
 import { fetchUnitFields } from "@/lib/unit-fields";
@@ -104,7 +104,9 @@ export default async function SettingsPage() {
     : null;
 
   const payments: PaymentRow[] = paymentRows ?? [];
-  const overviewProps = { userId: profile.id, initial: overview, imageUrl };
+  // the Overview has one slide per inverter: these are the ones the person can choose to open it on (grouped by site when there are several)
+  const overviewDevices = allSites.flatMap((s) => s.devices.filter((d) => d.deviceType?.category === "solar_inverter").map((d) => ({ id: d.id, name: deviceDisplayId(d), site: s.name })));
+  const overviewProps = { userId: profile.id, initial: overview, imageUrl, devices: overviewDevices, severalSites: allSites.length > 1 };
   const addressesProps = { address, billing, billingEmail: customer?.billing_email ?? "", gstin: customer?.gstin ?? "" };
 
   return (
