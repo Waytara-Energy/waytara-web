@@ -1,6 +1,6 @@
 import { Reveal } from "@/components/shared/reveal";
 import { cn } from "@/lib/utils";
-import { BatteryVignette, DashboardVignette, EvChargerVignette, InverterVignette } from "./approach-vignettes";
+import { BatteryVignette, EvChargerVignette, InverterVignette } from "./approach-vignettes";
 
 interface Part {
   Vignette: React.ComponentType;
@@ -8,7 +8,7 @@ interface Part {
   body: string;
 }
 
-// What the platform does for each part, ending with the point of it all: every device in one application, across your sites.
+// What the platform does for each part of the system.
 const PARTS: Part[] = [
   {
     Vignette: InverterVignette,
@@ -17,32 +17,27 @@ const PARTS: Part[] = [
   },
   {
     Vignette: BatteryVignette,
-    title: "Battery, always in view",
-    body: "Know your charge level and when your backup is ready, before you need it.",
+    title: "Every battery, always in view",
+    body: "See each battery's charge at a glance, and know when one is running low.",
   },
   {
     Vignette: EvChargerVignette,
     title: "EV charging, on your terms",
     body: "Charge your vehicle from your own solar, at the times that suit you.",
   },
-  {
-    Vignette: DashboardVignette,
-    title: "One app, every site",
-    body: "Every device in a single application, however many sites you manage.",
-  },
 ];
 
-// Where the hairlines go: a cross between the four cells once they sit two by two, between rows when they stack on a phone.
-const DIVIDERS = ["", "border-t sm:border-t-0 sm:border-l", "border-t", "border-t sm:border-l"];
+// Where the hairlines go: between the cells once they sit side by side, between rows when they stack.
+const DIVIDERS = ["", "border-t lg:border-t-0 lg:border-l", "border-t lg:border-t-0 lg:border-l"];
 
 /**
- * The four parts in a two by two grid, each a small picture of the product you can point at, with a title and a line beneath.
- * No boxes: only hairlines between the cells.
+ * The parts in one row (stacked below 1024 px), each a small picture of the product you can point at, with a title and a line
+ * beneath. No boxes: only hairlines between the cells.
  */
 export function ApproachParts() {
   return (
     <div>
-      <ul className="mx-auto grid max-w-6xl grid-cols-1 sm:grid-cols-2">
+      <ul className="mx-auto grid max-w-6xl grid-cols-1 lg:grid-cols-3">
         {PARTS.map(({ Vignette, title, body }, i) => (
           <li key={title} className={cn("border-theme-border", DIVIDERS[i])}>
             <Reveal direction="up" duration={800} delay={i * 120} distance={24} className="flex flex-col items-center px-6 pb-12 pt-10 text-center">

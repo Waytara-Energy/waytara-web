@@ -3,7 +3,7 @@
 import * as React from "react";
 import { Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { CAR_BODY, CAR_BODY_OUTER, CAR_VIEWBOX, CAR_WHEELS, CAR_X0, CAR_X1 } from "./ev-car-art";
+import { CAR_BODY, CAR_BODY_INNER, CAR_BODY_OUTER, CAR_VIEWBOX, CAR_WHEELS, CAR_X0, CAR_X1 } from "./ev-car-art";
 
 // Four small pictures of the product for the Our Approach cells. Each one answers the mouse (or a finger) and settles back to a
 // resting state when the cursor leaves. The figures shown are illustrations, not live readings.
@@ -46,22 +46,6 @@ function useTween(target: number, ms = 700) {
 
 const STAGE = "relative flex h-[22rem] w-full touch-pan-y select-none items-center justify-center";
 const WIDTH = "w-full max-w-[24rem]";
-
-function MiniCard({ className, children }: { className?: string; children: React.ReactNode }) {
-  return (
-    <div className={cn(WIDTH, "relative rounded-xl border border-theme-border bg-theme-surface p-4 text-left shadow-[0_10px_28px_-14px_rgba(16,24,40,0.22)] dark:shadow-[0_10px_28px_-14px_rgba(0,0,0,0.7)]", className)}>{children}</div>
-  );
-}
-
-/** A small rounded badge with a coloured dot. */
-function Badge({ children, tone = "ok", className }: { children: React.ReactNode; tone?: "ok" | "warn"; className?: string }) {
-  return (
-    <span className={cn("inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-theme-border bg-theme-surface px-3 py-1 text-xs font-medium text-theme-primary shadow-sm", className)}>
-      <span className={cn("size-1.5 rounded-full", tone === "ok" ? "bg-emerald-500" : "bg-amber-500")} />
-      {children}
-    </span>
-  );
-}
 
 // ---------------------------------------------------------------------------------------------- inverter: a day of solar, as bars
 
@@ -119,36 +103,47 @@ export function InverterVignette() {
   );
 }
 
-// ---------------------------------------------------------------------------------------------- battery: the battery itself
+// ---------------------------------------------------------------------------------------------- batteries: one full, one low
 
-const CELLS = 5;
+const BATTERY_CELLS = 5;
+const FULL_LEVEL = 100;
+const LOW_LEVEL = 15;
 
-export function BatteryVignette() {
-  const { ref, ratio, handlers } = usePointerRatio();
-  // rests at its level; fills while the pointer is over it
-  const level = useTween(ratio ? 100 : 82);
+/** An upright battery whose cells fill from the bottom; amber when low and red when nearly empty. */
+function VerticalBattery({ level }: { level: number }) {
   const pct = Math.round(level);
   const tone = pct >= 40 ? "bg-emerald-500" : pct >= 20 ? "bg-amber-500" : "bg-rose-500";
 
   return (
-    <div ref={ref} aria-hidden="true" className={STAGE} {...handlers}>
-      <div className="flex flex-col items-center">
-        <p className="text-3xl font-semibold tracking-tight text-theme-primary tabular-nums">{pct}%</p>
-        <p className="mt-1 text-xs text-theme-secondary">Charge level</p>
-
-        <div className="relative mt-7 h-28 w-64 rounded-2xl border-[5px] border-zinc-800 p-1.5 dark:border-zinc-300">
-          <span className="absolute -right-[15px] top-1/2 h-10 w-[9px] -translate-y-1/2 rounded-r-md bg-zinc-800 dark:bg-zinc-300" />
-          <div className="flex h-full gap-1.5">
-            {Array.from({ length: CELLS }, (_, i) => {
-              const fill = clamp01((level - (i * 100) / CELLS) / (100 / CELLS));
-              return (
-                <div key={i} className="h-full flex-1 overflow-hidden rounded-md bg-black/[0.06] dark:bg-white/10">
-                  <div className={cn("h-full", tone)} style={{ width: `${fill * 100}%` }} />
-                </div>
-              );
-            })}
-          </div>
+    <div className="flex flex-col items-center">
+      <p className="text-2xl font-semibold tracking-tight text-theme-primary tabular-nums">{pct}%</p>
+      <div className="relative mt-6 h-44 w-24 rounded-2xl border-[5px] border-zinc-800 p-1.5 dark:border-zinc-300">
+        <span className="absolute -top-[15px] left-1/2 h-[9px] w-10 -translate-x-1/2 rounded-t-md bg-zinc-800 dark:bg-zinc-300" />
+        <div className="flex h-full flex-col-reverse gap-1.5">
+          {Array.from({ length: BATTERY_CELLS }, (_, i) => {
+            const fill = clamp01((level - (i * 100) / BATTERY_CELLS) / (100 / BATTERY_CELLS));
+            return (
+              <div key={i} className="flex flex-1 flex-col justify-end overflow-hidden rounded-md bg-black/[0.06] dark:bg-white/10">
+                <div className={tone} style={{ height: `${fill * 100}%` }} />
+              </div>
+            );
+          })}
         </div>
+      </div>
+    </div>
+  );
+}
+
+export function BatteryVignette() {
+  const { ref, ratio, handlers } = usePointerRatio();
+  // the second one rests low and fills while the pointer is over the picture
+  const low = useTween(ratio ? FULL_LEVEL : LOW_LEVEL);
+
+  return (
+    <div ref={ref} aria-hidden="true" className={STAGE} {...handlers}>
+      <div className="flex items-start justify-center gap-14">
+        <VerticalBattery level={FULL_LEVEL} />
+        <VerticalBattery level={low} />
       </div>
     </div>
   );
@@ -158,11 +153,13 @@ export function BatteryVignette() {
 
 const SESSION_KWH = 24;
 const CAR_SEGMENTS = 10;
-const CAR_GAP = 8;
+const CAR_GAP = 22;
+/** How far the cells sit in from the outline, like the padding inside the battery's body. */
+const CAR_INSET = 11;
 const CAR_SPAN = CAR_X1 - CAR_X0;
 const CAR_SEG_W = CAR_SPAN / CAR_SEGMENTS;
 
-/** The EV drawing with its body filled like the battery: ten bordered cells from the rear to the nose, lit up to the charge level. */
+/** The EV drawing with its body filled like the battery: ten cells with gaps, set in from the outline, lit up to the charge level. */
 function Car({ level }: { level: number }) {
   const clipId = `car-clip-${React.useId().replace(/:/g, "")}`;
   const cells = Array.from({ length: CAR_SEGMENTS }, (_, i) => ({
@@ -182,12 +179,13 @@ function Car({ level }: { level: number }) {
       <g clipPath={`url(#${clipId})`}>
         {cells.map((c) => (
           <g key={c.i}>
-            <rect x={c.x} y="100" width={c.w} height="300" className="fill-black/[0.07] dark:fill-white/10" />
+            <rect x={c.x} y="100" width={c.w} height="300" className="fill-black/[0.06] dark:fill-white/10" />
             <rect x={c.x} y="100" height="300" className="fill-emerald-500" style={{ width: c.w * c.fill }} />
-            <rect x={c.x} y="100" width={c.w} height="300" rx="10" fill="none" strokeWidth="4" className="stroke-zinc-800 dark:stroke-zinc-200" />
           </g>
         ))}
       </g>
+      {/* the gap between the outline and the cells, in the page's own colour */}
+      <path d={CAR_BODY_INNER} fill="none" strokeWidth={CAR_INSET * 2} strokeLinejoin="round" style={{ stroke: "var(--background)" }} />
       <path d={CAR_BODY} className="fill-zinc-800 dark:fill-zinc-200" />
       {CAR_WHEELS.map((d) => (
         <path key={d} d={d} className="fill-zinc-800 dark:fill-zinc-200" />
@@ -216,107 +214,6 @@ export function EvChargerVignette() {
           <span aria-hidden="true" className="pointer-events-none absolute -bottom-2 left-1/2 h-3 w-4/5 -translate-x-1/2 rounded-full bg-black/15 blur-md dark:bg-black/60" />
         </div>
       </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------------------------- dashboard: one app, many sites
-
-interface Device {
-  name: string;
-  online: boolean;
-}
-interface Site {
-  name: string;
-  devices: Device[];
-}
-
-const SITES: Site[] = [
-  {
-    name: "Home",
-    devices: [
-      { name: "Solar inverter", online: true },
-      { name: "Battery", online: true },
-      { name: "EV charger", online: true },
-    ],
-  },
-  {
-    name: "Office",
-    devices: [
-      { name: "Solar inverter", online: true },
-      { name: "Battery", online: true },
-      { name: "Grid meter", online: true },
-      { name: "EV charger", online: true },
-    ],
-  },
-  {
-    name: "Warehouse",
-    devices: [
-      { name: "Solar inverter", online: true },
-      { name: "Battery", online: true },
-      { name: "EV charger", online: false },
-      { name: "Grid meter", online: true },
-    ],
-  },
-];
-const inactiveCount = (site: Site) => site.devices.filter((d) => !d.online).length;
-const REST = SITES.length - 1; // rests on the site with an inactive device, so it shows at a glance
-
-export function DashboardVignette() {
-  const [sel, setSel] = React.useState(REST);
-  const site = SITES[sel];
-  const inactive = inactiveCount(site);
-
-  return (
-    <div aria-hidden="true" className={STAGE} onPointerLeave={() => setSel(REST)}>
-      <MiniCard className="mb-4">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-semibold text-theme-primary">Your sites</p>
-          <span className="text-[11px] text-theme-secondary">{SITES.length} sites</span>
-        </div>
-
-        <div className="mt-3 grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3 sm:grid-cols-2">
-          <div className="space-y-2">
-            {SITES.map((s, i) => {
-              const off = inactiveCount(s);
-              return (
-                <div
-                  key={s.name}
-                  onPointerEnter={() => setSel(i)}
-                  onPointerDown={() => setSel(i)}
-                  className={cn(
-                    "rounded-lg border px-3 py-2 text-xs transition-colors duration-150",
-                    sel === i ? "border-emerald-500/50 bg-emerald-500/10" : "border-theme-border",
-                  )}
-                >
-                  <p className="font-medium text-theme-primary">{s.name}</p>
-                  <p className={cn("mt-0.5 text-[11px]", off ? "text-amber-600 dark:text-amber-400" : "text-theme-secondary")}>{off ? `${off} inactive` : "All online"}</p>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="rounded-lg border border-theme-border px-3 py-2">
-            <p className="text-[11px] font-medium uppercase tracking-wide text-theme-muted">{site.name}</p>
-            <ul className="mt-1.5 space-y-1.5">
-              {site.devices.map((d) => (
-                <li key={d.name} className="flex items-center justify-between gap-2 text-[11px]">
-                  <span className="flex min-w-0 items-center gap-1.5">
-                    <span className={cn("size-1.5 shrink-0 rounded-full", d.online ? "bg-emerald-500" : "bg-rose-500")} />
-                    <span className={cn("truncate", d.online ? "text-theme-primary" : "text-theme-secondary")}>{d.name}</span>
-                  </span>
-                  <span className={cn("shrink-0", d.online ? "text-theme-secondary" : "font-medium text-rose-600 dark:text-rose-400")}>{d.online ? "Online" : "Inactive"}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-
-        <div className="mt-6" />
-        <Badge tone={inactive ? "warn" : "ok"} className="absolute -bottom-3 left-1/2 -translate-x-1/2">
-          {inactive ? `${inactive} device inactive, one app` : "All devices online, one app"}
-        </Badge>
-      </MiniCard>
     </div>
   );
 }
