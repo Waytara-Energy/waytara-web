@@ -1,45 +1,9 @@
 "use client";
 
 import * as React from "react";
-import { ArrowDown, Sun, BatteryCharging, PlugZap, Activity } from "lucide-react";
+import { ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { SystemScene } from "./approach-scene";
 import { ApproachParts } from "./approach-parts";
-
-interface SystemPart {
-  n: 1 | 2 | 3 | 4;
-  icon: React.ElementType;
-  title: string;
-  description: string;
-}
-
-// The four parts of the system, in the order the homepage copy lists them.
-const PARTS: SystemPart[] = [
-  {
-    n: 1,
-    icon: Sun,
-    title: "Solar Generation",
-    description: "Rooftop solar panels and an inverter turn sunlight into power your property can use.",
-  },
-  {
-    n: 2,
-    icon: BatteryCharging,
-    title: "Energy Storage",
-    description: "A battery keeps spare solar power for the evening, and for when the grid goes down.",
-  },
-  {
-    n: 3,
-    icon: PlugZap,
-    title: "EV Charging",
-    description: "Charge your vehicles from your own solar and battery, at the times that suit you.",
-  },
-  {
-    n: 4,
-    icon: Activity,
-    title: "Energy Management",
-    description: "One dashboard to monitor generation, usage, storage and loads, and to control them.",
-  },
-];
 
 const FULL_LINE_1 = "One energy system,";
 const FULL_LINE_2 = "designed around your property.";
@@ -51,8 +15,6 @@ export function OurApproach() {
   const [line2, setLine2] = React.useState("");
   const [currentLine, setCurrentLine] = React.useState<1 | 2>(1);
   const [typingComplete, setTypingComplete] = React.useState(false);
-  // The part the visitor is pointing at (hover or keyboard focus on the list below the scene); its pins light up in the scene.
-  const [active, setActive] = React.useState<1 | 2 | 3 | 4 | null>(null);
 
   // Trigger typing once when user scrolls into the section
   React.useEffect(() => {
@@ -157,54 +119,25 @@ export function OurApproach() {
           </p>
         </div>
 
-        {/* 3. The equipment: panel, inverter and battery, each with what it does - fade & slide in after typing completes */}
+        {/* 3. The four parts as small interactive pictures - fade & slide in after typing completes */}
         <div
           className={cn(
-            "mb-20 transition-all duration-700 delay-100 ease-out",
+            "transition-all duration-700 delay-100 ease-out",
             typingComplete ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5 pointer-events-none"
           )}
         >
           <ApproachParts />
         </div>
 
-        {/* 4. One scene with the whole system, then the four parts as a quiet list - fade & slide in after typing completes */}
-        <div
+        {/* 4. The closing line - fade & slide in after typing completes */}
+        <p
           className={cn(
-            "transition-all duration-700 delay-150 ease-out",
+            "mt-10 text-center text-sm font-medium text-theme-secondary transition-all duration-700 delay-150 ease-out",
             typingComplete ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5 pointer-events-none"
           )}
         >
-          <SystemScene active={active} />
-
-          <ol className="mt-8 grid grid-cols-1 gap-x-8 gap-y-6 sm:grid-cols-2 lg:grid-cols-4" onMouseLeave={() => setActive(null)}>
-            {PARTS.map((part) => {
-              const Icon = part.icon;
-              return (
-                <li
-                  key={part.title}
-                  tabIndex={0}
-                  onMouseEnter={() => setActive(part.n)}
-                  onFocus={() => setActive(part.n)}
-                  onBlur={() => setActive(null)}
-                  className="group rounded-xl outline-none transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500/60"
-                >
-                  <div className="mb-3 flex items-center gap-3">
-                    <span className="flex size-7 items-center justify-center rounded-full bg-emerald-600 text-xs font-bold text-white">{part.n}</span>
-                    <Icon className="size-5 stroke-[1.75] text-emerald-600 dark:text-emerald-400" />
-                  </div>
-                  <h3 className="mb-1.5 text-base sm:text-lg font-bold tracking-tight text-theme-primary transition-colors group-hover:text-emerald-600 dark:group-hover:text-emerald-400">
-                    {part.title}
-                  </h3>
-                  <p className="text-sm text-theme-secondary leading-relaxed">{part.description}</p>
-                </li>
-              );
-            })}
-          </ol>
-
-          <p className="mt-10 text-center text-sm font-medium text-theme-secondary">
-            Four parts, designed, installed and managed together as one integrated energy system.
-          </p>
-        </div>
+          Four parts, designed, installed and managed together as one integrated energy system.
+        </p>
 
       </div>
     </section>
