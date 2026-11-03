@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import { ContainerScroll } from "@/components/ui/container-scroll-animation";
+import { DashboardKeyFeatures } from "./dashboard-key-features";
 import { DemoMonitoring, DEMO_HEIGHT, DEMO_WIDTH } from "./demo-monitoring";
 import type { LandingSnapshot } from "@/lib/landing-live";
 
@@ -98,9 +99,9 @@ export function DashboardShowcase() {
       >
         <FittedDemo data={data} />
       </ContainerScroll>
-      <p className="-mt-16 px-4 pb-16 text-center text-xs text-theme-secondary sm:text-sm md:-mt-36">
-        Live from our Waytara Office: the same Monitoring page our customers use. Try the tabs, or fold the sidebar.
-      </p>
+      <div className="-mt-20 pb-24 md:-mt-36">
+        <DashboardKeyFeatures />
+      </div>
     </section>
   );
 }
