@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Check, Play, PlugZap, Square, Sun } from "lucide-react";
+import { Play, Square, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // Four small pictures of the product for the Our Approach cells. Each one answers the mouse (or a finger) and settles back to a
@@ -134,14 +134,33 @@ export function BatteryVignette() {
   );
 }
 
-// ---------------------------------------------------------------------------------------------- EV charger: this session and past ones
+// ---------------------------------------------------------------------------------------------- EV charger: a car and its charge
 
-const PAST_SESSIONS = [
-  { when: "Yesterday", kwh: "18.4 kWh", time: "2 h 10 m" },
-  { when: "Monday", kwh: "12.1 kWh", time: "1 h 25 m" },
-  { when: "Sunday", kwh: "22.0 kWh", time: "2 h 40 m" },
-];
 const SESSION_KWH = 24;
+const CHARGE_LIMIT = 80;
+
+/** A sleek side view of an EV, always dark so the charge bar and badge read the same on a light or a dark page. */
+function Car() {
+  return (
+    <svg viewBox="0 0 360 120" className="block h-auto w-full" fill="none">
+      <ellipse cx="180" cy="108" rx="150" ry="7" className="fill-black/15 dark:fill-black/60" />
+      <path
+        d="M22 92 C22 80 36 74 64 70 L108 48 C128 32 160 24 198 24 C230 24 256 32 274 48 L308 64 C332 68 344 78 344 92 L344 98 L22 98 Z"
+        className="fill-zinc-900 stroke-white/15"
+        strokeWidth="1.5"
+      />
+      <path d="M120 54 C142 38 172 32 198 32 C224 32 248 38 264 52 Z" className="fill-zinc-700/70" />
+      <path d="M62 70 L108 48 C128 32 160 24 198 24 C230 24 256 32 274 48" stroke="white" strokeOpacity="0.28" strokeWidth="1.5" strokeLinecap="round" />
+      {[96, 270].map((cx) => (
+        <g key={cx}>
+          <circle cx={cx} cy="98" r="19" className="fill-zinc-950 stroke-white/20" strokeWidth="1.5" />
+          <circle cx={cx} cy="98" r="8" className="fill-zinc-700" />
+        </g>
+      ))}
+      <circle cx="338" cy="84" r="3" className="fill-emerald-400" />
+    </svg>
+  );
+}
 
 export function EvChargerVignette() {
   const { ref, ratio, handlers } = usePointerRatio();
@@ -150,59 +169,58 @@ export function EvChargerVignette() {
   const live = ratio ? Math.round(ratio.x * 100) : 62;
   const pct = stoppedAt ?? live;
   const stopped = stoppedAt !== null;
+  const status = stopped ? "Stopped" : pct >= CHARGE_LIMIT ? "Charge limit reached" : "Charging from solar";
 
   return (
     <div ref={ref} aria-hidden="true" className={STAGE} {...handlers}>
-      <MiniCard>
-        <div className="flex items-center gap-3">
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-            <PlugZap className="size-4" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-xs font-semibold text-theme-primary">EV charger</p>
-            <p className="text-[11px] text-theme-secondary">Current session</p>
+      <div className={cn(WIDTH, "flex flex-col items-center")}>
+        <p className="text-4xl font-semibold leading-none tracking-tight text-theme-primary tabular-nums">
+          {pct}
+          <span className="ml-0.5 align-top text-base font-medium text-theme-secondary">%</span>
+        </p>
+        <p className="mt-1.5 text-xs text-theme-secondary tabular-nums">{((pct / 100) * SESSION_KWH).toFixed(1)} kWh this session</p>
+
+        <div className="mt-3 w-full max-w-[19rem]">
+          <Car />
+        </div>
+
+        <div className="relative mt-5 w-full">
+          <div className="absolute -top-6 flex -translate-x-1/2 flex-col items-center" style={{ left: `${CHARGE_LIMIT}%` }}>
+            <span className="text-[11px] font-medium text-theme-secondary">{CHARGE_LIMIT}%</span>
+            <svg viewBox="0 0 10 6" className="h-1.5 w-2.5 fill-theme-secondary">
+              <path d="M0 0 H10 L5 6 Z" />
+            </svg>
           </div>
-          <Badge tone={stopped ? "warn" : "ok"}>{stopped ? "Stopped" : "Charging from solar"}</Badge>
+          <div className="relative h-7 w-full overflow-hidden rounded-md bg-black/[0.07] dark:bg-white/10">
+            <div
+              className={cn("h-full bg-gradient-to-r transition-[width] duration-150 ease-out", stopped ? "from-amber-600 to-amber-400" : "from-emerald-600 to-emerald-400")}
+              style={{ width: `${pct}%` }}
+            />
+            <span
+              className="pointer-events-none absolute inset-0"
+              style={{ backgroundImage: "repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 2px), var(--background) calc(10% - 2px), var(--background) 10%)" }}
+            />
+          </div>
         </div>
 
-        <div className="mt-4 flex items-baseline justify-between">
-          <span className="text-2xl font-semibold tracking-tight text-theme-primary tabular-nums">{pct}%</span>
-          <span className="text-xs text-theme-secondary tabular-nums">{((pct / 100) * SESSION_KWH).toFixed(1)} kWh</span>
+        <div className="mt-4 flex items-center gap-2">
+          <Badge tone={stopped ? "warn" : "ok"}>{status}</Badge>
+          <button
+            type="button"
+            tabIndex={-1}
+            onClick={() => setStoppedAt(stopped ? null : pct)}
+            className={cn(
+              "inline-flex h-[26px] items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors",
+              stopped
+                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-300"
+                : "border-rose-500/30 bg-rose-500/[0.07] text-rose-700 hover:bg-rose-500/[0.12] dark:text-rose-300",
+            )}
+          >
+            {stopped ? <Play className="size-3" /> : <Square className="size-3" />}
+            {stopped ? "Resume" : "Stop"}
+          </button>
         </div>
-        <div className="mt-2 h-2 w-full overflow-hidden rounded-full bg-black/[0.06] dark:bg-white/10">
-          <div className={cn("h-full rounded-full transition-[width,background-color] duration-150 ease-out", stopped ? "bg-amber-500" : "bg-emerald-500")} style={{ width: `${pct}%` }} />
-        </div>
-
-        <button
-          type="button"
-          tabIndex={-1}
-          onClick={() => setStoppedAt(stopped ? null : pct)}
-          className={cn(
-            "mt-3 inline-flex h-8 w-full items-center justify-center gap-1.5 rounded-lg border text-xs font-medium transition-colors",
-            stopped
-              ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-300"
-              : "border-rose-500/30 bg-rose-500/[0.07] text-rose-700 hover:bg-rose-500/[0.12] dark:text-rose-300",
-          )}
-        >
-          {stopped ? <Play className="size-3.5" /> : <Square className="size-3.5" />}
-          {stopped ? "Resume charging" : "Stop charging"}
-        </button>
-
-        <p className="mt-4 text-[11px] font-medium uppercase tracking-wide text-theme-muted">Past sessions</p>
-        <ul className="mt-1.5 divide-y divide-theme-border">
-          {PAST_SESSIONS.map((s) => (
-            <li key={s.when} className="flex items-center justify-between py-1.5 text-xs">
-              <span className="flex items-center gap-2 text-theme-primary">
-                <Check className="size-3.5 text-emerald-600 dark:text-emerald-400" />
-                {s.when}
-              </span>
-              <span className="tabular-nums text-theme-secondary">
-                {s.kwh} · {s.time}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </MiniCard>
+      </div>
     </div>
   );
 }
