@@ -3,6 +3,7 @@
 import * as React from "react";
 import { Play, Square, Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CAR_BODY, CAR_BODY_OUTER, CAR_VIEWBOX, CAR_WHEELS, CAR_X0, CAR_X1 } from "./ev-car-art";
 
 // Four small pictures of the product for the Our Approach cells. Each one answers the mouse (or a finger) and settles back to a
 // resting state when the cursor leaves. The figures shown are illustrations, not live readings.
@@ -134,30 +135,47 @@ export function BatteryVignette() {
   );
 }
 
-// ---------------------------------------------------------------------------------------------- EV charger: a car and its charge
+// ---------------------------------------------------------------------------------------------- EV charger: the car is the battery
 
 const SESSION_KWH = 24;
 const CHARGE_LIMIT = 80;
+const CAR_SEGMENTS = 10;
+const CAR_GAP = 6;
+const CAR_SPAN = CAR_X1 - CAR_X0;
+const CAR_SEG_W = CAR_SPAN / CAR_SEGMENTS;
+const CAR_VIEW_X = 120;
+const CAR_VIEW_W = 858;
 
-/** A sleek side view of an EV, always dark so the charge bar and badge read the same on a light or a dark page. */
-function Car() {
+/** The EV drawing with its body filled like the battery: ten cells from the rear to the nose, lit up to the charge level. */
+function Car({ pct, stopped }: { pct: number; stopped: boolean }) {
+  const clipId = `car-clip-${React.useId().replace(/:/g, "")}`;
+  const limitX = CAR_X0 + CAR_SPAN * (CHARGE_LIMIT / 100);
+
   return (
-    <svg viewBox="0 0 360 120" className="block h-auto w-full" fill="none">
-      <ellipse cx="180" cy="108" rx="150" ry="7" className="fill-black/15 dark:fill-black/60" />
-      <path
-        d="M22 92 C22 80 36 74 64 70 L108 48 C128 32 160 24 198 24 C230 24 256 32 274 48 L308 64 C332 68 344 78 344 92 L344 98 L22 98 Z"
-        className="fill-zinc-900 stroke-white/15"
-        strokeWidth="1.5"
-      />
-      <path d="M120 54 C142 38 172 32 198 32 C224 32 248 38 264 52 Z" className="fill-zinc-700/70" />
-      <path d="M62 70 L108 48 C128 32 160 24 198 24 C230 24 256 32 274 48" stroke="white" strokeOpacity="0.28" strokeWidth="1.5" strokeLinecap="round" />
-      {[96, 270].map((cx) => (
-        <g key={cx}>
-          <circle cx={cx} cy="98" r="19" className="fill-zinc-950 stroke-white/20" strokeWidth="1.5" />
-          <circle cx={cx} cy="98" r="8" className="fill-zinc-700" />
-        </g>
+    <svg viewBox={CAR_VIEWBOX} className="block h-auto w-full overflow-visible">
+      <defs>
+        <clipPath id={clipId}>
+          <path d={CAR_BODY_OUTER} />
+        </clipPath>
+      </defs>
+      <g clipPath={`url(#${clipId})`}>
+        {Array.from({ length: CAR_SEGMENTS }, (_, i) => {
+          const x = CAR_X0 + i * CAR_SEG_W + CAR_GAP / 2;
+          const w = CAR_SEG_W - CAR_GAP;
+          const fill = clamp01((pct - i * (100 / CAR_SEGMENTS)) / (100 / CAR_SEGMENTS));
+          return (
+            <g key={i}>
+              <rect x={x} y="100" width={w} height="300" className="fill-black/[0.07] dark:fill-white/10" />
+              <rect x={x} y="100" height="300" className={stopped ? "fill-amber-500" : "fill-emerald-500"} style={{ width: w * fill, transition: "width 150ms ease-out" }} />
+            </g>
+          );
+        })}
+        <line x1={limitX} x2={limitX} y1="100" y2="400" strokeDasharray="6 6" strokeWidth="3" className="stroke-zinc-500/60" />
+      </g>
+      <path d={CAR_BODY} className="fill-zinc-800 dark:fill-zinc-200" />
+      {CAR_WHEELS.map((d) => (
+        <path key={d} d={d} className="fill-zinc-800 dark:fill-zinc-200" />
       ))}
-      <circle cx="338" cy="84" r="3" className="fill-emerald-400" />
     </svg>
   );
 }
@@ -180,30 +198,21 @@ export function EvChargerVignette() {
         </p>
         <p className="mt-1.5 text-xs text-theme-secondary tabular-nums">{((pct / 100) * SESSION_KWH).toFixed(1)} kWh this session</p>
 
-        <div className="mt-3 w-full max-w-[19rem]">
-          <Car />
-        </div>
-
-        <div className="relative mt-5 w-full">
-          <div className="absolute -top-6 flex -translate-x-1/2 flex-col items-center" style={{ left: `${CHARGE_LIMIT}%` }}>
+        <div className="relative mt-9 w-full">
+          <div
+            className="absolute -top-6 flex -translate-x-1/2 flex-col items-center"
+            style={{ left: `${((CAR_X0 + CAR_SPAN * (CHARGE_LIMIT / 100) - CAR_VIEW_X) / CAR_VIEW_W) * 100}%` }}
+          >
             <span className="text-[11px] font-medium text-theme-secondary">{CHARGE_LIMIT}%</span>
             <svg viewBox="0 0 10 6" className="h-1.5 w-2.5 fill-theme-secondary">
               <path d="M0 0 H10 L5 6 Z" />
             </svg>
           </div>
-          <div className="relative h-7 w-full overflow-hidden rounded-md bg-black/[0.07] dark:bg-white/10">
-            <div
-              className={cn("h-full bg-gradient-to-r transition-[width] duration-150 ease-out", stopped ? "from-amber-600 to-amber-400" : "from-emerald-600 to-emerald-400")}
-              style={{ width: `${pct}%` }}
-            />
-            <span
-              className="pointer-events-none absolute inset-0"
-              style={{ backgroundImage: "repeating-linear-gradient(90deg, transparent 0, transparent calc(10% - 2px), var(--background) calc(10% - 2px), var(--background) 10%)" }}
-            />
-          </div>
+          <Car pct={pct} stopped={stopped} />
+          <span aria-hidden="true" className="pointer-events-none absolute -bottom-2 left-1/2 h-3 w-4/5 -translate-x-1/2 rounded-full bg-black/15 blur-md dark:bg-black/60" />
         </div>
 
-        <div className="mt-4 flex items-center gap-2">
+        <div className="mt-8 flex items-center gap-2">
           <Badge tone={stopped ? "warn" : "ok"}>{status}</Badge>
           <button
             type="button"
