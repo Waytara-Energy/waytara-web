@@ -13,6 +13,8 @@ export interface OpenCharge {
   /** the charger's own number for it (needed to stop it), when the charger has given one */
   transactionId: number | null;
   startedAt: string;
+  /** the charger's energy register when the charge began, so a live reading of the register gives the energy so far */
+  startEnergyKwh: number | null;
   kwh: number | null;
   kw: number | null;
 }
@@ -53,6 +55,7 @@ export async function fetchEvOverview(supabase: SupabaseServerClient, chargerId:
       id: row.id,
       transactionId: row.ocpp_transaction_id,
       startedAt: row.started_at,
+      startEnergyKwh: row.start_energy_kwh,
       kwh: live?.energyKwh ?? sessionKwh(row.start_energy_kwh, null),
       kw: today.currentPowerW === null ? null : today.currentPowerW / 1000,
     };

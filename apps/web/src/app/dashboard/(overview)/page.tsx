@@ -9,7 +9,8 @@ import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { SITE_OVERVIEW_KEYS } from "@/lib/overview-keys";
 import { fetchSolarCardsProps } from "@/components/dashboard/solar-live-status-cards";
 import { fetchEvCardsProps } from "@/components/dashboard/ev-live-status-cards";
-import { EvChargerHub } from "@/components/dashboard/ev-charger-hub";
+import { EvOverviewBoard } from "@/components/dashboard/ev-overview-board";
+import { fetchEvHistory, type EvHistory } from "@/lib/ev-history";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { fetchEvOverview } from "@/lib/ev-overview";
 import { OverviewBoard } from "@/components/dashboard/overview-board";
@@ -67,7 +68,7 @@ export default async function DashboardOverviewPage() {
   const emptySync: DeviceSyncInit = { lastTs: null, agentSeenTs: null, deviceOnline: null, intervalS: null, heartbeatS: null };
   type SlideData =
     | { kind: "inverter"; device: (typeof site.devices)[number]; syncInit: DeviceSyncInit; pvKeys: string[]; initial: Record<string, number | null>; solar: Awaited<ReturnType<typeof fetchSolarCardsProps>> }
-    | { kind: "charger"; device: (typeof site.devices)[number]; cards: Awaited<ReturnType<typeof fetchEvCardsProps>>; ev: Awaited<ReturnType<typeof fetchEvOverview>> };
+    | { kind: "charger"; device: (typeof site.devices)[number]; cards: Awaited<ReturnType<typeof fetchEvCardsProps>>; ev: Awaited<ReturnType<typeof fetchEvOverview>>; history: EvHistory };
   const [slideData, uiRow] = await Promise.all([
     Promise.all(
       site.devices.map(async (device): Promise<SlideData | null> => {
@@ -84,7 +85,8 @@ export default async function DashboardOverviewPage() {
         }
         if (category === "ev_charger") {
           const [cards, ev] = await Promise.all([fetchEvCardsProps(supabase, one), fetchEvOverview(supabase, device.id)]);
-          return { kind: "charger", device, cards, ev };
+          const history = await fetchEvHistory(supabase, device.id, cards?.tariffRate ?? 8);
+          return { kind: "charger", device, cards, ev, history };
         }
         return null;
       }),
@@ -128,22 +130,15 @@ export default async function DashboardOverviewPage() {
         id: d.device.id,
         name: deviceDisplayId(d.device),
         content: (
-          <OverviewBoard
-            cards={overviewPrefs.cards}
-            background={background}
-            backdrop={false}
-            solar={null}
-            ev={d.cards}
-            center={
-              <EvChargerHub
-                chargerId={d.device.id}
-                initialPowerKw={d.cards?.initial.power_active_import_kw ?? null}
-                status={d.ev.status}
-                connected={d.ev.connected}
-                todayKwh={d.ev.todayKwh}
-                open={d.ev.open ? { transactionId: d.ev.open.transactionId, kwh: d.ev.open.kwh } : null}
-              />
-            }
+          <EvOverviewBoard
+            chargerId={d.device.id}
+            name={deviceDisplayId(d.device)}
+            status={d.ev.status}
+            connected={d.ev.connected}
+            todayKwh={d.ev.todayKwh}
+            open={d.ev.open}
+            initial={d.cards?.initial ?? {}}
+            history={d.history}
           />
         ),
       },
