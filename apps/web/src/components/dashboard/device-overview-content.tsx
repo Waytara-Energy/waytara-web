@@ -95,7 +95,6 @@ export async function DeviceOverviewContent({
           <LiveEnergyFlow
             inverterIds={inverterIds}
             initial={initial}
-            initialEvW={overview.evW}
             powerPackage={site.powerPackage}
             powerSourceCategory={site.powerSourceCategory}
             pvKeys={overview.pvKeys}
