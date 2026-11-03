@@ -14,8 +14,6 @@ import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { fetchEvOverview } from "@/lib/ev-overview";
 import { OverviewBoard } from "@/components/dashboard/overview-board";
 import { OverviewCarousel, type OverviewSlide } from "@/components/dashboard/overview-carousel";
-import { HeaderSlot } from "@/components/dashboard/header-slot";
-import { FlowLegendButton } from "@/components/dashboard/flow-legend-button";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { backgroundCss, initialSlideIndex, parseOverviewPrefs } from "@/lib/overview-prefs";
 
@@ -105,7 +103,6 @@ export default async function DashboardOverviewPage() {
         {
           id: d.device.id,
           name: deviceDisplayId(d.device),
-          kind: "inverter",
           content: (
             <OverviewBoard
               cards={overviewPrefs.cards}
@@ -130,7 +127,6 @@ export default async function DashboardOverviewPage() {
       {
         id: d.device.id,
         name: deviceDisplayId(d.device),
-        kind: "charger",
         content: (
           <OverviewBoard
             cards={overviewPrefs.cards}
@@ -160,10 +156,7 @@ export default async function DashboardOverviewPage() {
           device's live channel - there is no page refresh on new readings. The channel is only open while this
           tab is visible. */}
       <LiveChannelKeeper deviceIds={[...inverterIds, ...chargerIds]} />
-      {/* The colour key of the energy flow is a button in the header (a click opens it). */}
-      <HeaderSlot>
-        <FlowLegendButton />
-      </HeaderSlot>
+      {/* The energy flow's colour key is a row in the sidebar, above Support. */}
       {/* A charging session opening is an INSERT on ev_sessions, closing it an UPDATE of the same row: both refresh a charger's slide. */}
       {chargerIds.length > 0 && (
         <>

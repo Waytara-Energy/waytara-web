@@ -3,13 +3,15 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { ChevronRight, Home, LifeBuoy, LogOut } from "lucide-react";
+import { ChevronRight, Home, LifeBuoy, LogOut, Waypoints } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Spinner } from "@/components/ui/spinner";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem, useSidebar } from "@/components/ui/sidebar";
 import { logout } from "@/app/dashboard/actions";
 import { useLiveProfile } from "@/components/profile-live";
 import { cn } from "@/lib/utils";
+import { FlowLegend } from "./flow-legend";
 
 function initials(name: string | null, email: string | null): string {
   if (name?.trim()) {
@@ -22,7 +24,7 @@ function initials(name: string | null, email: string | null): string {
 const LABEL = "text-[clamp(12.5px,0.85vw,13.5px)]";
 const ICON = "h-[clamp(15px,1vw,17px)] w-[clamp(15px,1vw,17px)]";
 
-/** The foot of the sidebar: Support, Home and Sign out as rows like the pages above them, and under them the account banner (picture, name,
+/** The foot of the sidebar: (on the Overview) the energy flow's colour key, then Support, Home and Sign out as rows like the pages above them, and under them the account banner (picture, name,
  *  plan), which opens Application Settings. Nothing unfolds or pops up. */
 export function DashboardUserMenu({
   fullName: savedName,
@@ -35,7 +37,7 @@ export function DashboardUserMenu({
   avatarUrl: string | null;
   planName?: string | null;
 }) {
-  const { isMobile, setOpenMobile, setOpen: setSidebarOpen } = useSidebar();
+  const { isMobile, setOpenMobile, setOpen: setSidebarOpen, open: sidebarOpen, openMobile } = useSidebar();
   const pathname = usePathname();
   // a picture or name saved a moment ago shows at once (the server renders this from what it read before the save)
   const { fullName, avatarUrl } = useLiveProfile({ fullName: savedName, avatarUrl: savedAvatar });
@@ -56,9 +58,38 @@ export function DashboardUserMenu({
 
   const inSettings = pathname.startsWith("/dashboard/settings");
 
+  // The energy flow's colour key, above Support, on the Overview (the page that has the drawing). It unfolds in place; when the sidebar closes
+  // it folds again, so it is closed the next time the sidebar opens.
+  const onOverview = pathname === "/dashboard";
+  const [legendOpen, setLegendOpen] = React.useState(false);
+  const sidebarShown = isMobile ? openMobile : sidebarOpen;
+  const [wasShown, setWasShown] = React.useState(sidebarShown);
+  if (wasShown !== sidebarShown) {
+    setWasShown(sidebarShown);
+    if (!sidebarShown) setLegendOpen(false);
+  }
+
   return (
     <div className="space-y-1">
       <SidebarMenu>
+        {onOverview && (
+          <SidebarMenuItem>
+            <Collapsible open={legendOpen} onOpenChange={setLegendOpen}>
+              <CollapsibleTrigger asChild>
+                <SidebarMenuButton>
+                  <Waypoints className={ICON} />
+                  <span className={LABEL}>Energy flow colours</span>
+                  <ChevronRight className={cn("ml-auto size-4 shrink-0 text-sidebar-foreground/60 transition-transform", legendOpen && "rotate-90")} />
+                </SidebarMenuButton>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="px-2 pb-2 pt-2">
+                  <FlowLegend />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          </SidebarMenuItem>
+        )}
         <SidebarMenuItem>
           <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/support")}>
             <Link href="/dashboard/support" onClick={handleNavigate}>
