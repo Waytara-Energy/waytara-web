@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CAR_BODY, CAR_BODY_INNER, CAR_BODY_OUTER, CAR_VIEWBOX, CAR_WHEELS, CAR_X0, CAR_X1 } from "./ev-car-art";
 
@@ -53,32 +52,19 @@ const SOLAR_KW = [0.2, 0.9, 2.1, 3.6, 4.9, 5.8, 6.2, 5.9, 5.0, 3.7, 2.2, 0.9, 0.
 const SOLAR_MAX = 7;
 const PEAK = SOLAR_KW.indexOf(Math.max(...SOLAR_KW));
 
-const hourLabel = (i: number) => {
-  const h = 6 + i;
-  return h < 12 ? `${h} am` : h === 12 ? "12 pm" : `${h - 12} pm`;
-};
-
 export function InverterVignette() {
   const { ref, ratio, handlers } = usePointerRatio();
   const idx = ratio ? Math.min(SOLAR_KW.length - 1, Math.floor(ratio.x * SOLAR_KW.length)) : PEAK;
 
   return (
     <div ref={ref} aria-hidden="true" className={STAGE} {...handlers}>
-      <div className={WIDTH}>
-        <div className="flex items-end justify-between">
-          <div>
-            <p className="flex items-center gap-1.5 text-xs text-theme-secondary">
-              <Sun className="size-3.5 text-amber-500" />
-              Solar generation
-            </p>
-            <p className="mt-1 text-3xl font-semibold tracking-tight text-theme-primary tabular-nums">
-              {SOLAR_KW[idx].toFixed(1)} <span className="text-base font-medium text-theme-secondary">kW</span>
-            </p>
-          </div>
-          <span className="rounded-full border border-theme-border bg-theme-surface px-2.5 py-0.5 text-xs font-medium text-theme-primary shadow-sm tabular-nums">{hourLabel(idx)}</span>
-        </div>
+      <div className={cn(WIDTH, "flex flex-col items-center")}>
+        <p className="text-4xl font-semibold leading-none tracking-tight text-theme-primary tabular-nums">
+          {SOLAR_KW[idx].toFixed(1)}
+          <span className="ml-1 align-top text-base font-medium text-theme-secondary">kW</span>
+        </p>
 
-        <div className="relative mt-6 h-40">
+        <div className="relative mt-9 h-40 w-full">
           {[0, 0.33, 0.66].map((g) => (
             <span key={g} className="absolute inset-x-0 h-px bg-black/[0.06] dark:bg-white/10" style={{ top: `${g * 100}%` }} />
           ))}
@@ -93,7 +79,7 @@ export function InverterVignette() {
             ))}
           </div>
         </div>
-        <div className="mt-2 flex justify-between text-[11px] text-theme-muted">
+        <div className="mt-2 flex w-full justify-between text-[11px] text-theme-muted">
           <span>6 am</span>
           <span>12 pm</span>
           <span>6 pm</span>
@@ -117,8 +103,8 @@ function VerticalBattery({ level }: { level: number }) {
   return (
     <div className="flex flex-col items-center">
       <p className="text-2xl font-semibold tracking-tight text-theme-primary tabular-nums">{pct}%</p>
-      <div className="relative mt-6 h-52 w-28 rounded-2xl border-[5px] border-zinc-800 p-1.5 dark:border-zinc-300">
-        <span className="absolute -top-[15px] left-1/2 h-[9px] w-12 -translate-x-1/2 rounded-t-md bg-zinc-800 dark:bg-zinc-300" />
+      <div className="relative mt-6 h-52 w-28 rounded-2xl border-[3px] border-zinc-800 p-1.5 dark:border-zinc-300">
+        <span className="absolute -top-[10px] left-1/2 h-[7px] w-12 -translate-x-1/2 rounded-t-md bg-zinc-800 dark:bg-zinc-300" />
         <div className="flex h-full flex-col-reverse gap-1.5">
           {Array.from({ length: BATTERY_CELLS }, (_, i) => {
             const fill = clamp01((level - (i * 100) / BATTERY_CELLS) / (100 / BATTERY_CELLS));
