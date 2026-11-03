@@ -107,12 +107,12 @@ export function InverterVignette() {
 
 const BATTERY_CELLS = 5;
 const FULL_LEVEL = 100;
-const LOW_LEVEL = 15;
+const LOW_LEVEL = 25;
 
 /** An upright battery whose cells fill from the bottom; amber when low and red when nearly empty. */
 function VerticalBattery({ level }: { level: number }) {
   const pct = Math.round(level);
-  const tone = pct >= 40 ? "bg-emerald-500" : pct >= 20 ? "bg-amber-500" : "bg-rose-500";
+  const tone = pct >= 40 ? "from-emerald-400 to-emerald-600" : pct >= 20 ? "from-amber-300 to-amber-500" : "from-rose-400 to-rose-600";
 
   return (
     <div className="flex flex-col items-center">
@@ -124,7 +124,7 @@ function VerticalBattery({ level }: { level: number }) {
             const fill = clamp01((level - (i * 100) / BATTERY_CELLS) / (100 / BATTERY_CELLS));
             return (
               <div key={i} className="flex flex-1 flex-col justify-end overflow-hidden rounded-md bg-black/[0.06] dark:bg-white/10">
-                <div className={tone} style={{ height: `${fill * 100}%` }} />
+                <div className={cn("bg-gradient-to-b", tone)} style={{ height: `${fill * 100}%` }} />
               </div>
             );
           })}
@@ -152,22 +152,15 @@ export function BatteryVignette() {
 // ---------------------------------------------------------------------------------------------- EV charger: the car is the battery
 
 const SESSION_KWH = 24;
-const CAR_SEGMENTS = 10;
-const CAR_GAP = 22;
-/** How far the cells sit in from the outline, like the padding inside the battery's body. */
+/** How far the fill sits in from the outline, like the padding inside the battery's body. */
 const CAR_INSET = 11;
 const CAR_SPAN = CAR_X1 - CAR_X0;
-const CAR_SEG_W = CAR_SPAN / CAR_SEGMENTS;
 
-/** The EV drawing with its body filled like the battery: ten cells with gaps, set in from the outline, lit up to the charge level. */
+/** The EV drawing with its body filled like a battery: one unbroken gradient from the rear to the nose, set in from the outline. */
 function Car({ level }: { level: number }) {
-  const clipId = `car-clip-${React.useId().replace(/:/g, "")}`;
-  const cells = Array.from({ length: CAR_SEGMENTS }, (_, i) => ({
-    i,
-    x: CAR_X0 + i * CAR_SEG_W + CAR_GAP / 2,
-    w: CAR_SEG_W - CAR_GAP,
-    fill: clamp01((level - i * (100 / CAR_SEGMENTS)) / (100 / CAR_SEGMENTS)),
-  }));
+  const uid = React.useId().replace(/:/g, "");
+  const clipId = `car-clip-${uid}`;
+  const gradId = `car-grad-${uid}`;
 
   return (
     <svg viewBox={CAR_VIEWBOX} className="block h-auto w-full overflow-visible">
@@ -175,16 +168,16 @@ function Car({ level }: { level: number }) {
         <clipPath id={clipId}>
           <path d={CAR_BODY_OUTER} />
         </clipPath>
+        <linearGradient id={gradId} gradientUnits="userSpaceOnUse" x1={CAR_X0} x2={CAR_X1} y1="0" y2="0">
+          <stop offset="0%" stopColor="rgb(5 150 105)" />
+          <stop offset="100%" stopColor="rgb(52 211 153)" />
+        </linearGradient>
       </defs>
       <g clipPath={`url(#${clipId})`}>
-        {cells.map((c) => (
-          <g key={c.i}>
-            <rect x={c.x} y="100" width={c.w} height="300" className="fill-black/[0.06] dark:fill-white/10" />
-            <rect x={c.x} y="100" height="300" className="fill-emerald-500" style={{ width: c.w * c.fill }} />
-          </g>
-        ))}
+        <rect x={CAR_X0} y="100" width={CAR_SPAN} height="300" className="fill-black/[0.06] dark:fill-white/10" />
+        <rect x={CAR_X0} y="100" height="300" fill={`url(#${gradId})`} style={{ width: (CAR_SPAN * level) / 100 }} />
       </g>
-      {/* the gap between the outline and the cells, in the page's own colour */}
+      {/* the gap between the outline and the fill, in the page's own colour */}
       <path d={CAR_BODY_INNER} fill="none" strokeWidth={CAR_INSET * 2} strokeLinejoin="round" style={{ stroke: "var(--background)" }} />
       <path d={CAR_BODY} className="fill-zinc-800 dark:fill-zinc-200" />
       {CAR_WHEELS.map((d) => (
