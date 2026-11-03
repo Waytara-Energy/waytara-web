@@ -18,7 +18,8 @@ export interface OverviewSlide {
 /**
  * The Overview as a row of slides, one per device: swipe, use the arrows in the header, press a dot or use the arrow keys to move between
  * them. It opens on `initialIndex` (the device chosen in Application Settings). Plain CSS scroll-snap does the sliding, so a finger swipe
- * and a trackpad swipe feel native. With a single device there is no row and no controls: just that device's Overview.
+ * and a trackpad swipe feel native. The row is a little wider than the page's content and each slide has the same room inside, so the cards
+ * line up exactly as they would without a carousel but their borders and shadows are never cut by the row's edge. With a single device there is no row and no controls: just that device's Overview.
  */
 export function OverviewCarousel({ slides, initialIndex, background }: { slides: OverviewSlide[]; initialIndex: number; background: string | null }) {
   const count = slides.length;
@@ -27,11 +28,20 @@ export function OverviewCarousel({ slides, initialIndex, background }: { slides:
   const frame = React.useRef(0);
   const [index, setIndex] = React.useState(start);
 
+  // The slide's exact distance from the left edge of the row, from where the browser put them: the row's width is often a fraction of a pixel
+  // (browser zoom, a scrollbar), and a whole-pixel scroll position would leave the slide that much off and shave its edge.
+  const offsetOf = (i: number): number => {
+    const t = track.current;
+    const slide = t?.children[i] as HTMLElement | undefined;
+    if (!t || !slide) return 0;
+    return t.scrollLeft + slide.getBoundingClientRect().left - t.getBoundingClientRect().left;
+  };
+
   // Opening on a later slide: the row starts hidden (see its style) and is shown once it has been moved there, so the first slide never flashes.
   React.useLayoutEffect(() => {
     const t = track.current;
     if (!t) return;
-    t.scrollLeft = start * t.clientWidth;
+    t.scrollLeft = offsetOf(start);
     t.style.visibility = "";
   }, [start]);
 
@@ -39,30 +49,43 @@ export function OverviewCarousel({ slides, initialIndex, background }: { slides:
   React.useEffect(() => {
     const t = track.current;
     if (!t) return;
-    let width = t.clientWidth;
+    let width = t.getBoundingClientRect().width;
     const ro = new ResizeObserver(() => {
-      if (t.clientWidth === width) return;
-      width = t.clientWidth;
-      t.scrollLeft = index * width;
+      const w = t.getBoundingClientRect().width;
+      if (w === width) return;
+      width = w;
+      t.scrollLeft = offsetOf(index);
     });
     ro.observe(t);
     return () => ro.disconnect();
   }, [index]);
 
+  // the slide nearest the middle of the row is the one being shown
   const onScroll = () => {
     cancelAnimationFrame(frame.current);
     frame.current = requestAnimationFrame(() => {
       const t = track.current;
-      if (!t || t.clientWidth === 0) return;
-      setIndex(Math.min(count - 1, Math.max(0, Math.round(t.scrollLeft / t.clientWidth))));
+      if (!t) return;
+      const box = t.getBoundingClientRect();
+      const middle = box.left + box.width / 2;
+      let best = 0;
+      let distance = Infinity;
+      for (let i = 0; i < count; i++) {
+        const r = (t.children[i] as HTMLElement).getBoundingClientRect();
+        const d = Math.abs(r.left + r.width / 2 - middle);
+        if (d < distance) {
+          distance = d;
+          best = i;
+        }
+      }
+      setIndex(best);
     });
   };
 
   const go = (to: number) => {
     const t = track.current;
     if (!t) return;
-    const i = Math.min(count - 1, Math.max(0, to));
-    t.scrollTo({ left: i * t.clientWidth, behavior: "smooth" });
+    t.scrollTo({ left: offsetOf(Math.min(count - 1, Math.max(0, to))), behavior: "smooth" });
   };
 
   if (count <= 1) {
@@ -111,10 +134,10 @@ export function OverviewCarousel({ slides, initialIndex, background }: { slides:
           }
         }}
         style={start === 0 ? undefined : { visibility: "hidden" }}
-        className="flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="-mx-2 -my-2 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {slides.map((s, i) => (
-          <div key={s.id} role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${count}: ${s.name}`} aria-hidden={i !== index} className="w-full shrink-0 snap-center snap-always">
+          <div key={s.id} role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${count}: ${s.name}`} aria-hidden={i !== index} className="w-full shrink-0 snap-center snap-always px-2 py-2">
             {s.content}
           </div>
         ))}
