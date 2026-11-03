@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Play, Square, Sun } from "lucide-react";
+import { Sun } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { CAR_BODY, CAR_BODY_OUTER, CAR_VIEWBOX, CAR_WHEELS, CAR_X0, CAR_X1 } from "./ev-car-art";
 
@@ -21,6 +21,27 @@ function usePointerRatio() {
   }, []);
   const leave = React.useCallback(() => setRatio(null), []);
   return { ref, ratio, handlers: { onPointerMove: move, onPointerDown: move, onPointerLeave: leave } };
+}
+
+/** A number that eases towards its target, so a level fills and drains smoothly instead of jumping. */
+function useTween(target: number, ms = 700) {
+  const [value, setValue] = React.useState(target);
+  const current = React.useRef(target);
+  React.useEffect(() => {
+    const from = current.current;
+    const start = performance.now();
+    let raf = 0;
+    const tick = (now: number) => {
+      const k = clamp01((now - start) / ms);
+      const next = from + (target - from) * (1 - Math.pow(1 - k, 3));
+      current.current = next;
+      setValue(next);
+      if (k < 1) raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [target, ms]);
+  return value;
 }
 
 const STAGE = "relative flex h-[22rem] w-full touch-pan-y select-none items-center justify-center";
@@ -104,7 +125,9 @@ const CELLS = 5;
 
 export function BatteryVignette() {
   const { ref, ratio, handlers } = usePointerRatio();
-  const pct = ratio ? Math.round(ratio.x * 100) : 82;
+  // rests at its level; fills while the pointer is over it
+  const level = useTween(ratio ? 100 : 82);
+  const pct = Math.round(level);
   const tone = pct >= 40 ? "bg-emerald-500" : pct >= 20 ? "bg-amber-500" : "bg-rose-500";
 
   return (
@@ -117,19 +140,15 @@ export function BatteryVignette() {
           <span className="absolute -right-[15px] top-1/2 h-10 w-[9px] -translate-y-1/2 rounded-r-md bg-zinc-800 dark:bg-zinc-300" />
           <div className="flex h-full gap-1.5">
             {Array.from({ length: CELLS }, (_, i) => {
-              const fill = clamp01((pct - (i * 100) / CELLS) / (100 / CELLS));
+              const fill = clamp01((level - (i * 100) / CELLS) / (100 / CELLS));
               return (
                 <div key={i} className="h-full flex-1 overflow-hidden rounded-md bg-black/[0.06] dark:bg-white/10">
-                  <div className={cn("h-full transition-[width,background-color] duration-150 ease-out", tone)} style={{ width: `${fill * 100}%` }} />
+                  <div className={cn("h-full", tone)} style={{ width: `${fill * 100}%` }} />
                 </div>
               );
             })}
           </div>
         </div>
-
-        <Badge tone={pct >= 20 ? "ok" : "warn"} className="mt-7">
-          {pct >= 20 ? "Backup ready" : "Charge soon"}
-        </Badge>
       </div>
     </div>
   );
@@ -138,18 +157,20 @@ export function BatteryVignette() {
 // ---------------------------------------------------------------------------------------------- EV charger: the car is the battery
 
 const SESSION_KWH = 24;
-const CHARGE_LIMIT = 80;
 const CAR_SEGMENTS = 10;
-const CAR_GAP = 6;
+const CAR_GAP = 8;
 const CAR_SPAN = CAR_X1 - CAR_X0;
 const CAR_SEG_W = CAR_SPAN / CAR_SEGMENTS;
-const CAR_VIEW_X = 120;
-const CAR_VIEW_W = 858;
 
-/** The EV drawing with its body filled like the battery: ten cells from the rear to the nose, lit up to the charge level. */
-function Car({ pct, stopped }: { pct: number; stopped: boolean }) {
+/** The EV drawing with its body filled like the battery: ten bordered cells from the rear to the nose, lit up to the charge level. */
+function Car({ level }: { level: number }) {
   const clipId = `car-clip-${React.useId().replace(/:/g, "")}`;
-  const limitX = CAR_X0 + CAR_SPAN * (CHARGE_LIMIT / 100);
+  const cells = Array.from({ length: CAR_SEGMENTS }, (_, i) => ({
+    i,
+    x: CAR_X0 + i * CAR_SEG_W + CAR_GAP / 2,
+    w: CAR_SEG_W - CAR_GAP,
+    fill: clamp01((level - i * (100 / CAR_SEGMENTS)) / (100 / CAR_SEGMENTS)),
+  }));
 
   return (
     <svg viewBox={CAR_VIEWBOX} className="block h-auto w-full overflow-visible">
@@ -159,18 +180,13 @@ function Car({ pct, stopped }: { pct: number; stopped: boolean }) {
         </clipPath>
       </defs>
       <g clipPath={`url(#${clipId})`}>
-        {Array.from({ length: CAR_SEGMENTS }, (_, i) => {
-          const x = CAR_X0 + i * CAR_SEG_W + CAR_GAP / 2;
-          const w = CAR_SEG_W - CAR_GAP;
-          const fill = clamp01((pct - i * (100 / CAR_SEGMENTS)) / (100 / CAR_SEGMENTS));
-          return (
-            <g key={i}>
-              <rect x={x} y="100" width={w} height="300" className="fill-black/[0.07] dark:fill-white/10" />
-              <rect x={x} y="100" height="300" className={stopped ? "fill-amber-500" : "fill-emerald-500"} style={{ width: w * fill, transition: "width 150ms ease-out" }} />
-            </g>
-          );
-        })}
-        <line x1={limitX} x2={limitX} y1="100" y2="400" strokeDasharray="6 6" strokeWidth="3" className="stroke-zinc-500/60" />
+        {cells.map((c) => (
+          <g key={c.i}>
+            <rect x={c.x} y="100" width={c.w} height="300" className="fill-black/[0.07] dark:fill-white/10" />
+            <rect x={c.x} y="100" height="300" className="fill-emerald-500" style={{ width: c.w * c.fill }} />
+            <rect x={c.x} y="100" width={c.w} height="300" rx="10" fill="none" strokeWidth="4" className="stroke-zinc-800 dark:stroke-zinc-200" />
+          </g>
+        ))}
       </g>
       <path d={CAR_BODY} className="fill-zinc-800 dark:fill-zinc-200" />
       {CAR_WHEELS.map((d) => (
@@ -182,12 +198,9 @@ function Car({ pct, stopped }: { pct: number; stopped: boolean }) {
 
 export function EvChargerVignette() {
   const { ref, ratio, handlers } = usePointerRatio();
-  // null while charging; the level it was stopped at otherwise
-  const [stoppedAt, setStoppedAt] = React.useState<number | null>(null);
-  const live = ratio ? Math.round(ratio.x * 100) : 62;
-  const pct = stoppedAt ?? live;
-  const stopped = stoppedAt !== null;
-  const status = stopped ? "Stopped" : pct >= CHARGE_LIMIT ? "Charge limit reached" : "Charging from solar";
+  // rests at its level; fills while the pointer is over it
+  const level = useTween(ratio ? 100 : 62);
+  const pct = Math.round(level);
 
   return (
     <div ref={ref} aria-hidden="true" className={STAGE} {...handlers}>
@@ -196,38 +209,11 @@ export function EvChargerVignette() {
           {pct}
           <span className="ml-0.5 align-top text-base font-medium text-theme-secondary">%</span>
         </p>
-        <p className="mt-1.5 text-xs text-theme-secondary tabular-nums">{((pct / 100) * SESSION_KWH).toFixed(1)} kWh this session</p>
+        <p className="mt-1.5 text-xs text-theme-secondary tabular-nums">{((level / 100) * SESSION_KWH).toFixed(1)} kWh this session</p>
 
-        <div className="relative mt-9 w-full">
-          <div
-            className="absolute -top-6 flex -translate-x-1/2 flex-col items-center"
-            style={{ left: `${((CAR_X0 + CAR_SPAN * (CHARGE_LIMIT / 100) - CAR_VIEW_X) / CAR_VIEW_W) * 100}%` }}
-          >
-            <span className="text-[11px] font-medium text-theme-secondary">{CHARGE_LIMIT}%</span>
-            <svg viewBox="0 0 10 6" className="h-1.5 w-2.5 fill-theme-secondary">
-              <path d="M0 0 H10 L5 6 Z" />
-            </svg>
-          </div>
-          <Car pct={pct} stopped={stopped} />
+        <div className="relative mt-8 w-full">
+          <Car level={level} />
           <span aria-hidden="true" className="pointer-events-none absolute -bottom-2 left-1/2 h-3 w-4/5 -translate-x-1/2 rounded-full bg-black/15 blur-md dark:bg-black/60" />
-        </div>
-
-        <div className="mt-8 flex items-center gap-2">
-          <Badge tone={stopped ? "warn" : "ok"}>{status}</Badge>
-          <button
-            type="button"
-            tabIndex={-1}
-            onClick={() => setStoppedAt(stopped ? null : pct)}
-            className={cn(
-              "inline-flex h-[26px] items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors",
-              stopped
-                ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-700 hover:bg-emerald-500/15 dark:text-emerald-300"
-                : "border-rose-500/30 bg-rose-500/[0.07] text-rose-700 hover:bg-rose-500/[0.12] dark:text-rose-300",
-            )}
-          >
-            {stopped ? <Play className="size-3" /> : <Square className="size-3" />}
-            {stopped ? "Resume" : "Stop"}
-          </button>
         </div>
       </div>
     </div>
