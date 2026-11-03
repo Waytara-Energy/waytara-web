@@ -4,7 +4,7 @@ import * as React from "react";
 import { Navigation } from "@/components/sections/navigation";
 import { Hero } from "@/components/sections/hero";
 import { OurApproach } from "@/components/sections/our-approach";
-import { MacShowcase } from "@/components/sections/mac-showcase";
+import { DashboardShowcase } from "@/components/sections/dashboard-showcase";
 import { WhoWeAre } from "@/components/sections/who-we-are";
 import { CustomerSegments } from "@/components/sections/customer-segments";
 import { EnergyPlanner } from "@/components/sections/energy-planner";
@@ -47,8 +47,8 @@ export function HomePageContent() {
         {/* 4.2.5 Our Approach (one coordinated system: solar, storage, EV charging, energy management) */}
         <OurApproach />
 
-        {/* 4.2.7 A laptop that opens on scroll, showing the live Monitoring page of the Waytara Office */}
-        <MacShowcase />
+        {/* 4.2.7 A card that tips up on scroll, showing the live Monitoring page of the Waytara Office */}
+        <DashboardShowcase />
 
         {/* 4.3 Who We Are (About Us Section) */}
         <WhoWeAre />
