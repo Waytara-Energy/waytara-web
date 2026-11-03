@@ -1,7 +1,7 @@
 import Image from "next/image";
-import { Activity } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
-import { cn } from "@/lib/utils";
 
 interface Part {
   src: string;
@@ -11,12 +11,13 @@ interface Part {
   alt: string;
   /** SVGs are served as they are; the charger is a raster */
   svg: boolean;
-  role: string;
+  /** what this part is doing, as a small badge on its drawing (words only, no figures) */
+  status: string;
   title: string;
   body: string;
 }
 
-// The four parts of the system, in the order the energy travels: generate, convert, store, use.
+// The four parts, in the order the energy travels: generate, convert, store, use.
 const PARTS: Part[] = [
   {
     src: "/images/approach/solar-panel.svg",
@@ -24,7 +25,7 @@ const PARTS: Part[] = [
     h: 698,
     alt: "A solar panel",
     svg: true,
-    role: "Generate",
+    status: "Generating",
     title: "Solar panels",
     body: "Rooftop panels turn sunlight into clean power for your property.",
   },
@@ -34,7 +35,7 @@ const PARTS: Part[] = [
     h: 583,
     alt: "A solar inverter",
     svg: true,
-    role: "Convert",
+    status: "Converting",
     title: "Inverter",
     body: "Turns that power into electricity your property can use, and keeps every part in step.",
   },
@@ -44,7 +45,7 @@ const PARTS: Part[] = [
     h: 515,
     alt: "A home battery",
     svg: true,
-    role: "Store",
+    status: "Backup ready",
     title: "Battery storage",
     body: "Keeps spare solar for the evening, and for when the grid goes down.",
   },
@@ -54,75 +55,94 @@ const PARTS: Part[] = [
     h: 987,
     alt: "An EV charger",
     svg: false,
-    role: "Use",
+    status: "Charging from solar",
     title: "EV charging",
     body: "Charges your vehicle from your own solar and battery, when it suits you.",
   },
 ];
 
 /**
- * The four parts as one system: equal columns, each drawing standing on the same floor, a rail of energy running through them,
- * and a line underneath that says they are managed together.
+ * The four parts as four feature cards: a lit stage with the drawing and a status badge, the title and a line of info beneath.
+ * Small connectors with a travelling pulse join the cards, so the row still reads as one system.
  */
 export function ApproachParts() {
   return (
-    <Reveal direction="up" duration={800} distance={28}>
-      <div className="relative overflow-hidden rounded-[1.75rem] border border-theme-border bg-theme-surface shadow-[0_1px_0_rgba(255,255,255,0.6)_inset,0_30px_60px_-30px_rgba(16,24,40,0.18)] dark:shadow-[0_30px_60px_-30px_rgba(0,0,0,0.7)]">
-        {/* a faint wash of green from the top, so the card is lit rather than flat */}
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 h-72 bg-[radial-gradient(60%_100%_at_50%_0%,rgba(16,185,129,0.12),transparent)]" />
-
-        <div className="relative flex flex-col items-center gap-3 px-6 pt-7 text-center sm:flex-row sm:justify-between sm:px-10 sm:text-left">
-          <span className="inline-flex items-center gap-2 rounded-full border border-emerald-500/25 bg-emerald-500/10 px-3.5 py-1.5 text-xs font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-300">
-            <span className="size-1.5 rounded-full bg-emerald-500" />
-            One integrated system
-          </span>
-          <p className="max-w-xl text-sm text-theme-secondary">Every part works with the others, so your power goes where it is needed.</p>
+    <div>
+      <Reveal direction="up" duration={800} distance={20}>
+        <div className="mb-10 flex flex-col gap-6 sm:mb-12 sm:flex-row sm:items-end sm:justify-between">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">One integrated system</p>
+            <h3 className="mt-3 text-3xl font-bold tracking-tight text-theme-primary sm:text-4xl">Four parts, working as one.</h3>
+            <p className="mt-3 max-w-md text-sm leading-relaxed text-theme-secondary sm:text-base">
+              Every part talks to the others, so your power goes where it is needed.
+            </p>
+          </div>
+          <Link
+            href="/solutions"
+            className="group/cta inline-flex h-11 w-fit shrink-0 items-center gap-2 rounded-lg bg-zinc-900 px-5 text-sm font-semibold text-white transition-colors hover:bg-zinc-700 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+          >
+            Plan my system
+            <ArrowRight className="size-4 transition-transform group-hover/cta:translate-x-0.5" aria-hidden="true" />
+          </Link>
         </div>
+      </Reveal>
 
-        <ul className="relative grid grid-cols-2 lg:grid-cols-4">
-          {PARTS.map((part, i) => (
-            <li key={part.src} className={cn("group relative flex", i > 0 && "lg:border-l lg:border-theme-border", i % 2 === 1 && "border-l border-theme-border lg:border-l", i >= 2 && "border-t border-theme-border lg:border-t-0")}>
-              <Reveal direction="up" duration={800} delay={i * 120} distance={28} className="flex w-full flex-col items-center px-4 pb-9 pt-8 text-center sm:px-6">
-                {/* the stage: every drawing stands on the same floor */}
-                <div className="relative flex h-48 w-full items-end justify-center sm:h-60 lg:h-72">
-                  <span aria-hidden="true" className="pointer-events-none absolute bottom-6 left-1/2 h-3/5 w-3/5 -translate-x-1/2 rounded-full bg-emerald-500/10 blur-3xl transition-opacity duration-500 group-hover:bg-emerald-500/20" />
-                  <span aria-hidden="true" className="pointer-events-none absolute bottom-0 left-1/2 h-3 w-3/5 -translate-x-1/2 rounded-full bg-black/15 blur-md dark:bg-black/60" />
-                  <Image
-                    src={part.src}
-                    alt={part.alt}
-                    width={part.w}
-                    height={part.h}
-                    unoptimized={part.svg}
-                    sizes="(min-width: 1024px) 220px, 30vw"
-                    className="relative mb-3 h-40 w-auto max-w-full object-contain drop-shadow-[0_14px_20px_rgba(0,0,0,0.16)] transition-transform duration-500 ease-out group-hover:-translate-y-2 sm:h-52 lg:h-60 dark:drop-shadow-[0_14px_20px_rgba(0,0,0,0.5)]"
-                  />
-                </div>
+      <ul className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-4 lg:gap-8">
+        {PARTS.map((part, i) => (
+          <li key={part.src} className="relative">
+            <Reveal direction="up" duration={800} delay={i * 120} distance={28} className="h-full">
+              <article className="group flex h-full flex-col overflow-hidden rounded-2xl border border-theme-border bg-theme-surface transition-all duration-300 hover:-translate-y-1 hover:border-emerald-500/40 hover:shadow-[0_24px_40px_-24px_rgba(16,185,129,0.35)]">
+                {/* the stage: a lit circle of rings behind the drawing, and what it is doing as a badge */}
+                <div className="relative flex h-64 flex-col items-center justify-between overflow-hidden bg-gradient-to-b from-emerald-500/[0.07] to-transparent px-4 pb-4 pt-6">
+                  <div aria-hidden="true" className="pointer-events-none absolute inset-0 [mask-image:radial-gradient(circle_at_50%_46%,black_15%,transparent_68%)]">
+                    <span className="absolute left-1/2 top-[46%] size-44 -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-500/30" />
+                    <span className="absolute left-1/2 top-[46%] size-64 -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-500/20" />
+                    <span className="absolute left-1/2 top-[46%] size-[22rem] -translate-x-1/2 -translate-y-1/2 rounded-full border border-emerald-500/10" />
+                  </div>
+                  <span aria-hidden="true" className="pointer-events-none absolute left-1/2 top-[46%] size-40 -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-400/20 blur-3xl transition-opacity duration-500 group-hover:opacity-100 dark:bg-emerald-500/15" />
 
-                {/* the rail: one line through all four parts, with a pulse of energy crossing each stretch of it */}
-                <div aria-hidden="true" className="relative -mx-4 mt-6 flex h-4 w-[calc(100%+2rem)] items-center justify-center sm:-mx-6 sm:w-[calc(100%+3rem)]">
-                  <span className={cn("absolute inset-y-[7px] hidden h-0.5 overflow-hidden rounded-full bg-emerald-500/20 lg:block", i === 0 ? "left-1/2 right-0" : i === PARTS.length - 1 ? "left-0 right-1/2" : "inset-x-0")}>
-                    <span className="absolute inset-y-0 left-0 w-1/4 animate-energy-flow rounded-full bg-gradient-to-r from-transparent via-emerald-500 to-transparent motion-reduce:hidden" style={{ animationDelay: `${i * 0.8}s` }} />
+                  <div className="relative flex flex-1 items-center">
+                    <span aria-hidden="true" className="pointer-events-none absolute -bottom-2 left-1/2 h-2.5 w-3/4 -translate-x-1/2 rounded-full bg-black/15 blur-md dark:bg-black/60" />
+                    <Image
+                      src={part.src}
+                      alt={part.alt}
+                      width={part.w}
+                      height={part.h}
+                      unoptimized={part.svg}
+                      sizes="(min-width: 1024px) 160px, 40vw"
+                      className="relative h-40 w-auto drop-shadow-[0_12px_16px_rgba(0,0,0,0.16)] transition-transform duration-500 ease-out group-hover:scale-105 dark:drop-shadow-[0_12px_16px_rgba(0,0,0,0.5)]"
+                    />
+                  </div>
+
+                  <span className="relative mt-3 inline-flex items-center gap-2 rounded-full border border-theme-border bg-theme-surface/90 px-3 py-1 text-xs font-medium text-theme-primary shadow-sm backdrop-blur">
+                    <span className="relative flex size-1.5">
+                      <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60 motion-reduce:hidden" />
+                      <span className="relative inline-flex size-1.5 rounded-full bg-emerald-500" />
+                    </span>
+                    {part.status}
                   </span>
-                  <span className="relative size-3 rounded-full bg-emerald-500 ring-4 ring-emerald-500/20 transition-[box-shadow] duration-300 group-hover:ring-8" />
                 </div>
 
-                <p className="mt-5 text-xs font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">
-                  {String(i + 1).padStart(2, "0")} · {part.role}
-                </p>
-                <h3 className="mt-2 text-lg font-bold tracking-tight text-theme-primary sm:text-xl">{part.title}</h3>
-                <p className="mt-2 max-w-[17rem] text-sm leading-relaxed text-theme-secondary">{part.body}</p>
-              </Reveal>
-            </li>
-          ))}
-        </ul>
+                <div className="flex flex-1 flex-col px-6 pb-7 pt-5">
+                  <h4 className="text-lg font-bold tracking-tight text-theme-primary">{part.title}</h4>
+                  <p className="mt-2 text-sm leading-relaxed text-theme-secondary">{part.body}</p>
+                </div>
+              </article>
+            </Reveal>
 
-        <div className="relative flex flex-col items-center justify-center gap-2 border-t border-theme-border bg-theme-surface-muted/60 px-6 py-4 text-center sm:flex-row sm:gap-3">
-          <Activity className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-          <p className="text-sm font-medium text-theme-primary">
-            Designed, installed and managed together <span className="font-normal text-theme-secondary">&mdash; one dashboard for all four.</span>
-          </p>
-        </div>
-      </div>
-    </Reveal>
+            {/* the link to the next card: a line with a pulse of energy crossing it, at the height of the drawings */}
+            {i < PARTS.length - 1 && (
+              <span aria-hidden="true" className="absolute -right-[2.2rem] top-[7.6rem] z-10 hidden w-[2.4rem] -translate-y-1/2 items-center lg:flex">
+                <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+                <span className="relative h-px flex-1 overflow-hidden bg-emerald-500/30">
+                  <span className="absolute inset-y-0 left-0 w-1/3 animate-energy-flow bg-gradient-to-r from-transparent via-emerald-500 to-transparent motion-reduce:hidden" style={{ animationDelay: `${i * 0.8}s` }} />
+                </span>
+                <span className="size-1.5 shrink-0 rounded-full bg-emerald-500" />
+              </span>
+            )}
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }
