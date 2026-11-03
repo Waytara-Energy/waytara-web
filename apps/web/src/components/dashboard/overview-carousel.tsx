@@ -1,23 +1,24 @@
 "use client";
 
 import * as React from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react";
-import { Button } from "@/components/ui/button";
+import { EvCharger, Server } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { HeaderSlot } from "./header-slot";
 import { OverviewBackdrop } from "./overview-backdrop";
 
 export interface OverviewSlide {
   id: string;
-  /** The device's name, shown in the header. */
+  /** The device's name, shown beside its icon while its slide is the one showing. */
   name: string;
+  /** Which icon the device gets in the header (the same ones as its status buttons there). */
+  kind: "inverter" | "charger";
   /** That device's Overview (the board). */
   content: React.ReactNode;
 }
 
 /**
- * The Overview as a row of slides, one per device: swipe, use the arrows in the header, press a dot or use the arrow keys to move between
- * them. It opens on `initialIndex` (the device chosen in Application Settings). Plain CSS scroll-snap does the sliding, so a finger swipe
+ * The Overview as a row of slides, one per device: press a device's icon in the header (the one showing is lit and says its name), swipe,
+ * press a dot or use the arrow keys to move between them. It opens on `initialIndex` (the device chosen in Application Settings). Plain CSS scroll-snap does the sliding, so a finger swipe
  * and a trackpad swipe feel native. The row is a little wider than the page's content and each slide has the same room inside, so the cards
  * line up exactly as they would without a carousel but their borders and shadows are never cut by the row's edge. With a single device there is no row and no controls: just that device's Overview.
  */
@@ -102,17 +103,42 @@ export function OverviewCarousel({ slides, initialIndex, background }: { slides:
       {background && <OverviewBackdrop css={background} />}
 
       <HeaderSlot>
-        <div className="flex items-center gap-1" role="group" aria-label="Choose a device">
-          <Button type="button" variant="ghost" size="icon" className="size-8" disabled={index === 0} onClick={() => go(index - 1)} aria-label="Previous device">
-            <ChevronLeft className="size-4" />
-          </Button>
-          <span className="hidden max-w-[11rem] truncate px-1 text-sm font-medium text-foreground sm:block">{slides[index]?.name}</span>
-          <span className="px-1 text-xs tabular-nums text-muted-foreground" aria-live="polite">
-            {index + 1} / {count}
-          </span>
-          <Button type="button" variant="ghost" size="icon" className="size-8" disabled={index === count - 1} onClick={() => go(index + 1)} aria-label="Next device">
-            <ChevronRight className="size-4" />
-          </Button>
+        {/* One icon button per device: pressing it shows that device's Overview. The one showing is lit and carries the device's name. */}
+        <div
+          role="tablist"
+          aria-label="Devices"
+          className="flex items-center gap-0.5 rounded-lg border bg-muted/40 p-0.5"
+          onKeyDown={(e) => {
+            if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+            e.preventDefault();
+            const next = Math.min(count - 1, Math.max(0, index + (e.key === "ArrowRight" ? 1 : -1)));
+            go(next);
+            (e.currentTarget.children[next] as HTMLElement | undefined)?.focus();
+          }}
+        >
+          {slides.map((s, i) => {
+            const Icon = s.kind === "charger" ? EvCharger : Server;
+            const active = i === index;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                tabIndex={active ? 0 : -1}
+                title={s.name}
+                aria-label={s.name}
+                onClick={() => go(i)}
+                className={cn(
+                  "flex h-8 min-w-8 cursor-pointer items-center justify-center gap-1.5 rounded-md px-2 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
+                  active ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+                )}
+              >
+                <Icon className={cn("size-4 shrink-0", active && "text-emerald-600 dark:text-emerald-400")} />
+                {active && <span className="hidden max-w-[12rem] truncate sm:block">{s.name}</span>}
+              </button>
+            );
+          })}
         </div>
       </HeaderSlot>
 

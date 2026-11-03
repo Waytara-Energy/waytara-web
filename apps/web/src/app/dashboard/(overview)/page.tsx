@@ -105,6 +105,7 @@ export default async function DashboardOverviewPage() {
         {
           id: d.device.id,
           name: deviceDisplayId(d.device),
+          kind: "inverter",
           content: (
             <OverviewBoard
               cards={overviewPrefs.cards}
@@ -129,6 +130,7 @@ export default async function DashboardOverviewPage() {
       {
         id: d.device.id,
         name: deviceDisplayId(d.device),
+        kind: "charger",
         content: (
           <OverviewBoard
             cards={overviewPrefs.cards}
