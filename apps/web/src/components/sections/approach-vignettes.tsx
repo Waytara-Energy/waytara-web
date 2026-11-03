@@ -45,7 +45,7 @@ function useTween(target: number, ms = 700) {
 }
 
 const STAGE = "relative flex h-[22rem] w-full touch-pan-y select-none items-center justify-center";
-const WIDTH = "w-full max-w-[24rem]";
+const WIDTH = "w-full max-w-[30rem]";
 
 // ---------------------------------------------------------------------------------------------- inverter: a day of solar, as bars
 
@@ -117,8 +117,8 @@ function VerticalBattery({ level }: { level: number }) {
   return (
     <div className="flex flex-col items-center">
       <p className="text-2xl font-semibold tracking-tight text-theme-primary tabular-nums">{pct}%</p>
-      <div className="relative mt-6 h-44 w-24 rounded-2xl border-[5px] border-zinc-800 p-1.5 dark:border-zinc-300">
-        <span className="absolute -top-[15px] left-1/2 h-[9px] w-10 -translate-x-1/2 rounded-t-md bg-zinc-800 dark:bg-zinc-300" />
+      <div className="relative mt-6 h-52 w-28 rounded-2xl border-[5px] border-zinc-800 p-1.5 dark:border-zinc-300">
+        <span className="absolute -top-[15px] left-1/2 h-[9px] w-12 -translate-x-1/2 rounded-t-md bg-zinc-800 dark:bg-zinc-300" />
         <div className="flex h-full flex-col-reverse gap-1.5">
           {Array.from({ length: BATTERY_CELLS }, (_, i) => {
             const fill = clamp01((level - (i * 100) / BATTERY_CELLS) / (100 / BATTERY_CELLS));
@@ -141,7 +141,7 @@ export function BatteryVignette() {
 
   return (
     <div ref={ref} aria-hidden="true" className={STAGE} {...handlers}>
-      <div className="flex items-start justify-center gap-14">
+      <div className="flex w-full items-start justify-evenly">
         <VerticalBattery level={FULL_LEVEL} />
         <VerticalBattery level={low} />
       </div>

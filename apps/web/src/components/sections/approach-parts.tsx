@@ -37,10 +37,10 @@ const DIVIDERS = ["", "border-t lg:border-t-0 lg:border-l", "border-t lg:border-
 export function ApproachParts() {
   return (
     <div>
-      <ul className="mx-auto grid max-w-6xl grid-cols-1 lg:grid-cols-3">
+      <ul className="grid grid-cols-1 lg:grid-cols-3">
         {PARTS.map(({ Vignette, title, body }, i) => (
           <li key={title} className={cn("border-theme-border", DIVIDERS[i])}>
-            <Reveal direction="up" duration={800} delay={i * 120} distance={24} className="flex flex-col items-center px-6 pb-12 pt-10 text-center">
+            <Reveal direction="up" duration={800} delay={i * 120} distance={24} className="flex flex-col items-center px-5 pb-12 pt-10 text-center lg:px-8">
               <Vignette />
               <h3 className="mt-8 text-base font-semibold text-theme-primary">{title}</h3>
               <p className="mt-2 max-w-[16rem] text-sm leading-relaxed text-theme-secondary">{body}</p>
