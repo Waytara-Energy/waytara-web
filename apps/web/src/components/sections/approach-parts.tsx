@@ -32,17 +32,17 @@ const PARTS: Part[] = [
   },
 ];
 
-// Where the hairlines go: between columns once they sit side by side, between rows when they stack.
-const DIVIDERS = ["", "border-t sm:border-t-0 sm:border-l", "border-t sm:border-t lg:border-t-0 lg:border-l", "border-t sm:border-l lg:border-t-0"];
+// Where the hairlines go: a cross between the four cells once they sit two by two, between rows when they stack on a phone.
+const DIVIDERS = ["", "border-t sm:border-t-0 sm:border-l", "border-t", "border-t sm:border-l"];
 
 /**
- * The four parts as four columns, each a small picture of the product you can point at, with a title and a line beneath. No
- * boxes: only hairlines between the columns.
+ * The four parts in a two by two grid, each a small picture of the product you can point at, with a title and a line beneath.
+ * No boxes: only hairlines between the cells.
  */
 export function ApproachParts() {
   return (
     <div>
-      <ul className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4">
+      <ul className="mx-auto grid max-w-4xl grid-cols-1 sm:grid-cols-2">
         {PARTS.map(({ Vignette, title, body }, i) => (
           <li key={title} className={cn("border-theme-border", DIVIDERS[i])}>
             <Reveal direction="up" duration={800} delay={i * 120} distance={24} className="flex flex-col items-center px-6 pb-12 pt-10 text-center">
