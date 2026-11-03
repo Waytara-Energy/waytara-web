@@ -85,12 +85,11 @@ export function DashboardShowcase() {
   }, []);
 
   return (
-    <section ref={sectionRef} id="live-monitoring" aria-label="Live customer monitoring, from the Waytara Office" className="relative flex flex-col overflow-hidden bg-theme-bg">
+    <section ref={sectionRef} id="live-monitoring" aria-label="Live customer monitoring, from the Waytara Office" className="relative z-0 -mt-24 flex flex-col overflow-hidden bg-theme-bg md:-mt-52">
       <ContainerScroll
         titleComponent={
           <>
-            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-emerald-600 dark:text-emerald-400">One application</p>
-            <h2 className="mt-3 text-3xl font-semibold text-theme-primary md:text-5xl">
+            <h2 className="text-3xl font-semibold text-theme-primary md:text-5xl">
               Every device, every site <br />
               <span className="text-primary-gradient mt-1 text-4xl font-bold leading-none md:text-[5rem]">in one dashboard.</span>
             </h2>

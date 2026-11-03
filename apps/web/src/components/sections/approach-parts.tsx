@@ -53,7 +53,6 @@ export function ApproachParts() {
           </li>
         ))}
       </ul>
-      <p className="mt-2 text-center text-xs text-theme-muted">Move your cursor over each picture to try it.</p>
     </div>
   );
 }

@@ -70,7 +70,7 @@ export function OurApproach() {
     <section
       ref={sectionRef}
       id="our-approach"
-      className="section-padding bg-theme-bg relative scroll-mt-16 overflow-hidden"
+      className="section-padding bg-theme-bg relative z-10 scroll-mt-16 overflow-hidden"
     >
       <div className="fluid-container">
 
@@ -128,16 +128,6 @@ export function OurApproach() {
         >
           <ApproachParts />
         </div>
-
-        {/* 4. The closing line - fade & slide in after typing completes */}
-        <p
-          className={cn(
-            "mt-10 text-center text-sm font-medium text-theme-secondary transition-all duration-700 delay-150 ease-out",
-            typingComplete ? "opacity-100 translate-y-0" : "opacity-0 translate-y-5 pointer-events-none"
-          )}
-        >
-          Four parts, designed, installed and managed together as one integrated energy system.
-        </p>
 
       </div>
     </section>
