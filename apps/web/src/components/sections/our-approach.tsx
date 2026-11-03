@@ -5,8 +5,8 @@ import { ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApproachParts } from "./approach-parts";
 
-const FULL_LINE_1 = "One energy system,";
-const FULL_LINE_2 = "designed around your property.";
+const FULL_LINE_1 = "One Smart Energy System.";
+const FULL_LINE_2 = "Built Around You.";
 
 export function OurApproach() {
   const sectionRef = React.useRef<HTMLElement>(null);
@@ -86,9 +86,9 @@ export function OurApproach() {
           </div>
         </div>
 
-        {/* 2. Typewriter headline */}
-        <div className="max-w-4xl mb-12 min-h-[140px] sm:min-h-[160px]">
-          <h2 className="text-[clamp(2.1rem,3.8vw,3.35rem)] font-bold tracking-tight text-theme-primary leading-[1.18] mb-4 select-none">
+        {/* 2. Split header: typewriter title on the left, summary at the right end (as in Who We Serve) */}
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 mb-12">
+          <h2 className="min-h-[2.36em] text-[clamp(2.1rem,3.8vw,3.35rem)] font-bold tracking-tight text-theme-primary leading-[1.18] select-none">
             {/* Line 1 */}
             <span className="block">
               {line1}
@@ -109,7 +109,7 @@ export function OurApproach() {
           {/* Body - fades & slides in after typing completes */}
           <p
             className={cn(
-              "text-sm sm:text-base text-theme-secondary leading-relaxed max-w-2xl transition-all duration-700 ease-out",
+              "text-sm sm:text-base text-theme-secondary leading-relaxed max-w-md lg:max-w-lg md:pb-1 transition-all duration-700 ease-out",
               typingComplete
                 ? "opacity-100 translate-y-0"
                 : "opacity-0 translate-y-3 pointer-events-none"
