@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CalendarCheck, ChevronDown, HeartPulse, TriangleAlert, type LucideIcon } from "lucide-react";
+import { CalendarCheck, ChevronDown, EvCharger, HeartPulse, Server, TriangleAlert, type LucideIcon } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -26,12 +26,15 @@ import { CHECK_ICON, ReportButton, type ReportTarget } from "./maintenance-repor
 
 export type { ReportTarget } from "./maintenance-report";
 
-type SectionId = "health" | "service";
-const SECTIONS: { id: SectionId; label: string; icon: LucideIcon; active: string; circle: string }[] = [
-  { id: "health", label: "Health", icon: HeartPulse, active: "data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400", circle: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
-  { id: "service", label: "Service", icon: CalendarCheck, active: "data-[state=active]:border-sky-500 data-[state=active]:text-sky-600 dark:data-[state=active]:text-sky-400", circle: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
-];
-const IDS = SECTIONS.map((s) => s.id);
+/** The tabs of the page: a site's inverter and charger (each with its own health), then Service for all of its devices. A device that is neither
+ *  has one "Health" tab of its own. */
+type TabId = "solar" | "ev" | "device" | "service";
+const TABS: Record<TabId, { label: string; icon: LucideIcon; active: string; circle: string }> = {
+  solar: { label: "Inverter", icon: Server, active: "data-[state=active]:border-primary data-[state=active]:text-primary", circle: "bg-primary/15 text-primary" },
+  ev: { label: "EV Charger", icon: EvCharger, active: "data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400", circle: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
+  device: { label: "Health", icon: HeartPulse, active: "data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400", circle: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
+  service: { label: "Service", icon: CalendarCheck, active: "data-[state=active]:border-sky-500 data-[state=active]:text-sky-600 dark:data-[state=active]:text-sky-400", circle: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
+};
 
 export interface HeadlineData {
   label: string;
@@ -51,67 +54,43 @@ export interface SolarHealthProps {
   firstDay: string | null;
 }
 
-/** The Maintenance page: a headline for the open tab (like Performance's) and the two tabs. Health follows the device's live channel
- *  (connection, faults, temperatures, checks); Service is rendered by the server. A problem is reported in Support: the fault and check
- *  buttons open its new-ticket form with the details filled in. */
-export function MaintenanceBoard({
-  deviceId,
-  sync,
-  solar,
-  health,
-  technical,
-  service,
-  serviceHeadline,
-  ev,
-  report,
-  openIssues,
-}: {
+/** One device's health, as the page's server side gathers it. */
+export interface MaintenanceDevice {
+  kind: "solar" | "ev" | "device";
   deviceId: string;
   sync: DeviceSyncInit;
   /** The live health of a solar inverter; null for other devices, which bring their own `health` content. */
   solar: SolarHealthProps | null;
   health: React.ReactNode;
-  /** What the Health tab needs about an EV charger (its unit, connector, last charge, events); null for any other device. */
+  /** What the health needs about an EV charger (its unit, connector, last charge, events); null for any other device. */
   ev: EvMaintData | null;
   technical: React.ReactNode;
-  service: React.ReactNode;
-  serviceHeadline: HeadlineData;
-  /** Which device a Support request is about, from the Health tab (a fault or a check that is not fine); null hides those buttons. */
+  /** Which device a Support request is about (a fault or a check that is not fine); null hides those buttons. */
   report: ReportTarget | null;
   /** The subjects of the customer's open Support tickets for this device, so the same fault is not reported twice. */
   openIssues: string[];
-}) {
-  const [section, open] = useHashTab(IDS, "health");
-  const state = useDeviceState(deviceId, sync);
-  const live = useLiveNumbers([deviceId], [...HEALTH_KEYS, ...FAULT_BITMASK_KEYS_LIVE], solar?.initial ?? {}, () => "first");
-  const [clock, setClock] = React.useState(() => Date.now());
-  React.useEffect(() => {
-    const id = setInterval(() => setClock(Date.now()), 15_000);
-    return () => clearInterval(id);
-  }, []);
+}
 
-  const value = (key: string) => live[key] ?? solar?.initial[key] ?? null;
-  const faultCode = faultCodeOf(Object.fromEntries(FAULT_BITMASK_KEYS_LIVE.map((k) => [k, value(k)])));
-  const checks = React.useMemo(
-    () => buildHealthChecks({ connection: state.status, faultCode, value }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [state.status, faultCode, live, solar]
+/** The Maintenance page, one board for the whole site: the details header of the open tab, the tabs under it (Inverter, EV Charger, then Service
+ *  with every device's plan, warranty and visits), and the tab's content. A device's health follows its live channel (connection, faults,
+ *  temperatures, checks); Service is rendered by the server. A problem is reported in Support: the fault and check buttons open its new-ticket
+ *  form with the details filled in. */
+export function MaintenanceBoard({ devices, defaultKind, service }: { devices: MaintenanceDevice[]; defaultKind: MaintenanceDevice["kind"]; service: { headline: HeadlineData; content: React.ReactNode } }) {
+  const tabs: TabId[] = [...devices.map((d) => d.kind), "service"];
+  const [section, open] = useHashTab(tabs, devices.some((d) => d.kind === defaultKind) ? defaultKind : devices[0]!.kind);
+  const device = devices.find((d) => d.kind === section);
+  if (device) return <DeviceHealthPage key={device.deviceId} device={device} tabs={tabs} section={section} onOpen={open} />;
+  return (
+    <Page tabs={tabs} section={section} onOpen={open} head={service.headline} tone={null}>
+      {service.content}
+    </Page>
   );
-  const verdict = verdictOf(state.status, checks);
-  const problems = problemCount(checks);
-  const lastRead = state.lastReadAt ? agoText(clock - new Date(state.lastReadAt).getTime()) : "—";
-  const evHealth = useEvMaintHealth(deviceId, sync, state, ev);
+}
 
-  const healthHeadline: HeadlineData = solar
-    ? { label: "System health", value: VERDICT_LABEL[verdict], figures: [{ label: "Last data", value: lastRead }, { label: "Open issues", value: String(problems) }] }
-    : evHealth
-      ? { label: "Charger health", value: VERDICT_LABEL[evHealth.verdict], figures: [{ label: "Last check-in", value: evHealth.lastCheckIn }, { label: "Open issues", value: String(evHealth.problems) }] }
-      : { label: "Device health", value: state.status === "online" ? "Reporting" : "Not reporting", figures: [{ label: "Last data", value: lastRead }] };
-  const head = section === "service" ? serviceHeadline : healthHeadline;
-  const meta = SECTIONS.find((s) => s.id === section)!;
-  const Icon = meta.icon;
-  const tone: Verdict | null = section === "health" ? (solar ? verdict : evHealth ? evHealth.verdict : null) : null;
-
+/** The header, the tab strip under it and the open tab's content. */
+function Page({ tabs, section, onOpen, head, tone, children }: { tabs: TabId[]; section: TabId; onOpen: (id: TabId) => void; head: HeadlineData; tone: Verdict | null; children: React.ReactNode }) {
+  const meta = TABS[section];
+  const Icon = section === "service" ? CalendarCheck : HeartPulse;
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -134,32 +113,70 @@ export function MaintenanceBoard({
         </div>
       </div>
 
-      <Tabs value={section} onValueChange={(v) => open(v as SectionId)}>
+      <Tabs value={section} onValueChange={(v) => onOpen(v as TabId)}>
         <TabsList variant="line">
-          {SECTIONS.map((t) => (
-            <TabsTrigger key={t.id} value={t.id} variant="line" className={t.active}>
-              <t.icon className="size-4 shrink-0 group-data-[state=active]:hidden" />
-              <span className="text-sm font-medium">{t.label}</span>
-            </TabsTrigger>
-          ))}
+          {tabs.map((id) => {
+            const t = TABS[id];
+            return (
+              <TabsTrigger key={id} value={id} variant="line" className={t.active}>
+                <t.icon className="size-4 shrink-0 group-data-[state=active]:hidden" />
+                <span className="text-sm font-medium">{t.label}</span>
+              </TabsTrigger>
+            );
+          })}
         </TabsList>
 
         <TabsContent value={section} className="mt-4 outline-none">
-          {section === "health" &&
-            (solar ? (
-              <SolarHealth solar={solar} checks={checks} faultCode={faultCode} value={value} technical={technical} report={report} openIssues={openIssues} />
-            ) : evHealth && ev ? (
-              <div className="space-y-4">
-                <EvMaintHealth health={evHealth} events={ev.events} report={report} openIssues={openIssues} />
-                {health}
-              </div>
-            ) : (
-              health
-            ))}
-          {section === "service" && service}
+          {children}
         </TabsContent>
       </Tabs>
     </div>
+  );
+}
+
+/** One device's Health tab: its live state, its header and its checks. Mounted only while that tab is open. */
+function DeviceHealthPage({ device, tabs, section, onOpen }: { device: MaintenanceDevice; tabs: TabId[]; section: TabId; onOpen: (id: TabId) => void }) {
+  const { deviceId, sync, solar, health, ev, technical, report, openIssues } = device;
+  const state = useDeviceState(deviceId, sync);
+  const live = useLiveNumbers([deviceId], [...HEALTH_KEYS, ...FAULT_BITMASK_KEYS_LIVE], solar?.initial ?? {}, () => "first");
+  const [clock, setClock] = React.useState(() => Date.now());
+  React.useEffect(() => {
+    const id = setInterval(() => setClock(Date.now()), 15_000);
+    return () => clearInterval(id);
+  }, []);
+
+  const value = (key: string) => live[key] ?? solar?.initial[key] ?? null;
+  const faultCode = faultCodeOf(Object.fromEntries(FAULT_BITMASK_KEYS_LIVE.map((k) => [k, value(k)])));
+  const checks = React.useMemo(
+    () => buildHealthChecks({ connection: state.status, faultCode, value }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [state.status, faultCode, live, solar]
+  );
+  const verdict = verdictOf(state.status, checks);
+  const problems = problemCount(checks);
+  const lastRead = state.lastReadAt ? agoText(clock - new Date(state.lastReadAt).getTime()) : "—";
+  const evHealth = useEvMaintHealth(deviceId, sync, state, ev);
+
+  const head: HeadlineData = solar
+    ? { label: "System health", value: VERDICT_LABEL[verdict], figures: [{ label: "Last data", value: lastRead }, { label: "Open issues", value: String(problems) }] }
+    : evHealth
+      ? { label: "Charger health", value: VERDICT_LABEL[evHealth.verdict], figures: [{ label: "Last check-in", value: evHealth.lastCheckIn }, { label: "Open issues", value: String(evHealth.problems) }] }
+      : { label: "Device health", value: state.status === "online" ? "Reporting" : "Not reporting", figures: [{ label: "Last data", value: lastRead }] };
+  const tone: Verdict | null = solar ? verdict : evHealth ? evHealth.verdict : null;
+
+  return (
+    <Page tabs={tabs} section={section} onOpen={onOpen} head={head} tone={tone}>
+      {solar ? (
+        <SolarHealth solar={solar} checks={checks} faultCode={faultCode} value={value} technical={technical} report={report} openIssues={openIssues} />
+      ) : evHealth && ev ? (
+        <div className="space-y-4">
+          <EvMaintHealth health={evHealth} events={ev.events} report={report} openIssues={openIssues} />
+          {health}
+        </div>
+      ) : (
+        health
+      )}
+    </Page>
   );
 }
 
