@@ -264,9 +264,8 @@ export function EvOverviewBoard({
           <p className="text-4xl font-semibold leading-none tracking-tight text-foreground tabular-nums">{headline}</p>
           <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">{sub}</p>
         </div>
-        <div className="relative flex min-h-0 w-full max-w-[30rem] flex-1 items-center">
-          <EvCar level={level} sweep={charging && !(target !== null && target > 0)} />
-          <span aria-hidden="true" className="pointer-events-none absolute -bottom-1 left-1/2 h-3 w-4/5 -translate-x-1/2 rounded-full bg-black/15 blur-md dark:bg-black/60" />
+        <div className="flex min-h-0 w-full max-w-[40rem] flex-1 items-center justify-center">
+          <EvCar level={level} sweep={charging && !(target !== null && target > 0)} className="max-h-full" />
         </div>
         <div className="flex w-full flex-col items-center gap-3 sm:flex-row sm:items-end sm:justify-between">
           <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
