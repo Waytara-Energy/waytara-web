@@ -46,33 +46,17 @@ export async function callHub(path: string, body: unknown): Promise<{ ok: true }
 }
 
 /**
- * Start / Stop for one EV charger. With no charge open it is a "Start charging" button (and, unless `compact`, a small "stop after N kWh" field); with
- * a charge open it is a "Stop" button. Both go to the WayTara service with the signed-in person's pass; the charger starts a few seconds later, so after a
- * start the page asks the server again every few seconds until the charge shows up.
+ * The state and the two calls behind every Start / Stop control: what is being sent, whether the page is waiting for a charge to show up, and the
+ * words when something went wrong. Both go to the WayTara service with the signed-in person's pass; the charger starts a few seconds later, so
+ * after a start the page asks the server again every few seconds until the charge shows up.
  *   sessionOpen    a charging session is open for this charger
  *   transactionId  the charger's own number for it (ev_sessions.ocpp_transaction_id): Stop needs it
- *   connected      the charger answers through its unit (null = not known); a charger that is not connected cannot be started
  */
-export function EvChargeControl({
-  chargerId,
-  sessionOpen,
-  transactionId,
-  connected,
-  compact = false,
-  className,
-}: {
-  chargerId: string;
-  sessionOpen: boolean;
-  transactionId: number | null;
-  connected: boolean | null;
-  compact?: boolean;
-  className?: string;
-}) {
+export function useEvCharge({ chargerId, sessionOpen, transactionId }: { chargerId: string; sessionOpen: boolean; transactionId: number | null }) {
   const router = useRouter();
   const [busy, setBusy] = React.useState<"start" | "stop" | null>(null);
   const [waiting, setWaiting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
-  const [target, setTarget] = React.useState("");
   const waitingSince = React.useRef(0);
 
   // The charge began (or ended): no longer waiting for it.
@@ -97,15 +81,11 @@ export function EvChargeControl({
     return () => clearInterval(t);
   }, [waiting, router]);
 
-  async function start() {
-    const t = parseTarget(target);
-    if (!t.ok) {
-      setError("Type the units to charge as a number, for example 10 (or leave it empty).");
-      return;
-    }
+  /** `targetKwh`: stop by itself after this many units (null = no limit). */
+  async function start(targetKwh: number | null) {
     setError(null);
     setBusy("start");
-    const r = await callHub(`/v1/ev/${encodeURIComponent(chargerId)}/remote-start`, startBody(t.kwh));
+    const r = await callHub(`/v1/ev/${encodeURIComponent(chargerId)}/remote-start`, startBody(targetKwh));
     if (!r.ok) {
       setBusy(null);
       setError(r.message);
@@ -134,7 +114,41 @@ export function EvChargeControl({
     setTimeout(() => setBusy(null), 8_000);
   }
 
-  const pending = busy !== null || waiting;
+  return { busy, waiting, error, setError, pending: busy !== null || waiting, start, stop };
+}
+
+/**
+ * Start / Stop for one EV charger. With no charge open it is a "Start charging" button (and, unless `compact`, a small "stop after N kWh" field); with
+ * a charge open it is a "Stop" button.
+ *   connected      the charger answers through its unit (null = not known); a charger that is not connected cannot be started
+ */
+export function EvChargeControl({
+  chargerId,
+  sessionOpen,
+  transactionId,
+  connected,
+  compact = false,
+  className,
+}: {
+  chargerId: string;
+  sessionOpen: boolean;
+  transactionId: number | null;
+  connected: boolean | null;
+  compact?: boolean;
+  className?: string;
+}) {
+  const { busy, waiting, error, setError, pending, start, stop } = useEvCharge({ chargerId, sessionOpen, transactionId });
+  const [target, setTarget] = React.useState("");
+
+  function startFromField() {
+    const t = parseTarget(target);
+    if (!t.ok) {
+      setError("Type the units to charge as a number, for example 10 (or leave it empty).");
+      return;
+    }
+    void start(t.kwh);
+  }
+
   return (
     <div className={cn("space-y-2", className)}>
       {sessionOpen ? (
@@ -157,7 +171,7 @@ export function EvChargeControl({
               />
             </label>
           ) : null}
-          <Button type="button" size={compact ? "sm" : "lg"} className="w-full rounded-full" onClick={() => void start()} disabled={pending || connected === false}>
+          <Button type="button" size={compact ? "sm" : "lg"} className="w-full rounded-full" onClick={() => startFromField()} disabled={pending || connected === false}>
             {pending ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
             {waiting ? "Starting…" : busy === "start" ? "Sending…" : "Start charging"}
           </Button>

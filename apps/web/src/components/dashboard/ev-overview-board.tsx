@@ -9,7 +9,7 @@ import { elapsedText } from "@/lib/ev-control";
 import type { EvHistory, EvHistorySession } from "@/lib/ev-history";
 import type { OpenCharge } from "@/lib/ev-overview";
 import { cn } from "@/lib/utils";
-import { EvChargeControl } from "./ev-charge-control";
+import { EvPowerPanel } from "./ev-power-panel";
 import { EvCar } from "./ev-car";
 
 const KEYS = ["power_active_import_kw", "current_import_l1_a", "voltage_l1_n_v", "energy_active_import_register_kwh"];
@@ -193,7 +193,6 @@ export function EvOverviewBoard({
   chargerId,
   status,
   connected,
-  todayKwh,
   open,
   initial,
   history,
@@ -203,7 +202,6 @@ export function EvOverviewBoard({
   status: string | null;
   /** The charger answers through its unit (null = no verdict yet). */
   connected: boolean | null;
-  todayKwh: number | null;
   open: OpenCharge | null;
   initial: Record<string, number | null>;
   history: EvHistory;
@@ -233,12 +231,9 @@ export function EvOverviewBoard({
   const kwh = (v: number, digits = 1) => u.format(v, "kWh", "ev_energy_today_kwh", digits);
   const elapsed = open ? elapsedText(Date.parse(open.startedAt), now) : null;
   // the line over the car: how far a limited charge is, the energy of an open one, or what the charger is doing
-  let headline: React.ReactNode;
-  let sub: string;
-  if (offline) {
-    headline = "Offline";
-    sub = "Not connected right now";
-  } else if (charging && target !== null && target > 0) {
+  let headline: React.ReactNode = null;
+  let sub = "";
+  if (charging && target !== null && target > 0) {
     headline = (
       <>
         {Math.min(100, Math.round(level))}
@@ -249,9 +244,6 @@ export function EvOverviewBoard({
   } else if (charging) {
     headline = chargeKwh !== null ? kwh(chargeKwh, 2) : "Charging";
     sub = ["this charge", elapsed].filter(Boolean).join(" · ");
-  } else {
-    headline = status ?? "Available";
-    sub = todayKwh !== null && todayKwh > 0 ? `${kwh(todayKwh)} delivered today` : "No charge yet today";
   }
 
   const last = history.recent[0] ?? null;
@@ -260,22 +252,33 @@ export function EvOverviewBoard({
     <div className="grid gap-4 lg:h-[max(calc(100svh-9.5rem),30rem)] lg:grid-cols-12 lg:grid-rows-[minmax(0,11fr)_minmax(0,9fr)]">
       {/* the charger itself has no card: the car stands on the page */}
       <section className="flex min-h-0 flex-col items-center justify-between gap-3 py-2 lg:col-span-7">
-        <div className="text-center">
-          <p className="text-4xl font-semibold leading-none tracking-tight text-foreground tabular-nums">{headline}</p>
-          <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">{sub}</p>
+        {/* what the charge is doing, only while one runs; the space is kept so the car does not move when it starts */}
+        <div className="min-h-[3.25rem] text-center">
+          {headline !== null && (
+            <>
+              <p className="text-4xl font-semibold leading-none tracking-tight text-foreground tabular-nums">{headline}</p>
+              <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">{sub}</p>
+            </>
+          )}
         </div>
         <div className="flex min-h-0 w-full max-w-[40rem] flex-1 items-center justify-center">
           <EvCar level={level} sweep={charging && !(target !== null && target > 0)} className="max-h-full" />
         </div>
-        <div className="flex w-full flex-col items-center gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
-            <Stat label="Power" value={offline ? "—" : powerKw !== null ? u.format(powerKw, "kW", "power_active_import_kw", 2) : "0 kW"} />
-            <Stat label="Current" value={offline ? "—" : charging && n.current_import_l1_a !== null ? u.format(n.current_import_l1_a, "A", "current_import_l1_a", 1) : "0 A"} />
-            <Stat label="Voltage" value={charging && n.voltage_l1_n_v !== null ? `${Math.round(n.voltage_l1_n_v)} V` : "—"} />
-            <Stat label={charging ? "This charge" : "Today"} value={charging ? (chargeKwh !== null ? kwh(chargeKwh, 2) : "—") : todayKwh !== null ? kwh(todayKwh) : "—"} />
-          </div>
-          <EvChargeControl chargerId={chargerId} sessionOpen={open !== null} transactionId={open?.transactionId ?? null} connected={connected} className="w-full sm:w-64" />
-        </div>
+        <EvPowerPanel
+          chargerId={chargerId}
+          sessionOpen={open !== null}
+          transactionId={open?.transactionId ?? null}
+          connected={connected}
+          charging={charging}
+          stats={
+            <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
+              <Stat label="Power" value={powerKw !== null ? u.format(powerKw, "kW", "power_active_import_kw", 2) : "—"} />
+              <Stat label="Current" value={n.current_import_l1_a !== null ? u.format(n.current_import_l1_a, "A", "current_import_l1_a", 1) : "—"} />
+              <Stat label="Voltage" value={n.voltage_l1_n_v !== null ? `${Math.round(n.voltage_l1_n_v)} V` : "—"} />
+              <Stat label="This charge" value={chargeKwh !== null ? kwh(chargeKwh, 2) : "—"} />
+            </div>
+          }
+        />
       </section>
       <Statistic history={history} />
       <LastCharge last={last} />

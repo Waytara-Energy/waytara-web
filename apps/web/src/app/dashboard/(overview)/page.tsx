@@ -134,7 +134,6 @@ export default async function DashboardOverviewPage() {
             chargerId={d.device.id}
             status={d.ev.status}
             connected={d.ev.connected}
-            todayKwh={d.ev.todayKwh}
             open={d.ev.open}
             initial={d.cards?.initial ?? {}}
             history={d.history}
