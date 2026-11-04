@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { daysInclusive } from "@/lib/reports/period-math";
 import { generateEvReportPdf } from "@/lib/reports/ev-report-pdf";
 import { gatherEvReport } from "@/lib/reports/ev-report-data";
+import { EV_REPORT_MODES, parseEvFilters, type EvReportMode } from "@/lib/reports/ev-filters";
 
 const MAX_DAYS = 730;
 const DAY = /^\d{4}-\d{2}-\d{2}$/;
@@ -13,10 +14,13 @@ export async function GET(req: NextRequest) {
   if (!DAY.test(from) || !DAY.test(to) || to < from || daysInclusive(from, to) > MAX_DAYS) {
     return NextResponse.json({ error: "from and to must be YYYY-MM-DD dates, at most 730 days apart" }, { status: 400 });
   }
-  const r = await gatherEvReport(req.nextUrl.searchParams.get("device") ?? undefined, from, to);
+  const q = req.nextUrl.searchParams;
+  const asked = q.get("mode") as EvReportMode | null;
+  const mode: EvReportMode = asked && EV_REPORT_MODES.includes(asked) ? asked : "sessions";
+  const r = await gatherEvReport(q.get("device") ?? undefined, from, to, parseEvFilters((k) => q.get(k)));
   if (!r.ok) return NextResponse.json({ error: r.error }, { status: r.status });
-  const pdf = await generateEvReportPdf(r.report);
+  const pdf = await generateEvReportPdf(r.report, mode);
   return new NextResponse(new Uint8Array(pdf), {
-    headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="waytara-ev-charging-${from}-to-${to}.pdf"` },
+    headers: { "Content-Type": "application/pdf", "Content-Disposition": `attachment; filename="waytara-ev-${mode === "sessions" ? "charging" : mode === "daily" ? "daily" : "statement"}-${from}-to-${to}.pdf"` },
   });
 }

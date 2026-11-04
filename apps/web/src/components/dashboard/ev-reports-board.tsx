@@ -1,31 +1,53 @@
 "use client";
 
 import * as React from "react";
-import { CarFront, FileSpreadsheet, FileText } from "lucide-react";
+import type { ColumnDef } from "@tanstack/react-table";
+import { BarChart3, CarFront, FileSpreadsheet, FileText, RotateCcw, Table2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { DataTable } from "@/components/ui/data-table";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ButtonSpinner } from "@/components/ui/spinner";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
 import { getEvSessionDetail } from "@/app/dashboard/ev-session-detail-action";
-import type { EvPerfSession, EvSpan } from "@/lib/ev-perf-stats";
+import { evPerfStats, spanOfDays, type EvDayFigures, type EvPerfSession, type EvRow } from "@/lib/ev-perf-stats";
 import { formatSeconds, sessionStatusLabel } from "@/lib/ev-sessions";
-import { buildEvReport, evSummaryFigures } from "@/lib/reports/ev-report";
+import { buildEvReport, evChargingDays, evSummaryFigures, type EvReport } from "@/lib/reports/ev-report";
+import { filtersQuery, monthBounds, monthsBetween, type EvReportFilters, type EvReportMode } from "@/lib/reports/ev-filters";
+import { choiceLabel, defaultChoice, resolveChoice, type PeriodChoice } from "@/lib/reports/period-choice";
+import { fmtDate } from "@/lib/savings";
 import { cn } from "@/lib/utils";
+import { ChartEmptyState } from "./chart-empty-state";
+import { ChartCore, type ChartRow, type ChartSeriesDef } from "./chart-kit";
 import { EvSessionDialog } from "./ev-session-dialog";
-import { periodText } from "./perf-data";
-import { StatTile, useKwhText } from "./perf-kit";
-import { RangeBar, LONG_PRESETS } from "./range-bar";
-import { RangeProvider, useRange } from "./range-context";
+import { FLOW } from "./flow-colors";
+import { Panel, StatTile, useKwhText } from "./perf-kit";
+import { ALL_DAY, TimeOfDayFilter, isAllDay, windowIsValid, type DayWindow } from "./report-filters";
+import { ReportPeriodPicker } from "./report-period-picker";
 import { useDownloadPending } from "./use-download-pending";
 
-const IST_MS = 19_800_000;
-const istDay = (ms: number) => new Date(ms + IST_MS).toISOString().slice(0, 10);
 const when = (ts: string) => new Date(ts).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
-/** How many sessions the list shows at first, and how many more each press of "Show more" adds. */
+const monthName = (m: string) => new Date(`${m}-15T00:00:00Z`).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
+/** How many sessions the table lists at first, and how many more each press of "Show more" adds. */
 const PAGE = 25;
-/** What the headline already says: not listed a second time in the figures. */
-const IN_HEADLINE = new Set(["Charging sessions", "Energy delivered", "Saved by solar and battery"]);
+/** The most charges drawn as bars in the graph (the newest); the table and the downloads hold all of them. */
+const MAX_BARS = 60;
+
+const MODES: { id: EvReportMode; label: string }[] = [
+  { id: "sessions", label: "Charging sessions" },
+  { id: "daily", label: "Daily totals" },
+  { id: "statement", label: "Monthly statement" },
+];
+
+const SOURCE_SERIES: ChartSeriesDef[] = [
+  { key: "solar", label: "Solar", color: FLOW.producing },
+  { key: "battery", label: "Battery", color: FLOW.drawing },
+  { key: "grid", label: "Grid", color: FLOW.consuming },
+  { key: "unmatched", label: "Source not known", color: "#94a3b8" },
+];
+const kwhFormat = (v: number) => ({ num: v.toFixed(v >= 10 ? 1 : 2), unit: "kWh" });
 
 export interface EvReportsProps {
   deviceId: string;
@@ -36,50 +58,27 @@ export interface EvReportsProps {
   tariffNote: string;
   /** The charger's sessions of the last two years, as many as the page read. */
   sessions: EvPerfSession[];
+  /** Today in India (YYYY-MM-DD), and the day of the first charge (null when there is none): the period picker needs them. */
+  today: string;
+  firstDay: string | null;
 }
 
-/** The period of the page's picker, as the report reads it (India days, both ends included). */
-function useReport(props: EvReportsProps, span: EvSpan) {
-  const { customerName, siteName, deviceLabel, tariffRate, tariffNote, sessions } = props;
-  const from = istDay(span.fromMs);
-  const to = istDay(Math.max(span.fromMs, span.toMs - 1));
-  const report = React.useMemo(
-    () => buildEvReport({ customerName, siteName, deviceLabel, generatedAt: "", from, to, tariffRate, tariffNote, sessions }),
-    [customerName, siteName, deviceLabel, from, to, tariffRate, tariffNote, sessions],
-  );
-  return { report, from, to };
-}
-
-/** Reports for an EV charger when it is the whole page (a site without an inverter): the headline with its period picker, then the body. */
+/** Reports for an EV charger when it is the whole page (a site without an inverter): the headline, then the detailed report. */
 export function EvReportsBoard(props: EvReportsProps) {
   return (
-    <RangeProvider deviceId={props.deviceId} scope="reports-ev" defaultPreset="30d">
-      <Standalone {...props} />
-    </RangeProvider>
-  );
-}
-
-function Standalone(props: EvReportsProps) {
-  const range = useRange();
-  const fromMs = range?.window.fromMs ?? 0;
-  const toMs = range?.window.toMs ?? 0;
-  const span = React.useMemo(() => ({ fromMs, toMs }), [fromMs, toMs]);
-  const period = range ? periodText(range.preset, span) : "";
-  return (
     <div className="space-y-5">
-      <EvReportsHeadline {...props} span={span} periodText={period} />
-      <EvReportsBody {...props} span={span} periodText={period} />
+      <EvReportsHeadline {...props} />
+      <EvReportsBody {...props} />
     </div>
   );
 }
 
-/** The line above the Reports tabs for the EV Charger, like the other tabs': the energy delivered in the period, two more figures about it and the
- *  one period picker at the right. */
-export function EvReportsHeadline({ span, periodText: period, ...props }: EvReportsProps & { span: EvSpan; periodText: string }) {
+/** The line above the Reports tabs for the EV Charger, like Generate's (it has no period of its own): everything the charger has delivered, with the
+ *  number of charges and what solar and battery saved. */
+export function EvReportsHeadline({ sessions, tariffRate, today, firstDay }: EvReportsProps) {
   const kwh = useKwhText();
-  const { report } = useReport(props, span);
-  const has = report.stats.rows.length > 0;
-  const cost = report.stats.cost;
+  const stats = React.useMemo(() => evPerfStats(sessions, spanOfDays(firstDay ?? today, today), tariffRate), [sessions, tariffRate, today, firstDay]);
+  const has = stats.sessions > 0;
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-4">
@@ -87,15 +86,14 @@ export function EvReportsHeadline({ span, periodText: period, ...props }: EvRepo
           <CarFront className="size-7" />
         </span>
         <div className="min-w-0">
-          <p className="truncate text-sm font-medium text-theme-muted">Energy delivered · {period}</p>
-          <p className="text-4xl font-semibold leading-tight tracking-tight text-theme-primary">{has ? kwh(report.stats.energyKwh) : "—"}</p>
+          <p className="truncate text-sm font-medium text-theme-muted">Energy delivered · so far</p>
+          <p className="text-4xl font-semibold leading-tight tracking-tight text-theme-primary">{has ? kwh(stats.energyKwh) : "—"}</p>
         </div>
         <div className="hidden items-center gap-8 pl-6 md:flex">
-          <Figure label="Charging sessions" value={has ? String(report.stats.sessions) : "—"} />
-          {cost ? <Figure label="Saved by solar and battery" value={has ? `₹${cost.saved.toFixed(0)}` : "—"} good /> : null}
+          <Figure label="Charging sessions" value={has ? String(stats.sessions) : "—"} />
+          {stats.cost ? <Figure label="Saved by solar and battery" value={has ? `₹${stats.cost.saved.toFixed(0)}` : "—"} good /> : null}
         </div>
       </div>
-      <RangeBar presets={LONG_PRESETS} />
     </div>
   );
 }
@@ -109,145 +107,371 @@ function Figure({ label, value, good = false }: { label: string; value: string; 
   );
 }
 
-/** What is under the headline: the period's figures, then every charge of it (filter by status, open one in full) with the CSV and PDF of the
- *  same period. The period is the page's one picker. */
-export function EvReportsBody({ span, periodText: period, ...props }: EvReportsProps & { span: EvSpan; periodText: string }) {
-  const { report, from, to } = useReport(props, span);
+const label = "text-xs font-medium text-muted-foreground";
+
+/** The detailed report, built as a filter like the solar one on the Generate tab: choose what to look at (every charge, one row per day, or a month as
+ *  a statement), the period, the hours of the day and the kind of charge; see it as a graph or as tables; and download exactly what is shown as CSV or PDF. */
+export function EvReportsBody(props: EvReportsProps) {
+  const { deviceId, today, firstDay, sessions } = props;
+  const months = React.useMemo(() => monthsBetween(firstDay, today), [firstDay, today]);
+  const [mode, setMode] = React.useState<EvReportMode>("sessions");
+  const [view, setView] = React.useState<"graph" | "table">("graph");
+  const [choice, setChoice] = React.useState<PeriodChoice>(() => ({ ...defaultChoice(today), mode: "30d" }));
+  const [month, setMonth] = React.useState(months[0] ?? today.slice(0, 7));
+  const [status, setStatus] = React.useState("all");
+  const [withEnergy, setWithEnergy] = React.useState(false);
+  const [win, setWin] = React.useState<DayWindow>(ALL_DAY);
   const [csvPending, triggerCsv] = useDownloadPending();
   const [pdfPending, triggerPdf] = useDownloadPending();
-  const [status, setStatus] = React.useState<string>("all");
-  // how many rows are listed; a new period or filter starts at the top of the list again (the count belongs to the key it was raised under)
-  const [more, setMore] = React.useState<{ key: string; n: number } | null>(null);
-  const [openId, setOpenId] = React.useState<string | null>(null);
 
-  const rows = report.stats.rows;
-  const has = rows.length > 0;
-  const query = `device=${props.deviceId}&from=${from}&to=${to}`;
+  const winOk = windowIsValid(win);
+  const filters = React.useMemo<EvReportFilters>(
+    () => ({ status, withEnergy, fromTime: isAllDay(win) || !winOk ? null : win.from, toTime: isAllDay(win) || !winOk ? null : win.to }),
+    [status, withEnergy, win, winOk],
+  );
+  const period = mode === "statement" ? monthBounds(month, today) : (() => {
+    const r = resolveChoice(choice, today);
+    return { from: r.start, to: r.end };
+  })();
+  const periodName = mode === "statement" ? monthName(month) : choiceLabel(choice, today);
 
-  // The statuses this period has, each with its count, for the filter (a status nobody has is not offered).
-  const statuses = React.useMemo(() => {
-    const counts = new Map<string, number>();
-    for (const r of rows) counts.set(r.status, (counts.get(r.status) ?? 0) + 1);
-    return [...counts].map(([key, count]) => ({ key, count, label: sessionStatusLabel(key).label }));
-  }, [rows]);
-  const active = statuses.some((s) => s.key === status) ? status : "all";
-  const visible = active === "all" ? rows : rows.filter((r) => r.status === active);
+  const report = React.useMemo(
+    () => buildEvReport({ customerName: props.customerName, siteName: props.siteName, deviceLabel: props.deviceLabel, generatedAt: "", from: period.from, to: period.to, tariffRate: props.tariffRate, tariffNote: props.tariffNote, sessions, filters }),
+    [props.customerName, props.siteName, props.deviceLabel, period.from, period.to, props.tariffRate, props.tariffNote, sessions, filters],
+  );
+  const has = report.stats.rows.length > 0;
 
-  const listKey = `${active}|${from}|${to}`;
-  const shown = more && more.key === listKey ? more.n : PAGE;
+  // The statuses the charger has had, for the filter (a status it never had is not offered).
+  const statuses = React.useMemo(() => [...new Set(sessions.filter((s) => !s.is_test).map((s) => s.status))].map((key) => ({ key, label: sessionStatusLabel(key).label })), [sessions]);
+  const activeStatus = status === "all" || statuses.some((s) => s.key === status) ? status : "all";
+
+  const href = (format: "csv" | "pdf") => {
+    const f = filtersQuery(filters);
+    return `/api/reports/ev.${format}?device=${deviceId}&from=${period.from}&to=${period.to}&mode=${mode}${f ? `&${f}` : ""}`;
+  };
+  const dirty = mode === "statement" ? month !== (months[0] ?? today.slice(0, 7)) || status !== "all" || withEnergy || !isAllDay(win) : choice.mode !== "30d" || status !== "all" || withEnergy || !isAllDay(win);
+  const reset = () => {
+    setChoice({ ...defaultChoice(today), mode: "30d" });
+    setMonth(months[0] ?? today.slice(0, 7));
+    setStatus("all");
+    setWithEnergy(false);
+    setWin(ALL_DAY);
+  };
 
   return (
-    <div className="space-y-5">
-      {!has && <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">No charging sessions in this period. Pick a longer period.</p>}
+    <section className="space-y-4">
+      <div>
+        <h2 className="text-sm font-semibold text-foreground">Detailed report</h2>
+        <p className="text-xs text-muted-foreground">Filter by the period, the hours of the day and the kind of charge, see it as a graph or a table, and download it as CSV or PDF.</p>
+      </div>
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <ToggleGroup type="single" variant="outline" size="sm" value={mode} onValueChange={(v) => v && setMode(v as EvReportMode)} aria-label="What to look at">
+          {MODES.map((m) => (
+            <ToggleGroupItem key={m.id} value={m.id} className="h-9 px-3 text-xs sm:text-sm">
+              {m.label}
+            </ToggleGroupItem>
+          ))}
+        </ToggleGroup>
+
+        <div className="flex items-center gap-2">
+          <ToggleGroup type="single" variant="outline" size="sm" value={view} onValueChange={(v) => v && setView(v as "graph" | "table")} aria-label="Show as">
+            <ToggleGroupItem value="graph" aria-label="Graph" className="h-9 gap-1.5 px-2.5">
+              <BarChart3 className="size-4" />
+              <span className="hidden sm:inline">Graph</span>
+            </ToggleGroupItem>
+            <ToggleGroupItem value="table" aria-label="Table" className="h-9 gap-1.5 px-2.5">
+              <Table2 className="size-4" />
+              <span className="hidden sm:inline">Table</span>
+            </ToggleGroupItem>
+          </ToggleGroup>
+          <Button asChild variant="outline" size="sm" className={`h-9 gap-1.5 max-sm:px-2.5 ${has ? "" : "pointer-events-none opacity-50"}`}>
+            <a href={href("csv")} onClick={triggerCsv} aria-label="Download CSV" aria-disabled={!has} title="Download CSV">
+              <ButtonSpinner show={csvPending} />
+              <FileSpreadsheet className="size-4" />
+              <span className="hidden sm:inline">CSV</span>
+            </a>
+          </Button>
+          <Button asChild size="sm" className={`h-9 gap-1.5 max-sm:px-2.5 ${has ? "" : "pointer-events-none opacity-50"}`}>
+            <a href={href("pdf")} onClick={triggerPdf} aria-label="Download PDF" aria-disabled={!has} title="Download PDF">
+              <ButtonSpinner show={pdfPending} />
+              <FileText className="size-4" />
+              <span className="hidden sm:inline">PDF</span>
+            </a>
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
+        <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
+          {mode === "statement" ? (
+            <div className="space-y-1">
+              <span className={label}>Month</span>
+              <Select value={month} onValueChange={setMonth}>
+                <SelectTrigger className="h-9 w-[170px]">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {(months.length > 0 ? months : [month]).map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {monthName(m)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : (
+            <div className="space-y-1">
+              <span className={label}>Period</span>
+              <div>
+                <ReportPeriodPicker choice={choice} onChange={setChoice} today={today} firstDay={firstDay} />
+              </div>
+            </div>
+          )}
+          <div className="space-y-1">
+            <span className={label}>Started between</span>
+            <div>
+              <TimeOfDayFilter value={win} onChange={setWin} />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <span className={label}>Status</span>
+            <Select value={activeStatus} onValueChange={setStatus}>
+              <SelectTrigger className="h-9 w-[150px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All</SelectItem>
+                {statuses.map((s) => (
+                  <SelectItem key={s.key} value={s.key}>
+                    {s.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-1">
+            <span className={label}>Charges</span>
+            <div>
+              <Button type="button" variant={withEnergy ? "secondary" : "outline"} size="sm" aria-pressed={withEnergy} onClick={() => setWithEnergy((v) => !v)} className="h-9">
+                Only with energy
+              </Button>
+            </div>
+          </div>
+          <Button variant="ghost" size="sm" className="ml-auto h-9 gap-1.5 text-muted-foreground" onClick={reset} disabled={!dirty}>
+            <RotateCcw className="size-3.5" />
+            Reset
+          </Button>
+        </div>
+      </div>
+
+      {!winOk ? (
+        <EmptyPick text="Set a start time that is earlier than the end time." />
+      ) : (
+        <ReportView report={report} mode={mode} view={view} periodName={periodName} has={has} />
+      )}
+    </section>
+  );
+}
+
+function ReportView({ report, mode, view, periodName, has }: { report: EvReport; mode: EvReportMode; view: "graph" | "table"; periodName: string; has: boolean }) {
+  const [openId, setOpenId] = React.useState<string | null>(null);
+  const s = report.stats;
+  return (
+    <div className="space-y-4">
+      {!has && <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">No charging sessions match this. Pick a longer period, or loosen the filters.</p>}
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(10.5rem,1fr))] gap-3">
         {evSummaryFigures(report)
-          .filter((f) => !IN_HEADLINE.has(f.label))
+          // a statement shows the money in its Bill, once
+          .filter((f) => !(mode === "statement" && (f.label === "Paid to the grid" || f.label === "Saved by solar and battery")))
           .map((f) => (
-            <StatTile key={f.label} label={`${f.label} · ${period}`} value={has ? f.value : "—"} />
-          ))}
+          <StatTile key={f.label} label={`${f.label} · ${periodName}`} value={has ? f.value : "—"} />
+        ))}
       </div>
-      {report.stats.sample && has && <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">Sample data: this charger has no real charge yet, so this report is made from sample charges.</p>}
-      {report.stats.cost && has && (
+      {s.sample && has && <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">Sample data: this charger has no real charge yet, so this report is made from sample charges.</p>}
+      {s.cost && has && (
         <p className="text-xs text-muted-foreground">
-          Priced at ₹{report.stats.cost.rate.toFixed(2)}/kWh{props.tariffNote ? ` (${props.tariffNote})` : ""}. Energy without a source split counts as grid.
+          Priced at ₹{s.cost.rate.toFixed(2)}/kWh{report.tariffNote ? ` (${report.tariffNote})` : ""}. Energy without a source split counts as grid.
         </p>
       )}
 
-      {has && (
-        <Card>
-          <CardHeader className="flex flex-row flex-wrap items-start justify-between gap-3 space-y-0">
-            <div className="space-y-1">
-              <CardTitle className="text-sm">Charging sessions</CardTitle>
-              <CardDescription>
-                {period} · {visible.length} {visible.length === 1 ? "session" : "sessions"}. Press one to see that charge in full.
-              </CardDescription>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button asChild variant="outline" size="sm" className="h-9 gap-1.5 max-sm:px-2.5">
-                <a href={`/api/reports/ev.csv?${query}`} onClick={triggerCsv} aria-label="Download CSV" title="Download CSV">
-                  <ButtonSpinner show={csvPending} />
-                  <FileSpreadsheet className="size-4" />
-                  <span className="hidden sm:inline">CSV</span>
-                </a>
-              </Button>
-              <Button asChild size="sm" className="h-9 gap-1.5 max-sm:px-2.5">
-                <a href={`/api/reports/ev.pdf?${query}`} onClick={triggerPdf} aria-label="Download PDF" title="Download PDF">
-                  <ButtonSpinner show={pdfPending} />
-                  <FileText className="size-4" />
-                  <span className="hidden sm:inline">PDF</span>
-                </a>
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {statuses.length > 1 && (
-              <div className="flex flex-wrap gap-2" role="group" aria-label="Show sessions">
-                {[{ key: "all", label: "All", count: rows.length }, ...statuses].map((s) => (
-                  <button
-                    key={s.key}
-                    type="button"
-                    aria-pressed={active === s.key}
-                    onClick={() => setStatus(s.key)}
-                    className={cn(
-                      "rounded-full border px-3 py-1 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring",
-                      active === s.key ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "border-border text-muted-foreground hover:text-foreground",
-                    )}
-                  >
-                    {s.label} · {s.count}
-                  </button>
-                ))}
-              </div>
-            )}
+      {has && mode === "statement" && s.cost && <Bill report={report} periodName={periodName} />}
 
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Started</TableHead>
-                  <TableHead>Charging time</TableHead>
-                  <TableHead className="text-right">Energy</TableHead>
-                  <TableHead className="text-right">Peak</TableHead>
-                  <TableHead className="text-right">Solar</TableHead>
-                  <TableHead>Status</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {visible.slice(0, shown).map((r) => {
-                  const st = sessionStatusLabel(r.status);
-                  return (
-                    <TableRow key={r.id}>
-                      <TableCell className="tabular-nums">
-                        <button type="button" onClick={() => setOpenId(r.id)} className="font-medium underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring">
-                          {when(r.startedAt)}
-                        </button>
-                      </TableCell>
-                      <TableCell className="tabular-nums text-muted-foreground">{r.durationS === null ? "—" : formatSeconds(r.durationS)}</TableCell>
-                      <TableCell className="text-right tabular-nums">{r.energyKwh === null ? "—" : `${r.energyKwh.toFixed(r.energyKwh >= 10 ? 1 : 2)} kWh`}</TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">{r.peakKw === null ? "—" : `${r.peakKw.toFixed(1)} kW`}</TableCell>
-                      <TableCell className="text-right tabular-nums text-muted-foreground">{r.solarSharePct === null ? "—" : `${r.solarSharePct.toFixed(0)}%`}</TableCell>
-                      <TableCell>
-                        <Badge variant={st.tone === "warn" ? "alert" : st.tone === "good" ? "default" : "secondary"}>{st.label}</Badge>
-                      </TableCell>
-                    </TableRow>
-                  );
-                })}
-              </TableBody>
-            </Table>
-
-            {visible.length > shown && (
-              <div className="flex items-center justify-between gap-3">
-                <p className="text-xs text-muted-foreground">
-                  Showing {shown} of {visible.length}
-                </p>
-                <Button type="button" variant="outline" size="sm" onClick={() => setMore({ key: listKey, n: shown + PAGE * 2 })}>
-                  Show more
-                </Button>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
+      {has &&
+        (mode === "sessions" ? (
+          view === "graph" ? (
+            <SessionsGraph rows={s.rows} periodName={periodName} />
+          ) : (
+            <SessionsTable rows={s.rows} periodName={periodName} onOpen={setOpenId} />
+          )
+        ) : view === "graph" ? (
+          <DaysGraph report={report} periodName={periodName} />
+        ) : (
+          <DaysTable report={report} periodName={periodName} />
+        ))}
       <EvSessionDialog sessionId={openId} onClose={() => setOpenId(null)} load={getEvSessionDetail} />
     </div>
+  );
+}
+
+function EmptyPick({ text }: { text: string }) {
+  return <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">{text}</div>;
+}
+
+/** The statement's bill: what the grid part of the charging cost, what solar and battery saved, and what it would all have cost. */
+function Bill({ report, periodName }: { report: EvReport; periodName: string }) {
+  const c = report.stats.cost!;
+  return (
+    <Panel title="Bill" description={`${periodName} · ${report.stats.energyKwh.toFixed(1)} kWh at ₹${c.rate.toFixed(2)}/kWh`}>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatTile label="Paid to the grid" value={`₹${c.gridCost.toFixed(0)}`} hint="paid to the board" />
+        <StatTile label="Saved" value={`₹${c.saved.toFixed(0)}`} hint="solar and battery" tone="good" />
+        <StatTile label="All from the grid" value={`₹${c.allGridCost.toFixed(0)}`} hint="without solar" />
+      </div>
+    </Panel>
+  );
+}
+
+/** One bar per charge, split by where its energy came from (the newest MAX_BARS of them). */
+function SessionsGraph({ rows, periodName }: { rows: EvRow[]; periodName: string }) {
+  const bars = rows.slice(0, MAX_BARS).reverse();
+  const data: ChartRow[] = bars.map((r) => {
+    const split = r.solarKwh !== null || r.batteryKwh !== null || r.gridKwh !== null;
+    return {
+      __tick: new Date(r.startedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" }),
+      __label: when(r.startedAt),
+      solar: split ? (r.solarKwh ?? 0) : 0,
+      battery: split ? (r.batteryKwh ?? 0) : 0,
+      grid: split ? (r.gridKwh ?? 0) : 0,
+      unmatched: split ? (r.unknownKwh ?? 0) : (r.energyKwh ?? 0),
+    };
+  });
+  return (
+    <Panel chart title="Energy of each charge" description={`${periodName} · kWh of each charge, by where it came from${rows.length > MAX_BARS ? `. The newest ${MAX_BARS} of ${rows.length}; the table and the downloads hold all of them` : ""}`}>
+      <ChartCore rows={data} series={SOURCE_SERIES} kind="bar" stacked format={kwhFormat} tickEvery={Math.max(1, Math.round(data.length / 6))} />
+    </Panel>
+  );
+}
+
+function SessionsTable({ rows, periodName, onOpen }: { rows: EvRow[]; periodName: string; onOpen: (id: string) => void }) {
+  const [more, setMore] = React.useState<{ key: string; n: number } | null>(null);
+  const key = `${rows.length}|${rows[0]?.id ?? ""}`;
+  const shown = more && more.key === key ? more.n : PAGE;
+  return (
+    <Card>
+      <CardHeader className="space-y-1">
+        <CardTitle className="text-sm">Charging sessions</CardTitle>
+        <CardDescription>
+          {periodName} · {rows.length} {rows.length === 1 ? "session" : "sessions"}. Press one to see that charge in full.
+        </CardDescription>
+      </CardHeader>
+      <CardContent className="space-y-4">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Started</TableHead>
+              <TableHead>Charging time</TableHead>
+              <TableHead className="text-right">Energy</TableHead>
+              <TableHead className="text-right">Peak</TableHead>
+              <TableHead className="text-right">Solar</TableHead>
+              <TableHead>Status</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {rows.slice(0, shown).map((r) => {
+              const st = sessionStatusLabel(r.status);
+              return (
+                <TableRow key={r.id}>
+                  <TableCell className="tabular-nums">
+                    <button type="button" onClick={() => onOpen(r.id)} className="font-medium underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring">
+                      {when(r.startedAt)}
+                    </button>
+                  </TableCell>
+                  <TableCell className="tabular-nums text-muted-foreground">{r.durationS === null ? "—" : formatSeconds(r.durationS)}</TableCell>
+                  <TableCell className="text-right tabular-nums">{r.energyKwh === null ? "—" : `${r.energyKwh.toFixed(r.energyKwh >= 10 ? 1 : 2)} kWh`}</TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">{r.peakKw === null ? "—" : `${r.peakKw.toFixed(1)} kW`}</TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">{r.solarSharePct === null ? "—" : `${r.solarSharePct.toFixed(0)}%`}</TableCell>
+                  <TableCell>
+                    <Badge variant={st.tone === "warn" ? "alert" : st.tone === "good" ? "default" : "secondary"}>{st.label}</Badge>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
+          </TableBody>
+        </Table>
+        {rows.length > shown && (
+          <div className="flex items-center justify-between gap-3">
+            <p className="text-xs text-muted-foreground">
+              Showing {shown} of {rows.length}
+            </p>
+            <Button type="button" variant="outline" size="sm" onClick={() => setMore({ key, n: shown + PAGE * 2 })}>
+              Show more
+            </Button>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
+/** One bar per day, split by where the energy came from (a day with no charge is an empty bar). */
+function DaysGraph({ report, periodName }: { report: EvReport; periodName: string }) {
+  const days = report.stats.dayFigures;
+  const data: ChartRow[] = days.map((d) => ({
+    __tick: new Date(`${d.date}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" }),
+    __label: fmtDate(d.date),
+    solar: d.solarKwh,
+    battery: d.batteryKwh,
+    grid: d.gridKwh,
+    unmatched: d.unknownKwh,
+  }));
+  return (
+    <Panel chart title="Energy per day" description={`${periodName} · kWh delivered each day, by where it came from`}>
+      <ChartCore rows={data} series={SOURCE_SERIES} kind="bar" stacked format={kwhFormat} tickEvery={Math.max(1, Math.round(data.length / 6))} />
+    </Panel>
+  );
+}
+
+function DaysTable({ report, periodName }: { report: EvReport; periodName: string }) {
+  const s = report.stats;
+  const days = evChargingDays(report);
+  const cost = s.cost !== null;
+  const k = (v: number) => v.toFixed(2);
+  const columns = React.useMemo<ColumnDef<EvDayFigures, unknown>[]>(
+    () => [
+      { id: "day", accessorFn: (d) => d.date, header: "Day", cell: ({ row }) => fmtDate(row.original.date) },
+      { id: "sessions", accessorFn: (d) => d.sessions, header: "Sessions", meta: { align: "right" } },
+      { id: "energy", accessorFn: (d) => d.energyKwh, header: "Energy · kWh", meta: { align: "right" }, cell: ({ row }) => k(row.original.energyKwh) },
+      { id: "solar", accessorFn: (d) => d.solarKwh, header: "Solar · kWh", meta: { align: "right" }, cell: ({ row }) => k(row.original.solarKwh) },
+      { id: "battery", accessorFn: (d) => d.batteryKwh, header: "Battery · kWh", meta: { align: "right" }, cell: ({ row }) => k(row.original.batteryKwh) },
+      { id: "grid", accessorFn: (d) => d.gridKwh, header: "Grid · kWh", meta: { align: "right" }, cell: ({ row }) => k(row.original.gridKwh) },
+      { id: "time", accessorFn: (d) => d.chargingSeconds, header: "Charging time", meta: { align: "right" }, cell: ({ row }) => formatSeconds(row.original.chargingSeconds) },
+      { id: "peak", accessorFn: (d) => d.peakKw ?? -1, header: "Peak · kW", meta: { align: "right" }, cell: ({ row }) => (row.original.peakKw === null ? "—" : row.original.peakKw.toFixed(1)) },
+      ...(cost
+        ? ([
+            { id: "paid", accessorFn: (d) => d.gridCost ?? 0, header: "Paid · ₹", meta: { align: "right" }, cell: ({ row }) => (row.original.gridCost ?? 0).toFixed(0) },
+            { id: "saved", accessorFn: (d) => d.saved ?? 0, header: "Saved · ₹", meta: { align: "right" }, cell: ({ row }) => (row.original.saved ?? 0).toFixed(0) },
+          ] as ColumnDef<EvDayFigures, unknown>[])
+        : []),
+    ],
+    [cost],
+  );
+  const sum = (pick: (d: EvDayFigures) => number) => days.reduce((a, d) => a + pick(d), 0);
+  const footer: React.ReactNode[] = [
+    "Total",
+    String(s.sessions),
+    k(s.energyKwh),
+    k(sum((d) => d.solarKwh)),
+    k(sum((d) => d.batteryKwh)),
+    k(sum((d) => d.gridKwh)),
+    formatSeconds(s.chargingSeconds),
+    s.peakKw === null ? "—" : s.peakKw.toFixed(1),
+    ...(s.cost ? [s.cost.gridCost.toFixed(0), s.cost.saved.toFixed(0)] : []),
+  ];
+  return (
+    <Panel title="Day by day" description={`${periodName} · the days with a charge. Click a heading to sort.`}>
+      {days.length === 0 ? <ChartEmptyState label="No charging days" /> : <DataTable columns={columns} data={days} pageSize={15} footer={footer} />}
+    </Panel>
   );
 }

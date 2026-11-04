@@ -8,6 +8,7 @@ import { EV_PERF_COLUMNS, spanOfDays, type EvPerfSession } from "@/lib/ev-perf-s
 import { CATEGORY_LABEL } from "@/lib/tariff";
 import { fmtDate } from "@/lib/savings";
 import { buildEvReport, type EvReport } from "./ev-report";
+import type { EvReportFilters } from "./ev-filters";
 
 /** The most sessions one report lists (the page and the downloads read the same number). */
 const MAX_SESSIONS = 5000;
@@ -15,7 +16,7 @@ const MAX_SESSIONS = 5000;
 export type EvReportResult = { ok: true; report: EvReport } | { ok: false; status: 403 | 404; error: string };
 
 /** The EV charging report of one charger and period, read as whoever is signed in (RLS scopes it) and priced on the site's tariff. */
-export async function gatherEvReport(deviceIdParam: string | undefined, from: string, to: string): Promise<EvReportResult> {
+export async function gatherEvReport(deviceIdParam: string | undefined, from: string, to: string, filters?: EvReportFilters): Promise<EvReportResult> {
   const [profile, site, plan] = await Promise.all([getRequestProfile(), getSelectedSite(), getCustomerPlan()]);
   if (!profile || !(plan?.features ?? {}).reports) return { ok: false, status: 403, error: "Not available on your plan." };
   const device = await resolveDeviceInSite(site, deviceIdParam);
@@ -47,6 +48,7 @@ export async function gatherEvReport(deviceIdParam: string | undefined, from: st
       tariffRate: tariff.rate > 0 ? tariff.rate : null,
       tariffNote: `${where} tariff${tariff.effectiveFrom ? `, in force since ${fmtDate(tariff.effectiveFrom)}` : ""}`,
       sessions: (data ?? []) as unknown as EvPerfSession[],
+      filters,
     }),
   };
 }

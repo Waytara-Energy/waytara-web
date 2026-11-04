@@ -50,8 +50,30 @@ export interface EvRow {
   peakKw: number | null;
   avgKw: number | null;
   solarSharePct: number | null;
+  /** Where the energy came from, when the session has a split (null = no split was recorded). */
+  solarKwh: number | null;
+  batteryKwh: number | null;
+  gridKwh: number | null;
+  /** The part that could not be matched to a source. */
+  unknownKwh: number | null;
   status: string;
   stopReason: string | null;
+}
+
+/** One India day of the period, with everything that happened that day. */
+export interface EvDayFigures {
+  date: string;
+  sessions: number;
+  energyKwh: number;
+  solarKwh: number;
+  batteryKwh: number;
+  gridKwh: number;
+  unknownKwh: number;
+  chargingSeconds: number;
+  peakKw: number | null;
+  /** What the grid part cost and what solar and battery saved, at the tariff; null without one. */
+  gridCost: number | null;
+  saved: number | null;
 }
 
 export interface EvCost {
@@ -81,6 +103,8 @@ export interface EvPerfStats {
   solarSharePct: number | null;
   /** Every day of the period with its energy (a day with no charging is 0). */
   daily: { date: string; value: number }[];
+  /** Every day of the period with its sessions, sources, time and cost. */
+  dayFigures: EvDayFigures[];
   rows: EvRow[];
   cost: EvCost | null;
 }
@@ -123,6 +147,9 @@ export function evPerfStats(all: readonly EvPerfSession[], span: EvSpan, rate: n
     return t >= span.fromMs && t < span.toMs;
   });
   const days = new Map(spanDays(span).map((d) => [d, 0]));
+  const perDay = new Map<string, EvDayFigures>(
+    spanDays(span).map((d) => [d, { date: d, sessions: 0, energyKwh: 0, solarKwh: 0, batteryKwh: 0, gridKwh: 0, unknownKwh: 0, chargingSeconds: 0, peakKw: null, gridCost: null, saved: null }]),
+  );
   let energy = 0;
   let counted = 0;
   let peak: number | null = null;
@@ -131,6 +158,8 @@ export function evPerfStats(all: readonly EvPerfSession[], span: EvSpan, rate: n
   let seconds = 0;
   const src = { solarKwh: 0, batteryKwh: 0, gridKwh: 0, unknownKwh: 0 };
   let anySplit = false;
+  /** Energy of sessions with no source split: counted as grid in the cost. */
+  let unsplitKwh = 0;
 
   const rows: EvRow[] = inSpan
     .slice()
@@ -138,6 +167,8 @@ export function evPerfStats(all: readonly EvPerfSession[], span: EvSpan, rate: n
     .map((s) => {
       const e = sessionEnergyKwh(s);
       const dur = durationOf(s);
+      const dayKey = istDate(Date.parse(s.started_at));
+      const dayRow = perDay.get(dayKey);
       if (e !== null) {
         energy += e;
         counted++;
@@ -155,12 +186,29 @@ export function evPerfStats(all: readonly EvPerfSession[], span: EvSpan, rate: n
       const solar = num(s.energy_from_solar_kwh);
       const battery = num(s.energy_from_battery_kwh);
       const grid = num(s.energy_from_grid_kwh);
+      const unknown = num(s.energy_unattributed_kwh);
       if (solar !== null || battery !== null || grid !== null) {
         anySplit = true;
         src.solarKwh += solar ?? 0;
         src.batteryKwh += battery ?? 0;
         src.gridKwh += grid ?? 0;
-        src.unknownKwh += num(s.energy_unattributed_kwh) ?? 0;
+        src.unknownKwh += unknown ?? 0;
+      }
+      if (solar === null && battery === null && grid === null && e !== null) unsplitKwh += e;
+      if (dayRow) {
+        dayRow.sessions++;
+        dayRow.energyKwh += e ?? 0;
+        dayRow.chargingSeconds += dur ?? 0;
+        if (p !== null) dayRow.peakKw = dayRow.peakKw === null ? p : Math.max(dayRow.peakKw, p);
+        if (solar !== null || battery !== null || grid !== null) {
+          dayRow.solarKwh += solar ?? 0;
+          dayRow.batteryKwh += battery ?? 0;
+          dayRow.gridKwh += grid ?? 0;
+          dayRow.unknownKwh += unknown ?? 0;
+        } else if (e !== null) {
+          // no split recorded: the energy is counted as grid, as the cost does
+          dayRow.gridKwh += e;
+        }
       }
       return {
         id: s.id,
@@ -171,6 +219,10 @@ export function evPerfStats(all: readonly EvPerfSession[], span: EvSpan, rate: n
         peakKw: p,
         avgKw: num(s.avg_power_kw),
         solarSharePct: num(s.solar_share_pct),
+        solarKwh: solar,
+        batteryKwh: battery,
+        gridKwh: grid,
+        unknownKwh: unknown,
         status: s.status,
         stopReason: s.stop_reason,
       };
@@ -181,7 +233,7 @@ export function evPerfStats(all: readonly EvPerfSession[], span: EvSpan, rate: n
     rate !== null && rate > 0
       ? {
           rate,
-          gridCost: (src.gridKwh + src.unknownKwh + (anySplit ? 0 : energy)) * rate,
+          gridCost: (src.gridKwh + src.unknownKwh + unsplitKwh) * rate,
           saved: (src.solarKwh + src.batteryKwh) * rate,
           allGridCost: energy * rate,
         }
@@ -198,6 +250,7 @@ export function evPerfStats(all: readonly EvPerfSession[], span: EvSpan, rate: n
     sources: src,
     solarSharePct: anySplit && known > 0 ? (src.solarKwh / known) * 100 : null,
     daily: [...days].map(([date, value]) => ({ date, value })),
+    dayFigures: [...perDay.values()].map((d) => (rate !== null && rate > 0 ? { ...d, gridCost: (d.gridKwh + d.unknownKwh) * rate, saved: (d.solarKwh + d.batteryKwh) * rate } : d)),
     rows,
     cost,
   };

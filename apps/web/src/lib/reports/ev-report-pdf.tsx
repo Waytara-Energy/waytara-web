@@ -2,7 +2,8 @@ import { Document, Page, StyleSheet, Text, View, renderToBuffer } from "@react-p
 import { fmtDate } from "@/lib/savings";
 import { formatSeconds, sessionStatusLabel } from "@/lib/ev-sessions";
 import { PdfLogo } from "./pdf-logo-image";
-import { evSummaryFigures, istStamp, type EvReport } from "./ev-report";
+import { evChargingDays, evSummaryFigures, istStamp, type EvReport } from "./ev-report";
+import type { EvReportMode } from "./ev-filters";
 
 const styles = StyleSheet.create({
   page: { padding: 38, paddingBottom: 56, fontSize: 9, fontFamily: "Helvetica", color: "#0F172A" },
@@ -14,6 +15,7 @@ const styles = StyleSheet.create({
   sectionTitle: { fontSize: 10.5, fontWeight: 700, marginBottom: 6 },
   row: { flexDirection: "row" },
   label: { color: "#64748B", width: 90 },
+  labelWide: { color: "#64748B", width: 150 },
   value: { flex: 1 },
   figures: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   figure: { width: 118, padding: 8, backgroundColor: "#F8FAFC", borderRadius: 4 },
@@ -29,16 +31,20 @@ const styles = StyleSheet.create({
   footer: { position: "absolute", bottom: 24, left: 38, right: 38, fontSize: 7.5, color: "#94A3B8" },
 });
 
-function ReportDocument({ report }: { report: EvReport }) {
+const TITLE: Record<EvReportMode, string> = { sessions: "EV charging report", daily: "EV charging report, day by day", statement: "EV charging statement" };
+const kwh1 = (v: number) => `${v.toFixed(1)} kWh`;
+
+function ReportDocument({ report, mode }: { report: EvReport; mode: EvReportMode }) {
   const s = report.stats;
   const rows = s.rows.slice().reverse();
+  const days = evChargingDays(report);
   return (
     <Document>
       <Page size="A4" style={styles.page}>
         <View style={styles.header}>
           <View>
             <PdfLogo />
-            <Text style={styles.title}>EV charging report</Text>
+            <Text style={styles.title}>{TITLE[mode]}</Text>
             <Text style={styles.sub}>
               {fmtDate(report.from)} to {fmtDate(report.to)}
             </Text>
@@ -65,6 +71,12 @@ function ReportDocument({ report }: { report: EvReport }) {
               <Text style={styles.value}>{report.deviceLabel}</Text>
             </View>
           )}
+          {report.filterNotes.length > 0 && (
+            <View style={styles.row}>
+              <Text style={styles.label}>Filter</Text>
+              <Text style={styles.value}>{report.filterNotes.join("; ")}</Text>
+            </View>
+          )}
           <View style={styles.row}>
             <Text style={styles.label}>Period</Text>
             <Text style={styles.value}>
@@ -87,6 +99,7 @@ function ReportDocument({ report }: { report: EvReport }) {
           {s.sources.unknownKwh > 0.05 && <Text style={styles.note}>{s.sources.unknownKwh.toFixed(1)} kWh could not be matched to a source (the home&apos;s figures were not available at the time).</Text>}
         </View>
 
+        {mode === "sessions" ? (
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Charging sessions</Text>
           {rows.length === 0 ? (
@@ -114,6 +127,58 @@ function ReportDocument({ report }: { report: EvReport }) {
             </View>
           )}
         </View>
+        ) : (
+          <>
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>{mode === "statement" ? "Day by day" : "Charging days"}</Text>
+          {days.length === 0 ? (
+            <Text style={styles.note}>No charging sessions in this period.</Text>
+          ) : (
+            <View style={styles.table}>
+              <View style={styles.trHead} fixed>
+                <Text style={styles.cWhen}>Day</Text>
+                <Text style={styles.cNum}>Sessions</Text>
+                <Text style={styles.cNum}>Energy</Text>
+                <Text style={styles.cNum}>Solar</Text>
+                <Text style={styles.cNum}>Battery</Text>
+                <Text style={styles.cNum}>Grid</Text>
+                <Text style={styles.cNum}>Time</Text>
+              </View>
+              {days.map((d) => (
+                <View style={styles.tr} key={d.date} wrap={false}>
+                  <Text style={styles.cWhen}>{d.date}</Text>
+                  <Text style={styles.cNum}>{d.sessions}</Text>
+                  <Text style={styles.cNum}>{kwh1(d.energyKwh)}</Text>
+                  <Text style={styles.cNum}>{kwh1(d.solarKwh)}</Text>
+                  <Text style={styles.cNum}>{kwh1(d.batteryKwh)}</Text>
+                  <Text style={styles.cNum}>{kwh1(d.gridKwh)}</Text>
+                  <Text style={styles.cNum}>{formatSeconds(d.chargingSeconds)}</Text>
+                </View>
+              ))}
+            </View>
+          )}
+        </View>
+
+        {mode === "statement" && s.cost && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Bill</Text>
+            <View style={styles.row}>
+              <Text style={styles.labelWide}>Paid to the grid</Text>
+              <Text style={styles.value}>Rs. {s.cost.gridCost.toFixed(2)}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.labelWide}>Saved by solar and battery</Text>
+              <Text style={styles.value}>Rs. {s.cost.saved.toFixed(2)}</Text>
+            </View>
+            <View style={styles.row}>
+              <Text style={styles.labelWide}>If all from the grid</Text>
+              <Text style={styles.value}>Rs. {s.cost.allGridCost.toFixed(2)}</Text>
+            </View>
+          </View>
+        )}
+
+          </>
+        )}
 
         <Text style={styles.footer} fixed>
           Figures come from the charger&apos;s own meter and the sessions it reported, and are estimates. Test sessions are left out. Times are IST.
@@ -123,6 +188,6 @@ function ReportDocument({ report }: { report: EvReport }) {
   );
 }
 
-export async function generateEvReportPdf(report: EvReport): Promise<Buffer> {
-  return renderToBuffer(<ReportDocument report={report} />);
+export async function generateEvReportPdf(report: EvReport, mode: EvReportMode = "sessions"): Promise<Buffer> {
+  return renderToBuffer(<ReportDocument report={report} mode={mode} />);
 }

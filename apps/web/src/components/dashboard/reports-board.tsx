@@ -72,8 +72,7 @@ function Board({ base, customerId, reports, runs, available, ev }: { base: Repor
     const lastDay = toMs > 0 ? istDate(toMs - 1) : base.today;
     return buildPeriodView(base, from, lastDay > base.today ? base.today : lastDay);
   }, [base, fromMs, toMs]);
-  const span = React.useMemo(() => ({ fromMs, toMs }), [fromMs, toMs]);
-  const label = range ? periodText(range.preset, span) : "";
+  const label = range ? periodText(range.preset, { fromMs, toMs }) : "";
 
   return (
     <div className="space-y-5">
@@ -86,7 +85,7 @@ function Board({ base, customerId, reports, runs, available, ev }: { base: Repor
           </Button>
         </div>
       )}
-      {section === "ev" && ev ? <EvReportsHeadline {...ev} span={span} periodText={label} /> : section !== "ev" && <Headline section={section} view={view} label={label} reports={reports} runs={runs} />}
+      {section === "ev" && ev ? <EvReportsHeadline {...ev} /> : section !== "ev" && <Headline section={section} view={view} label={label} reports={reports} runs={runs} />}
 
       <Tabs value={section} onValueChange={(v) => (window.location.hash = v)}>
         <TabsList variant="line">
@@ -102,7 +101,7 @@ function Board({ base, customerId, reports, runs, available, ev }: { base: Repor
           {section === "summary" && <ReportsSummary base={base} view={view} label={label} />}
           {section === "energy" && <ReportsEnergy base={base} view={view} />}
           {section === "downloads" && <ReportsDownloads base={base} customerId={customerId} reports={reports} runs={runs} available={available} />}
-          {section === "ev" && ev && <EvReportsBody {...ev} span={span} periodText={label} />}
+          {section === "ev" && ev && <EvReportsBody {...ev} />}
         </TabsContent>
       </Tabs>
     </div>

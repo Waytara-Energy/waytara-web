@@ -33,7 +33,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 
   // An EV charger has its own report: the sessions of the chosen period, as figures, a table and CSV / PDF downloads. With an inverter it is
   // one more tab of the page; without one it is the page.
-  const evReport = ev && (solar || device?.id === ev.id) ? await evReportFor(ev, base.customerName, base.siteName, deviceDisplayId(ev)) : null;
+  const evReport = ev && (solar || device?.id === ev.id) ? await evReportFor(ev, base.customerName, base.siteName, deviceDisplayId(ev), base.today) : null;
   if (!solar && evReport) return <EvReportsBoard {...evReport} />;
 
   if (!base.deviceId || !base.isSolar) {
@@ -67,7 +67,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 }
 
 /** The charger's report: its sessions as figures, a table, and CSV / PDF downloads. */
-async function evReportFor(device: CustomerDevice, customerName: string, siteName: string | null, deviceLabel: string): Promise<EvReportsProps> {
+async function evReportFor(device: CustomerDevice, customerName: string, siteName: string | null, deviceLabel: string, today: string): Promise<EvReportsProps> {
   const supabase = await createClient();
   const [site, plan] = await Promise.all([getSelectedSite(), getCustomerPlan()]);
   const since = new Date();
@@ -76,6 +76,7 @@ async function evReportFor(device: CustomerDevice, customerName: string, siteNam
     fetchResolvedTariff(supabase, site, plan?.tariffRatePerKwh ?? 8),
     supabase.from("ev_sessions").select(EV_PERF_COLUMNS).eq("equipment_id", device.id).gte("started_at", since.toISOString()).order("started_at", { ascending: false }).limit(5000),
   ]);
+  const sessions = (data ?? []) as unknown as EvPerfSession[];
   const where = tariff.state ? `${tariff.state} ${CATEGORY_LABEL[tariff.category]}` : CATEGORY_LABEL[tariff.category];
   return {
     deviceId: device.id,
@@ -84,6 +85,11 @@ async function evReportFor(device: CustomerDevice, customerName: string, siteNam
     siteName,
     tariffRate: tariff.rate > 0 ? tariff.rate : null,
     tariffNote: `${where} tariff${tariff.effectiveFrom ? `, in force since ${fmtDate(tariff.effectiveFrom)}` : ""}`,
-    sessions: (data ?? []) as unknown as EvPerfSession[],
+    sessions,
+    today,
+    firstDay: sessions.reduce<string | null>((first, s) => {
+      const d = new Date(Date.parse(s.started_at) + 19_800_000).toISOString().slice(0, 10);
+      return first === null || d < first ? d : first;
+    }, null),
   };
 }
