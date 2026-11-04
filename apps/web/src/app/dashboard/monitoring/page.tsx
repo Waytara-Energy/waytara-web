@@ -4,7 +4,7 @@ import { createClient } from "@waytara/supabase/server";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { MonitoringContent } from "@/components/dashboard/monitoring-content";
 import { getCustomerPlan } from "@/lib/customer-plan";
-import { getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
+import { getSelectedSite, resolvePageDevices } from "@/lib/selected-site";
 
 // Server-side gate, matching Overview/Performance/Analytics — a Basic-tier
 // customer hitting this URL directly gets redirected, matching the
@@ -14,8 +14,10 @@ import { getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
 // charts + snapshot detail) is now category-aware via MonitoringContent —
 // solar_inverter keeps the two live-polling charts (power flows + battery
 // SOC), PV1-vs-PV2 comparison, temperature gauges, and grid-connected
-// indicator this page has had since Phase 9. A charger opens its own page of
-// the Overview instead (see the redirect below).
+// indicator this page has had since Phase 9; ev_charger gets its own live
+// charging-power/current charts and detail list built from OCPP telemetry
+// instead of the inverter's fixed key list (which it never reported, so
+// this page used to come back essentially blank for it).
 export default async function MonitoringPage({ searchParams }: { searchParams: Promise<{ device?: string }> }) {
   const supabase = await createClient();
   // getSelectedSite() doesn't depend on the plan check below, so it runs
@@ -30,10 +32,10 @@ export default async function MonitoringPage({ searchParams }: { searchParams: P
     searchParams,
     getSelectedSite(),
   ]);
-  const device = await resolveDeviceInSite(site, deviceIdParam);
-
-  // A charger has no Monitoring page of its own: its live view, its charges and their details are its page of the Overview.
-  if (device?.deviceType?.category === "ev_charger") redirect(`/dashboard?device=${device.id}`);
+  // The inverter and the charger are tabs of this one page, so neither has to be chosen to see the other.
+  const { solar, ev, chosen, focus } = await resolvePageDevices(site, deviceIdParam);
+  // a device that is neither (a meter, say) is shown on its own, as before
+  const device = focus === null && chosen ? chosen : (solar ?? ev ?? chosen);
 
   const features = customerPlan?.features ?? {};
   if (!features.monitoring) {
@@ -56,7 +58,7 @@ export default async function MonitoringPage({ searchParams }: { searchParams: P
         <>
           {/* Every number and chart inside MonitoringContent follows the device's live channel in place; there is
               no page refresh on new readings. */}
-          <MonitoringContent supabase={supabase} device={device} />
+          <MonitoringContent supabase={supabase} device={device} charger={solar ? ev : null} focus={focus} />
         </>
       )}
     </div>

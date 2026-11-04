@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { BatteryCharging, Cpu, Home, Sun, Zap, type LucideIcon } from "lucide-react";
+import { BatteryCharging, Cpu, EvCharger, Home, Sun, Zap, type LucideIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useLiveNumbers } from "@/lib/telemetry/live-values";
 import { PERFORMANCE_LIVE_KEYS, pvInputKeys } from "@/lib/performance-metrics";
@@ -12,7 +12,7 @@ import { RangeProvider, useRange } from "./range-context";
 import { SolarSection } from "./perf-solar";
 import { BatterySection, GridSection, InverterSection, LoadSection } from "./perf-sections";
 
-export type PerformanceSectionId = "inverter" | "solar" | "battery" | "load" | "grid";
+export type PerformanceSectionId = "inverter" | "solar" | "battery" | "load" | "grid" | "ev";
 const SECTION_IDS: PerformanceSectionId[] = ["inverter", "solar", "battery", "load", "grid"];
 
 // The open section lives in the address (#solar ...), so a link or a refresh lands on the same one.
@@ -40,6 +40,8 @@ const SECTION_TABS: { id: PerformanceSectionId; label: string; icon: LucideIcon;
   { id: "load", label: "Load", icon: Home, active: "data-[state=active]:border-sky-500 data-[state=active]:text-sky-600 dark:data-[state=active]:text-sky-400" },
   { id: "grid", label: "Grid", icon: Zap, active: "data-[state=active]:border-violet-500 data-[state=active]:text-violet-600 dark:data-[state=active]:text-violet-400" },
 ];
+/** The site's EV charger, one more tab after Grid. */
+const EV_TAB = { id: "ev" as const, label: "EV Charger", icon: EvCharger, active: "data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400" };
 
 /** Performance for a solar inverter: five tabs (inverter, solar, battery, load, grid); the one you open shows its figures, charts and
  *  findings underneath, for the period chosen with the range picker. */
@@ -62,13 +64,16 @@ interface PerformanceBoardProps {
   solarKwp: number | null;
   /** Server-rendered extra groups for each section (template fields that have values). */
   extras: Partial<Record<PerformanceSectionId, React.ReactNode>>;
+  /** The site's EV charger's performance (rendered on the server), shown as a tab after Grid; null when the site has none. */
+  ev?: React.ReactNode;
 }
 
-function Board({ deviceId, initial, pvKeys, tariff, batteryProfile, solarKwp, extras }: PerformanceBoardProps) {
+function Board({ deviceId, initial, pvKeys, tariff, batteryProfile, solarKwp, extras, ev = null }: PerformanceBoardProps) {
   const keys = React.useMemo(() => [...PERFORMANCE_LIVE_KEYS, ...pvInputKeys(pvKeys)], [pvKeys]);
   const live = useLiveNumbers([deviceId], keys, initial);
   const hash = React.useSyncExternalStore(subscribeHash, readHash, () => "");
-  const section: PerformanceSectionId = (SECTION_IDS as string[]).includes(hash) ? (hash as PerformanceSectionId) : SECTION_IDS[0];
+  const ids: string[] = ev ? [...SECTION_IDS, "ev"] : SECTION_IDS;
+  const section: PerformanceSectionId = ids.includes(hash) ? (hash as PerformanceSectionId) : SECTION_IDS[0];
   // The days every chart below follows: the range picker (Today by default, 7 / 30 / 90 days, 1 / 2 years, or a custom start).
   const range = useRange();
   const fromMs = range?.window.fromMs ?? 0;
@@ -88,11 +93,12 @@ function Board({ deviceId, initial, pvKeys, tariff, batteryProfile, solarKwp, ex
 
   return (
     <div className="space-y-5">
-      <PerformanceHeadline deviceId={deviceId} span={span} periodText={period} live={live} section={section} />
+      {/* the EV tab brings its own headline and period */}
+      {section !== "ev" && <PerformanceHeadline deviceId={deviceId} span={span} periodText={period} live={live} section={section} />}
 
       <Tabs value={section} onValueChange={(v) => open(v as PerformanceSectionId)}>
         <TabsList variant="line">
-          {SECTION_TABS.map((t) => (
+          {(ev ? [...SECTION_TABS, EV_TAB] : SECTION_TABS).map((t) => (
             <TabsTrigger key={t.id} value={t.id} variant="line" className={t.active}>
               <t.icon className="size-4 shrink-0 group-data-[state=active]:hidden" />
               <span className="text-sm font-medium">{t.label}</span>
@@ -106,6 +112,7 @@ function Board({ deviceId, initial, pvKeys, tariff, batteryProfile, solarKwp, ex
           {section === "battery" && <BatterySection {...props} profile={batteryProfile} extras={extras.battery} />}
           {section === "load" && <LoadSection {...props} extras={extras.load} />}
           {section === "grid" && <GridSection {...props} extras={extras.grid} />}
+          {section === "ev" && ev}
         </TabsContent>
       </Tabs>
     </div>

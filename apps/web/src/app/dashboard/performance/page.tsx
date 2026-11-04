@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { TrendingUp } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { getSelectedSite, resolveDeviceInSite, deviceDisplayId } from "@/lib/selected-site";
+import { getSelectedSite, resolvePageDevices, deviceDisplayId } from "@/lib/selected-site";
 import { PerformanceContent } from "@/components/dashboard/performance-content";
 import { AnalyticsContent } from "@/components/dashboard/analytics-content";
 import { getCustomerPlan } from "@/lib/customer-plan";
@@ -31,7 +31,9 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
     searchParams,
     getSelectedSite(),
   ]);
-  const device = await resolveDeviceInSite(site, deviceIdParam);
+  // The inverter and the charger are tabs of this one page, so neither has to be chosen to see the other.
+  const { solar, ev, chosen, focus } = await resolvePageDevices(site, deviceIdParam);
+  const device = focus === null && chosen ? chosen : (solar ?? ev ?? chosen);
 
   const features = customerPlan?.features ?? {};
   if (!features.performance) {
@@ -60,7 +62,7 @@ export default async function PerformancePage({ searchParams }: { searchParams: 
       ) : (
         <>
           {/* History is read from the daily rollups when the page loads. */}
-          <PerformanceContent supabase={supabase} device={device} tariffRate={tariffRate} />
+          <PerformanceContent supabase={supabase} device={device} charger={solar ? ev : null} tariffRate={tariffRate} />
           {features.analytics && (
             <>
               <div className="pt-2">

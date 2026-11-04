@@ -1,6 +1,6 @@
 import { Wrench } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { getSelectedSite, resolveDeviceInSite, deviceDisplayId } from "@/lib/selected-site";
+import { getSelectedSite, resolvePageDevices, deviceDisplayId, type CustomerDevice, type CustomerSite } from "@/lib/selected-site";
 import { todayIst } from "@/lib/report-types";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { fetchSolarHealthData, FAULT_HISTORY_DAYS } from "@/lib/maintenance-data";
@@ -9,6 +9,7 @@ import { getServiceStatus, type ServiceStatus } from "@/lib/service-status";
 import { DeviceHealthContent } from "@/components/dashboard/device-health-content";
 import { LiveDynamicFieldGroup } from "@/components/dashboard/live-field-group";
 import { MaintenanceBoard, type HeadlineData } from "@/components/dashboard/maintenance-board";
+import { MaintenanceDevices } from "@/components/dashboard/maintenance-devices";
 import { MaintenanceService, serviceDate } from "@/components/dashboard/maintenance-service";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -22,7 +23,9 @@ const serverNow = () => Date.now();
 // own health view in the Health tab.
 export default async function MaintenancePage({ searchParams }: { searchParams: Promise<{ device?: string }> }) {
   const [{ device: deviceIdParam }, site] = await Promise.all([searchParams, getSelectedSite()]);
-  const device = await resolveDeviceInSite(site, deviceIdParam);
+  // The inverter and the charger are tabs of this one page, so neither has to be chosen to see the other.
+  const { solar, ev, chosen, focus } = await resolvePageDevices(site, deviceIdParam);
+  const device = focus === null && chosen ? chosen : (solar ?? ev ?? chosen);
 
   if (!device) {
     return (
@@ -38,6 +41,23 @@ export default async function MaintenancePage({ searchParams }: { searchParams: 
     );
   }
 
+  // A site with both kinds gets a tab for each; the one the person came from (a charger's link) opens first.
+  if (solar && ev) {
+    return (
+      <MaintenanceDevices
+        defaultKind={focus === "ev" ? "ev" : "solar"}
+        tabs={[
+          { kind: "solar", content: <DeviceMaintenance device={solar} site={site} /> },
+          { kind: "ev", content: <DeviceMaintenance device={ev} site={site} /> },
+        ]}
+      />
+    );
+  }
+  return <DeviceMaintenance device={device} site={site} />;
+}
+
+/** One device's Maintenance: its Health and Service tabs. */
+async function DeviceMaintenance({ device, site }: { device: CustomerDevice; site: CustomerSite | null }) {
   const supabase = await createClient();
   const isSolar = device.deviceType?.category === "solar_inverter";
   const isEv = device.deviceType?.category === "ev_charger";

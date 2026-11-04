@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { Server, Sun, Thermometer, BatteryCharging, Home, Zap, Activity, Gauge, ArrowDownToLine, ArrowUpFromLine, Fuel } from "lucide-react";
+import { Server, Sun, Thermometer, BatteryCharging, Home, Zap, Activity, Gauge, ArrowDownToLine, ArrowUpFromLine, Fuel, EvCharger } from "lucide-react";
 import { TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import type { EnumOption } from "@/lib/enum-labels";
 import { FAULT_BITMASK_KEYS } from "@/lib/overview-keys";
@@ -46,6 +46,10 @@ export interface SolarMonitoringProps {
   enumOptions: Record<string, EnumOption[]>;
   /** What the server knows about the device's connection (last reading, agent heartbeat, upload interval). */
   sync: DeviceSyncInit;
+  /** The site's EV charger, as one more tab after Grid: its content (rendered on the server), its headline number and its id. */
+  ev?: { deviceId: string; headline: TabHeadlineInfo; content: React.ReactNode } | null;
+  /** The tab the page opens on when no #tab is given (the EV tab when the person came from a charger). */
+  defaultTab?: string;
 }
 
 /** The solar inverter's Monitoring screen. Every number follows the device's live channel in place - there is no
@@ -60,6 +64,8 @@ export function SolarMonitoringView({
   inverterTemperatureRows,
   enumOptions: enumOptionsObj,
   sync,
+  ev = null,
+  defaultTab = "hub",
 }: SolarMonitoringProps) {
   // numbers in the units the person chose (Application Settings > Units), else as the inverter reports them
   const u = useUnits();
@@ -247,6 +253,7 @@ export function SolarMonitoringView({
     ...(loadEnabled ? { load: { value: loadTodayText, label: "Consumed Today" } } : {}),
     ...(gridEnabled ? { grid: { value: gridImportedTodayText, label: "Imported Today" } } : {}),
     ...(generatorEnabled ? { generator: { value: genLiveText, label: "Generator Output" } } : {}),
+    ...(ev ? { ev: ev.headline } : {}),
   };
 
   // Monitoring is today's picture only: there is no range picker and no range provider, so every chart below shows today
@@ -266,7 +273,7 @@ export function SolarMonitoringView({
           a device that doesn't share the previous one's node (e.g. no
           "battery" tab) left the panel on a tab that no longer had a
           trigger to select it. */}
-      <MonitoringTabs key={deviceId} defaultValue="hub" headlines={tabHeadlines}>
+      <MonitoringTabs key={deviceId} defaultValue={ev && defaultTab === "ev" ? "ev" : "hub"} headlines={tabHeadlines} validValues={["hub", ...(solarEnabled ? ["solar"] : []), ...(batteryEnabled ? ["battery"] : []), ...(loadEnabled ? ["load"] : []), ...(gridEnabled ? ["grid"] : []), ...(generatorEnabled ? ["generator"] : []), ...(ev ? ["ev"] : [])]} aliases={{ sessions: "ev" }}>
         <TabsList variant="line">
           <TabsTrigger value="hub" variant="line" className="data-[state=active]:border-primary data-[state=active]:text-primary">
             <TabButtonContent icon={Server} label="Main Hub" />
@@ -305,6 +312,15 @@ export function SolarMonitoringView({
               className="data-[state=active]:border-violet-500 data-[state=active]:text-violet-600 dark:data-[state=active]:text-violet-400"
             >
               <TabButtonContent icon={Zap} label="Grid Interface" />
+            </TabsTrigger>
+          )}
+          {ev && (
+            <TabsTrigger
+              value="ev"
+              variant="line"
+              className="data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400"
+            >
+              <TabButtonContent icon={EvCharger} label="EV Charger" />
             </TabsTrigger>
           )}
           {generatorEnabled && (
@@ -669,6 +685,15 @@ export function SolarMonitoringView({
                 fromFirstData
               />
             </div>
+          </TabsContent>
+        )}
+
+        {ev && (
+          <TabsContent value="ev" className="space-y-4">
+            {/* The charger's charts and live figures belong to the charger: their own live session and nothing of the inverter's. */}
+            <GoLiveProvider deviceId={ev.deviceId} agentOnline={false}>
+              {ev.content}
+            </GoLiveProvider>
           </TabsContent>
         )}
 

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { FileBarChart, FilePlus2, Zap, type LucideIcon } from "lucide-react";
+import { EvCharger, FileBarChart, FilePlus2, Zap, type LucideIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { inr } from "@/lib/savings";
@@ -20,12 +20,14 @@ import { ReportsDownloads } from "./reports-downloads";
 import { ReportsEnergy } from "./reports-energy";
 import { ReportsSummary } from "./reports-summary";
 
-type SectionId = "summary" | "energy" | "downloads";
+type SectionId = "summary" | "energy" | "downloads" | "ev";
 const SECTIONS: { id: SectionId; label: string; icon: LucideIcon; active: string }[] = [
   { id: "summary", label: "Summary", icon: FileBarChart, active: "data-[state=active]:border-primary data-[state=active]:text-primary" },
   { id: "energy", label: "Energy", icon: Zap, active: "data-[state=active]:border-amber-500 data-[state=active]:text-amber-600 dark:data-[state=active]:text-amber-400" },
   { id: "downloads", label: "Generate", icon: FilePlus2, active: "data-[state=active]:border-sky-500 data-[state=active]:text-sky-600 dark:data-[state=active]:text-sky-400" },
 ];
+/** The site's EV charger, one more tab after the solar ones. */
+const EV_SECTION = { id: "ev" as const, label: "EV Charger", icon: EvCharger, active: "data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400" };
 
 const subscribeHash = (cb: () => void) => {
   window.addEventListener("hashchange", cb);
@@ -42,19 +44,19 @@ const readHash = () => {
 
 /** The Reports page for a solar inverter: the period is chosen once at the top and every tab follows it. `detailed` is the
  *  time-series report (server-rendered), shown under Generate. */
-export function ReportsBoard({ base, customerId, reports, runs, available }: { base: ReportsBase; customerId: string; reports: SavedReportView[]; runs: RunView[]; available: AvailableReport[] }) {
+export function ReportsBoard({ base, customerId, reports, runs, available, ev = null }: { base: ReportsBase; customerId: string; reports: SavedReportView[]; runs: RunView[]; available: AvailableReport[]; ev?: React.ReactNode }) {
   return (
     <RangeProvider deviceId={base.deviceId ?? "none"} scope="reports" defaultPreset="30d">
-      <Board base={base} customerId={customerId} reports={reports} runs={runs} available={available} />
+      <Board base={base} customerId={customerId} reports={reports} runs={runs} available={available} ev={ev} />
     </RangeProvider>
   );
 }
 
-function Board({ base, customerId, reports, runs, available }: { base: ReportsBase; customerId: string; reports: SavedReportView[]; runs: RunView[]; available: AvailableReport[] }) {
+function Board({ base, customerId, reports, runs, available, ev }: { base: ReportsBase; customerId: string; reports: SavedReportView[]; runs: RunView[]; available: AvailableReport[]; ev: React.ReactNode }) {
   const range = useRange();
   const router = useRouter();
   const hash = React.useSyncExternalStore(subscribeHash, readHash, () => "");
-  const section: SectionId = (SECTIONS.map((s) => s.id) as string[]).includes(hash) ? (hash as SectionId) : "summary";
+  const section: SectionId = ((ev ? [...SECTIONS, EV_SECTION] : SECTIONS).map((s) => s.id) as string[]).includes(hash) ? (hash as SectionId) : "summary";
 
   React.useEffect(() => {
     // Put the dropped hash back so a reload or a copied link opens the same tab.
@@ -82,11 +84,12 @@ function Board({ base, customerId, reports, runs, available }: { base: ReportsBa
           </Button>
         </div>
       )}
-      <Headline section={section} view={view} label={label} reports={reports} runs={runs} />
+      {/* the EV tab brings its own headline and period */}
+      {section !== "ev" && <Headline section={section} view={view} label={label} reports={reports} runs={runs} />}
 
       <Tabs value={section} onValueChange={(v) => (window.location.hash = v)}>
         <TabsList variant="line">
-          {SECTIONS.map((t) => (
+          {(ev ? [...SECTIONS, EV_SECTION] : SECTIONS).map((t) => (
             <TabsTrigger key={t.id} value={t.id} variant="line" className={t.active}>
               <t.icon className="size-4 shrink-0 group-data-[state=active]:hidden" />
               <span className="text-sm font-medium">{t.label}</span>
@@ -98,6 +101,7 @@ function Board({ base, customerId, reports, runs, available }: { base: ReportsBa
           {section === "summary" && <ReportsSummary base={base} view={view} label={label} />}
           {section === "energy" && <ReportsEnergy base={base} view={view} />}
           {section === "downloads" && <ReportsDownloads base={base} customerId={customerId} reports={reports} runs={runs} available={available} />}
+          {section === "ev" && ev}
         </TabsContent>
       </Tabs>
     </div>
@@ -109,6 +113,7 @@ const VISUALS: Record<SectionId, string> = {
   summary: "bg-primary/15 text-primary",
   energy: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
   downloads: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
+  ev: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400",
 };
 
 /** The line above the tabs, like Performance's: the open tab's own headline figure and two more about it. Summary and Energy follow

@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Sun, BatteryCharging, Home, Zap, Server, type LucideIcon } from "lucide-react";
+import { Sun, BatteryCharging, Home, Zap, Server, EvCharger, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Tabs } from "@/components/ui/tabs";
 
@@ -25,6 +25,7 @@ const TAB_VISUALS: Record<string, { icon: LucideIcon; iconClassName: string }> =
   battery: { icon: BatteryCharging, iconClassName: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
   load: { icon: Home, iconClassName: "bg-sky-500/15 text-sky-600 dark:text-sky-400" },
   grid: { icon: Zap, iconClassName: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
+  ev: { icon: EvCharger, iconClassName: "bg-emerald-500/15 text-emerald-600 dark:text-emerald-400" },
 };
 
 /** The selected tab's own headline, above the tab strip — icon, what the

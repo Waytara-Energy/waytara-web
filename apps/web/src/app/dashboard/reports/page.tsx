@@ -10,7 +10,7 @@ import { ReportsBoard } from "@/components/dashboard/reports-board";
 import { EvReportsBoard } from "@/components/dashboard/ev-reports-board";
 import { EV_PERF_COLUMNS, type EvPerfSession } from "@/lib/ev-perf-stats";
 import { getCustomerPlan } from "@/lib/customer-plan";
-import { getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
+import { deviceDisplayId, getSelectedSite, resolvePageDevices, type CustomerDevice } from "@/lib/selected-site";
 import { fetchResolvedTariff } from "@/lib/tariff-server";
 import { CATEGORY_LABEL } from "@/lib/tariff";
 import { fmtDate } from "@/lib/savings";
@@ -24,35 +24,17 @@ const EV_HISTORY_DAYS = 730;
 // tariff Performance uses) and the page works out whatever period is chosen from them in the browser.
 export default async function ReportsPage({ searchParams }: { searchParams: Promise<{ device?: string }> }) {
   const { device: deviceIdParam } = await searchParams;
-  const [base, profile] = await Promise.all([gatherReportsBase(deviceIdParam, { tolerant: true }), getRequestProfile()]);
+  const site = await getSelectedSite();
+  // The inverter and the charger are tabs of this one page, so neither has to be chosen to see the other.
+  const { solar, ev, chosen, focus } = await resolvePageDevices(site, deviceIdParam);
+  const device = focus === null && chosen ? chosen : (solar ?? ev ?? chosen);
+  const [base, profile] = await Promise.all([gatherReportsBase(device?.id ?? deviceIdParam, { tolerant: true }), getRequestProfile()]);
   if (!base.authorized || !profile) redirect("/dashboard");
 
-  // An EV charger has its own report: the sessions of the chosen period, as figures, a table and CSV / PDF downloads.
-  if (base.deviceId && !base.isSolar) {
-    const [site, plan] = await Promise.all([getSelectedSite(), getCustomerPlan()]);
-    const device = await resolveDeviceInSite(site, deviceIdParam);
-    if (device?.deviceType?.category === "ev_charger") {
-      const supabase = await createClient();
-      const since = new Date();
-      since.setUTCDate(since.getUTCDate() - EV_HISTORY_DAYS);
-      const [tariff, { data }] = await Promise.all([
-        fetchResolvedTariff(supabase, site, plan?.tariffRatePerKwh ?? 8),
-        supabase.from("ev_sessions").select(EV_PERF_COLUMNS).eq("equipment_id", device.id).gte("started_at", since.toISOString()).order("started_at", { ascending: false }).limit(5000),
-      ]);
-      const where = tariff.state ? `${tariff.state} ${CATEGORY_LABEL[tariff.category]}` : CATEGORY_LABEL[tariff.category];
-      return (
-        <EvReportsBoard
-          deviceId={device.id}
-          deviceLabel={base.deviceLabel ?? "EV charger"}
-          customerName={base.customerName}
-          siteName={base.siteName}
-          tariffRate={tariff.rate > 0 ? tariff.rate : null}
-          tariffNote={`${where} tariff${tariff.effectiveFrom ? `, in force since ${fmtDate(tariff.effectiveFrom)}` : ""}`}
-          sessions={(data ?? []) as unknown as EvPerfSession[]}
-        />
-      );
-    }
-  }
+  // An EV charger has its own report: the sessions of the chosen period, as figures, a table and CSV / PDF downloads. With an inverter it is
+  // one more tab of the page; without one it is the page.
+  const evReport = ev && (solar || device?.id === ev.id) ? await evReportFor(ev, base.customerName, base.siteName, deviceDisplayId(ev)) : null;
+  if (!solar && evReport) return evReport;
 
   if (!base.deviceId || !base.isSolar) {
     return (
@@ -62,7 +44,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
             <FileText />
           </EmptyMedia>
           <EmptyTitle>{base.deviceId ? "Reports for this device are on the way" : "No devices yet"}</EmptyTitle>
-          <EmptyDescription>{base.deviceId ? "Energy reports are available for solar inverters today; reports for other devices are next." : "Your WayTara advisor sets this up during installation."}</EmptyDescription>
+          <EmptyDescription>{base.deviceId ? "Energy reports are available for solar inverters and EV chargers today; reports for other devices are next." : "Your WayTara advisor sets this up during installation."}</EmptyDescription>
         </EmptyHeader>
       </Empty>
     );
@@ -81,5 +63,29 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   const reports = (savedRows.data ?? []).map(toReportView).filter((r): r is NonNullable<typeof r> => r !== null);
   const runs = (runRows.data ?? []).map(toRunView);
 
-  return <ReportsBoard base={base} customerId={profile.id} reports={reports} runs={runs} available={available} />;
+  return <ReportsBoard base={base} customerId={profile.id} reports={reports} runs={runs} available={available} ev={evReport} />;
+}
+
+/** The charger's report: its sessions as figures, a table, and CSV / PDF downloads. */
+async function evReportFor(device: CustomerDevice, customerName: string, siteName: string | null, deviceLabel: string) {
+  const supabase = await createClient();
+  const [site, plan] = await Promise.all([getSelectedSite(), getCustomerPlan()]);
+  const since = new Date();
+  since.setUTCDate(since.getUTCDate() - EV_HISTORY_DAYS);
+  const [tariff, { data }] = await Promise.all([
+    fetchResolvedTariff(supabase, site, plan?.tariffRatePerKwh ?? 8),
+    supabase.from("ev_sessions").select(EV_PERF_COLUMNS).eq("equipment_id", device.id).gte("started_at", since.toISOString()).order("started_at", { ascending: false }).limit(5000),
+  ]);
+  const where = tariff.state ? `${tariff.state} ${CATEGORY_LABEL[tariff.category]}` : CATEGORY_LABEL[tariff.category];
+  return (
+    <EvReportsBoard
+      deviceId={device.id}
+      deviceLabel={deviceLabel}
+      customerName={customerName}
+      siteName={siteName}
+      tariffRate={tariff.rate > 0 ? tariff.rate : null}
+      tariffNote={`${where} tariff${tariff.effectiveFrom ? `, in force since ${fmtDate(tariff.effectiveFrom)}` : ""}`}
+      sessions={(data ?? []) as unknown as EvPerfSession[]}
+    />
+  );
 }

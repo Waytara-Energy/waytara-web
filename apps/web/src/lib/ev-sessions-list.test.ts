@@ -1,12 +1,13 @@
 import { describe, expect, it } from "vitest";
 import { evSessionsCsv, EV_SESSIONS_CSV_HEADER, type CsvSession } from "./ev-sessions-csv";
+import { evCostEstimate, evTotals } from "./ev-session-totals";
 import { periodQuery, resolveEvPeriod } from "./ev-period";
 import type { EvSessionRow } from "./ev-sessions";
 
 // 2026-10-23 12:00 IST
 const NOW = Date.parse("2026-10-23T06:30:00Z");
 
-describe("the period of the sessions export", () => {
+describe("the period of the Charging sessions page", () => {
   it("is today by default, in India days", () => {
     const p = resolveEvPeriod({}, NOW);
     expect(p).toMatchObject({ key: "today", from: "2026-10-23", to: "2026-10-23", label: "Today" });
@@ -68,6 +69,34 @@ const session = (o: Partial<EvSessionRow>): EvSessionRow => ({
   site_data_coverage_pct: 100,
   target_kwh: null,
   ...o,
+});
+
+describe("the totals row", () => {
+  it("adds up the energy, the solar share, the grid part and the longest charge", () => {
+    const t = evTotals([session({}), session({ meter_start_wh: 0, meter_stop_wh: 1000, energy_from_solar_kwh: 1, energy_from_battery_kwh: 0, energy_from_grid_kwh: 0, charging_seconds: 600 })]);
+    expect(t.count).toBe(2);
+    expect(t.energyKwh).toBeCloseTo(6.8, 5);
+    expect(t.solarPct).toBeCloseTo((5 / 6.8) * 100, 5);
+    expect(t.gridKwh).toBeCloseTo(1.3, 5);
+    expect(t.longestSeconds).toBe(3060);
+  });
+
+  it("has no solar share or grid figure when no session has a split, and no longest while charging", () => {
+    const noSplit = { energy_from_solar_kwh: null, energy_from_battery_kwh: null, energy_from_grid_kwh: null };
+    const t = evTotals([session(noSplit), session({ ...noSplit, status: "active", charging_seconds: 99999, ended_at: null })]);
+    expect(t.solarPct).toBeNull();
+    expect(t.gridKwh).toBeNull();
+    expect(t.longestSeconds).toBe(3060);
+  });
+
+  it("is empty for no sessions", () => {
+    expect(evTotals([])).toEqual({ count: 0, energyKwh: 0, solarPct: null, gridKwh: null, longestSeconds: null });
+  });
+
+  it("estimates the cost on the grid's part, or on everything when there is no split", () => {
+    expect(evCostEstimate(evTotals([session({})]), 8)).toBeCloseTo(1.3 * 8, 5);
+    expect(evCostEstimate(evTotals([session({ energy_from_solar_kwh: null, energy_from_battery_kwh: null, energy_from_grid_kwh: null })]), 8)).toBeCloseTo(5.8 * 8, 5);
+  });
 });
 
 describe("the sessions CSV", () => {

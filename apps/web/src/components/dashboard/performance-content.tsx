@@ -1,3 +1,4 @@
+import type * as React from "react";
 import { createClient } from "@waytara/supabase/server";
 import type { CustomerDevice } from "@/lib/selected-site";
 import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
@@ -32,11 +33,11 @@ const HISTORY_DAYS = 180;
  *  DeviceOverviewContent/MonitoringContent's dispatch pattern (Phases 1-3).
  *  A category without one yet falls back to the same generic parameter
  *  cards every other unhandled category gets elsewhere. */
-export async function PerformanceContent({ supabase, device, tariffRate = 8 }: { supabase: SupabaseServerClient; device: CustomerDevice; tariffRate?: number }) {
+export async function PerformanceContent({ supabase, device, charger = null, tariffRate = 8 }: { supabase: SupabaseServerClient; device: CustomerDevice; /** The site's EV charger: one more tab after Grid when the page is about an inverter. */ charger?: CustomerDevice | null; tariffRate?: number }) {
   const category = device.deviceType?.category;
 
   if (category === "solar_inverter") {
-    return <SolarInverterPerformance supabase={supabase} device={device} tariffRate={tariffRate} />;
+    return <SolarInverterPerformance supabase={supabase} device={device} tariffRate={tariffRate} ev={charger ? <EvChargerPerformance supabase={supabase} device={charger} tariffRate={tariffRate} /> : null} />;
   }
   if (category === "ev_charger") {
     return <EvChargerPerformance supabase={supabase} device={device} tariffRate={tariffRate} />;
@@ -50,7 +51,7 @@ function groupTitle(category: string, groupName: string | null): string {
   return groupName ? `${category} — ${groupName}` : category;
 }
 
-async function SolarInverterPerformance({ supabase, device, tariffRate }: { supabase: SupabaseServerClient; device: CustomerDevice; tariffRate: number }) {
+async function SolarInverterPerformance({ supabase, device, tariffRate, ev }: { supabase: SupabaseServerClient; device: CustomerDevice; tariffRate: number; ev: React.ReactNode }) {
   // The page itself is PerformanceBoard (lifetime cards, then the opened segment's detail). What is fetched here is only
   // its first numbers: the live figures stay current in the browser from there on.
   const sections = await fetchDashboardFields(supabase, device, "Performance");
@@ -139,7 +140,7 @@ async function SolarInverterPerformance({ supabase, device, tariffRate }: { supa
     );
   }
 
-  return <PerformanceBoard deviceId={device.id} initial={initial} pvKeys={pvKeys} tariff={tariffRate} batteryProfile={batteryProfile} solarKwp={solarKwp(children)} extras={extras} />;
+  return <PerformanceBoard deviceId={device.id} initial={initial} pvKeys={pvKeys} tariff={tariffRate} batteryProfile={batteryProfile} solarKwp={solarKwp(children)} extras={extras} ev={ev} />;
 }
 
 async function EvChargerPerformance({ supabase, device, tariffRate }: { supabase: SupabaseServerClient; device: CustomerDevice; tariffRate: number }) {

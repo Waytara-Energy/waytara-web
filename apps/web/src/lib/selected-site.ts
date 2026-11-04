@@ -136,3 +136,19 @@ export async function resolveDeviceInSite(site: CustomerSite | null, deviceId: s
 
   return site.devices[0];
 }
+
+/** The devices a page that has a tab for each kind (Monitoring, Performance, Reports, Maintenance) shows together: the site's solar inverter and
+ *  its EV charger. Each is the one chosen with `?device=` or the saved choice when that is of its kind, otherwise the first of its kind, so
+ *  nobody has to switch device to see the other kind. `chosen` is what resolveDeviceInSite would give (a device of another kind, such as a
+ *  meter, is still shown on its own), and `focus` is the kind the choice pointed at, for the tab a page opens on. */
+export async function resolvePageDevices(
+  site: CustomerSite | null,
+  deviceId: string | undefined
+): Promise<{ solar: CustomerDevice | null; ev: CustomerDevice | null; chosen: CustomerDevice | null; focus: "solar" | "ev" | null }> {
+  const chosen = await resolveDeviceInSite(site, deviceId);
+  const of = (category: string) => (chosen?.deviceType?.category === category ? chosen : (site?.devices.find((d) => d.deviceType?.category === category) ?? null));
+  const solar = of("solar_inverter");
+  const ev = of("ev_charger");
+  const focus = chosen?.deviceType?.category === "solar_inverter" ? "solar" : chosen?.deviceType?.category === "ev_charger" ? "ev" : null;
+  return { solar, ev, chosen, focus };
+}
