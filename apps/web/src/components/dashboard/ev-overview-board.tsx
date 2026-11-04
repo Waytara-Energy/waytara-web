@@ -10,6 +10,8 @@ import type { EvHistory, EvHistorySession } from "@/lib/ev-history";
 import type { OpenCharge } from "@/lib/ev-overview";
 import { cn } from "@/lib/utils";
 import { EvPowerPanel } from "./ev-power-panel";
+import { EvSessionDialog, type EvSessionLoader } from "./ev-session-dialog";
+import { getEvSessionDetail } from "@/app/dashboard/ev-session-detail-action";
 import { EvCar } from "./ev-car";
 
 const KEYS = ["power_active_import_kw", "current_import_l1_a", "voltage_l1_n_v", "energy_active_import_register_kwh"];
@@ -138,11 +140,21 @@ function Statistic({ history }: { history: EvHistory }) {
 }
 
 /** What a charge was: its energy, time and cost, and how much of the energy was the site's own solar. */
-function LastCharge({ last }: { last: EvHistorySession | null }) {
+function LastCharge({ last, onOpen }: { last: EvHistorySession | null; onOpen: (id: string) => void }) {
   const u = useUnits();
   return (
     <Card className="flex min-h-0 flex-col gap-3 p-4 lg:col-span-7">
-      <Title aside={last ? <span className="text-xs text-muted-foreground">{`${dayMonth(last.startedAt)}, ${clock(last.startedAt)}`}</span> : null}>Last charge</Title>
+      <Title
+        aside={
+          last ? (
+            <button type="button" onClick={() => onOpen(last.id)} className="rounded-md px-1.5 py-0.5 text-xs text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+              {`${dayMonth(last.startedAt)}, ${clock(last.startedAt)}`} · Details
+            </button>
+          ) : null
+        }
+      >
+        Last charge
+      </Title>
       {last ? (
         <div className="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-2.5">
           <Tile icon={Zap} label="Energy" value={u.format(last.kwh, "kWh", "ev_energy_today_kwh", 2)} hint={last.peakKw !== null ? `peak ${u.format(last.peakKw, "kW", "power_active_import_kw", 1)}` : undefined} />
@@ -157,7 +169,7 @@ function LastCharge({ last }: { last: EvHistorySession | null }) {
   );
 }
 
-function History({ sessions }: { sessions: EvHistorySession[] }) {
+function History({ sessions, onOpen }: { sessions: EvHistorySession[]; onOpen: (id: string) => void }) {
   const u = useUnits();
   return (
     <Card className="flex min-h-0 flex-col gap-2 p-4 lg:col-span-5">
@@ -165,17 +177,21 @@ function History({ sessions }: { sessions: EvHistorySession[] }) {
       {sessions.length === 0 ? (
         <p className="grid flex-1 place-items-center text-sm text-muted-foreground">Finished charges are listed here.</p>
       ) : (
-        <ul className="-mx-1 max-h-60 min-h-0 flex-1 divide-y overflow-y-auto px-1 lg:max-h-none">
+        <ul className="-mx-2 max-h-60 min-h-0 flex-1 divide-y overflow-y-auto px-1 lg:max-h-none">
           {sessions.map((s) => (
-            <li key={s.id} className="flex items-center justify-between gap-3 py-2">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-foreground">{`${dayMonth(s.startedAt)}, ${clock(s.startedAt)}`}</p>
-                <p className="truncate text-xs text-muted-foreground">{[span(s.durationS), s.solarSharePct !== null ? `${Math.round(s.solarSharePct)}% solar` : null].filter(Boolean).join(" · ")}</p>
-              </div>
-              <div className="shrink-0 text-right">
-                <p className="text-sm font-semibold tabular-nums text-foreground">{u.format(s.kwh, "kWh", "ev_energy_today_kwh", 2)}</p>
-                {s.cost !== null ? <p className="text-xs tabular-nums text-muted-foreground">{inr(s.cost)}</p> : null}
-              </div>
+            <li key={s.id}>
+              <button type="button" onClick={() => onOpen(s.id)} className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-foreground">{`${dayMonth(s.startedAt)}, ${clock(s.startedAt)}`}</p>
+                  <p className="truncate text-xs text-muted-foreground">
+                    {[span(s.durationS), s.targetKwh !== null ? `booked ${s.targetKwh} kWh` : null, s.solarSharePct !== null ? `${Math.round(s.solarSharePct)}% solar` : null, s.closedAutomatically ? "closed automatically" : null].filter(Boolean).join(" · ")}
+                  </p>
+                </div>
+                <div className="shrink-0 text-right">
+                  <p className="text-sm font-semibold tabular-nums text-foreground">{u.format(s.kwh, "kWh", "ev_energy_today_kwh", 2)}</p>
+                  {s.cost !== null ? <p className="text-xs tabular-nums text-muted-foreground">{inr(s.cost)}</p> : null}
+                </div>
+              </button>
             </li>
           ))}
         </ul>
@@ -196,6 +212,7 @@ export function EvOverviewBoard({
   open,
   initial,
   history,
+  loadSession = getEvSessionDetail,
 }: {
   chargerId: string;
   /** The connector's status in words ("Available", "Charging", "Offline"...), or null when not known yet. */
@@ -205,6 +222,8 @@ export function EvOverviewBoard({
   open: OpenCharge | null;
   initial: Record<string, number | null>;
   history: EvHistory;
+  /** How a charge's detail is fetched (the dashboard's server action unless a page supplies its own). */
+  loadSession?: EvSessionLoader;
 }) {
   const u = useUnits();
   const n = useLiveNumbers([chargerId], KEYS, initial);
@@ -247,6 +266,7 @@ export function EvOverviewBoard({
   }
 
   const last = history.recent[0] ?? null;
+  const [openId, setOpenId] = React.useState<string | null>(null);
 
   return (
     <div className="grid gap-4 lg:h-[max(calc(100svh-9.5rem),30rem)] lg:grid-cols-12 lg:grid-rows-[minmax(0,11fr)_minmax(0,9fr)]">
@@ -281,8 +301,9 @@ export function EvOverviewBoard({
         />
       </section>
       <Statistic history={history} />
-      <LastCharge last={last} />
-      <History sessions={history.recent} />
+      <LastCharge last={last} onOpen={setOpenId} />
+      <History sessions={history.recent} onOpen={setOpenId} />
+      <EvSessionDialog sessionId={openId} onClose={() => setOpenId(null)} load={loadSession} />
     </div>
   );
 }
