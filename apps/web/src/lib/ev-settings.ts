@@ -145,3 +145,20 @@ export const utcDay = (ms: number): string => new Date(ms).toISOString().slice(0
 
 /** Is this a day the log download accepts? */
 export const isLogDay = (day: string): boolean => /^\d{4}-\d{2}-\d{2}$/.test(day) && !Number.isNaN(Date.parse(`${day}T00:00:00Z`));
+
+/** What a charger can do with charging limits (smart charging): the OCPP keys asked for with one press, and what each means. */
+export const CAPABILITY_KEYS: { key: string; label: string; help: string }[] = [
+  { key: "SupportedFeatureProfiles", label: "Features it supports", help: "The OCPP feature sets it implements (Core, Smart Charging ...)." },
+  { key: "ChargingScheduleAllowedChargingRateUnit", label: "Limit unit", help: "Whether a charging limit can be set in amps (Current), in watts (Power) or both." },
+  { key: "ChargingScheduleMaxPeriods", label: "Steps per schedule", help: "How many steps one charging schedule may have." },
+  { key: "ChargeProfileMaxStackLevel", label: "Highest profile level", help: "How many layers of charging limits can be stacked." },
+  { key: "MaxChargingProfilesInstalled", label: "Limits it can keep", help: "How many charging limits it can hold at once." },
+];
+export const CAPABILITY_KEY_NAMES: string[] = CAPABILITY_KEYS.map((k) => k.key);
+
+/** One asked-for key as the page shows it: the charger's value split into items when it is a list, or "Not on this charger". */
+export function capabilityValue(key: string, rows: readonly { key: string; value: string | null }[], unknown: readonly string[]): { items: string[]; missing: boolean } {
+  const row = rows.find((r) => r.key === key);
+  if (!row || unknown.includes(key) || row.value === null || row.value === "") return { items: [], missing: true };
+  return { items: key === "SupportedFeatureProfiles" ? row.value.split(",").map((v) => v.trim()).filter(Boolean) : [row.value], missing: false };
+}

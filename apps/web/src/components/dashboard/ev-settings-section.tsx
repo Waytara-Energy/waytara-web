@@ -2,6 +2,7 @@ import type { LastSyncInfo } from "@/lib/device-sync";
 import type { EvConnectionInfo } from "@/lib/ev-settings-data";
 import { wsAddress } from "@/lib/ev-settings";
 import { DeviceCard } from "./device-card";
+import { EvCapabilities } from "./ev-capabilities";
 import { EvSettingsControls } from "./ev-settings-controls";
 import { EvSettingsLog } from "./ev-settings-log";
 
@@ -45,6 +46,10 @@ export function EvOcppPanel({ chargerId, info, sync }: { chargerId: string; info
 
       <DeviceCard title="Charger controls" description="Each one asks the charger. It must be connected.">
         <EvSettingsControls chargerId={chargerId} />
+      </DeviceCard>
+
+      <DeviceCard className="lg:col-span-2" title="What the charger supports" description="Its charging-limit (smart charging) abilities, asked from the charger itself when you press the button.">
+        <EvCapabilities chargerId={chargerId} />
       </DeviceCard>
     </div>
   );

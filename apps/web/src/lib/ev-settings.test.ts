@@ -91,3 +91,18 @@ describe("log days", () => {
     expect(isLogDay("2026-13-45")).toBe(false);
   });
 });
+
+describe("the charger's charging-limit abilities", () => {
+  it("asks for the five keys", async () => {
+    const { CAPABILITY_KEY_NAMES } = await import("./ev-settings");
+    expect(CAPABILITY_KEY_NAMES).toEqual(["SupportedFeatureProfiles", "ChargingScheduleAllowedChargingRateUnit", "ChargingScheduleMaxPeriods", "ChargeProfileMaxStackLevel", "MaxChargingProfilesInstalled"]);
+  });
+  it("splits the feature list, shows a plain value as it is, and says when a key is not on the charger", async () => {
+    const { capabilityValue } = await import("./ev-settings");
+    const rows = [{ key: "SupportedFeatureProfiles", value: "Core, FirmwareManagement,SmartCharging" }, { key: "ChargeProfileMaxStackLevel", value: "8" }];
+    expect(capabilityValue("SupportedFeatureProfiles", rows, [])).toEqual({ items: ["Core", "FirmwareManagement", "SmartCharging"], missing: false });
+    expect(capabilityValue("ChargeProfileMaxStackLevel", rows, [])).toEqual({ items: ["8"], missing: false });
+    expect(capabilityValue("MaxChargingProfilesInstalled", rows, ["MaxChargingProfilesInstalled"])).toEqual({ items: [], missing: true });
+    expect(capabilityValue("ChargingScheduleMaxPeriods", rows, [])).toEqual({ items: [], missing: true });
+  });
+});
