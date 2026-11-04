@@ -1,6 +1,7 @@
 import "server-only";
 
 import { createClient as createSupabaseClient } from "@supabase/supabase-js";
+import { retryingFetch } from "./retry-fetch";
 import type { Database } from "./types";
 
 function requireEnv(name: string): string {
@@ -33,6 +34,7 @@ export function createServiceRoleClient() {
 
   return createSupabaseClient<Database, "waytara">(supabaseUrl, serviceRoleKey, {
     db: { schema: "waytara" },
+    global: { fetch: retryingFetch },
     auth: { autoRefreshToken: false, persistSession: false },
   });
 }

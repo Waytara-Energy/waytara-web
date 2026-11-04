@@ -2,6 +2,7 @@ import "server-only";
 
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
+import { retryingFetch } from "./retry-fetch";
 import type { Database } from "./types";
 
 function requireEnv(name: string): string {
@@ -35,6 +36,7 @@ export async function createClient() {
 
   return createServerClient<Database, "waytara">(supabaseUrl, supabaseAnonKey, {
     db: { schema: "waytara" },
+    global: { fetch: retryingFetch },
     cookies: {
       getAll() {
         return cookieStore.getAll();

@@ -47,7 +47,7 @@ use the **same** value as `CRON_SECRET` in Vercel):
 select vault.create_secret('https://www.waytaraenergy.com', 'app_base_url');
 select vault.create_secret('<the same value as CRON_SECRET>', 'cron_secret');
 ```
-Jobs: `detect-alerts` (15 min), `detect-charging-sessions` (2 min), `rollup-telemetry-hourly` (10 min),
+Jobs: `detect-alerts` (15 min), `rollup-telemetry-hourly` (10 min),
 `purge-old-telemetry` (nightly, 90-day raw retention), `purge-rate-limit-events` (hourly).
 Check health: `select jobname, status, return_message, start_time from cron.job_run_details order by start_time desc limit 20;`
 and for the HTTP calls `select * from net._http_response order by created desc limit 20;` (expect 200).

@@ -1,6 +1,7 @@
 "use client";
 
 import { createBrowserClient } from "@supabase/ssr";
+import { retryingFetch } from "./retry-fetch";
 import type { Database } from "./types";
 
 /**
@@ -30,5 +31,6 @@ export function createClient() {
 
   return createBrowserClient<Database, "waytara">(supabaseUrl, supabaseAnonKey, {
     db: { schema: "waytara" },
+    global: { fetch: retryingFetch },
   });
 }

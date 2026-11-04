@@ -1,113 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { isCronAuthorized } from "@/lib/cron-auth";
-import { createServiceRoleClient } from "@waytara/supabase/service-role";
 
-// Phase 0 of the multi-device-type dashboard roadmap (see
-// packages/supabase/supabase/migrations/20260917010000_charging_sessions.sql):
-// turns an EV charger's raw connector_status/energy readings into discrete
-// charging_sessions rows — a session opens when connector_status
-// transitions into Charging (2) and closes when it transitions back out,
-// capturing the cumulative energy register's value at each edge. Same
-// scheduling situation as ../detect-alerts/route.ts: not currently wired
-// to a scheduler (see that route's own doc comment for why), only runs on
-// a manual/local/CI trigger for now.
-const CHARGING_STATUS = 2;
-
+// Retired (migration 20261104000000_retire_detect_charging_sessions.sql). Charging sessions now come only from the charger's own OCPP messages.
+// This job used to guess sessions every 2 minutes from the connector status and energy reading. It could add a second "inferred" session for a
+// charge that was already running (when its read of the open sessions failed) and wrote an end time and "Local" onto real sessions without
+// marking them finished. The route stays as a no-op so an old scheduler call does no harm.
 export async function GET(req: NextRequest) {
   if (!isCronAuthorized(req, "detect-charging-sessions")) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
-  const supabase = createServiceRoleClient();
-
-  const { data: devices, error: devicesError } = await supabase
-    .from("equipment")
-    .select("id, device_type:equipment_inventory(category)")
-    .eq("device_status", "active");
-
-  if (devicesError) {
-    return NextResponse.json({ error: devicesError.message }, { status: 500 });
-  }
-
-  const chargerIds = (devices ?? []).filter((d) => d.device_type?.category === "ev_charger").map((d) => d.id);
-  if (chargerIds.length === 0) {
-    return NextResponse.json({ checked: 0, opened: 0, closed: 0 });
-  }
-
-  // One row per device+key from equipment_latest - exact, not a windowed guess.
-  const { data: readings } = await supabase
-    .from("equipment_latest")
-    .select("equipment_id, key_name, value, ts")
-    .in("equipment_id", chargerIds)
-    .in("key_name", ["connector_status", "energy_active_import_register_kwh"])
-    .order("ts", { ascending: false });
-
-  const latestStatus = new Map<string, number | null>();
-  const latestEnergy = new Map<string, number | null>();
-  for (const r of readings ?? []) {
-    if (r.key_name === "connector_status" && !latestStatus.has(r.equipment_id)) latestStatus.set(r.equipment_id, r.value);
-    if (r.key_name === "energy_active_import_register_kwh" && !latestEnergy.has(r.equipment_id)) {
-      latestEnergy.set(r.equipment_id, r.value);
-    }
-  }
-
-  const { data: openSessions } = await supabase
-    .from("ev_sessions")
-    .select("id, equipment_id, started_at")
-    .in("equipment_id", chargerIds)
-    .is("ended_at", null);
-
-  const openSessionByDevice = new Map((openSessions ?? []).map((s) => [s.equipment_id, s]));
-
-  const now = new Date().toISOString();
-
-  // Decide per-charger in the loop (cheap, in-memory), but batch the
-  // actual writes into at most one INSERT and one upsert instead of one
-  // round-trip per charger. The closing sessions can't share a single
-  // `.update().in("id", [...])` the way detect-alerts's resolve-batch
-  // does — each one needs its *own* `end_energy_kwh` — so those go through
-  // `.upsert()` by `id` instead, one round trip either way. `equipment_id`/
-  // `started_at` are carried over unchanged (both NOT NULL with no
-  // default, so `.upsert()`'s Insert-side typing requires them even
-  // though the conflict-update path — the only one ever taken here, since
-  // every id already exists — doesn't actually need them).
-  const toOpen: { equipment_id: string; started_at: string; start_energy_kwh: number | null }[] = [];
-  const toClose: {
-    id: string;
-    equipment_id: string;
-    started_at: string;
-    ended_at: string;
-    end_energy_kwh: number | null;
-    stop_reason: string;
-  }[] = [];
-
-  for (const deviceId of chargerIds) {
-    const status = latestStatus.get(deviceId) ?? null;
-    const energy = latestEnergy.get(deviceId) ?? null;
-    const openSession = openSessionByDevice.get(deviceId);
-    const isCharging = status === CHARGING_STATUS;
-
-    if (isCharging && !openSession) {
-      toOpen.push({ equipment_id: deviceId, started_at: now, start_energy_kwh: energy });
-    } else if (!isCharging && openSession) {
-      toClose.push({
-        id: openSession.id,
-        equipment_id: openSession.equipment_id,
-        started_at: openSession.started_at,
-        ended_at: now,
-        end_energy_kwh: energy,
-        stop_reason: "Local",
-      });
-    }
-  }
-
-  const [insertResult, closeResult] = await Promise.all([
-    toOpen.length > 0 ? supabase.from("ev_sessions").insert(toOpen) : Promise.resolve({ error: null }),
-    toClose.length > 0 ? supabase.from("ev_sessions").upsert(toClose, { onConflict: "id" }) : Promise.resolve({ error: null }),
-  ]);
-
-  const opened = insertResult.error ? 0 : toOpen.length;
-  const closed = closeResult.error ? 0 : toClose.length;
-
-  return NextResponse.json({ checked: chargerIds.length, opened, closed });
+  return NextResponse.json({ checked: 0, opened: 0, closed: 0, retired: true });
 }

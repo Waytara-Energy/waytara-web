@@ -9,7 +9,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public, waytara;
 
-select plan(39);
+select plan(40);
 
 -- Runs a statement as the CURRENT role (so RLS applies) and returns how many
 -- rows it touched. "0 rows" is how RLS reports a write it silently filtered.
@@ -154,7 +154,8 @@ select is(
   'true,true,true,false,false', 'rate limiter allows N hits then blocks');
 select is(waytara.consume_rate_limit('t','another-key',3,60), true, 'rate limiter keys are independent');
 select is((select public from storage.buckets where id = 'quotation-pdfs'), false, 'quotation-pdfs bucket is private');
-select is((select count(*)::int from cron.job where jobname in ('detect-alerts','detect-charging-sessions')), 2, 'cron jobs are scheduled');
+select is((select count(*)::int from cron.job where jobname = 'detect-alerts'), 1, 'the alert cron job is scheduled');
+select is((select count(*)::int from cron.job where jobname = 'detect-charging-sessions'), 0, 'the old charging-session guesser is no longer scheduled');
 
 select * from finish();
 rollback;

@@ -1,5 +1,6 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
+import { retryingFetch } from "./retry-fetch";
 import type { Database } from "./types";
 
 function requireEnv(name: string): string {
@@ -53,6 +54,7 @@ export function createMiddlewareClient(request: NextRequest) {
 
   const supabase = createServerClient<Database, "waytara">(supabaseUrl, supabaseAnonKey, {
     db: { schema: "waytara" },
+    global: { fetch: retryingFetch },
     cookies: {
       getAll() {
         return request.cookies.getAll();
