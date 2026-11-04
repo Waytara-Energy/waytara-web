@@ -47,7 +47,7 @@ export function EvPowerPanel({
   charging: boolean;
   stats: React.ReactNode;
 }) {
-  const { busy, waiting, error, pending, start, stop } = useEvCharge({ chargerId, sessionOpen, transactionId });
+  const { busy, waiting, error, notice, pending, start, stop } = useEvCharge({ chargerId, sessionOpen, transactionId });
   const [preset, setPreset] = React.useState<number | null>(null);
   const [other, setOther] = React.useState(false);
   const [text, setText] = React.useState("");
@@ -102,6 +102,11 @@ export function EvPowerPanel({
         {error ? (
           <p role="alert" className="mt-2 text-xs text-destructive">
             {error}
+          </p>
+        ) : null}
+        {notice ? (
+          <p role="status" className="mt-2 text-xs text-amber-700 dark:text-amber-400">
+            {notice}
           </p>
         ) : null}
       </div>

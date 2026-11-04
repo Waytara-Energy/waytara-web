@@ -76,6 +76,8 @@ const KIND_LABEL: Record<string, string> = {
   target_reached: "Stop-after amount reached",
   target_stop_sent: "Stop sent to the charger",
   session_closed_without_stop: "Closed without a stop from the charger",
+  queued_stop_sent: "Saved stop sent to the charger",
+  queued_stop_failed: "Saved stop could not be delivered",
 };
 
 /** One charger event as a line of the log. Unknown kinds are shown by their name, never dropped. */
@@ -90,7 +92,7 @@ export function eventLine(e: { ts: string; kind: string; detail: unknown }): EvE
     }
     case "command": {
       const c = str(d.command);
-      return { ts: e.ts, label: c === "remote-start" ? "Start sent from the dashboard" : c === "remote-stop" ? "Stop sent from the dashboard" : `Command: ${c ?? "unknown"}`, note: null, tone: "neutral" };
+      return { ts: e.ts, label: c === "remote-start" ? "Start sent from the dashboard" : c === "remote-stop" ? "Stop sent from the dashboard" : c === "remote-stop-queued" ? "Stop saved: the charger was out of contact" : `Command: ${c ?? "unknown"}`, note: null, tone: c === "remote-stop-queued" ? "warn" : "neutral" };
     }
     case "transaction_stop": {
       const kwh = typeof d.energy_kwh === "number" ? `${d.energy_kwh} kWh delivered` : null;

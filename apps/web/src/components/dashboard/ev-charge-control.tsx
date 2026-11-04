@@ -11,7 +11,8 @@ import { START_POLL_MS, START_WAIT_MS, hubMessage, parseTarget, startBody } from
 /** The WayTara service that tells the charger (through its monitoring unit) to start and stop. */
 const GATEWAY_URL = process.env.NEXT_PUBLIC_GATEWAY_URL ?? "https://hub.waytaraenergy.com";
 
-export async function callHub(path: string, body: unknown): Promise<{ ok: true } | { ok: false; message: string }> {
+/** `queued`: the charger was out of contact, so the service kept the request and will send it when the charger is back (it is not an error). */
+export async function callHub(path: string, body: unknown): Promise<{ ok: true; queued?: boolean } | { ok: false; message: string }> {
   const token = (await createClient().auth.getSession()).data.session?.access_token;
   if (!token) return { ok: false, message: hubMessage(401) };
   let res: Response;
@@ -29,6 +30,7 @@ export async function callHub(path: string, body: unknown): Promise<{ ok: true }
     // the charger can say "Rejected" or "NotSupported" in a 200 answer: that is a refusal too
     try {
       const j = (await res.json()) as { status?: string };
+      if (j.status === "Queued") return { ok: true, queued: true };
       if (typeof j.status === "string" && j.status !== "Accepted") return { ok: false, message: `The charger did not accept it (${j.status}).` };
     } catch {
       /* no body: fine */
@@ -57,6 +59,7 @@ export function useEvCharge({ chargerId, sessionOpen, transactionId }: { charger
   const [busy, setBusy] = React.useState<"start" | "stop" | null>(null);
   const [waiting, setWaiting] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  const [notice, setNotice] = React.useState<string | null>(null);
   const waitingSince = React.useRef(0);
 
   // The charge began (or ended): no longer waiting for it.
@@ -84,6 +87,7 @@ export function useEvCharge({ chargerId, sessionOpen, transactionId }: { charger
   /** `targetKwh`: stop by itself after this many units (null = no limit). */
   async function start(targetKwh: number | null) {
     setError(null);
+    setNotice(null);
     setBusy("start");
     const r = await callHub(`/v1/ev/${encodeURIComponent(chargerId)}/remote-start`, startBody(targetKwh));
     if (!r.ok) {
@@ -102,6 +106,7 @@ export function useEvCharge({ chargerId, sessionOpen, transactionId }: { charger
       return;
     }
     setError(null);
+    setNotice(null);
     setBusy("stop");
     const r = await callHub(`/v1/ev/${encodeURIComponent(chargerId)}/remote-stop`, { transaction_id: transactionId });
     if (!r.ok) {
@@ -109,12 +114,18 @@ export function useEvCharge({ chargerId, sessionOpen, transactionId }: { charger
       setError(r.message);
       return;
     }
+    if (r.queued) {
+      // the charger cannot be reached: it may still be charging until it reconnects and receives the stop
+      setBusy(null);
+      setNotice("The charger is out of contact, so Stop could not reach it yet. It is saved and goes out the moment the charger reconnects (within 30 minutes). Until then it may still be charging: switch it off at the charger or unplug the car if it must stop now.");
+      return;
+    }
     router.refresh();
     // the session closes when the charger reports the stop: keep the pending look until the page shows it
     setTimeout(() => setBusy(null), 8_000);
   }
 
-  return { busy, waiting, error, setError, pending: busy !== null || waiting, start, stop };
+  return { busy, waiting, error, notice, setError, pending: busy !== null || waiting, start, stop };
 }
 
 /**
@@ -137,7 +148,7 @@ export function EvChargeControl({
   compact?: boolean;
   className?: string;
 }) {
-  const { busy, waiting, error, setError, pending, start, stop } = useEvCharge({ chargerId, sessionOpen, transactionId });
+  const { busy, waiting, error, notice, setError, pending, start, stop } = useEvCharge({ chargerId, sessionOpen, transactionId });
   const [target, setTarget] = React.useState("");
 
   function startFromField() {
@@ -181,6 +192,11 @@ export function EvChargeControl({
       {error ? (
         <p role="alert" className="text-center text-xs text-destructive">
           {error}
+        </p>
+      ) : null}
+      {notice ? (
+        <p role="status" className="text-center text-xs text-amber-700 dark:text-amber-400">
+          {notice}
         </p>
       ) : null}
     </div>
