@@ -2,8 +2,9 @@ import type { createClient } from "@waytara/supabase/server";
 import { fetchTodayChargingSessions } from "@/lib/device-overview";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { getConnectorStatusLabel } from "@/lib/ev-charger-catalog";
-import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
+import { fetchEnumOptions, type EnumOption } from "@/lib/instrument-catalog-data";
 import { sessionKwh } from "@/lib/ev-control";
+import { EV_LIVE_KEYS } from "@/lib/ev-live-keys";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -31,15 +32,22 @@ export interface EvOverview {
   /** energy of today's sessions, kWh */
   todayKwh: number | null;
   open: OpenCharge | null;
+  /** the live table's newest value for each of the keys the Overview follows (the live channel keeps them current afterwards) */
+  latest: Record<string, number | null>;
+  /** connector_status codes and their words, so the page can name a status it hears live */
+  connectorOptions: EnumOption[];
 }
 
 export async function fetchEvOverview(supabase: SupabaseServerClient, chargerId: string): Promise<EvOverview> {
-  const [today, sync, options, openRow] = await Promise.all([
+  const [today, sync, options, openRow, latestRows] = await Promise.all([
     fetchTodayChargingSessions(supabase, chargerId),
     getLastSyncInfo(chargerId).catch(() => null),
     fetchEnumOptions(supabase, ["connector_status"]).then((m) => m.get("connector_status") ?? []),
     supabase.from("ev_sessions").select("id, ocpp_transaction_id, started_at, start_energy_kwh, target_kwh").eq("equipment_id", chargerId).is("ended_at", null).order("started_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("equipment_latest").select("key_name, value").eq("equipment_id", chargerId).in("key_name", EV_LIVE_KEYS),
   ]);
+  const latest: Record<string, number | null> = Object.fromEntries(EV_LIVE_KEYS.map((k) => [k, null]));
+  for (const r of latestRows.data ?? []) latest[r.key_name] = r.value === null ? null : Number(r.value);
 
   const verdict = sync?.verdict?.status ?? null;
   const connected = verdict === null ? null : verdict === "online";
@@ -63,5 +71,5 @@ export async function fetchEvOverview(supabase: SupabaseServerClient, chargerId:
       kw: today.currentPowerW === null ? null : today.currentPowerW / 1000,
     };
   }
-  return { chargerId, connected, status, todayKwh, open };
+  return { chargerId, connected, status, todayKwh, open, latest, connectorOptions: options };
 }

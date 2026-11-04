@@ -132,10 +132,10 @@ export default async function DashboardOverviewPage() {
         content: (
           <EvOverviewBoard
             chargerId={d.device.id}
-            status={d.ev.status}
             connected={d.ev.connected}
+            connectorOptions={d.ev.connectorOptions}
             open={d.ev.open}
-            initial={d.cards?.initial ?? {}}
+            initial={d.ev.latest}
             history={d.history}
           />
         ),

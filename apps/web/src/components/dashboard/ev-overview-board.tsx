@@ -1,10 +1,15 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { Clock, IndianRupee, Leaf, Zap } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useUnits } from "@/components/units-provider";
 import { useLiveNumbers } from "@/lib/telemetry/live-values";
+import { useDeviceLive } from "@/lib/telemetry/react";
+import { getConnectorStatusLabel } from "@/lib/ev-charger-catalog";
+import { EV_LIVE_KEYS } from "@/lib/ev-live-keys";
+import type { EnumOption } from "@/lib/enum-labels";
 import { elapsedText } from "@/lib/ev-control";
 import type { EvHistory, EvHistorySession } from "@/lib/ev-history";
 import type { OpenCharge } from "@/lib/ev-overview";
@@ -14,7 +19,6 @@ import { EvSessionDialog, type EvSessionLoader } from "./ev-session-dialog";
 import { getEvSessionDetail } from "@/app/dashboard/ev-session-detail-action";
 import { EvCar } from "./ev-car";
 
-const KEYS = ["power_active_import_kw", "current_import_l1_a", "voltage_l1_n_v", "energy_active_import_register_kwh"];
 
 const inr = (v: number) => `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
@@ -207,18 +211,18 @@ function History({ sessions, onOpen }: { sessions: EvHistorySession[]; onOpen: (
  */
 export function EvOverviewBoard({
   chargerId,
-  status,
-  connected,
+  connected: connectedAtLoad,
+  connectorOptions,
   open,
   initial,
   history,
   loadSession = getEvSessionDetail,
 }: {
   chargerId: string;
-  /** The connector's status in words ("Available", "Charging", "Offline"...), or null when not known yet. */
-  status: string | null;
-  /** The charger answers through its unit (null = no verdict yet). */
+  /** The charger answers through its unit, as the server saw it when the page loaded (null = no verdict yet); the live channel takes over. */
   connected: boolean | null;
+  /** connector_status codes and their words. */
+  connectorOptions: EnumOption[];
   open: OpenCharge | null;
   initial: Record<string, number | null>;
   history: EvHistory;
@@ -226,12 +230,30 @@ export function EvOverviewBoard({
   loadSession?: EvSessionLoader;
 }) {
   const u = useUnits();
-  const n = useLiveNumbers([chargerId], KEYS, initial);
+  const n = useLiveNumbers([chargerId], EV_LIVE_KEYS, initial);
+  // Everything below follows the live channel: the heartbeat's verdict (is the charger answering), the connector's own status and the
+  // electrical readings. The server's values at load time are only what shows until the first live message.
+  const live = useDeviceLive(chargerId);
+  const connected = live.verdict ? live.verdict.status === "online" : connectedAtLoad;
   const offline = connected === false;
+  const status = getConnectorStatusLabel(n.connector_status, connectorOptions).label;
   // A charge is on when a session is open or the connector itself says "Charging". The electrical readings are never the proof: the charger
   // stops sending them when a charge ends, so its last figures (for example 6.99 kW) stay in the database long after.
-  const charging = !offline && (open !== null || /^charging$/i.test(status ?? ""));
+  const charging = !offline && (open !== null || /^charging$/i.test(status));
   const powerKw = charging ? n.power_active_import_kw : null;
+
+  // The sessions (the open charge, the list, the statistic) come from the server. A change of the connector's state is the moment they change
+  // (a charge starts, is stopped, ends), so each change fetches them again, and once more a few seconds later in case the charger's final
+  // report was still being written.
+  const router = useRouter();
+  const lastCode = React.useRef(n.connector_status);
+  React.useEffect(() => {
+    if (lastCode.current === n.connector_status) return;
+    lastCode.current = n.connector_status;
+    router.refresh();
+    const t = setTimeout(() => router.refresh(), 4_000);
+    return () => clearTimeout(t);
+  }, [n.connector_status, router]);
 
   // the charge so far: the register now less the register at the start (live), else what the server last worked out
   const reg = n.energy_active_import_register_kwh;
