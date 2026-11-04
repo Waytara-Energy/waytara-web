@@ -8,6 +8,8 @@ import { PERFORMANCE_LIVE_KEYS, pvInputKeys } from "@/lib/performance-metrics";
 import type { BatteryProfile } from "@/lib/battery-health";
 import { periodText } from "./perf-data";
 import { PerformanceHeadline } from "./perf-headline";
+import { EvPerformanceBody, EvPerformanceHeadline } from "./ev-performance-board";
+import type { EvPerfSession } from "@/lib/ev-perf-stats";
 import { RangeProvider, useRange } from "./range-context";
 import { SolarSection } from "./perf-solar";
 import { BatterySection, GridSection, InverterSection, LoadSection } from "./perf-sections";
@@ -64,8 +66,8 @@ interface PerformanceBoardProps {
   solarKwp: number | null;
   /** Server-rendered extra groups for each section (template fields that have values). */
   extras: Partial<Record<PerformanceSectionId, React.ReactNode>>;
-  /** The site's EV charger's performance (rendered on the server), shown as a tab after Grid; null when the site has none. */
-  ev?: React.ReactNode;
+  /** The site's EV charger, shown as a tab after Grid with the same headline and period picker as the other tabs; null when the site has none. */
+  ev?: { sessions: EvPerfSession[]; loadDaily: { ts: string; value: number }[]; tariff: number | null; /** server-rendered groups under the figures */ extra: React.ReactNode } | null;
 }
 
 function Board({ deviceId, initial, pvKeys, tariff, batteryProfile, solarKwp, extras, ev = null }: PerformanceBoardProps) {
@@ -93,8 +95,7 @@ function Board({ deviceId, initial, pvKeys, tariff, batteryProfile, solarKwp, ex
 
   return (
     <div className="space-y-5">
-      {/* the EV tab brings its own headline and period */}
-      {section !== "ev" && <PerformanceHeadline deviceId={deviceId} span={span} periodText={period} live={live} section={section} />}
+      {section === "ev" && ev ? <EvPerformanceHeadline sessions={ev.sessions} tariff={ev.tariff} span={span} periodText={period} /> : section !== "ev" && <PerformanceHeadline deviceId={deviceId} span={span} periodText={period} live={live} section={section} />}
 
       <Tabs value={section} onValueChange={(v) => open(v as PerformanceSectionId)}>
         <TabsList variant="line">
@@ -112,7 +113,12 @@ function Board({ deviceId, initial, pvKeys, tariff, batteryProfile, solarKwp, ex
           {section === "battery" && <BatterySection {...props} profile={batteryProfile} extras={extras.battery} />}
           {section === "load" && <LoadSection {...props} extras={extras.load} />}
           {section === "grid" && <GridSection {...props} extras={extras.grid} />}
-          {section === "ev" && ev}
+          {section === "ev" && ev && (
+            <div className="space-y-5">
+              <EvPerformanceBody sessions={ev.sessions} loadDaily={ev.loadDaily} tariff={ev.tariff} span={span} periodText={period} />
+              {ev.extra}
+            </div>
+          )}
         </TabsContent>
       </Tabs>
     </div>

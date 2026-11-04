@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { CarFront } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { chargingShareOfLoadPct, evPerfStats, loadKwhInSpan, type EvPerfSession } from "@/lib/ev-perf-stats";
+import { chargingShareOfLoadPct, evPerfStats, loadKwhInSpan, type EvPerfSession, type EvSpan } from "@/lib/ev-perf-stats";
 import { formatSeconds, sessionStatusLabel } from "@/lib/ev-sessions";
 import { inr } from "@/lib/savings";
 import { FLOW } from "./flow-colors";
@@ -28,23 +28,58 @@ export interface EvPerformanceProps {
   tariff: number | null;
 }
 
-/** Performance for an EV charger: for the period chosen with the range picker, how much it charged, how often, how fast, what powered it
- *  and what that cost; every figure is worked out in the browser from the sessions the page read. */
+/** Performance for an EV charger when it is the whole page (a site without an inverter): the headline with its period picker, then the body. */
 export function EvPerformanceBoard(props: EvPerformanceProps) {
   return (
     <RangeProvider deviceId={props.deviceId} scope="performance-ev" defaultPreset="30d">
-      <Board {...props} />
+      <Standalone {...props} />
     </RangeProvider>
   );
 }
 
-function Board({ sessions, loadDaily, tariff }: EvPerformanceProps) {
+function Standalone(props: EvPerformanceProps) {
   const range = useRange();
-  const kwh = useKwhText();
   const fromMs = range?.window.fromMs ?? 0;
   const toMs = range?.window.toMs ?? 0;
   const span = React.useMemo(() => ({ fromMs, toMs }), [fromMs, toMs]);
   const period = range ? periodText(range.preset, span) : "";
+  return (
+    <div className="space-y-5">
+      <EvPerformanceHeadline sessions={props.sessions} tariff={props.tariff} span={span} periodText={period} />
+      <EvPerformanceBody {...props} span={span} periodText={period} />
+    </div>
+  );
+}
+
+/** The line above the Performance tabs for the EV Charger, like the other tabs': the energy delivered in the period, two more figures about it
+ *  and the one period picker at the right. */
+export function EvPerformanceHeadline({ sessions, tariff, span, periodText: period }: { sessions: EvPerfSession[]; tariff: number | null; span: EvSpan; periodText: string }) {
+  const kwh = useKwhText();
+  const stats = React.useMemo(() => evPerfStats(sessions, span, tariff), [sessions, span, tariff]);
+  const has = stats.sessions > 0;
+  return (
+    <div className="flex items-center justify-between gap-3">
+      <div className="flex min-w-0 items-center gap-4">
+        <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
+          <CarFront className="size-7" />
+        </span>
+        <div className="min-w-0">
+          <p className="truncate text-sm font-medium text-theme-muted">Energy delivered · {period}</p>
+          <p className="text-4xl font-semibold leading-tight tracking-tight text-theme-primary">{has ? kwh(stats.energyKwh) : "—"}</p>
+        </div>
+        <div className="hidden items-center gap-8 pl-6 md:flex">
+          <Figure label="Sessions" value={has ? String(stats.sessions) : "—"} />
+          <Figure label="Solar share" value={stats.solarSharePct === null ? "—" : `${stats.solarSharePct.toFixed(0)}%`} good={stats.solarSharePct !== null && stats.solarSharePct >= 50} />
+        </div>
+      </div>
+      <RangeBar presets={LONG_PRESETS} />
+    </div>
+  );
+}
+
+/** What is under the EV Charger's headline: the period's figures, charts and sessions. The period comes from the page's one picker. */
+export function EvPerformanceBody({ sessions, loadDaily, tariff, span, periodText: period }: Omit<EvPerformanceProps, "deviceId"> & { span: EvSpan; periodText: string }) {
+  const kwh = useKwhText();
   const stats = React.useMemo(() => evPerfStats(sessions, span, tariff), [sessions, span, tariff]);
   const loadKwh = React.useMemo(() => loadKwhInSpan(loadDaily, span), [loadDaily, span]);
   const share = chargingShareOfLoadPct(stats.energyKwh, loadKwh);
@@ -54,23 +89,6 @@ function Board({ sessions, loadDaily, tariff }: EvPerformanceProps) {
 
   return (
     <div className="space-y-5">
-      <div className="flex items-center justify-between gap-3">
-        <div className="flex min-w-0 items-center gap-4">
-          <span className="flex size-14 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-            <CarFront className="size-7" />
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-theme-muted">Energy delivered · {period}</p>
-            <p className="text-4xl font-semibold leading-tight tracking-tight text-theme-primary">{has ? kwh(stats.energyKwh) : "—"}</p>
-          </div>
-          <div className="hidden items-center gap-8 pl-6 md:flex">
-            <Figure label="Sessions" value={has ? String(stats.sessions) : "—"} />
-            <Figure label="Solar share" value={stats.solarSharePct === null ? "—" : `${stats.solarSharePct.toFixed(0)}%`} good={stats.solarSharePct !== null && stats.solarSharePct >= 50} />
-          </div>
-        </div>
-        <RangeBar presets={LONG_PRESETS} />
-      </div>
-
       {stats.sample && has && (
         <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">Sample data: this charger has no real charge yet, so these figures are from sample charges. They are replaced by the real ones with its first real charge.</p>
       )}
@@ -80,7 +98,7 @@ function Board({ sessions, loadDaily, tariff }: EvPerformanceProps) {
       )}
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(10.5rem,1fr))] gap-3">
-        <StatTile label={`Sessions · ${period}`} value={has ? String(stats.sessions) : "—"} hint={stats.avgSessionKwh === null ? undefined : `${kwh(stats.avgSessionKwh)} on average`} />
+        <StatTile label={`Average session · ${period}`} value={stats.avgSessionKwh === null ? "—" : kwh(stats.avgSessionKwh)} hint="energy per charge" />
         <StatTile label={`Charging time · ${period}`} value={has ? formatSeconds(stats.chargingSeconds) : "—"} hint="the car was drawing power" />
         <StatTile label={`Peak power · ${period}`} value={kw(stats.peakKw)} hint="the fastest moment" />
         <StatTile label={`Average power · ${period}`} value={kw(stats.avgKw)} hint="while charging" />

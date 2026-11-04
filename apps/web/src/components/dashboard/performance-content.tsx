@@ -37,10 +37,16 @@ export async function PerformanceContent({ supabase, device, charger = null, tar
   const category = device.deviceType?.category;
 
   if (category === "solar_inverter") {
-    return <SolarInverterPerformance supabase={supabase} device={device} tariffRate={tariffRate} ev={charger ? <EvChargerPerformance supabase={supabase} device={charger} tariffRate={tariffRate} /> : null} />;
+    return <SolarInverterPerformance supabase={supabase} device={device} tariffRate={tariffRate} ev={charger ? await loadEvPerformance(supabase, charger, tariffRate) : null} />;
   }
   if (category === "ev_charger") {
-    return <EvChargerPerformance supabase={supabase} device={device} tariffRate={tariffRate} />;
+    const ev = await loadEvPerformance(supabase, device, tariffRate);
+    return (
+      <>
+        <EvPerformanceBoard deviceId={device.id} sessions={ev.sessions} loadDaily={ev.loadDaily} tariff={ev.tariff} />
+        {ev.extra}
+      </>
+    );
   }
 
   const parameters = await fetchDeviceParameterReadings(supabase, device);
@@ -51,7 +57,7 @@ function groupTitle(category: string, groupName: string | null): string {
   return groupName ? `${category} — ${groupName}` : category;
 }
 
-async function SolarInverterPerformance({ supabase, device, tariffRate, ev }: { supabase: SupabaseServerClient; device: CustomerDevice; tariffRate: number; ev: React.ReactNode }) {
+async function SolarInverterPerformance({ supabase, device, tariffRate, ev }: { supabase: SupabaseServerClient; device: CustomerDevice; tariffRate: number; ev: EvPerformanceData | null }) {
   // The page itself is PerformanceBoard (lifetime cards, then the opened segment's detail). What is fetched here is only
   // its first numbers: the live figures stay current in the browser from there on.
   const sections = await fetchDashboardFields(supabase, device, "Performance");
@@ -143,7 +149,16 @@ async function SolarInverterPerformance({ supabase, device, tariffRate, ev }: { 
   return <PerformanceBoard deviceId={device.id} initial={initial} pvKeys={pvKeys} tariff={tariffRate} batteryProfile={batteryProfile} solarKwp={solarKwp(children)} extras={extras} ev={ev} />;
 }
 
-async function EvChargerPerformance({ supabase, device, tariffRate }: { supabase: SupabaseServerClient; device: CustomerDevice; tariffRate: number }) {
+interface EvPerformanceData {
+  sessions: EvPerfSession[];
+  loadDaily: { ts: string; value: number }[];
+  tariff: number | null;
+  /** the charger's billing and tariff fields, server-rendered, shown under the figures */
+  extra: React.ReactNode;
+}
+
+/** What the EV Charger's Performance needs: its sessions, the home's use per day, the tariff and the billing fields. */
+async function loadEvPerformance(supabase: SupabaseServerClient, device: CustomerDevice, tariffRate: number): Promise<EvPerformanceData> {
   const since = new Date();
   since.setUTCDate(since.getUTCDate() - HISTORY_DAYS);
 
@@ -167,10 +182,8 @@ async function EvChargerPerformance({ supabase, device, tariffRate }: { supabase
   const loadDaily = loadRows.filter((r) => typeof r.value === "number").map((r) => ({ ts: r.ts, value: r.value as number }));
   const getValue = (key: string): FieldValue => billingValues.get(key) ?? null;
 
-  return (
+  const extra = (
     <>
-      <EvPerformanceBoard deviceId={device.id} sessions={sessions} loadDaily={loadDaily} tariff={tariffRate > 0 ? tariffRate : null} />
-
       {billingSections.map((section) =>
         section.groups.map((group) => (
           <LiveDynamicFieldGroup
@@ -184,4 +197,5 @@ async function EvChargerPerformance({ supabase, device, tariffRate }: { supabase
       )}
     </>
   );
+  return { sessions, loadDaily, tariff: tariffRate > 0 ? tariffRate : null, extra };
 }
