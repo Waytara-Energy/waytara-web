@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@waytara/supabase/server";
-import { getCurrentProfile } from "@waytara/supabase/auth";
+import { lookupCurrentProfile } from "@waytara/supabase/auth";
 import { isCustomerRole } from "@waytara/supabase/roles";
 import { notifyAuthEvent } from "@/lib/auth-notify";
 import { needsSecondFactor } from "@/lib/mfa";
@@ -24,7 +24,14 @@ export async function login(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent(error.message)}`);
   }
 
-  const profile = await getCurrentProfile(supabase);
+  // A failed lookup (the database being unwell) is not a wrong account: try once more, and if it fails again say so, rather than blaming the account.
+  let lookup = await lookupCurrentProfile(supabase);
+  if (lookup.status === "error") lookup = await lookupCurrentProfile(supabase);
+  if (lookup.status === "error") {
+    await supabase.auth.signOut({ scope: "local" });
+    redirect(`/login?error=${encodeURIComponent("We could not check your account just now. Please try again in a moment.")}`);
+  }
+  const profile = lookup.status === "ok" ? lookup.profile : null;
 
   if (!isCustomerRole(profile?.role)) {
     // this device only: signOut() alone defaults to the "global" scope and would end every other device's session too

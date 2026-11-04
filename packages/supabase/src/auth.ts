@@ -49,15 +49,24 @@ export type TypedSupabaseClient = SupabaseClient<Database, "waytara">;
 export const getCurrentProfile = cache(async function getCurrentProfile(
   client?: TypedSupabaseClient
 ): Promise<Profile | null> {
-  const supabase = client ?? (await createServerSupabaseClient());
+  const outcome = await lookupCurrentProfile(client ?? (await createServerSupabaseClient()));
+  return outcome.status === "ok" ? outcome.profile : null;
+});
 
+/** What a profile lookup found. "error" means the lookup itself failed (the database or network was unwell), which is not the same as
+ *  "none" (no session, or a deactivated account): a caller that tells the person why they were turned away must not mix the two up. */
+export type ProfileLookup = { status: "ok"; profile: Profile } | { status: "none" } | { status: "error" };
+
+/** getCurrentProfile, but saying whether a null was a real "no" or a failed lookup. Not cached: the sign-in action calls it right after the
+ *  session was created, and may call it again to retry. */
+export async function lookupCurrentProfile(supabase: TypedSupabaseClient): Promise<ProfileLookup> {
   const {
     data: { user },
     error: userError,
   } = await supabase.auth.getUser();
 
   if (userError || !user) {
-    return null;
+    return { status: "none" };
   }
 
   const { data, error } = await supabase
@@ -68,16 +77,16 @@ export const getCurrentProfile = cache(async function getCurrentProfile(
 
   if (error) {
     console.error("[@waytara/supabase] getCurrentProfile: profile lookup failed:", error.message);
-    return null;
+    return { status: "error" };
   }
 
   if (data.deactivated_at) {
     await supabase.auth.signOut();
-    return null;
+    return { status: "none" };
   }
 
-  return data;
-});
+  return { status: "ok", profile: data };
+}
 
 /**
  * Authorization guard for Server Actions and Route Handlers.
