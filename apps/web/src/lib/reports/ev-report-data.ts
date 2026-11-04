@@ -6,6 +6,7 @@ import { getRequestProfile } from "@/lib/request-profile";
 import { fetchResolvedTariff } from "@/lib/tariff-server";
 import { EV_PERF_COLUMNS, spanOfDays, type EvPerfSession } from "@/lib/ev-perf-stats";
 import { CATEGORY_LABEL } from "@/lib/tariff";
+import { recoverClosedSessions } from "@/lib/ev-recover";
 import { fmtDate } from "@/lib/savings";
 import { buildEvReport, type EvReport } from "./ev-report";
 import type { EvReportFilters } from "./ev-filters";
@@ -47,7 +48,7 @@ export async function gatherEvReport(deviceIdParam: string | undefined, from: st
       to,
       tariffRate: tariff.rate > 0 ? tariff.rate : null,
       tariffNote: `${where} tariff${tariff.effectiveFrom ? `, in force since ${fmtDate(tariff.effectiveFrom)}` : ""}`,
-      sessions: (data ?? []) as unknown as EvPerfSession[],
+      sessions: await recoverClosedSessions(supabase, (data ?? []) as unknown as EvPerfSession[]),
       filters,
     }),
   };

@@ -10,6 +10,7 @@ import { ReportsBoard } from "@/components/dashboard/reports-board";
 import { EvReportsBoard, type EvReportsProps } from "@/components/dashboard/ev-reports-board";
 import { EV_PERF_COLUMNS, type EvPerfSession } from "@/lib/ev-perf-stats";
 import { getCustomerPlan } from "@/lib/customer-plan";
+import { recoverClosedSessions } from "@/lib/ev-recover";
 import { deviceDisplayId, getSelectedSite, resolvePageDevices, type CustomerDevice } from "@/lib/selected-site";
 import { fetchResolvedTariff } from "@/lib/tariff-server";
 import { CATEGORY_LABEL } from "@/lib/tariff";
@@ -76,7 +77,7 @@ async function evReportFor(device: CustomerDevice, customerName: string, siteNam
     fetchResolvedTariff(supabase, site, plan?.tariffRatePerKwh ?? 8),
     supabase.from("ev_sessions").select(EV_PERF_COLUMNS).eq("equipment_id", device.id).gte("started_at", since.toISOString()).order("started_at", { ascending: false }).limit(5000),
   ]);
-  const sessions = (data ?? []) as unknown as EvPerfSession[];
+  const sessions = await recoverClosedSessions(supabase, (data ?? []) as unknown as EvPerfSession[]);
   const where = tariff.state ? `${tariff.state} ${CATEGORY_LABEL[tariff.category]}` : CATEGORY_LABEL[tariff.category];
   return {
     deviceId: device.id,

@@ -225,7 +225,8 @@ export function buildSessionDetail(session: SessionDbRow, samples: readonly Samp
     status: closedWithoutReport ? { label: "Closed automatically", tone: "warn" as const } : sessionStatusLabel(session.status),
     isTest: session.is_test || session.source === "simulated",
     transactionId: session.ocpp_transaction_id,
-    stopReason: closedWithoutReport ? null : stopReasonLabel(session.stop_reason),
+    // a remote stop of a charge that had reached its booked amount is WayTara's own stop at that amount, not a press of Stop
+    stopReason: closedWithoutReport ? null : session.stop_reason === "Remote" && session.target_kwh !== null && kwh !== null && kwh >= session.target_kwh ? "Stopped at the amount booked" : stopReasonLabel(session.stop_reason),
     bookedKwh: session.target_kwh,
     kwh,
     spanS,

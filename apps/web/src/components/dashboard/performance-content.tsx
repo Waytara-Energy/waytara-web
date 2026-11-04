@@ -15,6 +15,7 @@ import { enumToObject, valuesFor } from "@/lib/field-values";
 import { EvPerformanceBoard } from "./ev-performance-board";
 import { EV_PERF_COLUMNS, type EvPerfSession } from "@/lib/ev-perf-stats";
 import { getSelectedSite } from "@/lib/selected-site";
+import { recoverClosedSessions } from "@/lib/ev-recover";
 import { DAY_KEYS } from "@/lib/performance-metrics";
 import { DeviceParameterCards } from "./device-parameter-cards";
 
@@ -179,7 +180,7 @@ async function loadEvPerformance(supabase: SupabaseServerClient, device: Custome
     inverterId ? fetchDailyMaxReadings(supabase, inverterId, [DAY_KEYS.load], since.toISOString()).catch(() => []) : Promise.resolve([]),
   ]);
 
-  const sessions = (sessionRows ?? []) as unknown as EvPerfSession[];
+  const sessions = await recoverClosedSessions(supabase, (sessionRows ?? []) as unknown as EvPerfSession[]);
   const loadDaily = loadRows.filter((r) => typeof r.value === "number").map((r) => ({ ts: r.ts, value: r.value as number }));
   const getValue = (key: string): FieldValue => billingValues.get(key) ?? null;
 

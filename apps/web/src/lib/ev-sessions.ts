@@ -59,6 +59,9 @@ export function sessionStatusLabel(status: string): { label: string; tone: EvSta
       return { label: "Check this one", tone: "warn" };
     case "aborted":
       return { label: "Ended early", tone: "warn" };
+    // closed by WayTara itself after the charger's stop report was lost (see ev-recover.ts)
+    case "closed_auto":
+      return { label: "Closed automatically", tone: "warn" };
     default:
       return { label: status, tone: "neutral" };
   }
