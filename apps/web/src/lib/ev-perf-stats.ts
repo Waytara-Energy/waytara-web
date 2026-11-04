@@ -87,12 +87,15 @@ export interface EvPerfStats {
 
 const num = (v: number | null | undefined): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
+/** No single charge lasts longer than a day: a longer span is a session that was left open and closed much later, not time spent charging. */
+const MAX_CHARGE_S = 24 * 3600;
+
 function durationOf(s: EvPerfSession): number | null {
   const counted = num(s.charging_seconds);
-  if (counted !== null) return counted;
+  if (counted !== null) return counted <= MAX_CHARGE_S ? counted : null;
   if (!s.ended_at) return null;
   const d = (Date.parse(s.ended_at) - Date.parse(s.started_at)) / 1000;
-  return Number.isFinite(d) && d >= 0 ? d : null;
+  return Number.isFinite(d) && d >= 0 && d <= MAX_CHARGE_S ? d : null;
 }
 
 /** The days of a span as YYYY-MM-DD, oldest first. */

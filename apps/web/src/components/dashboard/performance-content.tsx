@@ -150,6 +150,7 @@ async function SolarInverterPerformance({ supabase, device, tariffRate, ev }: { 
 }
 
 interface EvPerformanceData {
+  deviceId: string;
   sessions: EvPerfSession[];
   loadDaily: { ts: string; value: number }[];
   tariff: number | null;
@@ -197,5 +198,5 @@ async function loadEvPerformance(supabase: SupabaseServerClient, device: Custome
       )}
     </>
   );
-  return { sessions, loadDaily, tariff: tariffRate > 0 ? tariffRate : null, extra };
+  return { deviceId: device.id, sessions, loadDaily, tariff: tariffRate > 0 ? tariffRate : null, extra };
 }

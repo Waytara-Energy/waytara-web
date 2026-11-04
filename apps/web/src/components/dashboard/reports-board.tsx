@@ -16,6 +16,7 @@ import { periodText } from "./perf-data";
 import { useKwhText } from "./perf-kit";
 import { RangeBar, LONG_PRESETS } from "./range-bar";
 import { RangeProvider, useRange } from "./range-context";
+import { EvReportsBody, EvReportsHeadline, type EvReportsProps } from "./ev-reports-board";
 import { ReportsDownloads } from "./reports-downloads";
 import { ReportsEnergy } from "./reports-energy";
 import { ReportsSummary } from "./reports-summary";
@@ -44,7 +45,7 @@ const readHash = () => {
 
 /** The Reports page for a solar inverter: the period is chosen once at the top and every tab follows it. `detailed` is the
  *  time-series report (server-rendered), shown under Generate. */
-export function ReportsBoard({ base, customerId, reports, runs, available, ev = null }: { base: ReportsBase; customerId: string; reports: SavedReportView[]; runs: RunView[]; available: AvailableReport[]; ev?: React.ReactNode }) {
+export function ReportsBoard({ base, customerId, reports, runs, available, ev = null }: { base: ReportsBase; customerId: string; reports: SavedReportView[]; runs: RunView[]; available: AvailableReport[]; ev?: EvReportsProps | null }) {
   return (
     <RangeProvider deviceId={base.deviceId ?? "none"} scope="reports" defaultPreset="30d">
       <Board base={base} customerId={customerId} reports={reports} runs={runs} available={available} ev={ev} />
@@ -52,7 +53,7 @@ export function ReportsBoard({ base, customerId, reports, runs, available, ev = 
   );
 }
 
-function Board({ base, customerId, reports, runs, available, ev }: { base: ReportsBase; customerId: string; reports: SavedReportView[]; runs: RunView[]; available: AvailableReport[]; ev: React.ReactNode }) {
+function Board({ base, customerId, reports, runs, available, ev }: { base: ReportsBase; customerId: string; reports: SavedReportView[]; runs: RunView[]; available: AvailableReport[]; ev: EvReportsProps | null }) {
   const range = useRange();
   const router = useRouter();
   const hash = React.useSyncExternalStore(subscribeHash, readHash, () => "");
@@ -71,7 +72,8 @@ function Board({ base, customerId, reports, runs, available, ev }: { base: Repor
     const lastDay = toMs > 0 ? istDate(toMs - 1) : base.today;
     return buildPeriodView(base, from, lastDay > base.today ? base.today : lastDay);
   }, [base, fromMs, toMs]);
-  const label = range ? periodText(range.preset, { fromMs, toMs }) : "";
+  const span = React.useMemo(() => ({ fromMs, toMs }), [fromMs, toMs]);
+  const label = range ? periodText(range.preset, span) : "";
 
   return (
     <div className="space-y-5">
@@ -84,8 +86,7 @@ function Board({ base, customerId, reports, runs, available, ev }: { base: Repor
           </Button>
         </div>
       )}
-      {/* the EV tab brings its own headline and period */}
-      {section !== "ev" && <Headline section={section} view={view} label={label} reports={reports} runs={runs} />}
+      {section === "ev" && ev ? <EvReportsHeadline {...ev} span={span} periodText={label} /> : section !== "ev" && <Headline section={section} view={view} label={label} reports={reports} runs={runs} />}
 
       <Tabs value={section} onValueChange={(v) => (window.location.hash = v)}>
         <TabsList variant="line">
@@ -101,7 +102,7 @@ function Board({ base, customerId, reports, runs, available, ev }: { base: Repor
           {section === "summary" && <ReportsSummary base={base} view={view} label={label} />}
           {section === "energy" && <ReportsEnergy base={base} view={view} />}
           {section === "downloads" && <ReportsDownloads base={base} customerId={customerId} reports={reports} runs={runs} available={available} />}
-          {section === "ev" && ev}
+          {section === "ev" && ev && <EvReportsBody {...ev} span={span} periodText={label} />}
         </TabsContent>
       </Tabs>
     </div>

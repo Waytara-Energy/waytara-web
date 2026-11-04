@@ -78,7 +78,7 @@ export function EvPerformanceHeadline({ sessions, tariff, span, periodText: peri
 }
 
 /** What is under the EV Charger's headline: the period's figures, charts and sessions. The period comes from the page's one picker. */
-export function EvPerformanceBody({ sessions, loadDaily, tariff, span, periodText: period }: Omit<EvPerformanceProps, "deviceId"> & { span: EvSpan; periodText: string }) {
+export function EvPerformanceBody({ deviceId, sessions, loadDaily, tariff, span, periodText: period }: EvPerformanceProps & { span: EvSpan; periodText: string }) {
   const kwh = useKwhText();
   const stats = React.useMemo(() => evPerfStats(sessions, span, tariff), [sessions, span, tariff]);
   const loadKwh = React.useMemo(() => loadKwhInSpan(loadDaily, span), [loadDaily, span]);
@@ -170,7 +170,7 @@ export function EvPerformanceBody({ sessions, loadDaily, tariff, span, periodTex
             </TableBody>
           </Table>
           <p className="mt-3 text-xs text-muted-foreground">
-            <Link href="/dashboard/ev-sessions" className="underline underline-offset-2">
+            <Link href={`/dashboard/reports?device=${deviceId}#ev`} className="underline underline-offset-2">
               All charging sessions
             </Link>{" "}
             with each charge&apos;s curve and receipt.

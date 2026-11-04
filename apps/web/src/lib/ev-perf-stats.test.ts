@@ -96,6 +96,14 @@ describe("evPerfStats", () => {
     expect(evPerfStats([make({ charging_seconds: null, ended_at: null })], week).rows[0]!.durationS).toBeNull();
   });
 
+  it("does not count a session left open for days as charging time", () => {
+    const left = make({ charging_seconds: null, ended_at: "2026-10-27T10:00:00Z" });
+    const r = evPerfStats([left], week).rows[0]!;
+    expect(r.durationS).toBeNull();
+    expect(evPerfStats([left], week).chargingSeconds).toBe(0);
+    expect(evPerfStats([make({ charging_seconds: 700_000 })], week).rows[0]!.durationS).toBeNull();
+  });
+
   it("prices the grid part, what solar and battery saved, and what it would all have cost", () => {
     const s = evPerfStats([make({ energy_from_solar_kwh: 3, energy_from_battery_kwh: 0.5, energy_from_grid_kwh: 1.5, energy_unattributed_kwh: 0 })], week, 8);
     expect(s.cost).toEqual({ rate: 8, gridCost: 12, saved: 28, allGridCost: 40 });

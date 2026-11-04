@@ -7,7 +7,7 @@ import { getEnabledMetricKeys } from "@/lib/report-day-data";
 import { availableReadingIds, availableReportTypes, toAvailableReports } from "@/lib/report-types";
 import { toReportView, toRunView } from "@/lib/reports/saved-report-view";
 import { ReportsBoard } from "@/components/dashboard/reports-board";
-import { EvReportsBoard } from "@/components/dashboard/ev-reports-board";
+import { EvReportsBoard, type EvReportsProps } from "@/components/dashboard/ev-reports-board";
 import { EV_PERF_COLUMNS, type EvPerfSession } from "@/lib/ev-perf-stats";
 import { getCustomerPlan } from "@/lib/customer-plan";
 import { deviceDisplayId, getSelectedSite, resolvePageDevices, type CustomerDevice } from "@/lib/selected-site";
@@ -34,7 +34,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
   // An EV charger has its own report: the sessions of the chosen period, as figures, a table and CSV / PDF downloads. With an inverter it is
   // one more tab of the page; without one it is the page.
   const evReport = ev && (solar || device?.id === ev.id) ? await evReportFor(ev, base.customerName, base.siteName, deviceDisplayId(ev)) : null;
-  if (!solar && evReport) return evReport;
+  if (!solar && evReport) return <EvReportsBoard {...evReport} />;
 
   if (!base.deviceId || !base.isSolar) {
     return (
@@ -67,7 +67,7 @@ export default async function ReportsPage({ searchParams }: { searchParams: Prom
 }
 
 /** The charger's report: its sessions as figures, a table, and CSV / PDF downloads. */
-async function evReportFor(device: CustomerDevice, customerName: string, siteName: string | null, deviceLabel: string) {
+async function evReportFor(device: CustomerDevice, customerName: string, siteName: string | null, deviceLabel: string): Promise<EvReportsProps> {
   const supabase = await createClient();
   const [site, plan] = await Promise.all([getSelectedSite(), getCustomerPlan()]);
   const since = new Date();
@@ -77,15 +77,13 @@ async function evReportFor(device: CustomerDevice, customerName: string, siteNam
     supabase.from("ev_sessions").select(EV_PERF_COLUMNS).eq("equipment_id", device.id).gte("started_at", since.toISOString()).order("started_at", { ascending: false }).limit(5000),
   ]);
   const where = tariff.state ? `${tariff.state} ${CATEGORY_LABEL[tariff.category]}` : CATEGORY_LABEL[tariff.category];
-  return (
-    <EvReportsBoard
-      deviceId={device.id}
-      deviceLabel={deviceLabel}
-      customerName={customerName}
-      siteName={siteName}
-      tariffRate={tariff.rate > 0 ? tariff.rate : null}
-      tariffNote={`${where} tariff${tariff.effectiveFrom ? `, in force since ${fmtDate(tariff.effectiveFrom)}` : ""}`}
-      sessions={(data ?? []) as unknown as EvPerfSession[]}
-    />
-  );
+  return {
+    deviceId: device.id,
+    deviceLabel,
+    customerName,
+    siteName,
+    tariffRate: tariff.rate > 0 ? tariff.rate : null,
+    tariffNote: `${where} tariff${tariff.effectiveFrom ? `, in force since ${fmtDate(tariff.effectiveFrom)}` : ""}`,
+    sessions: (data ?? []) as unknown as EvPerfSession[],
+  };
 }
