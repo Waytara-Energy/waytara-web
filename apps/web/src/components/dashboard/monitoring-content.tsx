@@ -20,7 +20,7 @@ import { SessionReceiptCard, type ReceiptSection } from "./session-receipt-card"
 import { getUnitPrefs } from "@/lib/unit-prefs-server";
 import { DeviceParameterCards } from "./device-parameter-cards";
 import { TabHeadlineBar, type TabHeadlineInfo } from "./monitoring-tabs";
-import { EvStatusLine } from "./ev-status-line";
+import { EvLiveRefresh } from "./ev-live-refresh";
 import { EvChargeControl } from "./ev-charge-control";
 import { EvLiveTiles } from "./ev-live-tiles";
 import { EvTodayChart } from "./ev-today-chart";
@@ -292,7 +292,6 @@ async function evMonitoring(supabase: SupabaseServerClient, device: CustomerDevi
   const ratedKw = chargingSummary.ratedPowerW !== null ? chargingSummary.ratedPowerW / 1000 : offeredKw;
 
   const todayKwhText = `${todayKwh.toFixed(1)} kWh`;
-  const charger = device.label ?? device.deviceType?.name ?? "EV charger";
 
   return {
     // The headline of the page: the day's energy, and at its right end Start / Stop (a real charge, through the hub).
@@ -313,14 +312,7 @@ async function evMonitoring(supabase: SupabaseServerClient, device: CustomerDevi
           </Alert>
         ) : null}
 
-        <EvStatusLine
-          deviceId={device.id}
-          name={charger}
-          options={enumOptions.get("connector_status") ?? []}
-          initialCode={getValue("connector_status") as number | null}
-          connectedAtLoad={connected}
-          runningSince={running ? new Date(running.started_at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }) : null}
-        />
+        <EvLiveRefresh deviceId={device.id} initialCode={getValue("connector_status") as number | null} />
 
         <EvLiveTiles
           deviceId={device.id}
