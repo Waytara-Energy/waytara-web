@@ -125,8 +125,10 @@ export function OverviewCarousel({ slides, initialIndex, background }: { slides:
         ))}
       </div>
 
-      <div className="pointer-events-none absolute inset-x-0 bottom-0 flex flex-col items-center gap-1.5 pb-0.5">
-        <span className="max-w-[80%] truncate text-xs text-muted-foreground" aria-hidden="true">
+      {/* Pinned to the foot of the window, in the middle (the sidebar overlays the page, so the window's middle is the page's middle), on the same
+          line as the framework's dev badge at the left. */}
+      <div className="pointer-events-none fixed bottom-[1.1875rem] left-1/2 z-30 flex max-w-[90vw] -translate-x-1/2 flex-col items-center gap-1.5 rounded-full bg-background/70 px-4 py-1.5 backdrop-blur-sm">
+        <span className="max-w-full truncate text-xs text-muted-foreground" aria-hidden="true">
           {slides[index]?.name}
         </span>
         <div className="flex gap-1.5">
