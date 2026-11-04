@@ -59,6 +59,7 @@ export function EvPowerPanel({
   const offline = connected === false;
   const stopping = busy === "stop";
   const starting = busy === "start" || waiting;
+  const disabledLook = !on && (offline || bad);
   const label = on ? (stopping ? "Stopping…" : "Stop charging") : starting ? "Starting…" : offline ? "Charger offline" : "Start charging";
 
   return (
@@ -105,6 +106,8 @@ export function EvPowerPanel({
         ) : null}
       </div>
 
+      {/* A hardware-style power button: a dark bezel, a black groove and a domed cap, with the symbol glowing on it. Green while the charger is
+          ready (press to start), red while it charges (press to stop), dull when it cannot be used. */}
       <button
         type="button"
         aria-pressed={on}
@@ -112,15 +115,26 @@ export function EvPowerPanel({
         title={label}
         disabled={stopping || starting || (!on && (offline || bad))}
         onClick={() => (on ? void stop() : void start(target))}
-        className={cn(
-          "relative grid size-16 shrink-0 place-items-center rounded-full border-2 outline-none transition-all focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background disabled:cursor-not-allowed",
-          on
-            ? "border-emerald-500 bg-emerald-500 text-white shadow-[0_0_0_6px_rgb(16_185_129/0.15)] hover:bg-emerald-600"
-            : "border-border text-muted-foreground hover:border-emerald-500 hover:text-emerald-600 disabled:opacity-50 disabled:hover:border-border disabled:hover:text-muted-foreground",
-        )}
+        style={{ background: "linear-gradient(150deg,#5a5a5a 0%,#1c1c1c 55%,#2e2e2e 100%)", boxShadow: "0 8px 16px rgb(0 0 0/0.3), inset 0 1px 1px rgb(255 255 255/0.3)" }}
+        className="group relative grid size-20 shrink-0 place-items-center rounded-full outline-none transition-transform focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background enabled:active:scale-95 disabled:cursor-not-allowed"
       >
-        {pending ? <Loader2 className="size-7 animate-spin" /> : <Power className="size-7" strokeWidth={2.25} />}
-        {on && !pending && <span aria-hidden="true" className="absolute -inset-1.5 rounded-full border border-emerald-500/40 motion-safe:animate-pulse" />}
+        {/* the black groove */}
+        <span aria-hidden="true" className="absolute inset-[6px] rounded-full bg-[#0b0b0b]" style={{ boxShadow: "inset 0 2px 4px rgb(0 0 0/0.8)" }} />
+        {/* the domed cap */}
+        <span
+          aria-hidden="true"
+          className="absolute inset-[10px] rounded-full transition-[filter] group-enabled:group-active:brightness-75"
+          style={{ background: "radial-gradient(circle at 50% 25%,#7a7a7a 0%,#444 45%,#262626 100%)", boxShadow: "inset 0 1px 2px rgb(255 255 255/0.35), 0 1px 3px rgb(0 0 0/0.6)" }}
+        />
+        {pending ? (
+          <Loader2 className="relative size-8 animate-spin text-zinc-300" />
+        ) : (
+          <Power
+            className={cn("relative size-9 transition-colors", disabledLook ? "text-zinc-500" : on ? "text-red-500" : "text-green-500")}
+            strokeWidth={2.5}
+            style={disabledLook ? undefined : { filter: `drop-shadow(0 0 6px ${on ? "rgb(239 68 68/0.85)" : "rgb(34 197 94/0.85)"})` }}
+          />
+        )}
       </button>
     </div>
   );
