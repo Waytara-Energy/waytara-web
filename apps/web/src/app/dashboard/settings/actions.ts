@@ -8,6 +8,7 @@ import type { Json } from "@waytara/supabase/types";
 import { EMAIL_PATTERN, MAX_ATTEMPTS, CODE_TTL_MS, buildEmailChangedMail, buildEmailCodeMail, buildPasswordCodeMail, canResend, codeExpired, codeMatches, generateCode, hashCode, normaliseEmail, secondsUntilResend } from "@/lib/email-otp";
 import { GSTIN, addressProblems, addressToJson, normaliseGstin, type Address } from "@/lib/address";
 import { isBackgroundPathOf, overviewToJson, parseOverviewPrefs, type OverviewPrefs } from "@/lib/overview-prefs";
+import { carToJson, parseCarInput, type CarProfile } from "@/lib/ev-car";
 import { policyToJson, parseSessionPolicy, type SessionPolicy } from "@/lib/session-policy";
 import { sendMail } from "@/lib/send-mail";
 import { passwordStrength } from "@/lib/password-strength";
@@ -210,6 +211,24 @@ export async function saveOverview(prefs: OverviewPrefs): Promise<void> {
   if (error) throw new Error(error.message);
 
   if (before.kind === "image" && (clean.background.kind !== "image" || clean.background.path !== before.path)) await supabase.storage.from("avatars").remove([before.path]);
+  revalidatePath("/dashboard", "layout");
+}
+
+// ---- the person's car ---------------------------------------------------------------------------------------------------------------------
+
+/** Saves the car (battery size and km per kWh) the Overview uses to say what a charge adds, or removes it (null). */
+export async function saveCar(car: CarProfile | null): Promise<void> {
+  const profile = await requireCustomer();
+  const checked = car ? parseCarInput(String(car.batteryKwh), String(car.kmPerKwh)) : null;
+  if (checked && !checked.ok) throw new Error(checked.message);
+
+  const supabase = await createClient();
+  const { data: current } = await supabase.from("profiles").select("ui_preferences").eq("id", profile.id).maybeSingle();
+  const base = current?.ui_preferences && typeof current.ui_preferences === "object" && !Array.isArray(current.ui_preferences) ? { ...(current.ui_preferences as Record<string, Json>) } : {};
+  delete base.ev_car;
+  const next = checked && checked.ok ? { ...base, ...carToJson(checked.car) } : base;
+  const { error } = await supabase.from("profiles").update({ ui_preferences: asJson(next) }).eq("id", profile.id);
+  if (error) throw new Error(error.message);
   revalidatePath("/dashboard", "layout");
 }
 

@@ -7,7 +7,9 @@ import { withPromiseToast } from "@waytara/ui/notify";
 import { START_PAGES, type StartPageId } from "@/lib/start-page";
 import { cn } from "@/lib/utils";
 import { saveDefaultSite, saveStartPage } from "@/app/dashboard/settings/account-actions";
+import { CarSection } from "./car-section";
 import { OverviewSection } from "./overview-section";
+import type { CarProfile } from "@/lib/ev-car";
 import { SettingsCard, TwoColumns } from "./settings-card";
 import type { ComponentProps } from "react";
 
@@ -23,10 +25,12 @@ export interface DashboardProps {
   sites: DashboardSite[];
   selectedSiteId: string | null;
   overview: ComponentProps<typeof OverviewSection>;
+  /** The person's car (battery size, km per kWh), or null when not entered. */
+  car: CarProfile | null;
 }
 
 /** Settings > Dashboard: where the dashboard opens, which site it shows, and (below) what the Overview shows: four cards and a background. */
-export function DashboardSection({ startPage, sites, selectedSiteId, overview }: DashboardProps) {
+export function DashboardSection({ startPage, sites, selectedSiteId, overview, car }: DashboardProps) {
   const router = useRouter();
   const [start, setStart] = React.useState<StartPageId>(startPage);
   const [site, setSite] = React.useState<string | null>(selectedSiteId);
@@ -112,6 +116,8 @@ export function DashboardSection({ startPage, sites, selectedSiteId, overview }:
       />
 
       <OverviewSection {...overview} />
+
+      <CarSection initial={car} />
     </div>
   );
 }

@@ -1,8 +1,9 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Clock, IndianRupee, Leaf, Zap } from "lucide-react";
+import { ChevronRight, Clock, IndianRupee, Leaf, Zap } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useUnits } from "@/components/units-provider";
 import { useLiveNumbers } from "@/lib/telemetry/live-values";
@@ -10,7 +11,7 @@ import { useDeviceLive } from "@/lib/telemetry/react";
 import { getConnectorStatusLabel } from "@/lib/ev-charger-catalog";
 import { EV_LIVE_KEYS } from "@/lib/ev-live-keys";
 import type { EnumOption } from "@/lib/enum-labels";
-import { elapsedText } from "@/lib/ev-control";
+import { chargeProgress, kmText, minutesText, type CarProfile } from "@/lib/ev-car";
 import type { EvHistory, EvHistorySession } from "@/lib/ev-history";
 import type { OpenCharge } from "@/lib/ev-overview";
 import { cn } from "@/lib/utils";
@@ -30,10 +31,19 @@ function span(s: number): string {
   return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")} min`;
 }
 
-function Title({ children, aside }: { children: React.ReactNode; aside?: React.ReactNode }) {
+function Title({ children, aside, href }: { children: React.ReactNode; aside?: React.ReactNode; href?: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <h3 className="text-sm font-semibold text-foreground">{children}</h3>
+      <h3 className="text-sm font-semibold text-foreground">
+        {href ? (
+          <Link href={href} className="group relative z-10 inline-flex items-center gap-0.5 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring">
+            {children}
+            <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+          </Link>
+        ) : (
+          children
+        )}
+      </h3>
       {aside}
     </div>
   );
@@ -64,7 +74,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 }
 
 /** Energy per day as plain bars: 7 or 30 days, today last. Hovering (or focusing) a bar names its day and figure in the header line. */
-function Statistic({ history }: { history: EvHistory }) {
+function Statistic({ history, chargerId }: { history: EvHistory; chargerId: string }) {
   const u = useUnits();
   const [range, setRange] = React.useState<7 | 30>(7);
   const [active, setActive] = React.useState<number | null>(null);
@@ -78,6 +88,7 @@ function Statistic({ history }: { history: EvHistory }) {
   return (
     <Card className="flex min-h-0 flex-col gap-3 p-4 lg:col-span-5">
       <Title
+        href={`/dashboard/performance?device=${encodeURIComponent(chargerId)}#ev`}
         aside={
           <div role="tablist" aria-label="Range" className="flex gap-0.5 rounded-lg bg-muted/60 p-0.5">
             {([7, 30] as const).map((r) => (
@@ -144,14 +155,16 @@ function Statistic({ history }: { history: EvHistory }) {
 }
 
 /** What a charge was: its energy, time and cost, and how much of the energy was the site's own solar. */
-function LastCharge({ last, onOpen }: { last: EvHistorySession | null; onOpen: (id: string) => void }) {
+function LastCharge({ last, onOpen, chargerId }: { last: EvHistorySession | null; onOpen: (id: string) => void; chargerId: string }) {
   const u = useUnits();
   return (
-    <Card className="flex min-h-0 flex-col gap-3 p-4 lg:col-span-7">
+    <Card className="relative flex min-h-0 flex-col gap-3 p-4 transition-colors hover:border-primary/40 lg:col-span-7">
+      {/* the whole card is a link to the charger's tab on Monitoring; what must stay pressable on its own sits above it */}
+      <Link href={`/dashboard/monitoring?device=${encodeURIComponent(chargerId)}#ev`} aria-label="Open the charger on Monitoring" className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring" />
       <Title
         aside={
           last ? (
-            <button type="button" onClick={() => onOpen(last.id)} className="rounded-md px-1.5 py-0.5 text-xs text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+            <button type="button" onClick={() => onOpen(last.id)} className="relative z-10 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
               {`${dayMonth(last.startedAt)}, ${clock(last.startedAt)}`} · Details
             </button>
           ) : null
@@ -160,7 +173,7 @@ function LastCharge({ last, onOpen }: { last: EvHistorySession | null; onOpen: (
         Last charge
       </Title>
       {last ? (
-        <div className="grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-2.5">
+        <div className="pointer-events-none relative grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-2.5">
           <Tile icon={Zap} label="Energy" value={u.format(last.kwh, "kWh", "ev_energy_today_kwh", 2)} hint={last.peakKw !== null ? `peak ${u.format(last.peakKw, "kW", "power_active_import_kw", 1)}` : undefined} />
           <Tile icon={Clock} label="Time" value={span(last.durationS)} hint={`until ${clock(last.endedAt)}`} />
           <Tile icon={IndianRupee} label="Cost" value={last.cost !== null ? inr(last.cost) : "—"} />
@@ -178,6 +191,7 @@ function History({ sessions, onOpen, chargerId }: { sessions: EvHistorySession[]
   return (
     <Card className="flex min-h-0 flex-col gap-2 p-4 lg:col-span-5">
       <Title
+        href={`/dashboard/reports?device=${encodeURIComponent(chargerId)}#ev`}
         aside={
           sessions.length > 0 ? (
             <a href={`/api/ev/sessions.csv?device=${encodeURIComponent(chargerId)}&period=30d`} download className="rounded-md px-1.5 py-0.5 text-xs text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
@@ -226,6 +240,7 @@ export function EvOverviewBoard({
   open,
   initial,
   history,
+  car = null,
   loadSession = getEvSessionDetail,
 }: {
   chargerId: string;
@@ -236,6 +251,8 @@ export function EvOverviewBoard({
   open: OpenCharge | null;
   initial: Record<string, number | null>;
   history: EvHistory;
+  /** The person's car (battery size, km per kWh), for what a charge adds; null when not entered. */
+  car?: CarProfile | null;
   /** How a charge's detail is fetched (the dashboard's server action unless a page supplies its own). */
   loadSession?: EvSessionLoader;
 }) {
@@ -269,32 +286,30 @@ export function EvOverviewBoard({
   const reg = n.energy_active_import_register_kwh;
   const chargeKwh = open ? (reg !== null && open.startEnergyKwh !== null ? Math.max(0, reg - open.startEnergyKwh) : open.kwh) : null;
   const target = open?.targetKwh ?? null;
-  const level = target !== null && target > 0 && chargeKwh !== null ? (chargeKwh / target) * 100 : 0;
-
-  // the time since the charge began, moved on every few seconds while one is open
-  const [now, setNow] = React.useState(() => Date.now());
-  React.useEffect(() => {
-    if (!open) return;
-    const t = setInterval(() => setNow(Date.now()), 5_000);
-    return () => clearInterval(t);
-  }, [open]);
+  const progress = chargeProgress({ deliveredKwh: chargeKwh, targetKwh: target, powerKw, car });
+  const level = progress.percent ?? 0;
 
   const kwh = (v: number, digits = 1) => u.format(v, "kWh", "ev_energy_today_kwh", digits);
-  const elapsed = open ? elapsedText(Date.parse(open.startedAt), now) : null;
-  // the line over the car: how far a limited charge is, the energy of an open one, or what the charger is doing
+  // The line over the car while a charge runs: how far along it is (of the amount booked, else of the car's battery), the energy so far, and
+  // what that means: the distance it adds and the time left to the booked amount. Without a booked amount or a car it is the energy alone.
   let headline: React.ReactNode = null;
   let sub = "";
-  if (charging && target !== null && target > 0) {
-    headline = (
-      <>
-        {Math.min(100, Math.round(level))}
-        <span className="ml-0.5 align-top text-base font-medium text-muted-foreground">%</span>
-      </>
-    );
-    sub = `${chargeKwh !== null ? kwh(chargeKwh) : "—"} of ${kwh(target)}${elapsed ? ` · ${elapsed}` : ""}`;
-  } else if (charging) {
-    headline = chargeKwh !== null ? kwh(chargeKwh, 2) : "Charging";
-    sub = ["this charge", elapsed].filter(Boolean).join(" · ");
+  let detail = "";
+  if (charging) {
+    const energy = chargeKwh !== null ? kwh(chargeKwh, 2) : "—";
+    if (progress.percent !== null) {
+      headline = (
+        <>
+          {Math.round(progress.percent)}
+          <span className="ml-0.5 align-top text-base font-medium text-muted-foreground">%</span>
+        </>
+      );
+      sub = progress.percentOf === "booked" && target !== null ? `${energy} of ${kwh(target)} booked` : `${energy} this charge · of your ${car ? kwh(car.batteryKwh, car.batteryKwh % 1 === 0 ? 0 : 1) : ""} battery`;
+    } else {
+      headline = chargeKwh !== null ? kwh(chargeKwh, 2) : "Charging";
+      sub = "this charge";
+    }
+    detail = [progress.kmAdded !== null ? `adds about ${kmText(progress.kmAdded)}` : null, progress.minutesLeft !== null ? `about ${minutesText(progress.minutesLeft)} left` : null].filter(Boolean).join(" · ");
   }
 
   const last = history.recent[0] ?? null;
@@ -305,17 +320,20 @@ export function EvOverviewBoard({
       {/* the charger itself has no card: the car stands on the page */}
       <section className="flex min-h-0 flex-col items-center justify-between gap-3 py-2 lg:col-span-7">
         {/* what the charge is doing, only while one runs; the space is kept so the car does not move when it starts */}
-        <div className="min-h-[3.25rem] text-center">
-          {headline !== null && (
-            <>
-              <p className="text-4xl font-semibold leading-none tracking-tight text-foreground tabular-nums">{headline}</p>
-              <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">{sub}</p>
-            </>
-          )}
-        </div>
-        <div className="flex min-h-0 w-full max-w-[40rem] flex-1 items-center justify-center">
-          <EvCar level={level} sweep={charging && !(target !== null && target > 0)} className="max-h-full" />
-        </div>
+        <Link href={`/dashboard/monitoring?device=${encodeURIComponent(chargerId)}#ev`} aria-label="Open the charger on Monitoring" className="flex min-h-0 w-full flex-1 flex-col items-center justify-between gap-3 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <div className="min-h-[5rem] text-center">
+            {headline !== null && (
+              <>
+                <p className="text-4xl font-semibold leading-none tracking-tight text-foreground tabular-nums">{headline}</p>
+                <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">{sub}</p>
+                {detail ? <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">{detail}</p> : null}
+              </>
+            )}
+          </div>
+          <div className="flex min-h-0 w-full max-w-[40rem] flex-1 items-center justify-center">
+            <EvCar level={level} sweep={charging && progress.percent === null} className="max-h-full" />
+          </div>
+        </Link>
         <EvPowerPanel
           chargerId={chargerId}
           sessionOpen={open !== null}
@@ -332,8 +350,8 @@ export function EvOverviewBoard({
           }
         />
       </section>
-      <Statistic history={history} />
-      <LastCharge last={last} onOpen={setOpenId} />
+      <Statistic history={history} chargerId={chargerId} />
+      <LastCharge last={last} onOpen={setOpenId} chargerId={chargerId} />
       <History sessions={history.recent} onOpen={setOpenId} chargerId={chargerId} />
       <EvSessionDialog sessionId={openId} onClose={() => setOpenId(null)} load={loadSession} />
     </div>

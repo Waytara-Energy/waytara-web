@@ -13,6 +13,7 @@ import { fetchEvHistory, type EvHistory } from "@/lib/ev-history";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { fetchEvOverview } from "@/lib/ev-overview";
 import { getCustomerPlan } from "@/lib/customer-plan";
+import { parseCarProfile } from "@/lib/ev-car";
 import { OverviewBoard } from "@/components/dashboard/overview-board";
 import { OverviewCarousel, type OverviewSlide } from "@/components/dashboard/overview-carousel";
 import { getLastSyncInfo } from "@/lib/device-sync";
@@ -95,6 +96,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
     profile ? supabase.from("profiles").select("ui_preferences").eq("id", profile.id).maybeSingle() : Promise.resolve({ data: null }),
   ]);
   const overviewPrefs = parseOverviewPrefs(uiRow.data?.ui_preferences);
+  const car = parseCarProfile(uiRow.data?.ui_preferences);
   const backgroundUrl = overviewPrefs.background.kind === "image" ? supabase.storage.from("avatars").getPublicUrl(overviewPrefs.background.path).data.publicUrl : null;
   const background = backgroundCss(overviewPrefs.background, backgroundUrl, overviewPrefs.dim);
 
@@ -136,6 +138,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
             open={d.ev.open}
             initial={d.ev.latest}
             history={d.history}
+            car={car}
           />
         ),
       },
