@@ -16,10 +16,10 @@ import { ABOUT_READING_KEYS, aboutPages, type ChildView } from "@/lib/device-abo
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 import { FieldGroup } from "@/components/ui/field";
 import { DeviceAbout } from "@/components/dashboard/device-about";
-import { DeviceActivity } from "@/components/dashboard/device-activity";
+import { DeviceActivity, fetchDeviceActivity } from "@/components/dashboard/device-activity";
 import { DeviceCard } from "@/components/dashboard/device-card";
-import { DevicesBoard } from "@/components/dashboard/devices-board";
-import { EvSettingsSection } from "@/components/dashboard/ev-settings-section";
+import { DevicesBoard, type ExtraTab } from "@/components/dashboard/devices-board";
+import { EvChargerSettingsPanel, EvMessageLogPanel, EvOcppPanel } from "@/components/dashboard/ev-settings-section";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { SettingFieldRow } from "@/components/dashboard/setting-field-row";
 
@@ -53,7 +53,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
   const isCatalogDriven = category === "solar_inverter" || category === "ev_charger";
   const fallbackCategories = Array.from(new Set(getSettingFields(category).map((f) => f.category))).map((key) => ({ key, label: categoryLabel(key) }));
 
-  const [sync, settingsCatalog, fallbackRows, childRows, ownRow, evInfo, profile] = await Promise.all([
+  const [sync, settingsCatalog, fallbackRows, childRows, ownRow, evInfo, profile, activity] = await Promise.all([
     getLastSyncInfo(device.id),
     canEditSettings && isCatalogDriven ? fetchDeviceSettingFields(supabase, device) : Promise.resolve(null),
     canEditSettings && !isCatalogDriven
@@ -70,6 +70,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
     // an EV charger also shows how it is connected (OCPP) and its own settings
     category === "ev_charger" ? fetchEvConnection(supabase, device.id) : Promise.resolve(null),
     category === "ev_charger" ? getRequestProfile() : Promise.resolve(null),
+    fetchDeviceActivity(device.id),
   ]);
   const settingsMap = new Map<string, string>((fallbackRows?.data ?? []).map((row) => [`${row.setting_category}:${row.key_name}`, row.setting_value]));
 
@@ -100,6 +101,48 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
   const allFields = settingsCatalog ? Array.from(settingsCatalog.fieldsByCategory.values()).flat() : [];
   const settingsFields = category === "solar_inverter" ? settingsForInstalled(allFields, installedParts(parts.map((p) => p.category))) : allFields;
 
+  // The tabs the page adds to Device info: an EV charger's OCPP connection and its own settings, and for every device what was done to it.
+  const isStaff = isStaffRole(profile?.role);
+  const ago = (minutes: number | null) => (minutes === null ? "Not yet" : minutes < 1 ? "Just now" : minutes < 60 ? `${minutes} min ago` : minutes < 1440 ? `${Math.floor(minutes / 60)} h ago` : `${Math.floor(minutes / 1440)} days ago`);
+  const extraTabs: ExtraTab[] = [];
+  if (evInfo) {
+    extraTabs.push(
+      {
+        id: "ocpp",
+        label: "OCPP",
+        icon: "ocpp",
+        tone: "sky",
+        placement: "after-info",
+        showStatus: true,
+        headline: { label: "OCPP connection", value: evInfo.chargePointId ?? "Not set up", figures: [{ label: "Last check-in", value: ago(sync.minutesAgo) }, { label: "Firmware", value: evInfo.firmware ?? "—" }] },
+        node: <EvOcppPanel chargerId={device.id} info={evInfo} sync={sync} />,
+      },
+      {
+        id: "charger-settings",
+        label: "Charger settings",
+        icon: "charger",
+        tone: "amber",
+        placement: "after-info",
+        headline: { label: "Charger settings", value: "Charger's own OCPP settings", figures: [{ label: "Changes", value: isStaff ? "Allowed" : "WayTara support" }] },
+        node: <EvChargerSettingsPanel chargerId={device.id} isStaff={isStaff} />,
+      },
+    );
+  }
+  extraTabs.push({
+    id: "activity",
+    label: evInfo && isStaff ? "Activity & logs" : "Recent activity",
+    icon: "activity",
+    tone: "violet",
+    placement: "end",
+    headline: { label: "Recent activity", value: activity.length === 0 ? "Nothing yet" : `${activity.length} ${activity.length === 1 ? "entry" : "entries"}`, figures: activity[0]?.at ? [{ label: "Latest", value: new Date(activity[0].at).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) }] : [] },
+    node: (
+      <div className="space-y-4">
+        <DeviceActivity rows={activity} />
+        {evInfo && isStaff ? <EvMessageLogPanel chargerId={device.id} /> : null}
+      </div>
+    ),
+  });
+
   return (
     <div className="space-y-6">
       {/* The settings screen listens to equipment_configs itself; only the small hard-coded list needs the page re-read. */}
@@ -113,6 +156,7 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
         log={settingsCatalog?.log ?? []}
         mode={category === "solar_inverter" ? "areas" : "categories"}
         hasSettings={canEditSettings}
+        extraTabs={extraTabs}
         devicePages={pages.map((p) => ({ id: p.id, node: <DeviceAbout page={p} /> }))}
         detailsHeadline={{
           label: "Device info",
@@ -149,9 +193,6 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
         }
       />
 
-      {evInfo ? <EvSettingsSection chargerId={device.id} info={evInfo} sync={sync} isStaff={isStaffRole(profile?.role)} /> : null}
-
-      <DeviceActivity deviceId={device.id} />
     </div>
   );
 }

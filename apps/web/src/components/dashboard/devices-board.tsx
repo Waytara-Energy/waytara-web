@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { BatteryCharging, CalendarClock, Info, Plug, SlidersHorizontal, Wrench, Zap, type LucideIcon } from "lucide-react";
+import { BatteryCharging, CalendarClock, History, Info, Plug, Settings2, SlidersHorizontal, Wrench, Zap, type LucideIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { agoText } from "@/lib/device-status-summary";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
@@ -39,6 +39,21 @@ const AREA_META: Record<SettingArea, { icon: LucideIcon; description: string }> 
   account: { icon: SlidersHorizontal, description: "" },
 };
 
+/** A tab the page brings itself (an EV charger's OCPP connection and own settings, the activity and logs), shown with its own headline. */
+export interface ExtraTab {
+  id: string;
+  label: string;
+  icon: "ocpp" | "charger" | "activity";
+  tone: CardTone;
+  /** Right after Device info, or at the end of the row. */
+  placement: "after-info" | "end";
+  headline: HeadlineData;
+  /** The headline also says whether the device is online. */
+  showStatus?: boolean;
+  node: React.ReactNode;
+}
+const EXTRA_ICON: Record<ExtraTab["icon"], LucideIcon> = { ocpp: Plug, charger: Settings2, activity: History };
+
 /** One tab of the page. */
 interface Tab {
   id: string;
@@ -71,6 +86,7 @@ export function DevicesBoard({
   detailsHeadline,
   fallbackSettings,
   hasSettings,
+  extraTabs = [],
 }: {
   deviceId: string;
   sync: DeviceSyncInit;
@@ -86,6 +102,7 @@ export function DevicesBoard({
   /** A device whose settings are not from the catalogue (a battery store) brings its own content. */
   fallbackSettings: React.ReactNode | null;
   hasSettings: boolean;
+  extraTabs?: ExtraTab[];
 }) {
   const tabs = React.useMemo<Tab[]>(() => {
     const list: Tab[] = [
@@ -107,6 +124,7 @@ export function DevicesBoard({
         ),
       },
     ];
+    for (const x of extraTabs.filter((e) => e.placement === "after-info")) list.push({ id: x.id, label: x.label, icon: EXTRA_ICON[x.icon], tone: x.tone, kind: "details", fields: [], isDevice: x.showStatus, headline: x.headline, node: x.node });
     if (hasSettings) {
       if (fallbackSettings) list.push({ id: "settings", label: "Settings", icon: SlidersHorizontal, tone: "amber", kind: "settings", fields: [], node: fallbackSettings });
       else if (mode === "areas") {
@@ -119,8 +137,9 @@ export function DevicesBoard({
         }
       }
     }
+    for (const x of extraTabs.filter((e) => e.placement === "end")) list.push({ id: x.id, label: x.label, icon: EXTRA_ICON[x.icon], tone: x.tone, kind: "details", fields: [], isDevice: x.showStatus, headline: x.headline, node: x.node });
     return list;
-  }, [devicePages, detailsHeadline, hasSettings, fallbackSettings, mode, fields]);
+  }, [devicePages, detailsHeadline, hasSettings, fallbackSettings, mode, fields, extraTabs]);
 
   const [current, open] = useHashTab(
     tabs.map((t) => t.id),

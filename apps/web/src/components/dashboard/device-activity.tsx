@@ -3,20 +3,26 @@ import { DeviceCard } from "./device-card";
 
 const WHEN = new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
 
+export interface ActivityRow {
+  id: number;
+  at: string | null;
+  actor_name: string | null;
+  actor_role: string | null;
+  summary: string;
+}
+
 /** Who did what to this device and when (task T23): key changes, Wi-Fi edits, restarts, going offline and back. The view already leaves out the
  *  technical detail for a customer; the rows are the ones the customer's access to the site allows. The newest ten. */
-export async function DeviceActivity({ deviceId }: { deviceId: string }) {
+export async function fetchDeviceActivity(deviceId: string): Promise<ActivityRow[]> {
   const supabase = await createClient();
-  const { data: rows } = await supabase
-    .from("device_activity_log")
-    .select("id, at, actor_name, actor_role, summary")
-    .eq("equipment_id", deviceId)
-    .order("at", { ascending: false })
-    .limit(10);
+  const { data } = await supabase.from("device_activity_log").select("id, at, actor_name, actor_role, summary").eq("equipment_id", deviceId).order("at", { ascending: false }).limit(10);
+  return (data ?? []).flatMap((r) => (r.id !== null && r.summary !== null ? [{ id: r.id, at: r.at, actor_name: r.actor_name, actor_role: r.actor_role, summary: r.summary }] : []));
+}
 
+export function DeviceActivity({ rows }: { rows: ActivityRow[] }) {
   return (
     <DeviceCard title="Recent activity" description="What was done to this device, and when.">
-      {!rows || rows.length === 0 ? (
+      {rows.length === 0 ? (
         <p className="text-sm text-muted-foreground">Nothing has been recorded yet.</p>
       ) : (
         <ul className="divide-y divide-theme-border">
