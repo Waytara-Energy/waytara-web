@@ -135,6 +135,8 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
   return (
     <div className="space-y-6">
       {/* The settings screen listens to equipment_configs itself; only the small hard-coded list needs the page re-read. */}
+      {/* what is done to the device (a restart, a changed setting, going offline) shows in Activity as it happens */}
+      <RealtimeRefresh table="device_activity_log" event="INSERT" filter={`equipment_id=eq.${device.id}`} debounceMs={800} />
       {canEditSettings && !isCatalogDriven && <RealtimeRefresh table="equipment_configs" event="INSERT" filter={`equipment_id=eq.${device.id}`} />}
 
       <DevicesBoard

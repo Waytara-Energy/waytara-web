@@ -10,6 +10,7 @@ import { inr } from "@/lib/savings";
 import { FLOW } from "./flow-colors";
 import { periodText } from "./perf-data";
 import { DailyBars, DonutShare, Panel, StatTile, useKwhText } from "./perf-kit";
+import { EvRealtime } from "./ev-realtime";
 import { RangeBar, LONG_PRESETS } from "./range-bar";
 import { RangeProvider, useRange } from "./range-context";
 
@@ -89,6 +90,7 @@ export function EvPerformanceBody({ deviceId, sessions, loadDaily, tariff, span,
 
   return (
     <div className="space-y-5">
+      <EvRealtime chargerId={deviceId} />
       {stats.sample && has && (
         <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">Sample data: this charger has no real charge yet, so these figures are from sample charges. They are replaced by the real ones with its first real charge.</p>
       )}

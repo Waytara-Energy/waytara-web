@@ -21,6 +21,7 @@ import { getUnitPrefs } from "@/lib/unit-prefs-server";
 import { DeviceParameterCards } from "./device-parameter-cards";
 import { TabHeadlineBar, type TabHeadlineInfo } from "./monitoring-tabs";
 import { EvLiveRefresh } from "./ev-live-refresh";
+import { EvRealtime } from "./ev-realtime";
 import { EvChargeControl } from "./ev-charge-control";
 import { EvLiveTiles } from "./ev-live-tiles";
 import { EvTodayChart } from "./ev-today-chart";
@@ -313,6 +314,7 @@ async function evMonitoring(supabase: SupabaseServerClient, device: CustomerDevi
         ) : null}
 
         <EvLiveRefresh deviceId={device.id} initialCode={getValue("connector_status") as number | null} />
+        <EvRealtime chargerId={device.id} charging={!!running} />
 
         <EvLiveTiles
           deviceId={device.id}

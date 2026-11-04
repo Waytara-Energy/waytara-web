@@ -76,44 +76,21 @@ function Stat({ label, value }: { label: string; value: string }) {
 /** Energy per day as plain bars: 7 or 30 days, today last. Hovering (or focusing) a bar names its day and figure in the header line. */
 function Statistic({ history, chargerId }: { history: EvHistory; chargerId: string }) {
   const u = useUnits();
-  const [range, setRange] = React.useState<7 | 30>(7);
   const [active, setActive] = React.useState<number | null>(null);
-  const days = history.daily.slice(-range);
+  // always the last 7 days
+  const days = history.daily.slice(-7);
   const max = Math.max(0.1, ...days.map((d) => d.kwh));
   const total = days.reduce((s, d) => s + d.kwh, 0);
   const label = (day: string, long: boolean) =>
-    new Date(`${day}T00:00:00Z`).toLocaleDateString("en-IN", long ? { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" } : range === 7 ? { weekday: "short", timeZone: "UTC" } : { day: "numeric", timeZone: "UTC" });
+    new Date(`${day}T00:00:00Z`).toLocaleDateString("en-IN", long ? { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" } : { weekday: "short", timeZone: "UTC" });
   const shown = active !== null ? days[active] : null;
 
   return (
-    <Card className="flex min-h-0 flex-col gap-3 p-4 lg:col-span-5">
-      <Title
-        href={`/dashboard/performance?device=${encodeURIComponent(chargerId)}#ev`}
-        aside={
-          <div role="tablist" aria-label="Range" className="flex gap-0.5 rounded-lg bg-muted/60 p-0.5">
-            {([7, 30] as const).map((r) => (
-              <button
-                key={r}
-                type="button"
-                role="tab"
-                aria-selected={range === r}
-                onClick={() => {
-                  setRange(r);
-                  setActive(null);
-                }}
-                className={cn("rounded-md px-2.5 py-1 text-xs font-medium transition-colors", range === r ? "bg-background text-foreground shadow-sm" : "text-muted-foreground hover:text-foreground")}
-              >
-                {r} days
-              </button>
-            ))}
-          </div>
-        }
-      >
-        Statistic
-      </Title>
+    <Card className="flex min-h-0 flex-col gap-3 p-4 max-lg:order-last lg:col-span-5">
+      <Title href={`/dashboard/performance?device=${encodeURIComponent(chargerId)}#ev`}>Statistic</Title>
       <div>
         <p className="text-2xl font-semibold tabular-nums text-foreground">{u.format(shown ? shown.kwh : total, "kWh", "ev_energy_today_kwh", 1)}</p>
-        <p className="text-xs text-muted-foreground">{shown ? label(shown.day, true) : `delivered in the last ${range} days`}</p>
+        <p className="text-xs text-muted-foreground">{shown ? label(shown.day, true) : "delivered in the last 7 days"}</p>
       </div>
       <div className="relative min-h-28 flex-1" onMouseLeave={() => setActive(null)}>
         <div aria-hidden="true" className="absolute inset-x-0 top-0 bottom-5 flex flex-col justify-between">
@@ -143,9 +120,9 @@ function Statistic({ history, chargerId }: { history: EvHistory; chargerId: stri
           ))}
         </div>
         <div aria-hidden="true" className="absolute inset-x-0 bottom-0 flex gap-[3px] text-[10px] text-muted-foreground">
-          {days.map((d, i) => (
+          {days.map((d) => (
             <span key={d.day} className="min-w-0 flex-1 truncate text-center">
-              {range === 7 || i % 5 === days.length % 5 ? label(d.day, false) : ""}
+              {label(d.day, false)}
             </span>
           ))}
         </div>
@@ -162,6 +139,7 @@ function LastCharge({ last, onOpen, chargerId }: { last: EvHistorySession | null
       {/* the whole card is a link to the charger's tab on Monitoring; what must stay pressable on its own sits above it */}
       <Link href={`/dashboard/monitoring?device=${encodeURIComponent(chargerId)}#ev`} aria-label="Open the charger on Monitoring" className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring" />
       <Title
+        href={`/dashboard/monitoring?device=${encodeURIComponent(chargerId)}#ev`}
         aside={
           last ? (
             <button type="button" onClick={() => onOpen(last.id)} className="relative z-10 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">

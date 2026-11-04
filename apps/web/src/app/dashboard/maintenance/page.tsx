@@ -11,6 +11,7 @@ import { DeviceHealthContent } from "@/components/dashboard/device-health-conten
 import { LiveDynamicFieldGroup } from "@/components/dashboard/live-field-group";
 import { MaintenanceBoard, type HeadlineData, type MaintenanceDevice } from "@/components/dashboard/maintenance-board";
 import { MaintenanceService, serviceDate } from "@/components/dashboard/maintenance-service";
+import { EvRealtime } from "@/components/dashboard/ev-realtime";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
 
@@ -55,7 +56,12 @@ export default async function MaintenancePage({ searchParams }: { searchParams: 
         <React.Fragment key={device.id}>
           <RealtimeRefresh table="support_tickets" event="UPDATE" filter={`equipment_id=eq.${device.id}`} />
           <RealtimeRefresh table="support_tickets" event="INSERT" filter={`equipment_id=eq.${device.id}`} />
-          {device.deviceType?.category === "ev_charger" && <RealtimeRefresh table="ev_events" event="INSERT" filter={`equipment_id=eq.${device.id}`} />}
+          {device.deviceType?.category === "ev_charger" && (
+            <>
+              <RealtimeRefresh table="ev_events" event="INSERT" filter={`equipment_id=eq.${device.id}`} />
+              <EvRealtime chargerId={device.id} />
+            </>
+          )}
         </React.Fragment>
       ))}
       <MaintenanceBoard

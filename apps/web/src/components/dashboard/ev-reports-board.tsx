@@ -17,6 +17,7 @@ import { fmtDate } from "@/lib/savings";
 import { cn } from "@/lib/utils";
 import { ChartEmptyState } from "./chart-empty-state";
 import { ChartCore, type ChartRow, type ChartSeriesDef, type ReadoutItem } from "./chart-kit";
+import { EvRealtime } from "./ev-realtime";
 import { EvSessionsBrowser } from "./ev-sessions-browser";
 import { FLOW } from "./flow-colors";
 import { Panel, StatTile, useKwhText } from "./perf-kit";
@@ -155,6 +156,7 @@ export function EvReportsBody(props: EvReportsProps) {
 
   return (
     <section className="space-y-4">
+      <EvRealtime chargerId={deviceId} />
       <div>
         <h2 className="text-sm font-semibold text-foreground">Detailed report</h2>
         <p className="text-xs text-muted-foreground">Filter by the period, the hours of the day and the kind of charge, see it as a graph or a table, and download it as CSV or PDF.</p>
