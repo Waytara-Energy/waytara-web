@@ -55,9 +55,7 @@ export function EvSessionsBrowser({ rows, periodName, today, load = getEvSession
       <Card className={cn("gap-0 overflow-hidden", narrowOpen && "max-lg:hidden")}>
         <CardHeader className="space-y-1 pb-3">
           <CardTitle className="text-sm">Charging sessions</CardTitle>
-          <CardDescription>
-            {periodName} · {rows.length} {rows.length === 1 ? "session" : "sessions"}
-          </CardDescription>
+          <CardDescription>{periodName} · press a charge to see it in full</CardDescription>
         </CardHeader>
         <CardContent className="p-0">
           <div className="lg:max-h-[72svh] lg:overflow-y-auto">

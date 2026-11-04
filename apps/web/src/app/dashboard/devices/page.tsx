@@ -19,7 +19,7 @@ import { DeviceAbout } from "@/components/dashboard/device-about";
 import { DeviceActivity, fetchDeviceActivity } from "@/components/dashboard/device-activity";
 import { DeviceCard } from "@/components/dashboard/device-card";
 import { DevicesBoard, type ExtraTab } from "@/components/dashboard/devices-board";
-import { EvChargerSettingsPanel, EvMessageLogPanel, EvOcppPanel } from "@/components/dashboard/ev-settings-section";
+import { EvMessageLogPanel, EvOcppPanel } from "@/components/dashboard/ev-settings-section";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { SettingFieldRow } from "@/components/dashboard/setting-field-row";
 
@@ -101,32 +101,21 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
   const allFields = settingsCatalog ? Array.from(settingsCatalog.fieldsByCategory.values()).flat() : [];
   const settingsFields = category === "solar_inverter" ? settingsForInstalled(allFields, installedParts(parts.map((p) => p.category))) : allFields;
 
-  // The tabs the page adds to Device info: an EV charger's OCPP connection and its own settings, and for every device what was done to it.
+  // The tabs the page adds to Device info: an EV charger's OCPP connection, and for every device what was done to it.
   const isStaff = isStaffRole(profile?.role);
   const ago = (minutes: number | null) => (minutes === null ? "Not yet" : minutes < 1 ? "Just now" : minutes < 60 ? `${minutes} min ago` : minutes < 1440 ? `${Math.floor(minutes / 60)} h ago` : `${Math.floor(minutes / 1440)} days ago`);
   const extraTabs: ExtraTab[] = [];
   if (evInfo) {
-    extraTabs.push(
-      {
-        id: "ocpp",
-        label: "OCPP",
-        icon: "ocpp",
-        tone: "sky",
-        placement: "after-info",
-        showStatus: true,
-        headline: { label: "OCPP connection", value: evInfo.chargePointId ?? "Not set up", figures: [{ label: "Last check-in", value: ago(sync.minutesAgo) }, { label: "Firmware", value: evInfo.firmware ?? "—" }] },
-        node: <EvOcppPanel chargerId={device.id} info={evInfo} sync={sync} />,
-      },
-      {
-        id: "charger-settings",
-        label: "Charger settings",
-        icon: "charger",
-        tone: "amber",
-        placement: "after-info",
-        headline: { label: "Charger settings", value: "Charger's own OCPP settings", figures: [{ label: "Changes", value: isStaff ? "Allowed" : "WayTara support" }] },
-        node: <EvChargerSettingsPanel chargerId={device.id} isStaff={isStaff} />,
-      },
-    );
+    extraTabs.push({
+      id: "ocpp",
+      label: "OCPP",
+      icon: "ocpp",
+      tone: "sky",
+      placement: "after-info",
+      showStatus: true,
+      headline: { label: "OCPP connection", value: evInfo.chargePointId ?? "Not set up", figures: [{ label: "Last check-in", value: ago(sync.minutesAgo) }, { label: "Firmware", value: evInfo.firmware ?? "—" }] },
+      node: <EvOcppPanel chargerId={device.id} info={evInfo} sync={sync} />,
+    });
   }
   extraTabs.push({
     id: "activity",

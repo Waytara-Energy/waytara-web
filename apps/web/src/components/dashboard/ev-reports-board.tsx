@@ -276,10 +276,7 @@ function ReportView({ report, mode, view, periodName, has, today }: { report: Ev
       {!has && <p className="rounded-xl border border-border bg-card px-4 py-3 text-sm text-muted-foreground">No charging sessions match this. Pick a longer period, or loosen the filters.</p>}
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(10.5rem,1fr))] gap-3">
-        {evSummaryFigures(report)
-          // a statement shows the money in its Bill, once
-          .filter((f) => !(mode === "statement" && (f.label === "Paid to the grid" || f.label === "Saved by solar and battery")))
-          .map((f) => (
+        {summaryCards(report, mode).map((f) => (
           <StatTile key={f.label} label={`${f.label} · ${periodName}`} value={has ? f.value : "—"} />
         ))}
       </div>
@@ -310,6 +307,15 @@ function ReportView({ report, mode, view, periodName, has, today }: { report: Ev
 
 function EmptyPick({ text }: { text: string }) {
   return <div className="rounded-xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">{text}</div>;
+}
+
+/** The six figures the report leads with. With a tariff they are the charges, the energy, the time, the solar share and the money (what the grid
+ *  part cost, what solar and battery saved); a statement shows the money in its Bill, and a charger with no tariff has none, so both give the average
+ *  charge and the peak power instead. */
+function summaryCards(report: EvReport, mode: EvReportMode) {
+  const wanted = report.stats.cost && mode !== "statement" ? ["Charging sessions", "Energy delivered", "Charging time", "Solar share", "Paid to the grid", "Saved by solar and battery"] : ["Charging sessions", "Energy delivered", "Charging time", "Solar share", "Average per session", "Peak power"];
+  const all = evSummaryFigures(report);
+  return wanted.flatMap((label) => all.filter((f) => f.label === label));
 }
 
 /** The statement's bill: what the grid part of the charging cost, what solar and battery saved, and what it would all have cost. */

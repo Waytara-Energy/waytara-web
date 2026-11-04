@@ -2,7 +2,6 @@ import type { LastSyncInfo } from "@/lib/device-sync";
 import type { EvConnectionInfo } from "@/lib/ev-settings-data";
 import { wsAddress } from "@/lib/ev-settings";
 import { DeviceCard } from "./device-card";
-import { EvSettingsConfig } from "./ev-settings-config";
 import { EvSettingsControls } from "./ev-settings-controls";
 import { EvSettingsLog } from "./ev-settings-log";
 
@@ -48,15 +47,6 @@ export function EvOcppPanel({ chargerId, info, sync }: { chargerId: string; info
         <EvSettingsControls chargerId={chargerId} />
       </DeviceCard>
     </div>
-  );
-}
-
-/** The Charger settings tab: the charger's own OCPP configuration, read from the charger when you ask. Staff may change it; the service decides. */
-export function EvChargerSettingsPanel({ chargerId, isStaff }: { chargerId: string; isStaff: boolean }) {
-  return (
-    <DeviceCard title="Charger settings" description="The charger's own OCPP configuration, read from the charger when you ask.">
-      <EvSettingsConfig chargerId={chargerId} canEdit={isStaff} />
-    </DeviceCard>
   );
 }
 
