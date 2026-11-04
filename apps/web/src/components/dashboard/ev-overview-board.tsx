@@ -173,11 +173,21 @@ function LastCharge({ last, onOpen }: { last: EvHistorySession | null; onOpen: (
   );
 }
 
-function History({ sessions, onOpen }: { sessions: EvHistorySession[]; onOpen: (id: string) => void }) {
+function History({ sessions, onOpen, chargerId }: { sessions: EvHistorySession[]; onOpen: (id: string) => void; chargerId: string }) {
   const u = useUnits();
   return (
     <Card className="flex min-h-0 flex-col gap-2 p-4 lg:col-span-5">
-      <Title>History</Title>
+      <Title
+        aside={
+          sessions.length > 0 ? (
+            <a href={`/api/ev/sessions.csv?device=${encodeURIComponent(chargerId)}&period=30d`} download className="rounded-md px-1.5 py-0.5 text-xs text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+              Export CSV
+            </a>
+          ) : null
+        }
+      >
+        History
+      </Title>
       {sessions.length === 0 ? (
         <p className="grid flex-1 place-items-center text-sm text-muted-foreground">Finished charges are listed here.</p>
       ) : (
@@ -324,7 +334,7 @@ export function EvOverviewBoard({
       </section>
       <Statistic history={history} />
       <LastCharge last={last} onOpen={setOpenId} />
-      <History sessions={history.recent} onOpen={setOpenId} />
+      <History sessions={history.recent} onOpen={setOpenId} chargerId={chargerId} />
       <EvSessionDialog sessionId={openId} onClose={() => setOpenId(null)} load={loadSession} />
     </div>
   );

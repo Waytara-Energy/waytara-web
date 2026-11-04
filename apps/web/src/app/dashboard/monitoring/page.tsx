@@ -14,10 +14,8 @@ import { getSelectedSite, resolveDeviceInSite } from "@/lib/selected-site";
 // charts + snapshot detail) is now category-aware via MonitoringContent —
 // solar_inverter keeps the two live-polling charts (power flows + battery
 // SOC), PV1-vs-PV2 comparison, temperature gauges, and grid-connected
-// indicator this page has had since Phase 9; ev_charger gets its own live
-// charging-power/current charts and detail list built from OCPP telemetry
-// instead of the inverter's fixed key list (which it never reported, so
-// this page used to come back essentially blank for it).
+// indicator this page has had since Phase 9. A charger opens its own page of
+// the Overview instead (see the redirect below).
 export default async function MonitoringPage({ searchParams }: { searchParams: Promise<{ device?: string }> }) {
   const supabase = await createClient();
   // getSelectedSite() doesn't depend on the plan check below, so it runs
@@ -33,6 +31,9 @@ export default async function MonitoringPage({ searchParams }: { searchParams: P
     getSelectedSite(),
   ]);
   const device = await resolveDeviceInSite(site, deviceIdParam);
+
+  // A charger has no Monitoring page of its own: its live view, its charges and their details are its page of the Overview.
+  if (device?.deviceType?.category === "ev_charger") redirect(`/dashboard?device=${device.id}`);
 
   const features = customerPlan?.features ?? {};
   if (!features.monitoring) {

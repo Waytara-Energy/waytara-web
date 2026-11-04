@@ -152,10 +152,10 @@ function Board({ sessions, loadDaily, tariff }: EvPerformanceProps) {
             </TableBody>
           </Table>
           <p className="mt-3 text-xs text-muted-foreground">
-            <Link href="/dashboard/ev-sessions" className="underline underline-offset-2">
-              All charging sessions
+            <Link href="/dashboard" className="underline underline-offset-2">
+              The Overview
             </Link>{" "}
-            with each charge&apos;s curve and receipt.
+            lists every charge, with its curve, sources and log.
           </p>
         </Panel>
       )}

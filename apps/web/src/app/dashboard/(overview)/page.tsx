@@ -8,11 +8,11 @@ import { LiveChannelKeeper } from "@/components/dashboard/overview-live";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { SITE_OVERVIEW_KEYS } from "@/lib/overview-keys";
 import { fetchSolarCardsProps } from "@/components/dashboard/solar-live-status-cards";
-import { fetchEvCardsProps } from "@/components/dashboard/ev-live-status-cards";
 import { EvOverviewBoard } from "@/components/dashboard/ev-overview-board";
 import { fetchEvHistory, type EvHistory } from "@/lib/ev-history";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { fetchEvOverview } from "@/lib/ev-overview";
+import { getCustomerPlan } from "@/lib/customer-plan";
 import { OverviewBoard } from "@/components/dashboard/overview-board";
 import { OverviewCarousel, type OverviewSlide } from "@/components/dashboard/overview-carousel";
 import { getLastSyncInfo } from "@/lib/device-sync";
@@ -28,14 +28,14 @@ import { backgroundCss, initialSlideIndex, parseOverviewPrefs } from "@/lib/over
 // every charger's power summed into one energy-flow diagram
 // (fetchSiteOverview), and recent alerts pooled across every device at
 // the site.
-export default async function DashboardOverviewPage() {
+export default async function DashboardOverviewPage({ searchParams }: { searchParams: Promise<{ device?: string }> }) {
   const supabase = await createClient();
   // Independent of each other — getRequestProfile is cache()-deduped
   // against the layout's own call anyway (and free in the common case, see
   // @/lib/request-profile), but running it alongside the site lookup
   // rather than after it still saves a round trip's worth of latency on
   // whichever one is slower.
-  const [profile, site] = await Promise.all([getRequestProfile(), getSelectedSite()]);
+  const [profile, site, { device: deviceParam }] = await Promise.all([getRequestProfile(), getSelectedSite(), searchParams]);
 
   if (!site) {
     return (
@@ -68,7 +68,7 @@ export default async function DashboardOverviewPage() {
   const emptySync: DeviceSyncInit = { lastTs: null, agentSeenTs: null, deviceOnline: null, intervalS: null, heartbeatS: null };
   type SlideData =
     | { kind: "inverter"; device: (typeof site.devices)[number]; syncInit: DeviceSyncInit; pvKeys: string[]; initial: Record<string, number | null>; solar: Awaited<ReturnType<typeof fetchSolarCardsProps>> }
-    | { kind: "charger"; device: (typeof site.devices)[number]; cards: Awaited<ReturnType<typeof fetchEvCardsProps>>; ev: Awaited<ReturnType<typeof fetchEvOverview>>; history: EvHistory };
+    | { kind: "charger"; device: (typeof site.devices)[number]; ev: Awaited<ReturnType<typeof fetchEvOverview>>; history: EvHistory };
   const [slideData, uiRow] = await Promise.all([
     Promise.all(
       site.devices.map(async (device): Promise<SlideData | null> => {
@@ -84,9 +84,9 @@ export default async function DashboardOverviewPage() {
           return { kind: "inverter", device, syncInit, pvKeys, initial, solar };
         }
         if (category === "ev_charger") {
-          const [cards, ev] = await Promise.all([fetchEvCardsProps(supabase, one), fetchEvOverview(supabase, device.id)]);
-          const history = await fetchEvHistory(supabase, device.id, cards?.tariffRate ?? 8);
-          return { kind: "charger", device, cards, ev, history };
+          const [ev, plan] = await Promise.all([fetchEvOverview(supabase, device.id), getCustomerPlan()]);
+          const history = await fetchEvHistory(supabase, device.id, plan?.tariffRatePerKwh ?? 8);
+          return { kind: "charger", device, ev, history };
         }
         return null;
       }),
@@ -111,7 +111,6 @@ export default async function DashboardOverviewPage() {
               background={background}
               backdrop={false}
               solar={d.solar}
-              ev={null}
               flow={{
                 inverterIds: [d.device.id],
                 initial: d.initial,
@@ -171,7 +170,7 @@ export default async function DashboardOverviewPage() {
           </EmptyHeader>
         </Empty>
       ) : (
-        <OverviewCarousel slides={slides} initialIndex={initialSlideIndex(slides.map((s) => s.id), overviewPrefs.device)} background={background} />
+        <OverviewCarousel slides={slides} initialIndex={initialSlideIndex(slides.map((s) => s.id), slides.some((s) => s.id === deviceParam) ? (deviceParam ?? null) : overviewPrefs.device)} background={background} />
       )}
     </div>
   );
