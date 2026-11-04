@@ -14,10 +14,10 @@
     "test:db": "pnpm --filter @waytara/supabase test:db"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.13.0",
-    "@playwright/test": "^1.63.0",
-    "@supabase/supabase-js": "^2.112.4",
-    "turbo": "^2.10.12"
+    "@axe-core/playwright": "^4.14.0",
+    "@playwright/test": "^1.64.1",
+    "@supabase/supabase-js": "^2.118.0",
+    "turbo": "^2.11.10"
   },
   "packageManager": "pnpm@11.24.0",
   "engines": {
