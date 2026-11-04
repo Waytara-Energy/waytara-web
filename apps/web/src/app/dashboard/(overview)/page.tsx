@@ -132,7 +132,6 @@ export default async function DashboardOverviewPage() {
         content: (
           <EvOverviewBoard
             chargerId={d.device.id}
-            name={deviceDisplayId(d.device)}
             status={d.ev.status}
             connected={d.ev.connected}
             todayKwh={d.ev.todayKwh}

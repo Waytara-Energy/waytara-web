@@ -346,6 +346,21 @@ body {
   }
 }
 
+/* The Overview's car while a charge runs with no known end: the fill runs from the tail to the nose and rests there a moment. */
+@theme {
+  --animate-car-charge: car-charge 3.2s ease-in-out infinite;
+}
+
+@keyframes car-charge {
+  0% {
+    transform: scaleX(0);
+  }
+  75%,
+  100% {
+    transform: scaleX(1);
+  }
+}
+
 /* A pulse of energy crossing one segment of the Our Approach rail. It moves during the first quarter of the cycle and rests
    (off the segment, which clips it) for the rest, so four segments delayed by a quarter each read as one pulse travelling
    along the whole rail. */

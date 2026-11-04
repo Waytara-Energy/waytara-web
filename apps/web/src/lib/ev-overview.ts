@@ -15,6 +15,8 @@ export interface OpenCharge {
   startedAt: string;
   /** the charger's energy register when the charge began, so a live reading of the register gives the energy so far */
   startEnergyKwh: number | null;
+  /** the "stop after" the person asked for when starting it, kWh (null = no limit) */
+  targetKwh: number | null;
   kwh: number | null;
   kw: number | null;
 }
@@ -36,7 +38,7 @@ export async function fetchEvOverview(supabase: SupabaseServerClient, chargerId:
     fetchTodayChargingSessions(supabase, chargerId),
     getLastSyncInfo(chargerId).catch(() => null),
     fetchEnumOptions(supabase, ["connector_status"]).then((m) => m.get("connector_status") ?? []),
-    supabase.from("ev_sessions").select("id, ocpp_transaction_id, started_at, start_energy_kwh").eq("equipment_id", chargerId).is("ended_at", null).order("started_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("ev_sessions").select("id, ocpp_transaction_id, started_at, start_energy_kwh, target_kwh").eq("equipment_id", chargerId).is("ended_at", null).order("started_at", { ascending: false }).limit(1).maybeSingle(),
   ]);
 
   const verdict = sync?.verdict?.status ?? null;
@@ -56,6 +58,7 @@ export async function fetchEvOverview(supabase: SupabaseServerClient, chargerId:
       transactionId: row.ocpp_transaction_id,
       startedAt: row.started_at,
       startEnergyKwh: row.start_energy_kwh,
+      targetKwh: row.target_kwh,
       kwh: live?.energyKwh ?? sessionKwh(row.start_energy_kwh, null),
       kw: today.currentPowerW === null ? null : today.currentPowerW / 1000,
     };
