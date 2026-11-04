@@ -76,6 +76,7 @@ export function ChartCore({
   height = 220,
   tickEvery,
   gapRanges = [],
+  readoutLead,
 }: {
   rows: ChartRow[];
   series: ChartSeriesDef[];
@@ -88,6 +89,8 @@ export function ChartCore({
   tickEvery?: number;
   /** Stretches with no readings, as the first and last row of each: drawn as a hatched band, with the line running on across it. */
   gapRanges?: { first: number; last: number }[];
+  /** Figures shown before the series' own in the readout for the position pointed at (a total, a duration ...), worked out from its row. */
+  readoutLead?: (row: ChartRow) => ReadoutItem[];
 }) {
   const [hover, setHover] = React.useState<number | null>(null);
   const caption = usePanelCaption();
@@ -109,7 +112,7 @@ export function ChartCore({
   const readout = (
     <ChartReadout
       when={row ? String(row.__label) : null}
-      items={series.map((s) => ({ key: s.key, label: s.label, color: s.color, dashed: s.dashed, value: row && isNum(row[s.key]) ? format(row[s.key] as number) : null }))}
+      items={[...(row && readoutLead ? readoutLead(row) : []), ...series.map((s) => ({ key: s.key, label: s.label, color: s.color, dashed: s.dashed, value: row && isNum(row[s.key]) ? format(row[s.key] as number) : null }))]}
     />
   );
   const captionLine = caption ? <p className="text-xs leading-relaxed text-muted-foreground">{caption}</p> : null;

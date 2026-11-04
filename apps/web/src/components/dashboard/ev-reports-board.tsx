@@ -20,7 +20,7 @@ import { choiceLabel, defaultChoice, resolveChoice, type PeriodChoice } from "@/
 import { fmtDate } from "@/lib/savings";
 import { cn } from "@/lib/utils";
 import { ChartEmptyState } from "./chart-empty-state";
-import { ChartCore, type ChartRow, type ChartSeriesDef } from "./chart-kit";
+import { ChartCore, type ChartRow, type ChartSeriesDef, type ReadoutItem } from "./chart-kit";
 import { EvSessionDialog } from "./ev-session-dialog";
 import { FLOW } from "./flow-colors";
 import { Panel, StatTile, useKwhText } from "./perf-kit";
@@ -45,9 +45,10 @@ const SOURCE_SERIES: ChartSeriesDef[] = [
   { key: "solar", label: "Solar", color: FLOW.producing },
   { key: "battery", label: "Battery", color: FLOW.drawing },
   { key: "grid", label: "Grid", color: FLOW.consuming },
-  { key: "unmatched", label: "Source not known", color: "#94a3b8" },
+  { key: "unmatched", label: "Not matched to a source", color: "#94a3b8" },
 ];
 const kwhFormat = (v: number) => ({ num: v.toFixed(v >= 10 ? 1 : 2), unit: "kWh" });
+const kwhText = (v: number | null) => (v === null ? null : `${v.toFixed(v >= 10 ? 1 : 2)} kWh`);
 
 export interface EvReportsProps {
   deviceId: string;
@@ -333,23 +334,49 @@ function Bill({ report, periodName }: { report: EvReport; periodName: string }) 
   );
 }
 
-/** One bar per charge, split by where its energy came from (the newest MAX_BARS of them). */
+/** The series that have something to draw (a source no charge used is left out, so it is not listed with a 0). */
+const usedSeries = (rows: ChartRow[]) => {
+  const used = SOURCE_SERIES.filter((s) => rows.some((r) => typeof r[s.key] === "number" && (r[s.key] as number) > 0));
+  return used.length > 0 ? used : SOURCE_SERIES.slice(0, 1);
+};
+const lead = (...items: [string, string, string | null][]): ReadoutItem[] => items.map(([key, label, num]) => ({ key, label, color: "var(--foreground)", value: num === null ? null : { num, unit: "" } }));
+
+/** One bar per charge, split by where its energy came from (the newest MAX_BARS of them). Pointing at a bar says when the charge started, how much
+ *  energy it delivered and for how long, and the split. A charge still running has no energy yet, so it is drawn once it has ended. */
 function SessionsGraph({ rows, periodName }: { rows: EvRow[]; periodName: string }) {
-  const bars = rows.slice(0, MAX_BARS).reverse();
+  const done = rows.filter((r) => r.energyKwh !== null);
+  const bars = done.slice(0, MAX_BARS).reverse();
+  const oneDay = new Set(bars.map((r) => new Date(r.startedAt).toLocaleDateString("en-IN", { timeZone: "Asia/Kolkata" }))).size <= 1;
+  const clock = (iso: string) => new Date(iso).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
   const data: ChartRow[] = bars.map((r) => {
     const split = r.solarKwh !== null || r.batteryKwh !== null || r.gridKwh !== null;
     return {
-      __tick: new Date(r.startedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" }),
-      __label: when(r.startedAt),
+      __tick: oneDay ? clock(r.startedAt) : `${new Date(r.startedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "Asia/Kolkata" })}, ${clock(r.startedAt)}`,
+      __label: `Started ${when(r.startedAt)}`,
+      total: r.energyKwh,
+      time: r.durationS === null ? null : formatSeconds(r.durationS),
       solar: split ? (r.solarKwh ?? 0) : 0,
       battery: split ? (r.batteryKwh ?? 0) : 0,
       grid: split ? (r.gridKwh ?? 0) : 0,
       unmatched: split ? (r.unknownKwh ?? 0) : (r.energyKwh ?? 0),
     };
   });
+  const running = rows.length - done.length;
   return (
-    <Panel chart title="Energy of each charge" description={`${periodName} · kWh of each charge, by where it came from${rows.length > MAX_BARS ? `. The newest ${MAX_BARS} of ${rows.length}; the table and the downloads hold all of them` : ""}`}>
-      <ChartCore rows={data} series={SOURCE_SERIES} kind="bar" stacked format={kwhFormat} tickEvery={Math.max(1, Math.round(data.length / 6))} />
+    <Panel
+      chart
+      title="Energy of each charge"
+      description={`${periodName} · point at a bar for its energy, duration and where the energy came from${rows.length > MAX_BARS ? `. The newest ${MAX_BARS} of ${done.length}; the table and the downloads hold all of them` : ""}${running > 0 ? `. A charge still running is drawn once it has ended` : ""}`}
+    >
+      <ChartCore
+        rows={data}
+        series={usedSeries(data)}
+        kind="bar"
+        stacked
+        format={kwhFormat}
+        tickEvery={Math.max(1, Math.round(data.length / 6))}
+        readoutLead={(r) => lead(["total", "Energy", kwhText(r.total as number | null)], ["time", "Charging time", (r.time as string | null) ?? null])}
+      />
     </Panel>
   );
 }
@@ -421,14 +448,25 @@ function DaysGraph({ report, periodName }: { report: EvReport; periodName: strin
   const data: ChartRow[] = days.map((d) => ({
     __tick: new Date(`${d.date}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" }),
     __label: fmtDate(d.date),
+    total: d.energyKwh,
+    count: d.sessions === 0 ? "No charge" : `${d.sessions} ${d.sessions === 1 ? "charge" : "charges"}`,
+    time: d.sessions === 0 ? null : formatSeconds(d.chargingSeconds),
     solar: d.solarKwh,
     battery: d.batteryKwh,
     grid: d.gridKwh,
     unmatched: d.unknownKwh,
   }));
   return (
-    <Panel chart title="Energy per day" description={`${periodName} · kWh delivered each day, by where it came from`}>
-      <ChartCore rows={data} series={SOURCE_SERIES} kind="bar" stacked format={kwhFormat} tickEvery={Math.max(1, Math.round(data.length / 6))} />
+    <Panel chart title="Energy per day" description={`${periodName} · point at a day for its energy, charges, charging time and where the energy came from`}>
+      <ChartCore
+        rows={data}
+        series={usedSeries(data)}
+        kind="bar"
+        stacked
+        format={kwhFormat}
+        tickEvery={Math.max(1, Math.round(data.length / 6))}
+        readoutLead={(r) => lead(["total", "Energy", kwhText(r.total as number | null)], ["count", "Charges", r.count as string], ["time", "Charging time", (r.time as string | null) ?? null])}
+      />
     </Panel>
   );
 }
