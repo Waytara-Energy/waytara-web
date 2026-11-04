@@ -12,6 +12,8 @@ export interface TabHeadlineInfo {
    *  headline's own small label — the tab's *name* isn't repeated here at
    *  all, since the selected tab button right below already says it. */
   label: string;
+  /** Shown at the right end of the headline while this tab is open (for the EV tab: Start / Stop). */
+  actions?: React.ReactNode;
 }
 
 // Icon + accent color per node, kept here (not passed down as a prop) —
@@ -109,7 +111,7 @@ export function MonitoringTabs({
         history.replaceState(null, "", `#${next}`);
       }}
     >
-      {headlines[value] && <TabHeadlineBar tabValue={value} headline={headlines[value]} actions={actions} />}
+      {headlines[value] && <TabHeadlineBar tabValue={value} headline={headlines[value]} actions={headlines[value].actions ?? actions} />}
       {children}
     </Tabs>
   );

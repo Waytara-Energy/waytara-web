@@ -5,36 +5,26 @@ import { fetchDeviceParameterReadings } from "@/lib/device-catalog-data";
 import { fetchEnumOptions } from "@/lib/instrument-catalog-data";
 import { fetchTodayChargingSessions, FAULT_BITMASK_KEYS } from "@/lib/device-overview";
 import { getLastSyncInfo } from "@/lib/device-sync";
-import { getConnectorStatusLabel, getErrorCodeLabel } from "@/lib/ev-charger-catalog";
+import { getErrorCodeLabel } from "@/lib/ev-charger-catalog";
 import { energyOfSessions, openSession, openTransactionId, sessionStartKwh, todayChartPoints, type TabSession } from "@/lib/ev-tab";
 import { sourceShares, sessionEnergyKwh, type EvSampleRow } from "@/lib/ev-sessions";
-import {
-  fetchDashboardFields,
-  fetchFieldValues,
-  resolveComputedValues,
-  type FieldValue,
-  type FieldGroup,
-  type CategorySection,
-} from "@/lib/template-fields";
+import { fetchDashboardFields, fetchFieldValues, resolveComputedValues, type FieldValue, type FieldGroup, type CategorySection } from "@/lib/template-fields";
 import { TEMPERATURE_MAX_C } from "@/lib/temperature-thresholds";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { TriangleAlert, Plug, Zap } from "lucide-react";
-import { ChargerTrendGroup } from "./lazy-charts";
+import { TriangleAlert } from "lucide-react";
 import { SolarMonitoringView } from "./solar-monitoring-view";
-import { FLOW } from "./flow-colors";
-import { EvHubCards, EvHubGroups } from "./ev-hub-live";
+import { EvHubGroups } from "./ev-hub-live";
 import { temperatureRowsFor } from "@/lib/temperature-rows";
 import { valuesFor, enumToObject } from "@/lib/field-values";
 import { SessionReceiptCard, type ReceiptSection } from "./session-receipt-card";
 import { getUnitPrefs } from "@/lib/unit-prefs-server";
 import { DeviceParameterCards } from "./device-parameter-cards";
-import { MonitoringTabs } from "./monitoring-tabs";
+import { TabHeadlineBar, type TabHeadlineInfo } from "./monitoring-tabs";
+import { EvStatusLine } from "./ev-status-line";
 import { EvChargeControl } from "./ev-charge-control";
 import { EvLiveTiles } from "./ev-live-tiles";
 import { EvTodayChart } from "./ev-today-chart";
 import { EvTabSessions } from "./ev-tab-sessions";
-import { StatusPill } from "./status-pill";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -139,13 +129,11 @@ async function SolarInverterMonitoring({ supabase, device, charger, focus }: { s
   const computedKeys = new Set(dynamicFields.filter((f) => f.source === "computed").map((f) => f.key));
   const liveKeys = Object.keys(initialValues).filter((k) => !computedKeys.has(k));
 
-  // The site's charger is one more tab after Grid: its headline is today's energy, its body the charger's own monitoring (embedded, so its two
-  // inner tabs do not compete with this page's tab strip for the address).
-  let ev: { deviceId: string; headline: { value: string; label: string }; content: React.ReactNode } | null = null;
+  // The site's charger is one more tab after Grid: the charger's own Monitoring page for the day, with Start / Stop at the right end of its headline.
+  let ev: { deviceId: string; headline: TabHeadlineInfo; content: React.ReactNode } | null = null;
   if (charger) {
-    const today = await fetchTodayChargingSessions(supabase, charger.id);
-    const kwh = today.sessions.reduce((sum, x) => sum + (x.energyKwh ?? 0), 0);
-    ev = { deviceId: charger.id, headline: { value: `${kwh.toFixed(1)} kWh`, label: "Delivered Today" }, content: <EvChargerMonitoring supabase={supabase} device={charger} embedded /> };
+    const evPage = await evMonitoring(supabase, charger);
+    ev = { deviceId: charger.id, headline: evPage.headline, content: evPage.content };
   }
 
   return (
@@ -188,7 +176,7 @@ const MONITORING_EXTRA_KEYS = [
   "generator_frequency_hz",
 ];
 
-async function EvChargerMonitoring({ supabase, device, embedded = false }: { supabase: SupabaseServerClient; device: CustomerDevice; embedded?: boolean }) {
+async function evMonitoring(supabase: SupabaseServerClient, device: CustomerDevice): Promise<{ headline: TabHeadlineInfo; content: React.ReactNode }> {
   const rawSections = await fetchDashboardFields(supabase, device, "Monitoring");
   const dynamicFields = rawSections.flatMap((s) => s.groups.flatMap((g) => g.fields));
   const monitoringKeys = dynamicFields.map((f) => f.key);
@@ -200,15 +188,14 @@ async function EvChargerMonitoring({ supabase, device, embedded = false }: { sup
   // solar branch's Inverter > Temperature group) — dropped from their
   // category's generic field list so neither also renders a second time as
   // a plain stat row.
-  const connectorTemperatureRows = temperatureRowsFor(dynamicFields);
-  const chartedElsewhereKeys = new Set(["current_import_l1_a"]);
+  // power, current, voltage, what is offered and the connector state are in the live tiles and the status line: not listed a second time
+  const chartedElsewhereKeys = new Set(["current_import_l1_a", "power_active_import_kw", "voltage_l1_n_v", "power_offered_kw", "connector_status"]);
   const sections = rawSections.map((s) => ({
     ...s,
     groups: s.groups
       .map((g) => ({ ...g, fields: g.fields.filter((f) => !(f.key in TEMPERATURE_MAX_C) && !chartedElsewhereKeys.has(f.key)) }))
       .filter((g) => g.fields.length > 0),
   }));
-  const currentL1Field = dynamicFields.find((f) => f.key === "current_import_l1_a");
 
   // "Live Session" is its own dashboard_section (Authorization/Billing/
   // Session/Vehicle (EV) — DC, 26 fields) — brand new, no existing screen
@@ -281,7 +268,9 @@ async function EvChargerMonitoring({ supabase, device, embedded = false }: { sup
   const todaySummary =
     tabSessions.length === 0
       ? "No charge today yet. The curve appears once a charge has started."
-      : `${todayKwh.toFixed(1)} kWh · ${tabSessions.length} ${tabSessions.length === 1 ? "charge" : "charges"}${todayPeakKw !== null ? ` · peak ${todayPeakKw.toFixed(1)} kW` : ""}`;
+      : todayPeakKw !== null
+        ? `Peak ${todayPeakKw.toFixed(1)} kW`
+        : "Power for each reading of today's charges";
   const finished = tabSessions.find((x) => x.ended_at !== null);
   const lastCharge = finished
     ? `Last charge ${(sessionEnergyKwh(finished) ?? 0).toFixed(1)} kWh, ${new Date(finished.started_at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })}`
@@ -300,155 +289,93 @@ async function EvChargerMonitoring({ supabase, device, embedded = false }: { sup
   const powerKw = getValue("power_active_import_kw") as number | null;
   const offeredKw = getValue("power_offered_kw") as number | null;
 
-  const connectorStatus = connected === false ? { label: "Offline", tone: "bad" as const } : getConnectorStatusLabel(getValue("connector_status") as number | null, enumOptions.get("connector_status") ?? []);
   const ratedKw = chargingSummary.ratedPowerW !== null ? chargingSummary.ratedPowerW / 1000 : offeredKw;
-  const sessionsToday = chargingSummary.sessions.length;
-  const energyTodayKwh = chargingSummary.sessions.reduce((sum, s) => sum + (s.energyKwh ?? 0), 0);
 
+  const todayKwhText = `${todayKwh.toFixed(1)} kWh`;
+  const charger = device.label ?? device.deviceType?.name ?? "EV charger";
+
+  return {
+    // The headline of the page: the day's energy, and at its right end Start / Stop (a real charge, through the hub).
+    headline: {
+      value: todayKwhText,
+      label: "Delivered Today",
+      actions: <EvChargeControl chargerId={device.id} sessionOpen={!!running} transactionId={transactionId} connected={connected} compact className="w-56" />,
+    },
+    // One page, each figure once: the state, the live charge (power against the rating, current, this charge, time, what powers it), today's power
+    // curve, today's charges (a press opens the one charge), then what else the charger reports.
+    content: (
+      <>
+        {errorLabel ? (
+          <Alert variant="destructive">
+            <TriangleAlert />
+            <AlertTitle>Charger fault</AlertTitle>
+            <AlertDescription>{errorLabel}</AlertDescription>
+          </Alert>
+        ) : null}
+
+        <EvStatusLine
+          deviceId={device.id}
+          name={charger}
+          options={enumOptions.get("connector_status") ?? []}
+          initialCode={getValue("connector_status") as number | null}
+          connectedAtLoad={connected}
+          runningSince={running ? new Date(running.started_at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }) : null}
+        />
+
+        <EvLiveTiles
+          deviceId={device.id}
+          initial={{ kw: powerKw, a: getValue("current_import_l1_a") as number | null, v: getValue("voltage_l1_n_v") as number | null, registerKwh: getValue("energy_active_import_register_kwh") as number | null }}
+          ratedKw={ratedKw}
+          charging={!!running}
+          session={
+            running
+              ? {
+                  startedAt: running.started_at,
+                  startKwh: sessionStartKwh(running),
+                  targetKwh: running.target_kwh ?? null,
+                  shares: sourceShares({
+                    energy_from_solar_kwh: running.energy_from_solar_kwh ?? null,
+                    energy_from_battery_kwh: running.energy_from_battery_kwh ?? null,
+                    energy_from_grid_kwh: running.energy_from_grid_kwh ?? null,
+                    energy_unattributed_kwh: running.energy_unattributed_kwh ?? null,
+                  }),
+                  solarPct: running.solar_share_pct,
+                }
+              : null
+          }
+          lastCharge={lastCharge}
+        />
+
+        <EvTodayChart points={todayPoints} summary={todaySummary} />
+
+        <EvTabSessions sessions={tabSessions} deviceId={device.id} />
+
+        {sections.length > 0 ? (
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-foreground">Charger data</h3>
+            <EvHubGroups
+              deviceId={device.id}
+              groups={sortSectionsByCategory(sections, EV_HUB_CATEGORY_PRIORITY)}
+              initial={valuesFor(sections.flatMap((x) => x.groups.flatMap((g) => g.fields)), getValue)}
+              enumOptions={enumToObject(enumOptions) ?? {}}
+            />
+          </div>
+        ) : null}
+
+        <SessionReceiptCard title="Live session details" sections={receiptSections} getValue={getValue} enumOptionsByRef={enumOptions} units={await getUnitPrefs()} />
+      </>
+    ),
+  };
+}
+
+/** The charger's Monitoring page when it is the whole page (a site without an inverter): the headline bar and the same body. */
+async function EvChargerMonitoring({ supabase, device }: { supabase: SupabaseServerClient; device: CustomerDevice }) {
+  const { headline, content } = await evMonitoring(supabase, device);
   return (
     <>
-      {/* Two panels rather than one long scroll: the charger's own live
-          detail (power/current/temperature/OCPP fields) versus its
-          session history — different questions ("is it healthy right
-          now?" vs. "what did it actually deliver?"), so they get their
-          own tabs instead of being stacked on one page. */}
-      <EvTabsShell embedded={embedded} deviceId={device.id}>
-        <TabsList variant="line">
-          <TabsTrigger value="ev" variant="line">
-            {/* written out here: this file is a server component and an icon cannot be passed to the client TabButtonContent */}
-            <Zap className="size-4 shrink-0 group-data-[state=active]:hidden" />
-            <span className="text-sm font-medium">{embedded ? "Charging" : "EV"}</span>
-          </TabsTrigger>
-          <TabsTrigger value="hub" variant="line">
-            <Plug className="size-4 shrink-0 group-data-[state=active]:hidden" />
-            <span className="text-sm font-medium">Charger data</span>
-          </TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="hub" className="space-y-4">
-          {errorLabel ? (
-            <Alert variant="destructive">
-              <TriangleAlert />
-              <AlertTitle>Charger fault</AlertTitle>
-              <AlertDescription>{errorLabel}</AlertDescription>
-            </Alert>
-          ) : null}
-
-          <EvHubCards
-            deviceId={device.id}
-            initial={{ power_active_import_kw: powerKw, power_offered_kw: offeredKw }}
-            sessionsToday={sessionsToday}
-            energyTodayKwh={energyTodayKwh}
-          />
-
-          <ChargerTrendGroup
-            deviceId={device.id}
-            powerSeries={[
-              {
-                key: "power_active_import_kw",
-                label: "Power",
-                color: FLOW.consuming,
-                scale: 1,
-                unit: "kW",
-                footerMode: "sum",
-                footerUnit: "kWh",
-              },
-              {
-                key: "current_import_l1_a",
-                label: currentL1Field?.label ?? "Current",
-                color: "var(--chart-2)",
-                scale: 1,
-                unit: "A",
-                footerMode: "average",
-              },
-            ]}
-            sessionMarkers={chargingSummary.sessions.map((sess) => ({
-              startedAt: sess.startedAt,
-              endedAt: sess.endedAt,
-              energyKwh: sess.energyKwh,
-            }))}
-            temperatureRows={connectorTemperatureRows}
-          />
-
-          <EvHubGroups
-            deviceId={device.id}
-            groups={sortSectionsByCategory(sections, EV_HUB_CATEGORY_PRIORITY)}
-            initial={valuesFor(sections.flatMap((x) => x.groups.flatMap((g) => g.fields)), getValue)}
-            enumOptions={enumToObject(enumOptions) ?? {}}
-          />
-        </TabsContent>
-
-        <TabsContent value="ev" className="space-y-4">
-          {errorLabel ? (
-            <Alert variant="destructive">
-              <TriangleAlert />
-              <AlertTitle>Charger fault</AlertTitle>
-              <AlertDescription>{errorLabel}</AlertDescription>
-            </Alert>
-          ) : null}
-
-          {/* The charger now: its name and state, how it is connected, and Start / Stop (a real charge, through the hub). */}
-          <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border p-4">
-            <div className="flex items-center gap-3">
-              <span className="flex size-11 shrink-0 items-center justify-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-                <Zap className="size-5" />
-              </span>
-              <div className="space-y-1">
-                <p className="text-sm font-semibold">{device.label ?? device.deviceType?.name ?? "EV charger"}</p>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  <StatusPill label={connectorStatus.label} tone={connectorStatus.tone} />
-                  <span className="text-xs text-muted-foreground">
-                    {connected === false ? "Not connected right now" : connected === true ? "Connected through the monitoring unit" : "Connection not known yet"}
-                    {running ? ` · charging since ${new Date(running.started_at).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })}` : ""}
-                  </span>
-                </div>
-              </div>
-            </div>
-            <EvChargeControl chargerId={device.id} sessionOpen={!!running} transactionId={transactionId} connected={connected} compact={!!running} />
-          </div>
-
-          <EvLiveTiles
-            deviceId={device.id}
-            initial={{ kw: powerKw, a: getValue("current_import_l1_a") as number | null, v: getValue("voltage_l1_n_v") as number | null, registerKwh: getValue("energy_active_import_register_kwh") as number | null }}
-            ratedKw={ratedKw}
-            charging={!!running}
-            session={
-              running
-                ? {
-                    startedAt: running.started_at,
-                    startKwh: sessionStartKwh(running),
-                    targetKwh: running.target_kwh ?? null,
-                    shares: sourceShares({
-                      energy_from_solar_kwh: running.energy_from_solar_kwh ?? null,
-                      energy_from_battery_kwh: running.energy_from_battery_kwh ?? null,
-                      energy_from_grid_kwh: running.energy_from_grid_kwh ?? null,
-                      energy_unattributed_kwh: running.energy_unattributed_kwh ?? null,
-                    }),
-                    solarPct: running.solar_share_pct,
-                  }
-                : null
-            }
-            lastCharge={lastCharge}
-          />
-
-          <EvTodayChart points={todayPoints} summary={todaySummary} />
-
-          <EvTabSessions sessions={tabSessions} deviceId={device.id} />
-
-          <SessionReceiptCard title="Live session details" sections={receiptSections} getValue={getValue} enumOptionsByRef={enumOptions} units={await getUnitPrefs()} />
-        </TabsContent>
-      </EvTabsShell>
+      <TabHeadlineBar tabValue="ev" headline={headline} actions={headline.actions} />
+      <div className="space-y-4">{content}</div>
     </>
   );
 }
 
-/** The charger's two panels. On a page of its own the tab is kept in the address (#ev, #hub); inside the Monitoring page's EV tab it is plain, so
- *  it does not fight the page's own tab strip for the address. */
-function EvTabsShell({ embedded, deviceId, children }: { embedded: boolean; deviceId: string; children: React.ReactNode }) {
-  if (embedded) return <Tabs key={deviceId} defaultValue="ev">{children}</Tabs>;
-  return (
-    <MonitoringTabs key={deviceId} defaultValue="ev" headlines={{}} validValues={["ev", "hub"]} aliases={{ sessions: "ev" }}>
-      {children}
-    </MonitoringTabs>
-  );
-}

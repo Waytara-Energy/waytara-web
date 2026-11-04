@@ -1,76 +1,12 @@
 "use client";
 
 import * as React from "react";
-import { ArrowDownToLine, Gauge, Plug, Zap } from "lucide-react";
 import type { EnumOption } from "@/lib/enum-labels";
 import type { FieldValue } from "@/lib/template-field-format";
 import type { FieldGroup } from "@/lib/template-fields";
 import { useLiveNumbers } from "@/lib/telemetry/live-values";
 import { useUnits } from "@/components/units-provider";
-import { LiveStatusCard } from "./live-status-card";
 import { renderGroup } from "./monitoring-shared";
-
-const CARD_KEYS = ["power_active_import_kw", "power_offered_kw"];
-
-/** The charger hub's headline row: offered power and utilization follow the live channel; session count and energy
- *  come from charging sessions (not telemetry), so they are the server's figures. */
-export function EvHubCards({
-  deviceId,
-  initial,
-  sessionsToday,
-  energyTodayKwh,
-}: {
-  deviceId: string;
-  initial: Record<string, number | null>;
-  sessionsToday: number;
-  energyTodayKwh: number;
-}) {
-  const n = useLiveNumbers([deviceId], CARD_KEYS, initial);
-  const u = useUnits();
-  const powerKw = n.power_active_import_kw;
-  const offeredKw = n.power_offered_kw;
-  const utilizationPct = powerKw !== null && offeredKw !== null && offeredKw > 0 ? Math.max(0, Math.min(100, (powerKw / offeredKw) * 100)) : null;
-  return (
-    <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-      <LiveStatusCard
-        icon={Zap}
-        title="Power Offered"
-        subtitle="Max charger output"
-        value={offeredKw !== null ? u.format(offeredKw, "kW", "power_offered_kw", 1) : "—"}
-        statusLabel="Status"
-        badgeLabel="Live"
-        badgeTone="neutral"
-      />
-      <LiveStatusCard
-        icon={Plug}
-        title="Sessions"
-        subtitle="Started today"
-        value={String(sessionsToday)}
-        statusLabel="Status"
-        badgeLabel="Today"
-        badgeTone="neutral"
-      />
-      <LiveStatusCard
-        icon={ArrowDownToLine}
-        title="Energy Delivered"
-        subtitle="Total today"
-        value={u.format(energyTodayKwh, "kWh", "ev_energy_today_kwh", 1)}
-        statusLabel="Status"
-        badgeLabel="Today"
-        badgeTone={energyTodayKwh > 0 ? "good" : "neutral"}
-      />
-      <LiveStatusCard
-        icon={Gauge}
-        title="Power Utilization"
-        subtitle="Of max output"
-        value={utilizationPct !== null ? `${utilizationPct.toFixed(0)}%` : "—"}
-        statusLabel="Status"
-        badgeLabel="Live"
-        badgeTone="neutral"
-      />
-    </div>
-  );
-}
 
 /** The hub's reading groups, live in place like the solar screen's. `initial` is what the server rendered. */
 export function EvHubGroups({
