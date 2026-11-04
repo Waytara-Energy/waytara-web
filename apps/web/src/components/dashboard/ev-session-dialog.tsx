@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { Area, AreaChart, CartesianGrid, ReferenceArea, XAxis, YAxis } from "recharts";
-import { Clock, Gauge, IndianRupee, Leaf, Loader2, Thermometer, Zap } from "lucide-react";
+import { ArrowLeft, Clock, Gauge, IndianRupee, Leaf, Loader2, Thermometer, Zap } from "lucide-react";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { ChartContainer, ChartTooltip, ChartTooltipContent, type ChartConfig } from "@/components/ui/chart";
 import { useUnits } from "@/components/units-provider";
@@ -206,8 +206,11 @@ export function EvSessionDialog({ sessionId, onClose, load }: { sessionId: strin
   );
 }
 
-function Loaded({ id, load }: { id: string; load: EvSessionLoader }) {
-  const [state, setState] = React.useState<{ ok: true; detail: EvSessionDetail } | { ok: false; message: string } | null>(null);
+type LoadState = { ok: true; detail: EvSessionDetail } | { ok: false; message: string } | null;
+
+/** Fetches one charge. Keyed by the charge by whoever uses it, so each one starts from a fresh, loading state. */
+function useSession(id: string, load: EvSessionLoader): LoadState {
+  const [state, setState] = React.useState<LoadState>(null);
   React.useEffect(() => {
     let cancelled = false;
     load(id)
@@ -217,29 +220,67 @@ function Loaded({ id, load }: { id: string; load: EvSessionLoader }) {
       cancelled = true;
     };
   }, [id, load]);
+  return state;
+}
 
+const statusClass = (tone: string) => (tone === "warn" ? "bg-amber-500/15 text-amber-700 dark:text-amber-300" : tone === "good" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-muted text-muted-foreground");
+const describe = (d: EvSessionDetail) => [d.stopReason, d.endedAt ? `ended ${when(d.endedAt)}` : "in progress", d.transactionId !== null ? `charge no. ${d.transactionId}` : null].filter(Boolean).join(" · ");
+
+function Loaded({ id, load }: { id: string; load: EvSessionLoader }) {
+  const state = useSession(id, load);
   const d = state?.ok ? state.detail : null;
   return (
     <>
       <DialogHeader>
         <DialogTitle className="flex flex-wrap items-center gap-2">
           {d ? when(d.startedAt) : "Charge"}
-          {d ? (
-            <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", d.status.tone === "warn" ? "bg-amber-500/15 text-amber-700 dark:text-amber-300" : d.status.tone === "good" ? "bg-emerald-500/15 text-emerald-700 dark:text-emerald-300" : "bg-muted text-muted-foreground")}>{d.status.label}</span>
-          ) : null}
+          {d ? <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", statusClass(d.status.tone))}>{d.status.label}</span> : null}
           {d?.isTest ? <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">Test</span> : null}
         </DialogTitle>
-        <DialogDescription>{d ? [d.stopReason, d.endedAt ? `ended ${when(d.endedAt)}` : "in progress", d.transactionId !== null ? `charge no. ${d.transactionId}` : null].filter(Boolean).join(" · ") : "Loading the charge…"}</DialogDescription>
+        <DialogDescription>{d ? describe(d) : "Loading the charge…"}</DialogDescription>
       </DialogHeader>
-      {state === null ? (
-        <div className="grid h-48 place-items-center text-muted-foreground">
-          <Loader2 className="size-6 animate-spin" />
-        </div>
-      ) : state.ok ? (
-        <Detail d={state.detail} />
-      ) : (
-        <p className="py-8 text-center text-sm text-muted-foreground">{state.message}</p>
-      )}
+      <Body state={state} />
     </>
+  );
+}
+
+function Body({ state }: { state: LoadState }) {
+  return state === null ? (
+    <div className="grid h-48 place-items-center text-muted-foreground">
+      <Loader2 className="size-6 animate-spin" />
+    </div>
+  ) : state.ok ? (
+    <Detail d={state.detail} />
+  ) : (
+    <p className="py-8 text-center text-sm text-muted-foreground">{state.message}</p>
+  );
+}
+
+/** The one-charge view on the page itself (no dialog): the same heading and sections. `onBack` adds a back button for a narrow screen, where the
+ *  list and the charge take turns. Keyed by the charge, so each one starts from a fresh, loading state. */
+export function EvSessionPanel({ id, load, onBack }: { id: string; load: EvSessionLoader; onBack?: () => void }) {
+  return <PanelLoaded key={id} id={id} load={load} onBack={onBack} />;
+}
+
+function PanelLoaded({ id, load, onBack }: { id: string; load: EvSessionLoader; onBack?: () => void }) {
+  const state = useSession(id, load);
+  const d = state?.ok ? state.detail : null;
+  return (
+    <div className="space-y-5">
+      <div className="space-y-1">
+        {onBack ? (
+          <button type="button" onClick={onBack} className="mb-1 inline-flex items-center gap-1.5 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring lg:hidden">
+            <ArrowLeft className="size-4" /> All charges
+          </button>
+        ) : null}
+        <h3 className="flex flex-wrap items-center gap-2 text-lg font-semibold text-foreground">
+          {d ? when(d.startedAt) : "Charge"}
+          {d ? <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", statusClass(d.status.tone))}>{d.status.label}</span> : null}
+          {d?.isTest ? <span className="rounded-full bg-muted px-2.5 py-0.5 text-xs font-medium text-muted-foreground">Test</span> : null}
+        </h3>
+        <p className="text-sm text-muted-foreground">{d ? describe(d) : "Loading the charge…"}</p>
+      </div>
+      <Body state={state} />
+    </div>
   );
 }

@@ -3,15 +3,11 @@
 import * as React from "react";
 import type { ColumnDef } from "@tanstack/react-table";
 import { BarChart3, CarFront, FileSpreadsheet, FileText, RotateCcw, Table2 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { DataTable } from "@/components/ui/data-table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ButtonSpinner } from "@/components/ui/spinner";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group";
-import { getEvSessionDetail } from "@/app/dashboard/ev-session-detail-action";
 import { evPerfStats, spanOfDays, type EvDayFigures, type EvPerfSession, type EvRow } from "@/lib/ev-perf-stats";
 import { formatSeconds, sessionStatusLabel } from "@/lib/ev-sessions";
 import { buildEvReport, evChargingDays, evSummaryFigures, type EvReport } from "@/lib/reports/ev-report";
@@ -21,7 +17,7 @@ import { fmtDate } from "@/lib/savings";
 import { cn } from "@/lib/utils";
 import { ChartEmptyState } from "./chart-empty-state";
 import { ChartCore, type ChartRow, type ChartSeriesDef, type ReadoutItem } from "./chart-kit";
-import { EvSessionDialog } from "./ev-session-dialog";
+import { EvSessionsBrowser } from "./ev-sessions-browser";
 import { FLOW } from "./flow-colors";
 import { Panel, StatTile, useKwhText } from "./perf-kit";
 import { ALL_DAY, TimeOfDayFilter, isAllDay, windowIsValid, type DayWindow } from "./report-filters";
@@ -30,8 +26,6 @@ import { useDownloadPending } from "./use-download-pending";
 
 const when = (ts: string) => new Date(ts).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
 const monthName = (m: string) => new Date(`${m}-15T00:00:00Z`).toLocaleDateString("en-IN", { month: "long", year: "numeric", timeZone: "UTC" });
-/** How many sessions the table lists at first, and how many more each press of "Show more" adds. */
-const PAGE = 25;
 /** The most charges drawn as bars in the graph (the newest); the table and the downloads hold all of them. */
 const MAX_BARS = 60;
 
@@ -116,7 +110,7 @@ export function EvReportsBody(props: EvReportsProps) {
   const { deviceId, today, firstDay, sessions } = props;
   const months = React.useMemo(() => monthsBetween(firstDay, today), [firstDay, today]);
   const [mode, setMode] = React.useState<EvReportMode>("sessions");
-  const [view, setView] = React.useState<"graph" | "table">("graph");
+  const [view, setView] = React.useState<"graph" | "table">("table");
   const [choice, setChoice] = React.useState<PeriodChoice>(() => ({ ...defaultChoice(today), mode: "30d" }));
   const [month, setMonth] = React.useState(months[0] ?? today.slice(0, 7));
   const [status, setStatus] = React.useState("all");
@@ -269,14 +263,13 @@ export function EvReportsBody(props: EvReportsProps) {
       {!winOk ? (
         <EmptyPick text="Set a start time that is earlier than the end time." />
       ) : (
-        <ReportView report={report} mode={mode} view={view} periodName={periodName} has={has} />
+        <ReportView report={report} mode={mode} view={view} periodName={periodName} has={has} today={today} />
       )}
     </section>
   );
 }
 
-function ReportView({ report, mode, view, periodName, has }: { report: EvReport; mode: EvReportMode; view: "graph" | "table"; periodName: string; has: boolean }) {
-  const [openId, setOpenId] = React.useState<string | null>(null);
+function ReportView({ report, mode, view, periodName, has, today }: { report: EvReport; mode: EvReportMode; view: "graph" | "table"; periodName: string; has: boolean; today: string }) {
   const s = report.stats;
   return (
     <div className="space-y-4">
@@ -304,14 +297,13 @@ function ReportView({ report, mode, view, periodName, has }: { report: EvReport;
           view === "graph" ? (
             <SessionsGraph rows={s.rows} periodName={periodName} />
           ) : (
-            <SessionsTable rows={s.rows} periodName={periodName} onOpen={setOpenId} />
+            <EvSessionsBrowser rows={s.rows} periodName={periodName} today={today} />
           )
         ) : view === "graph" ? (
           <DaysGraph report={report} periodName={periodName} />
         ) : (
           <DaysTable report={report} periodName={periodName} />
         ))}
-      <EvSessionDialog sessionId={openId} onClose={() => setOpenId(null)} load={getEvSessionDetail} />
     </div>
   );
 }
@@ -378,67 +370,6 @@ function SessionsGraph({ rows, periodName }: { rows: EvRow[]; periodName: string
         readoutLead={(r) => lead(["total", "Energy", kwhText(r.total as number | null)], ["time", "Charging time", (r.time as string | null) ?? null])}
       />
     </Panel>
-  );
-}
-
-function SessionsTable({ rows, periodName, onOpen }: { rows: EvRow[]; periodName: string; onOpen: (id: string) => void }) {
-  const [more, setMore] = React.useState<{ key: string; n: number } | null>(null);
-  const key = `${rows.length}|${rows[0]?.id ?? ""}`;
-  const shown = more && more.key === key ? more.n : PAGE;
-  return (
-    <Card>
-      <CardHeader className="space-y-1">
-        <CardTitle className="text-sm">Charging sessions</CardTitle>
-        <CardDescription>
-          {periodName} · {rows.length} {rows.length === 1 ? "session" : "sessions"}. Press one to see that charge in full.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>Started</TableHead>
-              <TableHead>Charging time</TableHead>
-              <TableHead className="text-right">Energy</TableHead>
-              <TableHead className="text-right">Peak</TableHead>
-              <TableHead className="text-right">Solar</TableHead>
-              <TableHead>Status</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {rows.slice(0, shown).map((r) => {
-              const st = sessionStatusLabel(r.status);
-              return (
-                <TableRow key={r.id}>
-                  <TableCell className="tabular-nums">
-                    <button type="button" onClick={() => onOpen(r.id)} className="font-medium underline-offset-4 outline-none hover:underline focus-visible:ring-2 focus-visible:ring-ring">
-                      {when(r.startedAt)}
-                    </button>
-                  </TableCell>
-                  <TableCell className="tabular-nums text-muted-foreground">{r.durationS === null ? "—" : formatSeconds(r.durationS)}</TableCell>
-                  <TableCell className="text-right tabular-nums">{r.energyKwh === null ? "—" : `${r.energyKwh.toFixed(r.energyKwh >= 10 ? 1 : 2)} kWh`}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">{r.peakKw === null ? "—" : `${r.peakKw.toFixed(1)} kW`}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">{r.solarSharePct === null ? "—" : `${r.solarSharePct.toFixed(0)}%`}</TableCell>
-                  <TableCell>
-                    <Badge variant={st.tone === "warn" ? "alert" : st.tone === "good" ? "default" : "secondary"}>{st.label}</Badge>
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
-        {rows.length > shown && (
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-xs text-muted-foreground">
-              Showing {shown} of {rows.length}
-            </p>
-            <Button type="button" variant="outline" size="sm" onClick={() => setMore({ key, n: shown + PAGE * 2 })}>
-              Show more
-            </Button>
-          </div>
-        )}
-      </CardContent>
-    </Card>
   );
 }
 
