@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Check, type LucideIcon } from "lucide-react";
+import { ArrowRight, Check, CircleCheck, type LucideIcon } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 import { SectionHeader } from "@/components/shared/section-header";
 import { cn } from "@/lib/utils";
@@ -113,28 +113,31 @@ export interface Feature {
   note?: string;
 }
 
-/** Features in hairline-divided columns: three or four across, stacked on a phone. */
+/**
+ * Features in the Apple product-page style: no boxes, a large thin icon, then one paragraph with the title in dark type and the description in
+ * grey, set in the same semibold weight. Two to four columns across, stacked on a phone. A small label (tag), a checklist and a closing note are
+ * kept for the cells that have them, quietly under the paragraph.
+ */
 export function FeatureColumns({ items }: { items: Feature[] }) {
-  const cols = items.length >= 4 ? "md:grid-cols-2 lg:grid-cols-4" : items.length === 2 ? "md:grid-cols-2" : "md:grid-cols-3";
+  const cols = items.length >= 4 ? "sm:grid-cols-2 lg:grid-cols-4" : items.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3";
   return (
-    <Reveal direction="up" duration={800} distance={24}>
-      {/* The 1px gaps show the hairline colour behind the cells, so the dividers are right at any column count. */}
-      <ul className={cn("grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-theme-border bg-theme-border", cols)}>
-        {items.map(({ icon: Icon, title, body, tag, includesLabel, includes, note }) => (
-          <li key={title} className="flex flex-col bg-theme-surface px-7 py-8 sm:px-8">
-            <div className="flex items-center justify-between">
-              <Icon className="size-6 stroke-[1.5] text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-              {tag && <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">{tag}</span>}
-            </div>
-            <h3 className="mt-6 text-base font-semibold text-theme-primary">{title}</h3>
-            <p className="mt-1.5 text-sm leading-relaxed text-theme-secondary">{body}</p>
+    <ul className={cn("grid grid-cols-1 gap-x-14 gap-y-16", cols)}>
+      {items.map(({ icon: Icon, title, body, tag, includesLabel, includes, note }, i) => (
+        <li key={title}>
+          <Reveal direction="up" duration={800} distance={24} delay={(i % 4) * 90} className="flex h-full flex-col">
+            <Icon className="size-12 stroke-[1.1] text-theme-primary sm:size-14" aria-hidden="true" />
+            {tag && <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">{tag}</p>}
+            <p className={cn("max-w-[24rem] text-[clamp(1.0625rem,1.25vw,1.25rem)] font-semibold leading-snug", tag ? "mt-2" : "mt-6")}>
+              <span className="text-theme-primary">{title}. </span>
+              <span className="text-theme-secondary">{body}</span>
+            </p>
             {includes && (
-              <div className="mt-5 border-t border-theme-border pt-5">
+              <div className="mt-6">
                 {includesLabel && <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">{includesLabel}</p>}
                 <ul className="space-y-2.5">
                   {includes.map((item) => (
-                    <li key={item} className="flex items-start gap-2.5 text-sm text-theme-secondary">
-                      <Check className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                    <li key={item} className="flex items-start gap-2.5 text-sm font-medium text-theme-secondary">
+                      <CircleCheck className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
                       <span>{item}</span>
                     </li>
                   ))}
@@ -142,10 +145,10 @@ export function FeatureColumns({ items }: { items: Feature[] }) {
               </div>
             )}
             {note && <p className="mt-auto pt-6 text-xs leading-relaxed text-theme-muted">{note}</p>}
-          </li>
-        ))}
-      </ul>
-    </Reveal>
+          </Reveal>
+        </li>
+      ))}
+    </ul>
   );
 }
 
