@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, CircleCheck } from "lucide-react";
 import { Navigation } from "@/components/sections/navigation";
 import { Footer } from "@/components/sections/footer";
 import { WhoWeServe } from "@/components/sections/who-we-serve";
@@ -55,48 +55,43 @@ export function SolutionsHub() {
               />
             </Reveal>
 
-            <ul className="border-t border-theme-border">
-              {OFFERS.map(({ id, icon: Icon, name, tag, title, body, includes, whoFor }) => {
+            {/* Three frameless columns, the same look as "What WayTara does" on the landing page; each keeps its anchor for the header menu. */}
+            <div className="grid grid-cols-1 gap-12 md:grid-cols-3 lg:gap-12">
+              {OFFERS.map(({ id, icon: Icon, title, body, includes, whoFor }, i) => {
                 const link = NEED_LINKS[id];
                 return (
-                  <li key={id} id={id} className="scroll-mt-28 border-b border-theme-border">
-                    <Reveal direction="up" duration={800} distance={24}>
-                      <div className="grid grid-cols-1 gap-8 py-10 lg:grid-cols-5 lg:gap-12">
-                        <div className="lg:col-span-2">
-                          <div className="flex items-center gap-3">
-                            <Icon className="size-6 stroke-[1.5] text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                            <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">
-                              {name} · {tag}
-                            </span>
+                  <div key={id} id={id} className="scroll-mt-28">
+                    <Reveal direction="up" duration={650} distance={24} delay={i * 100}>
+                      <div className="group flex h-full flex-col justify-start text-left">
+                        <div className="mb-4">
+                          <div className="flex size-10 items-center justify-center rounded-full border border-theme-border bg-theme-surface text-theme-primary transition-colors group-hover:border-emerald-500/30 group-hover:bg-emerald-500/10 group-hover:text-emerald-500 dark:group-hover:text-emerald-400">
+                            <Icon className="size-5 stroke-[1.75]" aria-hidden="true" />
                           </div>
-                          <h3 className="mt-5 text-xl font-semibold text-theme-primary">{title}</h3>
-                          <p className="mt-2 max-w-md text-sm leading-relaxed text-theme-secondary">{body}</p>
                         </div>
-
-                        <div className="lg:col-span-3">
-                          <ul className="grid grid-cols-1 gap-x-8 gap-y-2.5 sm:grid-cols-2">
-                            {includes.map((item) => (
-                              <li key={item} className="flex items-start gap-2.5 text-sm text-theme-secondary">
-                                <Check className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                                <span>{item}</span>
-                              </li>
-                            ))}
-                          </ul>
-                          <p className="mt-6 text-sm text-theme-secondary">
-                            <span className="font-semibold text-theme-primary">Who it is for: </span>
-                            {whoFor}
-                          </p>
-                          <Link href={link.href} className="group mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
-                            {link.label}
-                            <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-                          </Link>
-                        </div>
+                        <h3 className="mb-2 text-base font-bold tracking-tight text-theme-primary sm:text-lg">{title}</h3>
+                        <p className="text-sm font-normal leading-relaxed text-theme-secondary sm:text-[15px]">{body}</p>
+                        <ul className="mt-5 space-y-2.5 border-t border-theme-border pt-5">
+                          {includes.map((item) => (
+                            <li key={item} className="flex items-start gap-2.5 text-sm text-theme-secondary">
+                              <CircleCheck className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                              <span>{item}</span>
+                            </li>
+                          ))}
+                        </ul>
+                        <p className="mt-5 text-sm text-theme-secondary">
+                          <span className="font-semibold text-theme-primary">Who it is for: </span>
+                          {whoFor}
+                        </p>
+                        <Link href={link.href} className="group/link mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
+                          {link.label}
+                          <ArrowRight className="size-4 transition-transform group-hover/link:translate-x-0.5" aria-hidden="true" />
+                        </Link>
                       </div>
                     </Reveal>
-                  </li>
+                  </div>
                 );
               })}
-            </ul>
+            </div>
           </div>
         </section>
 
