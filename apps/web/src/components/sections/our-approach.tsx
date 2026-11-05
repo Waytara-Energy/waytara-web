@@ -5,8 +5,8 @@ import { ArrowDown } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ApproachParts } from "./approach-parts";
 
-const FULL_LINE_1 = "One Smart Energy System.";
-const FULL_LINE_2 = "Built Around You.";
+const FULL_LINE_1 = "Build the energy system.";
+const FULL_LINE_2 = "Connect it. Manage it.";
 
 export function OurApproach() {
   const sectionRef = React.useRef<HTMLElement>(null);
@@ -115,7 +115,7 @@ export function OurApproach() {
                 : "opacity-0 translate-y-3 pointer-events-none"
             )}
           >
-            We bring together the technologies your property needs to generate, store, use and manage power as one coordinated energy system.
+            Solar, storage and EV charging usually come from different suppliers, each with its own app. WayTara designs and installs them, then connects them through its own gateway and software, so you can see and manage the whole system in one place.
           </p>
         </div>
 

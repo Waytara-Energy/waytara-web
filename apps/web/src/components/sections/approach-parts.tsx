@@ -8,22 +8,22 @@ interface Part {
   body: string;
 }
 
-// What the platform does for each part of the system.
+// What the platform does for each part of the system. Wording follows the website notes and says only what the dashboard does today.
 const PARTS: Part[] = [
   {
     Vignette: InverterVignette,
-    title: "Every inverter, live",
-    body: "See what your solar is generating, using and sending to the grid, as it happens.",
+    title: "Solar, live",
+    body: "Supported inverters show what your solar generates, what you use and what goes to the grid, as it happens.",
   },
   {
     Vignette: BatteryVignette,
-    title: "Every battery, always in view",
-    body: "See each battery's charge at a glance, and know when one is running low.",
+    title: "Storage, in view",
+    body: "See the charge of supported batteries at a glance, alongside the rest of your system.",
   },
   {
     Vignette: EvChargerVignette,
-    title: "EV charging, on your terms",
-    body: "Charge your vehicle from your own solar, at the times that suit you.",
+    title: "Charging, managed",
+    body: "See your chargers and every charging session, and start or stop a supported charger from the same dashboard.",
   },
 ];
 
