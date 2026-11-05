@@ -7,6 +7,14 @@ import { LEGAL_LINKS, PARTNER_LINK, PRIMARY_LINKS, CONTACT_LINK, SOLUTION_SEGMEN
 const COLUMN_TITLE = "text-xs sm:text-[13px] font-bold text-theme-primary tracking-tight";
 const FOOTER_LINK = "hover:text-theme-primary transition-colors";
 
+/** The easy ways in, on every page: plan a new system, check what you already have, manage it, or ask us. */
+const GET_STARTED = [
+  { label: "Plan my system", href: "/planner" },
+  { label: "Check my equipment", href: "/technology#compatibility" },
+  { label: "Manage my system", href: "/login" },
+  { label: "Talk to us", href: "/contact" },
+];
+
 export function Footer() {
   return (
     <footer className="border-t border-black/[0.06] dark:border-white/[0.06] bg-theme-bg text-theme-secondary text-xs relative overflow-hidden">
@@ -22,7 +30,20 @@ export function Footer() {
             </p>
           </div>
 
-          <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-6 sm:gap-8">
+          <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8">
+
+            <div className="space-y-3">
+              <h4 className={COLUMN_TITLE}>Get started</h4>
+              <ul className="space-y-2.5">
+                {GET_STARTED.map((link) => (
+                  <li key={link.href}>
+                    <Link href={link.href} className={FOOTER_LINK}>
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
 
             <div className="space-y-3">
               <h4 className={COLUMN_TITLE}>Solutions</h4>

@@ -11,7 +11,7 @@ export const ABOUT_DESCRIPTION =
 
 const MENU = [
   { id: "who", label: "Who we are" },
-  { id: "our-team", label: "Vision & team" },
+  { id: "our-team", label: "Our team" },
   { id: "where", label: "Where we are" },
   { id: "enquire", label: "Get in touch" },
 ];
@@ -44,7 +44,7 @@ export function AboutPage() {
         <FeatureColumns items={OFFERS.map(({ icon, title, blockBody }) => ({ icon, title, body: blockBody }))} />
       </SegmentSection>
 
-      {/* The vision, mission and goal, and the people behind WayTara (moved here from the landing page) */}
+      {/* The people behind WayTara */}
       <OurTeam />
 
       <SegmentSection
@@ -52,7 +52,7 @@ export function AboutPage() {
         badge="Where we are"
         title="Visit us in"
         accent="Mylapore, Chennai."
-        summary="Our office is in the ASE Structure Design building on Dr. Radhakrishnan Salai. Talk to us about a project, or about connecting equipment you already have."
+        summary="Talk to us about a project, or about connecting equipment you already have."
       >
         <Reveal direction="up" duration={800} distance={24}>
           <OfficeMap />

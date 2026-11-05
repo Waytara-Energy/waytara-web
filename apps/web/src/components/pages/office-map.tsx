@@ -8,7 +8,7 @@ import { BUILDINGS_3D_LAYER, SITE_BUILDING_3D_LAYER, SITE_BUILDING_SOURCE, mapSt
 import { SITE } from "@/lib/site";
 import "maplibre-gl/dist/maplibre-gl.css";
 
-/** The office: the ASE Structure Design building, 3rd floor, on Dr. Radhakrishnan Salai in Mylapore (the place pinned on Google Maps). */
+/** The office: WayTara Energy LLP, 3rd floor, on Dr. Radhakrishnan Salai in Mylapore (the place pinned on Google Maps, 13.0432659, 80.2647689). */
 const OFFICE = { lat: 13.0432659, lng: 80.2647689 };
 const DIRECTIONS = "https://maps.app.goo.gl/uDAuNfJjh5uXBpZa9";
 const ZOOM = 17.6;
@@ -126,9 +126,9 @@ export function OfficeMap() {
           <div className="flex items-start gap-3">
             <MapPin className="mt-1 size-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
             <div>
-              <p className="text-base font-bold tracking-tight text-theme-primary">WayTara Energy</p>
+              <p className="text-base font-bold tracking-tight text-theme-primary">WayTara Energy LLP</p>
               <p className="mt-1 text-sm leading-relaxed text-theme-secondary">
-                ASE Structure Design building, {SITE.address.streetAddress.replace(/, Mylapore$/, "")}, Mylapore, {SITE.address.addressLocality},{" "}
+                {SITE.address.streetAddress.replace(/, Mylapore$/, "")}, Mylapore, {SITE.address.addressLocality},{" "}
                 {SITE.address.addressRegion} {SITE.address.postalCode}
               </p>
             </div>

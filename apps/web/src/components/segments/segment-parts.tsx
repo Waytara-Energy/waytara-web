@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, CircleCheck, Hammer, SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { ArrowRight, CircleCheck, type LucideIcon } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 import { SectionHeader } from "@/components/shared/section-header";
 import { cn } from "@/lib/utils";
@@ -229,18 +229,33 @@ export function NoteColumns({ items, className }: { items: { title: string; body
  * link. One is for a new system and one for equipment the visitor already has.
  */
 export function EnquiryRoutes({ heading, accent, newRoute, existingRoute }: { heading: string; accent: string; newRoute: Cta & { hint: string }; existingRoute: Cta & { hint: string } }) {
+  // Small and quiet on purpose: one line of headline on the left, two plain rows on the right (label, one line, arrow) between hairlines.
+  // The full set of ways in lives in the footer on every page.
   return (
-    <section id="enquire" className="section-padding scroll-mt-28">
+    <section id="enquire" className="scroll-mt-28 py-16 sm:py-20">
       <div className="fluid-container">
-        <Reveal direction="up" duration={700} distance={24}>
-          <SectionHeader badge="Next step" title={heading} accent={accent} />
-        </Reveal>
-        <FeatureColumns
-          items={[
-            { icon: Hammer, title: newRoute.label, body: newRoute.hint, link: { label: "Get started", href: newRoute.href } },
-            { icon: SlidersHorizontal, title: existingRoute.label, body: existingRoute.hint, link: { label: "Get started", href: existingRoute.href } },
-          ]}
-        />
+        <div className="grid grid-cols-1 gap-8 border-t border-theme-border pt-10 lg:grid-cols-5 lg:gap-14">
+          <Reveal direction="up" duration={700} distance={16} className="lg:col-span-2">
+            <h2 className="text-[clamp(1.5rem,2.4vw,2.1rem)] font-bold leading-tight tracking-tight text-theme-primary">
+              {heading} <span className="text-primary-gradient">{accent}</span>
+            </h2>
+          </Reveal>
+          <Reveal direction="up" duration={700} distance={16} delay={80} className="lg:col-span-3">
+            <ul className="divide-y divide-theme-border border-y border-theme-border">
+              {[newRoute, existingRoute].map((route) => (
+                <li key={route.href + route.label}>
+                  <Link href={route.href} className="group flex items-center justify-between gap-6 py-5">
+                    <span className="min-w-0">
+                      <span className="block text-base font-semibold text-theme-primary group-hover:text-theme-highlight">{route.label}</span>
+                      <span className="mt-1 block text-sm leading-relaxed text-theme-secondary">{route.hint}</span>
+                    </span>
+                    <ArrowRight className="size-5 shrink-0 text-theme-highlight transition-transform group-hover:translate-x-1" aria-hidden="true" />
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </Reveal>
+        </div>
       </div>
     </section>
   );

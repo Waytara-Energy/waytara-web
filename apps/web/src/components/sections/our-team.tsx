@@ -1,9 +1,8 @@
 import { existsSync } from "node:fs";
 import path from "node:path";
 import Image from "next/image";
-import { Compass, Target, Telescope } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
-import { FeatureColumns, SegmentSection } from "@/components/segments/segment-parts";
+import { SegmentSection } from "@/components/segments/segment-parts";
 
 interface TeamMember {
   /** The photo is public/images/team/<slug>.webp (or .jpg, .jpeg, .png); until it is added the card shows the initials. */
@@ -15,24 +14,6 @@ interface TeamMember {
   /** Regular-weight remainder, continuing straight on from `highlight`. */
   rest: string;
 }
-
-const VISION_MISSION_GOAL = [
-  {
-    icon: Telescope,
-    title: "Our Vision",
-    body: "We want every property in India to generate, store, and use its own power on its own terms — engineered as one intelligent system, not a patchwork of disconnected vendors.",
-  },
-  {
-    icon: Compass,
-    title: "Our Mission",
-    body: "We design, install, and stand behind integrated solar, battery, and EV charging systems — one standard, one accountable team, monitored in real time so you never have to wonder if it’s working.",
-  },
-  {
-    icon: Target,
-    title: "Our Goal",
-    body: "We want to be the reason a property owner in India never has to think about their power supply again — one system, one warranty, one team accountable for all of it.",
-  },
-];
 
 const TEAM: TeamMember[] = [
   {
@@ -75,7 +56,7 @@ const initials = (name: string) =>
     .join("")
     .toUpperCase();
 
-/** The vision, mission and goal as three plain blocks, then the people behind WayTara: a portrait each, their name and role, and what they do in their own words. */
+/** The people behind WayTara: a portrait each, their name and role, and what they do in their own words. */
 export function OurTeam() {
   return (
     <SegmentSection
@@ -83,13 +64,11 @@ export function OurTeam() {
       badge="Our team"
       title="The people building"
       accent="WayTara."
-      summary="What we are working towards, and who is doing the work."
+      summary="The people who design, build and support your system."
     >
-      <FeatureColumns items={VISION_MISSION_GOAL} />
-
       {/* Three people across, each with a portrait, name and role, and their quote. The three rows are shared (subgrid), so the portraits,
           the names and the quotes line up across the row whatever the length. */}
-      <ul className="-mb-14 mt-20 grid grid-cols-1 gap-x-12 sm:mt-24 md:grid-cols-3">
+      <ul className="-mb-14 grid grid-cols-1 gap-x-12 md:grid-cols-3">
         {TEAM.map((member, i) => {
           const photo = photoOf(member.slug);
           return (

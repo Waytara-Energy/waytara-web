@@ -95,7 +95,7 @@ export const PAGE_MENUS: PageMenu[] = [
     href: "/about",
     items: [
       { label: "Who we are", href: "/about#who", blurb: "Three things, done as one" },
-      { label: "Vision and team", href: "/about#our-team", blurb: "The people behind WayTara" },
+      { label: "Our team", href: "/about#our-team", blurb: "The people behind WayTara" },
       { label: "Where we are", href: "/about#where", blurb: "Visit us in Mylapore, Chennai" },
     ],
   },
