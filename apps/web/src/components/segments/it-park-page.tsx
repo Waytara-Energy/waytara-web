@@ -3,7 +3,7 @@ import { ProjectSteps } from "@/components/sections/project-steps";
 import { Reveal } from "@/components/shared/reveal";
 import { CPMS_FEATURES } from "./capabilities";
 import { FaqList, type Faq } from "./faq-list";
-import { EnquiryRoutes, FeatureColumns, InfoBand, NoteBlock, PlatformDiagram, PolicyRows, SegmentHero, SegmentSection } from "./segment-parts";
+import { EnquiryRoutes, FeatureColumns, InfoBand, NoteBlock, PolicyRows, SegmentHero, SegmentSection } from "./segment-parts";
 import { SegmentShell } from "./segment-shell";
 
 export const IT_PARK_PATH = "/solutions/it-park";
@@ -18,7 +18,6 @@ const M = CPMS_FEATURES.monetisation;
 const MENU = [
   { id: "campuses", label: "Campus types" },
   { id: "provide", label: "What we provide" },
-  { id: "connected", label: "One connected view" },
   { id: "charging", label: "Campus charging" },
   { id: "reporting", label: "Energy reporting" },
   { id: "stage", label: "New or existing" },
@@ -164,21 +163,6 @@ export function ItParkPage() {
         summary="Bring new equipment and what you already have into one plan."
       >
         <FeatureColumns items={PROVIDE} />
-      </SegmentSection>
-
-      <SegmentSection
-        id="connected"
-        badge="One connected view"
-        title="See your campus as one"
-        accent="connected energy system."
-        summary="Instead of treating solar, backup power and EV charging as separate installations, WayTara brings compatible equipment into one operating view, with no separate dashboard for each system."
-      >
-        <Reveal direction="up" duration={800} distance={24}>
-          <PlatformDiagram
-            inputs={["Solar and inverters", "Battery storage", "Energy meters", "EV chargers"]}
-            note="Monitor energy performance, identify consumption patterns and manage supported assets. What can be read or controlled depends on the make, model and enabled features of each device."
-          />
-        </Reveal>
       </SegmentSection>
 
       <SegmentSection

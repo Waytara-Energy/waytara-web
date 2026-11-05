@@ -4,7 +4,7 @@ import { ProjectSteps } from "@/components/sections/project-steps";
 import { Reveal } from "@/components/shared/reveal";
 import { FaqList, type Faq } from "./faq-list";
 import { CPMS_FEATURES } from "./capabilities";
-import { EnquiryRoutes, FeatureColumns, InfoBand, NoteBlock, PlatformDiagram, PolicyRows, SegmentHero, SegmentSection, type Feature } from "./segment-parts";
+import { EnquiryRoutes, FeatureColumns, InfoBand, NoteBlock, PolicyRows, SegmentHero, SegmentSection, type Feature } from "./segment-parts";
 import { SegmentShell } from "./segment-shell";
 
 export const EV_FLEET_PATH = "/solutions/ev-fleet";
@@ -328,12 +328,6 @@ export function EvFleetPage() {
               <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
             </Link>
           </div>
-        </Reveal>
-        <Reveal direction="up" duration={800} distance={24}>
-          <PlatformDiagram
-            inputs={["EV chargers", "Solar inverters and storage"]}
-            note="Already operating a charging site? You may not need a new charger or a new solar installation to explore WayTara CPMS. What can be read or controlled depends on the make, model and enabled features of each device."
-          />
         </Reveal>
       </SegmentSection>
 

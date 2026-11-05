@@ -436,30 +436,3 @@ export function InfoBand({
     </section>
   );
 }
-
-/** A small picture of how a site's equipment and the WayTara platform connect. No hardware detail: that belongs on the Platform page. */
-export function PlatformDiagram({ inputs, note }: { inputs: string[]; note: string }) {
-  return (
-    <div className="mt-12 rounded-2xl border border-theme-border bg-theme-surface p-6 sm:p-8">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">Connect the equipment. Connect the energy system.</p>
-      <div className="mt-6 grid grid-cols-1 items-center gap-4 md:grid-cols-[1fr_auto_1fr_auto_1.2fr]">
-        <div className="space-y-3">
-          {inputs.map((label) => (
-            <div key={label} className="rounded-xl border border-theme-border bg-theme-bg px-4 py-3 text-sm font-semibold text-theme-primary">
-              {label}
-            </div>
-          ))}
-        </div>
-        <ArrowRight className="mx-auto size-5 rotate-90 text-theme-muted md:rotate-0" aria-hidden="true" />
-        <div className="rounded-xl border border-theme-border bg-theme-bg px-4 py-6 text-center text-sm font-semibold text-theme-primary">WayTara gateway</div>
-        <ArrowRight className="mx-auto size-5 rotate-90 text-theme-muted md:rotate-0" aria-hidden="true" />
-        <div className="rounded-xl border border-emerald-500/40 bg-theme-bg px-4 py-4">
-          <p className="text-sm font-semibold text-theme-primary">WayTara platform</p>
-          <p className="mt-2 text-xs text-theme-secondary">Energy management: monitor supported energy equipment.</p>
-          <p className="mt-1.5 text-xs text-theme-secondary">Charging management: operate compatible charging infrastructure.</p>
-        </div>
-      </div>
-      <p className="mt-5 text-xs leading-relaxed text-theme-muted">{note}</p>
-    </div>
-  );
-}
