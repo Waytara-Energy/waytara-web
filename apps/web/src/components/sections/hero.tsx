@@ -167,7 +167,7 @@ export function Hero() {
         }}
       >
         <Reveal direction="up" delay={150} duration={900} distance={30}>
-          <h1 className="font-bold tracking-tight leading-[1.05] text-white text-balance text-[clamp(2rem,4.6vw,4.6rem)]">
+          <h1 className="font-bold tracking-tight leading-[1.05] text-white text-balance text-[clamp(2rem,4.6vw,7rem)]">
             <span className="block sm:whitespace-nowrap drop-shadow-[0_2px_14px_rgba(0,20,60,0.35)]">Your property&rsquo;s energy,</span>
             <span className="block sm:whitespace-nowrap bg-gradient-to-b from-white via-white/75 to-white/15 bg-clip-text text-transparent">built as one system.</span>
           </h1>
@@ -183,10 +183,11 @@ export function Hero() {
 
       {/* 3. Bottom row: what WayTara does (left) and what to do next (right). It slides down and fades out in the first part of the scroll. */}
       <div
-        className="absolute inset-x-0 bottom-0 z-40 px-[var(--page-gutter)] pb-8 sm:pb-12 group-data-[past=1]:pointer-events-none"
+        className="absolute inset-x-0 bottom-0 z-40 pb-8 sm:pb-12 group-data-[past=1]:pointer-events-none"
         style={{ opacity: "calc(1 - var(--p) * 2.8)", transform: "translateY(calc(var(--p) * 9cqh))" }}
       >
-        <div className="mx-auto max-w-7xl flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
+        {/* the same width and side gutter as the nav and every section below, so the edges line up */}
+        <div className="fluid-container flex flex-col gap-6 sm:flex-row sm:items-end sm:justify-between">
           <Reveal direction="up" delay={400} duration={850} distance={20} className="max-w-xl text-left">
             <p className="text-[clamp(1.1rem,1.8vw,1.65rem)] font-semibold leading-snug text-white">
               Solar, battery storage and EV charging, designed, installed and managed together.

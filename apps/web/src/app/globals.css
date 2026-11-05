@@ -299,7 +299,8 @@ body {
 
 .fluid-container {
   width: 100%;
-  max-width: 1536px;
+  /* 1536px on ordinary screens; on very large ones it grows with the screen (78% of it, up to 2240px) so the side margins stay modest. */
+  max-width: min(max(1536px, 78vw), 2240px);
   margin-left: auto;
   margin-right: auto;
   padding-left: var(--page-gutter);
