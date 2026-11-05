@@ -8,7 +8,7 @@ const ROUTE_LINK = "group inline-flex items-center gap-1.5 text-sm font-semibold
 
 /**
  * Build, Charge, Manage: what WayTara does. Three frameless columns in the same look as the pillars further down the page (a round icon badge, a
- * bold title, a short description), each with what it includes, then the two ways in.
+ * bold title, a short description), each with what it includes, then the two ways in, as two plain links.
  */
 export function WhatWeDo() {
   return (
@@ -50,16 +50,14 @@ export function WhatWeDo() {
         {/* The two ways in. The dashboard card that follows slides up over the bottom of this section (its negative top margin), so the space under them is deliberate. */}
         <Reveal direction="up" duration={700} distance={16} delay={100}>
           <div className="mx-auto mt-14 flex flex-col items-center gap-3 pb-24 text-center md:flex-row md:flex-wrap md:justify-center md:gap-x-6 md:pb-52">
-            <p className="text-sm text-theme-secondary">
-              <span className="font-semibold text-theme-primary">Planning a new installation? </span>
+            <p className="text-sm">
               <Link href="/planner" className={ROUTE_LINK}>
                 Plan a new system
                 <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
               </Link>
             </p>
             <span className="hidden h-4 w-px bg-theme-border md:block" aria-hidden="true" />
-            <p className="text-sm text-theme-secondary">
-              <span className="font-semibold text-theme-primary">Already have an energy system? </span>
+            <p className="text-sm">
               <Link href="/technology#compatibility" className={ROUTE_LINK}>
                 Connect what I already have
                 <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
