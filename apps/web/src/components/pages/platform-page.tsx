@@ -18,7 +18,6 @@ const MENU = [
   { id: "how", label: "How it connects" },
   { id: "energy", label: "Energy management" },
   { id: "charging", label: "Charging management" },
-  { id: "features", label: "Features" },
   { id: "demo", label: "Live demo" },
   { id: "compatibility", label: "Check compatibility" },
   { id: "faq", label: "FAQ" },
@@ -225,6 +224,8 @@ export function PlatformPage() {
             },
           ]}
         />
+        <h3 className="mb-10 mt-24 text-[clamp(1.4rem,2vw,1.9rem)] font-bold tracking-tight text-theme-primary">Features</h3>
+        <FeatureColumns items={DASHBOARD_FEATURES} columns={3} />
       </SegmentSection>
 
       <SegmentSection
@@ -235,18 +236,7 @@ export function PlatformPage() {
         summary="For OCPP 1.6J chargers. The functions available depend on each charger's supported OCPP features and firmware."
       >
         <SeeDo see={CHARGING_SEE} seeBody="The state of every charger and each charging session." doo={chargingDo} doBody="The commands that compatible chargers support." />
-      </SegmentSection>
-
-      <SegmentSection
-        id="features"
-        badge="Features"
-        title="Everything you get"
-        accent="once it is connected."
-        summary="What the dashboard does for your energy equipment, and what it does for your chargers."
-      >
-        <h3 className="mb-10 text-[clamp(1.4rem,2vw,1.9rem)] font-bold tracking-tight text-theme-primary">Energy management</h3>
-        <FeatureColumns items={DASHBOARD_FEATURES} columns={3} />
-        <h3 className="mb-10 mt-24 text-[clamp(1.4rem,2vw,1.9rem)] font-bold tracking-tight text-theme-primary">Charger management</h3>
+        <h3 className="mb-10 mt-24 text-[clamp(1.4rem,2vw,1.9rem)] font-bold tracking-tight text-theme-primary">Features</h3>
         <FeatureColumns items={CPMS_TILES} />
       </SegmentSection>
 

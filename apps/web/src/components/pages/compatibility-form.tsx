@@ -35,7 +35,7 @@ function Choice({ label, on, onToggle, single = false }: { label: string; on: bo
 
 /**
  * The compatibility check on the Platform page, as three short steps with one question each: what the visitor already has (tap to choose, and the
- * charger type if they have chargers), the make and model (optional), and how to reach them (name and mobile, the only two required answers).
+ * charger type if they have chargers), the make and model (optional), and how to reach them (name, mobile number, email and city or place, all required).
  * It goes to the team as a lead from "platform_compatibility".
  */
 export function CompatibilityForm() {
@@ -60,6 +60,8 @@ export function CompatibilityForm() {
         body: JSON.stringify({
           fullName: get("fullName"),
           phone: get("phone"),
+          email: get("email"),
+          city: get("city"),
           source: "platform_compatibility",
           existingEquipment: has.join(", "),
           equipmentDetails: details.trim(),
@@ -162,7 +164,7 @@ export function CompatibilityForm() {
         {step === 2 && (
           <div>
             <p className="text-[clamp(1.5rem,2.2vw,2rem)] font-bold leading-tight tracking-tight text-theme-primary">How can we reach you?</p>
-            <p className="mt-2 text-[15px] text-theme-secondary">We will call or message you with the answer.</p>
+            <p className="mt-2 text-[15px] text-theme-secondary">We will call, message or e-mail you with the answer.</p>
             <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
               <div className="space-y-2">
                 <Label htmlFor="cc-name">Your name</Label>
@@ -171,6 +173,14 @@ export function CompatibilityForm() {
               <div className="space-y-2">
                 <Label htmlFor="cc-phone">Mobile number</Label>
                 <Input id="cc-phone" name="phone" type="tel" required minLength={6} autoComplete="tel" className="h-14 text-base" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cc-email">Email</Label>
+                <Input id="cc-email" name="email" type="email" required autoComplete="email" className="h-14 text-base" />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cc-city">City or place</Label>
+                <Input id="cc-city" name="city" required minLength={2} autoComplete="address-level2" className="h-14 text-base" />
               </div>
             </div>
             {recap && (
@@ -199,7 +209,7 @@ export function CompatibilityForm() {
         </p>
       )}
 
-      <div className="flex flex-wrap items-center gap-5">
+      <div className="mt-10 flex flex-wrap items-center gap-5">
         {step > 0 && (
           <button
             type="button"
