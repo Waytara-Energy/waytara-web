@@ -2,7 +2,7 @@ import { BatteryCharging, Building2, Gauge, HeartPulse, LayoutDashboard, Lightbu
 import { ProjectSteps } from "@/components/sections/project-steps";
 import { Reveal } from "@/components/shared/reveal";
 import { FaqList, type Faq } from "./faq-list";
-import { EnquiryRoutes, EvidencePanel, FeatureColumns, InfoBand, PolicyRows, SegmentHero, SegmentSection } from "./segment-parts";
+import { EnquiryRoutes, EvidencePanel, FeatureColumns, InfoBand, NoteBlock, PolicyRows, SegmentHero, SegmentSection } from "./segment-parts";
 import { SegmentShell } from "./segment-shell";
 
 export const COMMERCIAL_PATH = "/solutions/commercial";
@@ -185,12 +185,9 @@ export function CommercialPage() {
         summary="Two ways to pay for it. Which one suits you depends on who owns the building."
       >
         <FeatureColumns items={STRUCTURES} />
-        <Reveal direction="up" duration={700} distance={16}>
-          <div className="mt-12 rounded-2xl border border-theme-border bg-theme-surface px-7 py-7 sm:px-8">
-            <p className="text-lg font-semibold text-theme-primary">Who owns the roof, and who pays the electricity bill?</p>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-theme-secondary">In a rented building, the answer decides which option can work.</p>
-          </div>
-        </Reveal>
+        <NoteBlock title="Who owns the roof, and who pays the electricity bill?" className="mx-auto max-w-4xl">
+          <p>In a rented building, the answer decides which option can work.</p>
+        </NoteBlock>
       </SegmentSection>
 
       <SegmentSection
@@ -211,7 +208,7 @@ export function CommercialPage() {
         summary="Two third-party projects, shown for context. They are not WayTara installations and not typical or guaranteed results."
       >
         <Reveal direction="up" duration={800} distance={24}>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-x-14 gap-y-14 md:grid-cols-2">
             <EvidencePanel
               source="Healthcare · Chennai"
               figure="3.15 MWp"
@@ -238,14 +235,12 @@ export function CommercialPage() {
       />
 
       <InfoBand
-        kicker="EMS enquiry · Already have a building energy system?"
         title="You don't need another solar installation to get started."
         body="Share the details of your existing solar, meters, storage, EV chargers or other supported equipment. WayTara will assess compatibility, integration requirements and the right dashboard scope."
         cta={{ label: "Explore EMS for my property", href: EMS_HREF }}
       />
 
       <InfoBand
-        kicker="What to prepare"
         title="Keep the first enquiry light."
         body="For a proper engineering assessment we will ask for these. The first enquiry doesn't need a full electrical drawing package."
         items={PREPARE}

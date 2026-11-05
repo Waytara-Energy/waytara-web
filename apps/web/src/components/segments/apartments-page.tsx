@@ -178,7 +178,7 @@ export function ApartmentsPage() {
         summary="Don't only ask how much electricity your society uses. Ask what uses it. Pumps, lifts, sewage treatment, lighting and EV charging behave very differently."
       >
         <Reveal direction="up" duration={800} distance={24}>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-x-14 gap-y-14 md:grid-cols-2">
             <EvidencePanel
               source="WRI India + TIDE · study of 10 Bengaluru apartment complexes"
               figure="8 of 10"
@@ -231,7 +231,6 @@ export function ApartmentsPage() {
       />
 
       <InfoBand
-        kicker="Community Energy Assessment"
         title="Something you can take to your committee meeting."
         body="Not just a quotation: a pack that covers the whole picture."
         items={ASSESSMENT_PACK}

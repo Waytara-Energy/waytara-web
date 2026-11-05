@@ -1,10 +1,10 @@
 import Link from "next/link";
-import { Activity, ArrowRight, ArrowUpRight, BatteryCharging, ClipboardList, Handshake, ListChecks, Moon, Network, PlugZap, SlidersHorizontal, Sun, Truck, Zap } from "lucide-react";
+import { Activity, ArrowRight, ArrowUpRight, BatteryCharging, CircleCheck, ClipboardList, Handshake, ListChecks, Moon, Network, PlugZap, SlidersHorizontal, Sun, Truck, Zap } from "lucide-react";
 import { ProjectSteps } from "@/components/sections/project-steps";
 import { Reveal } from "@/components/shared/reveal";
 import { FaqList, type Faq } from "./faq-list";
 import { CPMS_FEATURES } from "./capabilities";
-import { EnquiryRoutes, FeatureColumns, InfoBand, PlatformDiagram, PolicyRows, SegmentHero, SegmentSection, type Feature } from "./segment-parts";
+import { EnquiryRoutes, FeatureColumns, InfoBand, NoteBlock, PlatformDiagram, PolicyRows, SegmentHero, SegmentSection, type Feature } from "./segment-parts";
 import { SegmentShell } from "./segment-shell";
 
 export const EV_FLEET_PATH = "/solutions/ev-fleet";
@@ -180,9 +180,9 @@ function AllocationSketch() {
     { name: "Vehicle 08", share: 55, priority: false },
   ];
   return (
-    <div className="rounded-2xl border border-theme-border bg-theme-surface p-6 sm:p-7">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">Eight charging points, one site connection</p>
-      <ul className="mt-5 space-y-2.5" aria-label="An example of charging power shared between eight vehicles">
+    <div>
+      <p className="text-lg font-semibold tracking-tight text-theme-primary">Eight charging points, one site connection</p>
+      <ul className="mt-6 space-y-3" aria-label="An example of charging power shared between eight vehicles">
         {rows.map((row) => (
           <li key={row.name} className="grid grid-cols-[5.5rem_1fr] items-center gap-3 text-xs text-theme-secondary">
             <span>{row.name}</span>
@@ -273,8 +273,8 @@ export function EvFleetPage() {
           <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
             <AllocationSketch />
             <div>
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">What managed charging can help with</p>
-              <ul className="mt-4 space-y-3">
+              <p className="text-lg font-semibold tracking-tight text-theme-primary">What managed charging can help with</p>
+              <ul className="mt-5 space-y-3">
                 {[
                   "Spread available power across several active sessions",
                   "Prioritise vehicles due to leave sooner",
@@ -282,13 +282,13 @@ export function EvFleetPage() {
                   "Reduce unnecessary simultaneous peak demand",
                   "Potentially avoid or defer an electrical connection upgrade",
                 ].map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 text-sm text-theme-secondary">
-                    <span className="mt-2 size-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
+                  <li key={item} className="flex items-start gap-2.5 text-[15px] text-theme-secondary">
+                    <CircleCheck className="mt-0.5 size-[1.1rem] shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
                     <span>{item}</span>
                   </li>
                 ))}
               </ul>
-              <p className="mt-6 text-sm leading-relaxed text-theme-secondary">
+              <p className="mt-6 text-sm leading-relaxed text-theme-muted">
                 This is not a guarantee that an upgrade can always be avoided. A load study has to show whether your supply can deliver the energy you need within the operating window.
                 What is possible also depends on the metering at the site and on each charger&apos;s supported OCPP features and firmware.
                 {CPMS_FEATURES.loadAllocation && " WayTara CPMS applies the configured limits and priorities to compatible chargers."}
@@ -307,10 +307,9 @@ export function EvFleetPage() {
       >
         <FeatureColumns items={SOLAR} />
         <Reveal direction="up" duration={700} distance={16}>
-          <p className="mt-12 text-sm leading-relaxed text-theme-secondary">
-            <span className="font-semibold text-theme-primary">Charging overnight? </span>
-            Solar makes power in the day, so for an overnight fleet it mostly covers your daytime use. A battery can move some of it to the night. Check the cost first.
-          </p>
+          <NoteBlock title="Charging overnight?" className="mx-auto max-w-4xl">
+            <p>Solar makes power in the day, so for an overnight fleet it mostly covers your daytime use. A battery can move some of it to the night. Check the cost first.</p>
+          </NoteBlock>
         </Reveal>
       </SegmentSection>
 
@@ -346,24 +345,12 @@ export function EvFleetPage() {
         summary="Not every charging site has to be a public business."
       >
         <FeatureColumns items={MODELS} />
-        <Reveal direction="up" duration={700} distance={16}>
-          <div className="mt-14 grid grid-cols-1 gap-8 lg:grid-cols-5 lg:gap-12">
-            <div className="lg:col-span-2">
-              <p className="text-lg font-semibold text-theme-primary">More use beats more chargers.</p>
-              <p className="mt-2 text-sm leading-relaxed text-theme-secondary">
-                A charging fee includes the electricity tariff, a service charge, land cost and GST. Work out your income after all of these.
-              </p>
-            </div>
-            <ul className="grid grid-cols-1 gap-x-8 gap-y-2.5 self-center sm:grid-cols-2 lg:col-span-3">
-              {REVENUE_DRIVERS.map((item) => (
-                <li key={item} className="flex items-start gap-2.5 text-sm text-theme-secondary">
-                  <span className="mt-2 size-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
-                  <span>{item}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </Reveal>
+        <InfoBand
+          bare
+          title="More use beats more chargers."
+          body="A charging fee includes the electricity tariff, a service charge, land cost and GST. Work out your income after all of these."
+          items={REVENUE_DRIVERS}
+        />
       </SegmentSection>
 
       <SegmentSection
@@ -402,7 +389,6 @@ export function EvFleetPage() {
       </div>
 
       <InfoBand
-        kicker="What to prepare"
         title="For a new depot or site, start with:"
         body="If the load information isn't available, an engineering assessment can establish it. We don't guess charger capacities or connection requirements from fleet size alone."
         items={PREPARE}

@@ -2,7 +2,7 @@ import { Activity, BatteryCharging, Cable, Fuel, Gauge, LayoutDashboard, ShieldC
 import { ProjectSteps } from "@/components/sections/project-steps";
 import { Reveal } from "@/components/shared/reveal";
 import { FaqList, type Faq } from "./faq-list";
-import { EnquiryRoutes, EvidencePanel, FeatureColumns, InfoBand, PolicyRows, SegmentHero, SegmentSection, SupportPanel } from "./segment-parts";
+import { EnquiryRoutes, EvidencePanel, FeatureColumns, InfoBand, NoteColumns, PolicyRows, SegmentHero, SegmentSection, SupportPanel } from "./segment-parts";
 import { SegmentShell } from "./segment-shell";
 
 export const FACTORY_PATH = "/solutions/factory";
@@ -167,22 +167,13 @@ export function FactoryPage() {
         summary="A battery should solve a real problem. We don't add one just because there is solar."
       >
         <FeatureColumns items={BATTERY_CASES} />
-        <Reveal direction="up" duration={700} distance={16}>
-          <div className="mt-12 grid grid-cols-1 gap-x-10 gap-y-6 text-sm leading-relaxed text-theme-secondary md:grid-cols-3">
-            <p>
-              <span className="block font-semibold text-theme-primary">We start with how you use power.</span>
-              We study your peaks, your critical machines and your generator use before suggesting a battery.
-            </p>
-            <p>
-              <span className="block font-semibold text-theme-primary">kW is power.</span>
-              How much the battery can give at once.
-            </p>
-            <p>
-              <span className="block font-semibold text-theme-primary">kWh is energy.</span>
-              How much it stores, so how long it can run a load.
-            </p>
-          </div>
-        </Reveal>
+        <NoteColumns
+          items={[
+            { title: "We start with how you use power.", body: "We study your peaks, your critical machines and your generator use before suggesting a battery." },
+            { title: "kW is power.", body: "How much the battery can give at once." },
+            { title: "kWh is energy.", body: "How much it stores, so how long it can run a load." },
+          ]}
+        />
       </SegmentSection>
 
       <SegmentSection
@@ -230,7 +221,7 @@ export function FactoryPage() {
         summary="A published project by another company, shown to illustrate the approach. It is not a WayTara installation."
       >
         <Reveal direction="up" duration={800} distance={24}>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-x-14 gap-y-14 md:grid-cols-2">
             <EvidencePanel
               source="Published industry case study · Chennai"
               figure="800 kW"
@@ -257,7 +248,6 @@ export function FactoryPage() {
       />
 
       <InfoBand
-        kicker="EMS enquiry · Already have an industrial energy system?"
         title="Start with EMS. You don't need a new solar project."
         items={[
           "Share your existing inverter, meter, battery and DG details",
@@ -269,7 +259,6 @@ export function FactoryPage() {
       />
 
       <InfoBand
-        kicker="What to have ready"
         title="Start with your latest electricity bill."
         body="A description of what you want to improve is enough to begin. During assessment the engineering team may ask for the items here. If interval data isn't available, a measurement exercise can come first, in place of an invented capacity or quotation."
         items={READY}

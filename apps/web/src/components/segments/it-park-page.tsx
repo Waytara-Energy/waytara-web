@@ -3,7 +3,7 @@ import { ProjectSteps } from "@/components/sections/project-steps";
 import { Reveal } from "@/components/shared/reveal";
 import { CPMS_FEATURES } from "./capabilities";
 import { FaqList, type Faq } from "./faq-list";
-import { EnquiryRoutes, FeatureColumns, InfoBand, PlatformDiagram, PolicyRows, SegmentHero, SegmentSection } from "./segment-parts";
+import { EnquiryRoutes, FeatureColumns, InfoBand, NoteBlock, PlatformDiagram, PolicyRows, SegmentHero, SegmentSection } from "./segment-parts";
 import { SegmentShell } from "./segment-shell";
 
 export const IT_PARK_PATH = "/solutions/it-park";
@@ -209,22 +209,16 @@ export function ItParkPage() {
         summary="Turn your energy data into reports you can use."
       >
         <FeatureColumns items={REPORTING} />
-        <Reveal direction="up" duration={700} distance={16}>
-          <div className="mt-12 rounded-2xl border border-theme-border bg-theme-surface px-7 py-7 sm:px-8">
-            <p className="text-lg font-semibold text-theme-primary">Data for your sustainability reports.</p>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-theme-secondary">
-              Regular summaries can feed your own sustainability reporting. We keep three things apart: what we measure, what we estimate, and what you tell us.
-            </p>
-            <p className="mt-3 max-w-3xl text-xs leading-relaxed text-theme-muted">
-              What we can report depends on your meters and connected equipment. Official filings may need extra records and checks. We only report measures such as PUE
-              when the right meters are in place.
-            </p>
-          </div>
-        </Reveal>
+        <NoteBlock title="Data for your sustainability reports.">
+          <p>Regular summaries can feed your own sustainability reporting. We keep three things apart: what we measure, what we estimate, and what you tell us.</p>
+          <p className="text-sm text-theme-muted">
+            What we can report depends on your meters and connected equipment. Official filings may need extra records and checks. We only report measures such as PUE
+            when the right meters are in place.
+          </p>
+        </NoteBlock>
       </SegmentSection>
 
       <InfoBand
-        kicker="Campus dashboard"
         title="What it can bring together."
         body="Where the equipment is metered and connected. We label each report by its real coverage: we won't show total facility use if only the solar inverter and chargers are monitored."
         items={DASHBOARD_METRICS}

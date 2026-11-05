@@ -138,7 +138,6 @@ export function SupportPage() {
 
       <div id="ticket" className="scroll-mt-28 pt-4" />
       <InfoBand
-        kicker="From your dashboard"
         title="Raise a ticket and keep the whole conversation in one place."
         body="Choose the site, say what is wrong, and attach photos or files. You get an e-mail each time someone from the team replies, and you can rate the help when it is closed."
         cta={{ label: "Open Support in my dashboard", href: "/dashboard/support" }}

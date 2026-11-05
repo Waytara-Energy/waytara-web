@@ -5,7 +5,7 @@ import { Reveal } from "@/components/shared/reveal";
 import { OFFERS } from "@/data/offers";
 import { FaqList, type Faq } from "./faq-list";
 import { HomeSupport } from "./home-support";
-import { EnquiryRoutes, EvidencePanel, FeatureColumns, SegmentHero, SegmentSection } from "./segment-parts";
+import { EnquiryRoutes, EvidencePanel, FeatureColumns, NoteColumns, SegmentHero, SegmentSection } from "./segment-parts";
 import { SegmentShell } from "./segment-shell";
 
 export const HOMES_PATH = "/solutions/home";
@@ -138,22 +138,16 @@ export function HomesPage() {
         summary="It depends on your electricity use, your backup needs and the space you have."
       >
         <FeatureColumns items={SETUPS} />
+        <NoteColumns
+          className="mx-auto max-w-4xl"
+          items={[
+            { title: "Good to know", body: "Solar on its own stops working when the grid goes down. A battery fixes that." },
+            { title: "No grid connection?", body: "We can design a standalone solar and battery system." },
+            { title: "Have an EV?", body: "We can include charging in either setup." },
+          ]}
+        />
         <Reveal direction="up" duration={700} distance={16}>
-          <div className="mt-12 grid grid-cols-1 gap-x-10 gap-y-6 text-sm leading-relaxed text-theme-secondary md:grid-cols-3">
-            <p>
-              <span className="block font-semibold text-theme-primary">Good to know</span>
-              Solar on its own stops working when the grid goes down. A battery fixes that.
-            </p>
-            <p>
-              <span className="block font-semibold text-theme-primary">No grid connection?</span>
-              We can design a standalone solar and battery system.
-            </p>
-            <p>
-              <span className="block font-semibold text-theme-primary">Have an EV?</span>
-              We can include charging in either setup.
-            </p>
-          </div>
-          <div className="mt-10 flex justify-center">
+          <div className="mt-12 flex justify-center">
             <Link href="/planner?for=home" className="group inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
               Not sure what fits? Try the energy planner
               <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
@@ -172,23 +166,19 @@ export function HomesPage() {
         <Reveal direction="up" duration={800} distance={24}>
           <HomeSupport />
         </Reveal>
-        <Reveal direction="up" duration={700} distance={16}>
-          <div className="mt-10 grid grid-cols-1 gap-x-10 gap-y-6 text-sm leading-relaxed text-theme-secondary md:grid-cols-3">
-            <p>
-              <span className="block font-semibold text-theme-primary">What about the electricity you don&apos;t use?</span>
-              Surplus power can be credited to your electricity account under the applicable metering arrangement. The settlement depends on your state, DISCOM and
-              connection.
-            </p>
-            <p>
-              <span className="block font-semibold text-theme-primary">Need help with the process?</span>
-              WayTara helps assess your property&apos;s suitability, plan the installation and work through the applicable approval and documentation process.
-            </p>
-            <p>
-              <span className="block font-semibold text-theme-primary">Looking at financing?</span>
-              Eligible homeowners can also explore solar loans through participating banks.
-            </p>
-          </div>
-        </Reveal>
+        <NoteColumns
+          items={[
+            {
+              title: "What about the electricity you don't use?",
+              body: "Surplus power can be credited to your electricity account under the applicable metering arrangement. The settlement depends on your state, DISCOM and connection.",
+            },
+            {
+              title: "Need help with the process?",
+              body: "WayTara helps assess your property's suitability, plan the installation and work through the applicable approval and documentation process.",
+            },
+            { title: "Looking at financing?", body: "Eligible homeowners can also explore solar loans through participating banks." },
+          ]}
+        />
       </SegmentSection>
 
       <SegmentSection
@@ -199,7 +189,7 @@ export function HomesPage() {
         summary="Independent studies, not WayTara promises. Your own results depend on how you use energy."
       >
         <Reveal direction="up" duration={800} distance={24}>
-          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-x-14 gap-y-14 md:grid-cols-2">
             <EvidencePanel
               source="Indian household research · CEEW · 2026"
               figure="53–73%"

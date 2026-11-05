@@ -144,15 +144,47 @@ export function FeatureColumns({ items }: { items: Feature[] }) {
   );
 }
 
-/** A research finding, always labelled with its source and what it does not mean. */
+/**
+ * A research finding in the Apple "big number" style: no box, a large figure, one clear sentence, and the source and what it does not mean in
+ * small grey type underneath. The source and the caveat are always shown.
+ */
 export function EvidencePanel({ source, figure, text, caveat }: { source: string; figure: string; text: string; caveat: string }) {
   return (
-    <div className="rounded-2xl border border-theme-border bg-theme-surface p-7 sm:p-8">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">{source}</p>
-      <p className="mt-4 text-[clamp(2.5rem,4vw,3.5rem)] font-bold leading-none tracking-tight text-primary-gradient">{figure}</p>
-      <p className="mt-3 text-sm leading-relaxed text-theme-primary">{text}</p>
-      <p className="mt-3 text-xs leading-relaxed text-theme-muted">{caveat}</p>
+    <div className="flex h-full flex-col">
+      <p className="text-[clamp(3rem,5.5vw,5rem)] font-bold leading-none tracking-tight text-primary-gradient">{figure}</p>
+      <p className="mt-6 max-w-[32rem] text-pretty text-[clamp(1.0625rem,1.3vw,1.3rem)] font-semibold leading-snug text-theme-primary">{text}</p>
+      <p className="mt-4 max-w-[32rem] text-sm leading-relaxed text-theme-muted">
+        {source}. {caveat}
+      </p>
     </div>
+  );
+}
+
+/** A short note under a thin rule, with a bold lead line. No box. Pass `className` to give it the width of the blocks above it. */
+export function NoteBlock({ title, children, className }: { title: string; children: React.ReactNode; className?: string }) {
+  return (
+    <Reveal direction="up" duration={700} distance={16}>
+      <div className={cn("mt-14 border-t border-theme-border pt-8", className)}>
+        <p className="text-lg font-semibold tracking-tight text-theme-primary">{title}</p>
+        <div className="mt-3 space-y-3 text-[15px] leading-relaxed text-theme-secondary">{children}</div>
+      </div>
+    </Reveal>
+  );
+}
+
+/** Three short notes side by side (a bold lead and one sentence each), under a thin rule. */
+export function NoteColumns({ items, className }: { items: { title: string; body: string }[]; className?: string }) {
+  return (
+    <Reveal direction="up" duration={700} distance={16}>
+      <div className={cn("mt-14 grid grid-cols-1 gap-x-10 gap-y-6 border-t border-theme-border pt-8 md:grid-cols-3", className)}>
+        {items.map((item) => (
+          <p key={item.title} className="text-[15px] leading-relaxed text-theme-secondary">
+            <span className="block text-base font-semibold text-theme-primary">{item.title}</span>
+            {item.body}
+          </p>
+        ))}
+      </div>
+    </Reveal>
   );
 }
 
@@ -336,49 +368,53 @@ export function PolicyRows({ items }: { items: PolicyItem[] }) {
   );
 }
 
-/** A bordered band: a kicker, a title and a few lines on the left, and optionally a checklist and a link on the right. */
+/**
+ * A frameless band under a thin rule: a bold title and a few lines on the left, and optionally a ticked list and a link on the right.
+ * `bare` drops the section wrapper so it can sit inside another section.
+ */
 export function InfoBand({
-  kicker,
   title,
   body,
   items,
   cta,
+  bare = false,
 }: {
-  kicker: string;
   title: string;
   body?: string;
   items?: string[];
   cta?: Cta;
+  bare?: boolean;
 }) {
+  const band = (
+    <Reveal direction="up" duration={800} distance={24}>
+      <div className={cn("grid grid-cols-1 gap-8 border-t border-theme-border pt-10 lg:grid-cols-5 lg:gap-14", bare && "mt-14")}>
+        <div className="lg:col-span-2">
+          <p className="text-[clamp(1.35rem,1.9vw,1.75rem)] font-bold leading-snug tracking-tight text-theme-primary">{title}</p>
+          {body && <p className="mt-3 text-[15px] leading-relaxed text-theme-secondary sm:text-base">{body}</p>}
+          {cta && (
+            <Link href={cta.href} className="group mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
+              {cta.label}
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+            </Link>
+          )}
+        </div>
+        {items && (
+          <ul className="grid grid-cols-1 content-start gap-x-10 gap-y-3.5 sm:grid-cols-2 lg:col-span-3">
+            {items.map((item) => (
+              <li key={item} className="flex items-start gap-2.5 text-[15px] leading-snug text-theme-secondary">
+                <CircleCheck className="mt-0.5 size-[1.1rem] shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                <span>{item}</span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </Reveal>
+  );
+  if (bare) return band;
   return (
     <section className="scroll-mt-28 pb-[clamp(2.5rem,5vw,5rem)]">
-      <div className="fluid-container">
-        <Reveal direction="up" duration={800} distance={24}>
-          <div className="grid grid-cols-1 gap-8 rounded-2xl border border-theme-border bg-theme-surface px-7 py-9 sm:px-10 lg:grid-cols-5 lg:items-center lg:gap-12">
-            <div className="lg:col-span-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">{kicker}</p>
-              <p className="mt-3 text-xl font-semibold text-theme-primary">{title}</p>
-              {body && <p className="mt-2 text-sm leading-relaxed text-theme-secondary">{body}</p>}
-              {cta && (
-                <Link href={cta.href} className="group mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
-                  {cta.label}
-                  <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-                </Link>
-              )}
-            </div>
-            {items && (
-              <ul className="grid grid-cols-1 gap-x-8 gap-y-2.5 sm:grid-cols-2 lg:col-span-3">
-                {items.map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 text-sm text-theme-secondary">
-                    <span className="mt-2 size-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </div>
-        </Reveal>
-      </div>
+      <div className="fluid-container">{band}</div>
     </section>
   );
 }
