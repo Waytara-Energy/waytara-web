@@ -49,7 +49,7 @@ export function WhatWeDo() {
 
         {/* The two ways in. The dashboard card that follows slides up over the bottom of this section (its negative top margin), so the space under them is deliberate. */}
         <Reveal direction="up" duration={700} distance={16} delay={100}>
-          <div className="mt-14 flex flex-col items-center gap-3 pb-24 text-center md:flex-row md:justify-center md:gap-14 md:pb-52">
+          <div className="mx-auto mt-14 flex flex-col items-center gap-3 pb-24 text-center md:flex-row md:flex-wrap md:justify-center md:gap-x-6 md:pb-52">
             <p className="text-sm text-theme-secondary">
               <span className="font-semibold text-theme-primary">Planning a new installation? </span>
               <Link href="/planner" className={ROUTE_LINK}>
@@ -57,6 +57,7 @@ export function WhatWeDo() {
                 <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
               </Link>
             </p>
+            <span className="hidden h-4 w-px bg-theme-border md:block" aria-hidden="true" />
             <p className="text-sm text-theme-secondary">
               <span className="font-semibold text-theme-primary">Already have an energy system? </span>
               <Link href="/technology#compatibility" className={ROUTE_LINK}>

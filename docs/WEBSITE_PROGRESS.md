@@ -47,6 +47,7 @@ is about 0.6 h up to the search and support round, and about 0.7 h including it.
 | D10 | Redesign "What WayTara does" like the pillars section (round icon, bold title, short description, one link) | Done | 16:05 | 16:12 | 0.1 | (next commit) | Three frameless columns instead of the boxed grid with checklists; one centred underlined link "Discover our services" to /solutions. The checklists and the two routes ("Plan a new system", "Connect what I already have") were taken off the landing page; the checklists are on the Solutions page and the two routes are reached from "Where to start" and the hero. Extra space under the link so the dashboard card that slides up over this section does not cover it. Checked from the page structure (the preview was mid-animation in screenshots). |
 | D11 | "What WayTara does": keep the previous full content, in the new frameless style | Done | 16:15 | 16:18 | 0.05 | (next commit) | Restored the tag, the four-point checklist under each column and the two routes ("Plan a new system", "Connect what I already have"), now in the round-icon, bold-title, short-description style from your screenshot, and kept the centred "Discover our services" link. No wording changed from the previous version. This replaces D10's removal of the checklists and routes. |
 | D12 | "What WayTara does": remove the small tags and the Discover link; show the two routes in their place | Done | 16:22 | 16:25 | 0.05 | (next commit) | Removed NEW SYSTEMS / EV CHARGING / YOUR EXISTING EQUIPMENT and "Discover our services". "Planning a new installation? Plan a new system" and "Already have an energy system? Connect what I already have" now sit centred side by side under the columns (stacked on a phone). Checked in the browser at full width. |
+| D13 | "What WayTara does": the two routes as one centred line | Done | 16:28 | 16:30 | 0.03 | (next commit) | The two routes now sit close together as a single line with a thin divider, centred on the page (measured: the group's centre is within 1 px of the page centre, same row). Stacks on a phone. If you meant a single link only (one of the two), tell me which. |
 
 ## Log
 
@@ -90,4 +91,5 @@ is about 0.6 h up to the search and support round, and about 0.7 h including it.
 | 2026-11-05 | 16:12 | D10 done: What WayTara does redesigned like the pillars section. |
 | 2026-11-05 | 16:18 | D11 done: the full content kept in the frameless style. |
 | 2026-11-05 | 16:25 | D12 done: tags and Discover link removed; the two routes centred in their place. |
+| 2026-11-05 | 16:30 | D13 done: the two routes as one centred line. |
 
