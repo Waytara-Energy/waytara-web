@@ -52,10 +52,10 @@ const PROJECTS = [
 ];
 
 const DEVELOPER_ITEMS = [
-  { title: "Solar-ready rooftops", body: "Plan usable roof zones and electrical connections." },
-  { title: "EV-ready parking", body: "Plan cable routes, distribution and future charger capacity." },
-  { title: "Backup infrastructure", body: "Assess critical loads, DG and storage integration." },
-  { title: "Connected operations", body: "Prepare for energy monitoring and management." },
+  { icon: Sun, title: "Solar-ready rooftops", body: "Plan usable roof zones and electrical connections." },
+  { icon: PlugZap, title: "EV-ready parking", body: "Plan cable routes, distribution and future charger capacity." },
+  { icon: BatteryCharging, title: "Backup infrastructure", body: "Assess critical loads, DG and storage integration." },
+  { icon: LayoutDashboard, title: "Connected operations", body: "Prepare for energy monitoring and management." },
 ];
 
 const START_STEPS = [

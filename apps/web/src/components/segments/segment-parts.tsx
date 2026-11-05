@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowRight, Check, CircleCheck, type LucideIcon } from "lucide-react";
+import { ArrowRight, CircleCheck, Hammer, SlidersHorizontal, type LucideIcon } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 import { SectionHeader } from "@/components/shared/section-header";
 import { cn } from "@/lib/utils";
@@ -108,6 +108,8 @@ export interface Feature {
   body: string;
   /** Up to four short ticked lines under a thin rule. */
   includes?: string[];
+  /** A green quick link at the foot of the block (used when there is no list). */
+  link?: Cta;
 }
 
 /**
@@ -120,7 +122,7 @@ export function FeatureColumns({ items }: { items: Feature[] }) {
   // sentences and tick lists line up whatever the text length. The gap between rows of blocks is the padding at each block's foot.
   return (
     <ul className={cn("-mb-14 grid grid-cols-1 gap-x-12", cols)}>
-      {items.map(({ icon: Icon, title, body, includes }, i) => (
+      {items.map(({ icon: Icon, title, body, includes, link }, i) => (
         <li key={title} className="row-span-4 grid grid-rows-subgrid pb-14">
           <Reveal direction="up" duration={800} distance={24} delay={(i % 4) * 90} className="row-span-4 grid grid-rows-subgrid">
             <Icon className="size-12 stroke-[1.1] text-theme-primary sm:size-14" aria-hidden="true" />
@@ -135,6 +137,12 @@ export function FeatureColumns({ items }: { items: Feature[] }) {
                   </li>
                 ))}
               </ul>
+            )}
+            {link && !includes && (
+              <Link href={link.href} className="group mt-5 inline-flex items-center gap-1.5 self-start text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
+                {link.label}
+                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+              </Link>
             )}
           </Reveal>
         </li>
@@ -187,32 +195,23 @@ export function NoteColumns({ items, className }: { items: { title: string; body
   );
 }
 
-/** The closing band of a segment page: the two enquiry routes, one for a new system and one for equipment the visitor already has. */
+/**
+ * The closing block of a page: a headline and the two ways in as two frameless blocks (the same look as the feature blocks), each with a quick
+ * link. One is for a new system and one for equipment the visitor already has.
+ */
 export function EnquiryRoutes({ heading, accent, newRoute, existingRoute }: { heading: string; accent: string; newRoute: Cta & { hint: string }; existingRoute: Cta & { hint: string } }) {
   return (
     <section id="enquire" className="section-padding scroll-mt-28">
       <div className="fluid-container">
-        <Reveal direction="up" duration={800} distance={24}>
-          <div className="grid grid-cols-1 gap-8 rounded-2xl border border-theme-border bg-theme-surface px-7 py-10 sm:px-10 lg:grid-cols-5 lg:items-center lg:gap-12 lg:py-12">
-            <h2 className="text-[clamp(1.75rem,2.8vw,2.4rem)] font-bold leading-[1.2] tracking-tight text-theme-primary lg:col-span-2">
-              {heading}
-              <span className="block text-primary-gradient">{accent}</span>
-            </h2>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:col-span-3">
-              {[newRoute, existingRoute].map((route) => (
-                <Link
-                  key={route.href}
-                  href={route.href}
-                  className="group flex h-full flex-col rounded-xl border border-theme-border bg-theme-bg p-5 transition-colors hover:border-emerald-500/50 focus-visible:border-emerald-500/50 focus-visible:outline-none"
-                >
-                  <span className="text-sm font-semibold text-theme-primary">{route.label}</span>
-                  <span className="mt-1 text-xs leading-relaxed text-theme-secondary">{route.hint}</span>
-                  <ArrowRight className="mt-4 size-4 text-theme-muted transition-all group-hover:translate-x-0.5 group-hover:text-theme-highlight" aria-hidden="true" />
-                </Link>
-              ))}
-            </div>
-          </div>
+        <Reveal direction="up" duration={700} distance={24}>
+          <SectionHeader badge="Next step" title={heading} accent={accent} />
         </Reveal>
+        <FeatureColumns
+          items={[
+            { icon: Hammer, title: newRoute.label, body: newRoute.hint, link: { label: "Get started", href: newRoute.href } },
+            { icon: SlidersHorizontal, title: existingRoute.label, body: existingRoute.hint, link: { label: "Get started", href: existingRoute.href } },
+          ]}
+        />
       </div>
     </section>
   );
@@ -223,7 +222,7 @@ export interface SupportFigure {
   label: string;
 }
 
-/** A government scheme on a segment page: the headline figures, the conditions that apply, and where to check eligibility. */
+/** A government scheme on a segment page, frameless: the headline figure and what it covers on the left, the conditions and a link on the right. */
 export function SupportPanel({
   kicker,
   headline,
@@ -245,38 +244,36 @@ export function SupportPanel({
 }) {
   return (
     <Reveal direction="up" duration={800} distance={24}>
-      <div className="overflow-hidden rounded-2xl border border-theme-border bg-theme-surface">
-        <div className="grid grid-cols-1 lg:grid-cols-5">
-          <div className="px-7 py-8 sm:px-8 lg:col-span-2">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">{kicker}</p>
-            <p className="mt-4 text-[clamp(2.5rem,4vw,3.5rem)] font-bold leading-none tracking-tight text-primary-gradient">{headline}</p>
-            <p className="mt-3 text-sm leading-relaxed text-theme-primary">{intro}</p>
-            {figures && figures.length > 0 && (
-              <dl className="mt-6 grid grid-cols-2 gap-4 border-t border-theme-border pt-5">
-                {figures.map((f) => (
-                  <div key={f.label}>
-                    <dt className="text-xs text-theme-muted">{f.label}</dt>
-                    <dd className="mt-0.5 text-base font-semibold text-theme-primary">{f.value}</dd>
-                  </div>
-                ))}
-              </dl>
-            )}
-          </div>
-          <div className="border-t border-theme-border px-7 py-8 sm:px-8 lg:col-span-3 lg:border-l lg:border-t-0">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">{conditionsTitle}</p>
-            <ul className="mt-4 space-y-3">
-              {conditions.map((c) => (
-                <li key={c} className="flex items-start gap-2.5 text-sm leading-relaxed text-theme-secondary">
-                  <Check className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                  <span>{c}</span>
-                </li>
+      <div className="grid grid-cols-1 gap-10 border-t border-theme-border pt-10 lg:grid-cols-5 lg:gap-14">
+        <div className="lg:col-span-2">
+          <p className="text-sm font-semibold text-theme-muted">{kicker}</p>
+          <p className="mt-4 text-[clamp(2.75rem,4.6vw,4.25rem)] font-bold leading-none tracking-tight text-primary-gradient">{headline}</p>
+          <p className="mt-5 max-w-[30rem] text-pretty text-[clamp(1.0625rem,1.3vw,1.3rem)] font-semibold leading-snug text-theme-primary">{intro}</p>
+          {figures && figures.length > 0 && (
+            <dl className="mt-8 grid grid-cols-2 gap-6">
+              {figures.map((f) => (
+                <div key={f.label}>
+                  <dd className="text-lg font-semibold tracking-tight text-theme-primary">{f.value}</dd>
+                  <dt className="mt-1 text-sm leading-snug text-theme-muted">{f.label}</dt>
+                </div>
               ))}
-            </ul>
-            <Link href={link.href} className="group mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
-              {link.label}
-              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-            </Link>
-          </div>
+            </dl>
+          )}
+        </div>
+        <div className="lg:col-span-3">
+          <p className="text-lg font-semibold tracking-tight text-theme-primary">{conditionsTitle}</p>
+          <ul className="mt-5 space-y-3.5">
+            {conditions.map((c) => (
+              <li key={c} className="flex items-start gap-2.5 text-[15px] leading-relaxed text-theme-secondary">
+                <CircleCheck className="mt-0.5 size-[1.1rem] shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                <span>{c}</span>
+              </li>
+            ))}
+          </ul>
+          <Link href={link.href} className="group mt-7 inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
+            {link.label}
+            <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+          </Link>
         </div>
       </div>
     </Reveal>
@@ -285,7 +282,7 @@ export function SupportPanel({
 
 /**
  * A full-width band for a second audience on the same page (builders and developers on the Apartments page). A tinted background and its
- * own call to action make it read as a separate offer, not another card.
+ * own call to action make it read as a separate offer. The items are frameless blocks, like the rest of the page.
  */
 export function AudienceBand({
   id,
@@ -302,7 +299,7 @@ export function AudienceBand({
   title: string;
   accent: string;
   summary: string;
-  items: { title: string; body: string }[];
+  items: { icon: LucideIcon; title: string; body: string }[];
   closing: { title: string; body: string };
   cta: Cta;
 }) {
@@ -312,19 +309,12 @@ export function AudienceBand({
         <Reveal direction="up" duration={700} distance={24}>
           <SectionHeader badge={badge} title={title} accent={accent} summary={summary} />
         </Reveal>
+        <FeatureColumns items={items} />
         <Reveal direction="up" duration={800} distance={24}>
-          <ul className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-theme-border bg-theme-border md:grid-cols-2 lg:grid-cols-4">
-            {items.map((item) => (
-              <li key={item.title} className="bg-theme-bg px-7 py-7">
-                <h3 className="text-base font-semibold text-theme-primary">{item.title}</h3>
-                <p className="mt-1.5 text-sm leading-relaxed text-theme-secondary">{item.body}</p>
-              </li>
-            ))}
-          </ul>
-          <div className="mt-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mt-16 flex flex-col gap-6 border-t border-theme-border pt-8 sm:flex-row sm:items-center sm:justify-between">
             <div>
-              <p className="text-base font-semibold text-theme-primary">{closing.title}</p>
-              <p className="mt-1 max-w-xl text-sm leading-relaxed text-theme-secondary">{closing.body}</p>
+              <p className="text-lg font-semibold tracking-tight text-theme-primary">{closing.title}</p>
+              <p className="mt-2 max-w-xl text-[15px] leading-relaxed text-theme-secondary">{closing.body}</p>
             </div>
             <Link
               href={cta.href}

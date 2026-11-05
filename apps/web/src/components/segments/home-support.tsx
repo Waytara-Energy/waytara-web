@@ -45,34 +45,34 @@ export function HomeSupport() {
         ))}
       </div>
 
-      <div className="mt-6 overflow-hidden rounded-2xl border border-theme-border bg-theme-surface">
+      <div className="mt-8 border-t border-theme-border pt-10">
         {place === "tn" ? (
-          <div className="grid grid-cols-1 lg:grid-cols-5">
-            <div className="px-7 py-8 sm:px-8 lg:col-span-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">Tamil Nadu · eligible residential applications</p>
-              <p className="mt-4 text-[clamp(2.5rem,4vw,3.5rem)] font-bold leading-none tracking-tight text-primary-gradient">Up to ₹1 lakh</p>
-              <p className="mt-3 text-sm leading-relaxed text-theme-primary">
+          <div className="grid grid-cols-1 gap-10 lg:grid-cols-5 lg:gap-14">
+            <div className="lg:col-span-2">
+              <p className="text-sm font-semibold text-theme-muted">Tamil Nadu · eligible residential applications</p>
+              <p className="mt-4 text-[clamp(2.75rem,4.6vw,4.25rem)] font-bold leading-none tracking-tight text-primary-gradient">Up to ₹1 lakh</p>
+              <p className="mt-5 max-w-[30rem] text-pretty text-[clamp(1.0625rem,1.3vw,1.3rem)] font-semibold leading-snug text-theme-primary">
                 Central and state assistance combined for eligible residential rooftop installations of 3 kW and above.
               </p>
             </div>
-            <div className="border-t border-theme-border lg:col-span-3 lg:border-l lg:border-t-0">
-              <table className="w-full text-left text-sm">
+            <div className="lg:col-span-3">
+              <table className="w-full text-left text-[15px]">
                 <caption className="sr-only">Assistance by system size in Tamil Nadu</caption>
                 <thead>
-                  <tr className="border-b border-theme-border text-[11px] uppercase tracking-[0.1em] text-theme-muted">
-                    <th scope="col" className="px-6 py-3 font-semibold">System</th>
+                  <tr className="border-b border-theme-border text-sm text-theme-muted">
+                    <th scope="col" className="py-3 pr-3 font-semibold">System</th>
                     <th scope="col" className="px-3 py-3 font-semibold">Central</th>
                     <th scope="col" className="px-3 py-3 font-semibold">Tamil Nadu</th>
-                    <th scope="col" className="px-6 py-3 text-right font-semibold">Total</th>
+                    <th scope="col" className="py-3 pl-3 text-right font-semibold">Total</th>
                   </tr>
                 </thead>
                 <tbody>
                   {TN_ROWS.map((row) => (
                     <tr key={row.size} className="border-b border-theme-border last:border-b-0">
-                      <th scope="row" className="px-6 py-3.5 font-semibold text-theme-primary">{row.size}</th>
-                      <td className="px-3 py-3.5 tabular-nums text-theme-secondary">{row.central}</td>
-                      <td className="px-3 py-3.5 tabular-nums text-theme-secondary">{row.state}</td>
-                      <td className="px-6 py-3.5 text-right font-semibold tabular-nums text-theme-primary">{row.total}</td>
+                      <th scope="row" className="py-4 pr-3 font-semibold text-theme-primary">{row.size}</th>
+                      <td className="px-3 py-4 tabular-nums text-theme-secondary">{row.central}</td>
+                      <td className="px-3 py-4 tabular-nums text-theme-secondary">{row.state}</td>
+                      <td className="py-4 pl-3 text-right font-semibold tabular-nums text-theme-primary">{row.total}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -80,16 +80,16 @@ export function HomeSupport() {
             </div>
           </div>
         ) : (
-          <div className="px-7 py-8 sm:px-8">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">PM Surya Ghar · central assistance</p>
-            <p className="mt-4 text-[clamp(2.5rem,4vw,3.5rem)] font-bold leading-none tracking-tight text-primary-gradient">Up to ₹78,000</p>
-            <p className="mt-3 max-w-2xl text-sm leading-relaxed text-theme-primary">
+          <div>
+            <p className="text-sm font-semibold text-theme-muted">PM Surya Ghar · central assistance</p>
+            <p className="mt-4 text-[clamp(2.75rem,4.6vw,4.25rem)] font-bold leading-none tracking-tight text-primary-gradient">Up to ₹78,000</p>
+            <p className="mt-5 max-w-2xl text-pretty text-[clamp(1.0625rem,1.3vw,1.3rem)] font-semibold leading-snug text-theme-primary">
               For most states, ₹30,000 per kW for the first 2 kW and ₹18,000 for the next 1 kW, capped at ₹78,000. Special-category states have different rates, and
               some states add their own incentives.
             </p>
           </div>
         )}
-        <p className="border-t border-theme-border px-7 py-4 text-xs leading-relaxed text-theme-muted sm:px-8">
+        <p className="mt-8 max-w-3xl text-sm leading-relaxed text-theme-muted">
           Subject to scheme eligibility, approved vendor and equipment requirements, installation and commissioning. The assistance is paid by direct benefit
           transfer after the required process. It is not an upfront discount on your quotation.
         </p>
@@ -99,7 +99,7 @@ export function HomeSupport() {
         href="https://pmsuryaghar.gov.in"
         target="_blank"
         rel="noreferrer"
-        className="group mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline"
+        className="group mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline"
       >
         Check your eligibility on the PM Surya Ghar portal
         <ArrowUpRight className="size-4 transition-transform group-hover:-translate-y-0.5 group-hover:translate-x-0.5" aria-hidden="true" />
