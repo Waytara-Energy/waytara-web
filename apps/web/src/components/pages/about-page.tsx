@@ -1,9 +1,8 @@
-import { Mail, MapPin, Phone } from "lucide-react";
 import { OurTeam } from "@/components/sections/our-team";
 import { Reveal } from "@/components/shared/reveal";
 import { OFFERS } from "@/data/offers";
-import { SITE } from "@/lib/site";
 import { EnquiryRoutes, FeatureColumns, SegmentSection } from "@/components/segments/segment-parts";
+import { OfficeMap } from "./office-map";
 import { PageHero, PageShell } from "./page-shell";
 
 export const ABOUT_PATH = "/about";
@@ -53,40 +52,10 @@ export function AboutPage() {
         badge="Where we are"
         title="Visit us in"
         accent="Mylapore, Chennai."
-        summary="Talk to us about a project, or about connecting equipment you already have."
+        summary="Our office is in the ASE Structure Design building on Dr. Radhakrishnan Salai. Talk to us about a project, or about connecting equipment you already have."
       >
         <Reveal direction="up" duration={800} distance={24}>
-          <div className="grid grid-cols-1 gap-8 rounded-2xl border border-theme-border bg-theme-surface px-7 py-8 sm:px-10 lg:grid-cols-5 lg:gap-12">
-            <div className="lg:col-span-3">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">Office</p>
-              <a
-                href="https://maps.app.goo.gl/uDAuNfJjh5uXBpZa9"
-                target="_blank"
-                rel="noreferrer"
-                className="mt-3 flex items-start gap-3 text-base leading-relaxed text-theme-primary underline-offset-4 hover:underline"
-              >
-                <MapPin className="mt-1 size-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                <span>
-                  {SITE.address.streetAddress}, {SITE.address.addressLocality}, {SITE.address.addressRegion} {SITE.address.postalCode}
-                </span>
-              </a>
-            </div>
-            <div className="space-y-3 lg:col-span-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">Contact</p>
-              <a href="tel:9363021195" className="flex items-center gap-3 text-sm text-theme-primary underline-offset-4 hover:underline">
-                <Phone className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                +91 93630 21195
-              </a>
-              <a href="tel:9384800141" className="flex items-center gap-3 text-sm text-theme-primary underline-offset-4 hover:underline">
-                <Phone className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                +91 93848 00141
-              </a>
-              <a href={`mailto:${SITE.email}`} className="flex items-center gap-3 text-sm text-theme-primary underline-offset-4 hover:underline">
-                <Mail className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                {SITE.email}
-              </a>
-            </div>
-          </div>
+          <OfficeMap />
         </Reveal>
       </SegmentSection>
 
