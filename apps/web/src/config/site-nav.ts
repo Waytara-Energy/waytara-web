@@ -81,6 +81,11 @@ export const PAGE_MENUS: PageMenu[] = [
     href: "/why-waytara",
     items: [
       { label: "What we do", href: "/why-waytara#reasons", blurb: "Four things we do on every project" },
+      { label: "One connected system", href: "/why-waytara#system", blurb: "Our gateway and one dashboard" },
+      { label: "Reports", href: "/why-waytara#reports", blurb: "Statements, carbon and savings, ready when you need them" },
+      { label: "Security", href: "/why-waytara#security", blurb: "How your account and data are protected" },
+      { label: "Your account", href: "/why-waytara#account", blurb: "Profile, alerts, e-mails and invoices" },
+      { label: "Every property", href: "/why-waytara#everyone", blurb: "Homes to campuses" },
       { label: "How to check", href: "/why-waytara#proof", blurb: "Things you can check for yourself" },
       { label: "Our promise", href: "/why-waytara#promise", blurb: "The lines we hold to" },
     ],
