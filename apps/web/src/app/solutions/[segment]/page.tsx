@@ -4,7 +4,7 @@ import { Navigation } from "@/components/sections/navigation";
 import { Footer } from "@/components/sections/footer";
 import { SolutionsView } from "@/components/sections/solutions-view";
 import { JsonLd } from "@/components/seo/json-ld";
-import { HomesPage, HOMES_DESCRIPTION, HOMES_PATH } from "@/components/segments/homes-page";
+import { SEGMENT_PAGES } from "@/components/segments/registry";
 import { breadcrumbJsonLd, faqJsonLd, pageMetadata, serviceJsonLd } from "@/lib/seo";
 import {
   SEGMENT_SOLUTIONS_DATA,
@@ -22,10 +22,9 @@ export async function generateMetadata({
   const normalized = normalizeSegmentSlug(segment);
   const data = SEGMENT_SOLUTIONS_DATA[normalized] || SEGMENT_SOLUTIONS_DATA.home;
 
-  // Homes & Villas is the first page on the new segment template; the other five still use the package view until they are rebuilt.
-  if (normalized === "home") {
-    return pageMetadata({ title: "Solar, Battery Backup & EV Charging for Homes", description: HOMES_DESCRIPTION, path: HOMES_PATH });
-  }
+  // Segments already on the new template (see components/segments/registry.ts) carry their own metadata; the rest still use the package view.
+  const rebuilt = SEGMENT_PAGES[normalized];
+  if (rebuilt) return pageMetadata({ title: rebuilt.title, description: rebuilt.description, path: rebuilt.path });
 
   // Canonical is the hyphenated path from the data (/solutions/ev-fleet), so
   // the underscore aliases (/solutions/ev_fleet) are never indexed as duplicates.
@@ -52,7 +51,8 @@ export function generateStaticParams() {
 export default async function SegmentDetailPage({ params }: SegmentPageProps) {
   const { segment } = await params;
   const normalized = normalizeSegmentSlug(segment);
-  if (normalized === "home") return <HomesPage />;
+  const Rebuilt = SEGMENT_PAGES[normalized]?.Page;
+  if (Rebuilt) return <Rebuilt />;
   const data = SEGMENT_SOLUTIONS_DATA[normalized] || SEGMENT_SOLUTIONS_DATA.home;
 
   return (

@@ -106,7 +106,11 @@ export interface Feature {
   body: string;
   /** A small uppercase label at the top right of the cell. */
   tag?: string;
+  /** A small heading above the checklist ("Typical applications"). */
+  includesLabel?: string;
   includes?: string[];
+  /** A closing line at the foot of the cell ("Best starting point: ..."). */
+  note?: string;
 }
 
 /** Features in hairline-divided columns: three or four across, stacked on a phone. */
@@ -116,7 +120,7 @@ export function FeatureColumns({ items }: { items: Feature[] }) {
     <Reveal direction="up" duration={800} distance={24}>
       {/* The 1px gaps show the hairline colour behind the cells, so the dividers are right at any column count. */}
       <ul className={cn("grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-theme-border bg-theme-border", cols)}>
-        {items.map(({ icon: Icon, title, body, tag, includes }) => (
+        {items.map(({ icon: Icon, title, body, tag, includesLabel, includes, note }) => (
           <li key={title} className="flex flex-col bg-theme-surface px-7 py-8 sm:px-8">
             <div className="flex items-center justify-between">
               <Icon className="size-6 stroke-[1.5] text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
@@ -125,15 +129,19 @@ export function FeatureColumns({ items }: { items: Feature[] }) {
             <h3 className="mt-6 text-base font-semibold text-theme-primary">{title}</h3>
             <p className="mt-1.5 text-sm leading-relaxed text-theme-secondary">{body}</p>
             {includes && (
-              <ul className="mt-5 space-y-2.5 border-t border-theme-border pt-5">
-                {includes.map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 text-sm text-theme-secondary">
-                    <Check className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
+              <div className="mt-5 border-t border-theme-border pt-5">
+                {includesLabel && <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">{includesLabel}</p>}
+                <ul className="space-y-2.5">
+                  {includes.map((item) => (
+                    <li key={item} className="flex items-start gap-2.5 text-sm text-theme-secondary">
+                      <Check className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
             )}
+            {note && <p className="mt-auto pt-6 text-xs leading-relaxed text-theme-muted">{note}</p>}
           </li>
         ))}
       </ul>
@@ -177,6 +185,130 @@ export function EnquiryRoutes({ heading, accent, newRoute, existingRoute }: { he
                 </Link>
               ))}
             </div>
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}
+
+export interface SupportFigure {
+  value: string;
+  label: string;
+}
+
+/** A government scheme on a segment page: the headline figures, the conditions that apply, and where to check eligibility. */
+export function SupportPanel({
+  kicker,
+  headline,
+  figures,
+  intro,
+  conditions,
+  conditionsTitle = "Conditions that apply",
+  link,
+}: {
+  kicker: string;
+  /** The big figure. */
+  headline: string;
+  /** Smaller supporting figures under it. */
+  figures?: SupportFigure[];
+  intro: string;
+  conditions: string[];
+  conditionsTitle?: string;
+  link: { label: string; href: string };
+}) {
+  return (
+    <Reveal direction="up" duration={800} distance={24}>
+      <div className="overflow-hidden rounded-2xl border border-theme-border bg-theme-surface">
+        <div className="grid grid-cols-1 lg:grid-cols-5">
+          <div className="px-7 py-8 sm:px-8 lg:col-span-2">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">{kicker}</p>
+            <p className="mt-4 text-[clamp(2.5rem,4vw,3.5rem)] font-bold leading-none tracking-tight text-primary-gradient">{headline}</p>
+            <p className="mt-3 text-sm leading-relaxed text-theme-primary">{intro}</p>
+            {figures && figures.length > 0 && (
+              <dl className="mt-6 grid grid-cols-2 gap-4 border-t border-theme-border pt-5">
+                {figures.map((f) => (
+                  <div key={f.label}>
+                    <dt className="text-xs text-theme-muted">{f.label}</dt>
+                    <dd className="mt-0.5 text-base font-semibold text-theme-primary">{f.value}</dd>
+                  </div>
+                ))}
+              </dl>
+            )}
+          </div>
+          <div className="border-t border-theme-border px-7 py-8 sm:px-8 lg:col-span-3 lg:border-l lg:border-t-0">
+            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">{conditionsTitle}</p>
+            <ul className="mt-4 space-y-3">
+              {conditions.map((c) => (
+                <li key={c} className="flex items-start gap-2.5 text-sm leading-relaxed text-theme-secondary">
+                  <Check className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                  <span>{c}</span>
+                </li>
+              ))}
+            </ul>
+            <Link href={link.href} className="group mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
+              {link.label}
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+            </Link>
+          </div>
+        </div>
+      </div>
+    </Reveal>
+  );
+}
+
+/**
+ * A full-width band for a second audience on the same page (builders and developers on the Apartments page). A tinted background and its
+ * own call to action make it read as a separate offer, not another card.
+ */
+export function AudienceBand({
+  id,
+  badge,
+  title,
+  accent,
+  summary,
+  items,
+  closing,
+  cta,
+}: {
+  id: string;
+  badge: string;
+  title: string;
+  accent: string;
+  summary: string;
+  items: { title: string; body: string }[];
+  closing: { title: string; body: string };
+  cta: Cta;
+}) {
+  return (
+    <section id={id} className="section-padding scroll-mt-28 border-y border-theme-border bg-theme-surface">
+      <div className="fluid-container">
+        <Reveal direction="up" duration={700} distance={24}>
+          <SectionHeader badge={badge} title={title} accent={accent} summary={summary} />
+        </Reveal>
+        <Reveal direction="up" duration={800} distance={24}>
+          <ul className="grid grid-cols-1 gap-px overflow-hidden rounded-2xl border border-theme-border bg-theme-border md:grid-cols-2 lg:grid-cols-4">
+            {items.map((item) => (
+              <li key={item.title} className="bg-theme-bg px-7 py-7">
+                <h3 className="text-base font-semibold text-theme-primary">{item.title}</h3>
+                <p className="mt-1.5 text-sm leading-relaxed text-theme-secondary">{item.body}</p>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-8 flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <p className="text-base font-semibold text-theme-primary">{closing.title}</p>
+              <p className="mt-1 max-w-xl text-sm leading-relaxed text-theme-secondary">{closing.body}</p>
+            </div>
+            <Link
+              href={cta.href}
+              className="group inline-flex h-12 shrink-0 items-center gap-3 rounded-full bg-emerald-600 pl-6 pr-1.5 text-sm font-semibold text-white shadow-lg shadow-emerald-600/25 transition-all duration-200 hover:scale-[1.03] hover:bg-emerald-500 active:scale-95"
+            >
+              <span>{cta.label}</span>
+              <span className="flex size-9 items-center justify-center rounded-full bg-white text-emerald-700 transition-transform duration-200 group-hover:translate-x-0.5">
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </span>
+            </Link>
           </div>
         </Reveal>
       </div>
