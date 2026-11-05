@@ -24,6 +24,9 @@ const leadSchema = z.object({
   evPlans: z.string().optional(),
   roofType: z.string().optional(),
   recommendedPackage: z.string().optional(),
+  // Energy Planner: what the visitor asked for next, and their answers with the recommendation as text.
+  nextStep: z.string().max(80).optional(),
+  plannerSummary: z.string().max(3000).optional(),
   // Platform page compatibility check: what the visitor already has. Folded into `message` like the planner context above.
   existingEquipment: z.string().max(300).optional(),
   equipmentDetails: z.string().max(1000).optional(),
@@ -42,6 +45,8 @@ const PER_IP_MAX = 5;
 const PER_IP_WINDOW_SECONDS = 10 * 60;
 const GLOBAL_MAX = 300;
 const GLOBAL_WINDOW_SECONDS = 60 * 60;
+
+const MAX_MESSAGE = 5000;
 
 function formatContext(data: z.infer<typeof leadSchema>): string | null {
   const lines: string[] = [];
@@ -62,6 +67,7 @@ function formatContext(data: z.infer<typeof leadSchema>): string | null {
     ["Estimated solar", data.estimatedSolarKw ? `${data.estimatedSolarKw} kW` : undefined],
     ["Estimated battery", data.estimatedBatteryKwh ? `${data.estimatedBatteryKwh} kWh` : undefined],
   ];
+  if (data.nextStep) extras.unshift(["Next step requested", data.nextStep]);
   const extraLines = extras
     .filter(([, value]) => value !== undefined && value !== null && value !== "")
     .map(([label, value]) => `${label}: ${value}`);
@@ -70,8 +76,15 @@ function formatContext(data: z.infer<typeof leadSchema>): string | null {
     if (lines.length) lines.push("");
     lines.push(...extraLines);
   }
+  if (data.plannerSummary) {
+    if (lines.length) lines.push("");
+    lines.push("--- Energy Planner ---", data.plannerSummary);
+  }
 
-  return lines.length ? lines.join("\n") : null;
+  if (lines.length === 0) return null;
+  const text = lines.join("\n");
+  // leads.message is limited to 5000 characters by the database: shorten rather than reject a real enquiry.
+  return text.length > MAX_MESSAGE ? `${text.slice(0, MAX_MESSAGE - 1)}…` : text;
 }
 
 export async function POST(req: NextRequest) {
