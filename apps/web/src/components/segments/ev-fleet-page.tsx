@@ -3,7 +3,8 @@ import { Activity, ArrowRight, ArrowUpRight, BatteryCharging, ClipboardList, Han
 import { ProjectSteps } from "@/components/sections/project-steps";
 import { Reveal } from "@/components/shared/reveal";
 import { FaqList, type Faq } from "./faq-list";
-import { EnquiryRoutes, FeatureColumns, InfoBand, PolicyRows, SegmentHero, SegmentSection, type Feature } from "./segment-parts";
+import { CPMS_FEATURES } from "./capabilities";
+import { EnquiryRoutes, FeatureColumns, InfoBand, PlatformDiagram, PolicyRows, SegmentHero, SegmentSection, type Feature } from "./segment-parts";
 import { SegmentShell } from "./segment-shell";
 
 export const EV_FLEET_PATH = "/solutions/ev-fleet";
@@ -12,18 +13,6 @@ export const EV_FLEET_DESCRIPTION =
 
 const PLAN_HREF = "/planner?start=charge&for=ev-fleet";
 const CPMS_HREF = "/technology#compatibility";
-
-/**
- * What the CPMS page may claim. These two are OFF until the capability is confirmed in the product: the hub accepts every charge
- * authorisation, has no tariff or billing records, and sends no charging-limit commands (docs/WEBSITE_PROGRESS.md, task 4d).
- * Turn one on and the matching copy appears; nothing else needs to change.
- */
-const CPMS_FEATURES = {
-  /** Billing, tariffs, access control and paid charging as a commercial service. */
-  monetisation: false,
-  /** CPMS sets charging limits on compatible chargers to share site capacity. */
-  loadAllocation: false,
-};
 
 const MENU = [
   { id: "entry", label: "Entry points" },
@@ -233,32 +222,6 @@ function AllocationSketch() {
   );
 }
 
-/** A small picture of how the equipment and the platform connect. No hardware detail: that belongs on the Platform page. */
-function PlatformDiagram() {
-  return (
-    <div className="mt-12 rounded-2xl border border-theme-border bg-theme-surface p-6 sm:p-8">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">Connect the chargers. Connect the energy system.</p>
-      <div className="mt-6 grid grid-cols-1 items-center gap-4 md:grid-cols-[1fr_auto_1fr_auto_1.2fr]">
-        <div className="space-y-3">
-          <div className="rounded-xl border border-theme-border bg-theme-bg px-4 py-3 text-sm font-semibold text-theme-primary">EV chargers</div>
-          <div className="rounded-xl border border-theme-border bg-theme-bg px-4 py-3 text-sm font-semibold text-theme-primary">Solar inverters and storage</div>
-        </div>
-        <ArrowRight className="mx-auto size-5 rotate-90 text-theme-muted md:rotate-0" aria-hidden="true" />
-        <div className="rounded-xl border border-theme-border bg-theme-bg px-4 py-6 text-center text-sm font-semibold text-theme-primary">WayTara gateway</div>
-        <ArrowRight className="mx-auto size-5 rotate-90 text-theme-muted md:rotate-0" aria-hidden="true" />
-        <div className="rounded-xl border border-emerald-500/40 bg-theme-bg px-4 py-4">
-          <p className="text-sm font-semibold text-theme-primary">WayTara platform</p>
-          <p className="mt-2 text-xs text-theme-secondary">Energy management: monitor supported energy equipment.</p>
-          <p className="mt-1.5 text-xs text-theme-secondary">Charging management: operate compatible charging infrastructure.</p>
-        </div>
-      </div>
-      <p className="mt-5 text-xs leading-relaxed text-theme-muted">
-        Already operating a charging site? You may not need a new charger or a new solar installation to explore WayTara CPMS. What can be read or controlled depends on the make, model and enabled features of each device.
-      </p>
-    </div>
-  );
-}
-
 /** EV Fleets & Charging: depots, public networks and existing networks, with WayTara CPMS as a product in its own right. */
 export function EvFleetPage() {
   return (
@@ -390,7 +353,10 @@ export function EvFleetPage() {
           </Link>
         </Reveal>
         <Reveal direction="up" duration={800} distance={24}>
-          <PlatformDiagram />
+          <PlatformDiagram
+            inputs={["EV chargers", "Solar inverters and storage"]}
+            note="Already operating a charging site? You may not need a new charger or a new solar installation to explore WayTara CPMS. What can be read or controlled depends on the make, model and enabled features of each device."
+          />
         </Reveal>
       </SegmentSection>
 
