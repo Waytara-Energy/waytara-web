@@ -5,18 +5,30 @@ import { Reveal } from "@/components/shared/reveal";
 import { SectionHeader } from "@/components/shared/section-header";
 import { SOLUTION_SEGMENTS } from "@/config/site-nav";
 
+interface WhoWeServeProps {
+  id?: string;
+  badge?: string;
+  title?: string;
+  accent?: string;
+  summary?: string;
+  /** Under each card, the two ways in: plan a new system, or connect equipment the visitor already has (the Solutions hub shows these). */
+  showRoutes?: boolean;
+}
+
 /** The six kinds of property WayTara serves: a photo, a name and one line each, every card leading to its own page. */
-export function WhoWeServe() {
+export function WhoWeServe({
+  id = "who-we-serve",
+  badge = "Who we serve",
+  title = "From homes to campuses,",
+  accent = "built around the site.",
+  summary = "Pick the kind of property you have to see what WayTara does for it.",
+  showRoutes = false,
+}: WhoWeServeProps) {
   return (
-    <section id="who-we-serve" className="section-padding bg-theme-bg scroll-mt-16">
+    <section id={id} className="section-padding bg-theme-bg scroll-mt-28">
       <div className="fluid-container">
         <Reveal direction="up" duration={700} distance={24}>
-          <SectionHeader
-            badge="Who we serve"
-            title="From homes to campuses,"
-            accent="built around the site."
-            summary="Pick the kind of property you have to see what WayTara does for it."
-          />
+          <SectionHeader badge={badge} title={title} accent={accent} summary={summary} />
         </Reveal>
 
         <ul className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3">
@@ -46,6 +58,16 @@ export function WhoWeServe() {
                     />
                   </div>
                 </Link>
+                {showRoutes && (
+                  <div className="mt-3 flex flex-wrap gap-x-5 gap-y-1 text-xs font-semibold">
+                    <Link href={`/planner?start=build&for=${segment.href.split("/").pop()}`} className="text-theme-highlight underline-offset-4 hover:underline">
+                      Plan a new system
+                    </Link>
+                    <Link href="/technology#compatibility" className="text-theme-secondary underline-offset-4 hover:text-theme-primary hover:underline">
+                      Connect existing equipment
+                    </Link>
+                  </div>
+                )}
               </Reveal>
             </li>
           ))}

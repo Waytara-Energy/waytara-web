@@ -1,41 +1,9 @@
 import Link from "next/link";
-import { ArrowRight, Check, Hammer, PlugZap, SlidersHorizontal, type LucideIcon } from "lucide-react";
+import { ArrowRight, Check } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 import { SectionHeader } from "@/components/shared/section-header";
+import { OFFERS } from "@/data/offers";
 import { cn } from "@/lib/utils";
-
-interface Offer {
-  icon: LucideIcon;
-  tag: string;
-  title: string;
-  body: string;
-  includes: string[];
-}
-
-// From the website notes: three offers that can each be bought alone, or together.
-const OFFERS: Offer[] = [
-  {
-    icon: Hammer,
-    tag: "New systems",
-    title: "Build your energy system",
-    body: "We design, supply and install the energy infrastructure your property needs.",
-    includes: ["Rooftop and ground-mounted solar", "Battery energy storage", "Backup and electrical integration", "Commissioning with energy management"],
-  },
-  {
-    icon: PlugZap,
-    tag: "EV charging",
-    title: "Install and manage EV charging",
-    body: "We install charging infrastructure and provide software to manage compatible charging stations.",
-    includes: ["Home and commercial charger installation", "WayTara's OCPP-based charging software", "Charging-station visibility and management", "Links to the wider dashboard where supported"],
-  },
-  {
-    icon: SlidersHorizontal,
-    tag: "Your existing equipment",
-    title: "Connect and manage what you have",
-    body: "WayTara EMS brings supported equipment you already own into one dashboard.",
-    includes: ["Compatible inverters and EV chargers", "WayTara connectivity hardware", "One dashboard for connected equipment", "Controls where the equipment supports them"],
-  },
-];
 
 const ROUTE_LINK = "group inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight hover:underline underline-offset-4";
 

@@ -4,6 +4,7 @@ import { Navigation } from "@/components/sections/navigation";
 import { Footer } from "@/components/sections/footer";
 import { SolutionsView } from "@/components/sections/solutions-view";
 import { JsonLd } from "@/components/seo/json-ld";
+import { HomesPage, HOMES_DESCRIPTION, HOMES_PATH } from "@/components/segments/homes-page";
 import { breadcrumbJsonLd, faqJsonLd, pageMetadata, serviceJsonLd } from "@/lib/seo";
 import {
   SEGMENT_SOLUTIONS_DATA,
@@ -20,6 +21,11 @@ export async function generateMetadata({
   const { segment } = await params;
   const normalized = normalizeSegmentSlug(segment);
   const data = SEGMENT_SOLUTIONS_DATA[normalized] || SEGMENT_SOLUTIONS_DATA.home;
+
+  // Homes & Villas is the first page on the new segment template; the other five still use the package view until they are rebuilt.
+  if (normalized === "home") {
+    return pageMetadata({ title: "Solar, Battery Backup & EV Charging for Homes", description: HOMES_DESCRIPTION, path: HOMES_PATH });
+  }
 
   // Canonical is the hyphenated path from the data (/solutions/ev-fleet), so
   // the underscore aliases (/solutions/ev_fleet) are never indexed as duplicates.
@@ -46,6 +52,7 @@ export function generateStaticParams() {
 export default async function SegmentDetailPage({ params }: SegmentPageProps) {
   const { segment } = await params;
   const normalized = normalizeSegmentSlug(segment);
+  if (normalized === "home") return <HomesPage />;
   const data = SEGMENT_SOLUTIONS_DATA[normalized] || SEGMENT_SOLUTIONS_DATA.home;
 
   return (

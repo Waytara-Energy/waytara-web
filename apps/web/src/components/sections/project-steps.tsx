@@ -9,9 +9,9 @@ const STEPS = [
 ];
 
 /** How a project runs, in four steps. Customers who already own equipment join at step three. */
-export function ProjectSteps() {
+export function ProjectSteps({ id = "how-a-project-works" }: { id?: string }) {
   return (
-    <section id="how-a-project-works" className="section-padding bg-theme-bg scroll-mt-16">
+    <section id={id} className="section-padding bg-theme-bg scroll-mt-28">
       <div className="fluid-container">
         <Reveal direction="up" duration={700} distance={24}>
           <SectionHeader
