@@ -1,9 +1,9 @@
-import { ArrowRight, Eye, Hand, Plug, Server, Zap } from "lucide-react";
+import { ArrowRight, Eye, Hand, Router, Server, Zap } from "lucide-react";
 import { FittedDemo } from "@/components/sections/dashboard-showcase";
 import { Reveal } from "@/components/shared/reveal";
 import { CPMS_FEATURES } from "@/components/segments/capabilities";
 import { FaqList, type Faq } from "@/components/segments/faq-list";
-import { FeatureColumns, SegmentSection } from "@/components/segments/segment-parts";
+import { FeatureColumns, NoteColumns, SegmentSection } from "@/components/segments/segment-parts";
 import { CompatibilityForm } from "./compatibility-form";
 import { PageHero, PageShell } from "./page-shell";
 
@@ -23,7 +23,7 @@ const MENU = [
 
 const PARTS = [
   {
-    icon: Plug,
+    icon: Router,
     title: "WayTara gateway",
     body: "A small box at your site that reads your inverters, batteries and meters and sends the readings to WayTara. Chargers connect directly.",
   },
@@ -61,6 +61,12 @@ const CHARGING_DO = [
   "Start or stop a session remotely on a compatible charger",
   "Reset a charger or unlock a connector",
   "Read a charger's settings, and see which OCPP features, including smart-charging limits, it supports",
+];
+
+const NEXT_STEPS = [
+  { title: "We read your make and model", body: "We check it against the equipment WayTara supports." },
+  { title: "We tell you what connecting involves", body: "Whether it uses the gateway or the charger's own connection, and what that would take." },
+  { title: "You decide", body: "You don't need to replace anything to ask." },
 ];
 
 export const PLATFORM_FAQS: Faq[] = [
@@ -117,43 +123,15 @@ function Link2({ label }: { label: string }) {
   );
 }
 
-function Bullets({ items }: { items: string[] }) {
+/** What you can see and what you can do, as two frameless blocks (the same look as the rest of the site), each with a short sentence and a tick list. */
+function SeeDo({ see, seeBody, doo, doBody }: { see: string[]; seeBody: string; doo: string[]; doBody: string }) {
   return (
-    <ul className="space-y-3">
-      {items.map((item) => (
-        <li key={item} className="flex items-start gap-2.5 text-sm leading-relaxed text-theme-secondary">
-          <span className="mt-2 size-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
-          <span>{item}</span>
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-function SeeDo({ see, doo, extraDo = [] }: { see: string[]; doo: string[]; extraDo?: string[] }) {
-  return (
-    <Reveal direction="up" duration={800} distance={24}>
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-2 lg:gap-12">
-        <div className="rounded-2xl border border-theme-border bg-theme-surface p-6 sm:p-7">
-          <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">
-            <Eye className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-            What you can see
-          </p>
-          <div className="mt-5">
-            <Bullets items={see} />
-          </div>
-        </div>
-        <div className="rounded-2xl border border-theme-border bg-theme-surface p-6 sm:p-7">
-          <p className="flex items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">
-            <Hand className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-            What you can do
-          </p>
-          <div className="mt-5">
-            <Bullets items={[...doo, ...extraDo]} />
-          </div>
-        </div>
-      </div>
-    </Reveal>
+    <FeatureColumns
+      items={[
+        { icon: Eye, title: "What you can see", body: seeBody, includes: see },
+        { icon: Hand, title: "What you can do", body: doBody, includes: doo },
+      ]}
+    />
   );
 }
 
@@ -231,19 +209,19 @@ export function PlatformPage() {
         accent="Manage what is supported."
         summary="For inverters, batteries and meters that have been tested with the gateway."
       >
-        <SeeDo see={ENERGY_SEE} doo={ENERGY_DO} />
-        <Reveal direction="up" duration={700} distance={16}>
-          <div className="mt-8 grid grid-cols-1 gap-x-10 gap-y-6 text-sm leading-relaxed text-theme-secondary md:grid-cols-2">
-            <p>
-              <span className="block font-semibold text-theme-primary">Supported equipment</span>
-              Deye hybrid inverters are supported today. Other makes and models are assessed and added after testing on real equipment, and we confirm yours before you commit.
-            </p>
-            <p>
-              <span className="block font-semibold text-theme-primary">What control means</span>
-              Control means selected, tested settings on a supported inverter. It is not unrestricted battery-management control or grid-scale dispatch.
-            </p>
-          </div>
-        </Reveal>
+        <SeeDo see={ENERGY_SEE} seeBody="Everything your connected equipment reports, live and over time." doo={ENERGY_DO} doBody="Settings that have been tested on supported equipment, and help from your engineer." />
+        <NoteColumns
+          items={[
+            {
+              title: "Supported equipment",
+              body: "Deye hybrid inverters are supported today. Other makes and models are assessed and added after testing on real equipment, and we confirm yours before you commit.",
+            },
+            {
+              title: "What control means",
+              body: "Control means selected, tested settings on a supported inverter. It is not unrestricted battery-management control or grid-scale dispatch.",
+            },
+          ]}
+        />
       </SegmentSection>
 
       <SegmentSection
@@ -253,7 +231,7 @@ export function PlatformPage() {
         accent="from one place."
         summary="For OCPP 1.6J chargers. The functions available depend on each charger's supported OCPP features and firmware."
       >
-        <SeeDo see={CHARGING_SEE} doo={chargingDo} />
+        <SeeDo see={CHARGING_SEE} seeBody="The state of every charger and each charging session." doo={chargingDo} doBody="The commands that compatible chargers support." />
       </SegmentSection>
 
       <SegmentSection
@@ -277,11 +255,32 @@ export function PlatformPage() {
         accent="your equipment?"
         summary="Tell us what you have. We will check compatibility and what connecting it would involve. You don't need to replace anything to ask."
       >
-        <Reveal direction="up" duration={800} distance={24}>
-          <div className="max-w-3xl">
+        <div className="grid grid-cols-1 gap-14 lg:grid-cols-5 lg:gap-20">
+          <Reveal direction="up" duration={800} distance={24} className="lg:col-span-3">
             <CompatibilityForm />
-          </div>
-        </Reveal>
+          </Reveal>
+          <Reveal direction="up" duration={800} distance={24} delay={120} className="lg:col-span-2">
+            <div className="lg:border-l lg:border-theme-border lg:pl-14">
+              <p className="text-lg font-semibold tracking-tight text-theme-primary">What happens next</p>
+              <ol className="mt-6 space-y-6">
+                {NEXT_STEPS.map((step, i) => (
+                  <li key={step.title} className="flex items-start gap-4">
+                    <span className="flex size-8 shrink-0 items-center justify-center rounded-full border-2 border-emerald-500/70 text-xs font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
+                      {i + 1}
+                    </span>
+                    <div>
+                      <p className="font-semibold text-theme-primary">{step.title}</p>
+                      <p className="mt-1 text-[15px] leading-relaxed text-theme-secondary">{step.body}</p>
+                    </div>
+                  </li>
+                ))}
+              </ol>
+              <p className="mt-10 text-sm leading-relaxed text-theme-muted">
+                Supported today: Deye hybrid inverters and OCPP 1.6J chargers. Other equipment is assessed case by case.
+              </p>
+            </div>
+          </Reveal>
+        </div>
       </SegmentSection>
 
       <SegmentSection id="faq" badge="FAQ" title="Questions about" accent="the platform.">

@@ -208,11 +208,11 @@ export function NoteBlock({ title, children, className }: { title: string; child
   );
 }
 
-/** Three short notes side by side (a bold lead and one sentence each), under a thin rule. */
+/** Two or three short notes side by side (a bold lead and one sentence each), under a thin rule. */
 export function NoteColumns({ items, className }: { items: { title: string; body: string }[]; className?: string }) {
   return (
     <Reveal direction="up" duration={700} distance={16}>
-      <div className={cn("mt-14 grid grid-cols-1 gap-x-10 gap-y-6 border-t border-theme-border pt-8 md:grid-cols-3", className)}>
+      <div className={cn("mt-14 grid grid-cols-1 gap-x-10 gap-y-6 border-t border-theme-border pt-8", items.length === 2 ? "md:grid-cols-2" : "md:grid-cols-3", className)}>
         {items.map((item) => (
           <p key={item.title} className="text-[15px] leading-relaxed text-theme-secondary">
             <span className="block text-base font-semibold text-theme-primary">{item.title}</span>
