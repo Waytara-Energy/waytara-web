@@ -83,13 +83,13 @@ export function HomeSupport() {
           <div>
             <p className="text-sm font-semibold text-theme-muted">PM Surya Ghar · central assistance</p>
             <p className="mt-4 text-[clamp(2.75rem,4.6vw,4.25rem)] font-bold leading-none tracking-tight text-primary-gradient">Up to ₹78,000</p>
-            <p className="mt-5 max-w-2xl text-pretty text-[clamp(1.0625rem,1.3vw,1.3rem)] font-semibold leading-snug text-theme-primary">
+            <p className="mt-5 text-pretty text-[clamp(1.0625rem,1.3vw,1.3rem)] font-semibold leading-snug text-theme-primary">
               For most states, ₹30,000 per kW for the first 2 kW and ₹18,000 for the next 1 kW, capped at ₹78,000. Special-category states have different rates, and
               some states add their own incentives.
             </p>
           </div>
         )}
-        <p className="mt-8 max-w-3xl text-sm leading-relaxed text-theme-muted">
+        <p className="mt-8 text-sm leading-relaxed text-theme-muted">
           Subject to scheme eligibility, approved vendor and equipment requirements, installation and commissioning. The assistance is paid by direct benefit
           transfer after the required process. It is not an upfront discount on your quotation.
         </p>

@@ -2,7 +2,7 @@ import { Activity, BatteryCharging, Cable, Fuel, Gauge, LayoutDashboard, ShieldC
 import { ProjectSteps } from "@/components/sections/project-steps";
 import { Reveal } from "@/components/shared/reveal";
 import { FaqList, type Faq } from "./faq-list";
-import { EnquiryRoutes, EvidencePanel, FeatureColumns, InfoBand, NoteColumns, PolicyRows, SegmentHero, SegmentSection, SupportPanel } from "./segment-parts";
+import { EnquiryRoutes, EvidenceGrid, FeatureColumns, InfoBand, NoteColumns, PolicyRows, SegmentHero, SegmentSection, SupportPanel } from "./segment-parts";
 import { SegmentShell } from "./segment-shell";
 
 export const FACTORY_PATH = "/solutions/factory";
@@ -220,22 +220,22 @@ export function FactoryPage() {
         accent="can look like."
         summary="A published project by another company, shown to illustrate the approach. It is not a WayTara installation."
       >
-        <Reveal direction="up" duration={800} distance={24}>
-          <div className="grid grid-cols-1 gap-x-14 gap-y-14 md:grid-cols-2">
-            <EvidencePanel
-              source="Published industry case study · Chennai"
-              figure="800 kW"
-              text="Asian Paints rooftop solar, coordinated with grid supply and four existing diesel generator sets. It shows why industrial systems should be engineered around the site, not installed as disconnected parts."
-              caveat="Tata Power's reported project, not a WayTara project or a guaranteed customer outcome."
-            />
-            <EvidencePanel
-              source="Same project · as reported by Tata Power"
-              figure="₹78 lakh"
-              text="Annual energy-expenditure savings reported, with an annual emissions reduction of about 640 tonnes."
-              caveat="Reported results for one site. Your savings depend on your own consumption, tariff and operations."
-            />
-          </div>
-        </Reveal>
+        <EvidenceGrid
+          items={[
+            {
+              source: "Published industry case study · Chennai",
+              figure: "800 kW",
+              text: "Asian Paints rooftop solar, coordinated with grid supply and four existing diesel generator sets. It shows why industrial systems should be engineered around the site, not installed as disconnected parts.",
+              caveat: "Tata Power's reported project, not a WayTara project or a guaranteed customer outcome.",
+            },
+            {
+              source: "Same project · as reported by Tata Power",
+              figure: "₹78 lakh",
+              text: "Annual energy-expenditure savings reported, with an annual emissions reduction of about 640 tonnes.",
+              caveat: "Reported results for one site. Your savings depend on your own consumption, tariff and operations.",
+            },
+          ]}
+        />
       </SegmentSection>
 
       <ProjectSteps

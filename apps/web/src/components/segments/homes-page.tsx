@@ -5,7 +5,7 @@ import { Reveal } from "@/components/shared/reveal";
 import { OFFERS } from "@/data/offers";
 import { FaqList, type Faq } from "./faq-list";
 import { HomeSupport } from "./home-support";
-import { EnquiryRoutes, EvidencePanel, FeatureColumns, NoteColumns, SegmentHero, SegmentSection } from "./segment-parts";
+import { EnquiryRoutes, EvidenceGrid, FeatureColumns, NoteColumns, SegmentHero, SegmentSection } from "./segment-parts";
 import { SegmentShell } from "./segment-shell";
 
 export const HOMES_PATH = "/solutions/home";
@@ -37,14 +37,12 @@ const SETUPS = [
   {
     icon: Sun,
     title: "Solar only",
-    body: "Lowers your electricity bill. The simplest and lowest-cost way to start, best when your grid supply is reliable.",
-    includes: ["No battery needed", "Switches off in a power cut"],
+    body: "Lowers your electricity bill with no battery needed. The simplest and lowest-cost way to start, but it switches off in a power cut.",
   },
   {
     icon: BatteryCharging,
     title: "Solar + battery",
-    body: "Stores solar power for later and keeps chosen appliances running in a power cut, while you stay on the grid.",
-    includes: ["Backup for what you choose", "Still connected to the grid"],
+    body: "Stores solar power for later and keeps chosen appliances running in a power cut, while you stay connected to the grid.",
   },
 ];
 
@@ -187,22 +185,22 @@ export function HomesPage() {
         accent="says."
         summary="Independent studies, not WayTara promises. Your own results depend on how you use energy."
       >
-        <Reveal direction="up" duration={800} distance={24}>
-          <div className="grid grid-cols-1 gap-x-14 gap-y-14 md:grid-cols-2">
-            <EvidencePanel
-              source="Indian household research · CEEW · 2026"
-              figure="53–73%"
-              text="Reported bill reduction across two household consumption groups among surveyed rooftop-solar adopters, depending on their original bill band."
-              caveat="Pan-India survey of 17,094 households. Not a WayTara savings guarantee."
-            />
-            <EvidencePanel
-              source="Residential EV charging · AEEE / Kazam · 2026"
-              figure="80–90%"
-              text="Of daily EV energy demand was met by home charging in the study's dataset."
-              caveat="Based on over 100,000 residential charging data points. Not a WayTara result."
-            />
-          </div>
-        </Reveal>
+        <EvidenceGrid
+          items={[
+            {
+              source: "Indian household research · CEEW · 2026",
+              figure: "53–73%",
+              text: "Reported bill reduction across two household consumption groups among surveyed rooftop-solar adopters, depending on their original bill band.",
+              caveat: "Pan-India survey of 17,094 households. Not a WayTara savings guarantee.",
+            },
+            {
+              source: "Residential EV charging · AEEE / Kazam · 2026",
+              figure: "80–90%",
+              text: "Of daily EV energy demand was met by home charging in the study's dataset.",
+              caveat: "Based on over 100,000 residential charging data points. Not a WayTara result.",
+            },
+          ]}
+        />
       </SegmentSection>
 
       <ProjectSteps id="process" />

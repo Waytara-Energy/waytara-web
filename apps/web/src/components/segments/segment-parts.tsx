@@ -151,19 +151,43 @@ export function FeatureColumns({ items }: { items: Feature[] }) {
   );
 }
 
-/**
- * A research finding in the Apple "big number" style: no box, a large figure, one clear sentence, and the source and what it does not mean in
- * small grey type underneath. The source and the caveat are always shown.
- */
-export function EvidencePanel({ source, figure, text, caveat }: { source: string; figure: string; text: string; caveat: string }) {
+/** One research figure in the Apple "big number" style: a large figure and one clear sentence. The source and caveat go in the note under the group (EvidenceGrid). */
+export function EvidencePanel({ figure, text }: { figure: string; text: string }) {
   return (
     <div className="flex h-full flex-col">
       <p className="text-[clamp(3rem,5.5vw,5rem)] font-bold leading-none tracking-tight text-primary-gradient">{figure}</p>
       <p className="mt-6 max-w-[32rem] text-pretty text-[clamp(1.0625rem,1.3vw,1.3rem)] font-semibold leading-snug text-theme-primary">{text}</p>
-      <p className="mt-4 max-w-[32rem] text-sm leading-relaxed text-theme-muted">
-        {source}. {caveat}
-      </p>
     </div>
+  );
+}
+
+export interface Evidence {
+  source: string;
+  figure: string;
+  text: string;
+  caveat: string;
+}
+
+/**
+ * Research or case-study figures side by side, then one full-width note under a thin rule with every figure's source and what it does not mean.
+ * The source and the caveat are always shown.
+ */
+export function EvidenceGrid({ items }: { items: Evidence[] }) {
+  return (
+    <Reveal direction="up" duration={800} distance={24}>
+      <div className="grid grid-cols-1 gap-x-14 gap-y-14 md:grid-cols-2">
+        {items.map((item) => (
+          <EvidencePanel key={item.figure} figure={item.figure} text={item.text} />
+        ))}
+      </div>
+      <div className="mt-14 space-y-2 border-t border-theme-border pt-6 text-sm leading-relaxed text-theme-muted">
+        {items.map((item) => (
+          <p key={item.figure}>
+            <span className="font-semibold text-theme-secondary">{item.figure}</span> · {item.source}. {item.caveat}
+          </p>
+        ))}
+      </div>
+    </Reveal>
   );
 }
 
@@ -281,8 +305,8 @@ export function SupportPanel({
 }
 
 /**
- * A full-width band for a second audience on the same page (builders and developers on the Apartments page). A tinted background and its
- * own call to action make it read as a separate offer. The items are frameless blocks, like the rest of the page.
+ * A band for a second audience on the same page (builders and developers on the Apartments page). Its headline and its
+ * own call to action make it read as a separate offer. The items are frameless blocks, on the same background as the rest of the page.
  */
 export function AudienceBand({
   id,
@@ -304,7 +328,7 @@ export function AudienceBand({
   cta: Cta;
 }) {
   return (
-    <section id={id} className="section-padding scroll-mt-28 border-y border-theme-border bg-theme-surface">
+    <section id={id} className="section-padding scroll-mt-28">
       <div className="fluid-container">
         <Reveal direction="up" duration={700} distance={24}>
           <SectionHeader badge={badge} title={title} accent={accent} summary={summary} />
@@ -377,7 +401,7 @@ export function InfoBand({
   const band = (
     <Reveal direction="up" duration={800} distance={24}>
       <div className={cn("grid grid-cols-1 gap-8 border-t border-theme-border pt-10 lg:grid-cols-5 lg:gap-14", bare && "mt-14")}>
-        <div className="lg:col-span-2">
+        <div className={items ? "lg:col-span-2" : "lg:col-span-5"}>
           <p className="text-[clamp(1.35rem,1.9vw,1.75rem)] font-bold leading-snug tracking-tight text-theme-primary">{title}</p>
           {body && <p className="mt-3 text-[15px] leading-relaxed text-theme-secondary sm:text-base">{body}</p>}
           {cta && (

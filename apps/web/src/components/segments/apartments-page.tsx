@@ -2,7 +2,7 @@ import { BatteryCharging, LayoutDashboard, PlugZap, Sun } from "lucide-react";
 import { ProjectSteps } from "@/components/sections/project-steps";
 import { Reveal } from "@/components/shared/reveal";
 import { FaqList, type Faq } from "./faq-list";
-import { AudienceBand, EnquiryRoutes, EvidencePanel, FeatureColumns, InfoBand, SegmentHero, SegmentSection, SupportPanel } from "./segment-parts";
+import { AudienceBand, EnquiryRoutes, EvidenceGrid, FeatureColumns, InfoBand, SegmentHero, SegmentSection, SupportPanel } from "./segment-parts";
 import { SegmentShell } from "./segment-shell";
 
 export const APARTMENTS_PATH = "/solutions/apartment";
@@ -177,22 +177,22 @@ export function ApartmentsPage() {
         accent="worth assessing."
         summary="Don't only ask how much electricity your society uses. Ask what uses it. Pumps, lifts, sewage treatment, lighting and EV charging behave very differently."
       >
-        <Reveal direction="up" duration={800} distance={24}>
-          <div className="grid grid-cols-1 gap-x-14 gap-y-14 md:grid-cols-2">
-            <EvidencePanel
-              source="WRI India + TIDE · study of 10 Bengaluru apartment complexes"
-              figure="8 of 10"
-              text="Studied communities had enough assessed rooftop potential to potentially meet their annual common-service electricity demand through rooftop solar."
-              caveat="Research findings, not guaranteed results for every apartment. Roof space, consumption, occupancy and equipment condition matter."
-            />
-            <EvidencePanel
-              source="WRI India + TIDE · same study"
-              figure="45%"
-              text="Of the aggregate common-area connected load in the study was accounted for by water pumping assets."
-              caveat="This is why we assess common facilities before recommending a system size."
-            />
-          </div>
-        </Reveal>
+        <EvidenceGrid
+          items={[
+            {
+              source: "WRI India + TIDE · study of 10 Bengaluru apartment complexes",
+              figure: "8 of 10",
+              text: "Studied communities had enough assessed rooftop potential to potentially meet their annual common-service electricity demand through rooftop solar.",
+              caveat: "Research findings, not guaranteed results for every apartment. Roof space, consumption, occupancy and equipment condition matter.",
+            },
+            {
+              source: "WRI India + TIDE · same study",
+              figure: "45%",
+              text: "Of the aggregate common-area connected load in the study was accounted for by water pumping assets.",
+              caveat: "This is why we assess common facilities before recommending a system size.",
+            },
+          ]}
+        />
       </SegmentSection>
 
       <SegmentSection

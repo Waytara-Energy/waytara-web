@@ -2,7 +2,7 @@ import { BatteryCharging, Building2, Gauge, HeartPulse, LayoutDashboard, Lightbu
 import { ProjectSteps } from "@/components/sections/project-steps";
 import { Reveal } from "@/components/shared/reveal";
 import { FaqList, type Faq } from "./faq-list";
-import { EnquiryRoutes, EvidencePanel, FeatureColumns, InfoBand, NoteBlock, PolicyRows, SegmentHero, SegmentSection } from "./segment-parts";
+import { EnquiryRoutes, EvidenceGrid, FeatureColumns, InfoBand, NoteBlock, PolicyRows, SegmentHero, SegmentSection } from "./segment-parts";
 import { SegmentShell } from "./segment-shell";
 
 export const COMMERCIAL_PATH = "/solutions/commercial";
@@ -207,22 +207,22 @@ export function CommercialPage() {
         accent="have achieved."
         summary="Two third-party projects, shown for context. They are not WayTara installations and not typical or guaranteed results."
       >
-        <Reveal direction="up" duration={800} distance={24}>
-          <div className="grid grid-cols-1 gap-x-14 gap-y-14 md:grid-cols-2">
-            <EvidencePanel
-              source="Healthcare · Chennai"
-              figure="3.15 MWp"
-              text="Chettinad Hospital rooftop installation, built in three stages between 2021 and 2024. Approximately ₹3 crore annual savings reported by Orb Energy."
-              caveat="Vendor-reported estimate, not a guaranteed result. Site conditions and commercial tariffs decide the actual economics."
-            />
-            <EvidencePanel
-              source="Retail · Karnataka"
-              figure="110 kWp"
-              text="Parekh's Signature Mall rooftop installation. Approximately ₹10.6 lakh annual savings reported by Orb Energy."
-              caveat="Vendor-reported estimate, not a guaranteed result. Site conditions and commercial tariffs decide the actual economics."
-            />
-          </div>
-        </Reveal>
+        <EvidenceGrid
+          items={[
+            {
+              source: "Healthcare · Chennai",
+              figure: "3.15 MWp",
+              text: "Chettinad Hospital rooftop installation, built in three stages between 2021 and 2024. Approximately ₹3 crore annual savings reported by Orb Energy.",
+              caveat: "Vendor-reported estimate, not a guaranteed result. Site conditions and commercial tariffs decide the actual economics.",
+            },
+            {
+              source: "Retail · Karnataka",
+              figure: "110 kWp",
+              text: "Parekh's Signature Mall rooftop installation. Approximately ₹10.6 lakh annual savings reported by Orb Energy.",
+              caveat: "Vendor-reported estimate, not a guaranteed result. Site conditions and commercial tariffs decide the actual economics.",
+            },
+          ]}
+        />
       </SegmentSection>
 
       <ProjectSteps

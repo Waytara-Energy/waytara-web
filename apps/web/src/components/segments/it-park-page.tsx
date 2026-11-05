@@ -68,18 +68,8 @@ const DASHBOARD_METRICS = [
 ];
 
 const STAGES = [
-  {
-    icon: Cpu,
-    title: "New campus",
-    body: "Plan your energy, monitoring and connectivity alongside the project while the campus is still being built.",
-    includes: ["Estimate your energy needs", "Plan solar and batteries", "Leave room for EV charging", "Build in monitoring from day one"],
-  },
-  {
-    icon: Activity,
-    title: "Existing campus",
-    body: "Start with your current infrastructure. You don't need to start over to get one connected view.",
-    includes: ["Check your current energy use", "Connect compatible equipment", "Find room for solar and storage", "Bring in chargers that support it"],
-  },
+  { icon: Cpu, title: "New campus", body: "Plan your energy, monitoring and connectivity alongside the project while the campus is still being built." },
+  { icon: Activity, title: "Existing campus", body: "Start with your current infrastructure. You don't need to start over to get one connected view." },
 ];
 
 const CODES = [
@@ -232,6 +222,12 @@ export function ItParkPage() {
         summary="You start in a different place, depending on where you are."
       >
         <FeatureColumns items={STAGES} />
+        <NoteBlock title="What we do in each case.">
+          <p>
+            New campus: we estimate your energy needs, plan solar and batteries, leave room for EV charging and build monitoring in from day one. Existing campus: we check your
+            current energy use, connect compatible equipment, look for room for solar and storage, and bring in chargers that support it.
+          </p>
+        </NoteBlock>
       </SegmentSection>
 
       <SegmentSection
