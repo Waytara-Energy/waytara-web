@@ -1,12 +1,14 @@
 import Link from "next/link";
-import { ArrowUpRight } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Check } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 import { SectionHeader } from "@/components/shared/section-header";
 import { OFFERS } from "@/data/offers";
 
+const ROUTE_LINK = "group inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight hover:underline underline-offset-4";
+
 /**
- * Build, Charge, Manage: what WayTara does. Three frameless columns (a round icon badge, a bold title, a short description), the same look as
- * the pillars further down the page, and one link to the full solutions. The checklists live on the Solutions page.
+ * Build, Charge, Manage: what WayTara does. Three frameless columns in the same look as the pillars further down the page (a round icon badge, a
+ * bold title, a short description), each with what it includes, then the two ways in and a link to the full solutions.
  */
 export function WhatWeDo() {
   return (
@@ -21,23 +23,54 @@ export function WhatWeDo() {
           />
         </Reveal>
 
-        <div className="grid grid-cols-1 gap-10 md:grid-cols-3 lg:gap-12">
-          {OFFERS.map(({ id, icon: Icon, title, body }, i) => (
+        <div className="grid grid-cols-1 gap-12 md:grid-cols-3 lg:gap-12">
+          {OFFERS.map(({ id, icon: Icon, tag, title, body, includes }, i) => (
             <Reveal key={id} direction="up" duration={650} distance={24} delay={i * 100}>
               <div className="group flex flex-col justify-start text-left">
-                <div className="mb-4 flex size-10 items-center justify-center rounded-full border border-theme-border bg-theme-surface text-theme-primary transition-colors group-hover:border-emerald-500/30 group-hover:bg-emerald-500/10 group-hover:text-emerald-500 dark:group-hover:text-emerald-400">
-                  <Icon className="size-5 stroke-[1.75]" aria-hidden="true" />
+                <div className="mb-4 flex items-center justify-between">
+                  <div className="flex size-10 items-center justify-center rounded-full border border-theme-border bg-theme-surface text-theme-primary transition-colors group-hover:border-emerald-500/30 group-hover:bg-emerald-500/10 group-hover:text-emerald-500 dark:group-hover:text-emerald-400">
+                    <Icon className="size-5 stroke-[1.75]" aria-hidden="true" />
+                  </div>
+                  <span className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">{tag}</span>
                 </div>
                 <h3 className="mb-2 text-base font-bold tracking-tight text-theme-primary sm:text-lg">{title}</h3>
                 <p className="text-sm font-normal leading-relaxed text-theme-secondary sm:text-[15px]">{body}</p>
+                <ul className="mt-5 space-y-2.5 border-t border-theme-border pt-5">
+                  {includes.map((item) => (
+                    <li key={item} className="flex items-start gap-2.5 text-sm text-theme-secondary">
+                      <Check className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                      <span>{item}</span>
+                    </li>
+                  ))}
+                </ul>
               </div>
             </Reveal>
           ))}
         </div>
 
+        {/* The two ways in */}
+        <Reveal direction="up" duration={700} distance={16} delay={100}>
+          <div className="mt-12 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between sm:gap-10">
+            <p className="text-sm text-theme-secondary">
+              <span className="font-semibold text-theme-primary">Planning a new installation? </span>
+              <Link href="/planner" className={ROUTE_LINK}>
+                Plan a new system
+                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+              </Link>
+            </p>
+            <p className="text-sm text-theme-secondary">
+              <span className="font-semibold text-theme-primary">Already have an energy system? </span>
+              <Link href="/technology#compatibility" className={ROUTE_LINK}>
+                Connect what I already have
+                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+              </Link>
+            </p>
+          </div>
+        </Reveal>
+
+        {/* The dashboard card that follows slides up over the bottom of this section (its negative top margin), so this space is under the link, not behind the card. */}
         <Reveal direction="up" duration={700} distance={16} delay={150}>
-          {/* The dashboard card that follows slides up over the bottom of this section (its negative top margin), so this space is under the link, not behind the card. */}
-          <div className="mt-12 pb-24 text-center md:pb-52">
+          <div className="mt-10 pb-24 text-center md:pb-52">
             <Link
               href="/solutions"
               className="group inline-flex items-center gap-1.5 border-b border-theme-primary pb-0.5 text-sm font-semibold text-theme-primary transition-colors hover:border-theme-highlight hover:text-theme-highlight"
