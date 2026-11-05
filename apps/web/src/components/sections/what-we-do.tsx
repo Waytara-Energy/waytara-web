@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Check } from "lucide-react";
+import { ArrowRight, CircleCheck } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 import { SectionHeader } from "@/components/shared/section-header";
 import { OFFERS } from "@/data/offers";
@@ -37,7 +37,7 @@ export function WhatWeDo() {
                 <ul className="mt-5 space-y-2.5 border-t border-theme-border pt-5">
                   {includes.map((item) => (
                     <li key={item} className="flex items-start gap-2.5 text-sm text-theme-secondary">
-                      <Check className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                      <CircleCheck className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
                       <span>{item}</span>
                     </li>
                   ))}

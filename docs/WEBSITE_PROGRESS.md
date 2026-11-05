@@ -49,6 +49,7 @@ is about 0.6 h up to the search and support round, and about 0.7 h including it.
 | D12 | "What WayTara does": remove the small tags and the Discover link; show the two routes in their place | Done | 16:22 | 16:25 | 0.05 | (next commit) | Removed NEW SYSTEMS / EV CHARGING / YOUR EXISTING EQUIPMENT and "Discover our services". "Planning a new installation? Plan a new system" and "Already have an energy system? Connect what I already have" now sit centred side by side under the columns (stacked on a phone). Checked in the browser at full width. |
 | D13 | "What WayTara does": the two routes as one centred line | Done | 16:28 | 16:30 | 0.03 | (next commit) | The two routes now sit close together as a single line with a thin divider, centred on the page (measured: the group's centre is within 1 px of the page centre, same row). Stacks on a phone. If you meant a single link only (one of the two), tell me which. |
 | D14 | "What WayTara does": show only the two links | Done | 16:33 | 16:35 | 0.03 | (next commit) | "Plan a new system →" and "Connect what I already have →", one centred line with a thin divider; the two leading questions are gone. |
+| D15 | "What WayTara does": outlined circle ticks | Done | 16:38 | 16:39 | 0.02 | (next commit) | The checklist ticks are now an outlined circle with a tick (Lucide CircleCheck), same green. Only this section; the segment pages still use plain ticks. |
 
 ## Log
 
@@ -94,4 +95,5 @@ is about 0.6 h up to the search and support round, and about 0.7 h including it.
 | 2026-11-05 | 16:25 | D12 done: tags and Discover link removed; the two routes centred in their place. |
 | 2026-11-05 | 16:30 | D13 done: the two routes as one centred line. |
 | 2026-11-05 | 16:35 | D14 done: only the two links shown. |
+| 2026-11-05 | 16:39 | D15 done: circle ticks in What WayTara does. |
 
