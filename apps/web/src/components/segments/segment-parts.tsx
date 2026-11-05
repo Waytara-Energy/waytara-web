@@ -315,3 +315,75 @@ export function AudienceBand({
     </section>
   );
 }
+
+export interface PolicyItem {
+  tag: string;
+  title: string;
+  body: string;
+}
+
+/** Policy and money points as rows (tag and title on the left, the explanation on the right), for pages with several separate provisions. */
+export function PolicyRows({ items }: { items: PolicyItem[] }) {
+  return (
+    <Reveal direction="up" duration={800} distance={24}>
+      <ul className="border-t border-theme-border">
+        {items.map((item) => (
+          <li key={item.title} className="grid grid-cols-1 gap-3 border-b border-theme-border py-7 lg:grid-cols-5 lg:gap-12">
+            <div className="lg:col-span-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">{item.tag}</p>
+              <h3 className="mt-2 text-lg font-semibold text-theme-primary">{item.title}</h3>
+            </div>
+            <p className="text-sm leading-relaxed text-theme-secondary lg:col-span-3">{item.body}</p>
+          </li>
+        ))}
+      </ul>
+    </Reveal>
+  );
+}
+
+/** A bordered band: a kicker, a title and a few lines on the left, and optionally a checklist and a link on the right. */
+export function InfoBand({
+  kicker,
+  title,
+  body,
+  items,
+  cta,
+}: {
+  kicker: string;
+  title: string;
+  body?: string;
+  items?: string[];
+  cta?: Cta;
+}) {
+  return (
+    <section className="scroll-mt-28 pb-[clamp(2.5rem,5vw,5rem)]">
+      <div className="fluid-container">
+        <Reveal direction="up" duration={800} distance={24}>
+          <div className="grid grid-cols-1 gap-8 rounded-2xl border border-theme-border bg-theme-surface px-7 py-9 sm:px-10 lg:grid-cols-5 lg:items-center lg:gap-12">
+            <div className="lg:col-span-2">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">{kicker}</p>
+              <p className="mt-3 text-xl font-semibold text-theme-primary">{title}</p>
+              {body && <p className="mt-2 text-sm leading-relaxed text-theme-secondary">{body}</p>}
+              {cta && (
+                <Link href={cta.href} className="group mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
+                  {cta.label}
+                  <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                </Link>
+              )}
+            </div>
+            {items && (
+              <ul className="grid grid-cols-1 gap-x-8 gap-y-2.5 sm:grid-cols-2 lg:col-span-3">
+                {items.map((item) => (
+                  <li key={item} className="flex items-start gap-2.5 text-sm text-theme-secondary">
+                    <span className="mt-2 size-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        </Reveal>
+      </div>
+    </section>
+  );
+}

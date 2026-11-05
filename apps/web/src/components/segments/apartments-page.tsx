@@ -2,7 +2,7 @@ import { BatteryCharging, LayoutDashboard, PlugZap, Sun } from "lucide-react";
 import { ProjectSteps } from "@/components/sections/project-steps";
 import { Reveal } from "@/components/shared/reveal";
 import { FaqList, type Faq } from "./faq-list";
-import { AudienceBand, EnquiryRoutes, EvidencePanel, FeatureColumns, SegmentHero, SegmentSection, SupportPanel } from "./segment-parts";
+import { AudienceBand, EnquiryRoutes, EvidencePanel, FeatureColumns, InfoBand, SegmentHero, SegmentSection, SupportPanel } from "./segment-parts";
 import { SegmentShell } from "./segment-shell";
 
 export const APARTMENTS_PATH = "/solutions/apartment";
@@ -239,27 +239,12 @@ export function ApartmentsPage() {
         steps={START_STEPS}
       />
 
-      <section className="scroll-mt-28 pb-[clamp(2.5rem,5vw,5rem)]">
-        <div className="fluid-container">
-          <Reveal direction="up" duration={800} distance={24}>
-            <div className="grid grid-cols-1 gap-8 rounded-2xl border border-theme-border bg-theme-surface px-7 py-9 sm:px-10 lg:grid-cols-5 lg:items-center lg:gap-12">
-              <div className="lg:col-span-2">
-                <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">Community Energy Assessment</p>
-                <p className="mt-3 text-xl font-semibold text-theme-primary">Something you can take to your committee meeting.</p>
-                <p className="mt-2 text-sm leading-relaxed text-theme-secondary">Not just a quotation: a pack that covers the whole picture.</p>
-              </div>
-              <ul className="grid grid-cols-1 gap-x-8 gap-y-2.5 sm:grid-cols-2 lg:col-span-3">
-                {ASSESSMENT_PACK.map((item) => (
-                  <li key={item} className="flex items-start gap-2.5 text-sm text-theme-secondary">
-                    <span className="mt-2 size-1.5 shrink-0 rounded-full bg-emerald-500" aria-hidden="true" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </Reveal>
-        </div>
-      </section>
+      <InfoBand
+        kicker="Community Energy Assessment"
+        title="Something you can take to your committee meeting."
+        body="Not just a quotation: a pack that covers the whole picture."
+        items={ASSESSMENT_PACK}
+      />
 
       <SegmentSection id="faq" badge="FAQ" title="Common questions from" accent="apartment communities.">
         <Reveal direction="up" duration={700} distance={16}>
