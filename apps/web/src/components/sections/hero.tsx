@@ -179,7 +179,7 @@ export function Hero() {
               Solar, battery storage and EV charging, designed, installed and managed together.
             </p>
             <p className="mt-2 text-sm sm:text-base leading-relaxed text-white/75">
-              Lower bills, reliable power, and one team to call.
+              Designed, installed and connected by one team. Already have equipment? Bring it into the same dashboard.
             </p>
           </Reveal>
 
