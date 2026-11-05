@@ -72,7 +72,7 @@ export default function AboutPage() {
             Get an instant sizing recommendation in 60 seconds with our interactive planner.
           </p>
           <Button asChild variant="gradient" size="lg" className="rounded-xl font-bold">
-            <Link href="/#energy-planner">
+            <Link href="/planner">
               <Zap className="h-4 w-4 mr-2" />
               <span>Start Your Energy Assessment</span>
               <ArrowRight className="h-4 w-4 ml-1.5" />

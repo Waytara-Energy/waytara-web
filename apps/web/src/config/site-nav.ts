@@ -6,16 +6,18 @@ export interface NavDestination {
   href: string;
   /** One short line, shown in the Solutions menu. */
   blurb?: string;
+  /** A photo for the property types (public/images/segments). */
+  image?: string;
 }
 
 /** The six kinds of property WayTara serves, one page each. Slugs match the existing /solutions/[segment] routes. */
 export const SOLUTION_SEGMENTS: NavDestination[] = [
-  { label: "Homes & Villas", href: "/solutions/home", blurb: "Solar, battery backup and EV charging" },
-  { label: "Apartments, RWAs & Developers", href: "/solutions/apartment", blurb: "Common areas, backup and shared charging" },
-  { label: "Commercial & Workspaces", href: "/solutions/commercial", blurb: "Offices, hospitals, retail and hotels" },
-  { label: "Factory & Industrial", href: "/solutions/factory", blurb: "Solar, storage and monitoring for plants" },
-  { label: "EV Fleets & Charging", href: "/solutions/ev-fleet", blurb: "Charging sites and the software to run them" },
-  { label: "IT Parks & Campuses", href: "/solutions/it-park", blurb: "One connected view across a campus" },
+  { label: "Homes & Villas", href: "/solutions/home", blurb: "Solar, battery backup and EV charging", image: "/images/segments/home.jpg" },
+  { label: "Apartments, RWAs & Developers", href: "/solutions/apartment", blurb: "Common areas, backup and shared charging", image: "/images/segments/apartment.jpg" },
+  { label: "Commercial & Workspaces", href: "/solutions/commercial", blurb: "Offices, hospitals, retail and hotels", image: "/images/segments/commercial.jpg" },
+  { label: "Factory & Industrial", href: "/solutions/factory", blurb: "Solar, storage and monitoring for plants", image: "/images/segments/factory.jpg" },
+  { label: "EV Fleets & Charging", href: "/solutions/ev-fleet", blurb: "Charging sites and the software to run them", image: "/images/segments/ev-fleet.jpg" },
+  { label: "IT Parks & Campuses", href: "/solutions/it-park", blurb: "One connected view across a campus", image: "/images/segments/it-park.jpg" },
 ];
 
 /** The three things WayTara does, as anchors on the Solutions hub. */

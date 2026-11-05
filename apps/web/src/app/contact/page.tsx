@@ -282,7 +282,7 @@ export default function ContactPage() {
                         Send Another Enquiry
                       </Button>
                       <Button asChild variant="gradient" className="rounded-xl">
-                        <Link href="/#energy-planner">
+                        <Link href="/planner">
                           <span>Try Interactive Planner</span>
                           <ArrowRight className="h-4 w-4 ml-1.5" />
                         </Link>

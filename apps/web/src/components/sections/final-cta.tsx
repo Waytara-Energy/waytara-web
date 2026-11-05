@@ -1,124 +1,54 @@
-"use client";
-
-import * as React from "react";
 import Link from "next/link";
-import { ArrowDown, ArrowUpRight, Sparkles, PhoneCall, ShieldCheck, Zap, Activity } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
-import { TEMP_HIDE_LANDING_SECTIONS } from "@/config/landing-flags";
+import { SectionBadge } from "@/components/shared/section-header";
 
+/** The closing call: one main action (the planner) and a quieter way to reach a person. */
 export function FinalCTA() {
-  const scrollToPlanner = (e: React.MouseEvent) => {
-    e.preventDefault();
-    const el = document.getElementById("energy-planner");
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth" });
-    }
-  };
-
   return (
     <section className="section-padding bg-theme-bg relative overflow-hidden text-center scroll-mt-16">
-      
-      {/* Soft Ambient Radial Glow with pulse */}
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-br from-emerald-500/15 via-teal-500/8 to-transparent rounded-full blur-3xl pointer-events-none -z-10 animate-pulse" />
+      {/* Soft ambient glow */}
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-br from-emerald-500/15 via-teal-500/8 to-transparent rounded-full blur-3xl pointer-events-none -z-10" />
 
       <div className="fluid-container max-w-4xl relative">
-        
-        {/* 1. Top Pill Badge */}
         <Reveal direction="up" delay={50} duration={600}>
           <div className="mb-6 flex justify-center">
-            <div className="inline-flex items-center gap-3 pl-1.5 pr-4 py-1.5 rounded-full bg-[#EBF4EC] dark:bg-[#16271C] select-none transition-colors">
-              <span className="flex items-center justify-center w-7 h-7 rounded-full bg-[#D8ECD9] dark:bg-[#223B2B] text-[#0F1E14] dark:text-[#E2F0E5]">
-                <ArrowDown className="w-3.5 h-3.5 stroke-[1.8]" />
-              </span>
-              <span className="text-xs sm:text-[13px] font-medium text-[#0F1E14] dark:text-[#E2F0E5] tracking-tight">
-                One Single System ?
-              </span>
-            </div>
+            <SectionBadge>Get started</SectionBadge>
           </div>
         </Reveal>
 
-        {/* 2. Main Headline */}
         <Reveal direction="up" delay={120} duration={700}>
           <h2 className="text-[clamp(2.2rem,4.2vw,3.8rem)] font-bold tracking-tight text-theme-primary leading-[1.15] mb-5">
-            <span className="block">Ready to integrate into</span>
-            <span className="block text-primary-gradient">one single system?</span>
+            <span className="block">Ready to run your energy</span>
+            <span className="block text-primary-gradient">as one system?</span>
           </h2>
         </Reveal>
 
-        {/* 3. Supporting Description */}
         <Reveal direction="up" delay={180} duration={700}>
-          <p className="text-sm sm:text-base text-theme-secondary max-w-2xl mx-auto leading-relaxed font-normal mb-10">
-            Eliminate fragmented vendors, multi-app confusion, and grid rate shocks. Run your solar generation, Smart LFP storage, and EV charging as one intelligent, self-balancing power plant with Tara AI.
+          <p className="text-sm sm:text-base text-theme-secondary max-w-xl mx-auto leading-relaxed mb-10">
+            Tell us about your property. We will point you to the right starting point, whether that is a new system or connecting what you already have.
           </p>
         </Reveal>
 
-        {/* 4. Action Buttons
-            TEMP_HIDE_LANDING_SECTIONS (src/config/landing-flags.ts): while
-            on, only "Speak with an Engineer" shows, carrying the green
-            gradient the "Plan with Tara AI" button (hidden along with the
-            Energy Planner section it scrolled to) used to have. Both
-            buttons come back once the flag flips off. */}
         <Reveal direction="zoom" delay={240} duration={750}>
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-3.5 sm:gap-4 mb-12">
-
-            {/* Primary Action -> Plan with Tara AI */}
-            {!TEMP_HIDE_LANDING_SECTIONS && (
-              <button
-                type="button"
-                onClick={scrollToPlanner}
-                className="w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-green-600 text-white text-sm sm:text-[15px] font-semibold shadow-lg shadow-emerald-600/25 hover:from-emerald-400 hover:via-emerald-500 hover:to-green-500 hover:shadow-emerald-600/35 hover:scale-105 active:scale-95 transition-all duration-200 group cursor-pointer"
-              >
-                <Sparkles className="w-4 h-4 text-emerald-200 transition-transform group-hover:rotate-12" />
-                <span>Plan with Tara AI</span>
-                <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-              </button>
-            )}
-
-            {/* Speak with an Engineer — green gradient while
-                TEMP_HIDE_LANDING_SECTIONS is on (it's the only button
-                showing), the original neutral/bordered style otherwise. */}
+          <div className="flex flex-col items-center gap-5">
             <Link
-              href="/contact"
-              className={
-                TEMP_HIDE_LANDING_SECTIONS
-                  ? "w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-7 py-4 rounded-2xl bg-gradient-to-r from-emerald-500 via-emerald-600 to-green-600 text-white text-sm sm:text-[15px] font-semibold shadow-lg shadow-emerald-600/25 hover:from-emerald-400 hover:via-emerald-500 hover:to-green-500 hover:shadow-emerald-600/35 hover:scale-105 active:scale-95 transition-all duration-200 group cursor-pointer"
-                  : "w-full sm:w-auto inline-flex items-center justify-center gap-2.5 px-6 py-4 rounded-2xl bg-theme-surface border border-theme-border text-theme-primary text-sm sm:text-[15px] font-semibold shadow-xs hover:bg-[#EBF4EC] dark:hover:bg-[#16271C] hover:border-emerald-500/50 hover:text-emerald-700 dark:hover:text-emerald-300 hover:shadow-lg hover:shadow-emerald-600/10 hover:scale-105 active:scale-95 transition-all duration-200 group cursor-pointer"
-              }
+              href="/planner"
+              className="group inline-flex h-12 sm:h-[3.25rem] items-center gap-3 rounded-full bg-emerald-600 pl-7 pr-1.5 text-sm sm:text-base font-semibold text-white shadow-lg shadow-emerald-600/25 transition-all duration-200 hover:bg-emerald-500 hover:scale-[1.03] active:scale-95"
             >
-              <PhoneCall
-                className={
-                  TEMP_HIDE_LANDING_SECTIONS
-                    ? "w-4 h-4 text-emerald-200 group-hover:scale-110 transition-transform"
-                    : "w-4 h-4 text-emerald-600 dark:text-emerald-400 group-hover:scale-110 transition-transform"
-                }
-              />
-              <span>Speak with an Engineer</span>
+              <span>Plan my system</span>
+              <span className="flex size-9 sm:size-10 items-center justify-center rounded-full bg-white text-emerald-700 transition-transform duration-200 group-hover:translate-x-0.5">
+                <ArrowRight className="size-4" aria-hidden="true" />
+              </span>
             </Link>
-
+            <p className="text-sm text-theme-secondary">
+              Prefer to talk?{" "}
+              <Link href="/contact" className="font-semibold text-theme-highlight hover:underline underline-offset-4">
+                Contact us
+              </Link>
+            </p>
           </div>
         </Reveal>
-
-        {/* 5. Minimal Engineering Guarantees — TEMP_HIDE_LANDING_SECTIONS
-            (src/config/landing-flags.ts), restored once it flips off. */}
-        {!TEMP_HIDE_LANDING_SECTIONS && (
-          <Reveal direction="fade" delay={300} duration={800}>
-            <div className="flex flex-wrap items-center justify-center gap-6 sm:gap-10 text-xs sm:text-[13px] text-theme-secondary">
-              <span className="flex items-center gap-2 font-medium">
-                <ShieldCheck className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span>Single 25-Yr Accountable Warranty</span>
-              </span>
-              <span className="flex items-center gap-2 font-medium">
-                <Zap className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span>Sub-20ms Zero-Flicker Backup</span>
-              </span>
-              <span className="flex items-center gap-2 font-medium">
-                <Activity className="w-4 h-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
-                <span>24/7 Tara AI Cloud Telemetry</span>
-              </span>
-            </div>
-          </Reveal>
-        )}
-
       </div>
     </section>
   );

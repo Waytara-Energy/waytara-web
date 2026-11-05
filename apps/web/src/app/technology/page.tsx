@@ -76,7 +76,7 @@ export default function TechnologyPage() {
             Our engineers can walk you through live telemetry dashboards during your free site assessment.
           </p>
           <Button asChild variant="gradient" size="lg" className="rounded-xl font-bold">
-            <Link href="/#energy-planner">
+            <Link href="/planner">
               <Zap className="h-4 w-4 mr-2" />
               <span>Launch Interactive Energy Planner</span>
               <ArrowRight className="h-4 w-4 ml-1.5" />

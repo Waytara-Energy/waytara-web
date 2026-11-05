@@ -7,7 +7,6 @@ import { useTheme } from "next-themes";
 import { ChevronDown, ArrowRight } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 import { CloudShader } from "@/components/ui/cloud-shader";
-import { TEMP_HIDE_LANDING_SECTIONS } from "@/config/landing-flags";
 import { cn } from "@/lib/utils";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 
@@ -49,16 +48,6 @@ export function Hero() {
     return () => clearTimeout(timer);
   }, [resolvedTheme, mounted]);
 
-  // "Plan my system": while the Energy Planner section is hidden
-  // (TEMP_HIDE_LANDING_SECTIONS, src/config/landing-flags.ts) there is
-  // nothing on this page to jump to, so the button opens the Solutions page,
-  // where a visitor can pick a package and book a site assessment. Once the
-  // flag flips off it scrolls to the planner again.
-  const scrollToPlanner = (e: React.MouseEvent) => {
-    e.preventDefault();
-    document.getElementById("energy-planner")?.scrollIntoView({ behavior: "smooth" });
-  };
-
   // One clear main action: a white pill with a green arrow.
   const primaryButtonClass =
     "group inline-flex h-12 sm:h-[3.25rem] items-center gap-3 rounded-full bg-white pl-6 pr-1.5 text-sm sm:text-base font-semibold text-slate-950 shadow-xl shadow-black/25 transition-all duration-200 hover:scale-[1.03] active:scale-95 cursor-pointer";
@@ -69,10 +58,7 @@ export function Hero() {
   );
 
   const scrollToNextSection = () => {
-    // Pre-existing bug, fixed in passing: WhoWeAre's actual DOM id is
-    // "about-us" (see who-we-are.tsx), not "who-we-are" — this button
-    // silently no-opped before.
-    const el = document.getElementById("about-us");
+    const el = document.getElementById("our-approach");
     if (el) {
       el.scrollIntoView({ behavior: "smooth" });
     }
@@ -199,17 +185,10 @@ export function Hero() {
 
           <Reveal direction="zoom" delay={600} duration={800}>
             <div className="flex flex-col items-start sm:flex-row sm:items-center gap-4 sm:gap-7">
-              {TEMP_HIDE_LANDING_SECTIONS ? (
-                <Link href="/solutions" className={primaryButtonClass}>
-                  <span>Plan my system</span>
-                  {primaryArrow}
-                </Link>
-              ) : (
-                <button type="button" onClick={scrollToPlanner} className={primaryButtonClass}>
-                  <span>Plan my system</span>
-                  {primaryArrow}
-                </button>
-              )}
+              <Link href="/planner" className={primaryButtonClass}>
+                <span>Plan my system</span>
+                {primaryArrow}
+              </Link>
             </div>
           </Reveal>
         </div>
@@ -226,7 +205,7 @@ export function Hero() {
           onClick={scrollToNextSection}
           className="flex flex-col items-center gap-1 text-white/70 hover:text-white transition-colors cursor-pointer focus:outline-none group-data-[past=1]:pointer-events-none"
           style={{ opacity: "calc(1 - var(--p) * 6)" }}
-          aria-label="Scroll to Who We Are"
+          aria-label="Scroll to the next section"
         >
           <ChevronDown className="h-5 w-5 lg:h-6 lg:w-6 animate-bounce" />
         </button>

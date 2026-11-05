@@ -73,7 +73,7 @@ export default function KnowledgeCentrePage() {
             Our recommendation engine applies state-specific tariffs and solar irradiance numbers automatically.
           </p>
           <Button asChild variant="gradient" size="lg" className="rounded-xl font-bold">
-            <Link href="/#energy-planner">
+            <Link href="/planner">
               <Zap className="h-4 w-4 mr-2" />
               <span>Calculate Your Solar &amp; Battery Sizing</span>
               <ArrowRight className="h-4 w-4 ml-1.5" />
