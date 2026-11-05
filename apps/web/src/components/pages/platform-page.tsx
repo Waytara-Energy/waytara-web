@@ -6,7 +6,6 @@ import { FeatureColumns, NoteColumns, SegmentSection } from "@/components/segmen
 import { CPMS_PLATFORM_FEATURES, EMS_PLATFORM_FEATURES } from "@/components/segments/feature-sets";
 import { CompatibilityForm } from "./compatibility-form";
 import { PageHero, PageShell } from "./page-shell";
-import { PlatformSteps } from "./platform-steps";
 
 export const PLATFORM_PATH = "/technology";
 export const PLATFORM_DESCRIPTION =
@@ -17,7 +16,6 @@ const MENU = [
   { id: "how", label: "How it connects" },
   { id: "energy", label: "Energy management" },
   { id: "charging", label: "Charging management" },
-  { id: "steps", label: "Step by step" },
   { id: "demo", label: "Live demo" },
   { id: "compatibility", label: "Check compatibility" },
   { id: "faq", label: "FAQ" },
@@ -192,16 +190,6 @@ export function PlatformPage() {
         summary="For OCPP 1.6J chargers. The functions available depend on each charger's supported OCPP features and firmware."
       >
         <FeatureColumns items={CPMS_PLATFORM_FEATURES} columns={3} />
-      </SegmentSection>
-
-      <SegmentSection
-        id="steps"
-        badge="Step by step"
-        title="From connected equipment"
-        accent="to a dashboard you use."
-        summary="Four steps, with a small picture of the dashboard at each one. The numbers in the pictures are samples."
-      >
-        <PlatformSteps />
       </SegmentSection>
 
       <SegmentSection
