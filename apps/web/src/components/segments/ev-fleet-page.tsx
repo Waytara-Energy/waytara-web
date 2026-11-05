@@ -307,15 +307,10 @@ export function EvFleetPage() {
       >
         <FeatureColumns items={SOLAR} />
         <Reveal direction="up" duration={700} distance={16}>
-          <div className="mt-12 rounded-2xl border border-theme-border bg-theme-surface px-7 py-7 sm:px-8">
-            <p className="text-lg font-semibold text-theme-primary">Charging overnight?</p>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-theme-secondary">
-              Solar makes power in the day, so for an overnight fleet it mostly covers your daytime use. A battery can move some of it to the night. Check the cost first.
-            </p>
-            <p className="mt-3 max-w-3xl text-sm leading-relaxed text-theme-secondary">
-              WayTara can connect compatible inverters and chargers and show how the energy flows.
-            </p>
-          </div>
+          <p className="mt-12 text-sm leading-relaxed text-theme-secondary">
+            <span className="font-semibold text-theme-primary">Charging overnight? </span>
+            Solar makes power in the day, so for an overnight fleet it mostly covers your daytime use. A battery can move some of it to the night. Check the cost first.
+          </p>
         </Reveal>
       </SegmentSection>
 
@@ -399,12 +394,12 @@ export function EvFleetPage() {
         steps={STEPS}
       />
 
-      <InfoBand
-        kicker="Existing charger network · CPMS"
-        title="Start with the chargers you already own."
-        body="Tell us the charger make, model, OCPP version and network setup. WayTara can assess compatibility and what onboarding your existing network needs."
-        cta={{ label: "Connect my chargers to WayTara CPMS", href: CPMS_HREF }}
-      />
+      <div className="fluid-container flex justify-center pb-[clamp(2.5rem,5vw,5rem)]">
+        <Link href={CPMS_HREF} className="group inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
+          Already have chargers? Connect them to WayTara CPMS
+          <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+        </Link>
+      </div>
 
       <InfoBand
         kicker="What to prepare"

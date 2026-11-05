@@ -111,13 +111,12 @@ export function HomesPage() {
       >
         <FeatureColumns items={BENEFITS} />
         <Reveal direction="up" duration={700} distance={16}>
-          <p className="mt-10 text-sm leading-relaxed text-theme-secondary">
-            <span className="font-semibold text-theme-primary">Already have solar or an EV charger? </span>
-            You may not need to replace it. We can check if it connects to WayTara.{" "}
-            <Link href={EXISTING_HREF} className="font-semibold text-theme-highlight underline-offset-4 hover:underline">
-              Connect my existing system
+          <div className="mt-12 flex justify-center">
+            <Link href={EXISTING_HREF} className="group inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
+              Already have solar or an EV charger? Connect it to WayTara
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
             </Link>
-          </p>
+          </div>
         </Reveal>
       </SegmentSection>
 

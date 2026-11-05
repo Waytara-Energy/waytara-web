@@ -199,11 +199,6 @@ export function ItParkPage() {
         summary="A campus needs to know who charges, when, and how much."
       >
         <FeatureColumns items={CHARGING} />
-        <Reveal direction="up" duration={700} distance={16}>
-          <p className="mt-10 text-sm leading-relaxed text-theme-secondary">
-            WayTara CPMS keeps session records for compatible OCPP chargers. What it can control depends on each charger.
-          </p>
-        </Reveal>
       </SegmentSection>
 
       <SegmentSection
