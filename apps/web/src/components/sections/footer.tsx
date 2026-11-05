@@ -1,221 +1,84 @@
-"use client";
-
-import * as React from "react";
 import Link from "next/link";
 import { Logo } from "@/components/shared/logo";
-import { Mail, Phone, MapPin, ShieldCheck } from "lucide-react";
+import { Mail, Phone, MapPin } from "lucide-react";
 import { TEMP_HIDE_LANDING_SECTIONS } from "@/config/landing-flags";
+import { LEGAL_LINKS, PARTNER_LINK, PRIMARY_LINKS, CONTACT_LINK, SOLUTION_SEGMENTS } from "@/config/site-nav";
+
+const COLUMN_TITLE = "text-xs sm:text-[13px] font-bold text-theme-primary tracking-tight";
+const FOOTER_LINK = "hover:text-theme-primary transition-colors";
 
 export function Footer() {
-  const handleAnchorClick = (
-    href: string,
-    e: React.MouseEvent<HTMLAnchorElement>
-  ) => {
-    if (href.startsWith("/#") && typeof window !== "undefined") {
-      const targetId = href.replace("/#", "");
-      const elem = document.getElementById(targetId);
-      if (elem) {
-        e.preventDefault();
-        elem.scrollIntoView({ behavior: "smooth" });
-      }
-    }
-  };
-
   return (
     <footer className="border-t border-black/[0.06] dark:border-white/[0.06] bg-theme-bg text-theme-secondary text-xs relative overflow-hidden">
       <div className="fluid-container pt-12 pb-8 relative z-10">
-        
-        {/* 1. Main Row: Left Brand/Mission + Right 4 Navigation Columns (Solutions, Explore, Help, Contact) */}
+
+        {/* 1. Main row: brand and one line about what WayTara does, then three short columns */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 pb-10">
-          
-          {/* Left Column: Logo + Mission Statement + Certification Badge */}
+
           <div className="lg:col-span-4 space-y-4">
             <Logo />
-            
             <p className="text-sm sm:text-[15px] text-theme-primary leading-relaxed font-medium max-w-sm pt-1">
-              WayTara engineers and deploys high-performance integrated solar rooftop arrays, Smart LFP battery storage, and dynamic EV charging ecosystems under one single accountable warranty.
+              WayTara designs, installs and manages solar, battery storage and EV charging as one connected energy system.
             </p>
-            
-            {/* TEMP_HIDE_LANDING_SECTIONS (src/config/landing-flags.ts) —
-                restored once it flips off. */}
-            {!TEMP_HIDE_LANDING_SECTIONS && (
-              <div className="flex items-center gap-2 text-xs font-semibold text-emerald-600 dark:text-emerald-400 pt-1">
-                <ShieldCheck className="h-4 w-4 shrink-0" />
-                <span>MNRE Registered &bull; IEC Certified Hardware &bull; Tier-1 Quality</span>
-              </div>
-            )}
           </div>
 
-          {/* Right Columns: 4 Navigation Columns (Solutions, Explore, Help, Contact) */}
-          <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8">
-            
-            {/* Column 1: Solutions */}
+          <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 gap-6 sm:gap-8">
+
             <div className="space-y-3">
-              <h4 className="text-xs sm:text-[13px] font-bold text-theme-primary tracking-tight">
-                Solutions
-              </h4>
-              <ul className="space-y-2.5 text-xs text-theme-secondary">
-                <li>
-                  <Link href="/solutions/home" className="hover:text-theme-primary transition-colors">
-                    Homes &amp; Villas
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/solutions/apartment" className="hover:text-theme-primary transition-colors">
-                    Apartments &amp; Societies
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/solutions/factory" className="hover:text-theme-primary transition-colors">
-                    Industrial &amp; Factories
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/solutions/commercial" className="hover:text-theme-primary transition-colors">
-                    Commercial &amp; Offices
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/solutions/ev-fleet" className="hover:text-theme-primary transition-colors">
-                    EV Infrastructure
-                  </Link>
-                </li>
-                <li>
-                  <Link href="/solutions/it-park" className="hover:text-theme-primary transition-colors">
-                    IT Parks &amp; Data Centers
-                  </Link>
-                </li>
+              <h4 className={COLUMN_TITLE}>Solutions</h4>
+              <ul className="space-y-2.5">
+                {SOLUTION_SEGMENTS.map((link) => (
+                  <li key={link.href}>
+                    <Link href={link.href} className={FOOTER_LINK}>
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
               </ul>
             </div>
 
-            {/* Column 2: Explore */}
             <div className="space-y-3">
-              <h4 className="text-xs sm:text-[13px] font-bold text-theme-primary tracking-tight">
-                Explore
-              </h4>
-              <ul className="space-y-2.5 text-xs text-theme-secondary">
-                <li>
-                  <Link
-                    href="/#who-we-are"
-                    onClick={(e) => handleAnchorClick("/#who-we-are", e)}
-                    className="hover:text-theme-primary transition-colors"
-                  >
-                    Who We Are
-                  </Link>
-                </li>
-                {/* TEMP_HIDE_LANDING_SECTIONS (src/config/landing-flags.ts)
-                    — the 3 links below point at sections/pages hidden while
-                    the flag is on; restored once it flips off. */}
-                {!TEMP_HIDE_LANDING_SECTIONS && (
-                  <li>
-                    <Link
-                      href="/#how-it-works"
-                      onClick={(e) => handleAnchorClick("/#how-it-works", e)}
-                      className="hover:text-theme-primary transition-colors"
-                    >
-                      How It Works
+              <h4 className={COLUMN_TITLE}>Company</h4>
+              <ul className="space-y-2.5">
+                {[...PRIMARY_LINKS, PARTNER_LINK, CONTACT_LINK].map((link) => (
+                  <li key={link.href}>
+                    <Link href={link.href} className={FOOTER_LINK}>
+                      {link.label}
                     </Link>
                   </li>
-                )}
-                <li>
-                  <Link
-                    href="/#why-integrated"
-                    onClick={(e) => handleAnchorClick("/#why-integrated", e)}
-                    className="hover:text-theme-primary transition-colors"
-                  >
-                    Why WayTara
-                  </Link>
-                </li>
+                ))}
+                {/* TEMP_HIDE_LANDING_SECTIONS (src/config/landing-flags.ts) — the Knowledge Centre is hidden while the flag is on. */}
                 {!TEMP_HIDE_LANDING_SECTIONS && (
                   <li>
-                    <Link
-                      href="/#energy-planner"
-                      onClick={(e) => handleAnchorClick("/#energy-planner", e)}
-                      className="hover:text-theme-primary transition-colors"
-                    >
-                      Plan with Tara AI
-                    </Link>
-                  </li>
-                )}
-                {!TEMP_HIDE_LANDING_SECTIONS && (
-                  <li>
-                    <Link href="/knowledge-centre" className="hover:text-theme-primary transition-colors">
+                    <Link href="/knowledge-centre" className={FOOTER_LINK}>
                       Knowledge Centre
                     </Link>
                   </li>
                 )}
-              </ul>
-            </div>
-
-            {/* Column 3: Help */}
-            <div className="space-y-3">
-              <h4 className="text-xs sm:text-[13px] font-bold text-theme-primary tracking-tight">
-                Help
-              </h4>
-              <ul className="space-y-2.5 text-xs text-theme-secondary">
-                {/* TEMP_HIDE_LANDING_SECTIONS — FAQ section and Knowledge
-                    Centre are both hidden; restored once it flips off. */}
-                {!TEMP_HIDE_LANDING_SECTIONS && (
-                  <li>
-                    <Link
-                      href="/#faq"
-                      onClick={(e) => handleAnchorClick("/#faq", e)}
-                      className="hover:text-theme-primary transition-colors"
-                    >
-                      FAQs
-                    </Link>
-                  </li>
-                )}
+                {/* The header's Get Started now leads to the planner, so customers find their way in here and in the mobile menu. */}
                 <li>
-                  <Link href="/contact" className="hover:text-theme-primary transition-colors">
-                    Contact Us
-                  </Link>
-                </li>
-                {!TEMP_HIDE_LANDING_SECTIONS && (
-                  <li>
-                    <Link href="/knowledge-centre" className="hover:text-theme-primary transition-colors">
-                      Help Centre
-                    </Link>
-                  </li>
-                )}
-                <li>
-                  <Link href="/about" className="hover:text-theme-primary transition-colors">
-                    About Us
+                  <Link href="/login" className={FOOTER_LINK}>
+                    Customer sign in
                   </Link>
                 </li>
               </ul>
             </div>
 
-            {/* Column 4: Contact — replaces the old Legal column; those 4
-                links now live at the right end of the bottom bar instead
-                (see section 3 below). Phone/email/address used to be
-                icon-only links down there too — promoted to real text here. */}
-            <div className="space-y-3">
-              <h4 className="text-xs sm:text-[13px] font-bold text-theme-primary tracking-tight">
-                Contact
-              </h4>
-              <ul className="space-y-2.5 text-xs text-theme-secondary">
+            <div className="space-y-3 col-span-2 sm:col-span-1">
+              <h4 className={COLUMN_TITLE}>Contact</h4>
+              <ul className="space-y-2.5">
                 <li className="space-y-1.5">
-                  <a
-                    href="tel:9363021195"
-                    className="flex items-center gap-2 hover:text-theme-primary transition-colors"
-                  >
+                  <a href="tel:9363021195" className={`flex items-center gap-2 ${FOOTER_LINK}`}>
                     <Phone className="h-3.5 w-3.5 shrink-0" />
                     <span>+91 93630 21195</span>
                   </a>
-                  <a
-                    href="tel:9384800141"
-                    className="flex items-center gap-2 text-theme-muted hover:text-theme-primary transition-colors"
-                  >
+                  <a href="tel:9384800141" className={`flex items-center gap-2 text-theme-muted ${FOOTER_LINK}`}>
                     <Phone className="h-3.5 w-3.5 shrink-0" />
                     <span>+91 93848 00141</span>
                   </a>
                 </li>
                 <li>
-                  <a
-                    href="mailto:hello@waytaraenergy.com"
-                    className="flex items-center gap-2 hover:text-theme-primary transition-colors"
-                  >
+                  <a href="mailto:hello@waytaraenergy.com" className={`flex items-center gap-2 ${FOOTER_LINK}`}>
                     <Mail className="h-3.5 w-3.5 shrink-0" />
                     <span>hello@waytaraenergy.com</span>
                   </a>
@@ -225,7 +88,7 @@ export function Footer() {
                     href="https://maps.app.goo.gl/uDAuNfJjh5uXBpZa9"
                     target="_blank"
                     rel="noreferrer"
-                    className="flex items-start gap-2 hover:text-theme-primary transition-colors"
+                    className={`flex items-start gap-2 ${FOOTER_LINK}`}
                   >
                     <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />
                     <span>No. 6 &amp; 7, 3rd floor 5th Street, Dr. Radhakrishnan Salai, Mylapore, Chennai</span>
@@ -233,7 +96,6 @@ export function Footer() {
                 </li>
               </ul>
 
-              {/* Social links, below the contact info in the same column */}
               <div className="flex items-center gap-4 pt-1 text-theme-secondary">
                 <a
                   href="https://twitter.com"
@@ -277,42 +139,29 @@ export function Footer() {
             </div>
 
           </div>
-
         </div>
 
-        {/* 2. Massive Brand Watermark with Vertical Fade Gradient (Theme Adaptive Lowercase) */}
+        {/* 2. Brand watermark with a vertical fade (theme adaptive, lowercase) */}
         <div
           className="my-1 sm:my-2 text-center select-none pointer-events-none overflow-hidden"
           style={{
-            maskImage:
-              "linear-gradient(to bottom, rgba(0,0,0,0.16) 0%, rgba(0,0,0,0.04) 60%, rgba(0,0,0,0) 95%)",
-            WebkitMaskImage:
-              "linear-gradient(to bottom, rgba(0,0,0,0.16) 0%, rgba(0,0,0,0.04) 60%, rgba(0,0,0,0) 95%)",
+            maskImage: "linear-gradient(to bottom, rgba(0,0,0,0.16) 0%, rgba(0,0,0,0.04) 60%, rgba(0,0,0,0) 95%)",
+            WebkitMaskImage: "linear-gradient(to bottom, rgba(0,0,0,0.16) 0%, rgba(0,0,0,0.04) 60%, rgba(0,0,0,0) 95%)",
           }}
         >
           <span className="text-[17vw] font-black tracking-[-0.05em] text-theme-primary leading-none block lowercase">waytara</span>
         </div>
 
-        {/* 3. Bottom Bar: Copyright (left) + Legal links (right) — the
-            Legal column used to live up in the 4-column grid; that space
-            is now Contact (see Column 4 above), and these 4 links moved
-            down here instead. */}
+        {/* 3. Bottom bar: copyright and the policy pages */}
         <div className="pt-2 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs text-theme-muted">
           <p>© {new Date().getFullYear()} WayTara Energy LLP. All rights reserved.</p>
 
-          <div className="flex items-center gap-5 text-theme-secondary">
-            <Link href="/terms" className="hover:text-theme-primary transition-colors">
-              Terms of Service
-            </Link>
-            <Link href="/privacy" className="hover:text-theme-primary transition-colors">
-              Privacy Policy
-            </Link>
-            <Link href="/cookies" className="hover:text-theme-primary transition-colors">
-              Cookie Policy
-            </Link>
-            <Link href="/warranty" className="hover:text-theme-primary transition-colors">
-              Warranty Policy
-            </Link>
+          <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-theme-secondary">
+            {LEGAL_LINKS.map((link) => (
+              <Link key={link.href} href={link.href} className={FOOTER_LINK}>
+                {link.label}
+              </Link>
+            ))}
           </div>
         </div>
 

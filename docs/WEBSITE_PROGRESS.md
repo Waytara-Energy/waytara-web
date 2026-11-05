@@ -8,7 +8,7 @@ Times are IST. "Start" and "End" are logged by Claude when a task begins and whe
 |---|------|--------|-------|-----|-------|--------|--------|-------|
 | 0a | Landing hero: cloud shader sky, house cut-out, pinned scroll scene, wider container, bigger headline | Done | 2026-11-05 (start not logged) | 2026-11-05 11:09 | not logged | - | fed1b74, 18cf5d3, f40ccd6 | Built before this tracker existed. Commits landed 10:57 to 11:09; real start time is yours to fill. |
 | 0b | Read 14 PDFs and write the website plan | Done | 2026-11-05 (start not logged) | 2026-11-05 11:23 | not logged | - | 1e9999c | docs/WEBSITE_PLAN.md |
-| 1 | Foundation: header (Solutions menu, Platform, Why WayTara, About Us, Partner, Contact, theme, Get Started), footer, shared section components | Not started | | | | 3 to 4 | | Decision 1 settled 2026-11-05: Platform stays in the header. Still needs decision 2 (Get Started target). |
+| 1 | Foundation: header (Solutions menu, Platform, Why WayTara, About Us, Partner, Contact, theme, Get Started), footer, shared section components | Done (pending your review) | 2026-11-05 12:36 | 2026-11-05 12:46 | 0.2 | 3 to 4 | (next commit) | Decisions 1 and 2 settled: Platform in the header, Get Started goes to /planner. Clock time only; your review time is not counted. Header links to /planner, /why-waytara, /partner and /solutions#build etc. lead to pages built in later tasks, so do not push or deploy before those exist. |
 | 2 | Landing page sections 2 to 9 (The idea, What WayTara does, One dashboard, Who we serve, How a project works, Where to start, Why strip, Final CTA) | Not started | | | | 6 to 8 | | Needs plan decision 5. |
 | 3 | Solutions hub + Homes & Villas page (reference for the template) | Not started | | | | 4 to 5 | | Needs plan decisions 3 and 4. |
 | 4 | Other five segment pages (Apartments, Commercial, Factory, EV Fleets, IT Parks) | Not started | | | | 5 to 6 | | |
@@ -27,3 +27,5 @@ Total estimate for steps 1 to 7 including 6b: about 40 to 51 hours. Customer das
 |------|-----------|-------|
 | 2026-11-05 | 12:28 | Tracker created. Waiting for decisions 1 to 5 before step 1. |
 | 2026-11-05 | 12:40 | Decision 1: Platform stays in the header. New task 6b added: Partner page for installers across India, admin panel list, e-mail to admins. |
+| 2026-11-05 | 12:36 | Task 1 started (decision 2 settled: Get Started goes to the planner). |
+| 2026-11-05 | 12:46 | Task 1 built and checked: header with Solutions menu, mobile menu, footer, shared section header. Awaiting your review. |

@@ -7,6 +7,7 @@ import {
   Menu,
   HelpCircle,
   Phone,
+  ChevronDown,
   ChevronRight,
   Zap,
 } from "lucide-react";
@@ -23,6 +24,19 @@ import {
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { TEMP_HIDE_LANDING_SECTIONS } from "@/config/landing-flags";
+import {
+  CONTACT_LINK,
+  PARTNER_LINK,
+  PRIMARY_LINKS,
+  SOLUTIONS_HUB,
+  SOLUTION_NEEDS,
+  SOLUTION_SEGMENTS,
+  getStartedFor,
+} from "@/config/site-nav";
+import { SolutionsMenu } from "@/components/sections/solutions-menu";
+
+const MOBILE_LINK_CLASS =
+  "py-2.5 px-2 text-sm font-semibold text-theme-primary hover:text-theme-highlight hover:bg-theme-surface rounded-lg flex items-center justify-between transition-colors text-left";
 
 interface Account {
   fullName: string | null;
@@ -39,25 +53,11 @@ function initials(name: string | null, email: string | null): string {
   return (email?.[0] ?? "?").toUpperCase();
 }
 
-const NAV_LINKS = [
-  { label: "Home", href: "/" },
-  { label: "About Us", href: "/#about-us" },
-  { label: "Our Services", href: "/#customer-segments" },
-  { label: "How It Works", href: "/#how-it-works" },
-  { label: "Why WayTara", href: "/#why-integrated" },
-  { label: "Our Team", href: "/#our-team" },
-];
-
-// TEMP_HIDE_LANDING_SECTIONS (src/config/landing-flags.ts) — How It Works
-// is hidden along with its section; restored once the flag flips off.
-const VISIBLE_NAV_LINKS = TEMP_HIDE_LANDING_SECTIONS
-  ? NAV_LINKS.filter((link) => link.label !== "How It Works")
-  : NAV_LINKS;
-
 export function Navigation() {
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = React.useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
+  const [mobileSolutionsOpen, setMobileSolutionsOpen] = React.useState(false);
   const [account, setAccount] = React.useState<Account | null>(null);
 
   const isHome = pathname === "/";
@@ -123,28 +123,22 @@ export function Navigation() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const handleNavClick = (
-    e: React.MouseEvent<HTMLAnchorElement>,
-    href: string
-  ) => {
-    if (href.startsWith("/#")) {
-      const targetId = href.replace("/#", "");
-      if (pathname === "/") {
-        e.preventDefault();
-        const element = document.getElementById(targetId);
-        if (element) {
-          element.scrollIntoView({ behavior: "smooth" });
-          window.history.pushState(null, "", `#${targetId}`);
-        }
-      }
-    } else if (href === "/" && pathname === "/") {
-      e.preventDefault();
-      window.scrollTo({ top: 0, behavior: "smooth" });
-      window.history.pushState(null, "", "/");
-    }
-  };
-
   const isThemeStyled = !isHome || isScrolled;
+  const getStarted = getStartedFor(pathname);
+
+  // One look for every text link and icon in the bar: white over the hero, theme colours once the bar is solid.
+  const linkClass = cn(
+    "px-[clamp(0.5rem,0.85vw,1rem)] py-1.5 rounded-lg text-[clamp(12px,0.88vw,13.5px)] font-semibold transition-all duration-200 cursor-pointer select-none",
+    isThemeStyled
+      ? "text-theme-primary hover:text-theme-highlight hover:bg-theme-surface"
+      : "text-white hover:text-white hover:bg-white/15 drop-shadow-sm"
+  );
+  const iconLinkClass = cn(
+    "p-2 rounded-lg transition-all duration-200 flex items-center justify-center",
+    isThemeStyled
+      ? "text-theme-primary hover:text-theme-highlight hover:bg-theme-surface"
+      : "text-white hover:text-white hover:bg-white/15 drop-shadow-sm"
+  );
 
   return (
     <header
@@ -163,36 +157,27 @@ export function Navigation() {
         </div>
 
         {/* 2. Center: Clean Direct Navigation Links (Fluid Sizing with Smooth In-Page Anchor Scrolling) */}
-        <nav className="hidden lg:flex items-center space-x-[clamp(0.25rem,0.6vw,0.75rem)]">
-          {VISIBLE_NAV_LINKS.map((link) => (
-            <Link
-              key={link.label}
-              href={link.href}
-              onClick={(e) => handleNavClick(e, link.href)}
-              className={cn(
-                "px-[clamp(0.5rem,0.85vw,1rem)] py-1.5 rounded-lg text-[clamp(12px,0.88vw,13.5px)] font-semibold transition-all duration-200 cursor-pointer select-none",
-                isThemeStyled
-                  ? "text-theme-primary hover:text-theme-highlight hover:bg-theme-surface"
-                  : "text-white hover:text-white hover:bg-white/15 drop-shadow-sm"
-              )}
-            >
+        <nav aria-label="Main" className="hidden lg:flex items-center space-x-[clamp(0.25rem,0.6vw,0.75rem)]">
+          <SolutionsMenu triggerClassName={linkClass} />
+          {PRIMARY_LINKS.map((link) => (
+            <Link key={link.label} href={link.href} className={linkClass}>
               {link.label}
             </Link>
           ))}
         </nav>
 
-        {/* 3. Right: Knowledge (?), Contact (Phone), and Theme Toggle */}
+        {/* 3. Right: Partner, Knowledge (?), Contact (Phone), and Theme Toggle */}
         <div className="hidden sm:flex items-center space-x-[clamp(0.2rem,0.5vw,0.6rem)]">
+          {/* Installers who want to work with WayTara */}
+          <Link href={PARTNER_LINK.href} className={cn(linkClass, "hidden lg:inline-flex")}>
+            {PARTNER_LINK.label}
+          </Link>
+
           {/* ? Icon -> Knowledge Centre — TEMP_HIDE_LANDING_SECTIONS */}
           {!TEMP_HIDE_LANDING_SECTIONS && (
             <Link
               href="/knowledge-centre"
-              className={cn(
-                "p-2 rounded-lg transition-all duration-200 flex items-center justify-center",
-                isThemeStyled
-                  ? "text-theme-primary hover:text-theme-highlight hover:bg-theme-surface"
-                  : "text-white hover:text-white hover:bg-white/15 drop-shadow-sm"
-              )}
+              className={iconLinkClass}
               title="Knowledge Centre & Guides"
               aria-label="Knowledge Centre"
             >
@@ -202,13 +187,8 @@ export function Navigation() {
 
           {/* Phone Icon -> Contact Us */}
           <Link
-            href="/contact"
-            className={cn(
-              "p-2 rounded-lg transition-all duration-200 flex items-center justify-center",
-              isThemeStyled
-                ? "text-theme-primary hover:text-theme-highlight hover:bg-theme-surface"
-                : "text-white hover:text-white hover:bg-white/15 drop-shadow-sm"
-            )}
+            href={CONTACT_LINK.href}
+            className={iconLinkClass}
             title="Contact & Engineering Support"
             aria-label="Contact Us"
           >
@@ -250,7 +230,7 @@ export function Navigation() {
                   : ""
               )}
             >
-              <Link href="/login">
+              <Link href={getStarted.href}>
                 <Zap
                   className={cn(
                     "h-3.5 w-3.5 mr-1 transition-colors",
@@ -259,7 +239,7 @@ export function Navigation() {
                       : "text-emerald-500 fill-emerald-500"
                   )}
                 />
-                <span>Get Started</span>
+                <span>{getStarted.label}</span>
               </Link>
             </Button>
           )}
@@ -297,20 +277,43 @@ export function Navigation() {
                 </SheetHeader>
 
                 <div className="flex flex-col gap-1 mt-6">
-                  {VISIBLE_NAV_LINKS.map((link) => (
-                    <Link
-                      key={link.label}
-                      href={link.href}
-                      onClick={(e) => {
-                        setMobileMenuOpen(false);
-                        handleNavClick(e, link.href);
-                      }}
-                      className="py-2.5 px-2 text-sm font-semibold text-theme-primary hover:text-theme-highlight hover:bg-theme-surface rounded-lg flex items-center justify-between transition-colors"
-                    >
+                  {/* Solutions folds open to the six property types and the three needs */}
+                  <button
+                    type="button"
+                    aria-expanded={mobileSolutionsOpen}
+                    onClick={() => setMobileSolutionsOpen((v) => !v)}
+                    className={MOBILE_LINK_CLASS}
+                  >
+                    <span>{SOLUTIONS_HUB.label}</span>
+                    <ChevronDown className={cn("h-4 w-4 opacity-40 transition-transform duration-200", mobileSolutionsOpen && "rotate-180")} />
+                  </button>
+                  {mobileSolutionsOpen && (
+                    <div className="mb-1 ml-2 flex flex-col gap-0.5 border-l border-theme-border pl-3">
+                      {[SOLUTIONS_HUB, ...SOLUTION_SEGMENTS, ...SOLUTION_NEEDS].map((link) => (
+                        <Link
+                          key={link.href}
+                          href={link.href}
+                          onClick={() => setMobileMenuOpen(false)}
+                          className="rounded-lg px-2 py-2 text-[13px] font-medium text-theme-secondary transition-colors hover:bg-theme-surface hover:text-theme-primary"
+                        >
+                          {link.href === SOLUTIONS_HUB.href ? "All solutions" : link.label}
+                        </Link>
+                      ))}
+                    </div>
+                  )}
+
+                  {[...PRIMARY_LINKS, PARTNER_LINK, CONTACT_LINK].map((link) => (
+                    <Link key={link.label} href={link.href} onClick={() => setMobileMenuOpen(false)} className={MOBILE_LINK_CLASS}>
                       <span>{link.label}</span>
                       <ChevronRight className="h-4 w-4 opacity-40" />
                     </Link>
                   ))}
+                  {!account && (
+                    <Link href="/login" onClick={() => setMobileMenuOpen(false)} className={MOBILE_LINK_CLASS}>
+                      <span>Sign in</span>
+                      <ChevronRight className="h-4 w-4 opacity-40" />
+                    </Link>
+                  )}
                 </div>
               </div>
 
@@ -344,9 +347,9 @@ export function Navigation() {
                   </Link>
                 ) : (
                   <Button asChild variant="gradient" className="w-full justify-center text-xs h-10">
-                    <Link href="/login" onClick={() => setMobileMenuOpen(false)}>
+                    <Link href={getStarted.href} onClick={() => setMobileMenuOpen(false)}>
                       <Zap className="h-3.5 w-3.5 mr-1.5 fill-white" />
-                      Get Started
+                      {getStarted.label}
                     </Link>
                   </Button>
                 )}
