@@ -12,7 +12,7 @@ const leadSchema = z.object({
   city: z.string().optional(),
   pincode: z.string().optional(),
   source: z
-    .enum(["contact_page", "solutions_page", "energy_planner", "package_card", "platform_compatibility"])
+    .enum(["contact_page", "solutions_page", "energy_planner", "package_card", "platform_compatibility", "support_request"])
     .default("contact_page"),
   segment: z.enum(["home", "commercial", "ev_fleet"]).optional(),
   packageId: z.string().optional(),
@@ -28,6 +28,8 @@ const leadSchema = z.object({
   nextStep: z.string().max(80).optional(),
   plannerSummary: z.string().max(3000).optional(),
   // Platform page compatibility check: what the visitor already has. Folded into `message` like the planner context above.
+  // Public support page: what kind of problem it is.
+  supportTopic: z.string().max(80).optional(),
   existingEquipment: z.string().max(300).optional(),
   equipmentDetails: z.string().max(1000).optional(),
   ocppVersion: z.string().max(40).optional(),
@@ -61,6 +63,7 @@ function formatContext(data: z.infer<typeof leadSchema>): string | null {
     ["EV plans", data.evPlans],
     ["Roof type", data.roofType],
     ["Recommended package", data.recommendedPackage],
+    ["Support topic", data.supportTopic],
     ["Existing equipment", data.existingEquipment],
     ["Make and model", data.equipmentDetails],
     ["Charger OCPP version", data.ocppVersion],

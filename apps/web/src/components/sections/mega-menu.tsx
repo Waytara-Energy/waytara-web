@@ -54,13 +54,23 @@ export function MegaMenuPanel({ menu, onNavigate }: { menu: HeaderMenu; onNaviga
  * It is always the same element, so nothing re-opens as the pointer travels along the bar. `menu` stays set while the panel closes, so its
  * content does not vanish mid-fade.
  */
-export function MegaMenuShell({ menu, open, onNavigate }: { menu: HeaderMenu | null; open: boolean; onNavigate: () => void }) {
+/** What the shell shows: a key that changes when the content does, and how to draw it. */
+export interface PanelSpec {
+  key: string;
+  render: (close: () => void) => React.ReactNode;
+}
+
+export function menuPanel(menu: HeaderMenu): PanelSpec {
+  return { key: menu.label, render: (close) => <MegaMenuPanel menu={menu} onNavigate={close} /> };
+}
+
+export function MegaMenuShell({ menu, open, onNavigate }: { menu: PanelSpec | null; open: boolean; onNavigate: () => void }) {
   const innerRef = React.useRef<HTMLDivElement>(null);
-  const previous = React.useRef<HeaderMenu | null>(null);
+  const previous = React.useRef<PanelSpec | null>(null);
   const [height, setHeight] = React.useState(0);
   // True once the panel has been open a moment: from then on a change of height is eased, but the first appearance is not (it fades, it does not grow).
   const [settled, setSettled] = React.useState(false);
-  const [leaving, setLeaving] = React.useState<HeaderMenu | null>(null);
+  const [leaving, setLeaving] = React.useState<PanelSpec | null>(null);
 
   React.useLayoutEffect(() => {
     const el = innerRef.current;
@@ -86,7 +96,7 @@ export function MegaMenuShell({ menu, open, onNavigate }: { menu: HeaderMenu | n
   React.useEffect(() => {
     const before = previous.current;
     previous.current = menu;
-    if (!open || !before || !menu || before.label === menu.label) return;
+    if (!open || !before || !menu || before.key === menu.key) return;
     setLeaving(before);
     const t = setTimeout(() => setLeaving(null), 180);
     return () => clearTimeout(t);
@@ -104,10 +114,10 @@ export function MegaMenuShell({ menu, open, onNavigate }: { menu: HeaderMenu | n
         transition: `${settled && open ? "height 0.22s cubic-bezier(0.4, 0, 0.2, 1), " : ""}opacity 0.2s ease, visibility 0s linear ${open ? "0s" : "0.2s"}`,
       }}
     >
-      <div ref={innerRef}>{menu && <MegaMenuPanel key={menu.label} menu={menu} onNavigate={onNavigate} />}</div>
+      <div ref={innerRef}>{menu && <React.Fragment key={menu.key}>{menu.render(onNavigate)}</React.Fragment>}</div>
       {leaving && (
         <div className="mega-leaving absolute inset-x-0 top-0" aria-hidden="true">
-          <MegaMenuPanel key={`leaving-${leaving.label}`} menu={leaving} onNavigate={onNavigate} />
+          <React.Fragment key={`leaving-${leaving.key}`}>{leaving.render(onNavigate)}</React.Fragment>
         </div>
       )}
     </div>

@@ -40,7 +40,7 @@ export function Footer() {
             <div className="space-y-3">
               <h4 className={COLUMN_TITLE}>Company</h4>
               <ul className="space-y-2.5">
-                {[...PRIMARY_LINKS, PARTNER_LINK, CONTACT_LINK].map((link) => (
+                {[...PRIMARY_LINKS, PARTNER_LINK, { label: "Support", href: "/support" }, CONTACT_LINK].map((link) => (
                   <li key={link.href}>
                     <Link href={link.href} className={FOOTER_LINK}>
                       {link.label}

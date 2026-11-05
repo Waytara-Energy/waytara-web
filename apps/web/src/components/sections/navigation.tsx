@@ -8,6 +8,7 @@ import {
   HelpCircle,
   ChevronDown,
   ChevronRight,
+  Search,
   Zap,
 } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
@@ -31,7 +32,8 @@ import {
   SOLUTION_SEGMENTS,
   getStartedFor,
 } from "@/config/site-nav";
-import { MegaMenuShell } from "@/components/sections/mega-menu";
+import { MegaMenuShell, menuPanel } from "@/components/sections/mega-menu";
+import { SearchPanel } from "@/components/sections/search-panel";
 
 const MOBILE_LINK_CLASS =
   "py-2.5 px-2 text-sm font-semibold text-theme-primary hover:text-theme-highlight hover:bg-theme-surface rounded-lg flex items-center justify-between transition-colors text-left";
@@ -60,6 +62,7 @@ export function Navigation() {
   const [activeMenu, setActiveMenu] = React.useState<string | null>(null);
   const [shownMenu, setShownMenu] = React.useState<string | null>(null);
   const closeTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const headerRef = React.useRef<HTMLElement>(null);
   const openMenu = (label: string) => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
     setActiveMenu(label);
@@ -67,7 +70,8 @@ export function Navigation() {
   };
   const scheduleClose = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
-    closeTimer.current = setTimeout(() => setActiveMenu(null), 120);
+    // The search box stays open while the visitor is typing in it, even if the pointer wanders off the header.
+    closeTimer.current = setTimeout(() => setActiveMenu((cur) => (cur === "search" && headerRef.current?.contains(document.activeElement) ? cur : null)), 120);
   };
   React.useEffect(() => {
     if (!activeMenu) return;
@@ -142,6 +146,8 @@ export function Navigation() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const shownMenuConfig = HEADER_MENUS.find((m) => m.label === shownMenu);
+  const shownPanel = shownMenu === "search" ? { key: "search", render: (close: () => void) => <SearchPanel onNavigate={close} /> } : shownMenuConfig ? menuPanel(shownMenuConfig) : null;
   const isThemeStyled = !isHome || isScrolled || activeMenu !== null;
   const getStarted = getStartedFor(pathname);
 
@@ -162,6 +168,7 @@ export function Navigation() {
   return (
     <>
     <header
+      ref={headerRef}
       className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-200 ease-out h-[clamp(3.5rem,4.5vw,4.25rem)] flex items-center select-none border-0",
         // While a menu is open the bar and the panel are one surface: same solid colour, no seam (otherwise the bar's tint shows the page through it).
@@ -217,6 +224,17 @@ export function Navigation() {
               <HelpCircle className="h-[clamp(17px,1.15vw,19.5px)] w-[clamp(17px,1.15vw,19.5px)]" />
             </Link>
           )}
+
+          {/* Search: opens the same panel as the menus */}
+          <button
+            type="button"
+            aria-label="Search"
+            aria-expanded={activeMenu === "search"}
+            onClick={() => (activeMenu === "search" ? setActiveMenu(null) : openMenu("search"))}
+            className={cn(iconLinkClass, activeMenu === "search" && "text-theme-highlight")}
+          >
+            <Search className="h-[clamp(17px,1.15vw,19.5px)] w-[clamp(17px,1.15vw,19.5px)]" />
+          </button>
 
           {/* Theme Toggle Icon */}
           <ThemeToggle
@@ -384,7 +402,7 @@ export function Navigation() {
       </div>
 
       {/* The one full-width panel (its content swaps as the pointer moves along the bar) and, outside the header, the dimmed page behind it. */}
-      <MegaMenuShell menu={HEADER_MENUS.find((m) => m.label === shownMenu) ?? null} open={activeMenu !== null} onNavigate={() => setActiveMenu(null)} />
+      <MegaMenuShell menu={shownPanel} open={activeMenu !== null} onNavigate={() => setActiveMenu(null)} />
     </header>
     <div
         aria-hidden="true"

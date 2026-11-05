@@ -27,6 +27,22 @@ Task 6b breakdown (estimate): public page and form 2 to 3 h; database table, acc
 
 Total estimate for steps 1 to 7 including 6b: about 40 to 51 hours. Customer dashboard redesign comes after the landing page and is not in this table yet.
 
+## Design changes (after the plan, requested one by one)
+
+Real clock readings: the header work started at 15:16 and this round was logged at 15:56. The times written in the commit messages for the header
+changes 1b to 1e (16:00, 16:14, 16:40, 17:10) were wrong guesses made without checking the clock: ignore them. The real total for the header work
+is about 0.6 h up to the search and support round, and about 0.7 h including it. Estimates and the "Hours" below are clock time only.
+
+| # | Change you asked for | Status | Start | End | Hours | Commit | Notes |
+|---|----------------------|--------|-------|-----|-------|--------|-------|
+| D1 | Header: remove the Contact icon, move Partner next to About Us, a dropdown menu for each item like Solutions | Done, then replaced by D2 | 2026-11-05 15:16 | about 15:26 | 0.2 | bf5e16c | Contact stays in the footer, the About page, the planner's "Talk to us" and the segment pages. |
+| D2 | Header like the Apple example: one full-width panel under the header, large links on the left, small links on the right, page dimmed and blurred behind | Done | about 15:26 | about 15:34 | 0.15 | e6c5254 | One panel for all items. Labels still link to their pages. |
+| D3 | Header colour to match the menu panel | Done | about 15:34 | about 15:37 | 0.05 | aaff483 | The bar becomes the panel's solid colour while a menu is open; no tint, blur or shadow. |
+| D4 | Fix the flicker when moving between header items | Done | about 15:37 | about 15:43 | 0.1 | 0fde29d | Five fading panels replaced by one panel whose content swaps. Checked by sampling every frame. |
+| D5 | Open, switch and close exactly like Apple | Done | about 15:43 | about 15:49 | 0.1 | ad46252 | Timed from your recording (frame by frame at 30 fps): fade in at full height about 0.2 s, content in a short stagger, crossfade between items, fade out without collapsing about 0.18 s. Not compared by eye against the recording. |
+| D6 | Add search to the header, Apple style | Done | 15:50 | 15:56 | 0.15 | (next commit) | A magnifier in the header opens the same panel with a large search box and Quick Links; typing shows matching pages and sections (searched in the browser, no outside service). Enter opens the first match. 6 unit tests. Desktop only: the mobile menu has no search yet. |
+| D7 | Add Support for customers (sign-in problems, doubts, anything wrong) | Done | 15:50 | 15:56 | (with D6) | (next commit) | New header item Support with its own menu, a public /support page (sign-in problems, devices, billing, how to raise a ticket, a form for people who cannot sign in, six FAQs), and a Support link in the footer. The form posts to /api/leads with source support_request and a topic, so it appears in the admin Leads list (filter by source); no database change. Guidance is limited to what the product does: e-mail and password sign-in, a reset by e-mailed code, an optional authenticator code, Billing and Devices pages, tickets with e-mail updates. Not built: an admin view just for support requests, and e-mail confirmation to the person who sent the form. |
+
 ## Log
 
 | Date | Time (IST) | Event |
@@ -60,4 +76,7 @@ Total estimate for steps 1 to 7 including 6b: about 40 to 51 hours. Customer das
 | 2026-11-05 | 15:16 | Design change 1 (header) started: Contact icon removed, Partner moved beside About Us, dropdown menus for Platform, Why WayTara, About Us and Partner like Solutions. |
 | 2026-11-05 | 15:30 | Header change built; typecheck and lint pass; NOT yet checked in the browser (usage limit reached). |
 | 2026-11-05 | 16:00 | Design change 1b (header like the Apple example): one full-width panel under the header for all five items, large links on the left, small links on the right, page dimmed and blurred behind. Checked in the browser at 1440 px (Platform panel, links and overlay); the other four panels, the mobile menu and keyboard use are not yet checked. |
-
+| 2026-11-05 | 15:16 | Design change D1 started (header: Contact icon out, Partner beside About Us, dropdowns). |
+| 2026-11-05 | about 15:49 | D1 to D5 finished (header like Apple: panel, colour, no flicker, Apple timing). |
+| 2026-11-05 | 15:50 | D6 (search) and D7 (Support) started. |
+| 2026-11-05 | 15:56 | D6 and D7 built and checked; logged here together with the whole redesign list above. Awaiting your review. |

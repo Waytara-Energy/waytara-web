@@ -104,6 +104,17 @@ export const PAGE_MENUS: PageMenu[] = [
       { label: "FAQ", href: "/partner#faq", blurb: "Questions from installers" },
     ],
   },
+  {
+    label: "Support",
+    href: "/support",
+    items: [
+      { label: "Sign-in problems", href: "/support#sign-in", blurb: "Password, codes and getting back in" },
+      { label: "Devices and monitoring", href: "/support#devices", blurb: "A device offline or readings missing" },
+      { label: "Billing and plans", href: "/support#billing", blurb: "Payments, plans and invoices" },
+      { label: "Raise a ticket", href: "/support#ticket", blurb: "Ask the team from your dashboard" },
+      { label: "Tell us what is wrong", href: "/support#contact", blurb: "If you cannot sign in" },
+    ],
+  },
 ];
 
 export interface HeaderMenu {
@@ -124,6 +135,7 @@ const ASIDE: Record<string, { title: string; links: NavDestination[] }> = {
   "Why WayTara": { title: "Next", links: [PLANNER_LINK, { label: "Platform", href: "/technology" }] },
   "About Us": { title: "More", links: [CONTACT_LINK, { label: "Partner with us", href: "/partner" }] },
   Partner: { title: "More", links: [CONTACT_LINK, { label: "About Us", href: "/about" }] },
+  Support: { title: "Quick links", links: [{ label: "Forgot password", href: "/forgot-password" }, { label: "Sign in", href: "/login" }, CONTACT_LINK] },
 };
 
 /** What each header item opens: the same full-width panel for all five. */
