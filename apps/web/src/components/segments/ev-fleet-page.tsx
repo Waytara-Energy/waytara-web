@@ -29,15 +29,15 @@ const MENU = [
 ];
 
 const ENTRY = [
-  { icon: Truck, title: "Fleet depots", body: "Charge your own vehicles around their routes and shifts." },
-  { icon: Network, title: "Public charging", body: "Run charging stations as a service for customers." },
-  { icon: PlugZap, title: "Chargers you already have", body: "Connect compatible chargers to WayTara and manage them in one place." },
+  { icon: Truck, title: "Fleet depots", body: "Charge company-owned vehicles around their routes, shifts and return-to-depot schedules, from logistics to buses." },
+  { icon: Network, title: "Public charging", body: "Set up charging locations and run them as a service for customers, from highway sites to charging hubs." },
+  { icon: PlugZap, title: "Chargers you already have", body: "Already have chargers installed? Connect compatible OCPP chargers to WayTara CPMS and manage them in one place." },
 ];
 
 const SETUPS = [
-  { icon: Moon, title: "Overnight AC charging", body: "Slower charging for vehicles that stay parked for hours, such as overnight." },
-  { icon: Zap, title: "DC fast charging", body: "Quick charging when vehicles can't wait. Needs a stronger power connection." },
-  { icon: SlidersHorizontal, title: "Mixed charging", body: "Use slow and fast chargers together to match your schedule." },
+  { icon: Moon, title: "Overnight AC charging", body: "Slower charging for vehicles that return to base and stay parked for hours, such as overnight or between shifts." },
+  { icon: Zap, title: "DC fast charging", body: "Fast charging for vehicles that need a lot of energy in a short stop. It needs a stronger power connection." },
+  { icon: SlidersHorizontal, title: "Mixed charging", body: "Combine slow and fast chargers and different charging schedules to match how your vehicles work day to day." },
 ];
 
 const DESIGN_FACTORS = [
@@ -49,24 +49,24 @@ const DESIGN_FACTORS = [
 ];
 
 const SOLAR = [
-  { icon: Sun, title: "Daytime charging", body: "Use solar power to charge vehicles that are parked during the day." },
-  { icon: BatteryCharging, title: "Battery-backed charging", body: "Store power and use it when vehicles charge, where the cost makes sense." },
+  { icon: Sun, title: "Daytime charging", body: "Use available solar power to charge vehicles that are parked during the day, while the sun is shining." },
+  { icon: BatteryCharging, title: "Battery-backed charging", body: "Store power and use it when vehicles charge, where the extra equipment and energy losses make economic sense." },
 ];
 
 const CPMS_TILES: Feature[] = [
-  { icon: Activity, title: "Charger status", body: "See which chargers are online and in use." },
-  { icon: SlidersHorizontal, title: "Remote control", body: "Start or stop a charging session from anywhere, on supported chargers." },
-  { icon: ClipboardList, title: "Charging records", body: "See how much each charger is used." },
-  { icon: ListChecks, title: "Know your chargers", body: "See which features each charger supports before you plan around them." },
+  { icon: Activity, title: "Charger status", body: "Monitor your connected chargers: whether each is available or in use, and its operating status." },
+  { icon: SlidersHorizontal, title: "Remote control", body: "Read charger information and start or stop a charging session remotely, on chargers that support it." },
+  { icon: ClipboardList, title: "Charging records", body: "Understand how much each charger is used with session and energy records for every charger." },
+  { icon: ListChecks, title: "Know your chargers", body: "See which OCPP features each charger offers, including smart-charging limits, before you plan around them." },
   ...(CPMS_FEATURES.monetisation
     ? [{ icon: Handshake, title: "Paid charging", body: "Set up users, access and payment for commercial charging." }]
     : []),
 ];
 
 const MODELS = [
-  { icon: Truck, title: "Your own fleet", body: "Charge your own vehicles to a plan, so they are ready when needed." },
-  { icon: Network, title: "Charging as a business", body: "Offer charging to customers and manage your stations and sessions." },
-  { icon: Handshake, title: "Host a charging site", body: "Let an operator set up chargers at your property and share the income by agreement." },
+  { icon: Truck, title: "Your own fleet", body: "Charge your own vehicles to a plan, so they are ready when needed and your energy spend stays under control." },
+  { icon: Network, title: "Charging as a business", body: "Offer charging to customers and manage your station availability and charging sessions through CPMS." },
+  { icon: Handshake, title: "Host a charging site", body: "Let a charging operator set up chargers at your property and agree how costs and income are shared." },
 ];
 
 const REVENUE_DRIVERS = [
@@ -234,10 +234,12 @@ export function EvFleetPage() {
       >
         <FeatureColumns items={ENTRY} />
         <Reveal direction="up" duration={700} distance={16}>
-          <Link href={CPMS_HREF} className="group mt-10 inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
-            Explore WayTara CPMS for chargers you already have
-            <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-          </Link>
+          <div className="mt-12 flex justify-center">
+            <Link href={CPMS_HREF} className="group inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
+              Explore WayTara CPMS for chargers you already have
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+            </Link>
+          </div>
         </Reveal>
       </SegmentSection>
 
@@ -326,10 +328,12 @@ export function EvFleetPage() {
       >
         <FeatureColumns items={CPMS_TILES} />
         <Reveal direction="up" duration={700} distance={16}>
-          <Link href={CPMS_HREF} className="group mt-10 inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
-            Explore WayTara CPMS
-            <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-          </Link>
+          <div className="mt-12 flex justify-center">
+            <Link href={CPMS_HREF} className="group inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
+              Explore WayTara CPMS
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+            </Link>
+          </div>
         </Reveal>
         <Reveal direction="up" duration={800} distance={24}>
           <PlatformDiagram

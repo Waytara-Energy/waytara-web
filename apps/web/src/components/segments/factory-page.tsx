@@ -25,23 +25,23 @@ const MENU = [
 ];
 
 const PRIORITIES = [
-  { icon: Gauge, title: "Control your costs", body: "See when your plant uses power and what drives your bill." },
-  { icon: Fuel, title: "Use less diesel", body: "Solar and batteries working with your generators can cut fuel use." },
-  { icon: ShieldCheck, title: "Protect production", body: "Backup for the machines that cannot stop." },
-  { icon: Activity, title: "See where power goes", body: "Track your connected equipment on one dashboard." },
+  { icon: Gauge, title: "Control your costs", body: "See when your plant uses power and what drives your bill, so you know where energy can be saved." },
+  { icon: Fuel, title: "Use less diesel", body: "Solar and batteries working with your existing generators can cut fuel use and running hours." },
+  { icon: ShieldCheck, title: "Protect production", body: "Backup designed around the machinery and processes that cannot afford to stop, in order of importance." },
+  { icon: Activity, title: "See where power goes", body: "Track connected equipment, consumption, generation and performance on one WayTara dashboard." },
 ];
 
 const PROVIDE = [
-  { icon: Sun, title: "Make power on site", body: "Solar on your roof, on the ground or over car parks, sized for your plant." },
-  { icon: BatteryCharging, title: "Store power", body: "Batteries that work with solar, the grid and your generators." },
-  { icon: LayoutDashboard, title: "Manage your energy", body: "Connect your existing inverters, meters and generators. No new solar needed." },
+  { icon: Sun, title: "Make power on site", body: "Solar on your roof, on the ground or over car parks, sized around your space, hours and electricity use." },
+  { icon: BatteryCharging, title: "Store power", body: "Batteries that work with solar, the grid and your existing generators for peak-demand and backup needs." },
+  { icon: LayoutDashboard, title: "Manage your energy", body: "Connect your existing inverters, meters, batteries and generators to one dashboard. No new solar needed." },
 ];
 
 const BATTERY_CASES = [
-  { icon: TrendingDown, title: "Lower peak demand", body: "Use the battery at busy times to help cut your highest-demand charges." },
-  { icon: Sun, title: "Use more solar", body: "Store extra daytime solar for later, where it pays off." },
-  { icon: ShieldCheck, title: "Backup", body: "Keep chosen machines running in a power cut." },
-  { icon: Cable, title: "Less generator running", body: "Battery, solar and generators work together to cut diesel use." },
+  { icon: TrendingDown, title: "Lower peak demand", body: "Use the battery at busy times to help cut your highest-demand charges, where your tariff has them." },
+  { icon: Sun, title: "Use more solar", body: "Store extra daytime solar for use later, where the savings justify the cost of the battery." },
+  { icon: ShieldCheck, title: "Backup", body: "Keep chosen machinery and production processes running during an outage, for the duration planned." },
+  { icon: Cable, title: "Less generator running", body: "Battery, solar and your existing generators work together to cut unnecessary generator running time." },
 ];
 
 const MONEY = [
@@ -155,7 +155,7 @@ export function FactoryPage() {
       >
         <FeatureColumns items={PROVIDE} />
         <Reveal direction="up" duration={700} distance={16}>
-          <p className="mt-10 text-sm text-theme-secondary">We can also add EV chargers for your fleet and site vehicles.</p>
+          <p className="mt-10 text-center text-sm text-theme-secondary">We can also add EV chargers for your fleet and site vehicles.</p>
         </Reveal>
       </SegmentSection>
 

@@ -30,12 +30,12 @@ const PARTS = [
   {
     icon: Zap,
     title: "Energy management",
-    body: "Live readings, history, alerts and reports for your connected equipment, plus controls for settings we have tested.",
+    body: "Live readings, history, alerts and reports for connected equipment, plus controls for the settings we have tested on supported equipment.",
   },
   {
     icon: Server,
     title: "Charger management",
-    body: "Status, sessions and remote controls for compatible chargers, in the same dashboard.",
+    body: "Status, sessions and remote controls for compatible OCPP chargers, in the same platform and the same dashboard as your energy.",
   },
 ];
 

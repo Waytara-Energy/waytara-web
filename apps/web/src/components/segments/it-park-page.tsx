@@ -29,31 +29,31 @@ const MENU = [
 ];
 
 const CAMPUSES = [
-  { icon: Building2, title: "IT and business parks", body: "Many buildings, shared utilities, parking and staff charging." },
-  { icon: Server, title: "Data centres", body: "Power that never stops, with backup and cooling to match." },
-  { icon: GraduationCap, title: "Universities", body: "Classrooms, hostels, labs and campus transport." },
-  { icon: Building, title: "Corporate campuses", body: "Offices, shared spaces and fleet charging." },
+  { icon: Building2, title: "IT and business parks", body: "Many buildings, shared utilities, tenant areas, parking and charging for employees across one site." },
+  { icon: Server, title: "Data centres", body: "Power demand that never stops, with backup systems, cooling and renewable energy to plan for." },
+  { icon: GraduationCap, title: "Universities", body: "Academic blocks, hostels, laboratories and administration buildings, plus transport around the campus." },
+  { icon: Building, title: "Corporate campuses", body: "Office buildings, employee facilities, shared areas, fleet charging and sustainability goals to meet." },
 ];
 
 const PROVIDE = [
-  { icon: Sun, title: "Solar", body: "Rooftop solar and solar car parks to use less grid power." },
-  { icon: BatteryCharging, title: "Battery backup", body: "Store power for key loads and for busy times." },
-  { icon: PlugZap, title: "EV charging", body: "Chargers for staff, visitors, tenants and fleets, managed from one place." },
-  { icon: LayoutDashboard, title: "One dashboard", body: "Connect compatible inverters, batteries, meters and chargers in one view." },
+  { icon: Sun, title: "Solar", body: "Rooftop solar and solar car parks, to reduce how much electricity you buy from the grid." },
+  { icon: BatteryCharging, title: "Battery backup", body: "Store power for selected loads and for busy periods, working with your existing power infrastructure." },
+  { icon: PlugZap, title: "EV charging", body: "Chargers for employees, visitors, tenants and fleets, with central charger management and records." },
+  { icon: LayoutDashboard, title: "One dashboard", body: "Connect compatible inverters, batteries, meters and chargers and manage supported equipment in one view." },
 ];
 
 const CHARGING = [
-  { icon: UserRound, title: "Staff charging", body: M ? "Control who can charge, with a record of every session." : "A record of every charging session." },
-  { icon: Users, title: "Visitor charging", body: M ? "Let guests charge, with paid charging where you offer it." : "Charging for guests, with a record of each session." },
-  { icon: Building2, title: "Tenant charging", body: "Track the energy and sessions across the campus chargers." },
-  { icon: Truck, title: "Fleet charging", body: "Track fleet charging, and start or stop supported chargers from anywhere." },
+  { icon: UserRound, title: "Staff charging", body: M ? "Control who can charge on the campus, with a record of every session and the energy it used." : "Keep a usage record of every employee charging session, across every charger on the campus." },
+  { icon: Users, title: "Visitor charging", body: M ? "Let guests charge, with controlled access and paid charging where you offer it on the campus." : "Charging for visitors, with a session record for every charger, so you always know what was used." },
+  { icon: Building2, title: "Tenant charging", body: "Track the charging energy and sessions across all of the campus's chargers, in one place." },
+  { icon: Truck, title: "Fleet charging", body: "See charging energy and sessions for campus vehicles, and start or stop supported chargers remotely." },
 ];
 
 const REPORTING = [
-  { icon: Gauge, title: "Energy use", body: "Track electricity use and grid imports over time." },
-  { icon: Sun, title: "Solar", body: "See what your solar makes, uses and exports." },
-  { icon: BatteryCharging, title: "Battery", body: "See how the battery charges and discharges." },
-  { icon: Leaf, title: "Carbon estimates", body: "See estimated emissions from the energy data we measure." },
+  { icon: Gauge, title: "Energy use", body: "Track electricity use, grid imports and consumption trends, so you can see how the campus uses power." },
+  { icon: Sun, title: "Solar", body: "Monitor solar generation, how much of it you use yourself, and how much is exported to the grid." },
+  { icon: BatteryCharging, title: "Battery", body: "Review how the battery charges and discharges, and how well it is being used over time." },
+  { icon: Leaf, title: "Carbon estimates", body: "Calculate estimated emissions and renewable-energy impact from the energy data that is available." },
 ];
 
 const DASHBOARD_METRICS = [
@@ -71,13 +71,13 @@ const STAGES = [
   {
     icon: Cpu,
     title: "New campus",
-    body: "Plan your energy and monitoring while the campus is being built.",
+    body: "Plan your energy, monitoring and connectivity alongside the project while the campus is still being built.",
     includes: ["Estimate your energy needs", "Plan solar and batteries", "Leave room for EV charging", "Build in monitoring from day one"],
   },
   {
     icon: Activity,
     title: "Existing campus",
-    body: "Start with what you have. You don't need to start over.",
+    body: "Start with your current infrastructure. You don't need to start over to get one connected view.",
     includes: ["Check your current energy use", "Connect compatible equipment", "Find room for solar and storage", "Bring in chargers that support it"],
   },
 ];
@@ -200,7 +200,7 @@ export function ItParkPage() {
       >
         <FeatureColumns items={CHARGING} />
         <Reveal direction="up" duration={700} distance={16}>
-          <p className="mt-10 max-w-3xl text-sm leading-relaxed text-theme-secondary">
+          <p className="mt-10 text-sm leading-relaxed text-theme-secondary">
             WayTara CPMS keeps session records for compatible OCPP chargers. What it can control depends on each charger.
           </p>
         </Reveal>

@@ -24,27 +24,27 @@ const MENU = [
 ];
 
 const PRIORITIES = [
-  { icon: Wind, title: "Cooling", body: "See how much power your air conditioning uses, and when." },
-  { icon: Lightbulb, title: "Lights and lifts", body: "Track the power used by lights, lifts, pumps and shared equipment." },
-  { icon: Gauge, title: "Equipment", body: "See which machines and refrigeration use the most power." },
-  { icon: ParkingSquare, title: "Parking and EV charging", body: "Add chargers for staff, visitors or vehicles. Solar car parks where they fit." },
+  { icon: Wind, title: "Cooling", body: "See how much power your air conditioning uses and when it runs, so you can spot where it is wasted." },
+  { icon: Lightbulb, title: "Lights and lifts", body: "Track the power used by lights, lifts, pumps and other shared equipment across the building." },
+  { icon: Gauge, title: "Equipment", body: "See which machines and refrigeration use the most power, and how their use changes over the day." },
+  { icon: ParkingSquare, title: "Parking and EV charging", body: "Add chargers for staff, visitors or vehicles, and consider solar car parks where they fit." },
 ];
 
 const BUILDING_TYPES = [
-  { icon: Building2, title: "Offices", body: "Busiest in the day, so solar fits well. Add chargers for staff." },
-  { icon: HeartPulse, title: "Hospitals", body: "Power is needed day and night, so reliable backup comes first." },
-  { icon: Store, title: "Shops, malls and hotels", body: "Long opening hours and lots of cooling. Solar, batteries and chargers work together." },
+  { icon: Building2, title: "Offices", body: "Busiest in the day, so solar fits well. Add chargers for staff and visitors, and watch cooling and lighting." },
+  { icon: HeartPulse, title: "Hospitals", body: "Power is needed day and night, so reliable backup comes first, alongside your existing UPS and generators." },
+  { icon: Store, title: "Shops, malls and hotels", body: "Long opening hours and lots of cooling and refrigeration. Solar, batteries and chargers can work together." },
 ];
 
 const PROVIDE = [
-  { icon: Sun, title: "Make your own power", body: "Solar on your roof, on the ground or over car parks, sized for your building." },
-  { icon: BatteryCharging, title: "Store power", body: "Batteries for backup, and to use solar power later when it pays off." },
-  { icon: PlugZap, title: "Charge vehicles", body: "Chargers for staff, visitors and fleets, run from WayTara software." },
-  { icon: LayoutDashboard, title: "Manage your energy", body: "Connect the equipment you already have. No new solar needed." },
+  { icon: Sun, title: "Make your own power", body: "Solar on your roof, on the ground or over car parks, sized around your space and your building's use." },
+  { icon: BatteryCharging, title: "Store power", body: "Batteries for backup on key loads, and to use solar power later where the savings justify it." },
+  { icon: PlugZap, title: "Charge vehicles", body: "Chargers for staff, visitors and fleets, managed from WayTara's charging software in one place." },
+  { icon: LayoutDashboard, title: "Manage your energy", body: "Connect the equipment you already have to one dashboard, even if you are not adding any new solar." },
 ];
 
 const STRUCTURES = [
-  { icon: Building2, title: "Own it", body: "You pay for the system and keep the savings. You look after the upkeep." },
+  { icon: Building2, title: "Own it", body: "You pay for the system and own it, so the savings are yours. You are responsible for the agreed operation and upkeep." },
   { icon: Sun, title: "Pay only for the power", body: "A developer funds and runs the system. You buy the power it makes, under a contract. Not every project qualifies." },
 ];
 

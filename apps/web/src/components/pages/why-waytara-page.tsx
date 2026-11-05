@@ -15,10 +15,10 @@ const MENU = [
 ];
 
 const REASONS = [
-  { icon: Users, title: "One team", body: "The same people design, install, connect and support your system. One place to ask." },
-  { icon: Ruler, title: "Built for your site", body: "We size your system from your real power use and space, not from a standard package." },
-  { icon: LayoutDashboard, title: "Works with what you have", body: "Compatible inverters and chargers you own can join the same dashboard." },
-  { icon: Cpu, title: "Our own software", body: "We build the gateway and the platform ourselves, so we know how it all works." },
+  { icon: Users, title: "One team", body: "The same people design, install, connect and support your system, so there is one place to ask when something needs attention." },
+  { icon: Ruler, title: "Built for your site", body: "We size your system from your real power use, roof and operating hours, not from a standard package. Battery size follows what you need to keep running." },
+  { icon: LayoutDashboard, title: "Works with what you have", body: "Compatible inverters and chargers you already own can join the same dashboard, so you may not need to replace anything." },
+  { icon: Cpu, title: "Our own software", body: "We build the gateway and the platform ourselves, so the people who install your system understand how it is monitored." },
 ];
 
 const COMPARE = [

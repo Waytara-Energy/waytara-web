@@ -27,23 +27,23 @@ const MENU = [
 ];
 
 const BENEFITS = [
-  { icon: Sun, title: "Use your own solar power", body: "Run your home on power from your roof. Extra power can go to the grid." },
-  { icon: BatteryCharging, title: "Lights on in a power cut", body: "A battery keeps the lights, fans and other things you choose running." },
-  { icon: PlugZap, title: "Charge your EV at home", body: "A home charger that works with your solar and your home's power use." },
-  { icon: LayoutDashboard, title: "See it all in one place", body: "Watch your solar, battery and EV charger on one dashboard." },
+  { icon: Sun, title: "Use your own solar power", body: "Run your home on power from your own roof. Extra power can go to the grid under your DISCOM's arrangement." },
+  { icon: BatteryCharging, title: "Lights on in a power cut", body: "Add a battery to keep the lights, fans and other things you choose running when the power goes out." },
+  { icon: PlugZap, title: "Charge your EV at home", body: "Install a home charger that works with your solar and your home's power use, so charging fits your day." },
+  { icon: LayoutDashboard, title: "See it all in one place", body: "Watch your solar, battery and EV charger on one dashboard, and use the supported controls from there." },
 ];
 
 const SETUPS = [
   {
     icon: Sun,
     title: "Solar only",
-    body: "Lowers your electricity bill. The simplest and lowest-cost way to start.",
+    body: "Lowers your electricity bill. The simplest and lowest-cost way to start, best when your grid supply is reliable.",
     includes: ["No battery needed", "Switches off in a power cut"],
   },
   {
     icon: BatteryCharging,
     title: "Solar + battery",
-    body: "Stores solar power for later and keeps chosen appliances running in a power cut.",
+    body: "Stores solar power for later and keeps chosen appliances running in a power cut, while you stay on the grid.",
     includes: ["Backup for what you choose", "Still connected to the grid"],
   },
 ];
@@ -111,7 +111,7 @@ export function HomesPage() {
       >
         <FeatureColumns items={BENEFITS} />
         <Reveal direction="up" duration={700} distance={16}>
-          <p className="mt-10 max-w-2xl text-sm leading-relaxed text-theme-secondary">
+          <p className="mt-10 text-sm leading-relaxed text-theme-secondary">
             <span className="font-semibold text-theme-primary">Already have solar or an EV charger? </span>
             You may not need to replace it. We can check if it connects to WayTara.{" "}
             <Link href={EXISTING_HREF} className="font-semibold text-theme-highlight underline-offset-4 hover:underline">
@@ -128,7 +128,7 @@ export function HomesPage() {
         accent="three ways in."
         summary="Choose any one on its own, or combine all three."
       >
-        <FeatureColumns items={OFFERS.map(({ icon, title, body, includes }) => ({ icon, title, body, includes }))} />
+        <FeatureColumns items={OFFERS.map(({ icon, title, blockBody, includes }) => ({ icon, title, body: blockBody, includes }))} />
       </SegmentSection>
 
       <SegmentSection
@@ -154,10 +154,12 @@ export function HomesPage() {
               We can include charging in either setup.
             </p>
           </div>
-          <Link href="/planner?for=home" className="group mt-8 inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
-            Not sure what fits? Try the energy planner
-            <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-          </Link>
+          <div className="mt-10 flex justify-center">
+            <Link href="/planner?for=home" className="group inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
+              Not sure what fits? Try the energy planner
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+            </Link>
+          </div>
         </Reveal>
       </SegmentSection>
 

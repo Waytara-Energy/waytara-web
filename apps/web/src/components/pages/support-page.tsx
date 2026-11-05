@@ -23,17 +23,17 @@ const SIGN_IN = [
   {
     icon: KeyRound,
     title: "Forgot your password",
-    body: "On the sign-in page, choose Forgot password. We e-mail you a code, then you choose a new password.",
+    body: "On the sign-in page, choose Forgot password and enter your e-mail. We send you a code, then you choose a new password.",
   },
   {
     icon: ShieldCheck,
     title: "Two-factor code",
-    body: "Enter the 6-digit code from your authenticator app. It changes every 30 seconds, so use the one showing now.",
+    body: "If you turned on two-factor sign-in, enter the 6-digit code from your authenticator app. It changes every 30 seconds.",
   },
   {
     icon: UserPlus,
     title: "No account yet",
-    body: "We set up your account when your system is installed. Look for our invitation e-mail, and check spam.",
+    body: "We set up your account when your system is installed. Look for our invitation e-mail, and check your spam folder.",
   },
 ];
 
@@ -41,23 +41,23 @@ const DEVICES = [
   {
     icon: Wifi,
     title: "A device shows offline",
-    body: "Check the device has power and the site's internet works. Wait a few minutes. Still offline? Raise a ticket.",
+    body: "Check the device has power and the site's internet works, then wait a few minutes. Still offline? Raise a ticket.",
   },
   {
     icon: Activity,
     title: "Readings look wrong or are missing",
-    body: "Raise a ticket with the device, the time and a screenshot. We can check what the device has been sending.",
+    body: "Raise a ticket with the device, the time and a screenshot or photo. We can check what the device has been sending.",
   },
   {
     icon: SlidersHorizontal,
     title: "Changing a setting",
-    body: "Settings you can change are on the Devices page. Each change is checked by reading it back from the equipment. For anything else, ask us.",
+    body: "Settings you can change are on the Devices page, and each change is confirmed by reading it back. For anything else, ask us.",
   },
 ];
 
 const BILLING = [
   { icon: CreditCard, title: "Your plan and payments", body: "Your plan, payments and invoices are on the Billing page of your dashboard." },
-  { icon: LifeBuoy, title: "A question about a charge", body: "Raise a ticket and choose Billing as the topic. Tell us the date and amount and we will look into it." },
+  { icon: LifeBuoy, title: "A question about a charge", body: "Raise a ticket, choose Billing as the topic, and tell us the date and amount." },
   { icon: Mail, title: "Something else about your account", body: "Raise a ticket, or use the form below if you cannot sign in, and say what you need." },
 ];
 
