@@ -57,25 +57,25 @@ export function ProjectSteps({
                 <div className="flex items-center gap-3">
                   <span
                     className={cn(
-                      "flex size-10 shrink-0 items-center justify-center rounded-full border-2 text-xs font-bold tabular-nums",
+                      "flex size-11 shrink-0 items-center justify-center rounded-full border-2 text-[13px] font-bold tabular-nums",
                       i === ring ? "border-emerald-500 bg-emerald-500 text-white" : "border-emerald-500/70 bg-theme-bg text-emerald-700 dark:text-emerald-400"
                     )}
                   >
                     {String(i + 1).padStart(2, "0")}
                   </span>
                   <span className="h-px flex-1 bg-gradient-to-r from-emerald-500/70 to-theme-border" aria-hidden="true" />
-                  {tag && <span className="shrink-0 text-xs font-semibold text-theme-muted sm:text-[13px]">{tag}</span>}
+                  {tag && <span className="shrink-0 text-[13px] font-semibold text-theme-muted sm:text-sm">{tag}</span>}
                 </div>
                 <h3
                   className={cn(
-                    "mt-5 font-bold leading-tight tracking-tight",
-                    five ? "text-[clamp(1.2rem,1.7vw,1.6rem)]" : "text-[clamp(1.5rem,2.3vw,2.2rem)]",
+                    "mt-6 font-bold leading-tight tracking-tight",
+                    five ? "text-[clamp(1.25rem,1.7vw,1.7rem)]" : "text-[clamp(1.4rem,2vw,2rem)]",
                     i % 2 === 0 ? "text-primary-gradient" : "text-theme-primary"
                   )}
                 >
                   {stepTitle}
                 </h3>
-                <p className="mt-3 max-w-[22rem] text-sm leading-relaxed text-theme-secondary">{body}</p>
+                <p className="mt-4 max-w-[26rem] text-[15px] leading-relaxed text-theme-secondary sm:text-base">{body}</p>
               </Reveal>
             </li>
           ))}
