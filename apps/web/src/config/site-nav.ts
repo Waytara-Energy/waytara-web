@@ -105,3 +105,43 @@ export const PAGE_MENUS: PageMenu[] = [
     ],
   },
 ];
+
+export interface HeaderMenu {
+  label: string;
+  /** Where the label itself leads. */
+  href: string;
+  /** The small label above the large links. */
+  bigLabel: string;
+  /** The large links: the sections of the page (or the property types for Solutions). */
+  big: NavDestination[];
+  asideTitle: string;
+  /** The few small links on the right. */
+  aside: NavDestination[];
+}
+
+const ASIDE: Record<string, { title: string; links: NavDestination[] }> = {
+  Platform: { title: "Next", links: [PLANNER_LINK, { label: "Solutions", href: "/solutions" }] },
+  "Why WayTara": { title: "Next", links: [PLANNER_LINK, { label: "Platform", href: "/technology" }] },
+  "About Us": { title: "More", links: [CONTACT_LINK, { label: "Partner with us", href: "/partner" }] },
+  Partner: { title: "More", links: [CONTACT_LINK, { label: "About Us", href: "/about" }] },
+};
+
+/** What each header item opens: the same full-width panel for all five. */
+export const HEADER_MENUS: HeaderMenu[] = [
+  {
+    label: "Solutions",
+    href: SOLUTIONS_HUB.href,
+    bigLabel: "Explore Solutions",
+    big: [{ label: "All solutions", href: SOLUTIONS_HUB.href }, ...SOLUTION_SEGMENTS],
+    asideTitle: "By need",
+    aside: [...SOLUTION_NEEDS, { label: "Not sure? Use the Energy Planner", href: PLANNER_LINK.href }],
+  },
+  ...PAGE_MENUS.map((m) => ({
+    label: m.label,
+    href: m.href,
+    bigLabel: `Explore ${m.label}`,
+    big: m.items,
+    asideTitle: ASIDE[m.label].title,
+    aside: ASIDE[m.label].links,
+  })),
+];

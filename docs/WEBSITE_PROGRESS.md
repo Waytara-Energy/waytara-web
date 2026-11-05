@@ -59,4 +59,5 @@ Total estimate for steps 1 to 7 including 6b: about 40 to 51 hours. Customer das
 | 2026-11-05 | 14:05 | Task 5 built and checked. Attachments not built. Awaiting your review. |
 | 2026-11-05 | 15:16 | Design change 1 (header) started: Contact icon removed, Partner moved beside About Us, dropdown menus for Platform, Why WayTara, About Us and Partner like Solutions. |
 | 2026-11-05 | 15:30 | Header change built; typecheck and lint pass; NOT yet checked in the browser (usage limit reached). |
+| 2026-11-05 | 16:00 | Design change 1b (header like the Apple example): one full-width panel under the header for all five items, large links on the left, small links on the right, page dimmed and blurred behind. Checked in the browser at 1440 px (Platform panel, links and overlay); the other four panels, the mobile menu and keyboard use are not yet checked. |
 

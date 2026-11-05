@@ -24,13 +24,14 @@ import {
 import { cn } from "@/lib/utils";
 import { TEMP_HIDE_LANDING_SECTIONS } from "@/config/landing-flags";
 import {
+  HEADER_MENUS,
   PAGE_MENUS,
   SOLUTIONS_HUB,
   SOLUTION_NEEDS,
   SOLUTION_SEGMENTS,
   getStartedFor,
 } from "@/config/site-nav";
-import { PageMenu, SolutionsMenu } from "@/components/sections/solutions-menu";
+import { MegaMenuPanel } from "@/components/sections/mega-menu";
 
 const MOBILE_LINK_CLASS =
   "py-2.5 px-2 text-sm font-semibold text-theme-primary hover:text-theme-highlight hover:bg-theme-surface rounded-lg flex items-center justify-between transition-colors text-left";
@@ -55,6 +56,25 @@ export function Navigation() {
   const [isScrolled, setIsScrolled] = React.useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState<string | null>(null);
+  // Which header item's panel is open on desktop (null: none). Opens on hover or focus, closes on leaving the header, Escape, or choosing a link.
+  const [activeMenu, setActiveMenu] = React.useState<string | null>(null);
+  const closeTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+  const openMenu = (label: string) => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    setActiveMenu(label);
+  };
+  const scheduleClose = () => {
+    if (closeTimer.current) clearTimeout(closeTimer.current);
+    closeTimer.current = setTimeout(() => setActiveMenu(null), 120);
+  };
+  React.useEffect(() => {
+    if (!activeMenu) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setActiveMenu(null);
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [activeMenu]);
   const [account, setAccount] = React.useState<Account | null>(null);
 
   const isHome = pathname === "/";
@@ -120,7 +140,7 @@ export function Navigation() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
-  const isThemeStyled = !isHome || isScrolled;
+  const isThemeStyled = !isHome || isScrolled || activeMenu !== null;
   const getStarted = getStartedFor(pathname);
 
   // One look for every text link and icon in the bar: white over the hero, theme colours once the bar is solid.
@@ -138,6 +158,7 @@ export function Navigation() {
   );
 
   return (
+    <>
     <header
       className={cn(
         "fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-out h-[clamp(3.5rem,4.5vw,4.25rem)] flex items-center select-none border-0",
@@ -145,6 +166,13 @@ export function Navigation() {
           ? "bg-theme-bg/95 text-theme-primary shadow-md backdrop-blur-md"
           : "bg-transparent text-white"
       )}
+      onMouseLeave={scheduleClose}
+      onMouseEnter={() => {
+        if (closeTimer.current) clearTimeout(closeTimer.current);
+      }}
+      onBlur={(e) => {
+        if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setActiveMenu(null);
+      }}
     >
       <div className="fluid-container flex items-center justify-between h-full">
         
@@ -155,9 +183,19 @@ export function Navigation() {
 
         {/* 2. Center: Clean Direct Navigation Links (Fluid Sizing with Smooth In-Page Anchor Scrolling) */}
         <nav aria-label="Main" className="hidden lg:flex items-center space-x-[clamp(0.25rem,0.6vw,0.75rem)]">
-          <SolutionsMenu triggerClassName={linkClass} />
-          {PAGE_MENUS.map((menu) => (
-            <PageMenu key={menu.label} menu={menu} triggerClassName={linkClass} />
+          {HEADER_MENUS.map((menu) => (
+            <Link
+              key={menu.label}
+              href={menu.href}
+              aria-expanded={activeMenu === menu.label}
+              aria-haspopup="true"
+              onMouseEnter={() => openMenu(menu.label)}
+              onFocus={() => openMenu(menu.label)}
+              onClick={() => setActiveMenu(null)}
+              className={cn(linkClass, activeMenu === menu.label && "text-theme-highlight")}
+            >
+              {menu.label}
+            </Link>
           ))}
         </nav>
 
@@ -339,6 +377,29 @@ export function Navigation() {
         </div>
 
       </div>
+
+      {/* The full-width panel and the dimmed, blurred page behind it. The overlay ignores the pointer, so moving onto the page closes the panel. */}
+      {HEADER_MENUS.map((menu) => (
+        <div
+          key={menu.label}
+          className={cn(
+            "absolute left-0 right-0 top-full hidden border-b border-theme-border bg-theme-bg text-theme-primary shadow-xl transition-[opacity,transform] duration-200 ease-out lg:block",
+            activeMenu === menu.label ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-1 opacity-0"
+          )}
+          aria-hidden={activeMenu !== menu.label}
+          onMouseEnter={() => openMenu(menu.label)}
+        >
+          {activeMenu === menu.label && <MegaMenuPanel menu={menu} onNavigate={() => setActiveMenu(null)} />}
+        </div>
+      ))}
     </header>
+    <div
+        aria-hidden="true"
+        className={cn(
+          "pointer-events-none fixed inset-x-0 bottom-0 top-[clamp(3.5rem,4.5vw,4.25rem)] hidden z-40 bg-black/25 backdrop-blur-md transition-opacity duration-200 lg:block",
+          activeMenu ? "opacity-100" : "opacity-0"
+        )}
+      />
+    </>
   );
 }
