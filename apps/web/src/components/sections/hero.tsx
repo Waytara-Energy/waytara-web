@@ -6,22 +6,21 @@ import Image from "next/image";
 import { useTheme } from "next-themes";
 import { ChevronDown, ArrowRight } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
+import { CloudShader } from "@/components/ui/cloud-shader";
 import { TEMP_HIDE_LANDING_SECTIONS } from "@/config/landing-flags";
 import { cn } from "@/lib/utils";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 
-// TEMPORARY — requested 2026-09-07 to trial theme-aware static hero images
-// in place of the background video, without touching the video itself.
-// Flip back to `false` (or delete this const + its one `if` below) to
-// instantly restore the video; nothing about the video markup/source has
-// been removed.
-const TEMP_USE_HERO_TEST_IMAGE = true;
-
-// The photo is 2000 x 1116. It is laid out like object-fit: cover, anchored to the bottom, so the headline can be centred in the
-// open sky between the nav and the roof's top edge, wherever that edge ends up on the screen.
+// The sky is a live cloud shader and the house is a cut-out photo (transparent sky) standing in front of it. The cut-out is 2000 x 1116.
+// It is laid out like object-fit: cover, anchored to the bottom, so the headline can be centred in the open sky between the nav and the
+// roof's top edge, wherever that edge ends up on the screen.
 const SCENE_RATIO = 2000 / 1116;
 // Where the roof's top edge falls in the picture (top of the panels, 515 of 1116 px).
 const ROOF_TOP_PCT = 46;
+
+// The shader's colours: the day sky and, in the dark theme, the same scene at dusk.
+const SKY_DAY = { top: "#3876ba", bottom: "#8cbfe8", cloud: "#fbf8f2" };
+const SKY_DUSK = { top: "#070d1f", bottom: "#1b2a4a", cloud: "#8d9bb8" };
 // Height of the fixed nav bar; the sky gap starts below it.
 const NAV_HEIGHT = "4.5rem";
 
@@ -82,39 +81,33 @@ export function Hero() {
 
   return (
     // container-type:size lets the scene below be sized from the hero's own width and height (cqw / cqh), like object-fit: cover.
-    <section className="relative w-full h-[100dvh] min-h-[620px] [container-type:size] overflow-hidden select-none bg-black">
-      {/* 1. The photo, in a box with the picture's own proportions (cover, anchored to the bottom) */}
+    <section className="relative w-full h-[100dvh] min-h-[620px] [container-type:size] overflow-hidden select-none bg-[#3876ba]">
+      {/* 1a. The sky: drifting clouds drawn live (the colour behind it shows if the browser has no WebGL) */}
+      <CloudShader
+        className="absolute inset-0 h-full min-h-0 bg-gradient-to-b from-[#3876ba] to-[#8cbfe8]"
+        skyTopColor={isDark ? SKY_DUSK.top : SKY_DAY.top}
+        skyBottomColor={isDark ? SKY_DUSK.bottom : SKY_DAY.bottom}
+        cloudColor={isDark ? SKY_DUSK.cloud : SKY_DAY.cloud}
+        maxPixelRatio={1}
+      />
+
+      {/* 1b. The house, in a box with the picture's own proportions (cover, anchored to the bottom), standing in front of the sky */}
       <div
         className="absolute bottom-0 left-1/2 -translate-x-1/2 [container-type:inline-size]"
         style={{ width: `max(100cqw, calc(100cqh * ${SCENE_RATIO.toFixed(4)}))`, aspectRatio: "2000 / 1116" }}
       >
-        {TEMP_USE_HERO_TEST_IMAGE ? (
-          <>
-            {/* Dark theme: the same photo, dimmed and cooled to dusk (so the house and the layout stay the same). */}
-            <Image
-              src="/images/hero-bg-light-v3.webp"
-              alt=""
-              fill
-              priority
-              sizes="100vw"
-              className={cn(
-                "object-cover pointer-events-none transition-[filter] duration-[1200ms] ease-in-out",
-                isDark && "brightness-[0.5] saturate-[0.8] hue-rotate-[8deg]"
-              )}
-            />
-          </>
-        ) : (
-          <video
-            autoPlay
-            loop
-            muted
-            playsInline
-            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-          >
-            <source src="/videos/hero-bg.mp4" type="video/mp4" />
-            Your browser does not support the video tag.
-          </video>
-        )}
+        {/* Dark theme: the same house, dimmed and cooled to dusk (so the house and the layout stay the same). */}
+        <Image
+          src="/images/hero-house-cutout.webp"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className={cn(
+            "object-cover pointer-events-none transition-[filter] duration-[1200ms] ease-in-out",
+            isDark && "brightness-[0.5] saturate-[0.8] hue-rotate-[8deg]"
+          )}
+        />
       </div>
 
       {/* The headline: centred in the open sky, between the nav and the roof's top edge. The last line fades towards its foot. */}
@@ -127,9 +120,31 @@ export function Hero() {
         }}
       >
         <Reveal direction="up" delay={150} duration={900} distance={30}>
-          <h1 className="font-bold tracking-tight leading-[1.05] text-white text-balance text-[clamp(2rem,4.6vw,4.6rem)]">
-            <span className="block sm:whitespace-nowrap drop-shadow-[0_2px_14px_rgba(0,20,60,0.35)]">Your property&rsquo;s energy,</span>
-            <span className="block sm:whitespace-nowrap bg-gradient-to-b from-white via-white/75 to-white/15 bg-clip-text text-transparent">built as one system.</span>
+          {/* White clouds drift behind the headline, so by day it is dark navy (readable on both cloud and sky); at dusk it is white. */}
+          <h1
+            className={cn(
+              "font-bold tracking-tight leading-[1.05] text-balance text-[clamp(2rem,4.6vw,4.6rem)] transition-colors duration-[1200ms]",
+              isDark ? "text-white" : "text-[#0b2545]"
+            )}
+          >
+            <span
+              className={cn(
+                "block sm:whitespace-nowrap",
+                isDark ? "drop-shadow-[0_2px_14px_rgba(0,20,60,0.35)]" : "drop-shadow-[0_1px_14px_rgba(255,255,255,0.5)]"
+              )}
+            >
+              Your property&rsquo;s energy,
+            </span>
+            <span
+              className={cn(
+                "block sm:whitespace-nowrap",
+                isDark
+                  ? "bg-gradient-to-b from-white via-white/75 to-white/15 bg-clip-text text-transparent"
+                  : "drop-shadow-[0_1px_14px_rgba(255,255,255,0.5)]"
+              )}
+            >
+              built as one system.
+            </span>
           </h1>
         </Reveal>
       </div>
