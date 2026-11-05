@@ -365,6 +365,8 @@ export interface PolicyItem {
   tag: string;
   title: string;
   body: string;
+  /** A quick link under the text, to where the point can be seen. */
+  link?: Cta;
 }
 
 /** Policy and money points as rows (tag and title on the left, the explanation on the right), for pages with several separate provisions. */
@@ -378,7 +380,15 @@ export function PolicyRows({ items }: { items: PolicyItem[] }) {
               <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">{item.tag}</p>
               <h3 className="mt-2 text-lg font-semibold text-theme-primary">{item.title}</h3>
             </div>
-            <p className="text-sm leading-relaxed text-theme-secondary lg:col-span-3">{item.body}</p>
+            <div className="lg:col-span-3">
+              <p className="text-sm leading-relaxed text-theme-secondary">{item.body}</p>
+              {item.link && (
+                <Link href={item.link.href} className="group mt-3 inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
+                  {item.link.label}
+                  <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+                </Link>
+              )}
+            </div>
           </li>
         ))}
       </ul>

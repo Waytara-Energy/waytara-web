@@ -80,9 +80,9 @@ export const PAGE_MENUS: PageMenu[] = [
     label: "Why WayTara",
     href: "/why-waytara",
     items: [
-      { label: "Four reasons", href: "/why-waytara#reasons", blurb: "What is different about how we work" },
-      { label: "One system", href: "/why-waytara#one-system", blurb: "Separate suppliers, or one system" },
-      { label: "Our promise", href: "/why-waytara#promise", blurb: "What we will do, and what we won't" },
+      { label: "What we do", href: "/why-waytara#reasons", blurb: "Four things we do on every project" },
+      { label: "How to check", href: "/why-waytara#proof", blurb: "Things you can check for yourself" },
+      { label: "Our promise", href: "/why-waytara#promise", blurb: "The lines we hold to" },
     ],
   },
   {

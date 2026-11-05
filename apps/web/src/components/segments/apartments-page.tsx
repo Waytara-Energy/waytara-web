@@ -27,7 +27,7 @@ const BENEFITS = [
   { icon: Sun, title: "Lower common bills", body: "Solar for the lifts, pumps, lights and clubhouse, so the common electricity bill comes down." },
   { icon: BatteryCharging, title: "Keep key services on", body: "Battery backup for the lifts, pumps and lights that matter most, so key services keep running." },
   { icon: PlugZap, title: "Easier EV charging", body: "Shared chargers for residents, with a record of every charge and room to add more chargers later." },
-  { icon: LayoutDashboard, title: "One place to manage", body: "See your solar, battery and chargers on one dashboard, instead of a separate app for each." },
+  { icon: LayoutDashboard, title: "One place to manage", body: "See your solar, battery and chargers on one dashboard, with the live figures for each in one place." },
 ];
 
 const PROJECTS = [
