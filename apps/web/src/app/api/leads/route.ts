@@ -12,7 +12,7 @@ const leadSchema = z.object({
   city: z.string().optional(),
   pincode: z.string().optional(),
   source: z
-    .enum(["contact_page", "solutions_page", "energy_planner", "package_card"])
+    .enum(["contact_page", "solutions_page", "energy_planner", "package_card", "platform_compatibility"])
     .default("contact_page"),
   segment: z.enum(["home", "commercial", "ev_fleet"]).optional(),
   packageId: z.string().optional(),
@@ -24,6 +24,10 @@ const leadSchema = z.object({
   evPlans: z.string().optional(),
   roofType: z.string().optional(),
   recommendedPackage: z.string().optional(),
+  // Platform page compatibility check: what the visitor already has. Folded into `message` like the planner context above.
+  existingEquipment: z.string().max(300).optional(),
+  equipmentDetails: z.string().max(1000).optional(),
+  ocppVersion: z.string().max(40).optional(),
   estimatedSolarKw: z.coerce.number().optional(),
   estimatedBatteryKwh: z.coerce.number().optional(),
   // Honeypot: real visitors never see or fill this field (see the forms'
@@ -52,6 +56,9 @@ function formatContext(data: z.infer<typeof leadSchema>): string | null {
     ["EV plans", data.evPlans],
     ["Roof type", data.roofType],
     ["Recommended package", data.recommendedPackage],
+    ["Existing equipment", data.existingEquipment],
+    ["Make and model", data.equipmentDetails],
+    ["Charger OCPP version", data.ocppVersion],
     ["Estimated solar", data.estimatedSolarKw ? `${data.estimatedSolarKw} kW` : undefined],
     ["Estimated battery", data.estimatedBatteryKwh ? `${data.estimatedBatteryKwh} kWh` : undefined],
   ];

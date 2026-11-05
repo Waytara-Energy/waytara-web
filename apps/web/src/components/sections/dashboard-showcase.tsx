@@ -10,7 +10,7 @@ const MAX_STRETCH = 1.15;
 
 /** The Monitoring page, laid out at its design size and shrunk to fill whatever box it is given. The box clips (not hides) its overflow:
  *  a hidden box can still be scrolled sideways by focus or a click, which would slide the scaled page out of place. */
-function FittedDemo() {
+export function FittedDemo() {
   const boxRef = React.useRef<HTMLDivElement>(null);
   const [fit, setFit] = React.useState({ scale: 0.7, width: DEMO_WIDTH, height: DEMO_HEIGHT, top: 0 });
 
