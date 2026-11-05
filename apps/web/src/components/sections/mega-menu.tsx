@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import type { HeaderMenu } from "@/config/site-nav";
 
@@ -41,6 +42,36 @@ export function MegaMenuPanel({ menu, onNavigate }: { menu: HeaderMenu; onNaviga
           </ul>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * The one panel under the header. It is always the same element: opening animates its height from nothing, closing animates back, and moving
+ * from one header item to another only swaps what is inside (its height eases to the new content). Nothing fades out and back in, so there is
+ * no flicker as the pointer travels along the bar. `menu` stays set while the panel closes so the content does not vanish mid-animation.
+ */
+export function MegaMenuShell({ menu, open, onNavigate }: { menu: HeaderMenu | null; open: boolean; onNavigate: () => void }) {
+  const innerRef = React.useRef<HTMLDivElement>(null);
+  const [height, setHeight] = React.useState(0);
+
+  React.useEffect(() => {
+    const el = innerRef.current;
+    if (!el) return;
+    const measure = () => setHeight(el.offsetHeight);
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [menu]);
+
+  return (
+    <div
+      aria-hidden={!open}
+      className={`absolute left-0 right-0 top-full hidden overflow-hidden bg-theme-bg text-theme-primary transition-[height] duration-300 ease-out motion-reduce:transition-none lg:block ${open ? "border-b border-theme-border shadow-xl" : "pointer-events-none"}`}
+      style={{ height: open ? height : 0 }}
+    >
+      <div ref={innerRef}>{menu && <MegaMenuPanel key={menu.label} menu={menu} onNavigate={onNavigate} />}</div>
     </div>
   );
 }

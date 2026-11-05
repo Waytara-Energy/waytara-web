@@ -31,7 +31,7 @@ import {
   SOLUTION_SEGMENTS,
   getStartedFor,
 } from "@/config/site-nav";
-import { MegaMenuPanel } from "@/components/sections/mega-menu";
+import { MegaMenuShell } from "@/components/sections/mega-menu";
 
 const MOBILE_LINK_CLASS =
   "py-2.5 px-2 text-sm font-semibold text-theme-primary hover:text-theme-highlight hover:bg-theme-surface rounded-lg flex items-center justify-between transition-colors text-left";
@@ -58,10 +58,12 @@ export function Navigation() {
   const [mobileOpen, setMobileOpen] = React.useState<string | null>(null);
   // Which header item's panel is open on desktop (null: none). Opens on hover or focus, closes on leaving the header, Escape, or choosing a link.
   const [activeMenu, setActiveMenu] = React.useState<string | null>(null);
+  const [shownMenu, setShownMenu] = React.useState<string | null>(null);
   const closeTimer = React.useRef<ReturnType<typeof setTimeout> | null>(null);
   const openMenu = (label: string) => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
     setActiveMenu(label);
+    setShownMenu(label);
   };
   const scheduleClose = () => {
     if (closeTimer.current) clearTimeout(closeTimer.current);
@@ -381,20 +383,8 @@ export function Navigation() {
 
       </div>
 
-      {/* The full-width panel and the dimmed, blurred page behind it. The overlay ignores the pointer, so moving onto the page closes the panel. */}
-      {HEADER_MENUS.map((menu) => (
-        <div
-          key={menu.label}
-          className={cn(
-            "absolute left-0 right-0 top-full hidden border-b border-theme-border bg-theme-bg text-theme-primary shadow-xl transition-[opacity,transform] duration-200 ease-out lg:block",
-            activeMenu === menu.label ? "translate-y-0 opacity-100" : "pointer-events-none -translate-y-1 opacity-0"
-          )}
-          aria-hidden={activeMenu !== menu.label}
-          onMouseEnter={() => openMenu(menu.label)}
-        >
-          {activeMenu === menu.label && <MegaMenuPanel menu={menu} onNavigate={() => setActiveMenu(null)} />}
-        </div>
-      ))}
+      {/* The one full-width panel (its content swaps as the pointer moves along the bar) and, outside the header, the dimmed page behind it. */}
+      <MegaMenuShell menu={HEADER_MENUS.find((m) => m.label === shownMenu) ?? null} open={activeMenu !== null} onNavigate={() => setActiveMenu(null)} />
     </header>
     <div
         aria-hidden="true"
