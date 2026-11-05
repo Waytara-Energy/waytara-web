@@ -1,4 +1,4 @@
-import { Activity, Bell, LayoutDashboard, ClipboardCheck, Cpu, KeyRound, Layers, LifeBuoy, ScrollText, UserCheck, UserCircle2, Users, UsersRound, Wrench, Zap, History, type LucideIcon } from "lucide-react";
+import { Activity, Bell, Handshake, LayoutDashboard, ClipboardCheck, Cpu, KeyRound, Layers, LifeBuoy, ScrollText, UserCheck, UserCircle2, Users, UsersRound, Wrench, Zap, History, type LucideIcon } from "lucide-react";
 
 /** Which count in AdminAlerts a nav line wears as its badge. */
 export type NavBadge = "leads" | "support" | "alerts";
@@ -29,6 +29,7 @@ export const NAV_GROUPS: NavGroup[] = [
       { label: "Onboarding", href: "/onboarding", icon: ClipboardCheck },
       { label: "Support", href: "/support", icon: LifeBuoy, badge: "support" },
       { label: "Customers", href: "/customers", icon: UserCircle2, adminOnly: true },
+      { label: "Partners", href: "/partners", icon: Handshake, adminOnly: true },
     ],
   },
   {

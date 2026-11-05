@@ -3315,6 +3315,83 @@ export type Database = {
         }
         Relationships: []
       }
+      partner_applications: {
+        Row: {
+          admin_notes: string | null
+          cities: string | null
+          certifications: string | null
+          company_name: string
+          contact_name: string
+          created_at: string
+          email: string
+          id: string
+          installs_completed: string | null
+          message: string | null
+          phone: string
+          reviewed_at: string | null
+          reviewed_by: string | null
+          services: string[]
+          states: string[]
+          status: string
+          team_size: string | null
+          updated_at: string
+          website: string | null
+          years_in_business: number | null
+        }
+        Insert: {
+          admin_notes?: string | null
+          cities?: string | null
+          certifications?: string | null
+          company_name: string
+          contact_name: string
+          created_at?: string
+          email: string
+          id?: string
+          installs_completed?: string | null
+          message?: string | null
+          phone: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          services?: string[]
+          states?: string[]
+          status?: string
+          team_size?: string | null
+          updated_at?: string
+          website?: string | null
+          years_in_business?: number | null
+        }
+        Update: {
+          admin_notes?: string | null
+          cities?: string | null
+          certifications?: string | null
+          company_name?: string
+          contact_name?: string
+          created_at?: string
+          email?: string
+          id?: string
+          installs_completed?: string | null
+          message?: string | null
+          phone?: string
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          services?: string[]
+          states?: string[]
+          status?: string
+          team_size?: string | null
+          updated_at?: string
+          website?: string | null
+          years_in_business?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_applications_reviewed_by_fkey"
+            columns: ["reviewed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number
