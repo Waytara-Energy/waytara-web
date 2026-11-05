@@ -15,26 +15,10 @@ const MENU = [
 ];
 
 const REASONS = [
-  {
-    icon: Users,
-    title: "One accountable team",
-    body: "The same team designs, installs and connects your system, and supports it afterwards. When something needs attention, there is one place to ask.",
-  },
-  {
-    icon: Ruler,
-    title: "Engineered for your site",
-    body: "We size and design from your property's real consumption, roof, loads and operating hours, not from a package. Battery size follows what you need to keep running, not your bill.",
-  },
-  {
-    icon: LayoutDashboard,
-    title: "Works with what you have",
-    body: "Compatible solar inverters and EV chargers you already own can join the same dashboard. You may not need to replace anything to see and manage it in one place.",
-  },
-  {
-    icon: Cpu,
-    title: "Our own software and hardware",
-    body: "WayTara builds the gateway and the platform itself, so the people who install your system also understand, and can improve, how it is monitored and managed.",
-  },
+  { icon: Users, title: "One team", body: "The same people design, install, connect and support your system. One place to ask." },
+  { icon: Ruler, title: "Built for your site", body: "We size your system from your real power use and space, not from a standard package." },
+  { icon: LayoutDashboard, title: "Works with what you have", body: "Compatible inverters and chargers you own can join the same dashboard." },
+  { icon: Cpu, title: "Our own software", body: "We build the gateway and the platform ourselves, so we know how it all works." },
 ];
 
 const COMPARE = [

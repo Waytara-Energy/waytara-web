@@ -24,21 +24,18 @@ const MENU = [
 const PARTS = [
   {
     icon: Plug,
-    tag: "Connect",
     title: "WayTara gateway",
-    body: "WayTara's own gateway reads supported inverters, batteries and meters at your site and sends the readings to the platform. Chargers connect to the platform directly over OCPP.",
+    body: "A small box at your site that reads your inverters, batteries and meters and sends the readings to WayTara. Chargers connect directly.",
   },
   {
     icon: Zap,
-    tag: "Manage",
-    title: "Energy management (EMS)",
-    body: "Live monitoring, history, alerts and reports for connected energy equipment, with controls for the settings that have been tested on supported equipment.",
+    title: "Energy management",
+    body: "Live readings, history, alerts and reports for your connected equipment, plus controls for settings we have tested.",
   },
   {
     icon: Server,
-    tag: "Charge",
-    title: "Charge-point management (CPMS)",
-    body: "Status, sessions and remote controls for compatible OCPP chargers, from the same platform and the same dashboard.",
+    title: "Charger management",
+    body: "Status, sessions and remote controls for compatible chargers, in the same dashboard.",
   },
 ];
 

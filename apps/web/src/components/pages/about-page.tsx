@@ -42,7 +42,7 @@ export function AboutPage() {
         accent="done as one."
         summary="Solar, storage and EV charging are usually sold as separate products. We build and connect them together, and you can start with any one of the three."
       >
-        <FeatureColumns items={OFFERS.map(({ icon, tag, title, body }) => ({ icon, tag, title, body }))} />
+        <FeatureColumns items={OFFERS.map(({ icon, title, body }) => ({ icon, title, body }))} />
       </SegmentSection>
 
       {/* The vision, mission and goal, and the people behind WayTara (moved here from the landing page) */}

@@ -24,39 +24,30 @@ const MENU = [
 ];
 
 const BENEFITS = [
-  { icon: Sun, title: "Reduce common electricity bills", body: "Solar for lifts, pumps, lighting, clubhouses and other shared facilities." },
-  { icon: BatteryCharging, title: "Keep essential services running", body: "Battery storage and backup planning for selected critical common loads." },
-  { icon: PlugZap, title: "Make EV charging easier", body: "Shared charging infrastructure, individual usage visibility and charging management." },
-  { icon: LayoutDashboard, title: "Manage energy in one place", body: "Monitor connected solar, storage and EV charging equipment through WayTara EMS." },
+  { icon: Sun, title: "Lower common bills", body: "Solar for the lifts, pumps, lights and clubhouse." },
+  { icon: BatteryCharging, title: "Keep key services on", body: "Battery backup for the lifts, pumps and lights that matter most." },
+  { icon: PlugZap, title: "Easier EV charging", body: "Shared chargers for residents, with a record of every charge." },
+  { icon: LayoutDashboard, title: "One place to manage", body: "See your solar, battery and chargers on one dashboard." },
 ];
 
 const PROJECTS = [
   {
     icon: Sun,
-    tag: "Common-area solar",
-    title: "Society Common Power",
-    body: "Reduce electricity purchased for shared facilities using rooftop and available-site solar.",
-    includesLabel: "Typical applications",
-    includes: ["Water pumps", "Lifts", "Lighting", "Clubhouse", "Sewage treatment plant"],
-    note: "Best starting point: societies with recurring common-meter electricity bills and usable roof or canopy space.",
+    title: "Common-area solar",
+    body: "Cut the electricity bill for the areas everyone shares.",
+    includes: ["Water pumps", "Lifts", "Lights", "Clubhouse"],
   },
   {
     icon: BatteryCharging,
-    tag: "Solar + storage",
-    title: "Community Backup & Energy Hub",
-    body: "Combine solar, battery storage and existing DG infrastructure where appropriate to improve energy resilience and manage generator dependence.",
-    includesLabel: "Typical applications",
-    includes: ["Critical loads", "DG integration", "Battery storage", "Energy monitoring"],
-    note: "Best starting point: communities looking to improve backup arrangements or reduce generator runtime where technically and economically viable.",
+    title: "Backup for your community",
+    body: "Solar and batteries that work with your generator to keep key loads on.",
+    includes: ["Lifts and pumps stay on", "Works with your generator", "Battery storage", "Live energy tracking"],
   },
   {
     icon: PlugZap,
-    tag: "EV infrastructure",
-    title: "Community EV Charging",
-    body: "Install shared charging infrastructure that can grow with resident demand, with individual usage visibility and managed charging.",
-    includesLabel: "Typical applications",
-    includes: ["Resident charging", "RFID or app access", "OCPP-based charging software", "Load management"],
-    note: "Best starting point: communities with existing EV owners or plans for future charging infrastructure.",
+    title: "Shared EV charging",
+    body: "Chargers for residents that can grow as more people buy EVs.",
+    includes: ["Resident charging", "Charging records", "WayTara charging software", "Room to add chargers"],
   },
 ];
 
@@ -150,7 +141,7 @@ export function ApartmentsPage() {
         badge="Why it matters"
         title="What can we improve"
         accent="in your community?"
-        summary="For associations, committees and property managers. Four things we can help with, with no equipment specifications to wade through."
+        summary="For associations, committees and property managers. Four things we can help with."
       >
         <FeatureColumns items={BENEFITS} />
       </SegmentSection>
@@ -160,7 +151,7 @@ export function ApartmentsPage() {
         badge="Project types"
         title="Three ways to upgrade"
         accent="your community."
-        summary="Each stands on its own. All three can be combined into one community energy project."
+        summary="Pick one, or combine all three."
       >
         <FeatureColumns items={PROJECTS} />
       </SegmentSection>

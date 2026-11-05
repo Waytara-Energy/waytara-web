@@ -102,49 +102,38 @@ export function SegmentSection({
 
 export interface Feature {
   icon: LucideIcon;
+  /** Three to five words. */
   title: string;
+  /** One plain sentence. */
   body: string;
-  /** A small uppercase label at the top right of the cell. */
-  tag?: string;
-  /** A small heading above the checklist ("Typical applications"). */
-  includesLabel?: string;
+  /** Up to four short ticked lines under a thin rule. */
   includes?: string[];
-  /** A closing line at the foot of the cell ("Best starting point: ..."). */
-  note?: string;
 }
 
 /**
- * Features in the Apple product-page style: no boxes, a large thin icon, then one paragraph with the title in dark type and the description in
- * grey, set in the same semibold weight. Two to four columns across, stacked on a phone. A small label (tag), a checklist and a closing note are
- * kept for the cells that have them, quietly under the paragraph.
+ * Features in the Apple product-page style, with the wording of the landing page's "What WayTara does": no boxes, a large thin icon, a short bold
+ * title, one plain sentence, and optionally a short ticked list. Two to four columns across, stacked on a phone.
  */
 export function FeatureColumns({ items }: { items: Feature[] }) {
   const cols = items.length >= 4 ? "sm:grid-cols-2 lg:grid-cols-4" : items.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3";
   return (
-    <ul className={cn("grid grid-cols-1 gap-x-14 gap-y-16", cols)}>
-      {items.map(({ icon: Icon, title, body, tag, includesLabel, includes, note }, i) => (
+    <ul className={cn("grid grid-cols-1 gap-x-12 gap-y-14", cols)}>
+      {items.map(({ icon: Icon, title, body, includes }, i) => (
         <li key={title}>
           <Reveal direction="up" duration={800} distance={24} delay={(i % 4) * 90} className="flex h-full flex-col">
             <Icon className="size-12 stroke-[1.1] text-theme-primary sm:size-14" aria-hidden="true" />
-            {tag && <p className="mt-6 text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">{tag}</p>}
-            <p className={cn("max-w-[24rem] text-[clamp(1.0625rem,1.25vw,1.25rem)] font-semibold leading-snug", tag ? "mt-2" : "mt-6")}>
-              <span className="text-theme-primary">{title}. </span>
-              <span className="text-theme-secondary">{body}</span>
-            </p>
+            <h3 className="mt-6 text-lg font-bold tracking-tight text-theme-primary sm:text-xl">{title}</h3>
+            <p className="mt-2 max-w-[26rem] text-[15px] leading-relaxed text-theme-secondary sm:text-base">{body}</p>
             {includes && (
-              <div className="mt-6">
-                {includesLabel && <p className="mb-3 text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">{includesLabel}</p>}
-                <ul className="space-y-2.5">
-                  {includes.map((item) => (
-                    <li key={item} className="flex items-start gap-2.5 text-sm font-medium text-theme-secondary">
-                      <CircleCheck className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <ul className="mt-5 space-y-2.5 border-t border-theme-border pt-5">
+                {includes.map((item) => (
+                  <li key={item} className="flex items-start gap-2.5 text-sm text-theme-secondary">
+                    <CircleCheck className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                    <span>{item}</span>
+                  </li>
+                ))}
+              </ul>
             )}
-            {note && <p className="mt-auto pt-6 text-xs leading-relaxed text-theme-muted">{note}</p>}
           </Reveal>
         </li>
       ))}

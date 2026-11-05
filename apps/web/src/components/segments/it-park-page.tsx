@@ -29,63 +29,31 @@ const MENU = [
 ];
 
 const CAMPUSES = [
-  { icon: Building2, title: "IT and business parks", body: "Multiple buildings, common utilities, tenant areas, parking and employee charging." },
-  { icon: Server, title: "Data centres", body: "Continuous power demand, backup infrastructure, cooling systems and renewable energy planning." },
-  { icon: GraduationCap, title: "Universities and institutions", body: "Academic blocks, hostels, laboratories, administration buildings and campus mobility." },
-  { icon: Building, title: "Corporate campuses", body: "Office buildings, employee facilities, common areas, fleet charging and sustainability goals." },
+  { icon: Building2, title: "IT and business parks", body: "Many buildings, shared utilities, parking and staff charging." },
+  { icon: Server, title: "Data centres", body: "Power that never stops, with backup and cooling to match." },
+  { icon: GraduationCap, title: "Universities", body: "Classrooms, hostels, labs and campus transport." },
+  { icon: Building, title: "Corporate campuses", body: "Offices, shared spaces and fleet charging." },
 ];
 
 const PROVIDE = [
-  {
-    icon: Sun,
-    title: "Solar and renewable energy",
-    body: "Rooftop solar, solar carports and renewable power integration to reduce dependence on conventional grid electricity.",
-  },
-  {
-    icon: BatteryCharging,
-    title: "Battery storage and backup",
-    body: "Assess storage for selected loads, peak demand management and better use of renewable generation, integrated with existing power infrastructure where technically suitable.",
-  },
-  {
-    icon: PlugZap,
-    title: "Campus EV charging",
-    body: "Charging for employees, visitors, tenants and fleet vehicles, with centralised charger management and charging records.",
-  },
-  {
-    icon: LayoutDashboard,
-    title: "Energy monitoring and management",
-    body: "Connect compatible inverters, batteries, meters and chargers to monitor energy flows and manage supported equipment from one platform.",
-  },
+  { icon: Sun, title: "Solar", body: "Rooftop solar and solar car parks to use less grid power." },
+  { icon: BatteryCharging, title: "Battery backup", body: "Store power for key loads and for busy times." },
+  { icon: PlugZap, title: "EV charging", body: "Chargers for staff, visitors, tenants and fleets, managed from one place." },
+  { icon: LayoutDashboard, title: "One dashboard", body: "Connect compatible inverters, batteries, meters and chargers in one view." },
 ];
 
 const CHARGING = [
-  {
-    icon: UserRound,
-    title: "Employee charging",
-    body: M ? "Access management, usage records and charging allocation." : "Usage records and charging sessions for employee charging.",
-  },
-  {
-    icon: Users,
-    title: "Visitor charging",
-    body: M ? "Controlled access and paid charging where offered." : "Charging for visitors, with a session record for every charger.",
-  },
-  {
-    icon: Building2,
-    title: "Tenant charging",
-    body: M ? "Track charging energy and sessions for different users and tenants." : "Track charging energy and sessions across the campus's chargers.",
-  },
-  {
-    icon: Truck,
-    title: "Fleet charging",
-    body: M ? "Manage charging schedules and energy consumption for campus vehicles." : "See charging energy and sessions for campus vehicles, and start or stop supported chargers remotely.",
-  },
+  { icon: UserRound, title: "Staff charging", body: M ? "Control who can charge, with a record of every session." : "A record of every charging session." },
+  { icon: Users, title: "Visitor charging", body: M ? "Let guests charge, with paid charging where you offer it." : "Charging for guests, with a record of each session." },
+  { icon: Building2, title: "Tenant charging", body: "Track the energy and sessions across the campus chargers." },
+  { icon: Truck, title: "Fleet charging", body: "Track fleet charging, and start or stop supported chargers from anywhere." },
 ];
 
 const REPORTING = [
-  { icon: Gauge, title: "Energy consumption", body: "Track electricity usage, grid imports and consumption trends." },
-  { icon: Sun, title: "Renewable energy", body: "Monitor solar generation, self-consumption and exported energy." },
-  { icon: BatteryCharging, title: "Energy storage", body: "Review battery charging, discharging and utilisation." },
-  { icon: Leaf, title: "Carbon estimates", body: "Calculate estimated emissions and renewable-energy impact from the energy data available." },
+  { icon: Gauge, title: "Energy use", body: "Track electricity use and grid imports over time." },
+  { icon: Sun, title: "Solar", body: "See what your solar makes, uses and exports." },
+  { icon: BatteryCharging, title: "Battery", body: "See how the battery charges and discharges." },
+  { icon: Leaf, title: "Carbon estimates", body: "See estimated emissions from the energy data we measure." },
 ];
 
 const DASHBOARD_METRICS = [
@@ -102,17 +70,15 @@ const DASHBOARD_METRICS = [
 const STAGES = [
   {
     icon: Cpu,
-    tag: "New development",
-    title: "Plan before construction is complete",
-    body: "The right time to design energy and connectivity is alongside the project.",
-    includes: ["Assess site energy demand", "Plan solar and battery infrastructure", "Include EV charging and electrical provisions", "Design the monitoring and connectivity architecture with the project"],
+    title: "New campus",
+    body: "Plan your energy and monitoring while the campus is being built.",
+    includes: ["Estimate your energy needs", "Plan solar and batteries", "Leave room for EV charging", "Build in monitoring from day one"],
   },
   {
     icon: Activity,
-    tag: "Existing campus",
-    title: "Start with your current infrastructure",
-    body: "You don't need to start over to get a connected view.",
-    includes: ["Assess electricity consumption", "Connect compatible existing equipment", "Identify opportunities for solar and storage", "Bring existing chargers into CPMS where supported"],
+    title: "Existing campus",
+    body: "Start with what you have. You don't need to start over.",
+    includes: ["Check your current energy use", "Connect compatible equipment", "Find room for solar and storage", "Bring in chargers that support it"],
   },
 ];
 
@@ -195,7 +161,7 @@ export function ItParkPage() {
         badge="Campus types"
         title="Energy management for"
         accent="complex campuses."
-        summary="One site can hold several buildings, tenants, utility systems, backup sources and charging locations. Each has a different energy requirement."
+        summary="One site can hold many buildings, tenants and power sources, each with different needs."
       >
         <FeatureColumns items={CAMPUSES} />
       </SegmentSection>
@@ -230,13 +196,12 @@ export function ItParkPage() {
         badge="Campus charging"
         title="Manage charging"
         accent="across your campus."
-        summary="EV charging is more than installing charging points in a car park. A campus needs to manage who charges, when, and how electricity is shared."
+        summary="A campus needs to know who charges, when, and how much."
       >
         <FeatureColumns items={CHARGING} />
         <Reveal direction="up" duration={700} distance={16}>
-          <p className="mt-6 max-w-3xl text-sm leading-relaxed text-theme-secondary">
-            WayTara CPMS supports centralised charger management and session records for compatible OCPP chargers. Charging allocation and power control depend on charger
-            capabilities and the configured site management policy.
+          <p className="mt-10 max-w-3xl text-sm leading-relaxed text-theme-secondary">
+            WayTara CPMS keeps session records for compatible OCPP chargers. What it can control depends on each charger.
           </p>
         </Reveal>
       </SegmentSection>
@@ -246,20 +211,18 @@ export function ItParkPage() {
         badge="Energy reporting"
         title="Energy visibility and"
         accent="sustainability reporting."
-        summary="Monitor energy performance across your connected infrastructure and turn operational data into useful reports."
+        summary="Turn your energy data into reports you can use."
       >
         <FeatureColumns items={REPORTING} />
         <Reveal direction="up" duration={700} distance={16}>
-          <div className="mt-8 rounded-2xl border border-theme-border bg-theme-surface px-7 py-7 sm:px-8">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">Energy data for sustainability reporting</p>
+          <div className="mt-12 rounded-2xl border border-theme-border bg-theme-surface px-7 py-7 sm:px-8">
+            <p className="text-lg font-semibold text-theme-primary">Data for your sustainability reports.</p>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-theme-secondary">
-              Periodic energy and emissions summaries from connected equipment data can support internal sustainability tracking and supply energy figures for wider ESG reporting.
-              We keep three kinds of information apart: what is measured automatically, what is a calculated estimate, and what you supply yourself.
+              Regular summaries can feed your own sustainability reporting. We keep three things apart: what we measure, what we estimate, and what you tell us.
             </p>
             <p className="mt-3 max-w-3xl text-xs leading-relaxed text-theme-muted">
-              Reporting coverage depends on installed meters, connected equipment, available data and the information you provide. Regulatory submissions may need additional
-              records and independent verification. Efficiency metrics such as PUE need total facility and IT-load measurements, so we report only what the connected equipment can
-              measure or calculate reliably.
+              What we can report depends on your meters and connected equipment. Official filings may need extra records and checks. We only report measures such as PUE
+              when the right meters are in place.
             </p>
           </div>
         </Reveal>
@@ -277,7 +240,7 @@ export function ItParkPage() {
         badge="New or existing"
         title="New campus or"
         accent="existing facility?"
-        summary="The starting point is different, and so is the cost of waiting."
+        summary="You start in a different place, depending on where you are."
       >
         <FeatureColumns items={STAGES} />
       </SegmentSection>

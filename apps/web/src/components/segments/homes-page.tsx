@@ -27,40 +27,24 @@ const MENU = [
 ];
 
 const BENEFITS = [
-  {
-    icon: Sun,
-    title: "Use more of your own solar power",
-    body: "Generate electricity during the day and use it to run your home's appliances. Surplus power can be exported to the grid under the applicable DISCOM settlement arrangement.",
-  },
-  {
-    icon: BatteryCharging,
-    title: "Keep essential loads running",
-    body: "Add battery storage to keep selected lights, fans, appliances and other important loads running during a power cut. Backup depends on what you want to run and for how long.",
-  },
-  {
-    icon: PlugZap,
-    title: "Charge your EV at home",
-    body: "Install a dedicated EV charger and plan charging alongside your home's electricity demand and solar generation. Charging controls depend on compatible equipment and integration.",
-  },
-  {
-    icon: LayoutDashboard,
-    title: "See your energy in one place",
-    body: "Bring supported solar inverter and EV charger data into the WayTara dashboard. Monitor your connected equipment and use available charging and energy-management controls from one interface.",
-  },
+  { icon: Sun, title: "Use your own solar power", body: "Run your home on power from your roof. Extra power can go to the grid." },
+  { icon: BatteryCharging, title: "Lights on in a power cut", body: "A battery keeps the lights, fans and other things you choose running." },
+  { icon: PlugZap, title: "Charge your EV at home", body: "A home charger that works with your solar and your home's power use." },
+  { icon: LayoutDashboard, title: "See it all in one place", body: "Watch your solar, battery and EV charger on one dashboard." },
 ];
 
 const SETUPS = [
   {
     icon: Sun,
-    tag: "Lower upfront cost",
-    title: "Grid-connected solar",
-    body: "Reduce grid electricity use with rooftop solar. No battery required. Best when your main goal is reducing electricity bills and grid supply is reliable.",
+    title: "Solar only",
+    body: "Lowers your electricity bill. The simplest and lowest-cost way to start.",
+    includes: ["No battery needed", "Switches off in a power cut"],
   },
   {
     icon: BatteryCharging,
-    tag: "Backup included",
-    title: "Solar + battery backup",
-    body: "Generate, store and use solar power, while keeping your grid connection. Best when you want selected appliances to keep running during power cuts.",
+    title: "Solar + battery",
+    body: "Stores solar power for later and keeps chosen appliances running in a power cut.",
+    includes: ["Backup for what you choose", "Still connected to the grid"],
   },
 ];
 
@@ -123,13 +107,13 @@ export function HomesPage() {
         badge="Why it matters"
         title="More from the energy"
         accent="your home uses."
-        summary="Generate power from your roof, store energy for when you need it, charge your EV and see how everything works together."
+        summary="Make power, store it, charge your EV and see it all in one place."
       >
         <FeatureColumns items={BENEFITS} />
         <Reveal direction="up" duration={700} distance={16}>
-          <p className="mt-8 max-w-2xl text-sm leading-relaxed text-theme-secondary">
+          <p className="mt-10 max-w-2xl text-sm leading-relaxed text-theme-secondary">
             <span className="font-semibold text-theme-primary">Already have solar or an EV charger? </span>
-            You may not need to replace your existing equipment to gain better visibility. Ask us about connecting compatible systems to WayTara EMS.{" "}
+            You may not need to replace it. We can check if it connects to WayTara.{" "}
             <Link href={EXISTING_HREF} className="font-semibold text-theme-highlight underline-offset-4 hover:underline">
               Connect my existing system
             </Link>
@@ -144,7 +128,7 @@ export function HomesPage() {
         accent="three ways in."
         summary="Choose any one on its own, or combine all three."
       >
-        <FeatureColumns items={OFFERS.map(({ icon, tag, title, body, includes }) => ({ icon, tag, title, body, includes }))} />
+        <FeatureColumns items={OFFERS.map(({ icon, title, body, includes }) => ({ icon, title, body, includes }))} />
       </SegmentSection>
 
       <SegmentSection
@@ -152,22 +136,22 @@ export function HomesPage() {
         badge="Choosing a setup"
         title="What does your"
         accent="home need?"
-        summary="The right setup depends on your electricity use, backup needs and available space. Here are the main approaches."
+        summary="It depends on your electricity use, your backup needs and the space you have."
       >
         <FeatureColumns items={SETUPS} />
         <Reveal direction="up" duration={700} distance={16}>
-          <div className="mt-8 grid grid-cols-1 gap-x-10 gap-y-6 text-sm leading-relaxed text-theme-secondary md:grid-cols-3">
+          <div className="mt-12 grid grid-cols-1 gap-x-10 gap-y-6 text-sm leading-relaxed text-theme-secondary md:grid-cols-3">
             <p>
               <span className="block font-semibold text-theme-primary">Good to know</span>
-              Solar alone doesn&apos;t provide backup during a power cut. Standard grid-connected inverters disconnect when grid supply fails.
+              Solar on its own stops working when the grid goes down. A battery fixes that.
             </p>
             <p>
-              <span className="block font-semibold text-theme-primary">What about off-grid?</span>
-              For properties without a usable grid connection, we can assess standalone solar and battery systems designed around the site&apos;s energy needs.
+              <span className="block font-semibold text-theme-primary">No grid connection?</span>
+              We can design a standalone solar and battery system.
             </p>
             <p>
-              <span className="block font-semibold text-theme-primary">Planning for an EV?</span>
-              Your charging requirements can be included in either design. Charging schedules, available solar generation and electrical capacity decide how it fits in.
+              <span className="block font-semibold text-theme-primary">Have an EV?</span>
+              We can include charging in either setup.
             </p>
           </div>
           <Link href="/planner?for=home" className="group mt-8 inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">

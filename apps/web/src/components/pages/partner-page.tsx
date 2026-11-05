@@ -18,10 +18,10 @@ const MENU = [
 ];
 
 const WHO = [
-  { icon: Sun, title: "Solar and storage installers", body: "Teams that install rooftop and ground-mounted solar and battery storage for homes, buildings and industry." },
-  { icon: PlugZap, title: "EV charger installers", body: "Teams that install EV chargers for homes, workplaces, fleets and public sites." },
-  { icon: BatteryCharging, title: "Monitoring and integration", body: "Teams that connect inverters, meters and chargers so customers can see and manage them." },
-  { icon: Wrench, title: "Operations and maintenance", body: "Teams that keep installed systems running, from inspections to repairs." },
+  { icon: Sun, title: "Solar and storage installers", body: "You install solar and batteries for homes, buildings or industry." },
+  { icon: PlugZap, title: "EV charger installers", body: "You install chargers for homes, workplaces, fleets or public sites." },
+  { icon: BatteryCharging, title: "Monitoring and integration", body: "You connect inverters, meters and chargers so customers can see them." },
+  { icon: Wrench, title: "Operations and maintenance", body: "You keep installed systems running, from inspections to repairs." },
 ];
 
 const STEPS = [

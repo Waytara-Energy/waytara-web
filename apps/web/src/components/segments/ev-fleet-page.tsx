@@ -29,30 +29,15 @@ const MENU = [
 ];
 
 const ENTRY = [
-  { icon: Truck, title: "Fleet charging depots", body: "Charge company-owned vehicles around their routes, shifts and return-to-depot schedules.", note: "Logistics · Delivery · Buses · Commercial fleets" },
-  { icon: Network, title: "Public charging networks", body: "Establish charging locations and operate them as a commercial charging service.", note: "CPOs · Highway sites · Commercial charging hubs" },
-  { icon: PlugZap, title: "Existing charging networks", body: "Already have chargers installed? Connect compatible OCPP chargers to WayTara CPMS and manage your charging operations through one platform.", note: "Chargers already in the ground" },
+  { icon: Truck, title: "Fleet depots", body: "Charge your own vehicles around their routes and shifts." },
+  { icon: Network, title: "Public charging", body: "Run charging stations as a service for customers." },
+  { icon: PlugZap, title: "Chargers you already have", body: "Connect compatible chargers to WayTara and manage them in one place." },
 ];
 
 const SETUPS = [
-  {
-    icon: Moon,
-    tag: "Longer parking windows",
-    title: "Depot AC charging",
-    body: "Suitable where vehicles return to base and stay parked overnight or between shifts. More charging points can be coordinated across the available electrical capacity.",
-  },
-  {
-    icon: Zap,
-    tag: "Shorter turnaround",
-    title: "DC fast charging",
-    body: "For vehicles that need a lot of energy within a short turnaround window. It needs more power infrastructure and careful connection planning.",
-  },
-  {
-    icon: SlidersHorizontal,
-    tag: "Combined operations",
-    title: "Managed mixed charging",
-    body: "Combine different charger ratings and charging schedules, sharing the available power according to vehicle priority and departure requirements.",
-  },
+  { icon: Moon, title: "Overnight AC charging", body: "Slower charging for vehicles that stay parked for hours, such as overnight." },
+  { icon: Zap, title: "DC fast charging", body: "Quick charging when vehicles can't wait. Needs a stronger power connection." },
+  { icon: SlidersHorizontal, title: "Mixed charging", body: "Use slow and fast chargers together to match your schedule." },
 ];
 
 const DESIGN_FACTORS = [
@@ -64,37 +49,33 @@ const DESIGN_FACTORS = [
 ];
 
 const SOLAR = [
-  { icon: Sun, title: "Daytime charging", body: "Use available solar generation to support vehicle charging while the fleet is parked during daylight." },
-  {
-    icon: BatteryCharging,
-    title: "Battery-supported charging",
-    body: "Store available energy and use it during suitable charging periods, where the extra equipment and energy losses make economic sense.",
-  },
+  { icon: Sun, title: "Daytime charging", body: "Use solar power to charge vehicles that are parked during the day." },
+  { icon: BatteryCharging, title: "Battery-backed charging", body: "Store power and use it when vehicles charge, where the cost makes sense." },
 ];
 
 const CPMS_TILES: Feature[] = [
-  { icon: Activity, title: "Charger management", body: "Monitor connected chargers, their availability and operating status." },
-  { icon: SlidersHorizontal, title: "Remote management", body: "Read charger information and use supported controls remotely, such as starting or stopping a session." },
-  { icon: ClipboardList, title: "Session and energy records", body: "Understand charger utilisation and charging activity." },
-  { icon: ListChecks, title: "Know what each charger supports", body: "See which OCPP features a charger offers, including smart-charging limits, before you plan around them." },
+  { icon: Activity, title: "Charger status", body: "See which chargers are online and in use." },
+  { icon: SlidersHorizontal, title: "Remote control", body: "Start or stop a charging session from anywhere, on supported chargers." },
+  { icon: ClipboardList, title: "Charging records", body: "See how much each charger is used." },
+  { icon: ListChecks, title: "Know your chargers", body: "See which features each charger supports before you plan around them." },
   ...(CPMS_FEATURES.monetisation
-    ? [{ icon: Handshake, title: "Charging monetisation", body: "Support commercial charging operations: users, access and paid charging." }]
+    ? [{ icon: Handshake, title: "Paid charging", body: "Set up users, access and payment for commercial charging." }]
     : []),
 ];
 
 const MODELS = [
-  { icon: Truck, tag: "Captive fleet", title: "Charge your own vehicles", body: "Use charging infrastructure for your fleet's daily operations. The value comes from planned charging, vehicle availability and control over energy expenditure.", note: "Aim: operational efficiency and predictable fleet charging." },
-  { icon: Network, tag: "Public CPO", title: "Operate charging as a service", body: "Offer charging to customers and manage station availability and sessions through CPMS.", note: "Aim: build utilisation and a sustainable charging business." },
-  { icon: Handshake, tag: "Hosted / revenue-sharing", title: "Turn a suitable site into a charging destination", body: "Partner with a charging operator, host infrastructure at a suitable property and agree how site costs and charging revenue are shared.", note: "Aim: make productive use of parking and location." },
+  { icon: Truck, title: "Your own fleet", body: "Charge your own vehicles to a plan, so they are ready when needed." },
+  { icon: Network, title: "Charging as a business", body: "Offer charging to customers and manage your stations and sessions." },
+  { icon: Handshake, title: "Host a charging site", body: "Let an operator set up chargers at your property and share the income by agreement." },
 ];
 
 const REVENUE_DRIVERS = [
-  "Vehicles actually using the site",
+  "Vehicles using the site",
   "Energy sold per charger",
-  "Electricity and demand-related costs",
-  "Service charges and pricing structure",
-  "Land, equipment, maintenance and payment costs",
-  "Charger availability and operating performance",
+  "Electricity and demand costs",
+  "Service charges and pricing",
+  "Land and equipment costs",
+  "Chargers working reliably",
 ];
 
 const FRAMEWORK = [
@@ -249,11 +230,11 @@ export function EvFleetPage() {
         badge="What you operate"
         title="What are you looking"
         accent="to operate?"
-        summary="A fleet depot and a public charging network don't have the same requirements, so start with the one that looks like yours."
+        summary="A fleet depot and a public charging network need different things. Start with the one that looks like yours."
       >
         <FeatureColumns items={ENTRY} />
         <Reveal direction="up" duration={700} distance={16}>
-          <Link href={CPMS_HREF} className="group mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
+          <Link href={CPMS_HREF} className="group mt-10 inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
             Explore WayTara CPMS for chargers you already have
             <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
           </Link>
@@ -265,7 +246,7 @@ export function EvFleetPage() {
         badge="Charging setups"
         title="The right setup depends on"
         accent="your operating schedule."
-        summary="Choose a charger by how long vehicles stay parked and how quickly they must return to service. It isn't simply AC versus DC: it is whether vehicles get the energy they need before their next trip."
+        summary="Pick chargers by how long vehicles stay parked and how soon they must be back on the road."
       >
         <FeatureColumns items={SETUPS} />
       </SegmentSection>
@@ -320,19 +301,17 @@ export function EvFleetPage() {
         badge="Solar and storage"
         title="Make charging work with"
         accent="your energy supply."
-        summary="Solar, battery storage and EV charging can be designed together, but the charging schedule decides how much value they create."
+        summary="Solar, batteries and charging can be planned together. The charging schedule decides how much they help."
       >
         <FeatureColumns items={SOLAR} />
         <Reveal direction="up" duration={700} distance={16}>
-          <div className="mt-8 rounded-2xl border border-theme-border bg-theme-surface px-7 py-7 sm:px-8">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">What about overnight depots?</p>
+          <div className="mt-12 rounded-2xl border border-theme-border bg-theme-surface px-7 py-7 sm:px-8">
+            <p className="text-lg font-semibold text-theme-primary">Charging overnight?</p>
             <p className="mt-2 max-w-3xl text-sm leading-relaxed text-theme-secondary">
-              Solar generates during the day. If your fleet charges overnight, solar mostly offsets the facility&apos;s daytime consumption instead of supplying the vehicles directly.
-              Battery storage can move some solar energy into the night, but its cost, capacity and cycling need to be evaluated.
+              Solar makes power in the day, so for an overnight fleet it mostly covers your daytime use. A battery can move some of it to the night. Check the cost first.
             </p>
             <p className="mt-3 max-w-3xl text-sm leading-relaxed text-theme-secondary">
-              WayTara can connect compatible inverters and chargers, monitor energy flows and use the supported controls to coordinate equipment. Solar-following and battery-aware
-              charging policies are set up to match the site&apos;s metering and control arrangement.
+              WayTara can connect compatible inverters and chargers and show how the energy flows.
             </p>
           </div>
         </Reveal>
@@ -343,11 +322,11 @@ export function EvFleetPage() {
         badge="WayTara CPMS"
         title="Your charging network."
         accent="Under your control."
-        summary="Manage compatible OCPP chargers and charging sessions from one platform. For fleet operators, independent charge-point operators, charging-site owners and commercial property operators."
+        summary="Manage compatible OCPP chargers and their charging sessions from one platform."
       >
         <FeatureColumns items={CPMS_TILES} />
         <Reveal direction="up" duration={700} distance={16}>
-          <Link href={CPMS_HREF} className="group mt-6 inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
+          <Link href={CPMS_HREF} className="group mt-10 inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
             Explore WayTara CPMS
             <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
           </Link>
@@ -365,16 +344,15 @@ export function EvFleetPage() {
         badge="Business models"
         title="Choose your charging"
         accent="business model."
-        summary="Not every charging installation needs to be a public charging business."
+        summary="Not every charging site has to be a public business."
       >
         <FeatureColumns items={MODELS} />
         <Reveal direction="up" duration={700} distance={16}>
-          <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-5 lg:gap-12">
+          <div className="mt-14 grid grid-cols-1 gap-8 lg:grid-cols-5 lg:gap-12">
             <div className="lg:col-span-2">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">What decides a charging site&apos;s revenue</p>
-              <p className="mt-2 text-lg font-semibold text-theme-primary">Utilisation matters more than the number of chargers.</p>
+              <p className="text-lg font-semibold text-theme-primary">More use beats more chargers.</p>
               <p className="mt-2 text-sm leading-relaxed text-theme-secondary">
-                Public charging fees under the national framework comprise the electricity tariff, a service charge, land cost where applicable and GST. Work out the economics after all of these, not from the selling price per unit alone.
+                A charging fee includes the electricity tariff, a service charge, land cost and GST. Work out your income after all of these.
               </p>
             </div>
             <ul className="grid grid-cols-1 gap-x-8 gap-y-2.5 self-center sm:grid-cols-2 lg:col-span-3">

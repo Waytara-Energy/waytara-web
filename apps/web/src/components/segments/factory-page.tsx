@@ -25,38 +25,23 @@ const MENU = [
 ];
 
 const PRIORITIES = [
-  { icon: Gauge, title: "Manage electricity costs", body: "Understand when your factory uses power, what drives your bill and where energy can be optimised." },
-  { icon: Fuel, title: "Reduce diesel dependence", body: "Integrate solar and storage with existing generators where this can reduce fuel use and running hours." },
-  { icon: ShieldCheck, title: "Protect critical operations", body: "Design backup around the machinery and processes that cannot afford to stop." },
-  { icon: Activity, title: "See where energy goes", body: "Monitor connected equipment, consumption, generation and performance through WayTara EMS." },
+  { icon: Gauge, title: "Control your costs", body: "See when your plant uses power and what drives your bill." },
+  { icon: Fuel, title: "Use less diesel", body: "Solar and batteries working with your generators can cut fuel use." },
+  { icon: ShieldCheck, title: "Protect production", body: "Backup for the machines that cannot stop." },
+  { icon: Activity, title: "See where power goes", body: "Track your connected equipment on one dashboard." },
 ];
 
 const PROVIDE = [
-  {
-    icon: Sun,
-    tag: "Solar EPC",
-    title: "Generate power on-site",
-    body: "Rooftop, ground-mounted and canopy solar designed around your available space, operating hours and electricity consumption.",
-  },
-  {
-    icon: BatteryCharging,
-    tag: "Battery storage & integration",
-    title: "Store and manage power",
-    body: "Battery systems integrated with solar, the grid and existing DG infrastructure, for suitable peak-demand and backup requirements.",
-  },
-  {
-    icon: LayoutDashboard,
-    tag: "Energy management · EMS",
-    title: "Monitor and manage your energy",
-    body: "Bring compatible inverters, meters, batteries and generators into one monitoring and management environment. Existing systems can be assessed on their own, without new EPC work.",
-  },
+  { icon: Sun, title: "Make power on site", body: "Solar on your roof, on the ground or over car parks, sized for your plant." },
+  { icon: BatteryCharging, title: "Store power", body: "Batteries that work with solar, the grid and your generators." },
+  { icon: LayoutDashboard, title: "Manage your energy", body: "Connect your existing inverters, meters and generators. No new solar needed." },
 ];
 
 const BATTERY_CASES = [
-  { icon: TrendingDown, title: "Peak-demand management", body: "Discharge during suitable demand peaks to reduce maximum-demand exposure." },
-  { icon: Sun, title: "Solar energy utilisation", body: "Store surplus daytime generation for later use where the economics support it." },
-  { icon: ShieldCheck, title: "Critical-load backup", body: "Support selected machinery and production processes during outages." },
-  { icon: Cable, title: "DG integration", body: "Coordinate battery, solar and existing generators to reduce unnecessary generator runtime." },
+  { icon: TrendingDown, title: "Lower peak demand", body: "Use the battery at busy times to help cut your highest-demand charges." },
+  { icon: Sun, title: "Use more solar", body: "Store extra daytime solar for later, where it pays off." },
+  { icon: ShieldCheck, title: "Backup", body: "Keep chosen machines running in a power cut." },
+  { icon: Cable, title: "Less generator running", body: "Battery, solar and generators work together to cut diesel use." },
 ];
 
 const MONEY = [
@@ -156,7 +141,7 @@ export function FactoryPage() {
         badge="On the factory floor"
         title="What matters"
         accent="in your plant?"
-        summary="We start with how your plant runs, not with panel wattage or battery capacity."
+        summary="We start with how your plant runs, not with panel sizes."
       >
         <FeatureColumns items={PRIORITIES} />
       </SegmentSection>
@@ -166,11 +151,11 @@ export function FactoryPage() {
         badge="What we provide"
         title="Energy solutions built"
         accent="around your operation."
-        summary="Solar and storage are EPC projects. EMS is its own route, so a plant that already has equipment can start there."
+        summary="We install solar and batteries. A plant that already has equipment can start with energy management."
       >
         <FeatureColumns items={PROVIDE} />
         <Reveal direction="up" duration={700} distance={16}>
-          <p className="mt-6 text-sm text-theme-secondary">EV charging infrastructure can also be added for factory fleets and site vehicles where required.</p>
+          <p className="mt-10 text-sm text-theme-secondary">We can also add EV chargers for your fleet and site vehicles.</p>
         </Reveal>
       </SegmentSection>
 
@@ -179,22 +164,22 @@ export function FactoryPage() {
         badge="Battery storage"
         title="When does a battery"
         accent="make sense?"
-        summary="A battery should solve a real operating or financial problem. It shouldn't be included just because the project has solar."
+        summary="A battery should solve a real problem. We don't add one just because there is solar."
       >
         <FeatureColumns items={BATTERY_CASES} />
         <Reveal direction="up" duration={700} distance={16}>
-          <div className="mt-8 grid grid-cols-1 gap-x-10 gap-y-6 text-sm leading-relaxed text-theme-secondary md:grid-cols-3">
+          <div className="mt-12 grid grid-cols-1 gap-x-10 gap-y-6 text-sm leading-relaxed text-theme-secondary md:grid-cols-3">
             <p>
-              <span className="block font-semibold text-theme-primary">The right battery starts with your load profile.</span>
-              We assess operating patterns, peak demand, motor starting requirements, critical loads, DG usage and tariff structure before recommending storage.
+              <span className="block font-semibold text-theme-primary">We start with how you use power.</span>
+              We study your peaks, your critical machines and your generator use before suggesting a battery.
             </p>
             <p>
               <span className="block font-semibold text-theme-primary">kW is power.</span>
-              It sets how much the battery can deliver at once.
+              How much the battery can give at once.
             </p>
             <p>
               <span className="block font-semibold text-theme-primary">kWh is energy.</span>
-              It sets how much the battery stores, and so how long it can supply a load.
+              How much it stores, so how long it can run a load.
             </p>
           </div>
         </Reveal>

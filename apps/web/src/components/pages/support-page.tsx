@@ -23,17 +23,17 @@ const SIGN_IN = [
   {
     icon: KeyRound,
     title: "Forgot your password",
-    body: "On the sign-in page choose Forgot password and enter your e-mail. We send a code to that address. Enter it, then choose a new password.",
+    body: "On the sign-in page, choose Forgot password. We e-mail you a code, then you choose a new password.",
   },
   {
     icon: ShieldCheck,
     title: "Two-factor code",
-    body: "If you turned on two-factor sign-in, enter the 6-digit code from your authenticator app. It changes every 30 seconds, so use the one showing now.",
+    body: "Enter the 6-digit code from your authenticator app. It changes every 30 seconds, so use the one showing now.",
   },
   {
     icon: UserPlus,
     title: "No account yet",
-    body: "WayTara sets up your account when your system is installed or your equipment is connected. Look for the invitation e-mail, and check your spam folder.",
+    body: "We set up your account when your system is installed. Look for our invitation e-mail, and check spam.",
   },
 ];
 
@@ -41,17 +41,17 @@ const DEVICES = [
   {
     icon: Wifi,
     title: "A device shows offline",
-    body: "Check that the device has power and that the internet at the site is working, then give it a few minutes. If it stays offline, raise a ticket and tell us the device.",
+    body: "Check the device has power and the site's internet works. Wait a few minutes. Still offline? Raise a ticket.",
   },
   {
     icon: Activity,
     title: "Readings look wrong or are missing",
-    body: "Note the device, the time and what looks different, and attach a photo or screenshot to a ticket. We can look at what the device has been sending.",
+    body: "Raise a ticket with the device, the time and a screenshot. We can check what the device has been sending.",
   },
   {
     icon: SlidersHorizontal,
     title: "Changing a setting",
-    body: "Settings that can be changed from your dashboard are on the Devices page, and each change is confirmed by reading the value back from the equipment. For anything else, ask us.",
+    body: "Settings you can change are on the Devices page. Each change is checked by reading it back from the equipment. For anything else, ask us.",
   },
 ];
 

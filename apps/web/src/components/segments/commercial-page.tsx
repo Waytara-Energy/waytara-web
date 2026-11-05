@@ -24,74 +24,28 @@ const MENU = [
 ];
 
 const PRIORITIES = [
-  { icon: Wind, title: "Cooling and ventilation", body: "Understand HVAC consumption, operating schedules and opportunities to reduce unnecessary energy use." },
-  { icon: Lightbulb, title: "Lighting and shared systems", body: "Monitor lighting, lifts, pumps and other common electrical loads." },
-  { icon: Gauge, title: "Equipment and refrigeration", body: "Improve visibility into equipment consumption and operating patterns." },
-  { icon: ParkingSquare, title: "Parking and EV charging", body: "Add workplace, visitor or fleet charging and consider solar carports where suitable." },
+  { icon: Wind, title: "Cooling", body: "See how much power your air conditioning uses, and when." },
+  { icon: Lightbulb, title: "Lights and lifts", body: "Track the power used by lights, lifts, pumps and shared equipment." },
+  { icon: Gauge, title: "Equipment", body: "See which machines and refrigeration use the most power." },
+  { icon: ParkingSquare, title: "Parking and EV charging", body: "Add chargers for staff, visitors or vehicles. Solar car parks where they fit." },
 ];
 
 const BUILDING_TYPES = [
-  {
-    icon: Building2,
-    title: "Offices",
-    body: "Daytime cooling, lighting, lifts, occupancy schedules and employee charging. Solar can align with working-hour consumption.",
-  },
-  {
-    icon: HeartPulse,
-    title: "Hospitals and healthcare",
-    body: "Continuous energy demand, critical equipment and existing UPS and DG infrastructure. Reliability and electrical coordination are essential.",
-  },
-  {
-    icon: Store,
-    title: "Retail, malls and hotels",
-    body: "Extended operating hours, cooling, refrigeration, kitchens, laundry and parking. Solar, storage and EV infrastructure can be assessed together.",
-  },
+  { icon: Building2, title: "Offices", body: "Busiest in the day, so solar fits well. Add chargers for staff." },
+  { icon: HeartPulse, title: "Hospitals", body: "Power is needed day and night, so reliable backup comes first." },
+  { icon: Store, title: "Shops, malls and hotels", body: "Long opening hours and lots of cooling. Solar, batteries and chargers work together." },
 ];
 
 const PROVIDE = [
-  {
-    icon: Sun,
-    tag: "EPC · Solar",
-    title: "Generate power on-site",
-    body: "Rooftop solar, ground-mounted systems and solar canopies designed around available space and the building's consumption.",
-    note: "For property owners looking to reduce purchased grid electricity.",
-  },
-  {
-    icon: BatteryCharging,
-    tag: "EPC · Storage",
-    title: "Plan for backup and flexibility",
-    body: "Battery systems for selected critical loads, suitable solar integration and energy shifting where the economics justify it.",
-    note: "For buildings that need a better-coordinated energy and backup arrangement.",
-  },
-  {
-    icon: PlugZap,
-    tag: "EPC · EV charging",
-    title: "Bring charging to your workplace",
-    body: "Install employee and visitor chargers, integrate solar carports and manage supported charging stations through WayTara's OCPP software.",
-    note: "For offices, hotels, shopping centres and commercial fleets.",
-  },
-  {
-    icon: LayoutDashboard,
-    tag: "EMS · Existing buildings",
-    title: "Understand and manage your energy",
-    body: "Connect supported inverters, meters, storage and charging equipment to the WayTara dashboard. Monitor performance and use the management features available.",
-    note: "For existing buildings that want better energy visibility without necessarily installing new solar.",
-  },
+  { icon: Sun, title: "Make your own power", body: "Solar on your roof, on the ground or over car parks, sized for your building." },
+  { icon: BatteryCharging, title: "Store power", body: "Batteries for backup, and to use solar power later when it pays off." },
+  { icon: PlugZap, title: "Charge vehicles", body: "Chargers for staff, visitors and fleets, run from WayTara software." },
+  { icon: LayoutDashboard, title: "Manage your energy", body: "Connect the equipment you already have. No new solar needed." },
 ];
 
 const STRUCTURES = [
-  {
-    icon: Building2,
-    tag: "CAPEX · Customer-owned",
-    title: "Own your energy system",
-    body: "The building owner funds the installation and owns the system. Energy savings accrue to the owner, who is responsible for the agreed operating and maintenance arrangements.",
-  },
-  {
-    icon: Sun,
-    tag: "OPEX / RESCO · Third-party funded",
-    title: "Use solar power without funding it all upfront",
-    body: "A project developer finances and operates the system, and the property buys the electricity it generates under an agreed PPA or other contract. Third-party funding depends on project eligibility, financing partners and whether the contract works.",
-  },
+  { icon: Building2, title: "Own it", body: "You pay for the system and keep the savings. You look after the upkeep." },
+  { icon: Sun, title: "Pay only for the power", body: "A developer funds and runs the system. You buy the power it makes, under a contract. Not every project qualifies." },
 ];
 
 const POLICY = [
@@ -204,11 +158,11 @@ export function CommercialPage() {
         badge="Building priorities"
         title="Where can your"
         accent="building improve?"
-        summary="Different buildings have different energy priorities. A hospital's 24-hour load shouldn't be treated like a nine-to-six office."
+        summary="A hospital that runs all night is not a nine-to-six office."
       >
         <FeatureColumns items={PRIORITIES} />
         <Reveal direction="up" duration={700} distance={16}>
-          <p className="mb-5 mt-14 text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">Different buildings, different priorities</p>
+          <h3 className="mb-10 mt-20 text-[clamp(1.4rem,2vw,1.9rem)] font-bold tracking-tight text-theme-primary">Different buildings, different needs.</h3>
         </Reveal>
         <FeatureColumns items={BUILDING_TYPES} />
       </SegmentSection>
@@ -218,7 +172,7 @@ export function CommercialPage() {
         badge="What we provide"
         title="What WayTara can do"
         accent="for your property."
-        summary="Solar, storage and EV charging are EPC projects. EMS is its own path: an existing building can come to us for EMS alone."
+        summary="We install solar, batteries and chargers. An existing building can also come to us just for energy management."
       >
         <FeatureColumns items={PROVIDE} />
       </SegmentSection>
@@ -228,16 +182,13 @@ export function CommercialPage() {
         badge="Project structure"
         title="An investment model"
         accent="that fits your property."
-        summary="Owners and tenants don't always have the same financial interests, so the structure matters."
+        summary="Two ways to pay for it. Which one suits you depends on who owns the building."
       >
         <FeatureColumns items={STRUCTURES} />
         <Reveal direction="up" duration={700} distance={16}>
-          <div className="mt-8 rounded-2xl border border-theme-border bg-theme-surface px-7 py-7 sm:px-8">
-            <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">One question to settle early</p>
-            <p className="mt-2 text-lg font-semibold text-theme-primary">Who owns the roof, and who pays the electricity bill?</p>
-            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-theme-secondary">
-              In a leased building, roof rights, lease duration, landlord consent and the tenant&apos;s power arrangement can decide which project model is practical.
-            </p>
+          <div className="mt-12 rounded-2xl border border-theme-border bg-theme-surface px-7 py-7 sm:px-8">
+            <p className="text-lg font-semibold text-theme-primary">Who owns the roof, and who pays the electricity bill?</p>
+            <p className="mt-2 max-w-3xl text-sm leading-relaxed text-theme-secondary">In a rented building, the answer decides which option can work.</p>
           </div>
         </Reveal>
       </SegmentSection>
