@@ -1,11 +1,9 @@
-import { ArrowRight, Eye, Hand, Router, Server, Zap } from "lucide-react";
+import { ArrowRight, Router, Server, Zap } from "lucide-react";
 import { FittedDemo } from "@/components/sections/dashboard-showcase";
 import { Reveal } from "@/components/shared/reveal";
-import { CPMS_FEATURES } from "@/components/segments/capabilities";
 import { FaqList, type Faq } from "@/components/segments/faq-list";
 import { FeatureColumns, NoteColumns, SegmentSection } from "@/components/segments/segment-parts";
-import { CPMS_TILES } from "@/components/segments/feature-sets";
-import { DASHBOARD_FEATURES } from "@/components/sections/dashboard-key-features";
+import { CPMS_PLATFORM_FEATURES, EMS_PLATFORM_FEATURES } from "@/components/segments/feature-sets";
 import { CompatibilityForm } from "./compatibility-form";
 import { PageHero, PageShell } from "./page-shell";
 
@@ -39,30 +37,6 @@ const PARTS = [
     title: "Charger management",
     body: "Status, sessions and remote controls for compatible OCPP chargers, in the same platform and the same dashboard as your energy.",
   },
-];
-
-const ENERGY_SEE = [
-  "Live generation, load, grid import and export, and battery flow",
-  "Daily, monthly and yearly history for each connected device",
-  "Online and offline status, with e-mail alerts when a device goes quiet",
-  "Reports you can download",
-];
-
-const ENERGY_DO = [
-  "Change selected inverter settings from the dashboard. Each change is confirmed by reading the value back from the inverter.",
-  "Ask your engineer for help through support tickets in the same app.",
-];
-
-const CHARGING_SEE = [
-  "Whether each charger is connected, available or charging",
-  "Live power and energy for a running session",
-  "Session history, with the energy delivered in each",
-];
-
-const CHARGING_DO = [
-  "Start or stop a session remotely on a compatible charger",
-  "Reset a charger or unlock a connector",
-  "Read a charger's settings, and see which OCPP features, including smart-charging limits, it supports",
 ];
 
 const NEXT_STEPS = [
@@ -125,26 +99,8 @@ function Link2({ label }: { label: string }) {
   );
 }
 
-/** What you can see and what you can do, as two frameless blocks (the same look as the rest of the site), each with a short sentence and a tick list. */
-function SeeDo({ see, seeBody, doo, doBody }: { see: string[]; seeBody: string; doo: string[]; doBody: string }) {
-  return (
-    <FeatureColumns
-      items={[
-        { icon: Eye, title: "What you can see", body: seeBody, includes: see },
-        { icon: Hand, title: "What you can do", body: doBody, includes: doo },
-      ]}
-    />
-  );
-}
-
 /** Platform (/technology): the one place for the technical story. Every capability named here is one the product has today. */
 export function PlatformPage() {
-  const chargingDo = [
-    ...CHARGING_DO,
-    ...(CPMS_FEATURES.monetisation ? ["Run charging as a commercial service, with users, access and paid charging"] : []),
-    ...(CPMS_FEATURES.loadAllocation ? ["Apply charging limits to compatible chargers to share the site's capacity"] : []),
-  ];
-
   return (
     <PageShell
       name="Platform"
@@ -211,7 +167,7 @@ export function PlatformPage() {
         accent="Manage what is supported."
         summary="For inverters, batteries and meters that have been tested with the gateway."
       >
-        <SeeDo see={ENERGY_SEE} seeBody="Everything your connected equipment reports, live and over time." doo={ENERGY_DO} doBody="Settings that have been tested on supported equipment, and help from your engineer." />
+        <FeatureColumns items={EMS_PLATFORM_FEATURES} columns={3} />
         <NoteColumns
           items={[
             {
@@ -224,8 +180,6 @@ export function PlatformPage() {
             },
           ]}
         />
-        <h3 className="mb-10 mt-24 text-[clamp(1.4rem,2vw,1.9rem)] font-bold tracking-tight text-theme-primary">Features</h3>
-        <FeatureColumns items={DASHBOARD_FEATURES} columns={3} />
       </SegmentSection>
 
       <SegmentSection
@@ -235,9 +189,7 @@ export function PlatformPage() {
         accent="from one place."
         summary="For OCPP 1.6J chargers. The functions available depend on each charger's supported OCPP features and firmware."
       >
-        <SeeDo see={CHARGING_SEE} seeBody="The state of every charger and each charging session." doo={chargingDo} doBody="The commands that compatible chargers support." />
-        <h3 className="mb-10 mt-24 text-[clamp(1.4rem,2vw,1.9rem)] font-bold tracking-tight text-theme-primary">Features</h3>
-        <FeatureColumns items={CPMS_TILES} />
+        <FeatureColumns items={CPMS_PLATFORM_FEATURES} columns={3} />
       </SegmentSection>
 
       <SegmentSection
