@@ -155,7 +155,6 @@ export function CompatibilityForm() {
               onChange={(e) => setDetails(e.target.value)}
               maxLength={300}
               autoFocus
-              placeholder="For example: Deye SUN-12K inverter, a 7.4 kW AC charger"
               className="mt-6 h-14 text-base"
             />
           </div>

@@ -789,7 +789,6 @@ export function EnergyPlanner({ selectedSegment: _selectedSegment }: EnergyPlann
                 <Input
                   id="cName"
                   required
-                  placeholder="e.g. Rahul Sharma"
                   value={contactName}
                   onChange={(e) => setContactName(e.target.value)}
                   className="h-10 text-xs mt-1"
@@ -831,7 +830,6 @@ export function EnergyPlanner({ selectedSegment: _selectedSegment }: EnergyPlann
                   </Label>
                   <Input
                     id="cPincode"
-                    placeholder="e.g. 400001"
                     value={contactPincode}
                     onChange={(e) => setContactPincode(e.target.value)}
                     className="h-10 text-xs mt-1"

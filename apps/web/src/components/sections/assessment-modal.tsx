@@ -141,7 +141,6 @@ export function AssessmentModal({
               <Input
                 id="solName"
                 required
-                placeholder="e.g. Rahul Sharma"
                 value={contactName}
                 onChange={(e) => setContactName(e.target.value)}
                 className="h-10 text-xs mt-1 bg-theme-bg"
@@ -192,7 +191,6 @@ export function AssessmentModal({
                 </Label>
                 <Input
                   id="solPincode"
-                  placeholder="e.g. 560100"
                   value={contactPincode}
                   onChange={(e) => setContactPincode(e.target.value)}
                   className="h-10 text-xs mt-1 bg-theme-bg"

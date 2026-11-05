@@ -31,6 +31,14 @@ const STEPS = [
   { title: "Next steps", body: "Anything we agree is discussed with you directly. Terms differ from one installer to the next." },
 ];
 
+const FORM_PARTS = [
+  { title: "Your company", body: "Who you are and how to reach you." },
+  { title: "What you do", body: "Installation, storage, chargers, monitoring or maintenance." },
+  { title: "Where you work", body: "Search for your states and the places you cover." },
+  { title: "Your experience", body: "Years in business, installations and team size." },
+  { title: "Anything else", body: "Whatever else you would like us to know." },
+];
+
 export const PARTNER_FAQS: Faq[] = [
   {
     question: "What happens after I apply?",
@@ -86,11 +94,32 @@ export function PartnerPage() {
         badge="Apply"
         title="Tell us about"
         accent="your company."
-        summary="It takes a few minutes. We use the details only to review your application and get in touch."
+        summary="It takes a few minutes."
       >
         <Reveal direction="up" duration={800} distance={24}>
-          <div className="relative max-w-3xl">
-            <PartnerForm />
+          <div className="grid grid-cols-1 gap-12 lg:grid-cols-5 lg:gap-16">
+            <aside className="lg:col-span-2">
+              <div className="lg:sticky lg:top-32">
+                <p className="text-sm font-semibold text-theme-muted">Five short parts</p>
+                <ol className="mt-5 space-y-4">
+                  {FORM_PARTS.map((part, i) => (
+                    <li key={part.title} className="flex gap-4">
+                      <span className="pt-0.5 text-sm font-semibold tabular-nums text-theme-highlight">{String(i + 1).padStart(2, "0")}</span>
+                      <span>
+                        <span className="block text-base font-semibold text-theme-primary">{part.title}</span>
+                        <span className="mt-0.5 block text-sm leading-relaxed text-theme-secondary">{part.body}</span>
+                      </span>
+                    </li>
+                  ))}
+                </ol>
+                <p className="mt-8 max-w-sm border-t border-theme-border pt-6 text-sm leading-relaxed text-theme-muted">
+                  Applying does not guarantee a partnership. We use these details only to review your application and get in touch.
+                </p>
+              </div>
+            </aside>
+            <div className="relative lg:col-span-3">
+              <PartnerForm />
+            </div>
           </div>
         </Reveal>
       </SegmentSection>

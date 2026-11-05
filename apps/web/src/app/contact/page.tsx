@@ -150,7 +150,6 @@ export default function ContactPage() {
                         </Label>
                         <Input
                           id="fullName"
-                          placeholder="e.g. Vikram Singhania"
                           {...register("fullName")}
                           className="mt-1"
                         />
@@ -166,7 +165,6 @@ export default function ContactPage() {
                         <Input
                           id="phone"
                           type="tel"
-                          placeholder="e.g. 9876543210"
                           {...register("phone")}
                           className="mt-1"
                         />
@@ -184,7 +182,6 @@ export default function ContactPage() {
                         <Input
                           id="email"
                           type="email"
-                          placeholder="e.g. vikram@example.com"
                           {...register("email")}
                           className="mt-1"
                         />
@@ -199,7 +196,6 @@ export default function ContactPage() {
                         </Label>
                         <Input
                           id="city"
-                          placeholder="e.g. Bengaluru, 560001"
                           {...register("city")}
                           className="mt-1"
                         />
@@ -231,7 +227,6 @@ export default function ContactPage() {
                       <textarea
                         id="message"
                         rows={4}
-                        placeholder="e.g. We have a 4BHK independent villa in Pune with monthly bill ~₹8,500. We want 24/7 battery backup for 2 ACs and upcoming EV charging."
                         {...register("message")}
                         className="mt-1 flex w-full rounded-xl border border-theme-border bg-theme-surface px-4 py-2.5 text-sm text-theme-primary transition-colors placeholder:text-theme-muted focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-emerald-500"
                       />

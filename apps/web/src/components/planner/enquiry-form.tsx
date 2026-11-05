@@ -115,7 +115,7 @@ export function EnquiryForm({ blueprint, summary }: { blueprint: Blueprint; summ
         <Label htmlFor="pe-notes">
           Anything you would like to add <span className="font-normal text-theme-muted">(optional)</span>
         </Label>
-        <Textarea id="pe-notes" name="notes" rows={3} maxLength={800} placeholder="For example: the make and model of equipment you already have" />
+        <Textarea id="pe-notes" name="notes" rows={3} maxLength={800} />
       </div>
 
       {/* Honeypot: real visitors never see or fill this. */}
