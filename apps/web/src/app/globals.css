@@ -575,3 +575,20 @@ html[data-reduce-motion="true"] *::after {
   animation: tabSlideFromLeft 0.22s cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
+
+
+/* Header menu panel (modelled on frame-by-frame timing of the Apple navigation): content fades up in a short stagger, and when moving
+   between items the old content fades out while the new one fades in. */
+@keyframes mega-item-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes mega-fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+.mega-item { animation: mega-item-in 0.26s cubic-bezier(0.22, 0.8, 0.3, 1) both; }
+.mega-leaving { animation: mega-fade-out 0.16s ease-out both; pointer-events: none; }
+@media (prefers-reduced-motion: reduce) {
+  .mega-item, .mega-leaving { animation-duration: 0.01ms; animation-delay: 0ms !important; }
+}

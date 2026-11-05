@@ -163,7 +163,7 @@ export function Navigation() {
     <>
     <header
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-all duration-300 ease-out h-[clamp(3.5rem,4.5vw,4.25rem)] flex items-center select-none border-0",
+        "fixed top-0 left-0 right-0 z-50 transition-all duration-200 ease-out h-[clamp(3.5rem,4.5vw,4.25rem)] flex items-center select-none border-0",
         // While a menu is open the bar and the panel are one surface: same solid colour, no seam (otherwise the bar's tint shows the page through it).
         activeMenu !== null
           ? "bg-theme-bg text-theme-primary"
@@ -389,7 +389,7 @@ export function Navigation() {
     <div
         aria-hidden="true"
         className={cn(
-          "pointer-events-none fixed inset-x-0 bottom-0 top-[clamp(3.5rem,4.5vw,4.25rem)] hidden z-40 bg-black/25 backdrop-blur-md transition-opacity duration-200 lg:block",
+          "pointer-events-none fixed inset-x-0 bottom-0 top-[clamp(3.5rem,4.5vw,4.25rem)] hidden z-40 bg-black/25 backdrop-blur-md transition-opacity duration-[250ms] ease-out lg:block",
           activeMenu ? "opacity-100" : "opacity-0"
         )}
       />
