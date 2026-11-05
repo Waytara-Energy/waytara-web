@@ -116,8 +116,13 @@ export interface Feature {
  * Features in the Apple product-page style, with the wording of the landing page's "What WayTara does": no boxes, a large thin icon, a short bold
  * title, one plain sentence, and optionally a short ticked list. Two to four columns across, stacked on a phone.
  */
-export function FeatureColumns({ items }: { items: Feature[] }) {
-  const cols = items.length >= 4 ? "sm:grid-cols-2 lg:grid-cols-4" : items.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3";
+export function FeatureColumns({ items, columns }: { items: Feature[]; /** Force three columns across (for six or nine blocks); by default four blocks go four across. */ columns?: 3 }) {
+  const cols =
+    columns === 3 || items.length === 3 || items.length === 6 || items.length === 9
+      ? "sm:grid-cols-2 lg:grid-cols-3"
+      : items.length >= 4
+        ? "sm:grid-cols-2 lg:grid-cols-4"
+        : "sm:grid-cols-2";
   // Each block takes four rows (icon, title, sentence, list) shared with its neighbours in the same row of blocks (subgrid), so the titles,
   // sentences and tick lists line up whatever the text length. The gap between rows of blocks is the padding at each block's foot.
   return (
