@@ -4,6 +4,8 @@ import { Reveal } from "@/components/shared/reveal";
 import { CPMS_FEATURES } from "@/components/segments/capabilities";
 import { FaqList, type Faq } from "@/components/segments/faq-list";
 import { FeatureColumns, NoteColumns, SegmentSection } from "@/components/segments/segment-parts";
+import { CPMS_TILES } from "@/components/segments/feature-sets";
+import { DASHBOARD_FEATURES } from "@/components/sections/dashboard-key-features";
 import { CompatibilityForm } from "./compatibility-form";
 import { PageHero, PageShell } from "./page-shell";
 
@@ -16,6 +18,7 @@ const MENU = [
   { id: "how", label: "How it connects" },
   { id: "energy", label: "Energy management" },
   { id: "charging", label: "Charging management" },
+  { id: "features", label: "Features" },
   { id: "demo", label: "Live demo" },
   { id: "compatibility", label: "Check compatibility" },
   { id: "faq", label: "FAQ" },
@@ -235,6 +238,19 @@ export function PlatformPage() {
       </SegmentSection>
 
       <SegmentSection
+        id="features"
+        badge="Features"
+        title="Everything you get"
+        accent="once it is connected."
+        summary="What the dashboard does for your energy equipment, and what it does for your chargers."
+      >
+        <h3 className="mb-10 text-[clamp(1.4rem,2vw,1.9rem)] font-bold tracking-tight text-theme-primary">Energy management</h3>
+        <FeatureColumns items={DASHBOARD_FEATURES} columns={3} />
+        <h3 className="mb-10 mt-24 text-[clamp(1.4rem,2vw,1.9rem)] font-bold tracking-tight text-theme-primary">Charger management</h3>
+        <FeatureColumns items={CPMS_TILES} />
+      </SegmentSection>
+
+      <SegmentSection
         id="demo"
         badge="Live demo"
         title="See the dashboard"
@@ -275,9 +291,6 @@ export function PlatformPage() {
                   </li>
                 ))}
               </ol>
-              <p className="mt-10 text-sm leading-relaxed text-theme-muted">
-                Supported today: Deye hybrid inverters and OCPP 1.6J chargers. Other equipment is assessed case by case.
-              </p>
             </div>
           </Reveal>
         </div>

@@ -5,7 +5,7 @@ import { FeatureColumns } from "@/components/segments/segment-parts";
 // devices, savings worked out from the state tariff, reports e-mailed daily, weekly or monthly, reports that print their sources, the inverter's
 // time-of-use schedule, the weather for each site, EV charger control, and charts that show a gap where a device was offline.
 // Not claimed because they are not built: reports in a government format (BRSR, GHG), and any "first" or "only" wording (not verifiable).
-const FEATURES = [
+export const DASHBOARD_FEATURES = [
   {
     icon: Activity,
     title: "Live, as it happens",
@@ -57,7 +57,7 @@ const FEATURES = [
 export function DashboardKeyFeatures() {
   return (
     <div className="fluid-container">
-      <FeatureColumns items={FEATURES} columns={3} />
+      <FeatureColumns items={DASHBOARD_FEATURES} columns={3} />
     </div>
   );
 }

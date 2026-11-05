@@ -72,6 +72,7 @@ export const PAGE_MENUS: PageMenu[] = [
       { label: "How it connects", href: "/technology#how", blurb: "From the equipment to your dashboard" },
       { label: "Energy management", href: "/technology#energy", blurb: "See your energy, manage what is supported" },
       { label: "Charging management", href: "/technology#charging", blurb: "Run your chargers from one place" },
+      { label: "Features", href: "/technology#features", blurb: "What you get once it is connected" },
       { label: "Live demo", href: "/technology#demo", blurb: "The dashboard on sample data" },
       { label: "Check compatibility", href: "/technology#compatibility", blurb: "Does it work with your equipment?" },
     ],

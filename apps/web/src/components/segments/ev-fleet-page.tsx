@@ -1,10 +1,11 @@
 import Link from "next/link";
-import { Activity, ArrowRight, ArrowUpRight, BatteryCharging, CircleCheck, ClipboardList, Handshake, ListChecks, Moon, Network, PlugZap, SlidersHorizontal, Sun, Truck, Zap } from "lucide-react";
+import { ArrowRight, ArrowUpRight, BatteryCharging, CircleCheck, Handshake, Moon, Network, PlugZap, SlidersHorizontal, Sun, Truck, Zap } from "lucide-react";
 import { ProjectSteps } from "@/components/sections/project-steps";
 import { Reveal } from "@/components/shared/reveal";
 import { FaqList, type Faq } from "./faq-list";
 import { CPMS_FEATURES } from "./capabilities";
-import { EnquiryRoutes, FeatureColumns, InfoBand, NoteBlock, PolicyRows, SegmentHero, SegmentSection, type Feature } from "./segment-parts";
+import { CPMS_TILES } from "./feature-sets";
+import { EnquiryRoutes, FeatureColumns, InfoBand, NoteBlock, PolicyRows, SegmentHero, SegmentSection } from "./segment-parts";
 import { SegmentShell } from "./segment-shell";
 
 export const EV_FLEET_PATH = "/solutions/ev-fleet";
@@ -51,16 +52,6 @@ const DESIGN_FACTORS = [
 const SOLAR = [
   { icon: Sun, title: "Daytime charging", body: "Use available solar power to charge vehicles that are parked during the day, while the sun is shining." },
   { icon: BatteryCharging, title: "Battery-backed charging", body: "Store power and use it when vehicles charge, where the extra equipment and energy losses make economic sense." },
-];
-
-const CPMS_TILES: Feature[] = [
-  { icon: Activity, title: "Charger status", body: "Monitor your connected chargers: whether each is available or in use, and its operating status." },
-  { icon: SlidersHorizontal, title: "Remote control", body: "Read charger information and start or stop a charging session remotely, on chargers that support it." },
-  { icon: ClipboardList, title: "Charging records", body: "Understand how much each charger is used with session and energy records for every charger." },
-  { icon: ListChecks, title: "Know your chargers", body: "See which OCPP features each charger offers, including smart-charging limits, before you plan around them." },
-  ...(CPMS_FEATURES.monetisation
-    ? [{ icon: Handshake, title: "Paid charging", body: "Set up users, access and payment for commercial charging." }]
-    : []),
 ];
 
 const MODELS = [
