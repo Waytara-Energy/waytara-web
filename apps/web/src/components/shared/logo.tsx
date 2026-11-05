@@ -9,7 +9,7 @@ interface LogoProps {
   variant?: "default" | "white";
 }
 
-export function Logo({ className, isLink = true }: LogoProps) {
+export function Logo({ className, isLink = true, variant = "default" }: LogoProps) {
   const content = (
     <div className={cn("inline-flex items-center select-none group", className)}>
       <Image
@@ -18,7 +18,11 @@ export function Logo({ className, isLink = true }: LogoProps) {
         width={180}
         height={48}
         priority
-        className="h-[clamp(1.6rem,2.2vw,2.1rem)] w-auto object-contain transition-opacity duration-200 group-hover:opacity-90"
+        // "white" is for a logo over a photo or a dark sky: every colour of the artwork (the green gradient and the black "ENERGY") turns white.
+        className={cn(
+          "h-[clamp(1.6rem,2.2vw,2.1rem)] w-auto object-contain transition-[opacity,filter] duration-200 group-hover:opacity-90",
+          variant === "white" && "brightness-0 invert"
+        )}
       />
     </div>
   );
