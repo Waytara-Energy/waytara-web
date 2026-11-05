@@ -139,7 +139,6 @@ export function HomesPage() {
       >
         <FeatureColumns items={SETUPS} />
         <NoteColumns
-          className="mx-auto max-w-4xl"
           items={[
             { title: "Good to know", body: "Solar on its own stops working when the grid goes down. A battery fixes that." },
             { title: "No grid connection?", body: "We can design a standalone solar and battery system." },

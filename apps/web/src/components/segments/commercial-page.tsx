@@ -185,7 +185,7 @@ export function CommercialPage() {
         summary="Two ways to pay for it. Which one suits you depends on who owns the building."
       >
         <FeatureColumns items={STRUCTURES} />
-        <NoteBlock title="Who owns the roof, and who pays the electricity bill?" className="mx-auto max-w-4xl">
+        <NoteBlock title="Who owns the roof, and who pays the electricity bill?">
           <p>In a rented building, the answer decides which option can work.</p>
         </NoteBlock>
       </SegmentSection>

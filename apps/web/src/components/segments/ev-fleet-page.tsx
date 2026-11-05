@@ -307,7 +307,7 @@ export function EvFleetPage() {
       >
         <FeatureColumns items={SOLAR} />
         <Reveal direction="up" duration={700} distance={16}>
-          <NoteBlock title="Charging overnight?" className="mx-auto max-w-4xl">
+          <NoteBlock title="Charging overnight?">
             <p>Solar makes power in the day, so for an overnight fleet it mostly covers your daytime use. A battery can move some of it to the night. Check the cost first.</p>
           </NoteBlock>
         </Reveal>

@@ -115,12 +115,11 @@ export interface Feature {
  * title, one plain sentence, and optionally a short ticked list. Two to four columns across, stacked on a phone.
  */
 export function FeatureColumns({ items }: { items: Feature[] }) {
-  const two = items.length === 2;
-  const cols = items.length >= 4 ? "sm:grid-cols-2 lg:grid-cols-4" : two ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3";
+  const cols = items.length >= 4 ? "sm:grid-cols-2 lg:grid-cols-4" : items.length === 2 ? "sm:grid-cols-2" : "sm:grid-cols-2 lg:grid-cols-3";
   // Each block takes four rows (icon, title, sentence, list) shared with its neighbours in the same row of blocks (subgrid), so the titles,
-  // sentences and tick lists line up whatever the text length. Two blocks sit centred. The gap between rows of blocks is the padding at each block's foot.
+  // sentences and tick lists line up whatever the text length. The gap between rows of blocks is the padding at each block's foot.
   return (
-    <ul className={cn("-mb-14 grid grid-cols-1 gap-x-12", cols, two && "mx-auto max-w-4xl")}>
+    <ul className={cn("-mb-14 grid grid-cols-1 gap-x-12", cols)}>
       {items.map(({ icon: Icon, title, body, includes }, i) => (
         <li key={title} className="row-span-4 grid grid-rows-subgrid pb-14">
           <Reveal direction="up" duration={800} distance={24} delay={(i % 4) * 90} className="row-span-4 grid grid-rows-subgrid">
