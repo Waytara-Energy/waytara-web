@@ -6,7 +6,6 @@ import { usePathname } from "next/navigation";
 import {
   Menu,
   HelpCircle,
-  Phone,
   ChevronDown,
   ChevronRight,
   Zap,
@@ -25,15 +24,13 @@ import {
 import { cn } from "@/lib/utils";
 import { TEMP_HIDE_LANDING_SECTIONS } from "@/config/landing-flags";
 import {
-  CONTACT_LINK,
-  PARTNER_LINK,
-  PRIMARY_LINKS,
+  PAGE_MENUS,
   SOLUTIONS_HUB,
   SOLUTION_NEEDS,
   SOLUTION_SEGMENTS,
   getStartedFor,
 } from "@/config/site-nav";
-import { SolutionsMenu } from "@/components/sections/solutions-menu";
+import { PageMenu, SolutionsMenu } from "@/components/sections/solutions-menu";
 
 const MOBILE_LINK_CLASS =
   "py-2.5 px-2 text-sm font-semibold text-theme-primary hover:text-theme-highlight hover:bg-theme-surface rounded-lg flex items-center justify-between transition-colors text-left";
@@ -57,7 +54,7 @@ export function Navigation() {
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = React.useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
-  const [mobileSolutionsOpen, setMobileSolutionsOpen] = React.useState(false);
+  const [mobileOpen, setMobileOpen] = React.useState<string | null>(null);
   const [account, setAccount] = React.useState<Account | null>(null);
 
   const isHome = pathname === "/";
@@ -159,20 +156,13 @@ export function Navigation() {
         {/* 2. Center: Clean Direct Navigation Links (Fluid Sizing with Smooth In-Page Anchor Scrolling) */}
         <nav aria-label="Main" className="hidden lg:flex items-center space-x-[clamp(0.25rem,0.6vw,0.75rem)]">
           <SolutionsMenu triggerClassName={linkClass} />
-          {PRIMARY_LINKS.map((link) => (
-            <Link key={link.label} href={link.href} className={linkClass}>
-              {link.label}
-            </Link>
+          {PAGE_MENUS.map((menu) => (
+            <PageMenu key={menu.label} menu={menu} triggerClassName={linkClass} />
           ))}
         </nav>
 
-        {/* 3. Right: Partner, Knowledge (?), Contact (Phone), and Theme Toggle */}
+        {/* 3. Right: Knowledge (?), Theme Toggle and Get Started. Contact is reached from the menus, the planner and the footer. */}
         <div className="hidden sm:flex items-center space-x-[clamp(0.2rem,0.5vw,0.6rem)]">
-          {/* Installers who want to work with WayTara */}
-          <Link href={PARTNER_LINK.href} className={cn(linkClass, "hidden lg:inline-flex")}>
-            {PARTNER_LINK.label}
-          </Link>
-
           {/* ? Icon -> Knowledge Centre — TEMP_HIDE_LANDING_SECTIONS */}
           {!TEMP_HIDE_LANDING_SECTIONS && (
             <Link
@@ -184,16 +174,6 @@ export function Navigation() {
               <HelpCircle className="h-[clamp(17px,1.15vw,19.5px)] w-[clamp(17px,1.15vw,19.5px)]" />
             </Link>
           )}
-
-          {/* Phone Icon -> Contact Us */}
-          <Link
-            href={CONTACT_LINK.href}
-            className={iconLinkClass}
-            title="Contact & Engineering Support"
-            aria-label="Contact Us"
-          >
-            <Phone className="h-[clamp(17px,1.15vw,19.5px)] w-[clamp(17px,1.15vw,19.5px)]" />
-          </Link>
 
           {/* Theme Toggle Icon */}
           <ThemeToggle
@@ -277,36 +257,36 @@ export function Navigation() {
                 </SheetHeader>
 
                 <div className="flex flex-col gap-1 mt-6">
-                  {/* Solutions folds open to the six property types and the three needs */}
-                  <button
-                    type="button"
-                    aria-expanded={mobileSolutionsOpen}
-                    onClick={() => setMobileSolutionsOpen((v) => !v)}
-                    className={MOBILE_LINK_CLASS}
-                  >
-                    <span>{SOLUTIONS_HUB.label}</span>
-                    <ChevronDown className={cn("h-4 w-4 opacity-40 transition-transform duration-200", mobileSolutionsOpen && "rotate-180")} />
-                  </button>
-                  {mobileSolutionsOpen && (
-                    <div className="mb-1 ml-2 flex flex-col gap-0.5 border-l border-theme-border pl-3">
-                      {[SOLUTIONS_HUB, ...SOLUTION_SEGMENTS, ...SOLUTION_NEEDS].map((link) => (
-                        <Link
-                          key={link.href}
-                          href={link.href}
-                          onClick={() => setMobileMenuOpen(false)}
-                          className="rounded-lg px-2 py-2 text-[13px] font-medium text-theme-secondary transition-colors hover:bg-theme-surface hover:text-theme-primary"
-                        >
-                          {link.href === SOLUTIONS_HUB.href ? "All solutions" : link.label}
-                        </Link>
-                      ))}
-                    </div>
-                  )}
-
-                  {[...PRIMARY_LINKS, PARTNER_LINK, CONTACT_LINK].map((link) => (
-                    <Link key={link.label} href={link.href} onClick={() => setMobileMenuOpen(false)} className={MOBILE_LINK_CLASS}>
-                      <span>{link.label}</span>
-                      <ChevronRight className="h-4 w-4 opacity-40" />
-                    </Link>
+                  {/* Solutions and the page items fold open to their sections */}
+                  {[
+                    { label: SOLUTIONS_HUB.label, links: [{ label: "All solutions", href: SOLUTIONS_HUB.href }, ...SOLUTION_SEGMENTS, ...SOLUTION_NEEDS] },
+                    ...PAGE_MENUS.map((m) => ({ label: m.label, links: [{ label: `${m.label} page`, href: m.href }, ...m.items] })),
+                  ].map((group) => (
+                    <React.Fragment key={group.label}>
+                      <button
+                        type="button"
+                        aria-expanded={mobileOpen === group.label}
+                        onClick={() => setMobileOpen((v) => (v === group.label ? null : group.label))}
+                        className={MOBILE_LINK_CLASS}
+                      >
+                        <span>{group.label}</span>
+                        <ChevronDown className={cn("h-4 w-4 opacity-40 transition-transform duration-200", mobileOpen === group.label && "rotate-180")} />
+                      </button>
+                      {mobileOpen === group.label && (
+                        <div className="mb-1 ml-2 flex flex-col gap-0.5 border-l border-theme-border pl-3">
+                          {group.links.map((link) => (
+                            <Link
+                              key={link.href}
+                              href={link.href}
+                              onClick={() => setMobileMenuOpen(false)}
+                              className="rounded-lg px-2 py-2 text-[13px] font-medium text-theme-secondary transition-colors hover:bg-theme-surface hover:text-theme-primary"
+                            >
+                              {link.label}
+                            </Link>
+                          ))}
+                        </div>
+                      )}
+                    </React.Fragment>
                   ))}
                   {!account && (
                     <Link href="/login" onClick={() => setMobileMenuOpen(false)} className={MOBILE_LINK_CLASS}>

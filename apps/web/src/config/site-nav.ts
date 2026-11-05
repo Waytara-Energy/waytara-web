@@ -51,3 +51,57 @@ export const LEGAL_LINKS: NavDestination[] = [
   { label: "Cookie Policy", href: "/cookies" },
   { label: "Warranty Policy", href: "/warranty" },
 ];
+
+export interface PageMenu {
+  label: string;
+  href: string;
+  /** The sections of that page, each opening at its place on the page. */
+  items: NavDestination[];
+}
+
+/**
+ * The header's other four items, each a dropdown of that page's sections (the same idea as Solutions). Order is the order in the header. The
+ * anchors are the section ids on each page: change a page's ids and change them here too.
+ */
+export const PAGE_MENUS: PageMenu[] = [
+  {
+    label: "Platform",
+    href: "/technology",
+    items: [
+      { label: "Overview", href: "/technology#overview", blurb: "Three parts, one platform" },
+      { label: "How it connects", href: "/technology#how", blurb: "From the equipment to your dashboard" },
+      { label: "Energy management", href: "/technology#energy", blurb: "See your energy, manage what is supported" },
+      { label: "Charging management", href: "/technology#charging", blurb: "Run your chargers from one place" },
+      { label: "Live demo", href: "/technology#demo", blurb: "The dashboard on sample data" },
+      { label: "Check compatibility", href: "/technology#compatibility", blurb: "Does it work with your equipment?" },
+    ],
+  },
+  {
+    label: "Why WayTara",
+    href: "/why-waytara",
+    items: [
+      { label: "Four reasons", href: "/why-waytara#reasons", blurb: "What is different about how we work" },
+      { label: "One system", href: "/why-waytara#one-system", blurb: "Separate suppliers, or one system" },
+      { label: "Our promise", href: "/why-waytara#promise", blurb: "What we will do, and what we won't" },
+    ],
+  },
+  {
+    label: "About Us",
+    href: "/about",
+    items: [
+      { label: "Who we are", href: "/about#who", blurb: "Three things, done as one" },
+      { label: "Vision and team", href: "/about#our-team", blurb: "The people behind WayTara" },
+      { label: "Where we are", href: "/about#where", blurb: "Visit us in Mylapore, Chennai" },
+    ],
+  },
+  {
+    label: "Partner",
+    href: "/partner",
+    items: [
+      { label: "Who we look for", href: "/partner#who", blurb: "Teams that do good installation work" },
+      { label: "How it works", href: "/partner#how", blurb: "From application to a conversation" },
+      { label: "Apply", href: "/partner#apply", blurb: "Tell us about your company" },
+      { label: "FAQ", href: "/partner#faq", blurb: "Questions from installers" },
+    ],
+  },
+];

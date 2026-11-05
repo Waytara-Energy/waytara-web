@@ -88,7 +88,7 @@ export function OurTeam() {
   return (
     <section
       id="our-team"
-      className="section-padding bg-theme-bg relative scroll-mt-16 overflow-hidden"
+      className="section-padding bg-theme-bg relative scroll-mt-28 overflow-hidden"
     >
       <div className="fluid-container">
         {/* 1. Top Pill Badge — matches every other section's header */}
