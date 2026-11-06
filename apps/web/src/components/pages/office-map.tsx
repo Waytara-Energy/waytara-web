@@ -11,7 +11,9 @@ import "maplibre-gl/dist/maplibre-gl.css";
 /** The office: WayTara Energy LLP, 3rd floor, on Dr. Radhakrishnan Salai in Mylapore (the exact spot is in lib/site.ts). */
 const OFFICE = { lat: SITE.geo.latitude, lng: SITE.geo.longitude };
 const DIRECTIONS = SITE.mapUrl;
-const ZOOM = 18;
+const ZOOM = 17.8;
+/** The 3D view: tilted and turned a little, and kept that way (it does not spin). */
+const TILT = { pitch: 55, bearing: -17 };
 
 /** The map of where to find us: the same OpenFreeMap tiles and WayTara look as the dashboard's site map, with the office building in green.
  *  It loads only when it comes into view. If the map cannot be drawn (no WebGL, tiles blocked) the address and contacts still show. */
@@ -57,14 +59,15 @@ export function OfficeMap() {
         ml.setWorkerUrl(`/maplibre/maplibre-gl-worker.mjs?v=${ml.getVersion()}`);
         map = new ml.Map({
           container: box.current,
-          style: mapStyle(themeRef.current, false),
+          style: mapStyle(themeRef.current, true),
           center: [OFFICE.lng, OFFICE.lat],
           zoom: ZOOM,
           maxZoom: 19.5,
           minZoom: 12,
-          // flat and facing north: no tilt, no turning, no 3D; the office building is the only thing painted
-          pitch: 0,
-          bearing: 0,
+          // a 3D map: the buildings are raised and the office building is raised in green; it stays as set (no spinning, no turning by hand)
+          pitch: TILT.pitch,
+          bearing: TILT.bearing,
+          maxPitch: 70,
           dragRotate: false,
           touchPitch: false,
           pitchWithRotate: false,
@@ -74,7 +77,7 @@ export function OfficeMap() {
         map.touchZoomRotate.disableRotation();
         map.addControl(new ml.NavigationControl({ showCompass: false }), "top-right");
         // The office building in green, like the site map in the dashboard: its outline is read from what the map has drawn and handed to the style's own
-        // layers (flat; the raised layers stay off). The nearest building within 30 m counts, in case the point sits just outside its outline.
+        // layers (flat and raised: the style's own layers show it both ways). The nearest building within 30 m counts, in case the point sits just outside its outline.
         let built = "";
         map.on("style.load", () => (built = ""));
         map.on("idle", () => {
@@ -106,7 +109,7 @@ export function OfficeMap() {
   // The map follows the site's light or dark theme.
   React.useEffect(() => {
     themeRef.current = theme;
-    mapRef.current?.setStyle(mapStyle(theme, false));
+    mapRef.current?.setStyle(mapStyle(theme, true));
   }, [theme]);
 
   return (

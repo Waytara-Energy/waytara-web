@@ -7,9 +7,7 @@ import {
   Menu,
   HelpCircle,
   ChevronDown,
-  ChevronRight,
   Search,
-  Zap,
 } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
@@ -30,7 +28,7 @@ import {
   SOLUTIONS_HUB,
   SOLUTION_NEEDS,
   SOLUTION_SEGMENTS,
-  getStartedFor,
+  LOGIN_LINK,
 } from "@/config/site-nav";
 import { MegaMenuShell, menuPanel } from "@/components/sections/mega-menu";
 import { SearchPanel } from "@/components/sections/search-panel";
@@ -122,7 +120,7 @@ export function Navigation() {
         supabase.from("profiles").select("full_name, email, avatar_url, role").eq("id", session.user.id).maybeSingle(),
         supabase.from("customers").select("plan:plans(name)").eq("id", session.user.id).maybeSingle(),
       ]);
-      if (!cancelled && profile?.role === "customer") {
+      if (!cancelled && profile) {
         setAccount({
           fullName: profile.full_name,
           email: profile.email,
@@ -149,7 +147,6 @@ export function Navigation() {
   const shownMenuConfig = HEADER_MENUS.find((m) => m.label === shownMenu);
   const shownPanel = shownMenu === "search" ? { key: "search", render: (close: () => void) => <SearchPanel onNavigate={close} /> } : shownMenuConfig ? menuPanel(shownMenuConfig) : null;
   const isThemeStyled = !isHome || isScrolled || activeMenu !== null;
-  const getStarted = getStartedFor(pathname);
 
   // One look for every text link and icon in the bar: white over the hero, theme colours once the bar is solid.
   const linkClass = cn(
@@ -247,7 +244,7 @@ export function Navigation() {
             iconClassName={isThemeStyled ? "text-theme-primary" : "text-white"}
           />
 
-          {/* Get Started Button — or, signed in, the account avatar */}
+          {/* Login button on every page — or, signed in, the account avatar */}
           {account ? (
             <Link
               href="/dashboard"
@@ -271,17 +268,7 @@ export function Navigation() {
                   : ""
               )}
             >
-              <Link href={getStarted.href}>
-                <Zap
-                  className={cn(
-                    "h-3.5 w-3.5 mr-1 transition-colors",
-                    isThemeStyled
-                      ? "text-white fill-white"
-                      : "text-emerald-500 fill-emerald-500"
-                  )}
-                />
-                <span>{getStarted.label}</span>
-              </Link>
+              <Link href={LOGIN_LINK.href}>{LOGIN_LINK.label}</Link>
             </Button>
           )}
         </div>
@@ -349,18 +336,12 @@ export function Navigation() {
                       )}
                     </React.Fragment>
                   ))}
-                  {!account && (
-                    <Link href="/login" onClick={() => setMobileMenuOpen(false)} className={MOBILE_LINK_CLASS}>
-                      <span>Sign in</span>
-                      <ChevronRight className="h-4 w-4 opacity-40" />
-                    </Link>
-                  )}
                 </div>
               </div>
 
               <div className="pt-4 border-t border-theme-border">
                 {/* Same account-aware logic as the desktop header's
-                    Get Started button / avatar (see the "Right: Knowledge,
+                    Login button / avatar (see the "Right: Knowledge,
                     Contact, Theme Toggle" block above) — signed-in customers
                     get their account summary instead of a sign-in prompt. */}
                 {account ? (
@@ -388,9 +369,8 @@ export function Navigation() {
                   </Link>
                 ) : (
                   <Button asChild variant="gradient" className="w-full justify-center text-xs h-10">
-                    <Link href={getStarted.href} onClick={() => setMobileMenuOpen(false)}>
-                      <Zap className="h-3.5 w-3.5 mr-1.5 fill-white" />
-                      {getStarted.label}
+                    <Link href={LOGIN_LINK.href} onClick={() => setMobileMenuOpen(false)}>
+                      {LOGIN_LINK.label}
                     </Link>
                   </Button>
                 )}

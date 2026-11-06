@@ -40,10 +40,8 @@ export const PARTNER_LINK: NavDestination = { label: "Partner", href: "/partner"
 export const CONTACT_LINK: NavDestination = { label: "Contact", href: "/contact" };
 export const PLANNER_LINK: NavDestination = { label: "Energy Planner", href: "/planner" };
 
-/** The header's one primary action. On the planner itself it turns into a way to reach a person instead. */
-export function getStartedFor(pathname: string | null): NavDestination {
-  return pathname?.startsWith("/planner") ? { label: "Talk to us", href: CONTACT_LINK.href } : { label: "Get Started", href: PLANNER_LINK.href };
-}
+/** The header's one primary action, on every page: sign in. Signed in, the header shows the person's avatar instead (it opens the dashboard). */
+export const LOGIN_LINK: NavDestination = { label: "Login", href: "/login" };
 
 export const LEGAL_LINKS: NavDestination[] = [
   { label: "Terms of Service", href: "/terms" },
