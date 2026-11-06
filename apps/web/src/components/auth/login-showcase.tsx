@@ -11,6 +11,10 @@ const DemoMonitoring = dynamic(() => import("@/components/sections/demo-monitori
 const DEMO_WIDTH = 1180;
 const DEMO_HEIGHT = 640;
 const SLIDE_MS = 7500;
+/**
+ * The logo, the heading, the sentence and the bars start where the dashboard's own content starts (its tabs and cards), not at the window's outer edge: the window
+ * has 26 px of border and page padding before its content, and 26 / 1180 of the room it is drawn in is the 0.0234 used in the padding below.
+ */
 /** How much wider than the room it has the window is drawn, so its right edge runs off the panel. */
 const BLEED = 1.06;
 
@@ -127,11 +131,11 @@ export function LoginShowcase() {
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div className="relative px-12 pt-14 xl:px-16 xl:pt-16">
+      <div className="relative pr-12 pt-14 xl:pr-16 xl:pt-16 pl-[calc(3rem+(50vw-3rem)*0.0234)] xl:pl-[calc(4rem+(50vw-4rem)*0.0234)]">
         <Logo />
       </div>
 
-      <div key={index} className="login-slide relative mt-10 px-12 xl:px-16">
+      <div key={index} className="login-slide relative mt-10 pr-12 xl:pr-16 pl-[calc(3rem+(50vw-3rem)*0.0234)] xl:pl-[calc(4rem+(50vw-4rem)*0.0234)]">
         <h2 className="max-w-xl text-[clamp(2rem,3.2vw,3rem)] font-bold leading-[1.1] tracking-tight text-theme-primary" aria-live="polite">
           {slide.title}
           <span className="block text-primary-gradient">{slide.accent}</span>
@@ -144,7 +148,7 @@ export function LoginShowcase() {
       </div>
 
       {/* one bar for each slide: the bar of the slide on show fills as its time runs */}
-      <div className="absolute inset-x-0 bottom-0 z-20 flex items-center gap-2 bg-gradient-to-t from-theme-bg via-theme-bg/90 to-transparent px-12 pb-7 pt-16 xl:px-16">
+      <div className="absolute inset-x-0 bottom-0 z-20 flex items-center gap-2 bg-gradient-to-t from-theme-bg via-theme-bg/90 to-transparent pb-7 pt-16 pr-12 xl:pr-16 pl-[calc(3rem+(50vw-3rem)*0.0234)] xl:pl-[calc(4rem+(50vw-4rem)*0.0234)]">
         {SLIDES.map((s, i) => (
           <button
             key={s.title}

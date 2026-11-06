@@ -37,7 +37,7 @@ export function LegalToc({ entries }: { entries: LegalTocEntry[] }) {
 
   return (
     <nav aria-label="Sections on this page" className="space-y-1">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-theme-muted">On this page</p>
+      <p className="mb-3 text-sm font-semibold text-theme-muted">On this page</p>
       <ul className="space-y-0.5 border-l border-theme-border">
         {entries.map((entry, i) => (
           <li key={entry.id}>
@@ -50,7 +50,7 @@ export function LegalToc({ entries }: { entries: LegalTocEntry[] }) {
                   : "border-transparent text-theme-muted hover:text-theme-primary"
               )}
             >
-              {i + 1}. {entry.label}
+              {String(i + 1).padStart(2, "0")} {entry.label}
             </a>
           </li>
         ))}
