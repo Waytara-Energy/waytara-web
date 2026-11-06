@@ -73,6 +73,7 @@ export const PAGE_MENUS: PageMenu[] = [
       { label: "Energy management", href: "/technology#energy", blurb: "See your energy, manage what is supported" },
       { label: "Charging management", href: "/technology#charging", blurb: "Run your chargers from one place" },
       { label: "Live demo", href: "/technology#demo", blurb: "The dashboard on sample data" },
+      { label: "Plans", href: "/technology#plans", blurb: "Observe, Control and Orchestrate" },
       { label: "Check compatibility", href: "/technology#compatibility", blurb: "Does it work with your equipment?" },
     ],
   },

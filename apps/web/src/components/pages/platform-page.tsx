@@ -6,6 +6,7 @@ import { FeatureColumns, NoteColumns, SegmentSection } from "@/components/segmen
 import { CPMS_PLATFORM_FEATURES, EMS_PLATFORM_FEATURES } from "@/components/segments/feature-sets";
 import { CompatibilityForm } from "./compatibility-form";
 import { GatewayPicture } from "./gateway-picture";
+import { PlansTable } from "./plans-table";
 import { PageHero, PageShell } from "./page-shell";
 
 export const PLATFORM_PATH = "/technology";
@@ -161,6 +162,18 @@ export function PlatformPage() {
           <div className="h-[30rem] overflow-hidden rounded-2xl border border-theme-border bg-theme-surface p-2 sm:h-[38rem] sm:p-3">
             <FittedDemo />
           </div>
+        </Reveal>
+      </SegmentSection>
+
+      <SegmentSection
+        id="plans"
+        badge="Plans"
+        title="Choose how much"
+        accent="you want to run."
+        summary="Three plans, from watching a single site to running a whole portfolio."
+      >
+        <Reveal direction="up" duration={800} distance={24}>
+          <PlansTable />
         </Reveal>
       </SegmentSection>
 
