@@ -19,11 +19,13 @@ const SLIDE_MS = 7500;
 /** How much wider than the room it has the window is drawn, so its right edge runs off the panel. */
 const BLEED = 1.06;
 /**
- * The logo, the heading, the sentence and the bars start where the dashboard's own content starts (its tabs and cards), not at the window's outer edge: the window
- * has 26 px of border and page padding before its content, and 26 / 1180 of the room it is drawn in is the 0.0234 used below. The base padding (4 rem, 5 rem on wide
- * screens) is the window's own left edge.
+ * The logo, the heading, the sentence and the bars start where the text of the dashboard's first tab (Main Hub) starts, not at the window's outer edge. How far in that
+ * is depends on the window's scale and on the page's root font size (which grows with the screen), so the window measures it and reports it in the --edge variable;
+ * the number after the comma is only what is used for the first paint. The base padding (4 rem, 5 rem on wide screens) is the window's own left edge.
  */
-const EDGE = "pl-[calc(4rem+(50vw-4rem)*0.0234)] xl:pl-[calc(5rem+(50vw-5rem)*0.0234)]";
+const EDGE = "pl-[calc(4rem+var(--edge,17px))] xl:pl-[calc(5rem+var(--edge,17px))]";
+/** In the window's own units: its border (2 px), the page padding (1.5 rem) and the tab's padding (0.25 rem) before the first tab's text. */
+const TAB_TEXT_INSET = { px: 2, rem: 1.75 };
 
 interface Slide {
   /** The two lines of the heading: the second is in the brand green. */
@@ -93,7 +95,7 @@ function useReducedMotion(): boolean {
  * The application as a straight window, scaled to the room it has and drawn wider and taller than that, so its right edge and its bottom run off the panel and
  * only its upper left shows. On a phone it is the phone layout at its own size instead. It is a picture: nothing in it can be clicked.
  */
-function Preview({ initial, phone = false }: { initial: DemoInitial; phone?: boolean }) {
+function Preview({ initial, phone = false, onEdge }: { initial: DemoInitial; phone?: boolean; /** Called with how far in, in pixels, the first tab's text is from the window's left edge. */ onEdge?: (px: number) => void }) {
   const ref = React.useRef<HTMLDivElement>(null);
   const [size, setSize] = React.useState<{ w: number; h: number } | null>(null);
   React.useEffect(() => {
@@ -107,6 +109,13 @@ function Preview({ initial, phone = false }: { initial: DemoInitial; phone?: boo
     return () => ro.disconnect();
   }, []);
 
+  const scale = phone ? 1 : size ? (size.w * BLEED) / DEMO_WIDTH : 0;
+  React.useEffect(() => {
+    if (!onEdge || !scale) return;
+    const rem = parseFloat(getComputedStyle(document.documentElement).fontSize) || 16;
+    onEdge((TAB_TEXT_INSET.px + TAB_TEXT_INSET.rem * rem) * scale);
+  }, [onEdge, scale]);
+
   if (phone) {
     return (
       <div ref={ref} className="pointer-events-none relative h-full select-none" aria-hidden="true">
@@ -115,7 +124,7 @@ function Preview({ initial, phone = false }: { initial: DemoInitial; phone?: boo
             className="absolute left-0 top-0 rounded-tl-[36px] border-[2px] border-r-0 border-b-0 border-black/20 bg-background dark:border-white/25"
             style={{ width: size.w, height: PHONE_HEIGHT }}
           >
-            <div className="h-full w-full overflow-hidden rounded-tl-[34px]" style={{ clipPath: "inset(0 round 34px 0 0 0)" }}>
+            <div className="h-full w-full overflow-hidden rounded-tl-[34px] pt-3" style={{ clipPath: "inset(0 round 34px 0 0 0)" }}>
               <DemoMonitoring locked mobile initial={initial} />
             </div>
           </div>
@@ -124,7 +133,6 @@ function Preview({ initial, phone = false }: { initial: DemoInitial; phone?: boo
     );
   }
 
-  const scale = size ? (size.w * BLEED) / DEMO_WIDTH : 0;
   const height = size ? Math.max(DEMO_HEIGHT, size.h / scale + 80) : DEMO_HEIGHT;
   return (
     <div ref={ref} className="pointer-events-none relative h-full select-none" aria-hidden="true">
@@ -134,7 +142,7 @@ function Preview({ initial, phone = false }: { initial: DemoInitial; phone?: boo
           style={{ width: DEMO_WIDTH, height, transform: `scale(${scale})`, transformOrigin: "left top" }}
         >
           {/* no shadow (it smudged grey round the curve and was cut off by the panel's edge); the inside is cut to the border's own inner curve, 56 px minus the 2 px border */}
-          <div className="h-full w-full overflow-hidden rounded-tl-[54px]" style={{ clipPath: "inset(0 round 54px 0 0 0)" }}>
+          <div className="h-full w-full overflow-hidden rounded-tl-[54px] pt-5" style={{ clipPath: "inset(0 round 54px 0 0 0)" }}>
             <DemoMonitoring locked initial={initial} />
           </div>
         </div>
@@ -183,6 +191,7 @@ export function LoginShowcase() {
   const still = useReducedMotion();
   const [index, setIndex] = React.useState(0);
   const [paused, setPaused] = React.useState(false);
+  const [edge, setEdge] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     if (!wide || paused || still) return;
@@ -196,6 +205,7 @@ export function LoginShowcase() {
       className="relative hidden w-1/2 flex-col overflow-hidden bg-theme-bg lg:flex"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
+      style={edge === null ? undefined : ({ "--edge": `${edge}px` } as React.CSSProperties)}
     >
       <div className={cn("relative pr-16 pt-20 xl:pr-20 xl:pt-24", EDGE)}>
         <Logo />
@@ -210,7 +220,7 @@ export function LoginShowcase() {
       </div>
 
       <div key={`p${index}`} className="login-slide-late relative mt-8 min-h-0 flex-1 overflow-hidden pl-16 xl:pl-20">
-        {wide && <Preview initial={slide.initial} />}
+        {wide && <Preview initial={slide.initial} onEdge={setEdge} />}
       </div>
 
       <div className={cn("absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-theme-bg via-theme-bg/90 to-transparent pb-7 pt-16 pr-16 xl:pr-20", EDGE)}>
@@ -253,14 +263,14 @@ function MobileIntro({ onDone }: { onDone: () => void }) {
         else if (end - start > 50) setIndex(Math.max(0, index - 1));
       }}
     >
-      <div className="flex items-center justify-between pl-[calc(2.5rem+2px)] pr-6 pt-10">
+      <div className="flex items-center justify-between pl-[calc(2.75rem+2px)] pr-6 pt-10">
         <Logo />
         <button type="button" onClick={onDone} className="-mr-2 cursor-pointer rounded-full px-4 py-2 text-sm font-semibold text-theme-secondary transition-colors hover:text-theme-primary">
           Skip
         </button>
       </div>
 
-      <div key={index} className="login-slide relative mt-10 pl-[calc(2.5rem+2px)] pr-6">
+      <div key={index} className="login-slide relative mt-10 pl-[calc(2.75rem+2px)] pr-6">
         <h2 className="text-[clamp(1.9rem,9vw,2.5rem)] font-bold leading-[1.1] tracking-tight text-theme-primary" aria-live="polite">
           {slide.title}
           <span className="block text-primary-gradient">{slide.accent}</span>
@@ -272,7 +282,7 @@ function MobileIntro({ onDone }: { onDone: () => void }) {
         {narrow && <Preview phone initial={slide.initial} />}
       </div>
 
-      <div className="absolute inset-x-0 bottom-0 z-20 flex items-center justify-between bg-gradient-to-t from-theme-bg via-theme-bg/90 to-transparent pb-6 pl-[calc(2.5rem+2px)] pr-6 pt-16">
+      <div className="absolute inset-x-0 bottom-0 z-20 flex items-center justify-between bg-gradient-to-t from-theme-bg via-theme-bg/90 to-transparent pb-6 pl-[calc(2.75rem+2px)] pr-6 pt-16">
         <SlideBars index={index} setIndex={setIndex} paused={false} still={still} holdLast />
         <Button type="button" onClick={() => (last ? onDone() : setIndex(index + 1))} className="gap-1.5">
           {last ? "Log in" : "Next"}
