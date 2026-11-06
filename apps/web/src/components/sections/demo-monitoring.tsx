@@ -3,36 +3,74 @@
 import * as React from "react";
 import Image from "next/image";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { Bell, BatteryCharging, Check, ChevronDown, ChevronsUpDown, CloudRain, EvCharger, Gauge, Home, Server, SlidersHorizontal, Sun, Thermometer, Zap } from "lucide-react";
+import {
+  Bell,
+  BatteryCharging,
+  Check,
+  ChevronsUpDown,
+  CircleAlert,
+  CircleCheck,
+  Cloud,
+  CloudMoon,
+  CloudRain,
+  CloudSun,
+  EvCharger,
+  Gauge,
+  Home,
+  Moon,
+  OctagonAlert,
+  Server,
+  SlidersHorizontal,
+  Sun,
+  Thermometer,
+  TriangleAlert,
+  X,
+  Zap,
+  type LucideIcon,
+} from "lucide-react";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LiveStatusCard } from "@/components/dashboard/live-status-card";
 import { TabHeadlineBar } from "@/components/dashboard/monitoring-tabs";
 import { CHART_CURSOR } from "@/components/dashboard/chart-cursor";
 import { FLOW, PV_SHADES } from "@/components/dashboard/flow-colors";
-import { INTERVAL_OPTIONS } from "@/lib/day-buckets";
-import { bucketSeries, buildEvSample, buildSampleData, SAMPLE_CHARGER, SAMPLE_DEVICE, type DemoData, type EvSample, type SeriesPoint } from "@/lib/landing-sample";
+import {
+  buildCharger,
+  buildSampleData,
+  istDay,
+  SAMPLE_SITES,
+  weatherAt,
+  type DemoData,
+  type EvEvent,
+  type EvSample,
+  type SampleCondition,
+  type SampleDevice,
+  type SampleSite,
+  type SeriesPoint,
+} from "@/lib/landing-sample";
 import { cn } from "@/lib/utils";
 
-// The customer's Monitoring page, as a small copy for the landing page, running on sample figures (lib/landing-sample.ts): the same header,
-// tabs, cards and charts as the real page. The tabs, the interval, the charts (hover them) and the device menu respond; the sidebar, the
-// notification bell, the weather and the site switcher are for show, and the device menu has no Go live or Refresh.
+// The customer's Monitoring page, as a small copy for the website, running on made-up figures (lib/landing-sample.ts): the same header, tabs, cards and charts
+// as the real page. Its figures follow the real clock in India and move on every 10 seconds. The header works like the real one (the site switcher, the weather,
+// the devices, the notifications), but there is no side menu and nothing leaves the page: Start / Stop charging only change this demo's own charger.
 
 export const DEMO_WIDTH = 1180;
 export const DEMO_HEIGHT = 737;
 
 const IST_MS = 19_800_000;
 const HOUR_MS = 3_600_000;
+const TICK_MS = 10_000;
 
-type TabId = "hub" | "solar" | "battery" | "load" | "grid";
+type InverterTab = "hub" | "solar" | "battery" | "load" | "grid";
 
-const TABS: { id: TabId; label: string; icon: typeof Sun; active: string }[] = [
+const INVERTER_TABS: { id: InverterTab; label: string; icon: typeof Sun; active: string }[] = [
   { id: "hub", label: "Main Hub", icon: Server, active: "data-[state=active]:border-primary data-[state=active]:text-primary" },
   { id: "solar", label: "Solar Array", icon: Sun, active: "data-[state=active]:border-amber-500 data-[state=active]:text-amber-600 dark:data-[state=active]:text-amber-400" },
   { id: "battery", label: "Battery Pack", icon: BatteryCharging, active: "data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400" },
   { id: "load", label: "Load", icon: Home, active: "data-[state=active]:border-sky-500 data-[state=active]:text-sky-600 dark:data-[state=active]:text-sky-400" },
   { id: "grid", label: "Grid Interface", icon: Zap, active: "data-[state=active]:border-violet-500 data-[state=active]:text-violet-600 dark:data-[state=active]:text-violet-400" },
 ];
+const CHARGER_TAB_CLASS = "data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400";
 
 const DASH = "—";
 const fixed = (v: number | null | undefined, d = 1) => (v === null || v === undefined ? DASH : v.toFixed(d));
@@ -49,23 +87,20 @@ function hourLabel(t: number, dayStart: number) {
   return `${h % 12 === 0 ? 12 : h % 12} ${h < 12 ? "AM" : "PM"}`;
 }
 
-/** Close a menu when the pointer goes down anywhere outside it, or on Escape. */
-function useDismiss(open: boolean, close: () => void) {
-  const ref = React.useRef<HTMLDivElement>(null);
+/** The tab name of a charger: its name, without a rating that follows a dot ("EV Charger · 7.4 kW" is the tab "EV Charger"; "DUO 11 kW" stays as it is). */
+const tabName = (d: SampleDevice) => d.name.split(" · ")[0];
+
+/** The tick of the demo's clock: nothing until the page has loaded (so the server and the first paint agree), then the time now, every 10 seconds. */
+function useNow(): [number | null, (ms: number) => void] {
+  const [now, setNow] = React.useState<number | null>(null);
   React.useEffect(() => {
-    if (!open) return;
-    const onDown = (e: PointerEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) close();
-    };
-    const onKey = (e: KeyboardEvent) => e.key === "Escape" && close();
-    document.addEventListener("pointerdown", onDown);
-    document.addEventListener("keydown", onKey);
-    return () => {
-      document.removeEventListener("pointerdown", onDown);
-      document.removeEventListener("keydown", onKey);
-    };
-  }, [open, close]);
-  return ref;
+    void Promise.resolve().then(() => setNow(Date.now()));
+    const id = window.setInterval(() => {
+      if (!document.hidden) setNow(Date.now());
+    }, TICK_MS);
+    return () => window.clearInterval(id);
+  }, []);
+  return [now, setNow];
 }
 
 /** The tooltip that follows the pointer over a chart. */
@@ -167,154 +202,325 @@ function TrendChart({
   );
 }
 
-/** The interval picker above a group of charts (15 min to 2 hours): one choice for every chart on every tab. */
-function IntervalHeader({ title, minutes, onChange }: { title: string; minutes: number; onChange: (minutes: number) => void }) {
-  const [open, setOpen] = React.useState(false);
-  const ref = useDismiss(open, React.useCallback(() => setOpen(false), []));
-  const current = INTERVAL_OPTIONS.find((o) => o.minutes === minutes) ?? INTERVAL_OPTIONS[0];
-  return (
-    <div className="flex items-center justify-between gap-3">
-      <h3 className="text-sm font-medium text-foreground">{title}</h3>
-      <div ref={ref} className="relative">
-        <button
-          type="button"
-          aria-haspopup="listbox"
-          aria-expanded={open}
-          onClick={() => setOpen((o) => !o)}
-          className="flex h-8 w-[110px] cursor-pointer items-center justify-between gap-2 rounded-md border bg-background px-3 text-xs shadow-xs outline-none transition-colors hover:bg-accent/50 focus-visible:ring-2 focus-visible:ring-ring/50"
-        >
-          {current.label}
-          <ChevronDown className="size-3.5 text-muted-foreground" />
-        </button>
-        {open && (
-          <ul role="listbox" className="absolute right-0 top-9 z-30 w-[110px] rounded-md border bg-popover p-1 text-popover-foreground shadow-md">
-            {INTERVAL_OPTIONS.map((o) => (
-              <li key={o.minutes}>
-                <button
-                  type="button"
-                  role="option"
-                  aria-selected={o.minutes === minutes}
-                  onClick={() => {
-                    onChange(o.minutes);
-                    setOpen(false);
-                  }}
-                  className="flex w-full cursor-pointer items-center justify-between rounded-sm px-2 py-1.5 text-left text-xs outline-none hover:bg-accent focus-visible:bg-accent"
-                >
-                  {o.label}
-                  {o.minutes === minutes && <Check className="size-3.5" />}
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
-    </div>
-  );
+/** The title above a group of charts. */
+function GroupTitle({ children }: { children: React.ReactNode }) {
+  return <h3 className="text-sm font-medium text-foreground">{children}</h3>;
 }
 
-type DeviceId = "inverter" | "charger";
+// ------------------------------------------------------------------------------------------------ the header
 
-/** The device button in the header and its menu: the site's devices (the inverter and the charger), which one is open, and when it last reported. */
-function DeviceMenu({ at, device, onPick }: { at: number; device: DeviceId; onPick: (d: DeviceId) => void }) {
-  const [open, setOpen] = React.useState(false);
-  const ref = useDismiss(open, React.useCallback(() => setOpen(false), []));
-  const devices: { id: DeviceId; name: string; kind: string; icon: typeof Server }[] = [
-    { id: "inverter", name: SAMPLE_DEVICE, kind: "Inverter · Online · last reading 2 min ago", icon: Server },
-    { id: "charger", name: SAMPLE_CHARGER, kind: "EV charger · Charging · last reading 1 min ago", icon: EvCharger },
-  ];
-  const Current = device === "inverter" ? Server : EvCharger;
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        aria-label="Devices: 2, online. Open the device menu."
-        aria-expanded={open}
-        onClick={() => setOpen((o) => !o)}
-        className={cn(
-          "flex h-8 min-w-8 cursor-pointer items-center justify-center rounded-md border px-2 text-emerald-500 outline-none transition-colors hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring/50",
-          open ? "bg-accent/40" : "bg-card",
-        )}
-      >
-        <Current className="size-4" />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-10 z-30 w-[22rem] rounded-2xl border bg-popover text-popover-foreground shadow-lg">
-          <ul>
-            {devices.map((d) => {
-              const Icon = d.icon;
-              return (
-                <li key={d.id} className="first:rounded-t-2xl">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onPick(d.id);
-                      setOpen(false);
-                    }}
-                    className={cn("flex w-full cursor-pointer items-start gap-3 p-4 text-left outline-none hover:bg-accent/50 focus-visible:bg-accent/50", d.id === device && "bg-accent/40")}
-                  >
-                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-500/12 text-emerald-600">
-                      <Icon className="size-4" />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold leading-5">{d.name}</span>
-                      <span className="block text-xs leading-snug text-muted-foreground">{d.kind}</span>
-                    </span>
-                    {d.id === device && <Check className="mt-1 size-4 shrink-0 text-emerald-600" />}
-                    <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-foreground" title="Device settings are part of the full dashboard">
-                      <SlidersHorizontal className="size-4" />
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-          <div className="flex items-baseline justify-between gap-4 border-t px-4 py-3 text-xs">
-            <span className="min-w-0">
-              <span className="block text-sm font-medium text-foreground">Last reading</span>
-              <span className="block text-muted-foreground">Online</span>
-            </span>
-            <span className="shrink-0 text-right tabular-nums text-muted-foreground">
-              {clock(at)}
-              <span className="block">2 min ago</span>
-            </span>
-          </div>
-        </div>
-      )}
-    </div>
-  );
+type PanelId = "site" | "weather" | "bell" | `device:${string}`;
+
+const WEATHER_ICON: Record<SampleCondition, { day: LucideIcon; night: LucideIcon; tone: string }> = {
+  clear: { day: Sun, night: Moon, tone: "text-amber-500" },
+  fair: { day: CloudSun, night: CloudMoon, tone: "text-amber-500" },
+  partly: { day: CloudSun, night: CloudMoon, tone: "text-amber-500" },
+  cloudy: { day: Cloud, night: Cloud, tone: "text-slate-400" },
+  rain: { day: CloudRain, night: CloudRain, tone: "text-sky-500" },
+};
+
+interface Alert {
+  kind: "fault" | "action" | "attention" | "good";
+  title: string;
+  body: string;
+  where: string;
+  minutesAgo: number;
 }
 
-/** The page header: the brand button and the site at the left; the weather, the device menu and the notification bell at the right. */
-function DemoHeader({ site, at, device, onPick }: { site: string; at: number; device: DeviceId; onPick: (d: DeviceId) => void }) {
+const KIND_STYLE: Record<Alert["kind"], { icon: LucideIcon; tone: string; label: string }> = {
+  fault: { icon: OctagonAlert, tone: "text-rose-500", label: "Fault" },
+  action: { icon: CircleAlert, tone: "text-violet-500", label: "Needs action" },
+  attention: { icon: TriangleAlert, tone: "text-amber-500", label: "Needs attention" },
+  good: { icon: CircleCheck, tone: "text-emerald-500", label: "All good" },
+};
+
+/** The notifications of each site: one fault, one thing to act on, one to look at, and the good news (seven for the home). */
+const ALERTS: Record<string, Alert[]> = {
+  home: [
+    { kind: "fault", title: "Grid over-voltage fault (E-21)", body: "The grid voltage went above the inverter's limit. The inverter paused and restarted by itself.", where: "Hybrid Inverter 8 kW", minutesAgo: 18 },
+    { kind: "action", title: "Charger update waiting for you", body: "A new firmware version is ready for the DUO 7.4 kW. Approve it to install it when no car is charging.", where: "DUO 7.4 kW", minutesAgo: 64 },
+    { kind: "attention", title: "Battery is warmer than usual", body: "The battery is a few degrees above its usual range for this time of day. It is still working normally.", where: "Battery pack", minutesAgo: 42 },
+    { kind: "good", title: "Battery reached 80%", body: "Your battery charged from the sun and is now at 80%.", where: "Battery pack", minutesAgo: 96 },
+    { kind: "good", title: "Automation completed", body: "The charging schedule ran from 12:00 PM to 2:00 PM and finished as planned.", where: "Schedules", minutesAgo: 25 },
+    { kind: "good", title: "Report ready", body: "Your daily energy report has been generated and is ready to download.", where: "Reports", minutesAgo: 130 },
+    { kind: "good", title: "Back online", body: "All devices are reporting again after a short network drop.", where: "Site", minutesAgo: 190 },
+  ],
+  hub: [
+    { kind: "action", title: "Charger update waiting for you", body: "A new firmware version is ready for the DUO 7.4 kW B. Approve it to install it when no car is charging.", where: "DUO 7.4 kW B", minutesAgo: 51 },
+    { kind: "attention", title: "Connector is warm", body: "The connector of the DUO 22 kW is warmer than usual during fast charging. It is still within its limits.", where: "DUO 22 kW", minutesAgo: 22 },
+    { kind: "good", title: "Charge finished", body: "The DUO 11 kW finished a charge and delivered 18.4 kWh.", where: "DUO 11 kW", minutesAgo: 77 },
+    { kind: "good", title: "Report ready", body: "Your daily charging report has been generated and is ready to download.", where: "Reports", minutesAgo: 150 },
+  ],
+};
+
+const ICON_BTN = "flex h-8 min-w-8 cursor-pointer items-center justify-center rounded-md border px-2 outline-none transition-colors hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring/50";
+const PANEL = "absolute z-40 rounded-2xl border bg-popover text-popover-foreground shadow-lg";
+
+function DemoHeader({
+  site,
+  sites,
+  panel,
+  setPanel,
+  onSite,
+  nowMs,
+  at,
+  onDevice,
+  activeDeviceId,
+  chargers,
+}: {
+  site: SampleSite;
+  sites: SampleSite[];
+  panel: PanelId | null;
+  setPanel: (p: PanelId | null) => void;
+  onSite: (id: string) => void;
+  nowMs: number | null;
+  at: number;
+  onDevice: (d: SampleDevice) => void;
+  activeDeviceId: string | null;
+  chargers: Record<string, EvSample>;
+}) {
+  const toggle = (p: PanelId) => setPanel(panel === p ? null : p);
+  const w = weatherAt(nowMs);
+  const WIcon = WEATHER_ICON[w.condition][w.night ? "night" : "day"];
+  const alerts = ALERTS[site.id] ?? [];
+  const [filter, setFilter] = React.useState<"all" | Alert["kind"]>("all");
+  const [openAlert, setOpenAlert] = React.useState<number | null>(null);
+  const shown = alerts.filter((a) => filter === "all" || a.kind === filter);
+  const counts = (k: Alert["kind"]) => alerts.filter((a) => a.kind === k).length;
+
   return (
     <header className="relative z-20 flex h-14 shrink-0 items-center justify-between gap-3 bg-background px-4">
       <div className="flex min-w-0 items-center gap-2">
         <span className="grid size-9 shrink-0 place-items-center rounded-full border bg-card">
           <Image src="/images/icon.png" alt="" width={20} height={20} unoptimized className="size-5 object-contain opacity-60" />
         </span>
-        <span className="flex h-8 min-w-0 items-center gap-1.5 px-2 text-sm font-medium text-foreground">
-          <span className="truncate">{site}</span>
-          <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
-        </span>
+        <div className="relative">
+          <button
+            type="button"
+            data-demo-trigger
+            aria-haspopup="listbox"
+            aria-expanded={panel === "site"}
+            onClick={() => toggle("site")}
+            className="flex h-8 min-w-0 cursor-pointer items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <span className="truncate">{site.name}</span>
+            <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
+          </button>
+          {panel === "site" && (
+            <div data-demo-panel className={cn(PANEL, "left-0 top-10 w-64 p-1")}>
+              {sites.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  onClick={() => {
+                    onSite(s.id);
+                    setPanel(null);
+                  }}
+                  className="flex w-full cursor-pointer items-center gap-2 rounded-lg px-2 py-2 text-left outline-none hover:bg-accent focus-visible:bg-accent"
+                >
+                  <Check className={cn("size-4 shrink-0", s.id === site.id ? "opacity-100" : "opacity-0")} />
+                  <span className="flex min-w-0 flex-col">
+                    <span className="truncate text-sm">{s.name}</span>
+                    <span className="truncate text-xs text-muted-foreground">
+                      {s.devices.length} device{s.devices.length === 1 ? "" : "s"}
+                    </span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
-      <div className="flex items-center gap-3">
-        <span className="flex h-8 items-center gap-1.5 px-1 text-sm font-medium text-foreground">
-          <CloudRain className="size-[18px] text-sky-500" strokeWidth={1.7} />
-          <span className="tabular-nums">30°</span>
-        </span>
-        <DeviceMenu at={at} device={device} onPick={onPick} />
-        <span className="relative grid size-9 place-items-center rounded-full border bg-card text-foreground" title="Notifications are part of the full dashboard">
-          <Bell className="size-4" />
-          <span className="absolute -right-1 -top-1 grid size-[18px] place-items-center rounded-full bg-red-500 text-[10px] font-semibold leading-none text-white">7</span>
-        </span>
+
+      <div className="flex items-center gap-2.5">
+        {/* the weather at the site */}
+        <div className="relative">
+          <button
+            type="button"
+            data-demo-trigger
+            aria-expanded={panel === "weather"}
+            aria-label="Weather at the site. Open the forecast."
+            onClick={() => toggle("weather")}
+            className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md px-1.5 text-sm font-medium text-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <WIcon className={cn("size-[18px]", WEATHER_ICON[w.condition].tone)} strokeWidth={1.7} />
+            <span className="tabular-nums">{w.tempC}°</span>
+          </button>
+          {panel === "weather" && (
+            <div data-demo-panel className={cn(PANEL, "right-0 top-10 w-[21rem] p-4")}>
+              <div className="flex items-center gap-4">
+                <WIcon className={cn("size-12", WEATHER_ICON[w.condition].tone)} strokeWidth={1.4} />
+                <div>
+                  <p className="text-3xl font-semibold leading-none tabular-nums">{w.tempC}°C</p>
+                  <p className="mt-1 text-sm text-muted-foreground">
+                    {w.text} · feels like {w.feelsC}°
+                  </p>
+                </div>
+              </div>
+              <div className="mt-3 flex gap-5 text-xs text-muted-foreground">
+                <span>Humidity {w.humidityPct}%</span>
+                <span>Wind {w.windKmh} km/h</span>
+              </div>
+              <div className="mt-4 grid grid-cols-6 gap-1 border-t pt-3">
+                {w.hours.map((x) => {
+                  const HIcon = WEATHER_ICON[x.condition][x.night ? "night" : "day"];
+                  return (
+                    <div key={x.hour} className="flex flex-col items-center gap-1 text-xs">
+                      <span className="text-muted-foreground">
+                        {x.hour % 12 === 0 ? 12 : x.hour % 12} {x.hour < 12 ? "am" : "pm"}
+                      </span>
+                      <HIcon className={cn("size-4", WEATHER_ICON[x.condition].tone)} strokeWidth={1.7} />
+                      <span className="tabular-nums">{x.tempC}°</span>
+                    </div>
+                  );
+                })}
+              </div>
+              <p className="mt-3 flex items-start gap-2 rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-foreground">
+                <Sun className="mt-0.5 size-3.5 shrink-0 text-amber-500" />
+                {w.outlook}
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* one icon for each device of the site */}
+        {site.devices.map((d) => {
+          const Icon = d.kind === "inverter" ? Server : EvCharger;
+          const ev = chargers[d.id];
+          const state = d.kind === "inverter" ? "Inverter · Online" : ev?.running ? "EV charger · Charging" : "EV charger · Available";
+          const id: PanelId = `device:${d.id}`;
+          return (
+            <div key={d.id} className="relative">
+              <button
+                type="button"
+                data-demo-trigger
+                aria-label={`${d.name}, online. Open its card.`}
+                aria-expanded={panel === id}
+                onClick={() => {
+                  onDevice(d);
+                  toggle(id);
+                }}
+                className={cn(ICON_BTN, "text-emerald-500", panel === id || activeDeviceId === d.id ? "bg-accent/40" : "bg-card")}
+              >
+                <Icon className="size-4" />
+              </button>
+              {panel === id && (
+                <div data-demo-panel className={cn(PANEL, "right-0 top-10 w-[22rem]")}>
+                  <div className="flex items-start gap-3 p-4">
+                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-500/12 text-emerald-600">
+                      <Icon className="size-4" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-semibold leading-5">{d.name}</p>
+                      <p className="text-xs leading-snug text-muted-foreground">{state}</p>
+                    </div>
+                    <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-foreground" title="Device settings are part of the full dashboard">
+                      <SlidersHorizontal className="size-4" />
+                    </span>
+                  </div>
+                  <div className="flex items-baseline justify-between gap-4 border-t px-4 py-3 text-xs">
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium text-foreground">Last reading</span>
+                      <span className="block text-muted-foreground">Online</span>
+                    </span>
+                    <span className="shrink-0 text-right tabular-nums text-muted-foreground">
+                      {clock(at)}
+                      <span className="block">just now</span>
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          );
+        })}
+
+        {/* the notifications */}
+        <div className="relative">
+          <button
+            type="button"
+            data-demo-trigger
+            aria-expanded={panel === "bell"}
+            aria-label={`Notifications, ${alerts.length} new`}
+            onClick={() => toggle("bell")}
+            className="relative grid size-9 cursor-pointer place-items-center rounded-full border bg-card text-foreground outline-none transition-colors hover:bg-accent/60 focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <Bell className="size-4" />
+            <span className="absolute -right-1 -top-1 grid size-[18px] place-items-center rounded-full bg-red-500 text-[10px] font-semibold leading-none text-white">{alerts.length}</span>
+          </button>
+          {panel === "bell" && (
+            <div data-demo-panel className={cn(PANEL, "right-0 top-11 flex max-h-[30rem] w-[26rem] flex-col")}>
+              <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-3.5">
+                <p className="text-sm font-semibold">Notifications</p>
+                <button type="button" onClick={() => setPanel(null)} aria-label="Close" className="grid size-6 cursor-pointer place-items-center rounded-md text-muted-foreground hover:bg-accent">
+                  <X className="size-3.5" />
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1.5 px-4 pb-2">
+                {(
+                  [
+                    ["all", `All ${alerts.length}`],
+                    ["fault", `Faults ${counts("fault")}`],
+                    ["action", `Action ${counts("action")}`],
+                    ["attention", `Attention ${counts("attention")}`],
+                    ["good", `Good ${counts("good")}`],
+                  ] as const
+                )
+                  .filter(([k]) => k === "all" || counts(k) > 0)
+                  .map(([k, label]) => (
+                    <button
+                      key={k}
+                      type="button"
+                      onClick={() => {
+                        setFilter(k);
+                        setOpenAlert(null);
+                      }}
+                      className={cn("cursor-pointer rounded-full border px-2.5 py-1 text-[11px] font-medium outline-none", filter === k ? "border-emerald-500/50 bg-emerald-500/10 text-foreground" : "text-muted-foreground hover:bg-accent")}
+                    >
+                      {label}
+                    </button>
+                  ))}
+              </div>
+              <ul className="min-h-0 flex-1 space-y-1 overflow-hidden px-2 pb-2">
+                {shown.map((a, i) => {
+                  const k = KIND_STYLE[a.kind];
+                  const Icon = k.icon;
+                  const open = openAlert === i;
+                  return (
+                    <li key={a.title} className={cn("rounded-2xl border border-transparent", open && "border-border bg-card/70")}>
+                      <button type="button" onClick={() => setOpenAlert(open ? null : i)} aria-expanded={open} className="flex w-full cursor-pointer items-start gap-3 rounded-2xl px-3 py-2 text-left outline-none hover:bg-card/60 focus-visible:ring-2 focus-visible:ring-ring">
+                        <Icon className={cn("mt-0.5 size-4 shrink-0", k.tone)} />
+                        <span className="min-w-0 flex-1">
+                          <span className="flex items-baseline justify-between gap-2">
+                            <span className="truncate text-sm font-semibold text-foreground">{a.title}</span>
+                            <span className="shrink-0 text-[11px] text-muted-foreground">{a.minutesAgo < 60 ? `${a.minutesAgo} min ago` : `${Math.floor(a.minutesAgo / 60)} h ago`}</span>
+                          </span>
+                          <span className={cn("block text-xs text-muted-foreground", !open && "truncate")}>{a.body}</span>
+                          {open && (
+                            <span className="mt-1.5 flex items-center gap-2 text-[11px] text-muted-foreground">
+                              <span className={cn("font-medium", k.tone)}>{k.label}</span>
+                              <span>·</span>
+                              <span>{a.where}</span>
+                            </span>
+                          )}
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          )}
+        </div>
       </div>
     </header>
   );
 }
 
+// ------------------------------------------------------------------------------------------------ an EV charger
+
 const SHARE_COLOR = { solar: FLOW.producing, battery: FLOW.drawing, grid: FLOW.idle } as const;
 
-function EvTile({ label, value, unit, sub, bar, split }: { label: string; value: string; unit?: string; sub?: string; bar?: { pct: number; color: string }; split?: EvSample["shares"] }) {
+function EvTile({ label, value, unit, sub, bar, split }: { label: string; value: string; unit?: string; sub?: string; bar?: { pct: number; color: string } | null; split?: EvSample["shares"] | null }) {
   return (
     <div className="min-w-0 rounded-xl border bg-muted/30 p-4">
       <p className="text-xs text-muted-foreground">{label}</p>
@@ -324,14 +530,16 @@ function EvTile({ label, value, unit, sub, bar, split }: { label: string; value:
       </p>
       {bar ? (
         <div className="mt-2 h-1 overflow-hidden rounded-full bg-border" role="presentation">
-          <div className="h-full rounded-full" style={{ width: `${bar.pct}%`, backgroundColor: bar.color }} />
+          <div className="h-full rounded-full transition-[width] duration-700" style={{ width: `${Math.min(100, bar.pct)}%`, backgroundColor: bar.color }} />
         </div>
       ) : null}
       {split ? (
         <div className="mt-2 flex h-1 gap-0.5 overflow-hidden rounded-full" role="img" aria-label={split.map((x) => `${x.label} ${x.pct}%`).join(", ")}>
-          {split.map((x) => (
-            <div key={x.key} style={{ width: `${x.pct}%`, backgroundColor: SHARE_COLOR[x.key] }} />
-          ))}
+          {split
+            .filter((x) => x.pct > 0)
+            .map((x) => (
+              <div key={x.key} style={{ width: `${x.pct}%`, backgroundColor: SHARE_COLOR[x.key] }} />
+            ))}
         </div>
       ) : null}
       {sub ? <p className="mt-1.5 truncate text-xs text-muted-foreground">{sub}</p> : null}
@@ -341,32 +549,51 @@ function EvTile({ label, value, unit, sub, bar, split }: { label: string; value:
 
 const hm = (m: number) => `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} min`;
 
-/** The EV charger's Monitoring page: the day's delivery, the live charge, today's power curve and today's charges. */
-function ChargerPage({ ev, dayStart, now, interval, onInterval }: { ev: EvSample; dayStart: number; now: number; interval: number; onInterval: (m: number) => void }) {
-  const points = bucketSeries(ev.series, interval);
+/** One charger's Monitoring page: the live charge as tiles, today's power curve and today's charges. With no charge running the tiles are dashes. */
+function ChargerPage({ ev, dayStart, now }: { ev: EvSample; dayStart: number; now: number }) {
+  const top = [...ev.shares].sort((a, b) => b.pct - a.pct)[0];
   return (
-    <>
-      <TabHeadlineBar
-        tabValue="ev"
-        headline={{ value: `${ev.deliveredToday.toFixed(1)} kWh`, label: "Delivered Today" }}
-        actions={
-          <span className="inline-flex h-9 w-56 cursor-default items-center justify-center rounded-md border bg-card text-sm font-medium text-foreground" title="Start and Stop are part of the full dashboard">
-            Stop charging
-          </span>
-        }
-      />
-      <div className="mt-3 space-y-3">
-        <div className="grid grid-cols-5 gap-3">
-          <EvTile label="Power" value={ev.kw.toFixed(1)} unit="kW" bar={{ pct: (ev.kw / ev.ratedKw) * 100, color: FLOW.producing }} sub={`of ${ev.ratedKw.toFixed(1)} kW rated`} />
-          <EvTile label="Current" value={String(ev.amps)} unit="A" sub={`${ev.volts} V`} />
-          <EvTile label="This charge" value={ev.sessionKwh.toFixed(1)} unit="kWh" bar={{ pct: (ev.sessionKwh / ev.targetKwh) * 100, color: FLOW.consuming }} sub={`${Math.round((ev.sessionKwh / ev.targetKwh) * 100)}% of the ${ev.targetKwh} kWh target`} />
-          <EvTile label="Time" value={hm(ev.elapsedMin)} sub={`about ${hm(Math.round(((ev.targetKwh - ev.sessionKwh) / ev.kw) * 60))} left`} />
-          <EvTile label="Powered by" value={String(ev.shares[0].pct)} unit="% solar" split={ev.shares} />
+    <div className="mt-3 space-y-3">
+      {ev.running && (
+      <div className="grid grid-cols-5 gap-3">
+          <EvTile
+            label="Power"
+            value={ev.running ? ev.kw.toFixed(1) : DASH}
+            unit={ev.running ? "kW" : undefined}
+            bar={ev.running ? { pct: (ev.kw / ev.ratedKw) * 100, color: FLOW.producing } : null}
+            sub={ev.running ? `of ${ev.ratedKw.toFixed(1)} kW rated` : (ev.lastCharge ?? "Not charging")}
+          />
+          <EvTile label="Current" value={ev.running ? String(ev.amps) : DASH} unit={ev.running ? "A" : undefined} sub={ev.running ? `${ev.volts} V` : undefined} />
+          <EvTile
+            label="This charge"
+            value={ev.running ? ev.sessionKwh.toFixed(1) : DASH}
+            unit={ev.running ? "kWh" : undefined}
+            bar={ev.running && ev.targetKwh ? { pct: (ev.sessionKwh / ev.targetKwh) * 100, color: FLOW.consuming } : null}
+            sub={ev.running ? (ev.targetKwh ? `${Math.round((ev.sessionKwh / ev.targetKwh) * 100)}% of the ${ev.targetKwh} kWh target` : "No target set") : undefined}
+          />
+          <EvTile
+            label="Time"
+            value={ev.running ? hm(ev.elapsedMin) : DASH}
+            sub={ev.running && ev.targetKwh && ev.kw > 0 ? `about ${hm(Math.max(0, Math.round(((ev.targetKwh - ev.sessionKwh) / ev.kw) * 60)))} left` : undefined}
+          />
+          <EvTile label="Powered by" value={ev.running ? String(top.pct) : DASH} unit={ev.running ? `% ${top.label.toLowerCase()}` : undefined} split={ev.running ? ev.shares : null} />
         </div>
-        <IntervalHeader title="Charging" minutes={interval} onChange={onInterval} />
-        <TrendChart title="Charging power" unit="kW" points={points} color={FLOW.producing} dayStart={dayStart} now={now} tall labelEvery={1} />
-        <div className="rounded-2xl border bg-card px-5 py-4 shadow-xs">
-          <p className="text-[0.85rem] font-semibold text-foreground">Today&apos;s charges</p>
+      )}
+      <GroupTitle>Today at this charger</GroupTitle>
+      <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${ev.earnings !== null ? 5 : 4}, minmax(0, 1fr))` }}>
+        <EvTile label="Charges today" value={String(ev.sessionsToday)} sub={ev.sessionsToday > 0 ? `about ${(ev.deliveredToday / ev.sessionsToday).toFixed(1)} kWh each` : undefined} />
+        <EvTile label="Energy delivered" value={ev.deliveredToday.toFixed(1)} unit="kWh" sub={`strongest ${ev.peakKw.toFixed(1)} kW`} />
+        <EvTile label="Charging time" value={hm(ev.chargingMin)} sub={ev.sessionsToday > 0 ? `about ${hm(Math.round(ev.chargingMin / ev.sessionsToday))} each` : undefined} />
+        <EvTile label="Average power" value={ev.chargingMin > 0 ? ((ev.deliveredToday / ev.chargingMin) * 60).toFixed(1) : DASH} unit={ev.chargingMin > 0 ? "kW" : undefined} sub={`of ${ev.ratedKw.toFixed(1)} kW rated`} />
+        {ev.earnings !== null && <EvTile label="Earned today" value={`₹${ev.earnings.toLocaleString("en-IN")}`} sub={`at ₹${ev.tariff} per kWh`} />}
+      </div>
+      <GroupTitle>Charging</GroupTitle>
+      <TrendChart title="Charging power" unit="kW" points={ev.series} color={FLOW.producing} dayStart={dayStart} now={now} tall labelEvery={1} />
+      <div className="rounded-2xl border bg-card px-5 py-4 shadow-xs">
+        <p className="text-[0.85rem] font-semibold text-foreground">Today&apos;s charges</p>
+        {ev.charges.length === 0 ? (
+          <p className="mt-2 text-sm text-muted-foreground">No charge today yet.</p>
+        ) : (
           <ul className="mt-2 divide-y">
             {ev.charges.map((c) => (
               <li key={c.start} className="flex items-center justify-between gap-3 py-2.5 text-sm">
@@ -376,30 +603,63 @@ function ChargerPage({ ev, dayStart, now, interval, onInterval }: { ev: EvSample
               </li>
             ))}
           </ul>
-        </div>
+        )}
       </div>
-    </>
+    </div>
   );
 }
 
-/** `locked` shows the page at its first screen only: no scrolling inside it (the rest is simply cut off). The tabs, the device menu and the charts still respond. */
+// ------------------------------------------------------------------------------------------------ the page
+
+/** `locked` shows the page at its first screen only: no scrolling inside it (the rest is simply cut off). The tabs, the menus and the charts still respond. */
 export function DemoMonitoring({ locked = false }: { locked?: boolean } = {}) {
-  const data: DemoData = React.useMemo(() => buildSampleData(), []);
-  const ev: EvSample = React.useMemo(() => buildEvSample(), []);
-  const [device, setDevice] = React.useState<DeviceId>("inverter");
-  const [tab, setTab] = React.useState<TabId>("hub");
-  const [interval, setInterval] = React.useState(15);
+  const [nowMs, setNowMs] = useNow();
+  const data: DemoData = React.useMemo(() => buildSampleData(nowMs), [nowMs]);
+  const [siteId, setSiteId] = React.useState(SAMPLE_SITES[0].id);
+  const site = SAMPLE_SITES.find((s) => s.id === siteId) ?? SAMPLE_SITES[0];
+  const [tabBySite, setTabBySite] = React.useState<Record<string, string>>({});
+  const firstTab = site.devices[0].kind === "inverter" ? "hub" : site.devices[0].id;
+  const tab = tabBySite[site.id] ?? firstTab;
+  const setTab = (t: string) => setTabBySite((prev) => ({ ...prev, [site.id]: t }));
+  const [panel, setPanel] = React.useState<PanelId | null>(null);
+  const [events, setEvents] = React.useState<Record<string, EvEvent[]>>({});
+
+  // a click outside an open menu, or Escape, closes it
+  React.useEffect(() => {
+    if (!panel) return;
+    const onDown = (e: PointerEvent) => {
+      if (!(e.target as Element).closest("[data-demo-panel],[data-demo-trigger]")) setPanel(null);
+    };
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setPanel(null);
+    document.addEventListener("pointerdown", onDown);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      document.removeEventListener("pointerdown", onDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [panel]);
 
   const { live, dayStart, now } = data;
   const L = (k: string) => live[k] ?? null;
+  const chargerDevices = React.useMemo(() => site.devices.filter((d) => d.kind === "charger"), [site]);
+  const chargers = React.useMemo(() => Object.fromEntries(chargerDevices.map((d) => [d.id, buildCharger(d, nowMs, events[d.id])])) as Record<string, EvSample>, [chargerDevices, nowMs, events]);
+  const hasInverter = site.devices.some((d) => d.kind === "inverter");
 
-  const series = (key: string, scale = 1, mode: "avg" | "last" = "avg"): SeriesPoint[] =>
-    bucketSeries(data.series[key] ?? [], interval, mode).map(([t, v]) => [t, v * scale]);
+  /** Start or stop the demo's own charge (nothing is sent to any charger). */
+  const toggleCharge = (d: SampleDevice) => {
+    const t = Date.now();
+    const hour = istDay(t).hour;
+    const running = chargers[d.id]?.running;
+    const window = (d.windows ?? []).findIndex(([from, to]) => hour >= from && hour <= to);
+    setEvents((prev) => ({ ...prev, [d.id]: [...(prev[d.id] ?? []), { mode: running ? "stop" : "start", at: hour, window: running ? window : -1 }] }));
+    setNowMs(t); // the figures are read again at this moment, so the change shows at once
+  };
+
+  const series = (key: string, scale = 1): SeriesPoint[] => (data.series[key] ?? []).map(([t, v]) => [t, v * scale]);
   const sum = (keys: string[], scale = 1): SeriesPoint[] => {
     const by = new Map<number, number>();
     for (const k of keys) for (const [t, v] of data.series[k] ?? []) by.set(t, (by.get(t) ?? 0) + v);
-    const merged = [...by.entries()].sort((a, b) => a[0] - b[0]) as SeriesPoint[];
-    return bucketSeries(merged, interval).map(([t, v]) => [t, v * scale]);
+    return ([...by.entries()].sort((a, b) => a[0] - b[0]) as SeriesPoint[]).map(([t, v]) => [t, v * scale]);
   };
 
   const chart = (title: string, unit: string, points: SeriesPoint[], color: string, opts: { digits?: number; legend?: { color: string; label: string }[]; tall?: boolean; labelEvery?: number } = {}) => (
@@ -412,114 +672,160 @@ export function DemoMonitoring({ locked = false }: { locked?: boolean } = {}) {
   const hottest = Math.max(L("inverter_dc_temperature_c") ?? -Infinity, L("inverter_ac_temperature_c") ?? -Infinity);
   const flowWord = (w: number | null, pos: string, neg: string) => (w === null ? "" : w > 0 ? pos : w < 0 ? neg : "Idle");
 
-  const headlines: Record<TabId, { value: string; label: string }> = {
+  const inverterHeadlines: Record<InverterTab, { value: string; label: string }> = {
     hub: { value: `${kw(L("inverter_output_power_w"))} kW`, label: "Output Power" },
     solar: { value: `${fixed(L("day_pv_energy_kwh"))} kWh`, label: "Power Generated" },
     battery: { value: L("battery_soc_pct") === null ? DASH : `${Math.round(L("battery_soc_pct") as number)}%`, label: "Battery Level" },
     load: { value: `${fixed(L("day_load_energy_kwh"))} kWh`, label: "Consumed Today" },
     grid: { value: `${fixed(L("day_grid_import_energy_kwh"))} kWh`, label: "Imported Today" },
   };
+  const activeCharger = chargerDevices.find((d) => d.id === tab);
+  const activeEv = activeCharger ? chargers[activeCharger.id] : null;
+  const headline = activeEv ? { value: `${activeEv.deliveredToday.toFixed(1)} kWh`, label: "Delivered Today" } : inverterHeadlines[tab in inverterHeadlines ? (tab as InverterTab) : "hub"];
 
   const cards = "grid grid-cols-4 gap-3";
   const row2 = "grid grid-cols-2 gap-3";
 
   return (
-    <div className="flex h-full w-full flex-col bg-background text-foreground">
-      <DemoHeader site={data.site} at={data.at} device={device} onPick={setDevice} />
+    <div className="relative flex h-full w-full flex-col bg-background text-foreground">
+      <DemoHeader
+        site={site}
+        sites={SAMPLE_SITES}
+        panel={panel}
+        setPanel={setPanel}
+        onSite={setSiteId}
+        nowMs={nowMs}
+        at={data.at}
+        onDevice={(d) => setTab(d.kind === "inverter" ? "hub" : d.id)}
+        activeDeviceId={activeCharger ? activeCharger.id : hasInverter ? "inverter" : null}
+        chargers={chargers}
+      />
 
       <main className={cn("min-h-0 flex-1 px-6 pb-6 pt-1", locked ? "overflow-clip" : "overflow-y-auto [scrollbar-width:thin]")}>
-        {device === "charger" ? (
-          <ChargerPage ev={ev} dayStart={dayStart} now={now} interval={interval} onInterval={setInterval} />
-        ) : (
-        <Tabs value={tab} onValueChange={(v) => setTab(v as TabId)}>
-          <TabHeadlineBar tabValue={tab} headline={headlines[tab]} />
+        <Tabs value={tab} onValueChange={setTab}>
+          <TabHeadlineBar
+            tabValue={activeCharger ? "ev" : tab}
+            headline={headline}
+            actions={
+              activeCharger && activeEv ? (
+                <button
+                  type="button"
+                  onClick={() => toggleCharge(activeCharger)}
+                  title="In this demo nothing is sent to a charger"
+                  className={cn(
+                    "inline-flex h-8 cursor-pointer items-center justify-center gap-1.5 rounded-md border px-3.5 text-xs font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-ring/50",
+                    activeEv.running ? "bg-card text-foreground hover:bg-accent/60" : "border-emerald-600 bg-emerald-600 text-white hover:bg-emerald-500",
+                  )}
+                >
+                  <Zap className="size-3.5" />
+                  {activeEv.running ? "Stop charging" : "Start charging"}
+                </button>
+              ) : undefined
+            }
+          />
           <TabsList variant="line">
-            {TABS.map(({ id, label, icon: Icon, active }) => (
-              <TabsTrigger key={id} value={id} variant="line" className={active}>
-                <Icon className="size-4 shrink-0 group-data-[state=active]:hidden" />
-                <span className="text-sm font-medium">{label}</span>
+            {hasInverter &&
+              INVERTER_TABS.map(({ id, label, icon: Icon, active }) => (
+                <TabsTrigger key={id} value={id} variant="line" className={active}>
+                  <Icon className="size-4 shrink-0 group-data-[state=active]:hidden" />
+                  <span className="text-sm font-medium">{label}</span>
+                </TabsTrigger>
+              ))}
+            {chargerDevices.map((d) => (
+              <TabsTrigger key={d.id} value={d.id} variant="line" className={CHARGER_TAB_CLASS}>
+                <EvCharger className="size-4 shrink-0 group-data-[state=active]:hidden" />
+                <span className="text-sm font-medium">{tabName(d)}</span>
               </TabsTrigger>
             ))}
           </TabsList>
 
-          <TabsContent value="hub" className="mt-3 space-y-3">
-            <div className={cards}>
-              <LiveStatusCard icon={Sun} title="Output Power" subtitle="Inverter output power" value={`${kw(L("inverter_output_power_w"))} kW`} statusLabel="Status" badgeLabel="Live" compact />
-              <LiveStatusCard icon={Gauge} title="Electrical" subtitle={`Current · ${fixed(L("inverter_l1_current_a"), 2)} A`} value={`${fixed(L("inverter_l1_voltage_v"))} V`} statusLabel="Frequency" badgeLabel={`${fixed(L("inverter_output_frequency_hz"), 2)} Hz`} compact />
-              <LiveStatusCard icon={Zap} title="AC Output" subtitle="Energy today" value={`${fixed(L("day_active_energy_kwh"))} kWh`} statusLabel="Status" badgeLabel="Today" compact />
-              <LiveStatusCard icon={Thermometer} title="Temperature" subtitle="Hottest · Heat-sink Temperature (DC)" value={Number.isFinite(hottest) ? `${hottest.toFixed(1)} °C` : DASH} statusLabel="Status" badgeLabel="Normal" badgeTone="good" compact />
-            </div>
-            <IntervalHeader title="Power Flows" minutes={interval} onChange={setInterval} />
-            {chart("Inverter output power", "kW", series("inverter_output_power_w", 0.001), FLOW.producing, { tall: true, labelEvery: 1 })}
-            <div className={row2}>
-              {chart("Solar power", "kW", sum(["pv1_power_w", "pv2_power_w"], 0.001), FLOW.producing)}
-              {chart("Load power", "kW", series("load_total_power_w", 0.001), FLOW.consuming)}
-              {chart("Grid power", "kW", series("grid_total_power_w", 0.001), FLOW.drawing)}
-              {chart("Battery power", "kW", series("battery_power_w", 0.001), FLOW.producing)}
-            </div>
-          </TabsContent>
+          {hasInverter && (
+            <>
+              <TabsContent value="hub" className="mt-3 space-y-3">
+                <div className={cards}>
+                  <LiveStatusCard icon={Sun} title="Output Power" subtitle="Inverter output power" value={`${kw(L("inverter_output_power_w"))} kW`} statusLabel="Status" badgeLabel="Live" compact />
+                  <LiveStatusCard icon={Gauge} title="Electrical" subtitle={`Current · ${fixed(L("inverter_l1_current_a"), 2)} A`} value={`${fixed(L("inverter_l1_voltage_v"))} V`} statusLabel="Frequency" badgeLabel={`${fixed(L("inverter_output_frequency_hz"), 2)} Hz`} compact />
+                  <LiveStatusCard icon={Zap} title="AC Output" subtitle="Energy today" value={`${fixed(L("day_active_energy_kwh"))} kWh`} statusLabel="Status" badgeLabel="Today" compact />
+                  <LiveStatusCard icon={Thermometer} title="Temperature" subtitle="Hottest · Heat-sink Temperature (DC)" value={Number.isFinite(hottest) ? `${hottest.toFixed(1)} °C` : DASH} statusLabel="Status" badgeLabel="Normal" badgeTone="good" compact />
+                </div>
+                <GroupTitle>Power Flows</GroupTitle>
+                {chart("Inverter output power", "kW", series("inverter_output_power_w", 0.001), FLOW.producing, { tall: true, labelEvery: 1 })}
+                <div className={row2}>
+                  {chart("Solar power", "kW", sum(["pv1_power_w", "pv2_power_w"], 0.001), FLOW.producing)}
+                  {chart("Load power", "kW", series("load_total_power_w", 0.001), FLOW.consuming)}
+                  {chart("Grid power", "kW", series("grid_total_power_w", 0.001), FLOW.drawing)}
+                  {chart("Battery power", "kW", series("battery_power_w", 0.001), FLOW.producing)}
+                </div>
+              </TabsContent>
 
-          <TabsContent value="solar" className="mt-3 space-y-3">
-            <div className={cards}>
-              <LiveStatusCard icon={Sun} title="Live Output" subtitle="Current power" value={`${kw(solarW)} kW`} statusLabel="Status" badgeLabel="Live" compact />
-              <LiveStatusCard icon={Zap} title="Generated Today" subtitle="So far today" value={`${fixed(L("day_pv_energy_kwh"))} kWh`} statusLabel="Status" badgeLabel="Today" compact />
-              <LiveStatusCard icon={Sun} title="PV1" subtitle={`${fixed(L("pv1_voltage_v"))} V · ${fixed(L("pv1_current_a"), 2)} A`} value={`${kw(L("pv1_power_w"))} kW`} statusLabel="Status" badgeLabel="Live" compact />
-              <LiveStatusCard icon={Sun} title="PV2" subtitle={`${fixed(L("pv2_voltage_v"))} V · ${fixed(L("pv2_current_a"), 2)} A`} value={`${kw(L("pv2_power_w"))} kW`} statusLabel="Status" badgeLabel="Live" compact />
-            </div>
-            <IntervalHeader title="Solar Power" minutes={interval} onChange={setInterval} />
-            {chart("Solar power", "kW", sum(["pv1_power_w", "pv2_power_w"], 0.001), FLOW.producing, { tall: true, labelEvery: 1 })}
-            <div className={row2}>
-              {chart("PV1 power", "kW", series("pv1_power_w", 0.001), PV_SHADES[0])}
-              {chart("PV2 power", "kW", series("pv2_power_w", 0.001), PV_SHADES[1])}
-            </div>
-          </TabsContent>
+              <TabsContent value="solar" className="mt-3 space-y-3">
+                <div className={cards}>
+                  <LiveStatusCard icon={Sun} title="Live Output" subtitle="Current power" value={`${kw(solarW)} kW`} statusLabel="Status" badgeLabel="Live" compact />
+                  <LiveStatusCard icon={Zap} title="Generated Today" subtitle="So far today" value={`${fixed(L("day_pv_energy_kwh"))} kWh`} statusLabel="Status" badgeLabel="Today" compact />
+                  <LiveStatusCard icon={Sun} title="PV1" subtitle={`${fixed(L("pv1_voltage_v"))} V · ${fixed(L("pv1_current_a"), 2)} A`} value={`${kw(L("pv1_power_w"))} kW`} statusLabel="Status" badgeLabel="Live" compact />
+                  <LiveStatusCard icon={Sun} title="PV2" subtitle={`${fixed(L("pv2_voltage_v"))} V · ${fixed(L("pv2_current_a"), 2)} A`} value={`${kw(L("pv2_power_w"))} kW`} statusLabel="Status" badgeLabel="Live" compact />
+                </div>
+                <GroupTitle>Solar Power</GroupTitle>
+                {chart("Solar power", "kW", sum(["pv1_power_w", "pv2_power_w"], 0.001), FLOW.producing, { tall: true, labelEvery: 1 })}
+                <div className={row2}>
+                  {chart("PV1 power", "kW", series("pv1_power_w", 0.001), PV_SHADES[0])}
+                  {chart("PV2 power", "kW", series("pv2_power_w", 0.001), PV_SHADES[1])}
+                </div>
+              </TabsContent>
 
-          <TabsContent value="battery" className="mt-3 space-y-3">
-            <div className={cards}>
-              <LiveStatusCard icon={BatteryCharging} title="Battery Level" subtitle="State of charge" value={L("battery_soc_pct") === null ? DASH : `${Math.round(L("battery_soc_pct") as number)}%`} statusLabel="Temperature" badgeLabel={`${fixed(L("battery_temperature_c"))} °C`} compact />
-              <LiveStatusCard icon={Zap} title="Battery Power" subtitle={`${fixed(L("battery_voltage_v"), 2)} V · ${fixed(L("battery_current_a"), 2)} A`} value={`${kw(battW === null ? null : Math.abs(battW))} kW`} statusLabel="Status" badgeLabel={flowWord(battW, "Charging", "Discharging")} badgeTone={battW !== null && battW > 0 ? "good" : battW !== null && battW < 0 ? "warn" : "neutral"} compact />
-              <LiveStatusCard icon={Zap} title="Charged Today" subtitle="Into the battery" value={`${fixed(L("day_battery_charge_energy_kwh"))} kWh`} statusLabel="Status" badgeLabel="Today" compact />
-              <LiveStatusCard icon={Zap} title="Discharged Today" subtitle="Out of the battery" value={`${fixed(L("day_battery_discharge_energy_kwh"))} kWh`} statusLabel="Status" badgeLabel="Today" compact />
-            </div>
-            <IntervalHeader title="Battery" minutes={interval} onChange={setInterval} />
-            {chart("Battery SOC Trend", "%", series("battery_soc_pct"), FLOW.producing, { tall: true, digits: 1, labelEvery: 1 })}
-            <div className={row2}>
-              {chart("Charged today", "kWh", series("day_battery_charge_energy_kwh", 1, "last"), FLOW.producing)}
-              {chart("Discharged today", "kWh", series("day_battery_discharge_energy_kwh", 1, "last"), FLOW.drawing)}
-            </div>
-          </TabsContent>
+              <TabsContent value="battery" className="mt-3 space-y-3">
+                <div className={cards}>
+                  <LiveStatusCard icon={BatteryCharging} title="Battery Level" subtitle="State of charge" value={L("battery_soc_pct") === null ? DASH : `${Math.round(L("battery_soc_pct") as number)}%`} statusLabel="Temperature" badgeLabel={`${fixed(L("battery_temperature_c"))} °C`} compact />
+                  <LiveStatusCard icon={Zap} title="Battery Power" subtitle={`${fixed(L("battery_voltage_v"), 2)} V · ${fixed(L("battery_current_a"), 2)} A`} value={`${kw(battW === null ? null : Math.abs(battW))} kW`} statusLabel="Status" badgeLabel={flowWord(battW, "Charging", "Discharging")} badgeTone={battW !== null && battW > 0 ? "good" : battW !== null && battW < 0 ? "warn" : "neutral"} compact />
+                  <LiveStatusCard icon={Zap} title="Charged Today" subtitle="Into the battery" value={`${fixed(L("day_battery_charge_energy_kwh"))} kWh`} statusLabel="Status" badgeLabel="Today" compact />
+                  <LiveStatusCard icon={Zap} title="Discharged Today" subtitle="Out of the battery" value={`${fixed(L("day_battery_discharge_energy_kwh"))} kWh`} statusLabel="Status" badgeLabel="Today" compact />
+                </div>
+                <GroupTitle>Battery</GroupTitle>
+                {chart("Battery SOC Trend", "%", series("battery_soc_pct"), FLOW.producing, { tall: true, digits: 1, labelEvery: 1 })}
+                <div className={row2}>
+                  {chart("Charged today", "kWh", series("day_battery_charge_energy_kwh"), FLOW.producing)}
+                  {chart("Discharged today", "kWh", series("day_battery_discharge_energy_kwh"), FLOW.drawing)}
+                </div>
+              </TabsContent>
 
-          <TabsContent value="load" className="mt-3 space-y-3">
-            <div className={cards}>
-              <LiveStatusCard icon={Home} title="Live Draw" subtitle="Current draw" value={`${kw(L("load_total_power_w"))} kW`} statusLabel="Status" badgeLabel="Live" compact />
-              <LiveStatusCard icon={Zap} title="Consumed Today" subtitle="So far today" value={`${fixed(L("day_load_energy_kwh"))} kWh`} statusLabel="Status" badgeLabel="Today" compact />
-              <LiveStatusCard icon={Zap} title="L1 Power" subtitle="Phase L1" value={`${fixed(L("load_l1_power_w"), 0)} W`} statusLabel="Status" badgeLabel="Live" compact />
-              <LiveStatusCard icon={Gauge} title="Electrical" subtitle={`Current · ${fixed(L("load_l1_current_a"), 2)} A`} value={`${fixed(L("load_l1_voltage_v"))} V`} statusLabel="Frequency" badgeLabel={`${fixed(L("load_frequency_hz"), 2)} Hz`} compact />
-            </div>
-            <IntervalHeader title="Load" minutes={interval} onChange={setInterval} />
-            {chart("Load Power", "kW", series("load_total_power_w", 0.001), FLOW.consuming, { tall: true, labelEvery: 1 })}
-            <div className={row2}>
-              {chart("Consumed today", "kWh", series("day_load_energy_kwh", 1, "last"), FLOW.consuming)}
-              {chart("Load current", "A", series("load_l1_current_a"), "#8b5cf6")}
-            </div>
-          </TabsContent>
+              <TabsContent value="load" className="mt-3 space-y-3">
+                <div className={cards}>
+                  <LiveStatusCard icon={Home} title="Live Draw" subtitle="Current draw" value={`${kw(L("load_total_power_w"))} kW`} statusLabel="Status" badgeLabel="Live" compact />
+                  <LiveStatusCard icon={Zap} title="Consumed Today" subtitle="So far today" value={`${fixed(L("day_load_energy_kwh"))} kWh`} statusLabel="Status" badgeLabel="Today" compact />
+                  <LiveStatusCard icon={Zap} title="L1 Power" subtitle="Phase L1" value={`${fixed(L("load_l1_power_w"), 0)} W`} statusLabel="Status" badgeLabel="Live" compact />
+                  <LiveStatusCard icon={Gauge} title="Electrical" subtitle={`Current · ${fixed(L("load_l1_current_a"), 2)} A`} value={`${fixed(L("load_l1_voltage_v"))} V`} statusLabel="Frequency" badgeLabel={`${fixed(L("load_frequency_hz"), 2)} Hz`} compact />
+                </div>
+                <GroupTitle>Load</GroupTitle>
+                {chart("Load Power", "kW", series("load_total_power_w", 0.001), FLOW.consuming, { tall: true, labelEvery: 1 })}
+                <div className={row2}>
+                  {chart("Consumed today", "kWh", series("day_load_energy_kwh"), FLOW.consuming)}
+                  {chart("Load current", "A", series("load_l1_current_a"), "#8b5cf6")}
+                </div>
+              </TabsContent>
 
-          <TabsContent value="grid" className="mt-3 space-y-3">
-            <div className={cards}>
-              <LiveStatusCard icon={Zap} title="Live Flow" subtitle={flowWord(gridW, "Importing", "Exporting") || "Grid power"} value={`${kw(gridW === null ? null : Math.abs(gridW))} kW`} statusLabel="Status" badgeLabel={flowWord(gridW, "Importing", "Exporting")} badgeTone={gridW !== null && gridW > 0 ? "warn" : "neutral"} compact />
-              <LiveStatusCard icon={Zap} title="Energy Today" subtitle="Imported / Exported" value={`${fixed(L("day_grid_import_energy_kwh"))} / ${fixed(L("day_grid_export_energy_kwh"))} kWh`} statusLabel="Status" badgeLabel="Today" compact />
-              <LiveStatusCard icon={Gauge} title="Electrical" subtitle={`Current · ${fixed(L("grid_l1_current_a"), 2)} A`} value={`${fixed(L("grid_l1_voltage_v"))} V`} statusLabel="Frequency" badgeLabel={`${fixed(L("grid_frequency_hz"), 2)} Hz`} compact />
-              <LiveStatusCard icon={Zap} title="CT Meter" subtitle={`Current · ${fixed(L("grid_ct_l1_current_a"), 2)} A`} value={`${kw(L("grid_ct_total_power_w"))} kW`} statusLabel="CT power" badgeLabel={`${fixed(L("grid_ct_total_power_w"), 0)} W`} compact />
-            </div>
-            <IntervalHeader title="Grid" minutes={interval} onChange={setInterval} />
-            {chart("Grid Power", "kW", series("grid_total_power_w", 0.001), FLOW.drawing, { tall: true, labelEvery: 1, legend: [{ color: FLOW.drawing, label: "Importing" }, { color: FLOW.consuming, label: "Exporting" }] })}
-            <div className={row2}>
-              {chart("Imported today", "kWh", series("day_grid_import_energy_kwh", 1, "last"), FLOW.drawing)}
-              {chart("Exported today", "kWh", series("day_grid_export_energy_kwh", 1, "last"), FLOW.consuming)}
-            </div>
-          </TabsContent>
+              <TabsContent value="grid" className="mt-3 space-y-3">
+                <div className={cards}>
+                  <LiveStatusCard icon={Zap} title="Live Flow" subtitle={flowWord(gridW, "Importing", "Exporting") || "Grid power"} value={`${kw(gridW === null ? null : Math.abs(gridW))} kW`} statusLabel="Status" badgeLabel={flowWord(gridW, "Importing", "Exporting")} badgeTone={gridW !== null && gridW > 0 ? "warn" : "neutral"} compact />
+                  <LiveStatusCard icon={Zap} title="Energy Today" subtitle="Imported / Exported" value={`${fixed(L("day_grid_import_energy_kwh"))} / ${fixed(L("day_grid_export_energy_kwh"))} kWh`} statusLabel="Status" badgeLabel="Today" compact />
+                  <LiveStatusCard icon={Gauge} title="Electrical" subtitle={`Current · ${fixed(L("grid_l1_current_a"), 2)} A`} value={`${fixed(L("grid_l1_voltage_v"))} V`} statusLabel="Frequency" badgeLabel={`${fixed(L("grid_frequency_hz"), 2)} Hz`} compact />
+                  <LiveStatusCard icon={Zap} title="CT Meter" subtitle={`Current · ${fixed(L("grid_ct_l1_current_a"), 2)} A`} value={`${kw(L("grid_ct_total_power_w"))} kW`} statusLabel="CT power" badgeLabel={`${fixed(L("grid_ct_total_power_w"), 0)} W`} compact />
+                </div>
+                <GroupTitle>Grid</GroupTitle>
+                {chart("Grid Power", "kW", series("grid_total_power_w", 0.001), FLOW.drawing, { tall: true, labelEvery: 1, legend: [{ color: FLOW.drawing, label: "Importing" }, { color: FLOW.consuming, label: "Exporting" }] })}
+                <div className={row2}>
+                  {chart("Imported today", "kWh", series("day_grid_import_energy_kwh"), FLOW.drawing)}
+                  {chart("Exported today", "kWh", series("day_grid_export_energy_kwh"), FLOW.consuming)}
+                </div>
+              </TabsContent>
+            </>
+          )}
+
+          {chargerDevices.map((d) => (
+            <TabsContent key={d.id} value={d.id}>
+              <ChargerPage ev={chargers[d.id]} dayStart={dayStart} now={now} />
+            </TabsContent>
+          ))}
         </Tabs>
-        )}
       </main>
     </div>
   );
