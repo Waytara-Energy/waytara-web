@@ -2,7 +2,6 @@
 
 import * as React from "react";
 import dynamic from "next/dynamic";
-import { Bell, CircleCheck, CloudSun, MapPin, Zap, type LucideIcon } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 import type { DemoInitial } from "@/components/sections/demo-monitoring";
 
@@ -20,8 +19,6 @@ interface Slide {
   title: string;
   accent: string;
   body: string;
-  /** A small card floating over the picture, saying the one thing to notice. */
-  callout: { icon: LucideIcon; title: string; text: string };
   initial: DemoInitial;
 }
 
@@ -31,35 +28,30 @@ const SLIDES: Slide[] = [
     title: "See everything,",
     accent: "live.",
     body: "Solar, battery, grid, load and your EV charger on one screen, updating as it happens.",
-    callout: { icon: CircleCheck, title: "All devices online", text: "Inverter and charger reporting" },
     initial: { tab: "hub" },
   },
   {
     title: "Know the moment",
     accent: "something needs you.",
     body: "Faults, warnings and good news land in one place, so nothing waits unseen.",
-    callout: { icon: Bell, title: "Every alert, one place", text: "Faults, actions, warnings, good news" },
     initial: { panel: "bell", alert: 0 },
   },
   {
     title: "Run your EV charger",
     accent: "from anywhere.",
     body: "Start or stop a charge, and see what is powering it and what it has delivered today.",
-    callout: { icon: Zap, title: "Charge on sunshine", text: "See how much of it is solar" },
     initial: { tab: "ev-home" },
   },
   {
     title: "Every site,",
     accent: "one login.",
     body: "Homes, buildings and charging sites, each one tap away, without signing in again.",
-    callout: { icon: MapPin, title: "Charging Hub", text: "Four chargers, one login" },
     initial: { site: "hub", tab: "hub-1", panel: "site" },
   },
   {
     title: "The weather,",
     accent: "built in.",
     body: "See what the sky means for your solar before the day gets going.",
-    callout: { icon: CloudSun, title: "Forecast built in", text: "Plan around the sky" },
     initial: { panel: "weather" },
   },
 ];
@@ -100,30 +92,9 @@ function Preview({ initial }: { initial: DemoInitial }) {
   );
 }
 
-const PHONE_WIDTH = 236;
-const PHONE_SCREEN = PHONE_WIDTH - 12;
-const PHONE_DESIGN = 390;
-
-/** The same view in the phone layout, in a phone: it floats beside the window, lower and to the right, and runs off the bottom of the panel like it. */
-function Phone({ initial }: { initial: DemoInitial }) {
-  return (
-    <div
-      aria-hidden="true"
-      className="login-float-slow pointer-events-none absolute right-8 top-[40%] z-10 rounded-[2.5rem] border-[6px] border-neutral-900 bg-neutral-900 shadow-[0_30px_70px_-22px_rgba(15,23,42,0.55)] dark:border-neutral-600 dark:bg-neutral-600 dark:shadow-[0_30px_70px_-22px_rgba(0,0,0,0.95)]"
-      style={{ width: PHONE_WIDTH }}
-    >
-      <div className="relative overflow-hidden rounded-[2rem] bg-background" style={{ width: PHONE_SCREEN, height: 760 }}>
-        <div style={{ width: PHONE_DESIGN, height: 760 / (PHONE_SCREEN / PHONE_DESIGN), transform: `scale(${PHONE_SCREEN / PHONE_DESIGN})`, transformOrigin: "top left" }}>
-          <DemoMonitoring locked mobile initial={initial} />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 /**
  * The left half of the sign-in page, edge to edge, plain white or black like the rest of the site: the logo, one idea at a time (a heading and a sentence),
- * and the application as a straight window running off the corner, with the same view in a phone floating beside it and one small card floating over both. Five slides advance by themselves with
+ * and the application as a straight window running off the corner. Five slides advance by themselves with
  * a bar for each that fills as its time runs; they stop while the pointer is over the panel and do not move at all for visitors who ask for less motion.
  * It shows only on a wide screen.
  */
@@ -150,14 +121,13 @@ export function LoginShowcase() {
   }, [wide, paused, still, index]);
 
   const slide = SLIDES[index];
-  const Callout = slide.callout.icon;
   return (
     <div
       className="relative hidden w-1/2 flex-col overflow-hidden bg-theme-bg lg:flex"
       onMouseEnter={() => setPaused(true)}
       onMouseLeave={() => setPaused(false)}
     >
-      <div className="relative px-12 pt-9 xl:px-16">
+      <div className="relative px-12 pt-14 xl:px-16 xl:pt-16">
         <Logo />
       </div>
 
@@ -171,18 +141,6 @@ export function LoginShowcase() {
 
       <div key={`p${index}`} className="login-slide-late relative mt-8 min-h-0 flex-1 overflow-hidden pl-12 xl:pl-16">
         {wide && <Preview initial={slide.initial} />}
-        {wide && <Phone initial={slide.initial} />}
-
-        {/* the one thing to notice, floating over the picture */}
-        <div className="login-float pointer-events-none absolute bottom-24 left-16 z-20 flex items-center gap-3 rounded-2xl border border-theme-border bg-theme-bg/90 py-3 pl-3 pr-5 shadow-[0_18px_40px_-14px_rgba(15,23,42,0.35)] backdrop-blur dark:shadow-[0_18px_40px_-14px_rgba(0,0,0,0.8)]">
-          <span className="grid size-10 place-items-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:text-emerald-400">
-            <Callout className="size-5" strokeWidth={1.8} aria-hidden="true" />
-          </span>
-          <span>
-            <span className="block text-sm font-semibold text-theme-primary">{slide.callout.title}</span>
-            <span className="block text-xs text-theme-secondary">{slide.callout.text}</span>
-          </span>
-        </div>
       </div>
 
       {/* one bar for each slide: the bar of the slide on show fills as its time runs */}

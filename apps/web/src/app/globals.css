@@ -618,30 +618,13 @@ html[data-reduce-motion="true"] *::after {
     transform: scaleX(1);
   }
 }
-@keyframes login-float {
-  0%,
-  100% {
-    transform: translateY(0);
-  }
-  50% {
-    transform: translateY(-6px);
-  }
-}
 .login-progress {
   transform-origin: left;
   animation: login-progress linear forwards;
 }
-.login-float {
-  animation: login-float 6s ease-in-out infinite;
-}
-.login-float-slow {
-  animation: login-float 8s ease-in-out -2s infinite;
-}
 @media (prefers-reduced-motion: reduce) {
   .login-slide,
-  .login-slide-late,
-  .login-float,
-  .login-float-slow {
+  .login-slide-late {
     animation: none;
   }
 }
