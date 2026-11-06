@@ -83,11 +83,11 @@ function Preview({ initial }: { initial: DemoInitial }) {
     <div ref={ref} className="pointer-events-none relative h-full select-none" aria-hidden="true">
       {size && (
         <div
-          className="absolute left-0 top-0 rounded-tl-[56px] border-[2px] border-r-0 border-b-0 border-black/15 bg-background shadow-[0_30px_80px_-30px_rgba(15,23,42,0.3)] dark:border-white/20 dark:shadow-[0_30px_80px_-30px_rgba(0,0,0,0.9)]"
+          className="absolute left-0 top-0 rounded-tl-[56px] border-[2px] border-r-0 border-b-0 border-black/20 bg-background dark:border-white/25"
           style={{ width: DEMO_WIDTH, height, transform: `scale(${scale})`, transformOrigin: "left top" }}
         >
-          {/* the corner is cut by the clip path as well as by the radius: a tilted, scaled window with charts in it can otherwise show square corners */}
-          <div className="h-full w-full overflow-hidden rounded-tl-[56px]" style={{ clipPath: "inset(0 round 56px 0 0 0)" }}>
+          {/* no shadow (it smudged grey round the curve and was cut off by the panel's edge); the inside is cut to the border's own inner curve, 56 px minus the 2 px border */}
+          <div className="h-full w-full overflow-hidden rounded-tl-[54px]" style={{ clipPath: "inset(0 round 54px 0 0 0)" }}>
             <DemoMonitoring locked initial={initial} />
           </div>
         </div>
