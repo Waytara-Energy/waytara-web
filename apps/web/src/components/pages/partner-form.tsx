@@ -9,25 +9,12 @@ import { MultiSelect, type MultiSelectOption } from "@/components/ui/multi-selec
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
+import { FormPart } from "./form-part";
 import { PARTNER_CITIES, PARTNER_INSTALL_RANGES, PARTNER_SERVICES, PARTNER_STATES, PARTNER_TEAM_SIZES } from "@/lib/partner-options";
 
 const STATE_OPTIONS: MultiSelectOption[] = PARTNER_STATES.map((s) => ({ value: s, label: s }));
 /** A listed city is kept as "State|City" (two states can share a name); one the installer typed is kept as it was typed. */
 const cityLabel = (v: string) => (v.includes("|") ? v.split("|")[1] : v);
-
-function Part({ n, title, hint, children }: { n: number; title: string; hint?: string; children: React.ReactNode }) {
-  return (
-    <fieldset className="border-t border-theme-border py-9 first:border-t-0 first:pt-0">
-      <legend className="sr-only">{title}</legend>
-      <div className="mb-6 flex items-baseline gap-3" aria-hidden="true">
-        <span className="text-sm font-semibold tabular-nums text-theme-highlight">{String(n).padStart(2, "0")}</span>
-        <h3 className="text-lg font-bold tracking-tight text-theme-primary sm:text-xl">{title}</h3>
-        {hint && <span className="text-sm text-theme-muted">{hint}</span>}
-      </div>
-      {children}
-    </fieldset>
-  );
-}
 
 const Optional = () => <span className="font-normal text-theme-muted"> (optional)</span>;
 
@@ -113,7 +100,7 @@ export function PartnerForm() {
   const field = "space-y-2";
   return (
     <form onSubmit={onSubmit} className="relative">
-      <Part n={1} title="Your company">
+      <FormPart n={1} title="Your company">
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
           <div className={field}>
             <Label htmlFor="pf-company">Company name</Label>
@@ -139,9 +126,9 @@ export function PartnerForm() {
             <Input id="pf-email" name="email" type="email" required autoComplete="email" />
           </div>
         </div>
-      </Part>
+      </FormPart>
 
-      <Part n={2} title="What you do" hint="Tap everything that applies">
+      <FormPart n={2} title="What you do" hint="Tap everything that applies">
         <div className="flex flex-wrap gap-3">
           {PARTNER_SERVICES.map((s) => {
             const on = services.includes(s.id);
@@ -162,9 +149,9 @@ export function PartnerForm() {
             );
           })}
         </div>
-      </Part>
+      </FormPart>
 
-      <Part n={3} title="Where you work" hint="Search and pick">
+      <FormPart n={3} title="Where you work" hint="Search and pick">
         <div className="grid grid-cols-1 gap-x-5 gap-y-6 sm:grid-cols-2">
           <div className={cn(field, "sm:col-span-1")}>
             <Label htmlFor="pf-states">States and union territories</Label>
@@ -197,9 +184,9 @@ export function PartnerForm() {
             />
           </div>
         </div>
-      </Part>
+      </FormPart>
 
-      <Part n={4} title="Your experience">
+      <FormPart n={4} title="Your experience">
         <div className="grid grid-cols-1 gap-5 sm:grid-cols-3">
           <div className={field}>
             <Label htmlFor="pf-years">
@@ -252,9 +239,9 @@ export function PartnerForm() {
             <Textarea id="pf-certs" name="certifications" rows={2} />
           </div>
         </div>
-      </Part>
+      </FormPart>
 
-      <Part n={5} title="Anything else">
+      <FormPart n={5} title="Anything else">
         <div className={field}>
           <Label htmlFor="pf-message">
             What would you like us to know?
@@ -262,7 +249,7 @@ export function PartnerForm() {
           </Label>
           <Textarea id="pf-message" name="message" rows={4} />
         </div>
-      </Part>
+      </FormPart>
 
       {/* Honeypot: real visitors never see or fill this. */}
       <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
