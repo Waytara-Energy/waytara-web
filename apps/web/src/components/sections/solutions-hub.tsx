@@ -1,11 +1,10 @@
-import Link from "next/link";
-import { ArrowRight, CircleCheck } from "lucide-react";
 import { Navigation } from "@/components/sections/navigation";
 import { Footer } from "@/components/sections/footer";
 import { WhoWeServe } from "@/components/sections/who-we-serve";
 import { WhereToStart } from "@/components/sections/where-to-start";
 import { Reveal } from "@/components/shared/reveal";
 import { SectionHeader } from "@/components/shared/section-header";
+import { FeatureColumns } from "@/components/segments/segment-parts";
 import { OFFERS } from "@/data/offers";
 
 // Where each need leads. Build and Charge go to the planner; Manage starts with a compatibility check (built in a later step).
@@ -55,43 +54,10 @@ export function SolutionsHub() {
               />
             </Reveal>
 
-            {/* Three frameless columns, the same look as "What WayTara does" on the landing page; each keeps its anchor for the header menu. */}
-            <div className="grid grid-cols-1 gap-12 md:grid-cols-3 lg:gap-12">
-              {OFFERS.map(({ id, icon: Icon, title, body, includes, whoFor }, i) => {
-                const link = NEED_LINKS[id];
-                return (
-                  <div key={id} id={id} className="scroll-mt-28">
-                    <Reveal direction="up" duration={650} distance={24} delay={i * 100}>
-                      <div className="group flex h-full flex-col justify-start text-left">
-                        <div className="mb-4">
-                          <div className="flex size-10 items-center justify-center rounded-full border border-theme-border bg-theme-surface text-theme-primary transition-colors group-hover:border-emerald-500/30 group-hover:bg-emerald-500/10 group-hover:text-emerald-500 dark:group-hover:text-emerald-400">
-                            <Icon className="size-5 stroke-[1.75]" aria-hidden="true" />
-                          </div>
-                        </div>
-                        <h3 className="mb-2 text-base font-bold tracking-tight text-theme-primary sm:text-lg">{title}</h3>
-                        <p className="text-sm font-normal leading-relaxed text-theme-secondary sm:text-[15px]">{body}</p>
-                        <ul className="mt-5 space-y-2.5 border-t border-theme-border pt-5">
-                          {includes.map((item) => (
-                            <li key={item} className="flex items-start gap-2.5 text-sm text-theme-secondary">
-                              <CircleCheck className="mt-0.5 size-4 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                              <span>{item}</span>
-                            </li>
-                          ))}
-                        </ul>
-                        <p className="mt-5 text-sm text-theme-secondary">
-                          <span className="font-semibold text-theme-primary">Who it is for: </span>
-                          {whoFor}
-                        </p>
-                        <Link href={link.href} className="group/link mt-5 inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
-                          {link.label}
-                          <ArrowRight className="size-4 transition-transform group-hover/link:translate-x-0.5" aria-hidden="true" />
-                        </Link>
-                      </div>
-                    </Reveal>
-                  </div>
-                );
-              })}
-            </div>
+            {/* Three frameless blocks, the same look as "What WayTara does" on the landing page; each keeps its anchor for the header menu. */}
+            <FeatureColumns
+              items={OFFERS.map(({ id, icon, title, blockBody, includes, whoFor }) => ({ id, icon, title, body: blockBody, includes, whoFor, link: NEED_LINKS[id] }))}
+            />
           </div>
         </section>
 

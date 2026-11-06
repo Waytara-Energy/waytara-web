@@ -108,8 +108,12 @@ export interface Feature {
   body: string;
   /** Up to four short ticked lines under a thin rule. */
   includes?: string[];
-  /** A green quick link at the foot of the block (used when there is no list). */
+  /** A green quick link at the foot of the block. */
   link?: Cta;
+  /** One short line under the list: who the block is for. Shown as "Who it is for: ...". */
+  whoFor?: string;
+  /** An anchor for the in-page menu to jump to. */
+  id?: string;
 }
 
 /**
@@ -124,12 +128,15 @@ export function FeatureColumns({ items, columns }: { items: Feature[]; /** Force
         ? "sm:grid-cols-2 lg:grid-cols-4"
         : "sm:grid-cols-2";
   // Each block takes four rows (icon, title, sentence, list) shared with its neighbours in the same row of blocks (subgrid), so the titles,
-  // sentences and tick lists line up whatever the text length. The gap between rows of blocks is the padding at each block's foot.
+  // sentences and tick lists line up whatever the text length. A block with a "who it is for" line and a link under its list takes six.
+  // The gap between rows of blocks is the padding at each block's foot.
+  const tall = items.some((item) => item.whoFor || (item.link && item.includes));
+  const span = tall ? "row-span-6" : "row-span-4";
   return (
     <ul className={cn("-mb-14 grid grid-cols-1 gap-x-12", cols)}>
-      {items.map(({ icon: Icon, title, body, includes, link }, i) => (
-        <li key={title} className="row-span-4 grid grid-rows-subgrid pb-14">
-          <Reveal direction="up" duration={800} distance={24} delay={(i % 4) * 90} className="row-span-4 grid grid-rows-subgrid">
+      {items.map(({ icon: Icon, title, body, includes, link, whoFor, id }, i) => (
+        <li key={title} id={id} className={cn("grid grid-rows-subgrid pb-14", span, id && "scroll-mt-28")}>
+          <Reveal direction="up" duration={800} distance={24} delay={(i % 4) * 90} className={cn("grid grid-rows-subgrid", span)}>
             <Icon className="size-12 stroke-[1.1] text-theme-primary sm:size-14" aria-hidden="true" />
             <h3 className="mt-6 text-lg font-bold tracking-tight text-theme-primary sm:text-xl">{title}</h3>
             <p className="mt-2 max-w-[26rem] text-pretty text-[15px] leading-relaxed text-theme-secondary sm:text-base">{body}</p>
@@ -143,7 +150,17 @@ export function FeatureColumns({ items, columns }: { items: Feature[]; /** Force
                 ))}
               </ul>
             )}
-            {link && !includes && (
+            {tall && includes && (
+              <p className="mt-5 self-start text-sm leading-relaxed text-theme-secondary">
+                {whoFor && (
+                  <>
+                    <span className="font-semibold text-theme-primary">Who it is for: </span>
+                    {whoFor}
+                  </>
+                )}
+              </p>
+            )}
+            {link && (
               <Link href={link.href} className="group mt-5 inline-flex items-center gap-1.5 self-start text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
                 {link.label}
                 <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
