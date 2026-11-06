@@ -1,12 +1,12 @@
 import Link from "next/link";
-import Image from "next/image";
-import { HelpCircle, Phone } from "lucide-react";
+import { LifeBuoy } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PasswordInput } from "@/components/ui/password-input";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { ToastFromSearchParams } from "@/components/dashboard/toast-from-search-params";
+import { LoginShowcase } from "@/components/auth/login-showcase";
 import { login } from "./actions";
 
 const LEGAL_LINKS = [
@@ -29,44 +29,14 @@ export default async function LoginPage({
 
   return (
     <div className="flex min-h-screen bg-theme-bg">
-      {/* Left: hero photo, theme-swapped — hidden below lg so the form gets
-          full width on mobile rather than squeezing next to a cropped photo. */}
-      <div className="relative hidden w-1/2 lg:block">
-        <Image
-          src="/images/login-light.webp"
-          alt="A WayTara-equipped home with rooftop solar and an EV charger, in daylight"
-          fill
-          priority
-          sizes="50vw"
-          className="theme-media-light object-cover"
-        />
-        <Image
-          src="/images/login-dark.webp"
-          alt="A WayTara-equipped home with rooftop solar and an EV charger, at night"
-          fill
-          priority
-          sizes="50vw"
-          className="theme-media-dark object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-black/10 to-transparent" />
-        <div className="absolute bottom-12 left-12 right-12">
-          <p className="text-2xl font-semibold leading-snug text-white">
-            Your energy system, always within reach.
-          </p>
-          <p className="mt-2 text-sm text-white/80">
-            Monitor output, manage payments, and get support — all from one dashboard.
-          </p>
-        </div>
-      </div>
+      {/* Left: the application, five slides (wide screens only) */}
+      <LoginShowcase />
 
       {/* Right: the actual sign-in form */}
       <div className="flex w-full flex-col lg:w-1/2">
         <header className="flex items-center justify-end gap-1 p-4">
-          <Link href="/knowledge-centre" className={HEADER_ICON_CLASS} title="Knowledge Centre & Guides" aria-label="Knowledge Centre">
-            <HelpCircle className="h-[19px] w-[19px]" />
-          </Link>
-          <Link href="/contact" className={HEADER_ICON_CLASS} title="Contact & Engineering Support" aria-label="Contact Us">
-            <Phone className="h-[19px] w-[19px]" />
+          <Link href="/support" className={HEADER_ICON_CLASS} title="Support" aria-label="Support">
+            <LifeBuoy className="h-[19px] w-[19px]" />
           </Link>
           <ThemeToggle className={HEADER_ICON_CLASS} />
         </header>
@@ -102,12 +72,11 @@ export default async function LoginPage({
             </form>
 
             <p className="text-center text-xs text-theme-muted">
-              New customers get account access from the invite link sent by their
-              WayTara advisor after onboarding —{" "}
-              <Link href="/contact" className="text-theme-highlight hover:underline">
-                contact us
+              New to WayTara?{" "}
+              <Link href="/planner" className="text-theme-highlight hover:underline">
+                Plan your system
               </Link>{" "}
-              if you haven&apos;t received one.
+              and our team will get in touch.
             </p>
           </div>
         </main>

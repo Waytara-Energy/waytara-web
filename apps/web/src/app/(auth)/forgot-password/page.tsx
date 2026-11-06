@@ -1,6 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { HelpCircle, Phone } from "lucide-react";
+import { LifeBuoy } from "lucide-react";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { ForgotPasswordForm } from "./forgot-password-form";
 
@@ -49,21 +49,8 @@ export default function ForgotPasswordPage() {
       {/* Right: the verification and password reset form */}
       <div className="flex w-full flex-col lg:w-1/2">
         <header className="flex items-center justify-end gap-1 p-4">
-          <Link
-            href="/knowledge-centre"
-            className={HEADER_ICON_CLASS}
-            title="Knowledge Centre & Guides"
-            aria-label="Knowledge Centre"
-          >
-            <HelpCircle className="h-[19px] w-[19px]" />
-          </Link>
-          <Link
-            href="/contact"
-            className={HEADER_ICON_CLASS}
-            title="Contact & Engineering Support"
-            aria-label="Contact Us"
-          >
-            <Phone className="h-[19px] w-[19px]" />
+          <Link href="/support" className={HEADER_ICON_CLASS} title="Support" aria-label="Support">
+            <LifeBuoy className="h-[19px] w-[19px]" />
           </Link>
           <ThemeToggle className={HEADER_ICON_CLASS} />
         </header>

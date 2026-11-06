@@ -253,19 +253,6 @@ export function FAQ({ selectedSegment }: FaqProps) {
 
         </div>
 
-        {/* 4. Bottom Knowledge Centre Link */}
-        <Reveal direction="fade" delay={220} duration={600}>
-          <div className="text-center flex justify-center pt-8 sm:pt-10">
-            <Link
-              href="/knowledge-centre"
-              className="inline-flex items-center gap-1.5 text-sm font-semibold text-theme-primary hover:text-theme-highlight underline underline-offset-4 decoration-theme-primary/30 hover:decoration-theme-highlight transition-all duration-200 group cursor-pointer"
-            >
-              <span>Explore the Knowledge Centre</span>
-              <ArrowUpRight className="w-4 h-4 transition-transform group-hover:translate-x-0.5 group-hover:-translate-y-0.5" />
-            </Link>
-          </div>
-        </Reveal>
-
       </div>
     </section>
   );

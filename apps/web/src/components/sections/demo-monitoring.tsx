@@ -210,7 +210,15 @@ function GroupTitle({ children }: { children: React.ReactNode }) {
 
 // ------------------------------------------------------------------------------------------------ the header
 
-type PanelId = "site" | "weather" | "bell" | `device:${string}`;
+export type PanelId = "site" | "weather" | "bell" | `device:${string}`;
+
+/** Where the demo starts: a site, a tab, a menu already open, and a notification already opened out (used by the sign-in page's pictures of the app). */
+export interface DemoInitial {
+  site?: string;
+  tab?: string;
+  panel?: PanelId;
+  alert?: number;
+}
 
 const WEATHER_ICON: Record<SampleCondition, { day: LucideIcon; night: LucideIcon; tone: string }> = {
   clear: { day: Sun, night: Moon, tone: "text-amber-500" },
@@ -269,6 +277,7 @@ function DemoHeader({
   activeDeviceId,
   chargers,
   mobile,
+  initialAlert,
 }: {
   site: SampleSite;
   sites: SampleSite[];
@@ -282,6 +291,7 @@ function DemoHeader({
   chargers: Record<string, EvSample>;
   /** The phone layout: a tighter header, the devices in one menu, and the panels as wide as the page. */
   mobile: boolean;
+  initialAlert?: number;
 }) {
   // on a phone the panels hang from the header itself (as wide as the page), not from the button that opened them
   const wrap = mobile ? "" : "relative";
@@ -290,7 +300,7 @@ function DemoHeader({
   const WIcon = WEATHER_ICON[w.condition][w.night ? "night" : "day"];
   const alerts = ALERTS[site.id] ?? [];
   const [filter, setFilter] = React.useState<"all" | Alert["kind"]>("all");
-  const [openAlert, setOpenAlert] = React.useState<number | null>(null);
+  const [openAlert, setOpenAlert] = React.useState<number | null>(initialAlert ?? null);
   const shown = alerts.filter((a) => filter === "all" || a.kind === filter);
   const counts = (k: Alert["kind"]) => alerts.filter((a) => a.kind === k).length;
 
@@ -665,16 +675,16 @@ function ChargerPage({ ev, dayStart, now, mobile }: { ev: EvSample; dayStart: nu
 // ------------------------------------------------------------------------------------------------ the page
 
 /** `locked` shows the page at its first screen only: no scrolling inside it (the rest is simply cut off). The tabs, the menus and the charts still respond. */
-export function DemoMonitoring({ locked = false, mobile = false }: { locked?: boolean; /** The phone layout: two cards across, one chart across, the devices in one menu. */ mobile?: boolean } = {}) {
+export function DemoMonitoring({ locked = false, mobile = false, initial }: { locked?: boolean; /** The phone layout: two cards across, one chart across, the devices in one menu. */ mobile?: boolean; initial?: DemoInitial } = {}) {
   const [nowMs, setNowMs] = useNow();
   const data: DemoData = React.useMemo(() => buildSampleData(nowMs), [nowMs]);
-  const [siteId, setSiteId] = React.useState(SAMPLE_SITES[0].id);
+  const [siteId, setSiteId] = React.useState(initial?.site ?? SAMPLE_SITES[0].id);
   const site = SAMPLE_SITES.find((s) => s.id === siteId) ?? SAMPLE_SITES[0];
-  const [tabBySite, setTabBySite] = React.useState<Record<string, string>>({});
+  const [tabBySite, setTabBySite] = React.useState<Record<string, string>>(initial?.tab ? { [initial.site ?? SAMPLE_SITES[0].id]: initial.tab } : {});
   const firstTab = site.devices[0].kind === "inverter" ? "hub" : site.devices[0].id;
   const tab = tabBySite[site.id] ?? firstTab;
   const setTab = (t: string) => setTabBySite((prev) => ({ ...prev, [site.id]: t }));
-  const [panel, setPanel] = React.useState<PanelId | null>(null);
+  const [panel, setPanel] = React.useState<PanelId | null>(initial?.panel ?? null);
   const [events, setEvents] = React.useState<Record<string, EvEvent[]>>({});
 
   // a click outside an open menu, or Escape, closes it
@@ -753,6 +763,7 @@ export function DemoMonitoring({ locked = false, mobile = false }: { locked?: bo
         activeDeviceId={activeCharger ? activeCharger.id : hasInverter ? "inverter" : null}
         chargers={chargers}
         mobile={mobile}
+        initialAlert={initial?.alert}
       />
 
       <main className={cn("min-h-0 flex-1 pb-6 pt-1", mobile ? "px-4" : "px-6", locked ? "overflow-clip" : "overflow-y-auto [scrollbar-width:thin]")}>

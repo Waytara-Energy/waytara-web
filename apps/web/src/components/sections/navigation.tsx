@@ -5,7 +5,6 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import {
   Menu,
-  HelpCircle,
   ChevronDown,
   Search,
 } from "lucide-react";
@@ -21,7 +20,6 @@ import {
   SheetTrigger,
 } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import { TEMP_HIDE_LANDING_SECTIONS } from "@/config/landing-flags";
 import {
   HEADER_MENUS,
   PAGE_MENUS,
@@ -208,20 +206,8 @@ export function Navigation() {
           ))}
         </nav>
 
-        {/* 3. Right: Knowledge (?), Theme Toggle and Get Started. Contact is reached from the menus, the planner and the footer. */}
+        {/* 3. Right: search, theme toggle and Login. Contact is reached from the menus, the planner and the footer. */}
         <div className="hidden sm:flex items-center space-x-[clamp(0.2rem,0.5vw,0.6rem)]">
-          {/* ? Icon -> Knowledge Centre — TEMP_HIDE_LANDING_SECTIONS */}
-          {!TEMP_HIDE_LANDING_SECTIONS && (
-            <Link
-              href="/knowledge-centre"
-              className={iconLinkClass}
-              title="Knowledge Centre & Guides"
-              aria-label="Knowledge Centre"
-            >
-              <HelpCircle className="h-[clamp(17px,1.15vw,19.5px)] w-[clamp(17px,1.15vw,19.5px)]" />
-            </Link>
-          )}
-
           {/* Search: opens the same panel as the menus */}
           <button
             type="button"

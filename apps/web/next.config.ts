@@ -15,6 +15,10 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
     minimumCacheTTL: 60 * 60 * 24 * 30,
   },
+  // The Knowledge Centre page has been removed: anyone with an old link lands on Support.
+  async redirects() {
+    return [{ source: "/knowledge-centre", destination: "/support", permanent: true }];
+  },
   async headers() {
     return [{ source: "/:path*", headers: securityHeaders({ connectSrc: MAP_HOST, imgSrc: MAP_HOST, workerSrc: ["blob:"] }) }];
   },
