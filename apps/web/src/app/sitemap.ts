@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SEGMENT_SOLUTIONS_DATA, SEGMENT_KEYS } from "@/data/solutions-data";
+import { GUIDE_LIST } from "@/data/guides";
 import { SITE } from "@/lib/site";
 
 // Every public, indexable page is listed. The private areas (dashboard, sign-in, quote and invite links) are not, and the Knowledge Centre no longer exists.
@@ -30,7 +31,10 @@ export default function sitemap(): MetadataRoute.Sitemap {
     changeFrequency: "monthly" as const,
   }));
 
-  return [...staticPages, ...segmentPages].map((p) => ({
+  // The guides: answers to what people search for.
+  const guidePages = GUIDE_LIST.map((g) => ({ path: g.path, priority: 0.8, changeFrequency: "monthly" as const }));
+
+  return [...staticPages, ...segmentPages, ...guidePages].map((p) => ({
     url: `${SITE.url}${p.path}`,
     lastModified: LAST_UPDATED,
     changeFrequency: p.changeFrequency,

@@ -136,3 +136,18 @@ export function serviceJsonLd(input: { name: string; description: string; path: 
     areaServed: { "@type": "Country", name: "India" },
   };
 }
+
+export function articleJsonLd(input: { headline: string; description: string; path: string; dateModified: string }): JsonLdObject {
+  return {
+    "@context": "https://schema.org",
+    "@type": "Article",
+    headline: input.headline,
+    description: input.description,
+    mainEntityOfPage: absoluteUrl(input.path),
+    inLanguage: "en-IN",
+    dateModified: input.dateModified,
+    author: { "@id": ORG_ID },
+    publisher: { "@id": ORG_ID },
+    image: absoluteUrl("/opengraph-image.png"),
+  };
+}

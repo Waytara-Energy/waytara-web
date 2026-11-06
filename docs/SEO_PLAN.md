@@ -41,10 +41,10 @@ Today the site has the product pages (solutions by property type, platform, plan
 
 | Priority | Page (proposed address) | Searched as |
 |---|---|---|
-| 1 | Rooftop solar for homes in Chennai and Tamil Nadu: cost, size, what is included (/solar-for-home-chennai) | solar panel price Chennai, rooftop solar Tamil Nadu, solar for home cost |
-| 1 | On-grid, hybrid and off-grid solar explained, and which one to choose (/on-grid-hybrid-off-grid-solar) | on grid vs hybrid vs off grid, hybrid solar inverter, solar inverter types |
-| 1 | Solar subsidy and net metering in Tamil Nadu: how it works, how to apply (/solar-subsidy-tamil-nadu) | PM Surya Ghar subsidy Tamil Nadu, solar subsidy, net metering TNPDCL |
-| 1 | Cut your EB bill with solar and battery: how the tariff works (/reduce-electricity-bill-solar) | reduce EB bill, solar tariff, how much can solar save |
+| 1 | **Built 2026-11-06.** Rooftop solar for homes in Chennai and Tamil Nadu: size, what decides the cost, what is included (/solar-for-home-chennai) | solar panel price Chennai, rooftop solar Tamil Nadu, solar for home cost |
+| 1 | **Built 2026-11-06.** On-grid, hybrid and off-grid solar explained, and which one to choose (/on-grid-hybrid-off-grid-solar) | on grid vs hybrid vs off grid, hybrid solar inverter, solar inverter types |
+| 1 | **Built 2026-11-06.** Solar subsidy and net metering in Tamil Nadu: how it works, how to apply (/solar-subsidy-tamil-nadu) | PM Surya Ghar subsidy Tamil Nadu, solar subsidy, net metering TNPDCL |
+| 1 | **Built 2026-11-06.** Cut your EB bill with solar and battery: how the tariff works (/reduce-electricity-bill-solar) | reduce EB bill, solar tariff, how much can solar save |
 | 2 | Battery backup for homes: solar battery versus an ordinary inverter battery (/solar-battery-backup-home) | solar battery backup, lithium battery for home, inverter battery vs solar battery |
 | 2 | One app for solar, inverter, battery and EV charger (/solar-monitoring-app) | solar monitoring app, monitor inverter and battery, home energy management system |
 | 2 | EV charger installation at home and in apartments (/ev-charger-installation) | EV charger for home Chennai, EV charging apartment, home EV charger cost |
@@ -55,6 +55,8 @@ Today the site has the product pages (solutions by property type, platform, plan
 | 3 | City pages **only for places we really serve and can show work in** (Chennai first; then others as installs happen) | solar installation + city name |
 
 Rules for all of them (same as the site's content rules): claim only what the product does; no prices we do not publish; no comparison with other companies by name; subsidies and savings stated as estimates and information, not promises.
+
+**Notes on the four built pages.** One shared template (`GuidePage`, content in `src/data/guides.ts`): the answer first, an "In short" list, the detail, a visible FAQ whose questions include Tanglish forms with the English meaning beside them, where to go next, and the date last checked. Each carries Article and FAQ structured data. They are in the sitemap, the footer ("Guides"), the site search (with Tanglish search words) and llms.txt. Facts: the central subsidy structure (₹30,000 per kW for the first 2 kW, ₹18,000 for the third, ₹78,000 cap) agreed across sources; Tamil Nadu slab rates and net-metering limits are **not** stated because sources conflict, and the pages say to check the regulator or distribution company. Open for the team to confirm: whether WayTara is a registered vendor on the PM Surya Ghar portal (the subsidy page says "ask the installer to confirm in writing" and that the quotation states whether a project is under the scheme), and whether the quotation will really include subsidy and net-meter paperwork.
 
 ## 3. Words people use, including Tamil and Tanglish
 

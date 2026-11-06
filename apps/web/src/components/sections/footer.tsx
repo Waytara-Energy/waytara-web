@@ -2,7 +2,7 @@ import Link from "next/link";
 import { Logo } from "@/components/shared/logo";
 import { Mail, Phone, MapPin } from "lucide-react";
 import { SITE } from "@/lib/site";
-import { LEGAL_LINKS, PARTNER_LINK, PRIMARY_LINKS, CONTACT_LINK, SOLUTION_SEGMENTS } from "@/config/site-nav";
+import { LEGAL_LINKS, PARTNER_LINK, PRIMARY_LINKS, CONTACT_LINK, SOLUTION_SEGMENTS, GUIDE_LINKS } from "@/config/site-nav";
 
 const COLUMN_TITLE = "text-xs sm:text-[13px] font-bold text-theme-primary tracking-tight";
 const FOOTER_LINK = "hover:text-theme-primary transition-colors";
@@ -23,14 +23,14 @@ export function Footer() {
         {/* 1. Main row: brand and one line about what WayTara does, then three short columns */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 pb-10">
 
-          <div className="lg:col-span-4 space-y-4">
+          <div className="lg:col-span-3 space-y-4">
             <Logo />
             <p className="text-sm sm:text-[15px] text-theme-primary leading-relaxed font-medium max-w-sm pt-1">
               WayTara designs, installs and manages solar, battery storage and EV charging as one connected energy system.
             </p>
           </div>
 
-          <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-4 gap-6 sm:gap-8">
+          <div className="lg:col-span-9 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 sm:gap-8">
 
             <div className="space-y-3">
               <h4 className={COLUMN_TITLE}>Get started</h4>
@@ -49,6 +49,19 @@ export function Footer() {
               <h4 className={COLUMN_TITLE}>Solutions</h4>
               <ul className="space-y-2.5">
                 {SOLUTION_SEGMENTS.map((link) => (
+                  <li key={link.href}>
+                    <Link href={link.href} className={FOOTER_LINK}>
+                      {link.label}
+                    </Link>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="space-y-3">
+              <h4 className={COLUMN_TITLE}>Guides</h4>
+              <ul className="space-y-2.5">
+                {GUIDE_LINKS.map((link) => (
                   <li key={link.href}>
                     <Link href={link.href} className={FOOTER_LINK}>
                       {link.label}

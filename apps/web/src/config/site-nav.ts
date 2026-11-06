@@ -27,6 +27,14 @@ export const SOLUTION_NEEDS: NavDestination[] = [
   { label: "Manage", href: "/solutions#manage", blurb: "Connect the equipment you already have to one dashboard" },
 ];
 
+/** The guides (answers to what people search for), shown in the footer: short labels, one page each. */
+export const GUIDE_LINKS: NavDestination[] = [
+  { label: "Solar for your home", href: "/solar-for-home-chennai" },
+  { label: "On-grid, hybrid or off-grid", href: "/on-grid-hybrid-off-grid-solar" },
+  { label: "Solar subsidy in Tamil Nadu", href: "/solar-subsidy-tamil-nadu" },
+  { label: "Reduce your EB bill", href: "/reduce-electricity-bill-solar" },
+];
+
 export const SOLUTIONS_HUB: NavDestination = { label: "Solutions", href: "/solutions" };
 
 /** Plain links that sit next to the Solutions menu. */

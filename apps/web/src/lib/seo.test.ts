@@ -1,3 +1,4 @@
+import { GUIDE_LIST, GUIDES } from "@/data/guides";
 import { describe, expect, it } from "vitest";
 import { breadcrumbJsonLd, faqJsonLd, organizationJsonLd, pageMetadata } from "./seo";
 import { SITE, absoluteUrl } from "./site";
@@ -75,6 +76,11 @@ describe("sitemap", () => {
     }
   });
 
+  it("lists every guide page", () => {
+    for (const g of GUIDE_LIST) expect(urls).toContain(absoluteUrl(g.path));
+    expect(GUIDE_LIST.length).toBeGreaterThanOrEqual(4);
+  });
+
   it("excludes private pages and the removed Knowledge Centre", () => {
     for (const hidden of ["/dashboard", "/login", "/knowledge-centre", "/quote", "/invite"]) {
       expect(urls.some((u) => u.includes(hidden))).toBe(false);
@@ -89,5 +95,24 @@ describe("robots", () => {
     expect(rule.allow).toBe("/");
     expect(rule.disallow).toEqual(expect.arrayContaining(["/dashboard", "/api/", "/quote/", "/invite/"]));
     expect(r.sitemap).toBe("https://www.waytaraenergy.com/sitemap.xml");
+  });
+});
+
+describe("guides", () => {
+  it("each guide has an answer, a short list, a visible FAQ and real related guides", () => {
+    for (const g of GUIDE_LIST) {
+      expect(g.answer.length).toBeGreaterThan(80);
+      expect(g.inShort.length).toBeGreaterThanOrEqual(3);
+      expect(g.faqs.length).toBeGreaterThanOrEqual(5);
+      expect(g.path).toBe(`/${g.slug}`);
+      for (const r of g.related) expect(GUIDES[r]).toBeDefined();
+      // the title stays short enough to show in search results once the site name is added
+      expect(g.metaTitle.length).toBeLessThanOrEqual(48);
+    }
+  });
+
+  it("never states a price or a guarantee of savings", () => {
+    const text = JSON.stringify(GUIDE_LIST).toLowerCase();
+    expect(text).not.toMatch(/guaranteed saving|we guarantee|cheapest|best price|₹\s?\d+\s?(lakh|per unit)/);
   });
 });
