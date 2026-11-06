@@ -9,6 +9,11 @@ export const CODE_TTL_MS = 10 * 60_000;
 export const MAX_ATTEMPTS = 5;
 export const RESEND_COOLDOWN_MS = 60_000;
 
+/** What the forgot-password page says when it cannot send a code. */
+export const NOT_REGISTERED_MESSAGE = "This e-mail address is not registered with us. Please check it and try again, or contact support.";
+export const NOT_ACTIVE_MESSAGE = "This account is not active, so we cannot send a code. Please contact support.";
+export const TOO_MANY_LOOKUPS_MESSAGE = "Too many attempts from this connection. Please try again in an hour, or contact support.";
+
 export const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 export const normaliseEmail = (v: string): string => v.trim().toLowerCase();
 

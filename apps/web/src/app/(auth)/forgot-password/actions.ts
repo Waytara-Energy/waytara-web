@@ -1,5 +1,6 @@
 "use server";
 
+import { headers } from "next/headers";
 import { after } from "next/server";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import {
@@ -12,6 +13,9 @@ import {
   canResend,
   secondsUntilResend,
   CODE_TTL_MS,
+  NOT_REGISTERED_MESSAGE,
+  NOT_ACTIVE_MESSAGE,
+  TOO_MANY_LOOKUPS_MESSAGE,
   MAX_ATTEMPTS,
   buildPasswordCodeMail,
 } from "@/lib/email-otp";
@@ -19,6 +23,7 @@ import { sendMail } from "@/lib/send-mail";
 import { passwordStrength } from "@/lib/password-strength";
 import { notifyAuthEvent } from "@/lib/auth-notify";
 import { escapeLike } from "@/lib/like-escape";
+import { allowRequest, clientIp } from "@/lib/rate-limit";
 
 const PASSWORD_CODE_SCOPE = "password-change";
 
@@ -27,6 +32,9 @@ function codeSecret(): string {
   if (!secret) throw new Error("The server is not configured to process password resets.");
   return secret;
 }
+
+/** How many e-mail addresses one visitor can try on the forgot-password page in an hour: room for a few typos, not enough to scan for accounts. */
+const LOOKUPS_PER_HOUR = 12;
 
 type Service = ReturnType<typeof createServiceRoleClient>;
 
@@ -39,7 +47,7 @@ type Service = ReturnType<typeof createServiceRoleClient>;
 async function findProfile(service: Service, email: string) {
   const { data } = await service
     .from("profiles")
-    .select("id, full_name, email, notification_preferences")
+    .select("id, full_name, email, notification_preferences, deactivated_at, deleted_at")
     .ilike("email", escapeLike(email))
     .limit(1)
     .maybeSingle();
@@ -51,6 +59,8 @@ export interface RequestResetResult {
   message?: string;
   sentTo?: string;
   cooldownSeconds?: number;
+  /** Why no code was sent, when it is something the page should explain with a link to Support. */
+  reason?: "not_registered" | "not_active" | "too_many";
 }
 
 /** Sends a 6-digit verification code to the user's email address via WayTara email. */
@@ -63,16 +73,19 @@ export async function requestPasswordResetOtp(
     return { success: false, message: "Please enter a valid email address." };
   }
 
+  // The person is told when an address has no account, so a typo does not leave them waiting for an e-mail that never comes (and nothing is sent to an address that
+  // is not ours to write to). The cost is that this page can be used to check whether an address has an account, so each visitor gets a limited number of checks an hour.
+  if (!(await allowRequest("forgot-password:ip", clientIp(await headers()), LOOKUPS_PER_HOUR, 60 * 60))) {
+    return { success: false, message: TOO_MANY_LOOKUPS_MESSAGE, reason: "too_many" };
+  }
+
   const service = createServiceRoleClient();
 
   const profile = await findProfile(service, email);
-  const userId = profile?.id;
-  const fullName = profile?.full_name ?? null;
-
-  // To protect privacy, if user is not found, we return success without leaking that account doesn't exist
-  if (!userId) {
-    return { success: true, sentTo: email };
-  }
+  if (!profile) return { success: false, message: NOT_REGISTERED_MESSAGE, reason: "not_registered" };
+  if (profile.deactivated_at || profile.deleted_at) return { success: false, message: NOT_ACTIVE_MESSAGE, reason: "not_active" };
+  const userId = profile.id;
+  const fullName = profile.full_name ?? null;
 
   // Check cooldown if there's already a code requested recently
   const { data: pending } = await service

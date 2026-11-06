@@ -140,6 +140,8 @@ export function ForgotPasswordForm() {
   const [confirmPassword, setConfirmPassword] = React.useState("");
   const [busy, setBusy] = React.useState(false);
   const [error, setError] = React.useState<string | null>(null);
+  /** The reason no code was sent, when Support is the way forward. */
+  const [help, setHelp] = React.useState(false);
   const [cooldown, setCooldown] = React.useState(0);
   const checking = React.useRef(false);
 
@@ -185,10 +187,12 @@ export function ForgotPasswordForm() {
     if (!clean) return setError("Enter the e-mail address on your account.");
     setBusy(true);
     setError(null);
+    setHelp(false);
     try {
       const res = await requestPasswordResetOtp(clean, { isResend });
       if (!res.success) {
         setError(res.message || "We could not send the code. Please try again.");
+        setHelp(Boolean(res.reason));
         if (res.cooldownSeconds) setCooldown(res.cooldownSeconds);
         return;
       }
@@ -269,7 +273,21 @@ export function ForgotPasswordForm() {
       {step === "email" && (
         <form onSubmit={sendCode} className="space-y-5">
           <Heading step="email" title="Forgot your password?" body="Enter the e-mail address on your WayTara account and we will send you a 6-digit code." />
-          {error && <ErrorLine>{error}</ErrorLine>}
+          {error && (
+            <ErrorLine>
+              {help
+                ? error.split(/(contact support)/i).map((part, i) =>
+                    /^contact support$/i.test(part) ? (
+                      <Link key={i} href="/support" className="font-semibold underline underline-offset-4">
+                        {part}
+                      </Link>
+                    ) : (
+                      part
+                    )
+                  )
+                : error}
+            </ErrorLine>
+          )}
           <div className="space-y-1.5">
             <Label htmlFor="reset-email">E-mail address</Label>
             <Input id="reset-email" type="email" autoComplete="email" value={email} onChange={(e) => setEmail(e.target.value)} autoFocus required />
