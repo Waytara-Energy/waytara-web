@@ -15,7 +15,7 @@ const DEMO_WIDTH = 1180;
 const DEMO_HEIGHT = 640;
 /** The height the phone layout is drawn at; the room it has clips it, so only its upper part shows. */
 const PHONE_HEIGHT = 700;
-const SLIDE_MS = 7500;
+export const SLIDE_MS = 7500;
 /** How much wider than the room it has the window is drawn, so its right edge runs off the panel. */
 const BLEED = 1.06;
 /**
@@ -70,7 +70,7 @@ const SLIDES: Slide[] = [
 ];
 
 /** True from the first render after the page loads when the screen matches the query. */
-function useMedia(query: string): boolean {
+export function useMedia(query: string): boolean {
   const [matches, setMatches] = React.useState(false);
   React.useEffect(() => {
     const q = window.matchMedia(query);
@@ -82,7 +82,7 @@ function useMedia(query: string): boolean {
   return matches;
 }
 
-function useReducedMotion(): boolean {
+export function useReducedMotion(): boolean {
   const [still, setStill] = React.useState(false);
   React.useEffect(() => {
     const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
@@ -152,11 +152,11 @@ function Preview({ initial, phone = false, onEdge }: { initial: DemoInitial; pho
 }
 
 /** One bar for each slide: the bar of the slide on show fills as its time runs (or is full, when nothing advances by itself). */
-function SlideBars({ index, setIndex, paused, still, holdLast }: { index: number; setIndex: (i: number) => void; paused: boolean; still: boolean; holdLast?: boolean }) {
+export function SlideBars({ slides, index, setIndex, paused, still, holdLast }: { slides: { title: string; accent: string }[]; index: number; setIndex: (i: number) => void; paused: boolean; still: boolean; holdLast?: boolean }) {
   return (
     <div className="flex items-center gap-2">
-      {SLIDES.map((s, i) => {
-        const full = i < index || (i === index && (still || (holdLast && i === SLIDES.length - 1)));
+      {slides.map((s, i) => {
+        const full = i < index || (i === index && (still || (holdLast && i === slides.length - 1)));
         return (
           <button
             key={s.title}
@@ -224,7 +224,7 @@ export function LoginShowcase() {
       </div>
 
       <div className={cn("absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-theme-bg via-theme-bg/90 to-transparent pb-7 pt-16 pr-16 xl:pr-20", EDGE)}>
-        <SlideBars index={index} setIndex={setIndex} paused={paused} still={still} />
+        <SlideBars slides={SLIDES} index={index} setIndex={setIndex} paused={paused} still={still} />
       </div>
     </div>
   );
@@ -283,7 +283,7 @@ function MobileIntro({ onDone }: { onDone: () => void }) {
       </div>
 
       <div className="absolute inset-x-0 bottom-0 z-20 flex items-center justify-between bg-gradient-to-t from-theme-bg via-theme-bg/90 to-transparent pb-6 pl-[calc(2.75rem+2px)] pr-6 pt-16">
-        <SlideBars index={index} setIndex={setIndex} paused={false} still={still} holdLast />
+        <SlideBars slides={SLIDES} index={index} setIndex={setIndex} paused={false} still={still} holdLast />
         <Button type="button" onClick={() => (last ? onDone() : setIndex(index + 1))} className="gap-1.5">
           {last ? "Log in" : "Next"}
           <ArrowRight className="size-4" aria-hidden="true" />

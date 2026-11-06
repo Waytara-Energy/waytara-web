@@ -81,10 +81,11 @@ describe("Forgot password OTP generation and email", () => {
     const { ForgotPasswordForm } = await import("./forgot-password-form");
 
     const html = renderToString(React.createElement(ForgotPasswordForm));
-    expect(html).toContain("Forgot password");
-    expect(html).toContain("Email");
-    expect(html).toContain("Verify OTP");
-    expect(html).toContain("New Password");
-    expect(html).toContain("Send verification code");
+    expect(html).toContain("Forgot your password?");
+    expect(html).toContain("of 3"); // "Step 1 of 3": the server render puts a marker between the pieces
+    expect(html).toContain("E-mail");
+    expect(html).toContain("Code");
+    expect(html).toContain("New password");
+    expect(html).toContain("Send code");
   });
 });
