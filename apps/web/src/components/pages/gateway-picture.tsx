@@ -1,7 +1,7 @@
 import Image from "next/image";
 
 /**
- * The gateway picture with the equipment drawn on its pads: solar, inverter, battery, EV charger, generator and meter around, and the gateway chip in the
+ * The gateway picture with the equipment drawn on its pads: solar, inverter, battery, layers, schedule and plug around, and the gateway chip in the
  * middle. The icons are solid shapes (with their details cut out): blue-grey (#b8c2cb) on the light picture and black on the dark one. They are engraved
  * into the pads rather than printed on them: a soft shadow just inside the top edge and a thin light edge just under the bottom (no glow), so they read as
  * part of the same moulded surface as the picture. They sit over the two pictures, placed by percentages of the picture and sized in container units, so
@@ -86,24 +86,25 @@ const Battery = ({ style }: IconProps) => (
     <path d="M4.5 6h12A2.5 2.5 0 0 1 19 8.5V10h1.2a.8.8 0 0 1 .8.8v2.4a.8.8 0 0 1-.8.8H19v1.5a2.5 2.5 0 0 1-2.5 2.5h-12A2.5 2.5 0 0 1 2 15.5v-7A2.5 2.5 0 0 1 4.5 6Z M11.2 8.2 7.6 12.6h2.6l-.9 3.2 3.6-4.4h-2.6Z" />
   </Svg>
 );
-/** EV charger: a post with a bolt cut out, and the cable with its plug. */
-const EvCharger = ({ style }: IconProps) => (
+/** Layers (instead of the fuel pump): the top sheet solid, two lines under it. */
+const Layers = ({ style }: IconProps) => (
   <Svg style={style}>
-    <path d="M5.5 3h8A1.5 1.5 0 0 1 15 4.5V20H4V4.5A1.5 1.5 0 0 1 5.5 3Z M9.9 6.4 6.9 10.8h2.1l-.7 3.4 3-4.4H9.2Z M2.5 20.5h13v1.5h-13Z" />
-    <Lines d="M15 10h2a1.5 1.5 0 0 1 1.5 1.5v4.2a1.6 1.6 0 0 0 3.2 0V8.4L19.8 6.5" width={1.7} />
+    <path d="M12.83 2.18a2 2 0 0 0-1.66 0L2.6 6.08a1 1 0 0 0 0 1.83l8.58 3.91a2 2 0 0 0 1.66 0l8.58-3.9a1 1 0 0 0 0-1.83Z" />
+    <Lines d="M2 12a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 12M2 17a1 1 0 0 0 .58.91l8.6 3.91a2 2 0 0 0 1.65 0l8.58-3.9A1 1 0 0 0 22 17" width={2} />
   </Svg>
 );
-/** Generator (fuel): a pump with its window cut out, and the nozzle. */
-const Generator = ({ style }: IconProps) => (
+/** Calendar with a clock (instead of the meter dial): a solid calendar with the clock cut into its corner. */
+const CalendarClock = ({ style }: IconProps) => (
   <Svg style={style}>
-    <path d="M5.5 3h8A1.5 1.5 0 0 1 15 4.5V20H4V4.5A1.5 1.5 0 0 1 5.5 3Z M6.8 5.6h5.4v4.2H6.8Z M2.5 20.5h13v1.5h-13Z" />
-    <Lines d="M15 9.5h1.6a1.4 1.4 0 0 1 1.4 1.4v5.4a1.5 1.5 0 0 0 3 0V8.6L18.6 6.4" width={1.7} />
+    <path d="M4.5 4h15A2 2 0 0 1 21.5 6v14a2 2 0 0 1-2 2h-15A2 2 0 0 1 2.5 20V6a2 2 0 0 1 2-2Z M3.9 7.6h16.2v1.2H3.9Z M15.5 9.2a6.3 6.3 0 1 0 0 12.6 6.3 6.3 0 0 0 0-12.6Z M15.5 11a4.5 4.5 0 1 1 0 9 4.5 4.5 0 0 1 0-9Z M14.9 12.6h1.2v3.1l1.8 1.1-.6 1-2.4-1.4Z" />
+    <Lines d="M8 2v3.2M16 2v3.2" width={1.9} />
   </Svg>
 );
-/** Meter: a dial with its needle cut out. */
-const Meter = ({ style }: IconProps) => (
+/** Plug with a bolt (instead of the EV charger): a solid plug body, its prongs, the cable and a bolt. */
+const PlugZap = ({ style }: IconProps) => (
   <Svg style={style}>
-    <path d="M12 2.5a9.5 9.5 0 1 0 0 19 9.5 9.5 0 0 0 0-19Z M10.9 13.3 15.1 7.9l1.2.9-3.9 5.6a1.6 1.6 0 1 1-1.5-1.1Z" />
+    <path d="M6.3 20.3a2.4 2.4 0 0 0 3.4 0L12 18l-6-6-2.3 2.3a2.4 2.4 0 0 0 0 3.4Z" />
+    <Lines d="M2 22l3-3M7.5 13.5 10 11M10.5 16.5 13 14M18 3l-4 4h6l-4 4" width={1.9} />
   </Svg>
 );
 /** Chip: a body with its core cut out, and pins on every side. */
@@ -118,16 +119,16 @@ const PADS: { Icon: (p: IconProps) => React.ReactElement; label: string; x: numb
   { Icon: Solar, label: "Solar", x: 19.6, y: 23.4, size: 5 },
   { Icon: Inverter, label: "Inverter", x: 14.6, y: 64.7, size: 5 },
   { Icon: Battery, label: "Battery", x: 80.4, y: 23.4, size: 5 },
-  { Icon: EvCharger, label: "EV charger", x: 85.4, y: 64.7, size: 5 },
-  { Icon: Generator, label: "Generator", x: 9.0, y: 42.3, size: 3.1 },
-  { Icon: Meter, label: "Meter", x: 91.3, y: 42.2, size: 3.1 },
+  { Icon: PlugZap, label: "Plug", x: 85.4, y: 64.7, size: 5 },
+  { Icon: Layers, label: "Layers", x: 9.0, y: 42.3, size: 3.1 },
+  { Icon: CalendarClock, label: "Schedule", x: 91.3, y: 42.2, size: 3.1 },
 ];
 
 export function GatewayPicture() {
   return (
     <div
       role="img"
-      aria-label="The WayTara gateway in the middle, connected to solar, an inverter, a battery, an EV charger, a generator and a meter."
+      aria-label="The WayTara gateway in the middle, connected to solar, an inverter, a battery and the other parts of a site: its systems, its schedules and its charging."
       className="overflow-hidden rounded-3xl bg-theme-surface [container-type:inline-size]"
     >
       <div className="relative aspect-[2752/1536]">
