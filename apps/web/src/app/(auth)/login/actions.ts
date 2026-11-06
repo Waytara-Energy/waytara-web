@@ -3,7 +3,7 @@
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createClient } from "@waytara/supabase/server";
-import { lookupCurrentProfile } from "@waytara/supabase/auth";
+import { profileForUser } from "@waytara/supabase/auth";
 import { isCustomerRole } from "@waytara/supabase/roles";
 import { notifyAuthEvent } from "@/lib/auth-notify";
 import { needsSecondFactor } from "@/lib/mfa";
@@ -18,15 +18,17 @@ export async function login(formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+  const { data: signedIn, error } = await supabase.auth.signInWithPassword({ email, password });
 
-  if (error) {
-    redirect(`/login?error=${encodeURIComponent(error.message)}`);
+  if (error || !signedIn.user) {
+    redirect(`/login?error=${encodeURIComponent(error?.message ?? "We could not sign you in. Please try again.")}`);
   }
 
+  // The sign-in itself returned the user, so the profile is read straight away: asking the auth server who this is, once more, would cost a whole extra
+  // trip to the database's region for an answer we already have.
   // A failed lookup (the database being unwell) is not a wrong account: try once more, and if it fails again say so, rather than blaming the account.
-  let lookup = await lookupCurrentProfile(supabase);
-  if (lookup.status === "error") lookup = await lookupCurrentProfile(supabase);
+  let lookup = await profileForUser(supabase, signedIn.user.id);
+  if (lookup.status === "error") lookup = await profileForUser(supabase, signedIn.user.id);
   if (lookup.status === "error") {
     await supabase.auth.signOut({ scope: "local" });
     redirect(`/login?error=${encodeURIComponent("We could not check your account just now. Please try again in a moment.")}`);

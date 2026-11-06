@@ -1,5 +1,6 @@
 "use server";
 
+import { after } from "next/server";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import {
   EMAIL_PATTERN,
@@ -17,6 +18,7 @@ import {
 import { sendMail } from "@/lib/send-mail";
 import { passwordStrength } from "@/lib/password-strength";
 import { notifyAuthEvent } from "@/lib/auth-notify";
+import { escapeLike } from "@/lib/like-escape";
 
 const PASSWORD_CODE_SCOPE = "password-change";
 
@@ -24,6 +26,24 @@ function codeSecret(): string {
   const secret = process.env.SUPABASE_SERVICE_ROLE_KEY;
   if (!secret) throw new Error("The server is not configured to process password resets.");
   return secret;
+}
+
+type Service = ReturnType<typeof createServiceRoleClient>;
+
+/**
+ * The account for an e-mail address, matched exactly (ignoring upper and lower case). It used to be matched with the address as a raw `ilike` pattern, where `_`
+ * means "any character": `john_doe@x.com` found the account of `john.doe@x.com`, so a code for one person's account could be sent to another address. It also
+ * fell back to listing every user when nothing matched, which was slow and only looked at the first page of users. A customer without a profile cannot sign in
+ * to the dashboard anyway (sign-in turns them away), so there is nothing to reset for them and no fallback is needed.
+ */
+async function findProfile(service: Service, email: string) {
+  const { data } = await service
+    .from("profiles")
+    .select("id, full_name, email, notification_preferences")
+    .ilike("email", escapeLike(email))
+    .limit(1)
+    .maybeSingle();
+  return data;
 }
 
 export interface RequestResetResult {
@@ -45,25 +65,9 @@ export async function requestPasswordResetOtp(
 
   const service = createServiceRoleClient();
 
-  // Find user by email in profiles
-  const { data: profile } = await service
-    .from("profiles")
-    .select("id, full_name, email")
-    .ilike("email", email)
-    .maybeSingle();
-
-  let userId = profile?.id;
-  let fullName = profile?.full_name ?? null;
-
-  if (!userId) {
-    // Also check auth.users directly via admin client in case profile row is missing
-    const { data: userList } = await service.auth.admin.listUsers();
-    const matched = userList?.users?.find((u) => u.email?.toLowerCase() === email.toLowerCase());
-    if (matched) {
-      userId = matched.id;
-      fullName = (matched.user_metadata?.full_name as string) || (matched.user_metadata?.name as string) || null;
-    }
-  }
+  const profile = await findProfile(service, email);
+  const userId = profile?.id;
+  const fullName = profile?.full_name ?? null;
 
   // To protect privacy, if user is not found, we return success without leaking that account doesn't exist
   if (!userId) {
@@ -110,13 +114,15 @@ export async function requestPasswordResetOtp(
     return { success: false, message: "Could not create verification code. Please try again." };
   }
 
-  const sent = await sendMail(email, buildPasswordCodeMail({ name: fullName, code }));
-
-  if (sent !== "sent") {
-    console.error("[forgot-password] Email sending failed:", sent);
-    await service.from("password_change_codes").delete().eq("user_id", userId);
-    return { success: false, message: "We could not send the verification email. Please try again in a moment." };
-  }
+  // The e-mail goes out after the answer is sent: the person does not wait for the mail provider (about half a second), and an address that has an account
+  // now takes much the same time as one that has not. If the mail cannot be sent the pending code is removed, so asking again is not held up by the cooldown.
+  after(async () => {
+    const sent = await sendMail(email, buildPasswordCodeMail({ name: fullName, code }));
+    if (sent !== "sent") {
+      console.error("[forgot-password] Email sending failed:", sent);
+      await service.from("password_change_codes").delete().eq("user_id", userId);
+    }
+  });
 
   return { success: true, sentTo: email };
 }
@@ -143,19 +149,7 @@ export async function verifyPasswordResetOtp(emailRaw: string, codeRaw: string):
 
   const service = createServiceRoleClient();
 
-  // Find user by email
-  const { data: profile } = await service
-    .from("profiles")
-    .select("id")
-    .ilike("email", email)
-    .maybeSingle();
-
-  let userId = profile?.id;
-  if (!userId) {
-    const { data: userList } = await service.auth.admin.listUsers();
-    const matched = userList?.users?.find((u) => u.email?.toLowerCase() === email.toLowerCase());
-    if (matched) userId = matched.id;
-  }
+  const userId = (await findProfile(service, email))?.id;
 
   if (!userId) {
     return { success: false, message: "Invalid verification code or user not found." };
@@ -242,18 +236,8 @@ export async function resetPasswordWithToken(input: {
 
   const service = createServiceRoleClient();
 
-  const { data: profile } = await service
-    .from("profiles")
-    .select("id, full_name, email, notification_preferences")
-    .ilike("email", email)
-    .maybeSingle();
-
-  let userId = profile?.id;
-  if (!userId) {
-    const { data: userList } = await service.auth.admin.listUsers();
-    const matched = userList?.users?.find((u) => u.email?.toLowerCase() === email.toLowerCase());
-    if (matched) userId = matched.id;
-  }
+  const profile = await findProfile(service, email);
+  const userId = profile?.id;
 
   if (!userId) {
     return { success: false, message: "User account not found." };

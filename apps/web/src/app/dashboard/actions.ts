@@ -4,7 +4,8 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { createClient } from "@waytara/supabase/server";
-import { getCurrentProfile, requireCustomer } from "@waytara/supabase/auth";
+import { createServiceRoleClient } from "@waytara/supabase/service-role";
+import { requireCustomer } from "@waytara/supabase/auth";
 import { notifyAuthEvent } from "@/lib/auth-notify";
 import { SELECTED_SITE_COOKIE, SELECTED_DEVICE_COOKIE } from "@/lib/selected-site";
 
@@ -41,10 +42,20 @@ export async function selectDevice(deviceId: string) {
 
 export async function logout() {
   const supabase = await createClient();
-  const profile = await getCurrentProfile(supabase);
-  // this device only: signOut() alone defaults to the "global" scope and would end every other device's session too
-  await supabase.auth.signOut({ scope: "local" });
-  if (profile) await notifyAuthEvent("signout", profile);
+  // Who is signing out is checked with the auth server (so the sign-out notice can only be about the person whose session this is). Then the session is
+  // ended and the person's details for the notice are read at the same time: they used to be three trips one after another, each to the database's region,
+  // and the person waited for all three.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const [profileResult] = await Promise.all([
+    user
+      ? createServiceRoleClient().from("profiles").select("id, email, full_name, notification_preferences").eq("id", user.id).maybeSingle()
+      : Promise.resolve({ data: null }),
+    // this device only: signOut() alone defaults to the "global" scope and would end every other device's session too
+    supabase.auth.signOut({ scope: "local" }),
+  ]);
+  if (profileResult.data) await notifyAuthEvent("signout", profileResult.data);
   redirect("/login");
 }
 

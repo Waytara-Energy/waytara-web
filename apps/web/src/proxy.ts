@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createMiddlewareClient } from "@waytara/supabase/middleware";
-import { getCurrentProfile } from "@waytara/supabase/auth";
+import { profileForUser } from "@waytara/supabase/auth";
 import { isCustomerRole } from "@waytara/supabase/roles";
 import { needsSecondFactor } from "@/lib/mfa";
 
@@ -17,7 +17,20 @@ import { needsSecondFactor } from "@/lib/mfa";
 // defense-in-depth, not the only gate.
 export async function proxy(request: NextRequest) {
   const { supabase, getResponse } = createMiddlewareClient(request);
-  const profile = await getCurrentProfile(supabase);
+
+  // Who is signed in: one trip to the auth server, which also notices a session that was ended elsewhere ("sign out other devices"), so this stays a real
+  // check and not a read of the cookie. The profile and the onboarding stage only need that user's id, so they are fetched together: they used to be three
+  // trips one after another, and every one of them goes to the database's region.
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  const [lookup, onboardingResult] = user
+    ? await Promise.all([
+        profileForUser(supabase, user.id),
+        supabase.from("customer_onboarding").select("current_stage").eq("customer_id", user.id).maybeSingle(),
+      ])
+    : [null, null];
+  const profile = lookup?.status === "ok" ? lookup.profile : null;
 
   if (!profile || !isCustomerRole(profile.role)) {
     const url = request.nextUrl.clone();
@@ -57,11 +70,7 @@ export async function proxy(request: NextRequest) {
   // the onboarding-status page itself: it shouldn't exist for a
   // pre-redesign customer, and blocking a real customer over a data gap
   // we can't explain would be worse than showing them their dashboard.
-  const { data: onboarding } = await supabase
-    .from("customer_onboarding")
-    .select("current_stage")
-    .eq("customer_id", profile.id)
-    .maybeSingle();
+  const onboarding = onboardingResult?.data ?? null;
 
   const isOnboarded = !onboarding || onboarding.current_stage === "install_completed";
 

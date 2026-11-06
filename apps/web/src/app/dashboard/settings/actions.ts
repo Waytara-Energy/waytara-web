@@ -18,6 +18,7 @@ import { metricOf, presetOf } from "@/lib/alert-rules";
 import { notifyAuthEvent, recordAccountEvent } from "@/lib/auth-notify";
 import { describeDevice } from "@/lib/user-agent";
 import { NOTIFICATION_KEYS, mergeNotificationPrefs, type NotificationKey } from "@/lib/notification-prefs";
+import { escapeLike } from "@/lib/like-escape";
 
 const SETTINGS = "/dashboard/settings";
 /** What a password code is bound to (the same hashing as the e-mail change codes, a different purpose, so one cannot stand in for the other). */
@@ -76,7 +77,7 @@ export async function requestEmailChange(newEmailRaw: string): Promise<{ sentTo:
   if (email === normaliseEmail(profile.email ?? "")) throw new Error("That is already your e-mail address.");
 
   const service = createServiceRoleClient();
-  const { data: taken } = await service.from("profiles").select("id").ilike("email", email).neq("id", profile.id).limit(1);
+  const { data: taken } = await service.from("profiles").select("id").ilike("email", escapeLike(email)).neq("id", profile.id).limit(1);
   if (taken && taken.length > 0) throw new Error("That address cannot be used. Try another one.");
 
   const { data: pending } = await service.from("email_change_codes").select("created_at").eq("user_id", profile.id).maybeSingle();

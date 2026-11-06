@@ -69,10 +69,19 @@ export async function lookupCurrentProfile(supabase: TypedSupabaseClient): Promi
     return { status: "none" };
   }
 
+  return profileForUser(supabase, user.id);
+}
+
+/**
+ * The profile of a user whose id is already known and trusted (it came from a `getUser()` that just succeeded, or from the sign-in that just
+ * created the session). Saves the `getUser()` round trip that `lookupCurrentProfile` makes first: that is one more trip to the database's
+ * region on every sign-in. Never pass an id that came from the client.
+ */
+export async function profileForUser(supabase: TypedSupabaseClient, userId: string): Promise<ProfileLookup> {
   const { data, error } = await supabase
     .from("profiles")
     .select("*")
-    .eq("id", user.id)
+    .eq("id", userId)
     .single();
 
   if (error) {
