@@ -1,12 +1,10 @@
-import { CircleCheck, Minus } from "lucide-react";
-import { cn } from "@/lib/utils";
+import { CircleCheck, CircleX } from "lucide-react";
 
 interface Tier {
   id: string;
   name: string;
   level: string;
   bestFor: string;
-  recommended?: boolean;
 }
 
 /** A cell is plain text, optionally with a muted second line (an add-on price), or a yes / no. */
@@ -20,7 +18,7 @@ interface Row {
 const TIERS: Tier[] = [
   { id: "observe", name: "Observe", level: "Starter", bestFor: "Pilot projects and single small sites" },
   { id: "control", name: "Control", level: "Professional", bestFor: "Commercial buildings and multi-site managers" },
-  { id: "orchestrate", name: "Orchestrate", level: "Enterprise", bestFor: "Industrial plants, microgrids and large portfolios", recommended: true },
+  { id: "orchestrate", name: "Orchestrate", level: "Enterprise", bestFor: "Industrial plants, microgrids and large portfolios" },
 ];
 
 const ROWS: Row[] = [
@@ -28,9 +26,9 @@ const ROWS: Row[] = [
   {
     label: "Devices",
     values: [
-      { text: "Up to 15 devices", note: "Add-on: $5 – $8 per device" },
-      { text: "Up to 75 devices", note: "Add-on: $12 – $15 per device" },
-      { text: "Unlimited devices", note: "Volume discounts, lowest cost per device" },
+      { text: "2 devices", note: "More can be added as an add-on" },
+      { text: "10 devices", note: "More can be added as an add-on" },
+      "Unlimited devices",
     ],
   },
   { label: "User seats", values: ["3 – 5 seats, single admin role", "Up to 15 seats, with custom role-based access (RBAC)", "Unlimited seats, with SSO"] },
@@ -66,23 +64,23 @@ const ROWS: Row[] = [
       "Automated savings from peak shaving and demand response, tenant sub-billing and savings reports",
     ],
   },
-  { label: "WayTara hub (gateway)", values: ["WayTara Hub", "WayTara Hub Pro", "WayTara Hub Pro Max"] },
+  { label: "Gateway", values: ["WayTara Hub", "WayTara Hub Pro", "WayTara Hub Pro Max"] },
 ];
 
 function Value({ cell }: { cell: Cell }) {
   if (cell === true) {
     return (
-      <span className="inline-flex items-center gap-2 text-theme-primary">
-        <CircleCheck className="size-5 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-        Included
+      <span className="inline-flex items-center">
+        <CircleCheck className="size-6 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+        <span className="sr-only">Included</span>
       </span>
     );
   }
   if (cell === false) {
     return (
-      <span className="inline-flex items-center gap-2 text-theme-muted">
-        <Minus className="size-5" aria-hidden="true" />
-        Not included
+      <span className="inline-flex items-center">
+        <CircleX className="size-6 text-theme-muted" aria-hidden="true" />
+        <span className="sr-only">Not included</span>
       </span>
     );
   }
@@ -95,11 +93,9 @@ function Value({ cell }: { cell: Cell }) {
   );
 }
 
-const RECOMMENDED = "Recommended";
-
 /**
  * The three plans side by side (Observe, Control, Orchestrate), frameless: a header for each plan, then one thin-ruled row per dimension. From a tablet up it is a
- * table (the recommended plan has a faint tint and a pill); on a phone each plan becomes its own list, so nothing needs sideways scrolling.
+ * table; on a phone each plan becomes its own list, so nothing needs sideways scrolling.
  */
 export function PlansTable() {
   return (
@@ -114,13 +110,8 @@ export function PlansTable() {
                 <span className="sr-only">What is included</span>
               </th>
               {TIERS.map((t) => (
-                <th key={t.id} scope="col" className={cn("px-5 pb-8 align-bottom font-normal", t.recommended && "rounded-t-3xl bg-emerald-500/[0.06]")}>
-                  <span className="block min-h-6">
-                    {t.recommended && (
-                      <span className="inline-flex rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white">{RECOMMENDED}</span>
-                    )}
-                  </span>
-                  <span className="mt-3 block text-sm font-semibold text-theme-muted">{t.level}</span>
+                <th key={t.id} scope="col" className="px-5 pb-8 align-bottom font-normal">
+                  <span className="block text-sm font-semibold text-theme-muted">{t.level}</span>
                   <span className="mt-1 block text-[clamp(1.5rem,2.4vw,2.1rem)] font-bold leading-tight tracking-tight text-theme-primary">{t.name}</span>
                   <span className="mt-3 block text-[15px] leading-relaxed text-theme-secondary">{t.bestFor}</span>
                 </th>
@@ -128,16 +119,13 @@ export function PlansTable() {
             </tr>
           </thead>
           <tbody>
-            {ROWS.map((row, i) => (
+            {ROWS.map((row) => (
               <tr key={row.label} className="border-t border-theme-border">
                 <th scope="row" className="py-5 pr-4 align-top text-[15px] font-semibold text-theme-primary">
                   {row.label}
                 </th>
                 {row.values.map((cell, c) => (
-                  <td
-                    key={TIERS[c].id}
-                    className={cn("px-5 py-5 align-top text-[15px] leading-relaxed text-theme-secondary", TIERS[c].recommended && "bg-emerald-500/[0.06]", TIERS[c].recommended && i === ROWS.length - 1 && "rounded-b-3xl")}
-                  >
+                  <td key={TIERS[c].id} className="px-5 py-5 align-top text-[15px] leading-relaxed text-theme-secondary">
                     <Value cell={cell} />
                   </td>
                 ))}
@@ -151,10 +139,7 @@ export function PlansTable() {
       <div className="space-y-14 md:hidden">
         {TIERS.map((t, c) => (
           <section key={t.id} aria-labelledby={`plan-${t.id}`}>
-            <div className="flex flex-wrap items-center gap-3">
-              <p className="text-sm font-semibold text-theme-muted">{t.level}</p>
-              {t.recommended && <span className="inline-flex rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.1em] text-white">{RECOMMENDED}</span>}
-            </div>
+            <p className="text-sm font-semibold text-theme-muted">{t.level}</p>
             <h3 id={`plan-${t.id}`} className="mt-1 text-3xl font-bold tracking-tight text-theme-primary">
               {t.name}
             </h3>
@@ -174,7 +159,7 @@ export function PlansTable() {
       </div>
 
       <p className="mt-10 max-w-2xl text-sm leading-relaxed text-theme-muted">
-        Plans and limits are our current packages and can change before you buy. We confirm exactly what is included, and the price, in your quotation.
+        Plans and limits are our current packages and can change before you buy. We confirm exactly what is included in your quotation.
       </p>
     </div>
   );
