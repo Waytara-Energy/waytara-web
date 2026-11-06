@@ -592,3 +592,74 @@ html[data-reduce-motion="true"] *::after {
 @media (prefers-reduced-motion: reduce) {
   .mega-item, .mega-leaving { animation-duration: 0.01ms; animation-delay: 0ms !important; }
 }
+
+/* The dashboard on the Platform page (components/pages/platform-dashboard.tsx): the energy flowing along its lines, the live dot, the solar curve
+   drawing itself. Everything here stops for visitors who ask for less motion. */
+@keyframes wd-flow {
+  to {
+    stroke-dashoffset: -20;
+  }
+}
+@keyframes wd-ping {
+  75%,
+  100% {
+    transform: scale(2.4);
+    opacity: 0;
+  }
+}
+@keyframes wd-pulse {
+  0% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  100% {
+    transform: scale(1.55);
+    opacity: 0;
+  }
+}
+@keyframes wd-draw {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes wd-fade {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+.wd-flow {
+  animation: wd-flow 1.1s linear infinite;
+}
+.wd-ping {
+  animation: wd-ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+}
+.wd-pulse {
+  animation: wd-pulse 2.2s ease-out infinite;
+}
+.wd-hidden {
+  opacity: 0;
+}
+.wd-draw {
+  animation: wd-draw 1.8s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+.wd-fade {
+  animation: wd-fade 0.8s ease 1.5s both;
+}
+@media (prefers-reduced-motion: reduce) {
+  .wd-flow,
+  .wd-ping,
+  .wd-pulse,
+  .wd-draw,
+  .wd-fade {
+    animation: none;
+  }
+  .wd-t {
+    transition: none !important;
+  }
+}

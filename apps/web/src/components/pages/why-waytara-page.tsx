@@ -99,8 +99,8 @@ const PROOF = [
   {
     tag: "Try it",
     title: "See the dashboard before you buy.",
-    body: "The Platform page runs the customer dashboard on sample data. The tabs, intervals, charts and device menu all respond.",
-    link: { label: "Open the live demo", href: "/technology#demo" },
+    body: "The Platform page shows the customer dashboard: your solar, battery, grid and EV charger in one place, with the charts moving as your day does.",
+    link: { label: "See the dashboard", href: "/technology#demo" },
   },
   {
     tag: "Check it",

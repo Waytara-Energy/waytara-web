@@ -1,5 +1,4 @@
 import { Router, Server, Zap } from "lucide-react";
-import { FittedDemo } from "@/components/sections/dashboard-showcase";
 import { Reveal } from "@/components/shared/reveal";
 import { FaqList, type Faq } from "@/components/segments/faq-list";
 import { FeatureColumns, NoteColumns, SegmentSection } from "@/components/segments/segment-parts";
@@ -7,6 +6,7 @@ import { CPMS_PLATFORM_FEATURES, EMS_PLATFORM_FEATURES } from "@/components/segm
 import { CompatibilityForm } from "./compatibility-form";
 import { GatewayPicture } from "./gateway-picture";
 import { PlansTable } from "./plans-table";
+import { PlatformDashboard } from "./platform-dashboard";
 import { PageHero, PageShell } from "./page-shell";
 
 export const PLATFORM_PATH = "/technology";
@@ -153,15 +153,13 @@ export function PlatformPage() {
 
       <SegmentSection
         id="demo"
-        badge="Live demo"
-        title="See the dashboard"
-        accent="on sample data."
-        summary="The customer Monitoring page. The tabs, intervals, charts and device menu respond."
+        badge="Your dashboard"
+        title="Your home,"
+        accent="at a glance."
+        summary="Solar, battery, grid and your car in one calm place, moving as your day does."
       >
         <Reveal direction="up" duration={800} distance={24}>
-          <div className="h-[30rem] overflow-hidden rounded-2xl border border-theme-border bg-theme-surface p-2 sm:h-[38rem] sm:p-3">
-            <FittedDemo />
-          </div>
+          <PlatformDashboard />
         </Reveal>
       </SegmentSection>
 
