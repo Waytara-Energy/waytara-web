@@ -53,6 +53,7 @@ export function organizationJsonLd(): JsonLdObject {
     telephone: SITE.phone,
     description: SITE.description,
     address: { "@type": "PostalAddress", ...SITE.address },
+    geo: { "@type": "GeoCoordinates", latitude: SITE.geo.latitude, longitude: SITE.geo.longitude },
     areaServed: { "@type": "Country", name: "India" },
     contactPoint: [
       {

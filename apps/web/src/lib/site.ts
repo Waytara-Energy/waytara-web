@@ -24,6 +24,9 @@ export const SITE = {
     addressRegion: "Tamil Nadu",
     addressCountry: "IN",
   },
+  /** Where the office is (WayTara Energy LLP, Mylapore), and a link that opens that exact spot in Google Maps. One place for every map and link on the site. */
+  geo: { latitude: 13.043242168280601, longitude: 80.26476746668499 },
+  mapUrl: "https://www.google.com/maps/search/?api=1&query=13.043242168280601,80.26476746668499",
   logoPath: "/images/logo.png",
   themeColor: "#0A0F0D",
 } as const;

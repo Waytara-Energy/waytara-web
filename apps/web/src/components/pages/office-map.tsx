@@ -4,15 +4,14 @@ import * as React from "react";
 import { ExternalLink, Mail, MapPin, Phone } from "lucide-react";
 import { useTheme } from "next-themes";
 import { buildingAt } from "@/lib/geo";
-import { BUILDINGS_3D_LAYER, SITE_BUILDING_3D_LAYER, SITE_BUILDING_SOURCE, mapStyle, type MapTheme } from "@/lib/map-style";
+import { SITE_BUILDING_SOURCE, mapStyle, type MapTheme } from "@/lib/map-style";
 import { SITE } from "@/lib/site";
 import "maplibre-gl/dist/maplibre-gl.css";
 
-/** The office: WayTara Energy LLP, 3rd floor, on Dr. Radhakrishnan Salai in Mylapore (the place pinned on Google Maps, 13.0432659, 80.2647689). */
-const OFFICE = { lat: 13.0432659, lng: 80.2647689 };
-const DIRECTIONS = "https://maps.app.goo.gl/uDAuNfJjh5uXBpZa9";
-const ZOOM = 17.6;
-const TILT = { pitch: 55, bearing: -17 };
+/** The office: WayTara Energy LLP, 3rd floor, on Dr. Radhakrishnan Salai in Mylapore (the exact spot is in lib/site.ts). */
+const OFFICE = { lat: SITE.geo.latitude, lng: SITE.geo.longitude };
+const DIRECTIONS = SITE.mapUrl;
+const ZOOM = 18;
 
 /** The map of where to find us: the same OpenFreeMap tiles and WayTara look as the dashboard's site map, with the office building in green.
  *  It loads only when it comes into view. If the map cannot be drawn (no WebGL, tiles blocked) the address and contacts still show. */
@@ -58,34 +57,38 @@ export function OfficeMap() {
         ml.setWorkerUrl(`/maplibre/maplibre-gl-worker.mjs?v=${ml.getVersion()}`);
         map = new ml.Map({
           container: box.current,
-          style: mapStyle(themeRef.current, true),
+          style: mapStyle(themeRef.current, false),
           center: [OFFICE.lng, OFFICE.lat],
           zoom: ZOOM,
           maxZoom: 19.5,
           minZoom: 12,
-          pitch: TILT.pitch,
-          bearing: TILT.bearing,
-          maxPitch: 70,
+          // flat and facing north: no tilt, no turning, no 3D; the office building is the only thing painted
+          pitch: 0,
+          bearing: 0,
+          dragRotate: false,
+          touchPitch: false,
+          pitchWithRotate: false,
           attributionControl: { compact: true },
           cooperativeGestures: true,
         });
+        map.touchZoomRotate.disableRotation();
         map.addControl(new ml.NavigationControl({ showCompass: false }), "top-right");
-        // The office building in green, taken from what the map has drawn (the outline is handed to the style's own layers).
+        // The office building in green, like the site map in the dashboard: its outline is read from what the map has drawn and handed to the style's own
+        // layers (flat; the raised layers stay off). The nearest building within 30 m counts, in case the point sits just outside its outline.
         let built = "";
         map.on("style.load", () => (built = ""));
         map.on("idle", () => {
           const m = map;
           const source = m?.getSource(SITE_BUILDING_SOURCE) as import("maplibre-gl").GeoJSONSource | undefined;
-          if (!m || !source || !m.getLayer("buildings")) return;
+          if (!m || !source || !m.getLayer("buildings") || m.getZoom() < 15) return;
           const at = m.project([OFFICE.lng, OFFICE.lat]);
-          const hits = m.queryRenderedFeatures([[at.x - 14, at.y - 14], [at.x + 14, at.y + 14]], { layers: ["buildings"] });
-          const building = buildingAt(hits.map((h) => h.geometry), OFFICE);
+          const hits = m.queryRenderedFeatures([[at.x - 60, at.y - 60], [at.x + 60, at.y + 60]], { layers: ["buildings"] });
+          const building = buildingAt(hits.map((h) => h.geometry), OFFICE, 30);
           const outline = building ? JSON.stringify(building.coordinates) : "";
           const key = outline ? `${outline.length}:${outline.slice(0, 80)}` : "";
           if (key === built) return;
           built = key;
           source.setData({ type: "FeatureCollection", features: building ? [{ type: "Feature", geometry: building, properties: {} }] : [] });
-          for (const layer of [BUILDINGS_3D_LAYER, SITE_BUILDING_3D_LAYER]) if (m.getLayer(layer)) m.setLayoutProperty(layer, "visibility", "visible");
         });
         mapRef.current = map;
       } catch {
@@ -103,7 +106,7 @@ export function OfficeMap() {
   // The map follows the site's light or dark theme.
   React.useEffect(() => {
     themeRef.current = theme;
-    mapRef.current?.setStyle(mapStyle(theme, true));
+    mapRef.current?.setStyle(mapStyle(theme, false));
   }, [theme]);
 
   return (

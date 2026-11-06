@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/shared/logo";
 import { Mail, Phone, MapPin } from "lucide-react";
+import { SITE } from "@/lib/site";
 import { TEMP_HIDE_LANDING_SECTIONS } from "@/config/landing-flags";
 import { LEGAL_LINKS, PARTNER_LINK, PRIMARY_LINKS, CONTACT_LINK, SOLUTION_SEGMENTS } from "@/config/site-nav";
 
@@ -106,7 +107,7 @@ export function Footer() {
                 </li>
                 <li>
                   <a
-                    href="https://maps.app.goo.gl/uDAuNfJjh5uXBpZa9"
+                    href={SITE.mapUrl}
                     target="_blank"
                     rel="noreferrer"
                     className={`flex items-start gap-2 ${FOOTER_LINK}`}

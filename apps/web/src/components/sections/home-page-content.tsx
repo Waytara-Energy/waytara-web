@@ -6,13 +6,12 @@ import { DashboardShowcase } from "@/components/sections/dashboard-showcase";
 import { WhoWeServe } from "@/components/sections/who-we-serve";
 import { ProjectSteps } from "@/components/sections/project-steps";
 import { WhereToStart } from "@/components/sections/where-to-start";
-import { WhyStrip } from "@/components/sections/why-strip";
 import { FinalCTA } from "@/components/sections/final-cta";
 import { Footer } from "@/components/sections/footer";
 
 /**
  * The landing page, in story order (docs/WEBSITE_PLAN.md section 5): the promise, the idea, what WayTara does, the dashboard,
- * who it is for, how a project runs, where to start, why WayTara, and the close.
+ * who it is for, how a project runs, where to start, and the close.
  */
 export function HomePageContent() {
   return (
@@ -41,10 +40,7 @@ export function HomePageContent() {
         {/* 7. Where to start: the planner */}
         <WhereToStart />
 
-        {/* 8. Why WayTara */}
-        <WhyStrip />
-
-        {/* 9. The close */}
+        {/* 8. The close (Why WayTara has its own page, in the header menu) */}
         <FinalCTA />
       </main>
 

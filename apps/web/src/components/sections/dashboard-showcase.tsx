@@ -105,7 +105,7 @@ export function DashboardShowcase() {
       >
         <CroppedDemo />
       </ContainerScroll>
-      <div className="-mt-20 pb-24 md:-mt-36">
+      <div className="pb-24 pt-8 md:pt-8">
         <DashboardKeyFeatures />
       </div>
     </section>
