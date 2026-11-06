@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { renderMail } from "@waytara/ui/mail-layout";
 
 export interface InstallScheduledEmailInput {
   to: string;
@@ -39,18 +40,23 @@ export async function sendInstallScheduledEmail(input: InstallScheduledEmailInpu
   const resend = new Resend(apiKey);
 
   try {
+    const { html, text } = renderMail({
+      preheader: `Your installation is scheduled for ${formattedDate}.`,
+      title: "Your installation is scheduled",
+      greeting: `Hi ${input.name ?? "there"},`,
+      blocks: [
+        { type: "facts", rows: [["Date", formattedDate], ["Slot", SLOT_LABELS[input.timeSlot]]] },
+        { type: "p", text: "Our installer will arrive at your site during that window. Please make sure someone is available to let them in." },
+      ],
+      why: "You get this e-mail because the date of your installation was set or changed.",
+      audience: "public",
+    });
     const { error } = await resend.emails.send({
       from,
       to: input.to,
       subject: "Your WayTara installation is scheduled",
-      text: [
-        `Hi ${input.name ?? "there"},`,
-        ``,
-        `Your installation is scheduled for ${formattedDate}, ${SLOT_LABELS[input.timeSlot]} slot.`,
-        `Our installer will arrive at your site during that window — please make sure someone is available to let them in.`,
-        ``,
-        `— The WayTara Team`,
-      ].join("\n"),
+      text,
+      html,
     });
 
     if (error) {

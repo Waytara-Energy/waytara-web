@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { renderMail } from "@waytara/ui/mail-layout";
 
 export interface EmployeeInviteEmailInput {
   to: string;
@@ -34,20 +35,25 @@ export async function sendEmployeeInviteEmail(input: EmployeeInviteEmailInput): 
   const resend = new Resend(apiKey);
 
   try {
+    const { html, text } = renderMail({
+      preheader: "You have been invited to the WayTara staff panel.",
+      title: "You're invited to join WayTara Admin",
+      greeting: "Hi,",
+      blocks: [
+        { type: "p", text: `You have been invited to join the WayTara staff panel as ${ROLE_COPY[input.role]}.` },
+        { type: "note", text: "This link expires in 7 days." },
+      ],
+      button: { label: "Set up your account", url: inviteUrl },
+      why: "You get this e-mail because a WayTara admin invited you.",
+      audience: "team",
+      adminUrl: siteUrl && !/localhost/.test(siteUrl) ? siteUrl : undefined,
+    });
     const { error } = await resend.emails.send({
       from,
       to: input.to,
       subject: "You're invited to join WayTara Admin",
-      text: [
-        `Hi,`,
-        ``,
-        `You've been invited to join the WayTara staff panel as ${ROLE_COPY[input.role]}.`,
-        `Set up your account:`,
-        inviteUrl,
-        ``,
-        `This link expires in 7 days.`,
-        `— The WayTara Team`,
-      ].join("\n"),
+      text,
+      html,
     });
 
     if (error) {

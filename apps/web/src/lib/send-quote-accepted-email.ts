@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { renderMail } from "@waytara/ui/mail-layout";
 
 export interface QuoteAcceptedEmailInput {
   to: string;
@@ -29,22 +30,26 @@ export async function sendQuoteAcceptedEmail(input: QuoteAcceptedEmailInput): Pr
   const resend = new Resend(apiKey);
 
   try {
+    const { html, text } = renderMail({
+      preheader: "A copy of your quotation is attached. Next: set up your account.",
+      title: "Thanks for accepting your quote",
+      greeting: `Hi ${input.name ?? "there"},`,
+      blocks: [
+        { type: "p", text: "Thanks for accepting your quotation. A copy is attached for your records." },
+        { type: "p", text: "The next step is your onboarding and payment. Create your account and fill in your details with the button below." },
+        { type: "note", text: "Once your account is set up, you will complete payment and then be able to track your onboarding progress." },
+      ],
+      button: { label: "Set up your account", url: inviteUrl },
+      why: "You get this e-mail because you accepted a WayTara quotation.",
+      audience: "public",
+      siteUrl: process.env.CUSTOMER_APP_URL && !/localhost/.test(process.env.CUSTOMER_APP_URL) ? process.env.CUSTOMER_APP_URL : undefined,
+    });
     const { error } = await resend.emails.send({
       from,
       to: input.to,
       subject: "Thanks for accepting your WayTara quote",
-      text: [
-        `Hi ${input.name ?? "there"},`,
-        ``,
-        `Thanks for accepting your quotation — a copy is attached for your records.`,
-        ``,
-        `The next step is your onboarding and payment. Create your account and fill in your details here:`,
-        inviteUrl,
-        ``,
-        `Once your account is set up, you'll complete payment and then be able to track your onboarding progress.`,
-        ``,
-        `— The WayTara Team`,
-      ].join("\n"),
+      text,
+      html,
       attachments: [
         {
           filename: "waytara-quotation.pdf",

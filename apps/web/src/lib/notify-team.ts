@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { renderMail } from "@waytara/ui/mail-layout";
 
 // Deliberately not the full `leads` Row type: the `anon` role that inserts
 // these can't SELECT afterward (by design — see the migration), so the
@@ -45,25 +46,31 @@ export async function notifyTeamOfNewLead(lead: Lead): Promise<void> {
       : null;
 
   try {
+    const rows: [string, string][] = [["Name", lead.full_name], ["E-mail", lead.email]];
+    if (lead.phone) rows.push(["Phone", lead.phone]);
+    if (address) rows.push(["Address", address]);
+    rows.push(["Source", lead.source ?? "unknown"]);
+    const adminUrl = (process.env.ADMIN_APP_URL || "https://admin.waytaraenergy.com").replace(/\/+$/, "");
+    const { html, text } = renderMail({
+      preheader: `${lead.full_name} sent a request from the website.`,
+      title: `New lead: ${lead.full_name}`,
+      blocks: [
+        { type: "p", text: "A new request came in from the website." },
+        { type: "facts", rows },
+        ...(lead.message ? ([{ type: "quote", label: "Message", text: lead.message }] as const) : []),
+        { type: "note", text: `Lead ID: ${lead.id}` },
+      ],
+      button: { label: "Open the leads", url: `${adminUrl}/leads` },
+      why: "You get this e-mail because you are on the team that looks after new leads.",
+      audience: "team",
+      adminUrl,
+    });
     const { error } = await resend.emails.send({
       from,
       to,
       subject: `New lead: ${lead.full_name}`,
-      text: [
-        `New quote request from the landing page.`,
-        ``,
-        `Name: ${lead.full_name}`,
-        `Email: ${lead.email}`,
-        lead.phone ? `Phone: ${lead.phone}` : null,
-        address ? `Address: ${address}` : null,
-        `Source: ${lead.source ?? "unknown"}`,
-        ``,
-        lead.message ? `Message:\n${lead.message}` : null,
-        ``,
-        `Lead ID: ${lead.id}`,
-      ]
-        .filter((line) => line !== null)
-        .join("\n"),
+      text,
+      html,
     });
 
     // The Resend SDK resolves with { data, error } on API-level failures

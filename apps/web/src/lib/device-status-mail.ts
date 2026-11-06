@@ -3,6 +3,7 @@
 // rows into waytara.notification_outbox); this file only decides who gets which rows together, and how they read.
 
 import { fmtIst } from "./device-alerts";
+import { renderMail } from "@waytara/ui/mail-layout";
 
 export type OutboxKind = "offline" | "still_offline" | "back_online" | "hub_down" | "hub_back";
 
@@ -70,7 +71,6 @@ export function fmtDuration(seconds: number): string {
   return plural(minutes, "minute");
 }
 
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const str = (v: unknown): string | null => (typeof v === "string" && v.trim() !== "" ? v : null);
 const num = (v: unknown): number | null => (typeof v === "number" && Number.isFinite(v) ? v : null);
 
@@ -181,30 +181,19 @@ export function buildStatusDigest(input: DigestInput): { subject: string; text: 
     : "";
   const sections = SECTIONS.map((s) => ({ title: s.title, lines: items.filter((i) => i.kind === s.kind && causeKey(i) === s.cause).map(lineOf) })).filter((s) => s.lines.length > 0);
 
-  const text = [
+  const { html, text } = renderMail({
+    preheader: lead,
+    title: subject,
     greeting,
-    "",
-    lead,
-    ...sections.flatMap((s) => ["", `${s.title}:`, ...s.lines.map((l) => `  - ${l}`)]),
-    reminder ? "" : null,
-    reminder || null,
-    "",
-    `Open your dashboard: ${input.dashboardUrl}`,
-    "",
-    "You get these e-mails because alert e-mails are on for your account (Settings > Application Settings). We group updates into one e-mail.",
-    "- The WayTara Team",
-  ]
-    .filter((l): l is string => l !== null)
-    .join("\n");
-
-  const html = `<div style="font-family:Segoe UI,Arial,sans-serif;color:#0f172a;max-width:560px">
-<p>${esc(greeting)}</p>
-<p><strong>${esc(lead)}</strong></p>
-${sections.map((s) => `<p style="margin-bottom:4px"><strong>${esc(s.title)}</strong></p><ul style="margin-top:0;padding-left:18px">${s.lines.map((l) => `<li style="margin-bottom:6px">${esc(l)}</li>`).join("")}</ul>`).join("\n")}
-${reminder ? `<p style="color:#475569;font-size:13px">${esc(reminder)}</p>` : ""}
-<p><a href="${esc(input.dashboardUrl)}" style="background:#16a34a;color:#fff;padding:9px 16px;border-radius:8px;text-decoration:none">Open your dashboard</a></p>
-<p style="color:#64748b;font-size:12px">You get these e-mails because alert e-mails are on for your account (Settings &gt; Application Settings). We group updates into one e-mail.<br>- The WayTara Team</p>
-</div>`;
+    blocks: [
+      { type: "p", text: lead },
+      ...sections.flatMap((s) => [{ type: "h", text: s.title } as const, { type: "list", items: s.lines } as const]),
+      ...(reminder ? ([{ type: "note", text: reminder }] as const) : []),
+    ],
+    button: { label: "Open your dashboard", url: input.dashboardUrl },
+    why: "You get these e-mails because alert e-mails are on for your account (Settings > Application Settings). We group updates into one e-mail.",
+    audience: "customer",
+  });
   return { subject, text, html };
 }
 
@@ -221,7 +210,14 @@ export function buildHubEmail(rows: readonly OutboxRow[], dashboardUrl: string):
     lines.push("While it is down, boards cannot send readings and customers are NOT e-mailed about their devices being offline.");
   }
   if (back) lines.push(`The hub is answering again${backFor !== null ? ` after ${fmtDuration(backFor)}` : ""}. Boards reconnect by themselves within a minute or two.`);
-  const text = ["Hi,", "", ...lines, "", `Dashboard: ${dashboardUrl}`, "- WayTara monitoring"].join("\n");
-  const html = `<div style="font-family:Segoe UI,Arial,sans-serif;color:#0f172a;max-width:560px"><p>Hi,</p>${lines.map((l) => `<p>${esc(l)}</p>`).join("")}<p><a href="${esc(dashboardUrl)}">Open the dashboard</a></p><p style="color:#64748b;font-size:12px">- WayTara monitoring</p></div>`;
+  const { html, text } = renderMail({
+    preheader: subject,
+    title: subject,
+    greeting: "Hi,",
+    blocks: lines.map((l) => ({ type: "p", text: l }) as const),
+    button: { label: "Open the dashboard", url: dashboardUrl },
+    why: "You get this e-mail because you are an admin with e-mail alerts on.",
+    audience: "team",
+  });
   return { subject, text, html };
 }

@@ -2,6 +2,7 @@
 // Pure logic (no database, no network), so the cron route stays thin and this can be tested.
 
 import { getFaultInfo } from "./deye-fault-codes";
+import { renderMail } from "@waytara/ui/mail-layout";
 
 export type AlertKind = "offline" | "fault" | "alarm";
 
@@ -175,7 +176,6 @@ export interface AlertEmailInput {
   dashboardUrl: string;
 }
 
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 export function buildAlertEmail(input: AlertEmailInput): { subject: string; text: string; html: string } {
   const { kind, event, deviceLabel } = input;
@@ -207,31 +207,21 @@ export function buildAlertEmail(input: AlertEmailInput): { subject: string; text
   const detail = opened ? input.message : "";
   const since = reminder && input.since ? `Open since ${fmtIst(input.since)}${input.sentBefore ? ` - we have e-mailed you ${input.sentBefore} time${input.sentBefore === 1 ? "" : "s"} about it` : ""}.` : "";
   const stop = reminder ? "Open the dashboard and press Acknowledge on the alert to stop these reminders (they also stop once it clears)." : "";
-  const greeting = `Hi ${input.customerName ?? "there"},`;
-  const text = [
-    greeting,
-    "",
-    `${lead} ${deviceLabel}${where}`,
-    detail ? "" : null,
-    detail || null,
-    since ? "" : null,
-    since || null,
-    stop || null,
-    "",
-    `Open your dashboard: ${input.dashboardUrl}`,
-    "",
-    "You get these e-mails because alert e-mails are on for your account (Settings > Application Settings).",
-    "- The WayTara Team",
-  ]
-    .filter((l): l is string => l !== null)
-    .join("\n");
-  const html = `<div style="font-family:Segoe UI,Arial,sans-serif;color:#0f172a;max-width:560px">
-<p>${esc(greeting)}</p>
-<p><strong>${esc(lead)}</strong><br>${esc(deviceLabel)}${esc(where)}</p>
-${detail ? `<p style="background:#f1f5f9;border-radius:8px;padding:10px 12px">${esc(detail)}</p>` : ""}
-${since ? `<p style="color:#475569;font-size:13px">${esc(since)}<br>${esc(stop)}</p>` : ""}
-<p><a href="${esc(input.dashboardUrl)}" style="background:#16a34a;color:#fff;padding:9px 16px;border-radius:8px;text-decoration:none">Open your dashboard</a></p>
-<p style="color:#64748b;font-size:12px">You get these e-mails because alert e-mails are on for your account (Settings &gt; Application Settings).<br>- The WayTara Team</p>
-</div>`;
+  const facts: [string, string][] = [["Device", deviceLabel], ...(input.siteName ? ([["Site", input.siteName]] as [string, string][]) : [])];
+  const { html, text } = renderMail({
+    preheader: `${lead} ${deviceLabel}${where}`,
+    title: subject,
+    greeting: `Hi ${input.customerName ?? "there"},`,
+    blocks: [
+      { type: "p", text: lead },
+      { type: "facts", rows: facts },
+      ...(detail ? ([{ type: "quote", label: "What the device reported", text: detail }] as const) : []),
+      ...(since ? ([{ type: "note", text: since }] as const) : []),
+      ...(stop ? ([{ type: "note", text: stop }] as const) : []),
+    ],
+    button: { label: "Open your dashboard", url: input.dashboardUrl },
+    why: "You get these e-mails because alert e-mails are on for your account (Settings > Application Settings).",
+    audience: "customer",
+  });
   return { subject, text, html };
 }

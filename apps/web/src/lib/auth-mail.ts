@@ -1,3 +1,4 @@
+import { renderMail } from "@waytara/ui/mail-layout";
 import type { Mail } from "./support-mail";
 
 // The account-security e-mails: someone signed in, a device was signed out, the password changed. Pure, so the wording is tested; the sender
@@ -20,7 +21,6 @@ export interface AuthMailInput {
   target?: string | null;
 }
 
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const first = (name: string | null) => (name ?? "").trim().split(/\s+/)[0] ?? "";
 
 export const istText = (ms: number): string => new Date(ms + 19_800_000).toLocaleString("en-IN", { timeZone: "UTC", day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", hour12: true }) + " IST";
@@ -61,16 +61,19 @@ function bodyFor(i: AuthMailInput): Body {
 
 export function buildAuthEmail(input: AuthMailInput): Mail {
   const b = bodyFor(input);
-  const hello = first(input.name) ? `Hi ${first(input.name)},` : "Hi,";
-  const facts = [`Device: ${input.device}`, ...(input.place ? [`Place: ${input.place}`] : []), ...(input.ip ? [`Address: ${input.ip}`] : []), `Time: ${istText(input.whenMs)}`];
-  const text = [hello, "", b.lead, "", ...facts, "", b.worry, "", `${b.button}: ${input.url}`, "", "You can choose which of these e-mails you get in Settings > Notifications.", "- The WayTara Team"].join("\n");
-  const html = `<div style="font-family:Segoe UI,Arial,sans-serif;color:#0f172a;max-width:540px">
-<p>${esc(hello)}</p>
-<p>${esc(b.lead)}</p>
-<table style="border-collapse:collapse;margin:8px 0 12px;font-size:14px">${facts.map((f) => { const [k, ...v] = f.split(": "); return `<tr><td style="padding:3px 14px 3px 0;color:#64748b">${esc(k)}</td><td style="padding:3px 0"><strong>${esc(v.join(": "))}</strong></td></tr>`; }).join("")}</table>
-<p style="color:#475569;font-size:13px">${esc(b.worry)}</p>
-<p><a href="${esc(input.url)}" style="background:#16a34a;color:#fff;padding:9px 16px;border-radius:8px;text-decoration:none;display:inline-block">${esc(b.button)}</a></p>
-<p style="color:#64748b;font-size:12px">You can choose which of these e-mails you get in Settings &gt; Notifications.<br>- The WayTara Team</p>
-</div>`;
+  const facts: [string, string][] = [["Device", input.device], ...(input.place ? ([["Place", input.place]] as [string, string][]) : []), ...(input.ip ? ([["Address", input.ip]] as [string, string][]) : []), ["Time", istText(input.whenMs)]];
+  const { html, text } = renderMail({
+    preheader: b.lead,
+    title: b.subject,
+    greeting: first(input.name) ? `Hi ${first(input.name)},` : "Hi,",
+    blocks: [
+      { type: "p", text: b.lead },
+      { type: "facts", rows: facts },
+      { type: "note", text: b.worry },
+    ],
+    button: { label: b.button, url: input.url },
+    why: "You can choose which of these e-mails you get in Settings > Notifications.",
+    audience: "customer",
+  });
   return { subject: b.subject, text, html };
 }

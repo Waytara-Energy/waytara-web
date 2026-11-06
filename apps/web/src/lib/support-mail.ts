@@ -1,3 +1,4 @@
+import { renderMail } from "@waytara/ui/mail-layout";
 // The support e-mails (task: support v2): what each event says to the customer or to staff, and where its button leads. Pure, so the wording
 // is tested and the mailer route only fetches and sends.
 
@@ -59,7 +60,6 @@ export function roleLabel(role: string | null | undefined): string {
 
 const CATEGORY_LABEL: Record<string, string> = { device: "Device or inverter", installation: "Installation", billing: "Billing", account: "Account", other: "Something else" };
 
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 const firstName = (name: string | null) => (name ?? "").trim().split(/\s+/)[0] ?? "";
 const stars = (n: number) => `${"★".repeat(n)}${"☆".repeat(Math.max(0, 5 - n))}`;
 const ref = (n: number) => `#${n}`;
@@ -201,20 +201,21 @@ function bodyFor(i: SupportMailInput): Body {
 /** One support e-mail: subject, plain text and HTML, with a button to the ticket. */
 export function buildSupportEmail(input: SupportMailInput): Mail {
   const b = bodyFor(input);
-  const hello = firstName(input.recipientName) ? `Hi ${firstName(input.recipientName)},` : "Hi,";
-  const header = `Ticket ${ref(input.ticketNo)} · ${input.subject}`;
-
-  const text = [hello, "", b.lead, ...(b.quote ? ["", `${b.quote.label}:`, `"${b.quote.text}"`] : []), ...(b.lines ? ["", ...b.lines] : []), "", `${b.button}: ${input.url}`, "", b.why, "- WayTara Support"].join("\n");
-
-  const html = `<div style="font-family:Segoe UI,Arial,sans-serif;color:#0f172a;max-width:560px">
-<p style="color:#64748b;font-size:12px;margin-bottom:4px">${esc(header)}</p>
-<p>${esc(hello)}</p>
-<p>${esc(b.lead)}</p>
-${b.quote ? `<blockquote style="margin:12px 0;padding:8px 14px;border-left:3px solid #16a34a;background:#f1f5f9;color:#334155"><span style="font-size:12px;color:#64748b">${esc(b.quote.label)}</span><br>${esc(b.quote.text)}</blockquote>` : ""}
-${b.lines ? b.lines.map((l) => `<p style="color:#475569;font-size:13px">${esc(l)}</p>`).join("") : ""}
-<p><a href="${esc(input.url)}" style="background:#16a34a;color:#fff;padding:9px 16px;border-radius:8px;text-decoration:none;display:inline-block">${esc(b.button)}</a></p>
-<p style="color:#64748b;font-size:12px">${esc(b.why)}<br>- The WayTara Team</p>
-</div>`;
+  const { html, text } = renderMail({
+    preheader: `Ticket ${ref(input.ticketNo)} · ${input.subject}`,
+    title: b.subject,
+    greeting: firstName(input.recipientName) ? `Hi ${firstName(input.recipientName)},` : "Hi,",
+    blocks: [
+      { type: "p", text: b.lead },
+      ...(b.quote ? ([{ type: "quote", label: b.quote.label, text: b.quote.text }] as const) : []),
+      ...(b.lines ?? []).map((l) => ({ type: "note", text: l }) as const),
+    ],
+    button: { label: b.button, url: input.url },
+    why: b.why,
+    // a customer's mail links into their dashboard; a team member's is internal
+    audience: /team that looks after/.test(b.why) ? "team" : "customer",
+    adminUrl: process.env.ADMIN_APP_URL || "https://admin.waytaraenergy.com",
+  });
   return { subject: b.subject, text, html };
 }
 

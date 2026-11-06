@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { renderMail } from "@waytara/ui/mail-layout";
 
 export interface QuoteLinkEmailInput {
   to: string;
@@ -30,19 +31,25 @@ export async function sendQuoteLinkEmail(input: QuoteLinkEmailInput): Promise<vo
   const resend = new Resend(apiKey);
 
   try {
+    const { html, text } = renderMail({
+      preheader: `Your WayTara quotation is ready: total ₹${input.totalAmount.toLocaleString("en-IN")}.`,
+      title: "Your WayTara quotation is ready",
+      greeting: `Hi ${input.leadName},`,
+      blocks: [
+        { type: "facts", rows: [["Total", `₹${input.totalAmount.toLocaleString("en-IN")} (GST included)`]] },
+        { type: "p", text: "View it, and accept, reject, or request changes, from the link below." },
+      ],
+      button: { label: "View your quotation", url: quoteUrl },
+      why: "You get this e-mail because WayTara prepared a quotation for you.",
+      audience: "public",
+      siteUrl: customerAppUrl && !/localhost/.test(customerAppUrl) ? customerAppUrl : undefined,
+    });
     const { error } = await resend.emails.send({
       from,
       to: input.to,
       subject: "Your WayTara quotation is ready",
-      text: [
-        `Hi ${input.leadName},`,
-        ``,
-        `Your WayTara quotation is ready — total ₹${input.totalAmount.toLocaleString("en-IN")} (GST included).`,
-        `View it, and accept, reject, or request changes, here:`,
-        quoteUrl,
-        ``,
-        `— The WayTara Team`,
-      ].join("\n"),
+      text,
+      html,
     });
 
     if (error) {

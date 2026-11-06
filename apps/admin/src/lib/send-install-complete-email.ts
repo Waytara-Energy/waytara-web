@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { renderMail } from "@waytara/ui/mail-layout";
 
 export interface InstallCompleteEmailInput {
   to: string;
@@ -27,19 +28,25 @@ export async function sendInstallCompleteEmail(input: InstallCompleteEmailInput)
   const resend = new Resend(apiKey);
 
   try {
+    const { html, text } = renderMail({
+      preheader: "Installation is complete and your system is live.",
+      title: "Your WayTara system is live",
+      greeting: `Hi ${input.name ?? "there"},`,
+      blocks: [
+        { type: "p", text: "Installation is complete and your system is now live. Track your output, savings and support requests any time from your dashboard." },
+        { type: "p", text: "Welcome to WayTara." },
+      ],
+      button: { label: "Open your dashboard", url: dashboardUrl },
+      why: "You get this e-mail because the installation at your site was marked complete.",
+      audience: "customer",
+      siteUrl: customerAppUrl && !/localhost/.test(customerAppUrl) ? customerAppUrl : undefined,
+    });
     const { error } = await resend.emails.send({
       from,
       to: input.to,
       subject: "Your WayTara system is live",
-      text: [
-        `Hi ${input.name ?? "there"},`,
-        ``,
-        `Installation is complete and your system is now live. Track your output, savings, and support requests any time from your dashboard:`,
-        dashboardUrl,
-        ``,
-        `Welcome to WayTara.`,
-        `— The WayTara Team`,
-      ].join("\n"),
+      text,
+      html,
     });
 
     if (error) {

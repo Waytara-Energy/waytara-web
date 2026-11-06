@@ -6,6 +6,7 @@ import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { getCurrentProfile, requireCustomer } from "@waytara/supabase/auth";
 import type { Json } from "@waytara/supabase/types";
 import { CLEARABLE_KINDS, RETENTION_CHOICES } from "@/lib/account-events";
+import { renderMail } from "@waytara/ui/mail-layout";
 import { buildAlertEmail } from "@/lib/alert-rule-mail";
 import { appearanceToJson, parseAppearance, type AppearancePrefs } from "@/lib/appearance-prefs";
 import { notifyAuthEvent } from "@/lib/auth-notify";
@@ -55,11 +56,18 @@ export async function sendTestEmail(): Promise<{ to: string }> {
   if (!profile.email) throw new Error("There is no e-mail address on your account.");
   await claimTest(profile.id);
   const first = (profile.full_name ?? "").trim().split(/\s+/)[0];
-  const sent = await sendMail(profile.email, {
-    subject: "A test e-mail from WayTara",
-    text: [`Hi${first ? ` ${first}` : ""},`, "", "This is a test: e-mails from WayTara reach you here.", "", "You asked for it in Settings > Notifications. Nothing else was changed.", "- The WayTara Team"].join("\n"),
-    html: `<div style="font-family:Segoe UI,Arial,sans-serif;color:#0f172a;max-width:520px"><p>Hi${first ? ` ${first.replace(/</g, "&lt;")}` : ""},</p><p>This is a test: e-mails from WayTara reach you here.</p><p style="color:#64748b;font-size:12px">You asked for it in Settings &gt; Notifications. Nothing else was changed.<br>- The WayTara Team</p></div>`,
+  const { html, text } = renderMail({
+    preheader: "E-mails from WayTara reach you here.",
+    title: "A test e-mail",
+    greeting: `Hi${first ? ` ${first}` : ""},`,
+    blocks: [
+      { type: "p", text: "This is a test: e-mails from WayTara reach you here." },
+      { type: "note", text: "You asked for it in Settings > Notifications. Nothing else was changed." },
+    ],
+    why: "You get this e-mail because you asked for a test in Settings.",
+    audience: "customer",
   });
+  const sent = await sendMail(profile.email, { subject: "A test e-mail from WayTara", text, html });
   if (sent !== "sent") throw new Error("The test e-mail could not be sent. Try again in a moment.");
   return { to: profile.email };
 }

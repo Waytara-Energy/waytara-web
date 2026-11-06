@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { renderMail } from "@waytara/ui/mail-layout";
 
 export interface CustomerInviteEmailInput {
   to: string;
@@ -27,18 +28,25 @@ export async function sendCustomerInviteEmail(input: CustomerInviteEmailInput): 
   const resend = new Resend(apiKey);
 
   try {
+    const { html, text } = renderMail({
+      preheader: "Your payment is confirmed. Set up your WayTara account.",
+      title: "Set up your WayTara account",
+      greeting: `Hi ${input.name ?? "there"},`,
+      blocks: [
+        { type: "p", text: "Your payment is confirmed. Thank you!" },
+        { type: "p", text: "Set up your WayTara account to track your installation and, once it is live, your system's dashboard." },
+      ],
+      button: { label: "Set up your account", url: inviteUrl },
+      why: "You get this e-mail because your payment for a WayTara system was recorded.",
+      audience: "public",
+      siteUrl: customerAppUrl && !/localhost/.test(customerAppUrl) ? customerAppUrl : undefined,
+    });
     const { error } = await resend.emails.send({
       from,
       to: input.to,
       subject: "Set up your WayTara account",
-      text: [
-        `Hi ${input.name ?? "there"},`,
-        ``,
-        `Your payment is confirmed — thank you! Set up your WayTara account to track your installation and, once it's live, your system's dashboard:`,
-        inviteUrl,
-        ``,
-        `— The WayTara Team`,
-      ].join("\n"),
+      text,
+      html,
     });
 
     // The Resend SDK resolves with { data, error } on API-level failures

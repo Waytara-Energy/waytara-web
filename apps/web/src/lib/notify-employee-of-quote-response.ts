@@ -1,4 +1,5 @@
 import { Resend } from "resend";
+import { renderMail } from "@waytara/ui/mail-layout";
 
 export interface QuoteResponseNotifyInput {
   to: string;
@@ -33,22 +34,24 @@ export async function notifyEmployeeOfQuoteResponse(input: QuoteResponseNotifyIn
   const resend = new Resend(apiKey);
 
   try {
+    const { html, text } = renderMail({
+      preheader: input.kind === "rejected" ? `${input.leadName} declined their quotation.` : `${input.leadName} asked for changes to their quotation.`,
+      title: subject,
+      greeting: `Hi ${input.employeeName ?? "there"},`,
+      blocks: [
+        { type: "p", text: input.kind === "rejected" ? `${input.leadName} has declined their quotation.` : `${input.leadName} has requested changes to their quotation.` },
+        { type: "quote", label: "Their message", text: input.message },
+      ],
+      why: "You get this e-mail because this customer's onboarding is yours, or because no one has taken it yet and you are an admin.",
+      audience: "team",
+      adminUrl: process.env.ADMIN_APP_URL || "https://admin.waytaraenergy.com",
+    });
     const { error } = await resend.emails.send({
       from,
       to: input.to,
       subject,
-      text: [
-        `Hi ${input.employeeName ?? "there"},`,
-        ``,
-        input.kind === "rejected"
-          ? `${input.leadName} has declined their quotation.`
-          : `${input.leadName} has requested changes to their quotation.`,
-        ``,
-        `Their message:`,
-        input.message,
-        ``,
-        `— WayTara Onboarding`,
-      ].join("\n"),
+      text,
+      html,
     });
 
     if (error) {

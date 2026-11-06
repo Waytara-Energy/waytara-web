@@ -3,8 +3,8 @@ import { Resend } from "resend";
 import { fmtDate } from "@/lib/savings";
 import { reportHeadline } from "./custom-report-csv";
 import type { CustomReport } from "./custom-report";
+import { renderMail } from "@waytara/ui/mail-layout";
 
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 export interface ReportEmailInput {
   customerName: string;
@@ -21,26 +21,20 @@ export function buildReportEmail(input: ReportEmailInput): { subject: string; te
   const subject = `${report.name} - ${report.period.label}`;
   const headline = reportHeadline(report);
   const files = input.fileNames.length > 0 ? `Attached: ${input.fileNames.join(", ")}.` : "";
-  const text = [
-    `Hi ${input.customerName},`,
-    "",
-    `Here is your report "${report.name}" for ${period}.`,
-    headline,
-    files,
-    "",
-    `${input.why}. Open it, change it or stop it any time: ${input.dashboardUrl}`,
-    "",
-    "Figures come from the inverter's own counters, not the electricity board's meter, and are estimates.",
-    "- The WayTara Team",
-  ].join("\n");
-  const html = `<div style="font-family:Segoe UI,Arial,sans-serif;color:#0f172a;max-width:560px">
-<p>Hi ${esc(input.customerName)},</p>
-<p>Here is your report <strong>${esc(report.name)}</strong> for ${esc(period)}.</p>
-<p style="background:#f8fafc;border-radius:8px;padding:12px 14px;font-size:15px"><strong>${esc(headline)}</strong></p>
-${files ? `<p>${esc(files)}</p>` : ""}
-<p><a href="${esc(input.dashboardUrl)}" style="background:#16a34a;color:#fff;padding:9px 16px;border-radius:8px;text-decoration:none">Open Reports</a></p>
-<p style="color:#64748b;font-size:12px">${esc(input.why)}. Figures come from the inverter&#39;s own counters, not the electricity board&#39;s meter, and are estimates.<br>- The WayTara Team</p>
-</div>`;
+  const { html, text } = renderMail({
+    preheader: headline,
+    title: subject,
+    greeting: `Hi ${input.customerName},`,
+    blocks: [
+      { type: "p", text: `Here is your report "${report.name}" for ${period}.` },
+      { type: "quote", label: "In short", text: headline },
+      ...(files ? ([{ type: "p", text: files }] as const) : []),
+      { type: "note", text: "Figures come from the inverter's own counters, not the electricity board's meter, and are estimates." },
+    ],
+    button: { label: "Open Reports", url: input.dashboardUrl },
+    why: `${input.why}.`,
+    audience: "customer",
+  });
   return { subject, text, html };
 }
 

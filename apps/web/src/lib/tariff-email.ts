@@ -1,6 +1,7 @@
 import { Resend } from "resend";
 import { CATEGORY_LABEL, type TariffCategory } from "./tariff";
 import { fmtDate } from "./savings";
+import { renderMail } from "@waytara/ui/mail-layout";
 
 export interface TariffEmailInput {
   customerName: string | null;
@@ -14,7 +15,6 @@ export interface TariffEmailInput {
   dashboardUrl: string;
 }
 
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /** The e-mail a customer gets when the electricity rate used for their savings changes. */
 export function buildTariffEmail(input: TariffEmailInput): { subject: string; text: string; html: string } {
@@ -24,14 +24,19 @@ export function buildTariffEmail(input: TariffEmailInput): { subject: string; te
   const where = input.siteNames.length > 0 ? ` for ${input.siteNames.join(", ")}` : "";
   const lead = `The ${CATEGORY_LABEL[input.category]} electricity rate in ${input.state} changed from ₹${input.oldRate.toFixed(2)} to ₹${input.newRate.toFixed(2)} per kWh from ${fmtDate(input.effectiveFrom)}.`;
   const effect = `From that date your Cost & Savings page values each unit at the new rate${where}; earlier months keep the rate they had.`;
-  const text = [greeting, "", lead, effect, "", `See your savings: ${input.dashboardUrl}`, "", "Rates are an estimate of the typical charge for your kind of property; your own bill depends on your slab and fixed charges.", "- The WayTara Team"].join("\n");
-  const html = `<div style="font-family:Segoe UI,Arial,sans-serif;color:#0f172a;max-width:560px">
-<p>${esc(greeting)}</p>
-<p><strong>${esc(lead)}</strong></p>
-<p>${esc(effect)}</p>
-<p><a href="${esc(input.dashboardUrl)}" style="background:#16a34a;color:#fff;padding:9px 16px;border-radius:8px;text-decoration:none">See your savings</a></p>
-<p style="color:#64748b;font-size:12px">Rates are an estimate of the typical charge for your kind of property; your own bill depends on your slab and fixed charges.<br>- The WayTara Team</p>
-</div>`;
+  const { html, text } = renderMail({
+    preheader: lead,
+    title: subject,
+    greeting,
+    blocks: [
+      { type: "p", text: lead },
+      { type: "p", text: effect },
+      { type: "note", text: "Rates are an estimate of the typical charge for your kind of property; your own bill depends on your slab and fixed charges." },
+    ],
+    button: { label: "See your savings", url: input.dashboardUrl },
+    why: "You get this e-mail because the electricity rate used for your savings changed.",
+    audience: "customer",
+  });
   return { subject, text, html };
 }
 
