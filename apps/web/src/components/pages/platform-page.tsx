@@ -1,4 +1,5 @@
-import { ArrowRight, Router, Server, Zap } from "lucide-react";
+import Image from "next/image";
+import { Router, Server, Zap } from "lucide-react";
 import { FittedDemo } from "@/components/sections/dashboard-showcase";
 import { Reveal } from "@/components/shared/reveal";
 import { FaqList, type Faq } from "@/components/segments/faq-list";
@@ -62,33 +63,6 @@ export const PLATFORM_FAQS: Faq[] = [
   },
 ];
 
-function Lane({ title, children }: { title: string; children: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-theme-border bg-theme-surface p-6 sm:p-7">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">{title}</p>
-      <div className="mt-5 flex flex-col items-stretch gap-3 md:flex-row md:items-center">{children}</div>
-    </div>
-  );
-}
-
-function Node({ title, detail, highlight }: { title: string; detail?: string; highlight?: boolean }) {
-  return (
-    <div className={`flex-1 rounded-xl border bg-theme-bg px-4 py-3.5 ${highlight ? "border-emerald-500/40" : "border-theme-border"}`}>
-      <p className="text-sm font-semibold text-theme-primary">{title}</p>
-      {detail && <p className="mt-1 text-xs leading-relaxed text-theme-secondary">{detail}</p>}
-    </div>
-  );
-}
-
-function Link2({ label }: { label: string }) {
-  return (
-    <div className="flex shrink-0 flex-row items-center justify-center gap-2 text-center md:w-28 md:flex-col md:gap-1" aria-hidden="true">
-      <ArrowRight className="size-4 rotate-90 text-theme-muted md:rotate-0" />
-      <span className="text-[11px] leading-tight text-theme-muted">{label}</span>
-    </div>
-  );
-}
-
 /** Platform (/technology): the one place for the technical story. Every capability named here is one the product has today. */
 export function PlatformPage() {
   return (
@@ -124,29 +98,23 @@ export function PlatformPage() {
         accent="to your dashboard."
         summary="Energy equipment and chargers reach the platform in different ways, then meet in one dashboard."
       >
+        {/* The picture in a rounded frame: one file for each theme (the site's dark class switches them). It is decorative; the lines under it say how things connect. */}
         <Reveal direction="up" duration={800} distance={24}>
-          <div className="space-y-4">
-            <Lane title="Energy equipment">
-              <Node title="Inverters, batteries, meters" detail="Supported equipment at your site" />
-              <Link2 label="RS485 · Modbus" />
-              <Node title="WayTara gateway" detail="Reads the equipment and sends it on" />
-              <Link2 label="MQTT over the internet" />
-              <Node title="Platform · EMS" detail="Monitoring, history, alerts, reports" highlight />
-            </Lane>
-            <Lane title="Charging">
-              <Node title="OCPP chargers" detail="OCPP 1.6J, compatible models" />
-              <Link2 label="OCPP over the internet" />
-              <Node title="Platform · CPMS" detail="Status, sessions, remote controls" highlight />
-            </Lane>
-            <div className="rounded-2xl border border-emerald-500/30 bg-theme-surface px-6 py-5 sm:px-7">
-              <p className="text-sm font-semibold text-theme-primary">One dashboard</p>
-              <p className="mt-1 text-sm leading-relaxed text-theme-secondary">
-                You see both in the same place, with e-mail alerts and support from your engineer. Each gateway signs in to the platform with its own key. What can be read or controlled
-                depends on the make, model and enabled features of each device.
-              </p>
-            </div>
+          <div className="relative aspect-[16/9] overflow-hidden rounded-3xl bg-theme-surface">
+            <Image src="/images/platform/gateway-light.webp" alt="" fill sizes="(min-width: 1280px) 1300px, 100vw" className="object-cover dark:hidden" />
+            <Image src="/images/platform/gateway-dark.webp" alt="" fill sizes="(min-width: 1280px) 1300px, 100vw" className="hidden object-cover dark:block" />
           </div>
         </Reveal>
+        <NoteColumns
+          items={[
+            { title: "Energy equipment", body: "Inverters, batteries and meters connect to the WayTara gateway over RS485 (Modbus). The gateway sends the readings to the platform over the internet (MQTT)." },
+            { title: "Charging", body: "OCPP 1.6J chargers connect to the platform directly over the internet, without the gateway." },
+            {
+              title: "One dashboard",
+              body: "You see both in the same place, with e-mail alerts and support from your engineer. What can be read or controlled depends on the make, model and enabled features of each device.",
+            },
+          ]}
+        />
       </SegmentSection>
 
       <SegmentSection
