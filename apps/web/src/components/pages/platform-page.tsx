@@ -1,4 +1,3 @@
-import Image from "next/image";
 import { Router, Server, Zap } from "lucide-react";
 import { FittedDemo } from "@/components/sections/dashboard-showcase";
 import { Reveal } from "@/components/shared/reveal";
@@ -6,6 +5,7 @@ import { FaqList, type Faq } from "@/components/segments/faq-list";
 import { FeatureColumns, NoteColumns, SegmentSection } from "@/components/segments/segment-parts";
 import { CPMS_PLATFORM_FEATURES, EMS_PLATFORM_FEATURES } from "@/components/segments/feature-sets";
 import { CompatibilityForm } from "./compatibility-form";
+import { GatewayPicture } from "./gateway-picture";
 import { PageHero, PageShell } from "./page-shell";
 
 export const PLATFORM_PATH = "/technology";
@@ -98,12 +98,9 @@ export function PlatformPage() {
         accent="to your dashboard."
         summary="Energy equipment and chargers reach the platform in different ways, then meet in one dashboard."
       >
-        {/* The picture in a rounded frame: one file for each theme (the site's dark class switches them). It is decorative; the lines under it say how things connect. */}
+        {/* The gateway picture, with the equipment drawn on it (one picture for each theme). */}
         <Reveal direction="up" duration={800} distance={24}>
-          <div className="relative aspect-[16/9] overflow-hidden rounded-3xl bg-theme-surface">
-            <Image src="/images/platform/gateway-light.webp" alt="" fill sizes="(min-width: 1280px) 1300px, 100vw" className="object-cover dark:hidden" />
-            <Image src="/images/platform/gateway-dark.webp" alt="" fill sizes="(min-width: 1280px) 1300px, 100vw" className="hidden object-cover dark:block" />
-          </div>
+          <GatewayPicture />
         </Reveal>
         <NoteColumns
           items={[
