@@ -16,7 +16,7 @@ const PARTS = [
   {
     icon: Router,
     title: "WayTara gateway",
-    body: "A small box at your site that reads your inverters, batteries and meters and sends the readings to WayTara. Chargers connect directly.",
+    body: "One small box at your site connects your inverters, batteries and meters and shares a single connection with WayTara, so no device needs a network of its own. Chargers connect directly.",
   },
   {
     icon: Zap,
@@ -59,7 +59,8 @@ export const PLATFORM_FAQS: Faq[] = [
   },
   {
     question: "Does it need an internet connection at my site?",
-    answer: "Yes. The gateway and the chargers send their data to the platform over the internet, and you see it in the dashboard.",
+    answer:
+      "Yes, one. The gateway shares a single internet connection for all the equipment it connects, so each inverter, battery or meter does not need a network of its own. Chargers connect to the platform directly, so they need their own connection.",
   },
 ];
 
@@ -94,9 +95,9 @@ export function PlatformPage() {
       <SegmentSection
         id="how"
         badge="How it connects"
-        title="From the equipment"
-        accent="to your dashboard."
-        summary="Energy equipment and chargers reach the platform in different ways, then meet in one dashboard."
+        title="One gateway,"
+        accent="many devices."
+        summary="The gateway connects the equipment at your site and shares one connection with WayTara, so every device shows up in one dashboard without a network for each."
       >
         {/* The gateway picture, with the equipment drawn on it (one picture for each theme). */}
         <Reveal direction="up" duration={800} distance={24}>
@@ -104,11 +105,14 @@ export function PlatformPage() {
         </Reveal>
         <NoteColumns
           items={[
-            { title: "Energy equipment", body: "Inverters, batteries and meters connect to the WayTara gateway over RS485 (Modbus). The gateway sends the readings to the platform over the internet (MQTT)." },
+            {
+              title: "One connection for many devices",
+              body: "Inverters, batteries and meters connect to the WayTara gateway, and the gateway sends everything to the platform over a single internet connection. You do not need a network for each device.",
+            },
             { title: "Charging", body: "OCPP 1.6J chargers connect to the platform directly over the internet, without the gateway." },
             {
-              title: "One dashboard",
-              body: "You see both in the same place, with e-mail alerts and support from your engineer. What can be read or controlled depends on the make, model and enabled features of each device.",
+              title: "Smart energy management",
+              body: "One dashboard shows both, with schedules for supported settings, alerts and reports that run on their own, and support from your engineer. What can be read or controlled depends on the make, model and enabled features of each device.",
             },
           ]}
         />

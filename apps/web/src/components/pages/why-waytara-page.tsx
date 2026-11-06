@@ -49,7 +49,7 @@ const REASONS = [
 
 // The gateway and the system it feeds. Each point is something the product does today (see the Platform page).
 const SYSTEM = [
-  { icon: Router, title: "Our own gateway", body: "A small box at your site reads your inverters, batteries and meters and sends the readings to WayTara. It signs in with its own key." },
+  { icon: Router, title: "Our own gateway", body: "One small box at your site connects your inverters, batteries and meters through a single connection, so no device needs a network of its own. It signs in with its own key." },
   { icon: PlugZap, title: "Chargers connect directly", body: "OCPP 1.6J chargers connect to our charging platform over the internet, with status, sessions and remote start and stop where supported." },
   { icon: LayoutDashboard, title: "One dashboard", body: "Solar, battery, load, grid and EV charging on one live energy-flow diagram, with history for every device you connect." },
   { icon: Layers, title: "Every site, one login", body: "Switch between your sites. Each one has its own devices (inverters, batteries, meters and chargers), each with its own tab." },
