@@ -3,7 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
-import { Bell, BatteryCharging, Check, ChevronDown, ChevronsUpDown, CloudRain, Gauge, Home, Server, SlidersHorizontal, Sun, Thermometer, Zap } from "lucide-react";
+import { Bell, BatteryCharging, Check, ChevronDown, ChevronsUpDown, CloudRain, EvCharger, Gauge, Home, Server, SlidersHorizontal, Sun, Thermometer, Zap } from "lucide-react";
 import { ChartContainer, ChartTooltip, type ChartConfig } from "@/components/ui/chart";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LiveStatusCard } from "@/components/dashboard/live-status-card";
@@ -11,7 +11,7 @@ import { TabHeadlineBar } from "@/components/dashboard/monitoring-tabs";
 import { CHART_CURSOR } from "@/components/dashboard/chart-cursor";
 import { FLOW, PV_SHADES } from "@/components/dashboard/flow-colors";
 import { INTERVAL_OPTIONS } from "@/lib/day-buckets";
-import { bucketSeries, buildSampleData, SAMPLE_DEVICE, type DemoData, type SeriesPoint } from "@/lib/landing-sample";
+import { bucketSeries, buildEvSample, buildSampleData, SAMPLE_CHARGER, SAMPLE_DEVICE, type DemoData, type EvSample, type SeriesPoint } from "@/lib/landing-sample";
 import { cn } from "@/lib/utils";
 
 // The customer's Monitoring page, as a small copy for the landing page, running on sample figures (lib/landing-sample.ts): the same header,
@@ -212,15 +212,22 @@ function IntervalHeader({ title, minutes, onChange }: { title: string; minutes: 
   );
 }
 
-/** The device button in the header and its menu: which device this is and when it last reported. No Go live and no Refresh here. */
-function DeviceMenu({ at }: { at: number }) {
+type DeviceId = "inverter" | "charger";
+
+/** The device button in the header and its menu: the site's devices (the inverter and the charger), which one is open, and when it last reported. */
+function DeviceMenu({ at, device, onPick }: { at: number; device: DeviceId; onPick: (d: DeviceId) => void }) {
   const [open, setOpen] = React.useState(false);
   const ref = useDismiss(open, React.useCallback(() => setOpen(false), []));
+  const devices: { id: DeviceId; name: string; kind: string; icon: typeof Server }[] = [
+    { id: "inverter", name: SAMPLE_DEVICE, kind: "Inverter · Online · last reading 2 min ago", icon: Server },
+    { id: "charger", name: SAMPLE_CHARGER, kind: "EV charger · Charging · last reading 1 min ago", icon: EvCharger },
+  ];
+  const Current = device === "inverter" ? Server : EvCharger;
   return (
     <div ref={ref} className="relative">
       <button
         type="button"
-        aria-label="Inverter: 1, online. Open the device menu."
+        aria-label="Devices: 2, online. Open the device menu."
         aria-expanded={open}
         onClick={() => setOpen((o) => !o)}
         className={cn(
@@ -228,22 +235,39 @@ function DeviceMenu({ at }: { at: number }) {
           open ? "bg-accent/40" : "bg-card",
         )}
       >
-        <Server className="size-4" />
+        <Current className="size-4" />
       </button>
       {open && (
         <div className="absolute right-0 top-10 z-30 w-[22rem] rounded-2xl border bg-popover text-popover-foreground shadow-lg">
-          <div className="flex items-start gap-3 p-4">
-            <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-500/12 text-emerald-600">
-              <Server className="size-4" />
-            </span>
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-sm font-semibold leading-5">{SAMPLE_DEVICE}</p>
-              <p className="text-xs leading-snug text-muted-foreground">Inverter · Online · last reading 2 min ago</p>
-            </div>
-            <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-foreground" title="Device settings are part of the full dashboard">
-              <SlidersHorizontal className="size-4" />
-            </span>
-          </div>
+          <ul>
+            {devices.map((d) => {
+              const Icon = d.icon;
+              return (
+                <li key={d.id} className="first:rounded-t-2xl">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onPick(d.id);
+                      setOpen(false);
+                    }}
+                    className={cn("flex w-full cursor-pointer items-start gap-3 p-4 text-left outline-none hover:bg-accent/50 focus-visible:bg-accent/50", d.id === device && "bg-accent/40")}
+                  >
+                    <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-500/12 text-emerald-600">
+                      <Icon className="size-4" />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold leading-5">{d.name}</span>
+                      <span className="block text-xs leading-snug text-muted-foreground">{d.kind}</span>
+                    </span>
+                    {d.id === device && <Check className="mt-1 size-4 shrink-0 text-emerald-600" />}
+                    <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-muted text-foreground" title="Device settings are part of the full dashboard">
+                      <SlidersHorizontal className="size-4" />
+                    </span>
+                  </button>
+                </li>
+              );
+            })}
+          </ul>
           <div className="flex items-baseline justify-between gap-4 border-t px-4 py-3 text-xs">
             <span className="min-w-0">
               <span className="block text-sm font-medium text-foreground">Last reading</span>
@@ -261,7 +285,7 @@ function DeviceMenu({ at }: { at: number }) {
 }
 
 /** The page header: the brand button and the site at the left; the weather, the device menu and the notification bell at the right. */
-function DemoHeader({ site, at }: { site: string; at: number }) {
+function DemoHeader({ site, at, device, onPick }: { site: string; at: number; device: DeviceId; onPick: (d: DeviceId) => void }) {
   return (
     <header className="relative z-20 flex h-14 shrink-0 items-center justify-between gap-3 bg-background px-4">
       <div className="flex min-w-0 items-center gap-2">
@@ -278,7 +302,7 @@ function DemoHeader({ site, at }: { site: string; at: number }) {
           <CloudRain className="size-[18px] text-sky-500" strokeWidth={1.7} />
           <span className="tabular-nums">30°</span>
         </span>
-        <DeviceMenu at={at} />
+        <DeviceMenu at={at} device={device} onPick={onPick} />
         <span className="relative grid size-9 place-items-center rounded-full border bg-card text-foreground" title="Notifications are part of the full dashboard">
           <Bell className="size-4" />
           <span className="absolute -right-1 -top-1 grid size-[18px] place-items-center rounded-full bg-red-500 text-[10px] font-semibold leading-none text-white">7</span>
@@ -288,8 +312,81 @@ function DemoHeader({ site, at }: { site: string; at: number }) {
   );
 }
 
-export function DemoMonitoring() {
+const SHARE_COLOR = { solar: FLOW.producing, battery: FLOW.drawing, grid: FLOW.idle } as const;
+
+function EvTile({ label, value, unit, sub, bar, split }: { label: string; value: string; unit?: string; sub?: string; bar?: { pct: number; color: string }; split?: EvSample["shares"] }) {
+  return (
+    <div className="min-w-0 rounded-xl border bg-muted/30 p-4">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-0.5 truncate text-2xl font-semibold leading-tight tabular-nums">
+        {value}
+        {unit ? <span className="ml-1 text-sm font-normal text-muted-foreground">{unit}</span> : null}
+      </p>
+      {bar ? (
+        <div className="mt-2 h-1 overflow-hidden rounded-full bg-border" role="presentation">
+          <div className="h-full rounded-full" style={{ width: `${bar.pct}%`, backgroundColor: bar.color }} />
+        </div>
+      ) : null}
+      {split ? (
+        <div className="mt-2 flex h-1 gap-0.5 overflow-hidden rounded-full" role="img" aria-label={split.map((x) => `${x.label} ${x.pct}%`).join(", ")}>
+          {split.map((x) => (
+            <div key={x.key} style={{ width: `${x.pct}%`, backgroundColor: SHARE_COLOR[x.key] }} />
+          ))}
+        </div>
+      ) : null}
+      {sub ? <p className="mt-1.5 truncate text-xs text-muted-foreground">{sub}</p> : null}
+    </div>
+  );
+}
+
+const hm = (m: number) => `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} min`;
+
+/** The EV charger's Monitoring page: the day's delivery, the live charge, today's power curve and today's charges. */
+function ChargerPage({ ev, dayStart, now, interval, onInterval }: { ev: EvSample; dayStart: number; now: number; interval: number; onInterval: (m: number) => void }) {
+  const points = bucketSeries(ev.series, interval);
+  return (
+    <>
+      <TabHeadlineBar
+        tabValue="ev"
+        headline={{ value: `${ev.deliveredToday.toFixed(1)} kWh`, label: "Delivered Today" }}
+        actions={
+          <span className="inline-flex h-9 w-56 cursor-default items-center justify-center rounded-md border bg-card text-sm font-medium text-foreground" title="Start and Stop are part of the full dashboard">
+            Stop charging
+          </span>
+        }
+      />
+      <div className="mt-3 space-y-3">
+        <div className="grid grid-cols-5 gap-3">
+          <EvTile label="Power" value={ev.kw.toFixed(1)} unit="kW" bar={{ pct: (ev.kw / ev.ratedKw) * 100, color: FLOW.producing }} sub={`of ${ev.ratedKw.toFixed(1)} kW rated`} />
+          <EvTile label="Current" value={String(ev.amps)} unit="A" sub={`${ev.volts} V`} />
+          <EvTile label="This charge" value={ev.sessionKwh.toFixed(1)} unit="kWh" bar={{ pct: (ev.sessionKwh / ev.targetKwh) * 100, color: FLOW.consuming }} sub={`${Math.round((ev.sessionKwh / ev.targetKwh) * 100)}% of the ${ev.targetKwh} kWh target`} />
+          <EvTile label="Time" value={hm(ev.elapsedMin)} sub={`about ${hm(Math.round(((ev.targetKwh - ev.sessionKwh) / ev.kw) * 60))} left`} />
+          <EvTile label="Powered by" value={String(ev.shares[0].pct)} unit="% solar" split={ev.shares} />
+        </div>
+        <IntervalHeader title="Charging" minutes={interval} onChange={onInterval} />
+        <TrendChart title="Charging power" unit="kW" points={points} color={FLOW.producing} dayStart={dayStart} now={now} tall labelEvery={1} />
+        <div className="rounded-2xl border bg-card px-5 py-4 shadow-xs">
+          <p className="text-[0.85rem] font-semibold text-foreground">Today&apos;s charges</p>
+          <ul className="mt-2 divide-y">
+            {ev.charges.map((c) => (
+              <li key={c.start} className="flex items-center justify-between gap-3 py-2.5 text-sm">
+                <span className="tabular-nums text-foreground">{c.start}</span>
+                <span className="tabular-nums text-muted-foreground">{c.kwh.toFixed(1)} kWh</span>
+                <span className={cn("text-xs font-medium", c.running ? "text-emerald-600 dark:text-emerald-400" : "text-muted-foreground")}>{c.running ? "Charging" : "Finished"}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** `locked` shows the page at its first screen only: no scrolling inside it (the rest is simply cut off). The tabs, the device menu and the charts still respond. */
+export function DemoMonitoring({ locked = false }: { locked?: boolean } = {}) {
   const data: DemoData = React.useMemo(() => buildSampleData(), []);
+  const ev: EvSample = React.useMemo(() => buildEvSample(), []);
+  const [device, setDevice] = React.useState<DeviceId>("inverter");
   const [tab, setTab] = React.useState<TabId>("hub");
   const [interval, setInterval] = React.useState(15);
 
@@ -328,9 +425,12 @@ export function DemoMonitoring() {
 
   return (
     <div className="flex h-full w-full flex-col bg-background text-foreground">
-      <DemoHeader site={data.site} at={data.at} />
+      <DemoHeader site={data.site} at={data.at} device={device} onPick={setDevice} />
 
-      <main className="min-h-0 flex-1 overflow-y-auto px-6 pb-6 pt-1 [scrollbar-width:thin]">
+      <main className={cn("min-h-0 flex-1 px-6 pb-6 pt-1", locked ? "overflow-clip" : "overflow-y-auto [scrollbar-width:thin]")}>
+        {device === "charger" ? (
+          <ChargerPage ev={ev} dayStart={dayStart} now={now} interval={interval} onInterval={setInterval} />
+        ) : (
         <Tabs value={tab} onValueChange={(v) => setTab(v as TabId)}>
           <TabHeadlineBar tabValue={tab} headline={headlines[tab]} />
           <TabsList variant="line">
@@ -419,6 +519,7 @@ export function DemoMonitoring() {
             </div>
           </TabsContent>
         </Tabs>
+        )}
       </main>
     </div>
   );

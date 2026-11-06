@@ -1,4 +1,5 @@
 import { Router, Server, Zap } from "lucide-react";
+import { CroppedDemo } from "@/components/sections/dashboard-showcase";
 import { Reveal } from "@/components/shared/reveal";
 import { FaqList, type Faq } from "@/components/segments/faq-list";
 import { FeatureColumns, NoteColumns, SegmentSection } from "@/components/segments/segment-parts";
@@ -6,7 +7,6 @@ import { CPMS_PLATFORM_FEATURES, EMS_PLATFORM_FEATURES } from "@/components/segm
 import { CompatibilityForm } from "./compatibility-form";
 import { GatewayPicture } from "./gateway-picture";
 import { PlansTable } from "./plans-table";
-import { PlatformDashboard } from "./platform-dashboard";
 import { PageHero, PageShell } from "./page-shell";
 
 export const PLATFORM_PATH = "/technology";
@@ -156,10 +156,10 @@ export function PlatformPage() {
         badge="Your dashboard"
         title="Your home,"
         accent="at a glance."
-        summary="Solar, battery, grid and your car in one calm place, moving as your day does."
+        summary="The customer dashboard for a home with an inverter and an EV charger. Open the device menu to switch between them."
       >
         <Reveal direction="up" duration={800} distance={24}>
-          <PlatformDashboard />
+          <CroppedDemo />
         </Reveal>
       </SegmentSection>
 

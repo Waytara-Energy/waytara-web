@@ -72,7 +72,7 @@ export const PAGE_MENUS: PageMenu[] = [
       { label: "How it connects", href: "/technology#how", blurb: "From the equipment to your dashboard" },
       { label: "Energy management", href: "/technology#energy", blurb: "See your energy, manage what is supported" },
       { label: "Charging management", href: "/technology#charging", blurb: "Run your chargers from one place" },
-      { label: "Dashboard", href: "/technology#demo", blurb: "Solar, battery, grid and your car in one place" },
+      { label: "Dashboard", href: "/technology#demo", blurb: "An inverter and an EV charger in one place" },
       { label: "Plans", href: "/technology#plans", blurb: "Observe, Control and Orchestrate" },
       { label: "Check compatibility", href: "/technology#compatibility", blurb: "Does it work with your equipment?" },
     ],

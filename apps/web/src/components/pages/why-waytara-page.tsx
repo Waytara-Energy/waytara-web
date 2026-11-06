@@ -99,7 +99,7 @@ const PROOF = [
   {
     tag: "Try it",
     title: "See the dashboard before you buy.",
-    body: "The Platform page shows the customer dashboard: your solar, battery, grid and EV charger in one place, with the charts moving as your day does.",
+    body: "The Platform page shows the customer dashboard for a home with an inverter and an EV charger. The tabs, intervals, charts and device menu all respond.",
     link: { label: "See the dashboard", href: "/technology#demo" },
   },
   {

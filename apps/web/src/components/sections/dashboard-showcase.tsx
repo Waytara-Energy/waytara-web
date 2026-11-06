@@ -37,6 +37,38 @@ export function FittedDemo() {
   );
 }
 
+/** How much of the page is shown in the cropped view (design pixels): the header, the tabs, the live cards and the top of the first chart. */
+const CROP_HEIGHT = 640;
+
+/**
+ * The customer Monitoring page, exactly as the customer sees it, but only its first screen: it fits the box by width, cannot be scrolled, and fades out at
+ * the bottom, so the rest of the application is not on show. The tabs, the interval, the charts and the device menu (an inverter and an EV charger) respond.
+ */
+export function CroppedDemo() {
+  const boxRef = React.useRef<HTMLDivElement>(null);
+  const [scale, setScale] = React.useState(0.7);
+
+  React.useEffect(() => {
+    const el = boxRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => {
+      const width = e.contentRect.width;
+      if (width) setScale(width / DEMO_WIDTH);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  return (
+    <div ref={boxRef} className="relative w-full overflow-clip rounded-3xl border border-theme-border bg-background" style={{ height: CROP_HEIGHT * scale }}>
+      <div style={{ width: DEMO_WIDTH, height: CROP_HEIGHT, transform: `scale(${scale})`, transformOrigin: "top left" }}>
+        <DemoMonitoring locked />
+      </div>
+      <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-background via-background/80 to-transparent" />
+    </div>
+  );
+}
+
 /**
  * The customer Monitoring page on sample figures, on a card that tips up and grows as the visitor scrolls (Aceternity's container
  * scroll). The tabs, the interval, the charts and the device menu respond; the sidebar and the notifications do not open.

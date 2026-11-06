@@ -11,8 +11,9 @@ const DAY_START = Date.UTC(2026, 5, 15) - IST_MS;
 const NOW_HOUR = 14.25;
 const BATTERY_KWH = 10;
 
-export const SAMPLE_SITE = "Sample Home";
+export const SAMPLE_SITE = "My Home";
 export const SAMPLE_DEVICE = "Hybrid Inverter 8 kW";
+export const SAMPLE_CHARGER = "EV Charger 7.4 kW";
 
 export type SeriesPoint = [number, number];
 
@@ -165,4 +166,80 @@ export function bucketSeries(points: SeriesPoint[], minutes: number, mode: "avg"
   }
   flush();
   return out;
+}
+
+// ------------------------------------------------------------------------------------------------ the EV charger at the same site
+
+export interface EvSample {
+  ratedKw: number;
+  /** The live reading of the charge that is running. */
+  kw: number;
+  amps: number;
+  volts: number;
+  /** This charge so far (kWh), with its target and how long it has run (minutes). */
+  sessionKwh: number;
+  targetKwh: number;
+  elapsedMin: number;
+  /** Where the energy of this charge came from (percent, adding to 100). */
+  shares: { key: "solar" | "battery" | "grid"; label: string; pct: number }[];
+  /** Everything the charger delivered today (kWh). */
+  deliveredToday: number;
+  /** Power of the charger, one point every 15 minutes since midnight. */
+  series: SeriesPoint[];
+  /** Today's charges, newest first. */
+  charges: { start: string; kwh: number; running: boolean }[];
+}
+
+/** Two charges today: a short one early in the morning and the one that is running now (it began at 12:08 PM). */
+const CHARGES: [from: number, to: number, kw: number][] = [
+  [6.75, 7.75, 7.0],
+  [12.133, NOW_HOUR, 7.1],
+];
+
+let cachedEv: EvSample | null = null;
+
+export function buildEvSample(): EvSample {
+  if (cachedEv) return cachedEv;
+  const slots = Math.round(NOW_HOUR / SLOT_H);
+  const series: SeriesPoint[] = [];
+  const kwhOf = [0, 0];
+  for (let i = 0; i < slots; i++) {
+    const h = (i + 0.5) * SLOT_H;
+    const t = DAY_START + i * SLOT_MS;
+    let kw = 0;
+    CHARGES.forEach(([from, to, level], c) => {
+      if (h >= from && h <= to) {
+        kw = level + 0.05 * Math.sin(h * 9.1);
+        kwhOf[c] += kw * SLOT_H;
+      }
+    });
+    series.push([t, round(kw, 3)]);
+  }
+  const running = round(kwhOf[1], 1);
+  const clock12 = (h: number) => {
+    const hh = Math.floor(h);
+    const mm = Math.round((h - hh) * 60);
+    return `${hh % 12 === 0 ? 12 : hh % 12}:${String(mm).padStart(2, "0")} ${hh < 12 ? "AM" : "PM"}`;
+  };
+  cachedEv = {
+    ratedKw: 7.4,
+    kw: 7.1,
+    amps: 31,
+    volts: 229,
+    sessionKwh: running,
+    targetKwh: 24,
+    elapsedMin: Math.round((NOW_HOUR - CHARGES[1][0]) * 60),
+    shares: [
+      { key: "solar", label: "Solar", pct: 71 },
+      { key: "battery", label: "Battery", pct: 9 },
+      { key: "grid", label: "Grid", pct: 20 },
+    ],
+    deliveredToday: round(kwhOf[0] + kwhOf[1], 1),
+    series,
+    charges: [
+      { start: clock12(CHARGES[1][0]), kwh: running, running: true },
+      { start: clock12(CHARGES[0][0]), kwh: round(kwhOf[0], 1), running: false },
+    ],
+  };
+  return cachedEv;
 }
