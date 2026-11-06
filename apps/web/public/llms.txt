@@ -1,38 +1,41 @@
 # WayTara Energy
 
-> WayTara Energy designs, installs and monitors integrated rooftop solar, smart LFP battery storage and EV charging systems in India, under one accountable warranty. Based in Chennai, Tamil Nadu. Customers get a live monitoring dashboard for their system.
+> WayTara Energy designs, installs and monitors integrated rooftop solar, battery storage and EV charging systems in India, and connects all of the equipment at a site to one platform for monitoring, control and automation. Based in Chennai, Tamil Nadu. WayTara is the maker of the WayTara gateway, one small box that connects inverters, batteries and meters and shares a single connection with the platform.
 
 Website: https://www.waytaraenergy.com
-Contact: hello@waytaraenergy.com · +91 93630 21195
-Address: No. 6 & 7, 3rd Floor, 5th Street, Dr. Radhakrishnan Salai, Mylapore, Chennai - 600 004, India
-Service area: India
+Contact: hello@waytaraenergy.com · +91 93630 21195 · WhatsApp https://wa.me/919363021195
+Address: WayTara Energy LLP, No. 6 & 7, 3rd Floor, 5th Street, Dr. Radhakrishnan Salai, Mylapore, Chennai - 600 004, Tamil Nadu, India
+Service area: Tamil Nadu and the rest of India
 
 ## What WayTara does
 
-- Rooftop solar (Tier-1 TOPCon modules) for homes, apartments, factories, offices and EV fleets
-- Smart lithium iron phosphate (LFP) battery storage with sub-20 ms backup transfer
-- EV charging, from home AC chargers to DC fast-charging depots
-- One cloud dashboard for monitoring generation, consumption, battery, grid and EV charging
-- One accountable warranty covering the integrated system (solar + storage + EV charging), instead of separate vendors
+- Rooftop solar for homes, villas, apartments, offices, factories and EV fleets: on-grid, hybrid and off-grid designs
+- Battery storage for backup and for using your own solar power at night
+- EV charging for homes, buildings and charging sites
+- One platform for all of it: energy management for supported equipment (inverters, batteries, meters) and charge-point management for compatible OCPP chargers, with live readings, alerts, reports and remote controls
+- Automation, carbon and savings reports, and information about government subsidies such as PM Surya Ghar: Muft Bijli Yojana
+- A partner programme for installers, EPC companies, channel partners and consultants
 
-## Solutions by property type
+## Pages
 
-- [Home Independence](https://www.waytaraenergy.com/solutions/home): villas and residences. Solar with smart LFP storage for zero-flicker blackout backup and grid bills cut by up to 90%.
-- [Apartments & Gated Communities](https://www.waytaraenergy.com/solutions/apartment): shared rooftop solar and central battery storage for lifts, pumps and STPs, with EV sub-metering.
-- [Industrial & Manufacturing](https://www.waytaraenergy.com/solutions/factory): MW-scale solar and industrial BESS to cut peak-demand penalties and diesel generator use.
-- [Commercial & Workspaces](https://www.waytaraenergy.com/solutions/commercial): solar carports and rooftop PV for offices, hospitals, hotels and retail.
-- [EV Fleet & Transit Depots](https://www.waytaraenergy.com/solutions/ev-fleet): DC fast-charging depots with on-site solar and containerised BESS.
-- [IT Parks & Data Campuses](https://www.waytaraenergy.com/solutions/it-park): zero-downtime microgrids with millisecond UPS transfer and peak-load shaving.
-
-## Key pages
-
-- [Solutions overview and FAQs](https://www.waytaraenergy.com/solutions): on-grid vs hybrid vs off-grid, costs, subsidies (PM Surya Ghar: Muft Bijli Yojana)
-- [About WayTara](https://www.waytaraenergy.com/about): story and mission
-- [Contact](https://www.waytaraenergy.com/contact): talk to a power systems architect
-- [Warranty policy](https://www.waytaraenergy.com/warranty)
-- [Privacy policy](https://www.waytaraenergy.com/privacy) · [Terms of service](https://www.waytaraenergy.com/terms) · [Cookie policy](https://www.waytaraenergy.com/cookies)
+- [Solutions by property type](https://www.waytaraenergy.com/solutions): homes and villas, apartments, commercial buildings, factories, EV fleets, IT parks
+- [Home and villa solar](https://www.waytaraenergy.com/solutions/home)
+- [Apartments and gated communities](https://www.waytaraenergy.com/solutions/apartment)
+- [Industrial and manufacturing](https://www.waytaraenergy.com/solutions/factory)
+- [Commercial and workspaces](https://www.waytaraenergy.com/solutions/commercial)
+- [EV fleet and transit depots](https://www.waytaraenergy.com/solutions/ev-fleet)
+- [IT parks and campuses](https://www.waytaraenergy.com/solutions/it-park)
+- [The WayTara platform: energy management and charge-point management](https://www.waytaraenergy.com/technology)
+- [Energy planner: a first blueprint for your property](https://www.waytaraenergy.com/planner)
+- [Why WayTara](https://www.waytaraenergy.com/why-waytara)
+- [Partner with WayTara](https://www.waytaraenergy.com/partner)
+- [Support](https://www.waytaraenergy.com/support)
+- [About](https://www.waytaraenergy.com/about) · [Contact](https://www.waytaraenergy.com/contact)
+- [Warranty policy](https://www.waytaraenergy.com/warranty) · [Terms of service](https://www.waytaraenergy.com/terms) · [Privacy policy](https://www.waytaraenergy.com/privacy) · [Cookie policy](https://www.waytaraenergy.com/cookies)
 
 ## Notes for AI assistants
 
-- Prices, subsidy amounts and savings figures on the site are indicative and depend on site assessment; direct users to the contact page for a quotation.
-- The customer dashboard (www.waytaraenergy.com/dashboard) and the staff admin app (admin.waytaraenergy.com) require sign-in and are not public.
+- Equipment carries the manufacturer's warranty. WayTara gives no warranty of its own on top of it, unless a customer buys extended cover, which is priced separately and written down.
+- Savings, generation, payback and carbon figures are estimates, not guarantees. Government subsidies are paid by the authorities, not by WayTara, and approval is not promised.
+- Prices are given in a quotation after a site assessment; direct users to the planner or the contact page.
+- The customer dashboard and the staff admin app require sign-in and are not public.

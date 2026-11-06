@@ -2,7 +2,7 @@ import { PARTNER_DESCRIPTION, PartnerPage } from "@/components/pages/partner-pag
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata = pageMetadata({
-  title: "Partner with WayTara: Apply as an Installer Across India",
+  title: "Solar Installer, EPC & Channel Partner Programme",
   description: PARTNER_DESCRIPTION,
   path: "/partner",
 });

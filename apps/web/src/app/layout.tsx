@@ -54,6 +54,11 @@ export const metadata: Metadata = {
     "WayTara",
   ],
   authors: [{ name: "WayTara Energy" }],
+  // Search Console and Bing Webmaster Tools ownership tags: set NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION / NEXT_PUBLIC_BING_SITE_VERIFICATION to the token each tool gives.
+  verification: {
+    ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } : {}),
+    ...(process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION ? { other: { "msvalidate.01": process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION } } : {}),
+  },
   openGraph: {
     title: "WayTara — Your Property's Energy, Designed as One Intelligent System",
     description:
@@ -83,7 +88,7 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="en-IN"
       suppressHydrationWarning
       data-scroll-behavior="smooth"
       className={`${poppins.variable} ${outfit.variable}`}

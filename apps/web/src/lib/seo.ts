@@ -43,7 +43,8 @@ const ORG_ID = `${SITE.url}/#organization`;
 export function organizationJsonLd(): JsonLdObject {
   return {
     "@context": "https://schema.org",
-    "@type": "Organization",
+    // An organisation with a real office in Chennai, so it is also a local business for maps and local search.
+    "@type": ["Organization", "LocalBusiness"],
     "@id": ORG_ID,
     name: SITE.name,
     alternateName: SITE.shortName,
@@ -54,7 +55,22 @@ export function organizationJsonLd(): JsonLdObject {
     description: SITE.description,
     address: { "@type": "PostalAddress", ...SITE.address },
     geo: { "@type": "GeoCoordinates", latitude: SITE.geo.latitude, longitude: SITE.geo.longitude },
-    areaServed: { "@type": "Country", name: "India" },
+    areaServed: [
+      { "@type": "Country", name: "India" },
+      { "@type": "State", name: "Tamil Nadu" },
+    ],
+    // What the company is about, in the words people search with. Only things the site really covers.
+    knowsAbout: [
+      "Rooftop solar",
+      "Solar inverters: on-grid, hybrid and off-grid",
+      "Battery energy storage",
+      "EV charging",
+      "Energy management system (EMS)",
+      "Charge point management system (CPMS)",
+      "Solar monitoring",
+      "Net metering",
+      "Government solar subsidy in India",
+    ],
     contactPoint: [
       {
         "@type": "ContactPoint",

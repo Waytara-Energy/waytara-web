@@ -18,10 +18,10 @@ export interface SegmentPageEntry {
  * still shows the old package view until its page is rebuilt.
  */
 export const SEGMENT_PAGES: Record<string, SegmentPageEntry> = {
-  home: { Page: HomesPage, title: "Solar, Battery Backup & EV Charging for Homes", description: HOMES_DESCRIPTION, path: HOMES_PATH },
-  commercial: { Page: CommercialPage, title: "Solar, Storage, EV Charging & Energy Management for Commercial Buildings", description: COMMERCIAL_DESCRIPTION, path: COMMERCIAL_PATH },
-  factory: { Page: FactoryPage, title: "Industrial Solar, Battery Storage & EMS for Factories", description: FACTORY_DESCRIPTION, path: FACTORY_PATH },
-  ev_fleet: { Page: EvFleetPage, title: "EV Fleet & Charging Infrastructure with WayTara CPMS", description: EV_FLEET_DESCRIPTION, path: EV_FLEET_PATH },
-  it_park: { Page: ItParkPage, title: "Solar, Storage, EV Charging & Energy Management for IT Parks and Campuses", description: IT_PARK_DESCRIPTION, path: IT_PARK_PATH },
-  apartment: { Page: ApartmentsPage, title: "Solar, Backup & EV Charging for Apartments, RWAs & Developers", description: APARTMENTS_DESCRIPTION, path: APARTMENTS_PATH },
+  home: { Page: HomesPage, title: "Home & Villa Solar with Battery Backup & EV Charging", description: HOMES_DESCRIPTION, path: HOMES_PATH },
+  commercial: { Page: CommercialPage, title: "Commercial Solar, Storage & EV Charging", description: COMMERCIAL_DESCRIPTION, path: COMMERCIAL_PATH },
+  factory: { Page: FactoryPage, title: "Industrial Solar, Battery Storage & EMS", description: FACTORY_DESCRIPTION, path: FACTORY_PATH },
+  ev_fleet: { Page: EvFleetPage, title: "EV Fleet Charging Management (CPMS) with Solar", description: EV_FLEET_DESCRIPTION, path: EV_FLEET_PATH },
+  it_park: { Page: ItParkPage, title: "Solar, Storage & EV Charging for IT Parks", description: IT_PARK_DESCRIPTION, path: IT_PARK_PATH },
+  apartment: { Page: ApartmentsPage, title: "Solar & EV Charging for Apartments and RWAs", description: APARTMENTS_DESCRIPTION, path: APARTMENTS_PATH },
 };

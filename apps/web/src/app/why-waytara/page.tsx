@@ -2,7 +2,7 @@ import { WHY_DESCRIPTION, WhyWaytaraPage } from "@/components/pages/why-waytara-
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata = pageMetadata({
-  title: "Why WayTara: One Team, One Energy System, Built for Your Site",
+  title: "Why Choose WayTara for Solar & EV Charging",
   description: WHY_DESCRIPTION,
   path: "/why-waytara",
 });

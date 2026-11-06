@@ -3,9 +3,9 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { breadcrumbJsonLd, pageMetadata } from "@/lib/seo";
 
 export const metadata = pageMetadata({
-  title: "Solar, Battery & EV Charging Solutions by Property Type",
+  title: "Solar & Battery Solutions by Property Type",
   description:
-    "Solar, battery storage and EV charging designed, installed and managed together, for homes, apartments, commercial buildings, factories, EV fleets and campuses across India.",
+    "Solar, battery storage and EV charging designed, installed and managed together, for homes and villas, apartments, commercial buildings, factories, EV fleets and IT parks across India.",
   path: "/solutions",
 });
 

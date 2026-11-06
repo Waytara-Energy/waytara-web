@@ -5,7 +5,7 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { breadcrumbJsonLd, pageMetadata } from "@/lib/seo";
 
 export const metadata = pageMetadata({
-  title: "Energy Planner: Find the Right Solar, Battery, EV Charging or Energy Management Solution",
+  title: "Solar, Battery & EV Energy Planner",
   description:
     "Tell us what you want to achieve and get a preliminary energy blueprint for your property: new solar, storage and EV charging, connecting equipment you already have, or managing chargers.",
   path: "/planner",

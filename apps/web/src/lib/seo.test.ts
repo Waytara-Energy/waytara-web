@@ -30,8 +30,8 @@ describe("site", () => {
 
 describe("structured data", () => {
   it("describes the organisation with address and contact", () => {
-    const org = organizationJsonLd() as { "@type": string; email: string; address: { addressLocality: string } };
-    expect(org["@type"]).toBe("Organization");
+    const org = organizationJsonLd() as { "@type": string[]; email: string; address: { addressLocality: string } };
+    expect(org["@type"]).toEqual(expect.arrayContaining(["Organization", "LocalBusiness"]));
     expect(org.address.addressLocality).toBe("Chennai");
     expect(org.email).toBe(SITE.email);
   });
@@ -69,8 +69,14 @@ describe("sitemap", () => {
     expect(urls.some((u) => u.includes("_"))).toBe(false);
   });
 
-  it("excludes private and noindex placeholder pages", () => {
-    for (const hidden of ["/dashboard", "/login", "/technology", "/knowledge-centre", "/quote"]) {
+  it("lists every public page, including the platform, planner, partner, support and why pages", () => {
+    for (const path of ["/", "/solutions", "/technology", "/planner", "/why-waytara", "/partner", "/support", "/about", "/contact"]) {
+      expect(urls).toContain(absoluteUrl(path));
+    }
+  });
+
+  it("excludes private pages and the removed Knowledge Centre", () => {
+    for (const hidden of ["/dashboard", "/login", "/knowledge-centre", "/quote", "/invite"]) {
       expect(urls.some((u) => u.includes(hidden))).toBe(false);
     }
   });
