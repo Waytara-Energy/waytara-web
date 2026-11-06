@@ -7,6 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { ENQUIRY_LABELS } from "@/lib/planner/engine";
+import { cn } from "@/lib/utils";
 import type { Blueprint, NextStep } from "@/lib/planner/types";
 import { trackPlanner } from "./planner-analytics";
 
@@ -62,61 +63,77 @@ export function EnquiryForm({ blueprint, summary }: { blueprint: Blueprint; summ
 
   if (status === "sent") {
     return (
-      <div role="status" className="rounded-2xl border border-theme-border bg-theme-surface px-7 py-10 text-center sm:px-10">
-        <CheckCircle2 className="mx-auto size-8 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-        <p className="mt-4 text-lg font-semibold text-theme-primary">Thanks, we have your enquiry.</p>
-        <p className="mx-auto mt-2 max-w-md text-sm leading-relaxed text-theme-secondary">
+      <div role="status" className="border-t border-theme-border pt-10">
+        <CheckCircle2 className="size-10 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+        <p className="mt-5 text-xl font-bold tracking-tight text-theme-primary">Thanks, we have your enquiry.</p>
+        <p className="mt-2 max-w-md text-[15px] leading-relaxed text-theme-secondary">
           Your answers and this blueprint came with it, so we won&apos;t ask you the same things again. Someone from the team will get in touch.
         </p>
       </div>
     );
   }
 
-  const field = "space-y-1.5";
+  const field = "space-y-2";
   return (
-    <form onSubmit={onSubmit} className="rounded-2xl border border-theme-border bg-theme-surface p-6 sm:p-8">
-      <h3 className="text-xl font-semibold text-theme-primary">Let&apos;s discuss your energy plan</h3>
-      <p className="mt-1 text-sm text-theme-secondary">Your answers are saved with this enquiry. Just tell us how to reach you.</p>
+    <div className="grid grid-cols-1 gap-10 border-t border-theme-border pt-12 lg:grid-cols-5 lg:gap-16">
+      <div className="lg:col-span-2">
+        <h3 className="text-[clamp(1.6rem,2.8vw,2.3rem)] font-bold leading-tight tracking-tight text-theme-primary">Let&apos;s discuss your energy plan</h3>
+        <p className="mt-4 max-w-sm text-[15px] leading-relaxed text-theme-secondary">Your answers and this blueprint come with your enquiry, so we will not ask you the same things again. Just tell us how to reach you.</p>
+      </div>
 
-      <div className="mt-6 grid grid-cols-1 gap-5 sm:grid-cols-2">
-        <div className={field}>
-          <Label htmlFor="pe-name">Your name</Label>
-          <Input id="pe-name" name="fullName" required minLength={2} autoComplete="name" />
+      <form onSubmit={onSubmit} className="relative lg:col-span-3">
+        <div className="grid grid-cols-1 gap-5 sm:grid-cols-2">
+          <div className={field}>
+            <Label htmlFor="pe-name">Your name</Label>
+            <Input id="pe-name" name="fullName" required minLength={2} autoComplete="name" />
+          </div>
+          <div className={field}>
+            <Label htmlFor="pe-phone">Mobile number</Label>
+            <Input id="pe-phone" name="phone" type="tel" required minLength={6} autoComplete="tel" />
+          </div>
+          <div className={field}>
+            <Label htmlFor="pe-email">
+              E-mail <span className="font-normal text-theme-muted">(optional)</span>
+            </Label>
+            <Input id="pe-email" name="email" type="email" autoComplete="email" />
+          </div>
+          <div className={field}>
+            <Label htmlFor="pe-place">City or pincode</Label>
+            <Input id="pe-place" name="place" autoComplete="address-level2" />
+          </div>
         </div>
-        <div className={field}>
-          <Label htmlFor="pe-phone">Mobile number</Label>
-          <Input id="pe-phone" name="phone" type="tel" required minLength={6} autoComplete="tel" />
-        </div>
-        <div className={field}>
-          <Label htmlFor="pe-email">
-            E-mail <span className="font-normal text-theme-muted">(optional)</span>
+
+        <fieldset className="mt-8">
+          <legend className="text-sm font-medium text-theme-primary">What would you like to do next?</legend>
+          <div className="mt-3 flex flex-wrap gap-3" role="radiogroup" aria-label="What would you like to do next?">
+            {STEPS.map((s) => {
+              const on = step === s;
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => setStep(s)}
+                  className={cn(
+                    "inline-flex h-11 items-center gap-2 rounded-full border px-5 text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500",
+                    on ? "border-emerald-500/60 bg-emerald-500/10 text-theme-primary" : "border-theme-border text-theme-secondary hover:border-theme-muted hover:text-theme-primary"
+                  )}
+                >
+                  <span aria-hidden="true" className={cn("size-2 rounded-full transition-colors", on ? "bg-emerald-500" : "bg-theme-border")} />
+                  {ENQUIRY_LABELS[s]}
+                </button>
+              );
+            })}
+          </div>
+        </fieldset>
+
+        <div className={`${field} mt-8`}>
+          <Label htmlFor="pe-notes">
+            Anything you would like to add <span className="font-normal text-theme-muted">(optional)</span>
           </Label>
-          <Input id="pe-email" name="email" type="email" autoComplete="email" />
+          <Textarea id="pe-notes" name="notes" rows={3} maxLength={800} />
         </div>
-        <div className={field}>
-          <Label htmlFor="pe-place">City or pincode</Label>
-          <Input id="pe-place" name="place" autoComplete="address-level2" />
-        </div>
-      </div>
-
-      <fieldset className="mt-6">
-        <legend className="text-sm font-medium text-theme-primary">What would you like to do next?</legend>
-        <div className="mt-3 grid grid-cols-1 gap-2.5">
-          {STEPS.map((s) => (
-            <label key={s} className="flex cursor-pointer items-center gap-3 rounded-xl border border-theme-border bg-theme-bg px-4 py-3 text-sm text-theme-primary has-[:checked]:border-emerald-500/60">
-              <input type="radio" name="nextStep" value={s} checked={step === s} onChange={() => setStep(s)} className="accent-emerald-600" />
-              <span>{ENQUIRY_LABELS[s]}</span>
-            </label>
-          ))}
-        </div>
-      </fieldset>
-
-      <div className={`${field} mt-6`}>
-        <Label htmlFor="pe-notes">
-          Anything you would like to add <span className="font-normal text-theme-muted">(optional)</span>
-        </Label>
-        <Textarea id="pe-notes" name="notes" rows={3} maxLength={800} />
-      </div>
 
       {/* Honeypot: real visitors never see or fill this. */}
       <div aria-hidden="true" className="absolute -left-[9999px] h-0 w-0 overflow-hidden">
@@ -132,13 +149,14 @@ export function EnquiryForm({ blueprint, summary }: { blueprint: Blueprint; summ
         </p>
       )}
 
-      <div className="mt-7 flex flex-wrap items-center gap-4">
-        <Button type="submit" variant="gradient" disabled={status === "sending"} className="h-11 rounded-full px-7">
-          {status === "sending" && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-          {ENQUIRY_LABELS[step]}
-        </Button>
-        <p className="text-xs text-theme-muted">We will use these details to reply to you.</p>
-      </div>
-    </form>
+        <div className="mt-8 flex flex-wrap items-center gap-4 border-t border-theme-border pt-7">
+          <Button type="submit" variant="gradient" disabled={status === "sending"} className="h-11 rounded-full px-7">
+            {status === "sending" && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
+            {ENQUIRY_LABELS[step]}
+          </Button>
+          <p className="text-xs text-theme-muted">We will use these details to reply to you.</p>
+        </div>
+      </form>
+    </div>
   );
 }

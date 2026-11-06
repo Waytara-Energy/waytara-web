@@ -1,7 +1,6 @@
 import { Footer } from "@/components/sections/footer";
 import { Navigation } from "@/components/sections/navigation";
 import { PlannerApp } from "@/components/planner/planner-app";
-import { SectionBadge } from "@/components/shared/section-header";
 import { JsonLd } from "@/components/seo/json-ld";
 import { breadcrumbJsonLd, pageMetadata } from "@/lib/seo";
 
@@ -25,18 +24,21 @@ export default function PlannerPage() {
       />
       <Navigation />
       <main className="flex-1 pb-[clamp(3rem,6vw,6rem)] pt-[clamp(6.5rem,10vw,9rem)]">
-        <div className="fluid-container max-w-3xl">
-          <SectionBadge>Energy Planner</SectionBadge>
-          <h1 className="mt-6 text-[clamp(2.1rem,4vw,3.4rem)] font-bold leading-[1.12] tracking-tight text-theme-primary">
-            Find the right
-            <span className="block text-primary-gradient">energy solution.</span>
-          </h1>
-          <p className="mt-4 max-w-xl text-sm leading-relaxed text-theme-secondary sm:text-base">
-            Tell us what you are trying to achieve. A few questions, only the ones that matter for your property, then a preliminary blueprint. No prices and no promises: a starting point for a proper assessment.
-          </p>
-          <div className="mt-10">
-            <PlannerApp />
-          </div>
+        <div className="fluid-container">
+          <PlannerApp
+            intro={
+              <>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-emerald-700 dark:text-emerald-400">Energy planner</p>
+                <h1 className="mt-4 text-[clamp(2.1rem,3.6vw,3.2rem)] font-bold leading-[1.12] tracking-tight text-theme-primary">
+                  Find the right
+                  <span className="block text-primary-gradient">energy solution.</span>
+                </h1>
+                <p className="mt-5 max-w-md text-[15px] leading-relaxed text-theme-secondary">
+                  A few questions, only the ones that matter for your property, then a preliminary blueprint. No prices and no promises: a starting point for a proper assessment.
+                </p>
+              </>
+            }
+          />
         </div>
       </main>
       <Footer />

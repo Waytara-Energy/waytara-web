@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import Link from "next/link";
 import { ArrowLeft, ArrowRight, Check, RotateCcw } from "lucide-react";
 import { buildBlueprint } from "@/lib/planner/engine";
 import {
@@ -44,31 +45,37 @@ function OptionButton({ label, hint, selected, multi, disabled, onClick }: { lab
       disabled={disabled}
       onClick={onClick}
       className={cn(
-        "flex w-full items-start gap-3 rounded-xl border px-4 py-3.5 text-left outline-none transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500",
-        selected ? "border-emerald-500/70 bg-emerald-500/[0.07]" : "border-theme-border bg-theme-bg hover:border-emerald-500/40",
-        disabled && "cursor-not-allowed opacity-50"
+        "flex w-full items-start gap-3.5 rounded-2xl px-4 py-4 text-left outline-none ring-1 transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500",
+        selected ? "bg-emerald-500/[0.07] ring-emerald-500/50" : "ring-theme-border hover:bg-theme-surface hover:ring-emerald-500/30",
+        disabled && "cursor-not-allowed opacity-45"
       )}
     >
       <span
         className={cn(
-          "mt-0.5 flex size-5 shrink-0 items-center justify-center border",
+          "mt-0.5 flex size-5 shrink-0 items-center justify-center border transition-colors",
           multi ? "rounded-md" : "rounded-full",
-          selected ? "border-emerald-500 bg-emerald-500 text-white" : "border-theme-border"
+          selected ? "border-emerald-500 bg-emerald-500 text-white" : "border-theme-muted/50"
         )}
         aria-hidden="true"
       >
         {selected && <Check className="size-3.5" />}
       </span>
       <span>
-        <span className="block text-sm font-semibold text-theme-primary">{label}</span>
-        {hint && <span className="mt-0.5 block text-xs text-theme-secondary">{hint}</span>}
+        <span className="block text-[15px] font-semibold leading-snug text-theme-primary">{label}</span>
+        {hint && <span className="mt-1 block text-sm leading-snug text-theme-secondary">{hint}</span>}
       </span>
     </button>
   );
 }
 
+const QUICK_STARTS = [
+  { start: "build", label: "Plan a new system" },
+  { start: "charge", label: "Set up EV charging" },
+  { start: "manage", label: "Connect what I already have" },
+] as const;
+
 /** The Energy Planner (v3): goal-first, adaptive, a blueprint before any contact details. All routing lives in lib/planner; this only renders it. */
-export function PlannerApp() {
+export function PlannerApp({ intro }: { /** The page heading and one line under it, rendered by the page, shown in the left column. */ intro: React.ReactNode }) {
   const [ctx, setCtx] = React.useState<PlannerContext | null>(null);
   const [answers, setAnswers] = React.useState<Answers>(() => initialAnswers({}));
   const [stack, setStack] = React.useState<string[]>([]);
@@ -107,7 +114,7 @@ export function PlannerApp() {
   }, [blueprint]);
 
   if (!ctx) {
-    return <div className="min-h-[24rem] rounded-2xl border border-theme-border bg-theme-surface" aria-busy="true" />;
+    return <div className="min-h-[24rem]" aria-busy="true" />;
   }
 
   function goNext(a: Answers, fromId: string) {
@@ -130,6 +137,16 @@ export function PlannerApp() {
     setCurrentId("goals");
   }
 
+  /** The quick links on the first question: begin as if the visitor had arrived with ?start=build|charge|manage. */
+  function quickStart(start: "build" | "charge" | "manage") {
+    const next: PlannerContext = { ...context, start };
+    setCtx(next);
+    setAnswers(initialAnswers(next));
+    setEntry([`start=${start}`, context.property && `for=${context.property}`].filter(Boolean).join(", "));
+    setStack([]);
+    setCurrentId("goals");
+  }
+
   function choose(q: Question, part: Part, value: string) {
     const updated = applyChoice(answers, part, value);
     setAnswers(updated);
@@ -142,26 +159,71 @@ export function PlannerApp() {
   const position = onResult ? total : Math.max(0, active.findIndex((q) => q.id === question?.id));
   const progress = Math.round((position / total) * 100);
 
-  return (
-    <div ref={topRef} className="scroll-mt-28">
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-theme-border" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} aria-label="Planner progress">
-          <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${Math.max(progress, 4)}%` }} />
-        </div>
-        {!onResult && <span className="text-xs tabular-nums text-theme-muted">Step {position + 1}</span>}
+  const progressBar = (
+    <div className="h-1 flex-1 overflow-hidden rounded-full bg-theme-border" role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={progress} aria-label="Planner progress">
+      <div className="h-full rounded-full bg-emerald-500 transition-all duration-500" style={{ width: `${Math.max(progress, 4)}%` }} />
+    </div>
+  );
+
+  const quickLinks = (
+    <>
+      <p className="text-sm font-semibold text-theme-muted">Already know what you need?</p>
+      <ul className="mt-3 space-y-2">
+        {QUICK_STARTS.map((q) => (
+          <li key={q.start}>
+            <button
+              type="button"
+              onClick={() => quickStart(q.start)}
+              className={cn(
+                "group inline-flex items-center gap-1.5 text-[15px] font-semibold underline-offset-4 hover:underline",
+                context.start === q.start ? "text-theme-primary" : "text-theme-highlight"
+              )}
+            >
+              {q.label}
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+            </button>
+          </li>
+        ))}
+      </ul>
+      <p className="mt-5 text-sm text-theme-secondary">
+        Prefer to talk?{" "}
+        <Link href="/contact" className="font-semibold text-theme-highlight underline-offset-4 hover:underline">
+          Contact us
+        </Link>
+      </p>
+    </>
+  );
+
+  if (blueprint) {
+    return (
+      <div ref={topRef} className="scroll-mt-28 space-y-16">
+        <BlueprintView blueprint={blueprint} onRestart={restart} />
+        <EnquiryForm blueprint={blueprint} summary={plannerSummary(answers, blueprint, context, entry)} />
       </div>
+    );
+  }
 
-      {blueprint ? (
-        <div className="space-y-8">
-          <BlueprintView blueprint={blueprint} onRestart={restart} />
-          <EnquiryForm blueprint={blueprint} summary={plannerSummary(answers, blueprint, context, entry)} />
+  return (
+    <div ref={topRef} className="grid scroll-mt-28 grid-cols-1 gap-12 lg:grid-cols-5 lg:gap-16">
+      <aside className="lg:col-span-2">
+        <div className="lg:sticky lg:top-32">
+          {intro}
+          <div className="mt-8 flex items-center gap-4">
+            {progressBar}
+            <span className="text-xs tabular-nums text-theme-muted">Step {position + 1}</span>
+          </div>
+          {stack.length === 0 && <div className="mt-10 hidden border-t border-theme-border pt-6 lg:block">{quickLinks}</div>}
         </div>
-      ) : question ? (
-        <div className="rounded-2xl border border-theme-border bg-theme-surface p-6 sm:p-8">
-          <h2 className="text-[clamp(1.4rem,2.4vw,1.9rem)] font-bold leading-tight tracking-tight text-theme-primary">{question.title}</h2>
-          {question.hint && <p className="mt-2 text-sm text-theme-secondary">{question.hint}</p>}
+      </aside>
 
-          <div className="mt-6 space-y-7">
+      {question && (
+        <section className="lg:col-span-3" aria-labelledby="planner-question">
+          <h2 id="planner-question" className="text-[clamp(1.6rem,2.8vw,2.3rem)] font-bold leading-tight tracking-tight text-theme-primary">
+            {question.title}
+          </h2>
+          {question.hint && <p className="mt-2 text-[15px] text-theme-secondary">{question.hint}</p>}
+
+          <div className="mt-8 space-y-8">
             {visibleParts(question, answers).map((part) => {
               const options = part.field === "goals" ? goalOptionsFor(context) : resolveOptions(part, answers);
               const value = answers[part.field];
@@ -169,8 +231,8 @@ export function PlannerApp() {
               const atMax = part.kind === "multi" && part.max !== undefined && selectedValues.filter((v) => !part.exclusive?.includes(v)).length >= part.max;
               return (
                 <div key={part.field}>
-                  {part.label && <p className="mb-3 text-sm font-medium text-theme-primary">{part.label}</p>}
-                  <div className="grid grid-cols-1 gap-2.5 sm:grid-cols-2" role={part.kind === "multi" ? "group" : "radiogroup"} aria-label={part.label ?? question.title}>
+                  {part.label && <p className="mb-3 text-sm font-semibold text-theme-primary">{part.label}</p>}
+                  <div className="grid grid-cols-1 gap-3" role={part.kind === "multi" ? "group" : "radiogroup"} aria-label={part.label ?? question.title}>
                     {options.map((o) => {
                       const selected = selectedValues.includes(o.value);
                       return (
@@ -191,7 +253,9 @@ export function PlannerApp() {
             })}
           </div>
 
-          <div className="mt-8 flex flex-wrap items-center justify-between gap-4">
+          {stack.length === 0 && <div className="mt-8 border-t border-theme-border pt-6 lg:hidden">{quickLinks}</div>}
+
+          <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-theme-border pt-6">
             <div className="flex items-center gap-5">
               <button
                 type="button"
@@ -221,8 +285,8 @@ export function PlannerApp() {
               </span>
             </button>
           </div>
-        </div>
-      ) : null}
+        </section>
+      )}
     </div>
   );
 }
