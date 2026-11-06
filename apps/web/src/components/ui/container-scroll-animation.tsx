@@ -30,8 +30,8 @@ export const ContainerScroll = ({
   }, []);
 
   const scaleDimensions = () => {
-    // a phone keeps its card nearly full width (the plain card is the page itself, not a tablet to shrink)
-    return isMobile ? (plain ? [0.94, 1] : [0.7, 0.9]) : [1.05, 1];
+    // the plain card is as wide as the page already, so it starts a little smaller and grows into place (a tablet starts larger)
+    return isMobile ? (plain ? [0.94, 1] : [0.7, 0.9]) : plain ? [0.94, 1] : [1.05, 1];
   };
 
   const rotate = useTransform(scrollYProgress, [0, 1], [20, 0]);
@@ -40,7 +40,7 @@ export const ContainerScroll = ({
 
   return (
     <div
-      className={plain ? "h-[48rem] md:h-[62rem] flex items-center justify-center relative p-2 md:p-20" : "h-[60rem] md:h-[80rem] flex items-center justify-center relative p-2 md:p-20"}
+      className={plain ? "h-[48rem] md:h-[62rem] flex items-center justify-center relative" : "h-[60rem] md:h-[80rem] flex items-center justify-center relative p-2 md:p-20"}
       ref={containerRef}
     >
       <div
@@ -91,8 +91,8 @@ export const Card = ({
 }) => {
   if (plain) {
     return (
-      <motion.div style={{ rotateX: rotate, scale, boxShadow: "0 30px 80px -30px rgba(0,0,0,0.35)" }} className="mx-auto -mt-12 w-full max-w-5xl rounded-3xl">
-        {children}
+      <motion.div style={{ rotateX: rotate, scale }} className="fluid-container -mt-12">
+        <div className="rounded-3xl shadow-[0_30px_80px_-30px_rgba(0,0,0,0.35)]">{children}</div>
       </motion.div>
     );
   }
