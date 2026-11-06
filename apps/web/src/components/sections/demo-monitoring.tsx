@@ -305,7 +305,7 @@ function DemoHeader({
   const counts = (k: Alert["kind"]) => alerts.filter((a) => a.kind === k).length;
 
   return (
-    <header className={cn("relative z-20 flex h-14 shrink-0 items-center justify-between gap-3 bg-background", mobile ? "px-3" : "px-4")}>
+    <header className={cn("relative z-20 flex h-14 shrink-0 items-center justify-between gap-3 bg-background", mobile ? "px-4" : "px-6")}>
       <div className="flex min-w-0 items-center gap-1.5">
         <span className="grid size-9 shrink-0 place-items-center rounded-full border bg-card">
           <Image src="/images/icon.png" alt="" width={20} height={20} unoptimized className="size-5 object-contain opacity-60" />
