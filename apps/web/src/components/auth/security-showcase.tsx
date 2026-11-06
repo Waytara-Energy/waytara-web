@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { CheckCircle2, Laptop, Mail, ShieldCheck, Smartphone, Timer } from "lucide-react";
+import { BellRing, CheckCircle2, History, Laptop, Mail, ShieldCheck, Smartphone, Timer, TimerReset, type LucideIcon } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 import { cn } from "@/lib/utils";
 import { SLIDE_MS, SlideBars, useMedia, useReducedMotion } from "./login-showcase";
@@ -45,6 +45,14 @@ const SLIDES: Slide[] = [
     body: "Turn on two-step sign-in and a code from your authenticator app is needed as well as your password.",
     visual: "second-step",
   },
+];
+
+/** What else protects the account, shown under the slides all the time (each of these exists in Settings today). */
+const ALSO: { icon: LucideIcon; title: string; body: string }[] = [
+  { icon: ShieldCheck, title: "Two-step sign-in", body: "Add a code from your authenticator app." },
+  { icon: BellRing, title: "Sign-in alerts", body: "An e-mail when someone signs in, if you want it." },
+  { icon: History, title: "Activity history", body: "Your recent sign-ins and devices, in Settings." },
+  { icon: TimerReset, title: "Automatic sign-out", body: "Choose how long an idle session stays open." },
 ];
 
 /** The shell of each little illustration: one soft card, in the site's own look. */
@@ -203,8 +211,26 @@ export function SecurityShowcase() {
         <p className="mt-4 max-w-md text-[clamp(1rem,1.2vw,1.125rem)] leading-snug text-theme-secondary">{slide.body}</p>
       </div>
 
-      <div key={`v${index}`} className={cn("login-slide-late relative mt-10 min-h-0 flex-1", edge)} aria-hidden="true">
-        <Visual kind={slide.visual} />
+      <div className={cn("relative mt-10 min-h-0 flex-1", edge)}>
+        <div key={`v${index}`} className="login-slide-late" aria-hidden="true">
+          <Visual kind={slide.visual} />
+        </div>
+
+        {/* the rest of the protection, always in view; only where the screen is tall enough to show it above the bars */}
+        <div className="mt-9 hidden max-w-md [@media(min-height:860px)]:block">
+          <p className="text-sm font-semibold text-theme-muted">Also protecting your account</p>
+          <ul className="mt-4 grid grid-cols-2 gap-x-8 gap-y-5">
+            {ALSO.map(({ icon: Icon, title, body }) => (
+              <li key={title} className="flex items-start gap-3">
+                <Icon className="mt-0.5 size-5 shrink-0 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+                <div>
+                  <p className="text-sm font-semibold text-theme-primary">{title}</p>
+                  <p className="mt-0.5 text-[13px] leading-snug text-theme-secondary">{body}</p>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </div>
       </div>
 
       <div className={cn("absolute inset-x-0 bottom-0 z-20 bg-gradient-to-t from-theme-bg via-theme-bg/90 to-transparent pb-7 pt-16", edge)}>
