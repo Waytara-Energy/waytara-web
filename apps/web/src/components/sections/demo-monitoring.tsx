@@ -14,6 +14,7 @@ import {
   CloudMoon,
   CloudRain,
   CloudSun,
+  Cpu,
   EvCharger,
   Gauge,
   Home,
@@ -267,6 +268,7 @@ function DemoHeader({
   onDevice,
   activeDeviceId,
   chargers,
+  mobile,
 }: {
   site: SampleSite;
   sites: SampleSite[];
@@ -278,7 +280,11 @@ function DemoHeader({
   onDevice: (d: SampleDevice) => void;
   activeDeviceId: string | null;
   chargers: Record<string, EvSample>;
+  /** The phone layout: a tighter header, the devices in one menu, and the panels as wide as the page. */
+  mobile: boolean;
 }) {
+  // on a phone the panels hang from the header itself (as wide as the page), not from the button that opened them
+  const wrap = mobile ? "" : "relative";
   const toggle = (p: PanelId) => setPanel(panel === p ? null : p);
   const w = weatherAt(nowMs);
   const WIcon = WEATHER_ICON[w.condition][w.night ? "night" : "day"];
@@ -289,12 +295,12 @@ function DemoHeader({
   const counts = (k: Alert["kind"]) => alerts.filter((a) => a.kind === k).length;
 
   return (
-    <header className="relative z-20 flex h-14 shrink-0 items-center justify-between gap-3 bg-background px-4">
-      <div className="flex min-w-0 items-center gap-2">
+    <header className={cn("relative z-20 flex h-14 shrink-0 items-center justify-between gap-3 bg-background", mobile ? "px-3" : "px-4")}>
+      <div className="flex min-w-0 items-center gap-1.5">
         <span className="grid size-9 shrink-0 place-items-center rounded-full border bg-card">
           <Image src="/images/icon.png" alt="" width={20} height={20} unoptimized className="size-5 object-contain opacity-60" />
         </span>
-        <div className="relative">
+        <div className={wrap}>
           <button
             type="button"
             data-demo-trigger
@@ -307,7 +313,7 @@ function DemoHeader({
             <ChevronsUpDown className="size-3.5 shrink-0 text-muted-foreground" />
           </button>
           {panel === "site" && (
-            <div data-demo-panel className={cn(PANEL, "left-0 top-10 w-64 p-1")}>
+            <div data-demo-panel className={cn(PANEL, mobile ? "left-2 top-[3.25rem] w-64 p-1" : "left-0 top-10 w-64 p-1")}>
               {sites.map((s) => (
                 <button
                   key={s.id}
@@ -332,9 +338,9 @@ function DemoHeader({
         </div>
       </div>
 
-      <div className="flex items-center gap-2.5">
+      <div className={cn("flex items-center", mobile ? "gap-1.5" : "gap-2.5")}>
         {/* the weather at the site */}
-        <div className="relative">
+        <div className={wrap}>
           <button
             type="button"
             data-demo-trigger
@@ -347,7 +353,7 @@ function DemoHeader({
             <span className="tabular-nums">{w.tempC}°</span>
           </button>
           {panel === "weather" && (
-            <div data-demo-panel className={cn(PANEL, "right-0 top-10 w-[21rem] p-4")}>
+            <div data-demo-panel className={cn(PANEL, mobile ? "left-2 right-2 top-[3.25rem] p-4" : "right-0 top-10 w-[21rem] p-4")}>
               <div className="flex items-center gap-4">
                 <WIcon className={cn("size-12", WEATHER_ICON[w.condition].tone)} strokeWidth={1.4} />
                 <div>
@@ -383,8 +389,55 @@ function DemoHeader({
           )}
         </div>
 
+        {/* on a phone the devices are one button with a list */}
+        {mobile && (
+          <div className={wrap}>
+            <button
+              type="button"
+              data-demo-trigger
+              aria-label={`Devices: ${site.devices.length}. Open the list.`}
+              aria-expanded={panel === "device:*"}
+              onClick={() => toggle("device:*")}
+              className={cn(ICON_BTN, "relative text-emerald-500", panel === "device:*" ? "bg-accent/40" : "bg-card")}
+            >
+              <Cpu className="size-4" />
+              <span className="absolute -right-1 -top-1 grid size-4 place-items-center rounded-full bg-emerald-500 text-[9px] font-semibold leading-none text-white">{site.devices.length}</span>
+            </button>
+            {panel === "device:*" && (
+              <div data-demo-panel className={cn(PANEL, "left-2 right-2 top-[3.25rem] p-1")}>
+                {site.devices.map((d) => {
+                  const Icon = d.kind === "inverter" ? Server : EvCharger;
+                  const ev = chargers[d.id];
+                  const state = d.kind === "inverter" ? "Inverter · Online" : ev?.running ? "EV charger · Charging" : "EV charger · Available";
+                  return (
+                    <button
+                      key={d.id}
+                      type="button"
+                      onClick={() => {
+                        onDevice(d);
+                        setPanel(null);
+                      }}
+                      className="flex w-full cursor-pointer items-center gap-3 rounded-xl px-3 py-2.5 text-left outline-none hover:bg-accent focus-visible:bg-accent"
+                    >
+                      <span className="grid size-9 shrink-0 place-items-center rounded-xl bg-emerald-500/12 text-emerald-600">
+                        <Icon className="size-4" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-semibold">{d.name}</span>
+                        <span className="block text-xs text-muted-foreground">{state}</span>
+                      </span>
+                      {activeDeviceId === d.id && <Check className="size-4 shrink-0 text-emerald-600" />}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* one icon for each device of the site */}
-        {site.devices.map((d) => {
+        {!mobile &&
+          site.devices.map((d) => {
           const Icon = d.kind === "inverter" ? Server : EvCharger;
           const ev = chargers[d.id];
           const state = d.kind === "inverter" ? "Inverter · Online" : ev?.running ? "EV charger · Charging" : "EV charger · Available";
@@ -435,7 +488,7 @@ function DemoHeader({
         })}
 
         {/* the notifications */}
-        <div className="relative">
+        <div className={wrap}>
           <button
             type="button"
             data-demo-trigger
@@ -448,7 +501,7 @@ function DemoHeader({
             <span className="absolute -right-1 -top-1 grid size-[18px] place-items-center rounded-full bg-red-500 text-[10px] font-semibold leading-none text-white">{alerts.length}</span>
           </button>
           {panel === "bell" && (
-            <div data-demo-panel className={cn(PANEL, "right-0 top-11 flex max-h-[30rem] w-[26rem] flex-col")}>
+            <div data-demo-panel className={cn(PANEL, "flex flex-col", mobile ? "left-2 right-2 top-[3.25rem] max-h-[26rem]" : "right-0 top-11 max-h-[30rem] w-[26rem]")}>
               <div className="flex items-center justify-between gap-3 px-4 pb-2 pt-3.5">
                 <p className="text-sm font-semibold">Notifications</p>
                 <button type="button" onClick={() => setPanel(null)} aria-label="Close" className="grid size-6 cursor-pointer place-items-center rounded-md text-muted-foreground hover:bg-accent">
@@ -550,12 +603,12 @@ function EvTile({ label, value, unit, sub, bar, split }: { label: string; value:
 const hm = (m: number) => `${Math.floor(m / 60)} h ${String(m % 60).padStart(2, "0")} min`;
 
 /** One charger's Monitoring page: the live charge as tiles, today's power curve and today's charges. With no charge running the tiles are dashes. */
-function ChargerPage({ ev, dayStart, now }: { ev: EvSample; dayStart: number; now: number }) {
+function ChargerPage({ ev, dayStart, now, mobile }: { ev: EvSample; dayStart: number; now: number; mobile: boolean }) {
   const top = [...ev.shares].sort((a, b) => b.pct - a.pct)[0];
   return (
     <div className="mt-3 space-y-3">
       {ev.running && (
-      <div className="grid grid-cols-5 gap-3">
+      <div className={cn("grid gap-3", mobile ? "grid-cols-2 [&>*:last-child]:col-span-2" : "grid-cols-5")}>
           <EvTile
             label="Power"
             value={ev.running ? ev.kw.toFixed(1) : DASH}
@@ -580,7 +633,7 @@ function ChargerPage({ ev, dayStart, now }: { ev: EvSample; dayStart: number; no
         </div>
       )}
       <GroupTitle>Today at this charger</GroupTitle>
-      <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${ev.earnings !== null ? 5 : 4}, minmax(0, 1fr))` }}>
+      <div className="grid gap-3" style={{ gridTemplateColumns: `repeat(${mobile ? 2 : ev.earnings !== null ? 5 : 4}, minmax(0, 1fr))` }}>
         <EvTile label="Charges today" value={String(ev.sessionsToday)} sub={ev.sessionsToday > 0 ? `about ${(ev.deliveredToday / ev.sessionsToday).toFixed(1)} kWh each` : undefined} />
         <EvTile label="Energy delivered" value={ev.deliveredToday.toFixed(1)} unit="kWh" sub={`strongest ${ev.peakKw.toFixed(1)} kW`} />
         <EvTile label="Charging time" value={hm(ev.chargingMin)} sub={ev.sessionsToday > 0 ? `about ${hm(Math.round(ev.chargingMin / ev.sessionsToday))} each` : undefined} />
@@ -588,7 +641,7 @@ function ChargerPage({ ev, dayStart, now }: { ev: EvSample; dayStart: number; no
         {ev.earnings !== null && <EvTile label="Earned today" value={`₹${ev.earnings.toLocaleString("en-IN")}`} sub={`at ₹${ev.tariff} per kWh`} />}
       </div>
       <GroupTitle>Charging</GroupTitle>
-      <TrendChart title="Charging power" unit="kW" points={ev.series} color={FLOW.producing} dayStart={dayStart} now={now} tall labelEvery={1} />
+      <TrendChart title="Charging power" unit="kW" points={ev.series} color={FLOW.producing} dayStart={dayStart} now={now} tall labelEvery={mobile ? 4 : 1} />
       <div className="rounded-2xl border bg-card px-5 py-4 shadow-xs">
         <p className="text-[0.85rem] font-semibold text-foreground">Today&apos;s charges</p>
         {ev.charges.length === 0 ? (
@@ -612,7 +665,7 @@ function ChargerPage({ ev, dayStart, now }: { ev: EvSample; dayStart: number; no
 // ------------------------------------------------------------------------------------------------ the page
 
 /** `locked` shows the page at its first screen only: no scrolling inside it (the rest is simply cut off). The tabs, the menus and the charts still respond. */
-export function DemoMonitoring({ locked = false }: { locked?: boolean } = {}) {
+export function DemoMonitoring({ locked = false, mobile = false }: { locked?: boolean; /** The phone layout: two cards across, one chart across, the devices in one menu. */ mobile?: boolean } = {}) {
   const [nowMs, setNowMs] = useNow();
   const data: DemoData = React.useMemo(() => buildSampleData(nowMs), [nowMs]);
   const [siteId, setSiteId] = React.useState(SAMPLE_SITES[0].id);
@@ -663,7 +716,7 @@ export function DemoMonitoring({ locked = false }: { locked?: boolean } = {}) {
   };
 
   const chart = (title: string, unit: string, points: SeriesPoint[], color: string, opts: { digits?: number; legend?: { color: string; label: string }[]; tall?: boolean; labelEvery?: number } = {}) => (
-    <TrendChart title={title} unit={unit} points={points} color={color} dayStart={dayStart} now={now} {...opts} />
+    <TrendChart title={title} unit={unit} points={points} color={color} dayStart={dayStart} now={now} {...opts} labelEvery={mobile ? 4 : opts.labelEvery} />
   );
 
   const solarW = (L("pv1_power_w") ?? 0) + (L("pv2_power_w") ?? 0);
@@ -683,8 +736,8 @@ export function DemoMonitoring({ locked = false }: { locked?: boolean } = {}) {
   const activeEv = activeCharger ? chargers[activeCharger.id] : null;
   const headline = activeEv ? { value: `${activeEv.deliveredToday.toFixed(1)} kWh`, label: "Delivered Today" } : inverterHeadlines[tab in inverterHeadlines ? (tab as InverterTab) : "hub"];
 
-  const cards = "grid grid-cols-4 gap-3";
-  const row2 = "grid grid-cols-2 gap-3";
+  const cards = mobile ? "grid grid-cols-2 gap-3" : "grid grid-cols-4 gap-3";
+  const row2 = mobile ? "grid grid-cols-1 gap-3" : "grid grid-cols-2 gap-3";
 
   return (
     <div className="relative flex h-full w-full flex-col bg-background text-foreground">
@@ -699,9 +752,10 @@ export function DemoMonitoring({ locked = false }: { locked?: boolean } = {}) {
         onDevice={(d) => setTab(d.kind === "inverter" ? "hub" : d.id)}
         activeDeviceId={activeCharger ? activeCharger.id : hasInverter ? "inverter" : null}
         chargers={chargers}
+        mobile={mobile}
       />
 
-      <main className={cn("min-h-0 flex-1 px-6 pb-6 pt-1", locked ? "overflow-clip" : "overflow-y-auto [scrollbar-width:thin]")}>
+      <main className={cn("min-h-0 flex-1 pb-6 pt-1", mobile ? "px-4" : "px-6", locked ? "overflow-clip" : "overflow-y-auto [scrollbar-width:thin]")}>
         <Tabs value={tab} onValueChange={setTab}>
           <TabHeadlineBar
             tabValue={activeCharger ? "ev" : tab}
@@ -723,7 +777,7 @@ export function DemoMonitoring({ locked = false }: { locked?: boolean } = {}) {
               ) : undefined
             }
           />
-          <TabsList variant="line">
+          <TabsList variant="line" className={mobile ? "w-full justify-start overflow-x-auto [scrollbar-width:none]" : undefined}>
             {hasInverter &&
               INVERTER_TABS.map(({ id, label, icon: Icon, active }) => (
                 <TabsTrigger key={id} value={id} variant="line" className={active}>
@@ -822,7 +876,7 @@ export function DemoMonitoring({ locked = false }: { locked?: boolean } = {}) {
 
           {chargerDevices.map((d) => (
             <TabsContent key={d.id} value={d.id}>
-              <ChargerPage ev={chargers[d.id]} dayStart={dayStart} now={now} />
+              <ChargerPage ev={chargers[d.id]} dayStart={dayStart} now={now} mobile={mobile} />
             </TabsContent>
           ))}
         </Tabs>

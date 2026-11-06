@@ -5,9 +5,12 @@ import { useScroll, useTransform, motion, MotionValue } from "motion/react";
 export const ContainerScroll = ({
   titleComponent,
   children,
+  plain = false,
 }: {
   titleComponent: string | React.ReactNode;
   children: React.ReactNode;
+  /** No tablet around the content: the children sit in the tilting, growing card as they are (they bring their own container). */
+  plain?: boolean;
 }) => {
   const containerRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({
@@ -27,7 +30,8 @@ export const ContainerScroll = ({
   }, []);
 
   const scaleDimensions = () => {
-    return isMobile ? [0.7, 0.9] : [1.05, 1];
+    // a phone keeps its card nearly full width (the plain card is the page itself, not a tablet to shrink)
+    return isMobile ? (plain ? [0.94, 1] : [0.7, 0.9]) : [1.05, 1];
   };
 
   const rotate = useTransform(scrollYProgress, [0, 1], [20, 0]);
@@ -36,7 +40,7 @@ export const ContainerScroll = ({
 
   return (
     <div
-      className="h-[60rem] md:h-[80rem] flex items-center justify-center relative p-2 md:p-20"
+      className={plain ? "h-[48rem] md:h-[62rem] flex items-center justify-center relative p-2 md:p-20" : "h-[60rem] md:h-[80rem] flex items-center justify-center relative p-2 md:p-20"}
       ref={containerRef}
     >
       <div
@@ -46,7 +50,7 @@ export const ContainerScroll = ({
         }}
       >
         <Header translate={translate} titleComponent={titleComponent} />
-        <Card rotate={rotate} translate={translate} scale={scale}>
+        <Card rotate={rotate} translate={translate} scale={scale} plain={plain}>
           {children}
         </Card>
       </div>
@@ -77,12 +81,21 @@ export const Card = ({
   rotate,
   scale,
   children,
+  plain = false,
 }: {
   rotate: MotionValue<number>;
   scale: MotionValue<number>;
   translate: MotionValue<number>;
   children: React.ReactNode;
+  plain?: boolean;
 }) => {
+  if (plain) {
+    return (
+      <motion.div style={{ rotateX: rotate, scale, boxShadow: "0 30px 80px -30px rgba(0,0,0,0.35)" }} className="mx-auto -mt-12 w-full max-w-5xl rounded-3xl">
+        {children}
+      </motion.div>
+    );
+  }
   return (
     <motion.div
       style={{

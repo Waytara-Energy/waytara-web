@@ -39,44 +39,61 @@ export function FittedDemo() {
 
 /** How much of the page is shown in the cropped view (design pixels): the header, the tabs, the live cards and the top of the first chart. */
 const CROP_HEIGHT = 640;
+/** Below this width the page is drawn in its phone layout, at its own size, instead of as a shrunk desktop page. */
+const PHONE_WIDTH = 720;
+/** How tall the cropped phone layout is (CSS pixels). */
+const PHONE_CROP_HEIGHT = 640;
 
 /**
- * The customer Monitoring page, exactly as the customer sees it, but only its first screen: it fits the box by width, cannot be scrolled, and fades out at
- * the bottom, so the rest of the application is not on show. The tabs, the interval, the charts and the device menu (an inverter and an EV charger) respond.
+ * The customer Monitoring page, exactly as the customer sees it, but only its first screen: it cannot be scrolled and it fades out at the bottom, so the rest
+ * of the application is not on show. On a wide screen it is the desktop page, shrunk to the box; on a phone it is the phone layout at its own size. The tabs,
+ * the charts, the menus, the weather, the notifications, the sites and Start / Stop charging (demo only) respond.
  */
 export function CroppedDemo() {
   const boxRef = React.useRef<HTMLDivElement>(null);
-  const [scale, setScale] = React.useState(0.7);
+  const [width, setWidth] = React.useState<number | null>(null);
 
   React.useEffect(() => {
     const el = boxRef.current;
     if (!el) return;
     const ro = new ResizeObserver(([e]) => {
-      const width = e.contentRect.width;
-      if (width) setScale(width / DEMO_WIDTH);
+      const w = e.contentRect.width;
+      if (w) setWidth(w);
     });
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
 
+  const phone = width !== null && width < PHONE_WIDTH;
+  const scale = width === null ? 0.7 : width / DEMO_WIDTH;
+  const height = phone ? PHONE_CROP_HEIGHT : CROP_HEIGHT * scale;
+
   return (
-    <div ref={boxRef} className="relative w-full overflow-clip rounded-3xl border border-theme-border bg-background" style={{ height: CROP_HEIGHT * scale }}>
-      <div style={{ width: DEMO_WIDTH, height: CROP_HEIGHT, transform: `scale(${scale})`, transformOrigin: "top left" }}>
-        <DemoMonitoring locked />
-      </div>
+    <div ref={boxRef} className="relative w-full overflow-clip rounded-3xl border border-theme-border bg-background" style={{ height }}>
+      {width !== null &&
+        (phone ? (
+          <div style={{ width: "100%", height: PHONE_CROP_HEIGHT }}>
+            <DemoMonitoring locked mobile />
+          </div>
+        ) : (
+          <div style={{ width: DEMO_WIDTH, height: CROP_HEIGHT, transform: `scale(${scale})`, transformOrigin: "top left" }}>
+            <DemoMonitoring locked />
+          </div>
+        ))}
       <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 bottom-0 h-28 bg-gradient-to-t from-background via-background/80 to-transparent" />
     </div>
   );
 }
 
 /**
- * The customer Monitoring page on sample figures, on a card that tips up and grows as the visitor scrolls (Aceternity's container
- * scroll). The tabs, the interval, the charts and the device menu respond; the sidebar and the notifications do not open.
+ * The customer Monitoring page (the same cropped container as on the Platform page, without a tablet around it), tipping up and growing as the visitor scrolls
+ * (Aceternity's container scroll).
  */
 export function DashboardShowcase() {
   return (
     <section id="live-monitoring" aria-label="The customer Monitoring page, with sample data" className="relative z-0 -mt-24 flex flex-col overflow-hidden bg-theme-bg md:-mt-52">
       <ContainerScroll
+        plain
         titleComponent={
           <>
             <h2 className="text-3xl font-semibold text-theme-primary md:text-5xl">
@@ -86,7 +103,7 @@ export function DashboardShowcase() {
           </>
         }
       >
-        <FittedDemo />
+        <CroppedDemo />
       </ContainerScroll>
       <div className="-mt-20 pb-24 md:-mt-36">
         <DashboardKeyFeatures />
