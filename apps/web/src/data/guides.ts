@@ -367,14 +367,14 @@ const subsidy: Guide = {
           type: "compare",
           columns: ["Central subsidy"],
           rows: [
-            { label: "Up to 1 kW", cells: ["₹30,000"] },
+            { label: "1 kW", cells: ["₹30,000"] },
             { label: "2 kW", cells: ["₹60,000"] },
             { label: "3 kW and above", cells: ["₹78,000 (the most any household gets)"] },
           ],
         },
         {
           type: "p",
-          text: "A bigger system than 3 kW does not get more central subsidy; the cap is ₹78,000. These are the amounts we last checked, on 6 November 2026. The government can revise them, so check the official portal for today's figures before you decide.",
+          text: "The government states the subsidy as a share of a benchmark system cost: 60% for the first 2 kW and 40% of the cost of the third kW. At the benchmark prices it has set, that gives the amounts above. A bigger system than 3 kW does not get more central subsidy; the cap is ₹78,000. These are the figures we last checked, on 6 November 2026, against the government's announcement. The government can revise them, so confirm today's figures on pmsuryaghar.gov.in before you decide.",
         },
         {
           type: "note",
