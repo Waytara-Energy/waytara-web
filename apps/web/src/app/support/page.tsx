@@ -2,7 +2,7 @@ import { SUPPORT_DESCRIPTION, SupportPage } from "@/components/pages/support-pag
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata = pageMetadata({
-  title: "WayTara Support: Sign-in Help, Devices, Billing and Tickets",
+  title: "WayTara Support: Tickets, Phone, E-mail and Sign-in Help",
   description: SUPPORT_DESCRIPTION,
   path: "/support",
 });

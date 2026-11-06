@@ -1,58 +1,118 @@
-import { Activity, CreditCard, KeyRound, LifeBuoy, Mail, Phone, ShieldCheck, SlidersHorizontal, UserPlus, Wifi } from "lucide-react";
+import { Activity, CreditCard, EvCharger, KeyRound, LifeBuoy, Mail, MapPin, Phone, Sun, Ticket, Wifi, Wrench } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 import { FaqList, type Faq } from "@/components/segments/faq-list";
-import { FeatureColumns, InfoBand, SegmentSection } from "@/components/segments/segment-parts";
+import { FeatureColumns, SegmentSection } from "@/components/segments/segment-parts";
+import { ProjectSteps } from "@/components/sections/project-steps";
 import { SITE } from "@/lib/site";
 import { PageHero, PageShell } from "./page-shell";
 import { SupportForm } from "./support-form";
 
 export const SUPPORT_PATH = "/support";
 export const SUPPORT_DESCRIPTION =
-  "Help for WayTara customers: sign-in problems, devices that look offline, billing questions, and how to raise a support ticket or reach the team.";
+  "Every way to get help from WayTara: raise a ticket in your dashboard, call or e-mail the team, tell us if you cannot sign in, or ask before you become a customer.";
 
-const SIGN_IN = [
+const HOURS = "Monday to Saturday, 8 AM to 8 PM IST";
+
+// The ways to reach the team: each ends with a person.
+const WAYS = [
+  {
+    icon: Ticket,
+    title: "Raise a ticket",
+    body: "The best way for anything about your account or devices. Pick your site, attach photos, and follow the whole conversation in one place.",
+    link: { label: "Open Support in my dashboard", href: "/dashboard/support" },
+  },
+  {
+    icon: Phone,
+    title: "Call us",
+    body: `${SITE.phone} or +91 93848 00141, ${HOURS}. Ask for support and have your site name ready.`,
+    link: { label: `Call ${SITE.phone}`, href: "tel:9363021195" },
+  },
+  {
+    icon: Mail,
+    title: "E-mail us",
+    body: "For a question that does not need a ticket, write to us and say which site it is about. We reply by e-mail.",
+    link: { label: SITE.email, href: `mailto:${SITE.email}` },
+  },
   {
     icon: KeyRound,
-    title: "Forgot your password",
-    body: "On the sign-in page, choose Forgot password and enter your e-mail. We send you a code, then you choose a new password.",
+    title: "Cannot sign in?",
+    body: "You do not need an account to reach us. Tell us what is wrong and how to reach you, and the team will get back to you.",
+    link: { label: "Tell us what is wrong", href: "#contact" },
   },
   {
-    icon: ShieldCheck,
-    title: "Two-factor code",
-    body: "If you turned on two-factor sign-in, enter the 6-digit code from your authenticator app. It changes every 30 seconds.",
+    icon: MapPin,
+    title: "Visit our office",
+    body: "WayTara Energy LLP, 3rd floor, Dr. Radhakrishnan Salai, Mylapore, Chennai. Call first so someone is there for you.",
+    link: { label: "See the map", href: "/contact#visit" },
   },
   {
-    icon: UserPlus,
-    title: "No account yet",
-    body: "We set up your account when your system is installed. Look for our invitation e-mail, and check your spam folder.",
+    icon: Sun,
+    title: "Not a customer yet?",
+    body: "Thinking about solar, storage or EV charging, or about connecting equipment you already have? Plan it, or ask us.",
+    link: { label: "Plan my system", href: "/planner" },
   },
 ];
 
-const DEVICES = [
+// The usual problems, each with the first thing to try.
+const TOPICS = [
+  {
+    icon: KeyRound,
+    title: "Sign-in and account",
+    body: "Forgot your password? Choose Forgot password on the sign-in page and enter the code we e-mail you. No invitation yet? Check your spam folder.",
+    link: { label: "Reset my password", href: "/forgot-password" },
+  },
   {
     icon: Wifi,
     title: "A device shows offline",
-    body: "Check the device has power and the site's internet works, then wait a few minutes. Still offline? Raise a ticket.",
+    body: "Check the device has power and the site's internet works, then wait a few minutes. Still offline? Raise a ticket and name the device.",
+    link: { label: "Raise a ticket", href: "/dashboard/support" },
   },
   {
     icon: Activity,
-    title: "Readings look wrong or are missing",
-    body: "Raise a ticket with the device, the time and a screenshot or photo. We can check what the device has been sending.",
+    title: "Readings or reports look wrong",
+    body: "Raise a ticket with the device, the time and a screenshot. We can check what the device has been sending and what the report used.",
+    link: { label: "Raise a ticket", href: "/dashboard/support" },
   },
   {
-    icon: SlidersHorizontal,
-    title: "Changing a setting",
-    body: "Settings you can change are on the Devices page, and each change is confirmed by reading it back. For anything else, ask us.",
+    icon: EvCharger,
+    title: "A charger will not charge",
+    body: "Check it shows online in your dashboard, then try Reset or Unlock on the charger's page where it is offered. Still stuck? Raise a ticket.",
+    link: { label: "Raise a ticket", href: "/dashboard/support" },
+  },
+  {
+    icon: CreditCard,
+    title: "Billing and invoices",
+    body: "Your plan, payments and GST invoices are on the Billing page of your dashboard. For a question about a charge, raise a ticket with the date and amount.",
+    link: { label: "Raise a ticket", href: "/dashboard/support" },
+  },
+  {
+    icon: Wrench,
+    title: "Installation questions",
+    body: "Something not finished, or a question about work at your site? Raise a ticket, choose Installation as the topic and tell us which site.",
+    link: { label: "Raise a ticket", href: "/dashboard/support" },
   },
 ];
 
-const BILLING = [
-  { icon: CreditCard, title: "Your plan and payments", body: "Your plan, payments and invoices are on the Billing page of your dashboard." },
-  { icon: LifeBuoy, title: "A question about a charge", body: "Raise a ticket, choose Billing as the topic, and tell us the date and amount." },
-  { icon: Mail, title: "Something else about your account", body: "Raise a ticket, or use the form below if you cannot sign in, and say what you need." },
+const TICKET_STEPS = [
+  { title: "You raise it", body: "Choose your site, say what is wrong, and attach up to five files, such as photos, a PDF or a short video." },
+  { title: "We confirm", body: "You get an e-mail that we have it, and the team of your site is told straight away." },
+  { title: "Someone takes it", body: "You are told who is handling it. It can be handed to a colleague, and every reply reaches you by e-mail." },
+  { title: "Resolved, then rated", body: "When it is sorted you can close it, or reopen it if it is not, and rate the help you got." },
 ];
 
 export const SUPPORT_FAQS: Faq[] = [
+  {
+    question: "How do I reach someone quickly?",
+    answer: `Call ${SITE.phone} or +91 93848 00141 (${HOURS}), or e-mail ${SITE.email}. For anything about your account or devices, a ticket in your dashboard keeps the whole conversation in one place.`,
+  },
+  {
+    question: "Who sees my ticket?",
+    answer: "The team of your site: the site's installer engineer, its employees and WayTara's administrators. You see only your own tickets, and you can add files to any message.",
+  },
+  {
+    question: "Can I attach photos or files?",
+    answer: "Yes, up to five in one message, each up to 10 MB: pictures, PDF, text, Word, Excel and short videos. A photo of the device or a screenshot of what you see helps most.",
+  },
   {
     question: "I forgot my password. What do I do?",
     answer:
@@ -74,8 +134,8 @@ export const SUPPORT_FAQS: Faq[] = [
       "Not necessarily. A device can look offline when its power or the site's internet connection is interrupted. Check both, wait a few minutes, and if it stays offline raise a ticket and name the device.",
   },
   {
-    question: "How do I reach someone quickly?",
-    answer: `Call ${SITE.phone} or +91 93848 00141, or e-mail ${SITE.email}. For anything about your account or devices, a ticket in your dashboard keeps the whole conversation in one place.`,
+    question: "I am not a customer yet. Who do I ask?",
+    answer: "Use the Contact page, or plan a system with the Energy Planner and send us the blueprint. Either way a person from the team gets back to you.",
   },
   {
     question: "How long will a reply take?",
@@ -83,7 +143,7 @@ export const SUPPORT_FAQS: Faq[] = [
   },
 ];
 
-/** Support: how customers get help, including when they cannot sign in. */
+/** Support: every way to get help, whether signed in, locked out, or not yet a customer. */
 export function SupportPage() {
   return (
     <PageShell
@@ -93,68 +153,59 @@ export function SupportPage() {
       hero={
         <PageHero
           eyebrow="Support"
-          title="We are here"
-          accent="when something goes wrong."
-          body="Locked out, a device showing offline, a question about a bill: find the fastest way to get it sorted. Signed-in customers can raise a ticket. If you cannot sign in, tell us below."
+          title="How can we"
+          accent="help today?"
+          body="Raise a ticket, call, write, or tell us you are locked out. Pick the way that suits you: every one of them ends with a person from the team."
           primary={{ label: "Open Support in my dashboard", href: "/dashboard/support" }}
           secondary={{ label: "I can't sign in", href: "#contact" }}
         />
       }
     >
-      <SegmentSection id="sign-in" badge="Sign-in problems" title="Back into" accent="your account." summary="The usual reasons people get locked out, and what to do about each.">
-        <FeatureColumns items={SIGN_IN} />
-        <Reveal direction="up" duration={700} distance={16}>
-          <p className="mt-6 text-sm text-theme-secondary">
-            Ready to try again?{" "}
-            <a href="/forgot-password" className="font-semibold text-theme-highlight underline-offset-4 hover:underline">
-              Reset my password
-            </a>{" "}
-            or{" "}
-            <a href="/login" className="font-semibold text-theme-highlight underline-offset-4 hover:underline">
-              go to sign in
-            </a>
-            .
-          </p>
-        </Reveal>
+      <SegmentSection id="ways" badge="Ways to reach us" title="Choose the way" accent="that suits you." summary="Signed in, locked out, or not a customer yet: there is a route for each.">
+        <FeatureColumns items={WAYS} />
       </SegmentSection>
 
-      <SegmentSection id="devices" badge="Devices and monitoring" title="A device or a reading" accent="looks wrong." summary="Start here before raising a ticket: it is often something simple.">
-        <FeatureColumns items={DEVICES} />
+      <SegmentSection id="topics" badge="Common problems" title="Find your" accent="problem." summary="A first thing to try for each, and then the way to ask us if it is not enough.">
+        <FeatureColumns items={TOPICS} />
       </SegmentSection>
 
-      <SegmentSection id="billing" badge="Billing and plans" title="Payments," accent="plans and invoices." summary="Where to find them, and who to ask.">
-        <FeatureColumns items={BILLING} />
-      </SegmentSection>
+      <ProjectSteps id="ticket" badge="How a ticket works" title="From your message" accent="to a resolved ticket." summary="You are kept informed at every step." steps={TICKET_STEPS} />
 
-      <div id="ticket" className="scroll-mt-28 pt-4" />
-      <InfoBand
-        title="Raise a ticket and keep the whole conversation in one place."
-        body="Choose the site, say what is wrong, and attach photos or files. You get an e-mail each time someone from the team replies, and you can rate the help when it is closed."
-        cta={{ label: "Open Support in my dashboard", href: "/dashboard/support" }}
-      />
-
-      <SegmentSection id="contact" badge="Cannot sign in?" title="Tell us" accent="what is wrong." summary="No account needed. Tell us how to reach you and what is happening, and the team will get back to you.">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-5 lg:gap-12">
+      <SegmentSection id="contact" badge="Cannot sign in?" title="Tell us" accent="what is wrong." summary="No account needed. Say what is happening and how to reach you, and the team will get back to you.">
+        <div className="grid grid-cols-1 gap-14 lg:grid-cols-5 lg:gap-16">
           <Reveal direction="up" duration={800} distance={24} className="relative lg:col-span-3">
             <SupportForm />
           </Reveal>
           <Reveal direction="up" duration={800} distance={24} delay={100} className="lg:col-span-2">
-            <div className="rounded-2xl border border-theme-border bg-theme-surface p-6 sm:p-7">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-theme-muted">Or reach us directly</p>
-              <div className="mt-4 space-y-3">
-                <a href="tel:9363021195" className="flex items-center gap-3 text-sm text-theme-primary underline-offset-4 hover:underline">
-                  <Phone className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                  +91 93630 21195
-                </a>
-                <a href="tel:9384800141" className="flex items-center gap-3 text-sm text-theme-primary underline-offset-4 hover:underline">
-                  <Phone className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                  +91 93848 00141
-                </a>
-                <a href={`mailto:${SITE.email}`} className="flex items-center gap-3 text-sm text-theme-primary underline-offset-4 hover:underline">
-                  <Mail className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-                  {SITE.email}
-                </a>
-              </div>
+            <div className="lg:sticky lg:top-32">
+              <p className="text-sm font-semibold text-theme-muted">Prefer to talk?</p>
+              <ul className="mt-5 space-y-5">
+                <li>
+                  <a href="tel:9363021195" className="group flex items-start gap-4">
+                    <Phone className="mt-1 size-6 shrink-0 stroke-[1.4] text-theme-primary" aria-hidden="true" />
+                    <span>
+                      <span className="block text-base font-semibold text-theme-primary group-hover:text-theme-highlight">{SITE.phone}</span>
+                      <span className="mt-0.5 block text-sm text-theme-secondary">or +91 93848 00141</span>
+                    </span>
+                  </a>
+                </li>
+                <li>
+                  <a href={`mailto:${SITE.email}`} className="group flex items-start gap-4">
+                    <Mail className="mt-1 size-6 shrink-0 stroke-[1.4] text-theme-primary" aria-hidden="true" />
+                    <span className="text-base font-semibold text-theme-primary group-hover:text-theme-highlight">{SITE.email}</span>
+                  </a>
+                </li>
+                <li className="flex items-start gap-4">
+                  <LifeBuoy className="mt-1 size-6 shrink-0 stroke-[1.4] text-theme-primary" aria-hidden="true" />
+                  <span>
+                    <span className="block text-base font-semibold text-theme-primary">Monday to Saturday</span>
+                    <span className="mt-0.5 block text-sm text-theme-secondary">8:00 AM to 8:00 PM IST</span>
+                  </span>
+                </li>
+              </ul>
+              <p className="mt-10 border-t border-theme-border pt-6 text-sm leading-relaxed text-theme-muted">
+                Never send your password or a sign-in code, in this form or to anyone. We will never ask for them.
+              </p>
             </div>
           </Reveal>
         </div>

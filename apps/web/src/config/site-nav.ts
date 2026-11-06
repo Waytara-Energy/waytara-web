@@ -114,11 +114,10 @@ export const PAGE_MENUS: PageMenu[] = [
     label: "Support",
     href: "/support",
     items: [
-      { label: "Sign-in problems", href: "/support#sign-in", blurb: "Password, codes and getting back in" },
-      { label: "Devices and monitoring", href: "/support#devices", blurb: "A device offline or readings missing" },
-      { label: "Billing and plans", href: "/support#billing", blurb: "Payments, plans and invoices" },
-      { label: "Raise a ticket", href: "/support#ticket", blurb: "Ask the team from your dashboard" },
-      { label: "Tell us what is wrong", href: "/support#contact", blurb: "If you cannot sign in" },
+      { label: "Ways to reach us", href: "/support#ways", blurb: "Ticket, phone, e-mail or a visit" },
+      { label: "Common problems", href: "/support#topics", blurb: "A first thing to try for each" },
+      { label: "How a ticket works", href: "/support#ticket", blurb: "From your message to resolved" },
+      { label: "Cannot sign in?", href: "/support#contact", blurb: "Tell us, no account needed" },
     ],
   },
 ];
