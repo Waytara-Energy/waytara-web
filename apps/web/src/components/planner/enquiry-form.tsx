@@ -92,10 +92,8 @@ export function EnquiryForm({ blueprint, summary }: { blueprint: Blueprint; summ
             <Input id="pe-phone" name="phone" type="tel" required minLength={6} autoComplete="tel" />
           </div>
           <div className={field}>
-            <Label htmlFor="pe-email">
-              E-mail <span className="font-normal text-theme-muted">(optional)</span>
-            </Label>
-            <Input id="pe-email" name="email" type="email" autoComplete="email" />
+            <Label htmlFor="pe-email">E-mail</Label>
+            <Input id="pe-email" name="email" type="email" required autoComplete="email" />
           </div>
           <div className={field}>
             <Label htmlFor="pe-place">City or pincode</Label>

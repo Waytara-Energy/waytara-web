@@ -378,7 +378,7 @@ export function EnergyPlanner({ selectedSegment: _selectedSegment }: EnergyPlann
 
   const handleLeadSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!contactName || !contactPhone) return;
+    if (!contactName || !contactPhone || !contactEmail) return;
 
     setIsSubmittingLead(true);
     setSubmitError(null);
@@ -818,7 +818,7 @@ export function EnergyPlanner({ selectedSegment: _selectedSegment }: EnergyPlann
                   <Input
                     id="cEmail"
                     type="email"
-                    placeholder="name@company.com"
+                    required
                     value={contactEmail}
                     onChange={(e) => setContactEmail(e.target.value)}
                     className="h-10 text-xs mt-1"

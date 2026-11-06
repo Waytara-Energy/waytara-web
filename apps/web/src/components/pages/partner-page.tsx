@@ -10,13 +10,6 @@ export const PARTNER_PATH = "/partner";
 export const PARTNER_DESCRIPTION =
   "Installers across India: tell WayTara about your company, the states you work in and what you install, and our team will get in touch.";
 
-const MENU = [
-  { id: "who", label: "Who we look for" },
-  { id: "how", label: "How it works" },
-  { id: "apply", label: "Apply" },
-  { id: "faq", label: "FAQ" },
-];
-
 const WHO = [
   { icon: Sun, title: "Solar and storage installers", body: "You install rooftop or ground-mounted solar and battery storage for homes, buildings or industry." },
   { icon: PlugZap, title: "EV charger installers", body: "You install EV chargers for homes, workplaces, fleets or public charging sites, anywhere in India." },
@@ -65,7 +58,6 @@ export function PartnerPage() {
     <PageShell
       name="Partner with WayTara"
       path={PARTNER_PATH}
-      menu={MENU}
       faqs={PARTNER_FAQS}
       hero={
         <PageHero

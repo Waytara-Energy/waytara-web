@@ -6,7 +6,7 @@ import { allowRequest, clientIp } from "@/lib/rate-limit";
 
 const leadSchema = z.object({
   fullName: z.string().min(2, "Name is required"),
-  email: z.string().email().optional().or(z.literal("")),
+  email: z.string().trim().email("A valid e-mail is required"),
   phone: z.string().min(6, "Phone is required"),
   message: z.string().optional(),
   city: z.string().optional(),
@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
         ? { city: data.city || undefined, pincode: data.pincode || undefined }
         : null;
     const message = formatContext(data);
-    const email = data.email || `${data.phone}@no-email.waytaraenergy-lead.invalid`;
+    const email = data.email;
 
     // Deliberately not `.select()`-ing the row back: the anon role that
     // inserts these is insert-only by design (see the migration) — it has

@@ -11,16 +11,6 @@ export const PLATFORM_PATH = "/technology";
 export const PLATFORM_DESCRIPTION =
   "How WayTara connects solar inverters, batteries, meters and EV chargers to one platform: energy management for supported equipment and charge-point management for compatible OCPP chargers.";
 
-const MENU = [
-  { id: "overview", label: "Overview" },
-  { id: "how", label: "How it connects" },
-  { id: "energy", label: "Energy management" },
-  { id: "charging", label: "Charging management" },
-  { id: "demo", label: "Live demo" },
-  { id: "compatibility", label: "Check compatibility" },
-  { id: "faq", label: "FAQ" },
-];
-
 const PARTS = [
   {
     icon: Router,
@@ -105,7 +95,6 @@ export function PlatformPage() {
     <PageShell
       name="Platform"
       path={PLATFORM_PATH}
-      menu={MENU}
       faqs={PLATFORM_FAQS}
       hero={
         <PageHero

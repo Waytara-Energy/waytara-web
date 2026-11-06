@@ -10,15 +10,6 @@ export const SUPPORT_PATH = "/support";
 export const SUPPORT_DESCRIPTION =
   "Help for WayTara customers: sign-in problems, devices that look offline, billing questions, and how to raise a support ticket or reach the team.";
 
-const MENU = [
-  { id: "sign-in", label: "Sign-in problems" },
-  { id: "devices", label: "Devices" },
-  { id: "billing", label: "Billing" },
-  { id: "ticket", label: "Raise a ticket" },
-  { id: "contact", label: "Tell us" },
-  { id: "faq", label: "FAQ" },
-];
-
 const SIGN_IN = [
   {
     icon: KeyRound,
@@ -98,7 +89,6 @@ export function SupportPage() {
     <PageShell
       name="Support"
       path={SUPPORT_PATH}
-      menu={MENU}
       faqs={SUPPORT_FAQS}
       hero={
         <PageHero

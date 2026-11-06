@@ -73,10 +73,8 @@ export function SupportForm() {
           <Input id="sf-phone" name="phone" type="tel" required minLength={6} autoComplete="tel" />
         </div>
         <div className={field}>
-          <Label htmlFor="sf-email">
-            The e-mail on your account <span className="font-normal text-theme-muted">(if you know it)</span>
-          </Label>
-          <Input id="sf-email" name="email" type="email" autoComplete="email" />
+          <Label htmlFor="sf-email">E-mail</Label>
+          <Input id="sf-email" name="email" type="email" required autoComplete="email" />
         </div>
         <div className={field}>
           <Label htmlFor="sf-topic">What is it about?</Label>

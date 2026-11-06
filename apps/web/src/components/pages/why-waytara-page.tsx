@@ -40,18 +40,6 @@ export const WHY_PATH = "/why-waytara";
 export const WHY_DESCRIPTION =
   "What WayTara does: one team that designs, installs and connects solar, storage and EV charging as one system, with its own gateway and software, ready reports, secure accounts and proof you can check for yourself.";
 
-const MENU = [
-  { id: "reasons", label: "What we do" },
-  { id: "system", label: "One connected system" },
-  { id: "reports", label: "Reports" },
-  { id: "security", label: "Security" },
-  { id: "account", label: "Your account" },
-  { id: "everyone", label: "Every property" },
-  { id: "proof", label: "How to check" },
-  { id: "promise", label: "Our promise" },
-  { id: "enquire", label: "Enquire" },
-];
-
 const REASONS = [
   { icon: Users, title: "One team", body: "The same people design, install, connect and support your system, so there is one place to ask when something needs attention." },
   { icon: Ruler, title: "Built for your site", body: "We size your system from your real power use, roof and operating hours, not from a standard package. Battery size follows what you need to keep running." },
@@ -159,7 +147,6 @@ export function WhyWaytaraPage() {
     <PageShell
       name="Why WayTara"
       path={WHY_PATH}
-      menu={MENU}
       hero={
         <PageHero
           eyebrow="Why WayTara"

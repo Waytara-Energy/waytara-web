@@ -4,25 +4,22 @@ import { ArrowRight } from "lucide-react";
 import { Navigation } from "@/components/sections/navigation";
 import { Footer } from "@/components/sections/footer";
 import { JsonLd } from "@/components/seo/json-ld";
-import { SegmentMenu, type SegmentMenuItem } from "@/components/segments/segment-menu";
 import type { Cta } from "@/components/segments/segment-parts";
 import { breadcrumbJsonLd, faqJsonLd } from "@/lib/seo";
 
 /**
- * The frame of the company pages (Platform, Why WayTara, About Us): header, hero, an optional sticky in-page menu, the sections, and the
+ * The frame of the company pages (Platform, Why WayTara, About Us): header, hero, the sections, and the
  * footer, with breadcrumb (and FAQ) data for search engines.
  */
 export function PageShell({
   name,
   path,
-  menu,
   faqs,
   hero,
   children,
 }: {
   name: string;
   path: string;
-  menu?: SegmentMenuItem[];
   faqs?: { question: string; answer: string }[];
   hero: React.ReactNode;
   children: React.ReactNode;
@@ -41,7 +38,6 @@ export function PageShell({
       <Navigation />
       <main className="flex-1">
         {hero}
-        {menu && <SegmentMenu items={menu} />}
         {children}
       </main>
       <Footer />

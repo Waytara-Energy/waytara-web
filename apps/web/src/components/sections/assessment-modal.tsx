@@ -176,7 +176,7 @@ export function AssessmentModal({
                 <Input
                   id="solEmail"
                   type="email"
-                  placeholder="name@domain.com"
+                  required
                   value={contactEmail}
                   onChange={(e) => setContactEmail(e.target.value)}
                   className="h-10 text-xs mt-1 bg-theme-bg"

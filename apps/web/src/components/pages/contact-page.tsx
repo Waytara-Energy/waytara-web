@@ -8,11 +8,6 @@ import { PageHero, PageShell } from "./page-shell";
 
 export const CONTACT_PATH = "/contact";
 
-const MENU = [
-  { id: "write", label: "Write to us" },
-  { id: "visit", label: "Visit us" },
-];
-
 const NEXT = [
   { title: "We read your message", body: "An engineer reads what you wrote, not a form-letter desk." },
   { title: "We get in touch", body: "We call or e-mail you to understand your property and what you want from it." },
@@ -25,7 +20,6 @@ export function ContactPage() {
     <PageShell
       name="Contact"
       path={CONTACT_PATH}
-      menu={MENU}
       hero={
         <PageHero
           eyebrow="Contact WayTara"

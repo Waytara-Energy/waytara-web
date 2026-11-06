@@ -9,20 +9,12 @@ export const ABOUT_PATH = "/about";
 export const ABOUT_DESCRIPTION =
   "WayTara designs and installs solar, battery storage and EV charging, builds the software and gateway that connect them, and supports the system afterwards. Based in Mylapore, Chennai.";
 
-const MENU = [
-  { id: "who", label: "Who we are" },
-  { id: "our-team", label: "Our team" },
-  { id: "where", label: "Where we are" },
-  { id: "enquire", label: "Get in touch" },
-];
-
 /** About Us: who we are, the vision and the team (the existing Our Team section, moved here), and where to find us. */
 export function AboutPage() {
   return (
     <PageShell
       name="About Us"
       path={ABOUT_PATH}
-      menu={MENU}
       hero={
         <PageHero
           eyebrow="About WayTara"
