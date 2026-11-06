@@ -1,4 +1,4 @@
-import { Clock, Mail, Phone } from "lucide-react";
+import { Clock, Mail, MessageCircle, Phone } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 import { SegmentSection } from "@/components/segments/segment-parts";
 import { SITE } from "@/lib/site";
@@ -27,7 +27,7 @@ export function ContactPage() {
           accent="your property."
           body="Solar, battery backup, EV charging, or equipment you already have. Our engineers read every message and get back to you by phone or e-mail."
           primary={{ label: "Send a message", href: "#write" }}
-          secondary={{ label: "Call +91 93630 21195", href: "tel:9363021195" }}
+          secondary={{ label: `Call ${SITE.phone}`, href: SITE.phoneHref }}
         />
       }
     >
@@ -42,11 +42,20 @@ export function ContactPage() {
               <p className="text-sm font-semibold text-theme-muted">Prefer to talk?</p>
               <ul className="mt-5 space-y-5">
                 <li>
-                  <a href="tel:9363021195" className="group flex items-start gap-4">
+                  <a href={SITE.phoneHref} className="group flex items-start gap-4">
                     <Phone className="mt-1 size-6 shrink-0 stroke-[1.4] text-theme-primary" aria-hidden="true" />
                     <span>
-                      <span className="block text-base font-semibold text-theme-primary group-hover:text-theme-highlight">+91 93630 21195</span>
-                      <span className="mt-0.5 block text-sm text-theme-secondary">or +91 93848 00141</span>
+                      <span className="block text-base font-semibold text-theme-primary group-hover:text-theme-highlight">{SITE.phone}</span>
+                      <span className="mt-0.5 block text-sm text-theme-secondary">Call us directly</span>
+                    </span>
+                  </a>
+                </li>
+                <li>
+                  <a href={SITE.whatsapp} target="_blank" rel="noreferrer" className="group flex items-start gap-4">
+                    <MessageCircle className="mt-1 size-6 shrink-0 stroke-[1.4] text-theme-primary" aria-hidden="true" />
+                    <span>
+                      <span className="block text-base font-semibold text-theme-primary group-hover:text-theme-highlight">{SITE.whatsappPhone}</span>
+                      <span className="mt-0.5 block text-sm text-theme-secondary">Chat on WhatsApp</span>
                     </span>
                   </a>
                 </li>

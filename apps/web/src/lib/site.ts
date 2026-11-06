@@ -15,8 +15,11 @@ export const SITE = {
   description:
     "Solar. Battery Storage. EV Charging. Monitoring — designed around your needs, installed under one trusted partner.",
   email: "hello@waytaraenergy.com",
-  /** REVIEW: the site shows three different numbers; this is the most frequent one. */
-  phone: "+91 93630 21195",
+  /** The number for direct calls (decided 2026-11-06). WhatsApp has its own number, below. */
+  phone: "+91 93848 00141",
+  phoneHref: "tel:+919384800141",
+  /** The number for WhatsApp chat (decided 2026-11-06): not for calls. */
+  whatsappPhone: "+91 93630 21195",
   address: {
     streetAddress: "No. 6 & 7, 3rd Floor, 5th Street, Dr. Radhakrishnan Salai, Mylapore",
     addressLocality: "Chennai",
@@ -27,7 +30,7 @@ export const SITE = {
   /** Where the office is (WayTara Energy LLP, Mylapore), and a link that opens that exact spot in Google Maps. One place for every map and link on the site. */
   geo: { latitude: 13.043242168280601, longitude: 80.26476746668499 },
   mapUrl: "https://www.google.com/maps/search/?api=1&query=13.043242168280601,80.26476746668499",
-  /** WhatsApp Business: opens a chat with the company number. */
+  /** WhatsApp Business: opens a chat with the WhatsApp number. */
   whatsapp: "https://wa.me/919363021195",
   logoPath: "/images/logo.png",
   themeColor: "#0A0F0D",

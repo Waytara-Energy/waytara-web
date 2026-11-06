@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { ExternalLink, Mail, MapPin, Phone } from "lucide-react";
+import { ExternalLink, Mail, MapPin, MessageCircle, Phone } from "lucide-react";
 import { useTheme } from "next-themes";
 import { buildingAt } from "@/lib/geo";
 import { SITE_BUILDING_SOURCE, mapStyle, type MapTheme } from "@/lib/map-style";
@@ -140,13 +140,13 @@ export function OfficeMap() {
             </div>
           </div>
           <div className="space-y-2.5 border-t border-theme-border pt-5 text-sm">
-            <a href="tel:9363021195" className="flex items-center gap-3 text-theme-primary underline-offset-4 hover:underline">
+            <a href={SITE.phoneHref} className="flex items-center gap-3 text-theme-primary underline-offset-4 hover:underline">
               <Phone className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-              +91 93630 21195
+              {SITE.phone}
             </a>
-            <a href="tel:9384800141" className="flex items-center gap-3 text-theme-primary underline-offset-4 hover:underline">
-              <Phone className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
-              +91 93848 00141
+            <a href={SITE.whatsapp} target="_blank" rel="noreferrer" className="flex items-center gap-3 text-theme-primary underline-offset-4 hover:underline">
+              <MessageCircle className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />
+              {SITE.whatsappPhone} (WhatsApp)
             </a>
             <a href={`mailto:${SITE.email}`} className="flex items-center gap-3 text-theme-primary underline-offset-4 hover:underline">
               <Mail className="size-4 text-emerald-600 dark:text-emerald-400" aria-hidden="true" />

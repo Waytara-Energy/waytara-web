@@ -4,7 +4,7 @@ import { breadcrumbJsonLd, faqJsonLd, organizationJsonLd, pageMetadata } from ".
 import { SITE, absoluteUrl } from "./site";
 import sitemap from "@/app/sitemap";
 import robots from "@/app/robots";
-import { SEGMENT_KEYS, SEGMENT_SOLUTIONS_DATA } from "@/data/solutions-data";
+import { SEGMENT_PAGES, SEGMENT_SLUGS, canonicalSlug, segmentForSlug } from "@/components/segments/registry";
 
 describe("pageMetadata", () => {
   it("sets a canonical path and mirrors title/description into Open Graph and Twitter", () => {
@@ -64,8 +64,8 @@ describe("sitemap", () => {
   });
 
   it("lists one canonical URL per solutions segment and never the underscore aliases", () => {
-    for (const key of SEGMENT_KEYS) {
-      expect(urls).toContain(absoluteUrl(SEGMENT_SOLUTIONS_DATA[key].urlPath));
+    for (const entry of Object.values(SEGMENT_PAGES)) {
+      expect(urls).toContain(absoluteUrl(entry.path));
     }
     expect(urls.some((u) => u.includes("_"))).toBe(false);
   });
@@ -114,5 +114,25 @@ describe("guides", () => {
   it("never states a price or a guarantee of savings", () => {
     const text = JSON.stringify(GUIDE_LIST).toLowerCase();
     expect(text).not.toMatch(/guaranteed saving|we guarantee|cheapest|best price|₹\s?\d+\s?(lakh|per unit)/);
+  });
+});
+
+describe("solution page addresses", () => {
+  it("knows exactly six pages and finds each by its slug", () => {
+    expect(SEGMENT_SLUGS.sort()).toEqual(["apartment", "commercial", "ev-fleet", "factory", "home", "it-park"]);
+    for (const slug of SEGMENT_SLUGS) expect(segmentForSlug(slug)).toBeDefined();
+  });
+
+  it("finds nothing for an invented address, so it can be a 404 and not the Home page", () => {
+    expect(segmentForSlug("anything")).toBeUndefined();
+    expect(segmentForSlug("")).toBeUndefined();
+    expect(segmentForSlug("ev_fleet")).toBeUndefined();
+  });
+
+  it("sends the older underscore spellings to the real address, and only those", () => {
+    expect(canonicalSlug("ev_fleet")).toBe("ev-fleet");
+    expect(canonicalSlug("it_park")).toBe("it-park");
+    expect(canonicalSlug("home")).toBeUndefined();
+    expect(canonicalSlug("not_a_page")).toBeUndefined();
   });
 });

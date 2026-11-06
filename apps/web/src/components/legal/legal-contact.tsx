@@ -10,8 +10,12 @@ export function LegalContact({ question }: { question: string }) {
           {SITE.email}
         </a>
         {" · "}
-        <a href="tel:9363021195" className="text-theme-highlight underline-offset-4 hover:underline">
+        <a href={SITE.phoneHref} className="text-theme-highlight underline-offset-4 hover:underline">
           {SITE.phone}
+        </a>
+        {" · WhatsApp "}
+        <a href={SITE.whatsapp} className="text-theme-highlight underline-offset-4 hover:underline">
+          {SITE.whatsappPhone}
         </a>
       </p>
       <p className="mt-1 text-sm text-theme-muted">WayTara Energy LLP, No. 6 &amp; 7, 3rd Floor, 5th Street, Dr. Radhakrishnan Salai, Mylapore, Chennai - 600 004</p>

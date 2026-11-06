@@ -1,4 +1,4 @@
-import { Activity, CreditCard, EvCharger, KeyRound, LifeBuoy, Mail, MapPin, Phone, Sun, Ticket, Wifi, Wrench } from "lucide-react";
+import { Activity, CreditCard, EvCharger, KeyRound, LifeBuoy, Mail, MapPin, MessageCircle, Phone, Sun, Ticket, Wifi, Wrench } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 import { FaqList, type Faq } from "@/components/segments/faq-list";
 import { FeatureColumns, SegmentSection } from "@/components/segments/segment-parts";
@@ -23,9 +23,9 @@ const WAYS = [
   },
   {
     icon: Phone,
-    title: "Call us",
-    body: `${SITE.phone} or +91 93848 00141, ${HOURS}. Ask for support and have your site name ready.`,
-    link: { label: `Call ${SITE.phone}`, href: "tel:9363021195" },
+    title: "Call or WhatsApp",
+    body: `Call ${SITE.phone}, or message us on WhatsApp at ${SITE.whatsappPhone}, ${HOURS}. Ask for support and have your site name ready.`,
+    link: { label: `Call ${SITE.phone}`, href: SITE.phoneHref },
   },
   {
     icon: Mail,
@@ -103,7 +103,7 @@ const TICKET_STEPS = [
 export const SUPPORT_FAQS: Faq[] = [
   {
     question: "How do I reach someone quickly?",
-    answer: `Call ${SITE.phone} or +91 93848 00141 (${HOURS}), or e-mail ${SITE.email}. For anything about your account or devices, a ticket in your dashboard keeps the whole conversation in one place.`,
+    answer: `Call ${SITE.phone} or message us on WhatsApp at ${SITE.whatsappPhone} (${HOURS}), or e-mail ${SITE.email}. For anything about your account or devices, a ticket in your dashboard keeps the whole conversation in one place.`,
   },
   {
     question: "Who sees my ticket?",
@@ -181,11 +181,20 @@ export function SupportPage() {
               <p className="text-sm font-semibold text-theme-muted">Prefer to talk?</p>
               <ul className="mt-5 space-y-5">
                 <li>
-                  <a href="tel:9363021195" className="group flex items-start gap-4">
+                  <a href={SITE.phoneHref} className="group flex items-start gap-4">
                     <Phone className="mt-1 size-6 shrink-0 stroke-[1.4] text-theme-primary" aria-hidden="true" />
                     <span>
                       <span className="block text-base font-semibold text-theme-primary group-hover:text-theme-highlight">{SITE.phone}</span>
-                      <span className="mt-0.5 block text-sm text-theme-secondary">or +91 93848 00141</span>
+                      <span className="mt-0.5 block text-sm text-theme-secondary">Call us directly</span>
+                    </span>
+                  </a>
+                </li>
+                <li>
+                  <a href={SITE.whatsapp} target="_blank" rel="noreferrer" className="group flex items-start gap-4">
+                    <MessageCircle className="mt-1 size-6 shrink-0 stroke-[1.4] text-theme-primary" aria-hidden="true" />
+                    <span>
+                      <span className="block text-base font-semibold text-theme-primary group-hover:text-theme-highlight">{SITE.whatsappPhone}</span>
+                      <span className="mt-0.5 block text-sm text-theme-secondary">Chat on WhatsApp</span>
                     </span>
                   </a>
                 </li>

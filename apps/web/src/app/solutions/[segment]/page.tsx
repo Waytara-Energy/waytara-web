@@ -1,87 +1,33 @@
-import * as React from "react";
-import { Metadata } from "next";
-import { Navigation } from "@/components/sections/navigation";
-import { Footer } from "@/components/sections/footer";
-import { SolutionsView } from "@/components/sections/solutions-view";
-import { JsonLd } from "@/components/seo/json-ld";
-import { SEGMENT_PAGES } from "@/components/segments/registry";
-import { breadcrumbJsonLd, faqJsonLd, pageMetadata, serviceJsonLd } from "@/lib/seo";
-import {
-  SEGMENT_SOLUTIONS_DATA,
-  normalizeSegmentSlug,
-} from "@/data/solutions-data";
+import type { Metadata } from "next";
+import { notFound, permanentRedirect } from "next/navigation";
+import { SEGMENT_SLUGS, canonicalSlug, segmentForSlug } from "@/components/segments/registry";
+import { pageMetadata } from "@/lib/seo";
 
 interface SegmentPageProps {
   params: Promise<{ segment: string }>;
 }
 
-export async function generateMetadata({
-  params,
-}: SegmentPageProps): Promise<Metadata> {
-  const { segment } = await params;
-  const normalized = normalizeSegmentSlug(segment);
-  const data = SEGMENT_SOLUTIONS_DATA[normalized] || SEGMENT_SOLUTIONS_DATA.home;
-
-  // Segments already on the new template (see components/segments/registry.ts) carry their own metadata; the rest still use the package view.
-  const rebuilt = SEGMENT_PAGES[normalized];
-  if (rebuilt) return pageMetadata({ title: rebuilt.title, description: rebuilt.description, path: rebuilt.path });
-
-  // Canonical is the hyphenated path from the data (/solutions/ev-fleet), so
-  // the underscore aliases (/solutions/ev_fleet) are never indexed as duplicates.
-  return pageMetadata({
-    title: `${data.name} Solutions & Packages`,
-    description: data.executiveSummary,
-    path: data.urlPath,
-  });
+export async function generateMetadata({ params }: SegmentPageProps): Promise<Metadata> {
+  const entry = segmentForSlug((await params).segment);
+  return entry ? pageMetadata({ title: entry.title, description: entry.description, path: entry.path }) : {};
 }
 
 export function generateStaticParams() {
-  return [
-    { segment: "home" },
-    { segment: "apartment" },
-    { segment: "factory" },
-    { segment: "commercial" },
-    { segment: "ev-fleet" },
-    { segment: "ev_fleet" },
-    { segment: "it-park" },
-    { segment: "it_park" },
-  ];
+  return SEGMENT_SLUGS.map((segment) => ({ segment }));
 }
 
+/**
+ * One of the six property pages. An older spelling with an underscore (ev_fleet, it_park) is sent on to the real address, and anything else is a
+ * 404: this used to fall back to the Home page for any address at all.
+ */
 export default async function SegmentDetailPage({ params }: SegmentPageProps) {
   const { segment } = await params;
-  const normalized = normalizeSegmentSlug(segment);
-  const Rebuilt = SEGMENT_PAGES[normalized]?.Page;
-  if (Rebuilt) return <Rebuilt />;
-  const data = SEGMENT_SOLUTIONS_DATA[normalized] || SEGMENT_SOLUTIONS_DATA.home;
-
-  return (
-    <div className="flex flex-col min-h-screen bg-theme-bg text-theme-primary">
-      <JsonLd
-        data={[
-          breadcrumbJsonLd([
-            { name: "Home", path: "/" },
-            { name: "Solutions", path: "/solutions" },
-            { name: data.name, path: data.urlPath },
-          ]),
-          serviceJsonLd({
-            name: `${data.name} — ${data.category}`,
-            description: data.executiveSummary,
-            path: data.urlPath,
-            serviceType: "Solar, battery storage and EV charging installation",
-          }),
-          faqJsonLd(data.faqs),
-        ]}
-      />
-      <Navigation />
-
-      <main className="flex-1 pt-24 sm:pt-28">
-        <div className="fluid-container">
-          <SolutionsView initialSegment={normalized} />
-        </div>
-      </main>
-
-      <Footer />
-    </div>
-  );
+  const entry = segmentForSlug(segment);
+  if (!entry) {
+    const real = canonicalSlug(segment);
+    if (real) permanentRedirect(`/solutions/${real}`);
+    notFound();
+  }
+  const Page = entry.Page;
+  return <Page />;
 }

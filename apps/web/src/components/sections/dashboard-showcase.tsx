@@ -91,7 +91,7 @@ export function CroppedDemo() {
  */
 export function DashboardShowcase() {
   return (
-    <section id="live-monitoring" aria-label="The customer Monitoring page, with sample data" className="relative z-0 -mt-24 flex flex-col overflow-hidden bg-theme-bg md:-mt-52">
+    <section id="live-monitoring" aria-label="The customer Monitoring page" className="relative z-0 -mt-24 flex flex-col overflow-hidden bg-theme-bg md:-mt-52">
       <ContainerScroll
         plain
         titleComponent={

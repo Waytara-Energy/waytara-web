@@ -1,5 +1,5 @@
 import type { MetadataRoute } from "next";
-import { SEGMENT_SOLUTIONS_DATA, SEGMENT_KEYS } from "@/data/solutions-data";
+import { SEGMENT_PAGES } from "@/components/segments/registry";
 import { GUIDE_LIST } from "@/data/guides";
 import { SITE } from "@/lib/site";
 
@@ -24,9 +24,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/cookies", priority: 0.2, changeFrequency: "yearly" },
   ];
 
-  // One canonical URL per segment (the data's own hyphenated urlPath), never the underscore aliases.
-  const segmentPages = SEGMENT_KEYS.map((key) => ({
-    path: SEGMENT_SOLUTIONS_DATA[key].urlPath,
+  // One canonical URL per segment: the page's own address.
+  const segmentPages = Object.values(SEGMENT_PAGES).map((entry) => ({
+    path: entry.path,
     priority: 0.8,
     changeFrequency: "monthly" as const,
   }));
