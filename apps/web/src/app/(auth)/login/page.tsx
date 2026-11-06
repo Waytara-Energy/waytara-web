@@ -6,15 +6,8 @@ import { PasswordInput } from "@/components/ui/password-input";
 import { SubmitButton } from "@/components/ui/submit-button";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { ToastFromSearchParams } from "@/components/dashboard/toast-from-search-params";
-import { LoginShowcase } from "@/components/auth/login-showcase";
+import { LoginFlow, LoginShowcase } from "@/components/auth/login-showcase";
 import { login } from "./actions";
-
-const LEGAL_LINKS = [
-  { label: "Terms of Service", href: "/terms" },
-  { label: "Privacy Policy", href: "/privacy" },
-  { label: "Cookie Policy", href: "/cookies" },
-  { label: "Warranty Policy", href: "/warranty" },
-];
 
 const HEADER_ICON_CLASS =
   "p-2 rounded-lg text-theme-primary transition-all duration-200 hover:text-theme-highlight hover:bg-theme-surface flex items-center justify-center";
@@ -32,8 +25,8 @@ export default async function LoginPage({
       {/* Left: the application, five slides (wide screens only) */}
       <LoginShowcase />
 
-      {/* Right: the actual sign-in form */}
-      <div className="flex w-full flex-col lg:w-1/2">
+      {/* Right: the actual sign-in form (on a phone, after the five slides unless the visitor needs the form at once) */}
+      <LoginFlow skipIntro={Boolean(params?.error || params?.success || params?.email)}>
         <header className="flex items-center justify-end gap-1 p-4">
           <Link href="/support" className={HEADER_ICON_CLASS} title="Support" aria-label="Support">
             <LifeBuoy className="h-[19px] w-[19px]" />
@@ -80,18 +73,7 @@ export default async function LoginPage({
             </p>
           </div>
         </main>
-
-        <footer className="flex flex-col items-center justify-between gap-3 border-t border-theme-border px-6 py-4 text-xs text-theme-muted sm:flex-row">
-          <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1">
-            {LEGAL_LINKS.map((link) => (
-              <Link key={link.label} href={link.href} className="hover:text-theme-primary hover:underline">
-                {link.label}
-              </Link>
-            ))}
-          </div>
-          <p>© {new Date().getFullYear()} WayTara Energy LLP. All rights reserved.</p>
-        </footer>
-      </div>
+      </LoginFlow>
     </div>
   );
 }
