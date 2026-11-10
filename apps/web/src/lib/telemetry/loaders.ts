@@ -53,14 +53,20 @@ export interface HeartbeatInfo {
   verdict: ServerVerdict | null;
 }
 
-export async function loadHeartbeat(sb: Sb, deviceId: string): Promise<HeartbeatInfo | null> {
-  const { data, error } = await sb
-    .from("equipment_status")
-    .select("status, status_reason, last_seen, last_read_at, device_online, offline_after_s, server_now")
-    .eq("equipment_id", deviceId)
-    .maybeSingle();
-  if (error) throw new Error(error.message);
-  if (!data) return null;
+const HEARTBEAT_COLUMNS = "equipment_id, status, status_reason, last_seen, last_read_at, device_online, offline_after_s, server_now";
+
+interface HeartbeatRow {
+  equipment_id: string;
+  status: string | null;
+  status_reason: string | null;
+  last_seen: string | null;
+  last_read_at: string | null;
+  device_online: boolean | null;
+  offline_after_s: number | null;
+  server_now: string | null;
+}
+
+function toHeartbeat(data: HeartbeatRow): HeartbeatInfo {
   const lastSeenMs = data.last_seen ? new Date(data.last_seen).getTime() : null;
   return {
     lastSeenMs,
@@ -77,4 +83,19 @@ export async function loadHeartbeat(sb: Sb, deviceId: string): Promise<Heartbeat
           }
         : null,
   };
+}
+
+/** The connection state of several devices in ONE request (a device with no row gets null). */
+export async function loadHeartbeats(sb: Sb, deviceIds: string[]): Promise<Map<string, HeartbeatInfo | null>> {
+  const ids = [...new Set(deviceIds)];
+  const out = new Map<string, HeartbeatInfo | null>(ids.map((id) => [id, null]));
+  if (ids.length === 0) return out;
+  const { data, error } = await sb.from("equipment_status").select(HEARTBEAT_COLUMNS).in("equipment_id", ids);
+  if (error) throw new Error(error.message);
+  for (const row of (data ?? []) as HeartbeatRow[]) out.set(row.equipment_id, toHeartbeat(row));
+  return out;
+}
+
+export async function loadHeartbeat(sb: Sb, deviceId: string): Promise<HeartbeatInfo | null> {
+  return (await loadHeartbeats(sb, [deviceId])).get(deviceId) ?? null;
 }

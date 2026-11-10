@@ -8,6 +8,7 @@ import { isCustomerRole } from "@waytara/supabase/roles";
 import { notifyAuthEvent } from "@/lib/auth-notify";
 import { needsSecondFactor } from "@/lib/mfa";
 import { parseStartPage, startPath } from "@/lib/start-page";
+import { logTiming, startStopwatch } from "@/lib/server-timing";
 
 export async function login(formData: FormData) {
   const email = String(formData.get("email") ?? "").trim();
@@ -17,8 +18,11 @@ export async function login(formData: FormData) {
     redirect(`/login?error=${encodeURIComponent("Email and password are required.")}`);
   }
 
+  const watch = startStopwatch();
   const supabase = await createClient();
+  watch.mark("client");
   const { data: signedIn, error } = await supabase.auth.signInWithPassword({ email, password });
+  watch.mark("password check");
 
   if (error || !signedIn.user) {
     redirect(`/login?error=${encodeURIComponent(error?.message ?? "We could not sign you in. Please try again.")}`);
@@ -29,6 +33,7 @@ export async function login(formData: FormData) {
   // A failed lookup (the database being unwell) is not a wrong account: try once more, and if it fails again say so, rather than blaming the account.
   let lookup = await profileForUser(supabase, signedIn.user.id);
   if (lookup.status === "error") lookup = await profileForUser(supabase, signedIn.user.id);
+  watch.mark("profile");
   if (lookup.status === "error") {
     await supabase.auth.signOut({ scope: "local" });
     redirect(`/login?error=${encodeURIComponent("We could not check your account just now. Please try again in a moment.")}`);
@@ -50,8 +55,11 @@ export async function login(formData: FormData) {
   const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
   if (needsSecondFactor(aal)) redirect("/login/verify");
 
+  watch.mark("two-step check");
   // tell the person about the sign-in (if they want that e-mail); it is sent after the redirect, so it does not slow it down
   if (profile) await notifyAuthEvent("signin", profile);
+  watch.mark("notice");
+  logTiming("sign-in", watch);
 
   // open on the page the person chose in Settings (the Overview unless they chose another)
   redirect(startPath(parseStartPage(profile?.ui_preferences)));

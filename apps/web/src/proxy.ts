@@ -3,6 +3,7 @@ import { createMiddlewareClient } from "@waytara/supabase/middleware";
 import { profileForUser } from "@waytara/supabase/auth";
 import { isCustomerRole } from "@waytara/supabase/roles";
 import { needsSecondFactor } from "@/lib/mfa";
+import { logTiming, startStopwatch } from "@/lib/server-timing";
 
 // apps/web is customer-facing only: /dashboard requires a session AND a
 // `customer` profile role — anyone else (no session, or a staff account)
@@ -16,6 +17,7 @@ import { needsSecondFactor } from "@/lib/mfa";
 // getCurrentProfile() itself and redirects — this proxy is real
 // defense-in-depth, not the only gate.
 export async function proxy(request: NextRequest) {
+  const watch = startStopwatch();
   const { supabase, getResponse } = createMiddlewareClient(request);
 
   // Who is signed in: one trip to the auth server, which also notices a session that was ended elsewhere ("sign out other devices"), so this stays a real
@@ -24,12 +26,14 @@ export async function proxy(request: NextRequest) {
   const {
     data: { user },
   } = await supabase.auth.getUser();
+  watch.mark("auth");
   const [lookup, onboardingResult] = user
     ? await Promise.all([
         profileForUser(supabase, user.id),
         supabase.from("customer_onboarding").select("current_stage").eq("customer_id", user.id).maybeSingle(),
       ])
     : [null, null];
+  watch.mark("profile+onboarding");
   const profile = lookup?.status === "ok" ? lookup.profile : null;
 
   if (!profile || !isCustomerRole(profile.role)) {
@@ -104,6 +108,10 @@ export async function proxy(request: NextRequest) {
   requestHeaders.set("x-waytara-onboarded", isOnboarded ? "1" : "0");
 
   const finalResponse = NextResponse.next({ request: { headers: requestHeaders } });
+  // How long the gate itself took, shown in the browser's Network > Timing, and logged when it was slow.
+  watch.mark("rest");
+  finalResponse.headers.set("Server-Timing", watch.header());
+  logTiming(`proxy ${request.nextUrl.pathname}`, watch);
   // getResponse() — not a plain `response` value — because it has to be
   // called *after* getCurrentProfile()/the onboarding query above, so it
   // reflects a token refresh triggered by either of them (see

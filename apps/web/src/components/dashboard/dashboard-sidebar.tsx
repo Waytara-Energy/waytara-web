@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { HoverPrefetchLink } from "./hover-prefetch-link";
 import { usePathname, useSearchParams } from "next/navigation";
 import {
   Sidebar,
@@ -100,10 +101,10 @@ export function DashboardSidebar({
               {navItems.map(({ href, label, icon: Icon }) => (
                 <SidebarMenuItem key={href}>
                   <SidebarMenuButton asChild isActive={pathname === href}>
-                    <Link href={href} onClick={handleNavClick}>
+                    <HoverPrefetchLink href={href} onClick={handleNavClick}>
                       <Icon className="h-[clamp(15px,1vw,17px)] w-[clamp(15px,1vw,17px)]" />
                       <span className="text-[clamp(12.5px,0.85vw,13.5px)]">{label}</span>
-                    </Link>
+                    </HoverPrefetchLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}
@@ -113,9 +114,9 @@ export function DashboardSidebar({
 
         <SidebarGroup className="pt-1">
           <SidebarGroupLabel asChild>
-            <Link href="/dashboard/devices" onClick={handleNavClick} className="hover:text-sidebar-foreground">
+            <HoverPrefetchLink href="/dashboard/devices" onClick={handleNavClick} className="hover:text-sidebar-foreground">
               Devices
-            </Link>
+            </HoverPrefetchLink>
           </SidebarGroupLabel>
           <SidebarGroupContent>
             <SidebarMenu>
@@ -123,10 +124,10 @@ export function DashboardSidebar({
               {devices.map((d) => (
                 <SidebarMenuItem key={d.id}>
                   <SidebarMenuButton asChild isActive={pathname === "/dashboard/devices" && openDevice === d.id}>
-                    <Link href={`/dashboard/devices?device=${d.id}`} onClick={handleNavClick}>
+                    <HoverPrefetchLink href={`/dashboard/devices?device=${d.id}`} onClick={handleNavClick}>
                       <span className="truncate text-[clamp(12.5px,0.85vw,13.5px)]">{d.name}</span>
                       <DeviceStatusDot deviceId={d.id} sync={d.sync} />
-                    </Link>
+                    </HoverPrefetchLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
               ))}

@@ -9,7 +9,8 @@ import { createClient } from "@waytara/supabase/client";
 import { idbKV, PersistentCache } from "./cache";
 import { binStart, combineBuckets, dayAxis, istDayStart, toDisplay } from "./combine";
 import { planRange, type RangePlan, type RangeWindow } from "./ranges";
-import { loadHeartbeat, loadLatest, loadOpen } from "./loaders";
+import { loadHeartbeats, loadLatest, loadOpen } from "./loaders";
+import { coalesce } from "./coalesce";
 import { DeviceLiveManager, type LiveEnv } from "./live-manager";
 import { fetchSeries } from "./series";
 import { TelemetryStore, type DeviceLiveStatus, type LatestValue, type SeriesRange } from "./store";
@@ -79,10 +80,11 @@ export function TelemetryProvider({ userId, children }: { userId: string; childr
       loadOpen: (id, keys) => loadOpen(sb, id, keys),
       // The session is checked (and renewed if it ran out) before each read, so the connection state keeps updating however long
       // the tab has been open.
-      loadHeartbeat: async (id) => {
+      // The devices of a screen ask at the same moment: they go out as one request, not one each.
+      loadHeartbeat: coalesce(async (ids: string[]) => {
         await sb.auth.getSession();
-        return loadHeartbeat(sb, id);
-      },
+        return loadHeartbeats(sb, ids);
+      }, null),
       cache,
     });
     const live = new DeviceLiveManager(browserEnv(sb), store, (e) => console.warn("[telemetry]", e));

@@ -29,6 +29,7 @@ import { getRequestProfile, isRequestOnboarded } from "@/lib/request-profile";
 import { fetchActiveFaultCodes, fetchCustomerAlerts } from "@/lib/device-overview";
 import { logout } from "./actions";
 import { NO_INDEX } from "@/lib/seo";
+import { logTiming, startStopwatch } from "@/lib/server-timing";
 
 // Reachable only as a `customer` profile — middleware.ts enforces that.
 //
@@ -53,8 +54,10 @@ export default async function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
+  const watch = startStopwatch();
   // profile and sites don't depend on each other at all.
   const [profile, sites] = await Promise.all([getRequestProfile(), getCustomerSites()]);
+  watch.mark("profile+sites");
 
   // Onboarding pipeline redesign, Phase 6: proxy.ts already redirects any
   // not-yet-onboarded customer to /dashboard/onboarding-status for every
@@ -63,6 +66,7 @@ export default async function DashboardLayout({
   // dashboard's sidebar nav shows around it. Neither this nor the plan
   // lookup below depends on the other, so they run together too.
   const [customerPlan, isOnboarded] = await Promise.all([getCustomerPlan(), isRequestOnboarded()]);
+  watch.mark("plan+onboarded");
 
   if (!isOnboarded) {
     return (
@@ -102,6 +106,7 @@ export default async function DashboardLayout({
     // how long this person lets a browser sit idle before it is signed out (Application Settings > Account & security)
     profile ? createClient().then((supabase) => supabase.from("profiles").select("security_preferences, ui_preferences").eq("id", profile.id).maybeSingle()) : Promise.resolve({ data: null }),
   ]);
+  watch.mark("alerts+faults+prefs");
   const sessionPolicy = parseSessionPolicy(securityRow.data?.security_preferences);
   // the units this person chose to see numbers in (Application Settings > Units), applied by every reading on every page
   const unitPrefs = parseUnitPrefs(securityRow.data?.ui_preferences);
@@ -131,6 +136,8 @@ export default async function DashboardLayout({
       return { id: d.id, name: deviceDisplayId(d), category: d.deviceType?.category ?? null, sync: { lastTs, agentSeenTs, deviceOnline, intervalS, heartbeatS, verdict } };
     })
   );
+  watch.mark("device status");
+  logTiming("dashboard layout", watch);
   // The header's status icons: the inverters and EV chargers of the selected site.
   const statusDevices = sidebarDevices.flatMap((d) =>
     d.category === "solar_inverter" || d.category === "ev_charger"
