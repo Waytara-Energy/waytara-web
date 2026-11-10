@@ -61,7 +61,7 @@ function bodyFor(i: AuthMailInput): Body {
 
 export function buildAuthEmail(input: AuthMailInput): Mail {
   const b = bodyFor(input);
-  const facts: [string, string][] = [["Device", input.device], ...(input.place ? ([["Place", input.place]] as [string, string][]) : []), ...(input.ip ? ([["Address", input.ip]] as [string, string][]) : []), ["Time", istText(input.whenMs)]];
+  const facts: [string, string][] = [["Device", input.device], ...(input.place ? ([["Approximate place", input.place]] as [string, string][]) : []), ...(input.ip ? ([["Network address", input.ip]] as [string, string][]) : []), ["Time", istText(input.whenMs)]];
   const { html, text } = renderMail({
     preheader: b.lead,
     title: b.subject,

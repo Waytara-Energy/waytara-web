@@ -30,6 +30,9 @@ export const SITE = {
   /** Where the office is (WayTara Energy LLP, Mylapore), and a link that opens that exact spot in Google Maps. One place for every map and link on the site. */
   geo: { latitude: 13.043242168280601, longitude: 80.26476746668499 },
   mapUrl: "https://www.google.com/maps/search/?api=1&query=13.043242168280601,80.26476746668499",
+  /** The company's Instagram page (given by the user, 2026-11-10; the tracking part of the link was left out). */
+  instagram: "https://www.instagram.com/waytaraenergy",
+  instagramHandle: "@waytaraenergy",
   /** WhatsApp Business: opens a chat with the WhatsApp number. */
   whatsapp: "https://wa.me/919363021195",
   logoPath: "/images/logo.png",

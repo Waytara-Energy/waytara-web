@@ -60,6 +60,19 @@ export function ContactPage() {
                   </a>
                 </li>
                 <li>
+                  <a href={SITE.instagram} target="_blank" rel="noreferrer" className="group flex items-start gap-4">
+                    <svg className="mt-1 size-6 shrink-0 fill-none stroke-current stroke-[1.4] text-theme-primary" viewBox="0 0 24 24" aria-hidden="true">
+                      <rect width="20" height="20" x="2" y="2" rx="5" ry="5" />
+                      <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" />
+                      <line x1="17.5" x2="17.51" y1="6.5" y2="6.5" />
+                    </svg>
+                    <span>
+                      <span className="block text-base font-semibold text-theme-primary group-hover:text-theme-highlight">{SITE.instagramHandle}</span>
+                      <span className="mt-0.5 block text-sm text-theme-secondary">Follow us on Instagram</span>
+                    </span>
+                  </a>
+                </li>
+                <li>
                   <a href={`mailto:${SITE.email}`} className="group flex items-start gap-4">
                     <Mail className="mt-1 size-6 shrink-0 stroke-[1.4] text-theme-primary" aria-hidden="true" />
                     <span className="text-base font-semibold text-theme-primary group-hover:text-theme-highlight">{SITE.email}</span>

@@ -51,6 +51,8 @@ const SUPPORT_EMAIL = "hello@waytaraenergy.com";
 /** Where a reply to any WayTara e-mail goes (set as Reply-To on every message, so a reply reaches a mailbox people read). */
 export const MAIL_REPLY_TO = SUPPORT_EMAIL;
 const WHATSAPP = "https://wa.me/919363021195";
+const MAP_URL = "https://www.google.com/maps/search/?api=1&query=13.043242168280601,80.26476746668499";
+const INSTAGRAM = "https://www.instagram.com/waytaraenergy";
 const ADDRESS = "WayTara Energy LLP, No. 6 & 7, 3rd Floor, 5th Street, Dr. Radhakrishnan Salai, Mylapore, Chennai - 600 004, India";
 
 const EMERALD = "#059669";
@@ -81,6 +83,7 @@ function quickLinks(audience: NonNullable<MailLayoutInput["audience"]>, site: st
       { label: "Platform", href: `${site}/technology` },
       { label: "Support", href: `${site}/support` },
       { label: "WhatsApp", href: WHATSAPP },
+      { label: "Instagram", href: INSTAGRAM },
     ];
   }
   return [
@@ -88,6 +91,7 @@ function quickLinks(audience: NonNullable<MailLayoutInput["audience"]>, site: st
     { label: "Support", href: `${site}/dashboard/support` },
     { label: "Settings", href: `${site}/dashboard/settings` },
     { label: "WhatsApp", href: WHATSAPP },
+    { label: "Instagram", href: INSTAGRAM },
   ];
 }
 
@@ -98,7 +102,7 @@ function blockHtml(b: MailBlock): string {
     case "h":
       return `<p style="margin:8px 0 8px;font-size:16px;font-weight:700;color:${INK}">${escapeHtml(b.text)}</p>`;
     case "code":
-      return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:8px 0 20px"><tr><td style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:14px;padding:16px 26px;font-family:'Courier New',Courier,monospace;font-size:34px;font-weight:700;letter-spacing:10px;color:${INK}">${escapeHtml(b.code)}</td></tr></table>`;
+      return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:10px 0 24px"><tr><td align="center"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td align="center" style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:16px;padding:20px 34px;font-family:'Courier New',Courier,monospace;font-size:36px;font-weight:700;letter-spacing:12px;color:${INK}"><span style="padding-left:12px">${escapeHtml(b.code)}</span></td></tr></table></td></tr></table>`;
     case "facts":
       return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 20px;border-top:1px solid ${HAIRLINE}">${b.rows
         .map(
@@ -159,11 +163,11 @@ ${preheader}
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="${PAGE}" style="background:${PAGE}"><tr><td align="center" class="wrap" style="padding:32px 16px">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border:1px solid ${HAIRLINE};border-radius:20px">
 <tr><td align="center" style="padding:40px 40px 0"><a href="${escapeHtml(site)}" style="text-decoration:none"><img src="${escapeHtml(site)}/images/logo.png" width="150" alt="WayTara Energy" style="display:block;border:0;outline:none;height:auto;width:150px"></a></td></tr>
-<tr><td class="px" style="padding:32px 48px 0"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td width="40" height="4" bgcolor="${EMERALD}" style="background:${EMERALD};border-radius:4px;font-size:0;line-height:0">&nbsp;</td></tr></table><h1 style="margin:18px 0 0;font-family:${FONT};font-size:26px;line-height:1.25;font-weight:700;letter-spacing:-.01em;color:${INK}">${escapeHtml(input.title)}</h1></td></tr>
+<tr><td class="px" style="padding:28px 48px 0"><h1 style="margin:0;font-family:${FONT};font-size:26px;line-height:1.25;font-weight:700;letter-spacing:-.01em;color:${INK}">${escapeHtml(input.title)}</h1></td></tr>
 <tr><td class="px" style="padding:20px 48px 0;font-family:${FONT}">${input.greeting ? `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:${INK}">${escapeHtml(input.greeting)}</p>` : ""}${input.blocks.map(blockHtml).join("")}${button}<p style="margin:22px 0 0;font-size:15px;color:${BODY}">- The WayTara Team</p></td></tr>
 <tr><td class="px" style="padding:36px 48px 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="border-top:1px solid ${HAIRLINE};padding-top:24px;font-family:${FONT};font-size:13px;line-height:1.7;color:${MUTED}">Questions? Visit <a href="${escapeHtml(site)}/support" style="color:${EMERALD};font-weight:600;text-decoration:none">Support</a> or e-mail <a href="mailto:${SUPPORT_EMAIL}" style="color:${EMERALD};font-weight:600;text-decoration:none">${SUPPORT_EMAIL}</a>.</td></tr></table></td></tr>
 <tr><td align="center" class="px" style="padding:22px 48px 0;font-family:${FONT};font-size:13px;line-height:2;color:${MUTED}">${links.map(a).join(sep)}</td></tr>
-<tr><td align="center" class="px" style="padding:20px 48px 40px;font-family:${FONT};font-size:12px;line-height:1.75;color:#94a3b8">${input.why ? `${escapeHtml(input.why)}<br>` : ""}${legal.map(a).join(sep)}<br>${escapeHtml(ADDRESS)}<br>&copy; ${year} WayTara Energy LLP. All rights reserved.</td></tr>
+<tr><td align="center" class="px" style="padding:20px 48px 40px;font-family:${FONT};font-size:12px;line-height:1.75;color:#94a3b8">${input.why ? `${escapeHtml(input.why)}<br>` : ""}${legal.map(a).join(sep)}<br><a href="${MAP_URL}" style="color:#94a3b8;text-decoration:none">${escapeHtml(ADDRESS)}</a><br>&copy; ${year} WayTara Energy LLP. All rights reserved.</td></tr>
 </table>
 </td></tr></table>
 </body></html>`;

@@ -88,3 +88,25 @@ describe("escapeHtml", () => {
     expect(escapeHtml(`<a href="x">&</a>`)).toBe("&lt;a href=&quot;x&quot;&gt;&amp;&lt;/a&gt;");
   });
 });
+
+describe("the look of the e-mail", () => {
+  it("has no green rule above the title", () => {
+    const { html } = renderMail({ title: "Your password code", blocks: [] });
+    expect(html).not.toContain('width="40" height="4"');
+  });
+
+  it("shows a one-time code in its own centred box", () => {
+    const { html } = renderMail({ title: "T", blocks: [{ type: "code", code: "482915" }] });
+    const at = html.indexOf("482915");
+    const before = html.slice(Math.max(0, at - 700), at);
+    expect(before).toContain('align="center"');
+    expect(before).toContain("border-radius:16px");
+  });
+
+  it("links Instagram and the office address, and says the sign-in place is approximate only where it is given", () => {
+    const { html, text } = renderMail({ title: "T", blocks: [], audience: "customer" });
+    expect(html).toContain("https://www.instagram.com/waytaraenergy");
+    expect(text).toContain("Instagram: https://www.instagram.com/waytaraenergy");
+    expect(html).toContain("google.com/maps/search");
+  });
+});

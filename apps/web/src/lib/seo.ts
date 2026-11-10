@@ -55,6 +55,8 @@ export function organizationJsonLd(): JsonLdObject {
     description: SITE.description,
     address: { "@type": "PostalAddress", ...SITE.address },
     geo: { "@type": "GeoCoordinates", latitude: SITE.geo.latitude, longitude: SITE.geo.longitude },
+    // the company's own pages elsewhere on the web: this ties them to one entity for search engines and AI assistants
+    sameAs: [SITE.instagram],
     areaServed: [
       { "@type": "Country", name: "India" },
       { "@type": "State", name: "Tamil Nadu" },

@@ -58,3 +58,8 @@ test-results/
 
 # the map worker, copied from node_modules by apps/web/scripts/copy-map-worker.mjs before dev and build
 apps/web/public/maplibre/
+
+# private files that must never be committed
+.mcp.json
+WayTara-Dashboard-Keys.xlsx
+*.xlsx
