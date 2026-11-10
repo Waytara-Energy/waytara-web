@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { renderMail } from "@waytara/ui/mail-layout";
+import { MAIL_REPLY_TO, renderMail } from "@waytara/ui/mail-layout";
 
 export interface QuoteLinkEmailInput {
   to: string;
@@ -47,6 +47,7 @@ export async function sendQuoteLinkEmail(input: QuoteLinkEmailInput): Promise<vo
     const { error } = await resend.emails.send({
       from,
       to: input.to,
+      replyTo: MAIL_REPLY_TO,
       subject: "Your WayTara quotation is ready",
       text,
       html,

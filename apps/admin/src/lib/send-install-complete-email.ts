@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { renderMail } from "@waytara/ui/mail-layout";
+import { MAIL_REPLY_TO, renderMail } from "@waytara/ui/mail-layout";
 
 export interface InstallCompleteEmailInput {
   to: string;
@@ -44,6 +44,7 @@ export async function sendInstallCompleteEmail(input: InstallCompleteEmailInput)
     const { error } = await resend.emails.send({
       from,
       to: input.to,
+      replyTo: MAIL_REPLY_TO,
       subject: "Your WayTara system is live",
       text,
       html,

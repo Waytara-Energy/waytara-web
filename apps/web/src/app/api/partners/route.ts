@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 import { createClient } from "@waytara/supabase/server";
 import { allowRequest, clientIp } from "@/lib/rate-limit";
@@ -84,11 +84,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Couldn't save your application. Please try again." }, { status: 500 });
     }
 
-    // Saved is what matters: the e-mails are best effort and never block or fail the response (sendMail never throws).
+    // Saved is what matters: the e-mails are best effort and never block or fail the response (sendMail never throws). They go out after the response
+    // is sent and are registered with `after` so the host finishes them (started with `void` they could be cut off when the answer was returned).
     const adminUrl = process.env.ADMIN_APP_URL || "https://admin.waytaraenergy.com";
     const adminMail = buildPartnerAdminMail({ ...row }, adminUrl);
-    for (const to of adminRecipients()) void sendMail(to, adminMail);
-    void sendMail(d.email, buildPartnerAckMail(d.contactName, d.companyName));
+    after(() => Promise.all([...adminRecipients().map((to) => sendMail(to, adminMail)), sendMail(d.email, buildPartnerAckMail(d.contactName, d.companyName))]));
 
     return NextResponse.json({ success: true, data: { id } });
   } catch (error) {

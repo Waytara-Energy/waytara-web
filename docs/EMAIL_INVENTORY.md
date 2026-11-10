@@ -4,7 +4,7 @@ Written 2026-11-06 from the code of the customer app (`apps/web`), the admin app
 
 ## How mail works
 
-- **Outgoing mail goes through Resend** (one provider for both apps). The sender address is `RESEND_FROM_EMAIL`. **If it is not set, the code falls back to `onboarding@resend.dev`**, Resend's test address, which only delivers to the Resend account owner. **Check** that the production value is an address on a verified WayTara domain.
+- **Outgoing mail goes through Resend** (one provider for both apps). In the customer app every e-mail now goes through one function, `sendMail` in `lib/send-mail.ts`; the admin app's five senders still call Resend themselves, with the same Reply-To. The sender address is `RESEND_FROM_EMAIL`. **If it is not set, the code falls back to `onboarding@resend.dev`**, Resend's test address, which only delivers to the Resend account owner. **Check** that the production value is an address on a verified WayTara domain (the server now logs a loud warning, once, if it is missing in production). **Every message now carries a Reply-To of hello@waytaraenergy.com** (override with `REPLY_TO_EMAIL`).
 - **One exception:** the admin app's "Forgot password" uses Supabase's own e-mail (`resetPasswordForEmail`), not Resend. Its look and sender come from the Supabase project's Auth settings, and Supabase's built-in sender is limited to a few e-mails an hour unless a custom mail server is set there. **Check** the Supabase dashboard (Authentication, Emails).
 - **Switches:** `DEVICE_ALERT_EMAILS=off` stops device alerts, status digests and tariff e-mails; `SUPPORT_EMAILS=off` stops support e-mails. With no `RESEND_API_KEY` nothing is sent. Customers can also turn most kinds off in Settings, Notifications.
 - **Sent after the answer** (the person does not wait, and the host is told to finish the job): the sign-in and sign-out notices, the forgot-password code. The new-lead and partner mails are started without waiting but are **not** registered with the host to finish (see "Things worth deciding", item 6).
@@ -56,6 +56,7 @@ To the **team member** concerned: New support ticket · `<person>` replied on ti
 | # | E-mail (subject) | Sent when | To |
 |---|---|---|---|
 | 21 | We received your WayTara partner application | The partner form is submitted | The applicant |
+| 21b | We received your message / energy plan request / equipment details / support request | Any website form (contact, planner, platform compatibility check, Support page) is submitted | The person who sent it (sent after the answer, at most 2 an hour to one address, never repeats what they wrote) |
 
 ## Outgoing: to the WayTara team
 
@@ -72,15 +73,17 @@ To the **team member** concerned: New support ticket · `<person>` replied on ti
 
 **The application receives no e-mail.** There is no inbound mail handler, no mail webhook, and no process that reads a mailbox. What exists:
 
-- **Replies to our e-mails** go to the sender address (`RESEND_FROM_EMAIL`), because **no Reply-To is set** on any message. If that mailbox is not watched, a customer's reply is lost. **Check**, or set a Reply-To of hello@waytaraenergy.com (a small change; I can do it).
+- **Replies to our e-mails** go to hello@waytaraenergy.com, because every message now sets it as the Reply-To (changed 2026-11-10). That mailbox has to be read by someone.
 - **The public mailbox hello@waytaraenergy.com** (shown in the footer, the Contact and Support pages, the legal pages and `llms.txt`) is read by people. The new-lead and new-partner mails also land there.
 - **Form submissions are the real "incoming"**: contact, planner enquiry and Support form go to `/api/leads` (saved, then mail #22); the partner form goes to `/api/partners` (saved, then #21 and #23); support tickets are created inside the dashboard (then the ticket mails above).
 
 ## Things worth deciding
 
-1. **Enquirers get no confirmation.** Someone who sends the contact, planner or Support form receives nothing back (only partner applicants do, #21). Every form requires an e-mail address, so an "We received your message" mail is easy to add.
-2. **The Support form creates a "lead".** A support request arrives as "New lead: ..." with a source, not as a ticket. That is worth a look, because tickets have their own queue and mails.
-3. **Reply-To** (see above), and the **sender address** check.
-4. **Admin forgot-password** uses a different mailer from everything else; moving it onto the same sender would make staff mail consistent.
-5. **Six senders in the customer app and five in the admin app each call Resend themselves** instead of the shared sender, so a change of sender, Reply-To or footer has to be made in eleven places.
-6. **New-lead and partner e-mails may be lost.** `/api/leads` and `/api/partners` start the e-mail with `void ...` and then return. On Vercel a function can be frozen as soon as the answer is sent, so the e-mail can be cut off half-way: the lead is saved, but the team's "New lead" mail sometimes never arrives. Wrapping those calls in `after()` (as the sign-in notices already are) fixes it. I have not changed it, because you asked for the list; I recommend doing it.
+Done on 2026-11-10: enquirers now get a confirmation (21b); every message has a Reply-To; the new-lead and partner mails are registered to finish after the response (`after`), so they are no longer cut off; the customer app's e-mails all go through one sender.
+
+Still open:
+
+1. **The Support form creates a "lead".** A support request arrives as "New lead: ..." with a source, not as a ticket. Tickets have their own queue and mails. Decide whether the Support page form should create a ticket-like request instead.
+2. **Admin forgot-password** uses a different mailer (Supabase's own). Its look and sender are set in the Supabase dashboard; the same layout can be pasted there.
+3. **The admin app's five senders** still call Resend directly (with the Reply-To). They could move onto one shared sender if the sender code is placed in a shared package.
+4. **Check in production:** `RESEND_FROM_EMAIL` is a verified WayTara address, and hello@waytaraenergy.com is read by someone.

@@ -1,4 +1,3 @@
-import { Resend } from "resend";
 import { CATEGORY_LABEL, type TariffCategory } from "./tariff";
 import { fmtDate } from "./savings";
 import { renderMail } from "@waytara/ui/mail-layout";
@@ -40,26 +39,11 @@ export function buildTariffEmail(input: TariffEmailInput): { subject: string; te
   return { subject, text, html };
 }
 
-/** Sends it through Resend; never throws (a failed e-mail must not stop the daily job). Returns whether Resend accepted it. */
+/** Sends it; never throws (a failed e-mail must not stop the daily job). Returns whether the message was accepted. */
 export async function sendTariffEmail(to: string, input: Omit<TariffEmailInput, "dashboardUrl">): Promise<boolean> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) {
-    console.warn("[tariff-email] RESEND_API_KEY not set - skipping send.");
-    return false;
-  }
   if ((process.env.DEVICE_ALERT_EMAILS ?? "on").toLowerCase() === "off") return false;
-  const from = process.env.RESEND_FROM_EMAIL || "WayTara Energy <onboarding@resend.dev>";
   const dashboardUrl = `${process.env.CUSTOMER_APP_URL || "https://www.waytaraenergy.com"}/dashboard/performance`;
-  const { subject, text, html } = buildTariffEmail({ ...input, dashboardUrl });
-  try {
-    const { error } = await new Resend(apiKey).emails.send({ from, to, subject, text, html });
-    if (error) {
-      console.error("[tariff-email] Resend rejected the send:", error);
-      return false;
-    }
-    return true;
-  } catch (error) {
-    console.error("[tariff-email] Resend send failed:", error);
-    return false;
-  }
+  // loaded here, not at the top, so the builder above can be used (and tested) without the server-only sender
+  const { sendMail } = await import("./send-mail");
+  return (await sendMail(to, buildTariffEmail({ ...input, dashboardUrl }))) === "sent";
 }

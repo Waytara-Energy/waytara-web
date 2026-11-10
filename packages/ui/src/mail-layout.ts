@@ -48,6 +48,8 @@ export interface RenderedMail {
 
 const DEFAULT_SITE = "https://www.waytaraenergy.com";
 const SUPPORT_EMAIL = "hello@waytaraenergy.com";
+/** Where a reply to any WayTara e-mail goes (set as Reply-To on every message, so a reply reaches a mailbox people read). */
+export const MAIL_REPLY_TO = SUPPORT_EMAIL;
 const WHATSAPP = "https://wa.me/919363021195";
 const ADDRESS = "WayTara Energy LLP, No. 6 & 7, 3rd Floor, 5th Street, Dr. Radhakrishnan Salai, Mylapore, Chennai - 600 004, India";
 

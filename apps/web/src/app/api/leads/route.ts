@@ -1,7 +1,8 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 import { createClient } from "@waytara/supabase/server";
 import { notifyTeamOfNewLead } from "@/lib/notify-team";
+import { acknowledgeLead } from "@/lib/lead-ack";
 import { allowRequest, clientIp } from "@/lib/rate-limit";
 
 const leadSchema = z.object({
@@ -155,18 +156,11 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Doesn't block the response — the lead is already saved, which matters
-    // more than the notification. notifyTeamOfNewLead handles its own
-    // errors internally and never throws.
-    void notifyTeamOfNewLead({
-      id,
-      full_name: data.fullName,
-      email,
-      phone: data.phone,
-      message,
-      address,
-      source: data.source,
-    });
+    // The lead is saved, which matters most. The e-mails (one to the team, one confirming to the person) go out after the response is sent, and are
+    // registered with `after` so the host finishes them: started with `void` they could be cut off the moment the answer was returned, and the team's
+    // notice would sometimes never arrive. Both handle their own errors and never throw.
+    const lead = { id, full_name: data.fullName, email, phone: data.phone, message, address, source: data.source };
+    after(() => Promise.all([notifyTeamOfNewLead(lead), acknowledgeLead(lead)]));
 
     return NextResponse.json({ success: true, data: { id } });
   } catch (error) {

@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { renderMail } from "@waytara/ui/mail-layout";
+import { MAIL_REPLY_TO, renderMail } from "@waytara/ui/mail-layout";
 
 export interface EmployeeInviteEmailInput {
   to: string;
@@ -51,6 +51,7 @@ export async function sendEmployeeInviteEmail(input: EmployeeInviteEmailInput): 
     const { error } = await resend.emails.send({
       from,
       to: input.to,
+      replyTo: MAIL_REPLY_TO,
       subject: "You're invited to join WayTara Admin",
       text,
       html,

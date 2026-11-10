@@ -1,5 +1,5 @@
 import { Resend } from "resend";
-import { renderMail } from "@waytara/ui/mail-layout";
+import { MAIL_REPLY_TO, renderMail } from "@waytara/ui/mail-layout";
 
 export interface InstallScheduledEmailInput {
   to: string;
@@ -54,6 +54,7 @@ export async function sendInstallScheduledEmail(input: InstallScheduledEmailInpu
     const { error } = await resend.emails.send({
       from,
       to: input.to,
+      replyTo: MAIL_REPLY_TO,
       subject: "Your WayTara installation is scheduled",
       text,
       html,

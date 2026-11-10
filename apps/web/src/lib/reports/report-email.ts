@@ -1,5 +1,4 @@
 import "server-only";
-import { Resend } from "resend";
 import { fmtDate } from "@/lib/savings";
 import { reportHeadline } from "./custom-report-csv";
 import type { CustomReport } from "./custom-report";
@@ -38,16 +37,11 @@ export function buildReportEmail(input: ReportEmailInput): { subject: string; te
   return { subject, text, html };
 }
 
-/** Sends the e-mail through Resend with the report files attached. Never throws: returns an error text when it could not be sent. */
+/** Sends the e-mail with the report files attached. Never throws: returns an error text when it could not be sent. */
 export async function sendReportEmail(to: string[], mail: { subject: string; text: string; html: string }, attachments: { filename: string; content: Buffer }[]): Promise<{ ok: true } | { ok: false; error: string }> {
-  const apiKey = process.env.RESEND_API_KEY;
-  if (!apiKey) return { ok: false, error: "E-mail is not set up on this server (RESEND_API_KEY is missing)." };
-  const from = process.env.RESEND_FROM_EMAIL || "WayTara Energy <onboarding@resend.dev>";
-  try {
-    const { error } = await new Resend(apiKey).emails.send({ from, to, subject: mail.subject, text: mail.text, html: mail.html, attachments });
-    if (error) return { ok: false, error: error.message || "The e-mail service rejected the message." };
-    return { ok: true };
-  } catch (e) {
-    return { ok: false, error: e instanceof Error ? e.message : "The e-mail could not be sent." };
-  }
+  // loaded here, not at the top, so the builder above can be used (and tested) without the server-only sender
+  const { sendMail } = await import("../send-mail");
+  const result = await sendMail(to, mail, attachments);
+  if (result === "sent") return { ok: true };
+  return { ok: false, error: result === "suppressed" ? "E-mail is not set up on this server (RESEND_API_KEY is missing)." : "The e-mail service rejected the message." };
 }
