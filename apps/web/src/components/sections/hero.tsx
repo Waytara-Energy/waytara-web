@@ -41,6 +41,12 @@ function subscribeReducedMotion(onChange: () => void) {
 const readReducedMotion = () => window.matchMedia(REDUCED_MOTION).matches;
 const serverReducedMotion = () => false;
 
+/** Seconds as m:ss. */
+function formatTime(seconds: number): string {
+  const s = Math.max(0, Math.ceil(seconds));
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+}
+
 /**
  * The top of the landing page: the cloud sky shows in the top 30 percent of the first screen and fades into the page colour; the headline, one line and
  * two buttons sit on that, and under them the animation card at the width of the text column. Nothing is animated by scrolling except that the page
@@ -52,6 +58,8 @@ const serverReducedMotion = () => false;
 export function Hero() {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const [playing, setPlaying] = React.useState(false);
+  // The video's remaining time ("0:21"), shown in the pill with the pause button; null until the video has said how long it is.
+  const [remaining, setRemaining] = React.useState<string | null>(null);
   const reduced = React.useSyncExternalStore(subscribeReducedMotion, readReducedMotion, serverReducedMotion);
   // The theme is not known until the page has loaded in the browser, so the server-built page always has the day sky.
   const { resolvedTheme } = useTheme();
@@ -67,11 +75,24 @@ export function Hero() {
     // The video may have started before this page was ready to hear about it, so ask it rather than wait for an event.
     setPlaying(!video.paused);
 
+    // The remaining time follows the video (and is read once a moment from now in case its length is already known).
+    const showTime = () => {
+      if (Number.isFinite(video.duration)) setRemaining(formatTime(video.duration - video.currentTime));
+    };
+    video.addEventListener("timeupdate", showTime);
+    video.addEventListener("loadedmetadata", showTime);
+    const first = requestAnimationFrame(showTime);
+    const stopTime = () => {
+      cancelAnimationFrame(first);
+      video.removeEventListener("timeupdate", showTime);
+      video.removeEventListener("loadedmetadata", showTime);
+    };
+
     const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
     if (window.matchMedia(REDUCED_MOTION).matches || connection?.saveData) {
       heldBack.current = true;
       video.pause();
-      return;
+      return stopTime;
     }
 
     const watcher = new IntersectionObserver(
@@ -85,7 +106,10 @@ export function Hero() {
       { threshold: 0.05 }
     );
     watcher.observe(video);
-    return () => watcher.disconnect();
+    return () => {
+      watcher.disconnect();
+      stopTime();
+    };
   }, []);
 
   const toggle = () => {
@@ -101,7 +125,7 @@ export function Hero() {
   };
 
   const buttonBase =
-    "inline-flex h-[44px] sm:h-[3.25rem] items-center rounded-full text-sm sm:text-base font-semibold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-theme-bg";
+    "inline-flex h-[40px] sm:h-[3.25rem] items-center rounded-full text-sm sm:text-base font-semibold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-theme-bg";
 
   return (
     <section className="relative bg-theme-bg [--sky:0] [--fade:0] [--text-gap:0px] sm:[--sky:0.3] sm:[--fade:1] sm:[--text-gap:1.5rem]">
@@ -138,43 +162,39 @@ export function Hero() {
         {/* The content block has the page colour itself (on a phone the layer around it is clear). */}
         <div className="fluid-container w-full bg-theme-bg pb-5 sm:pb-16">
           <Reveal direction="up" delay={100} duration={800} distance={24}>
-            <h1 className="font-bold tracking-tight leading-[1.12] text-left text-theme-primary text-balance text-[clamp(26px,7.6vw,30px)] sm:leading-[1.05] sm:text-[clamp(2rem,4.4vw,4.25rem)]">
+            <h1 className="text-left font-semibold leading-[1.18] tracking-tight text-theme-primary text-[clamp(19px,5.8vw,25px)] sm:font-bold sm:leading-[1.05] sm:text-[clamp(2rem,4.4vw,4.25rem)]">
               {/* The whole sentence for screen readers, search engines and anyone without the animation; the visible two lines below are hidden from them. */}
               <span className="sr-only">One platform to connect, monitor, control and optimise your entire energy ecosystem.</span>
               <span aria-hidden="true" className="block">
-                <span className="block sm:whitespace-nowrap">
+                <span className="block whitespace-nowrap max-[340px]:whitespace-normal">
                   One platform to{" "}
-                  <br className="sm:hidden" />
                   <FlipWords
                     words={HEADLINE_WORDS}
                     still={reduced}
                     className="bg-gradient-to-r from-emerald-600 via-green-500 to-lime-500 bg-clip-text text-transparent dark:from-emerald-300 dark:via-green-400 dark:to-lime-300"
                   />
                 </span>
-                <span className="block sm:whitespace-nowrap">
-                  Your entire energy
-                  <br className="sm:hidden" /> ecosystem.
-                </span>
+                <span className="block whitespace-nowrap max-[340px]:whitespace-normal">Your entire energy ecosystem.</span>
               </span>
             </h1>
           </Reveal>
 
-          <Reveal direction="up" delay={220} duration={800} distance={16} className="mt-4 max-w-[52rem] sm:mt-5">
-            {/* Two lines on a wide screen (the box is just wide enough, and text-balance evens the two out); it wraps to more on a narrow one. */}
-            <p className="text-balance text-[15px] leading-[1.6] text-theme-secondary sm:text-[clamp(1rem,1.3vw,1.2rem)] sm:leading-relaxed">
-              Connect solar, batteries, EV chargers, meters and more through WayTara&rsquo;s flexible gateway and unified platform, built for new and existing energy infrastructure.
+          <Reveal direction="up" delay={220} duration={800} distance={16} className="mt-3 sm:mt-5">
+            {/* One short sentence: a single line from a tablet up, two on a phone. */}
+            <p className="text-pretty text-[15px] leading-[1.55] text-theme-secondary sm:text-[clamp(1rem,1.3vw,1.2rem)] sm:leading-relaxed">
+              Connect solar, batteries, EV chargers and meters, new or existing, through WayTara&rsquo;s gateway.
             </p>
           </Reveal>
 
-          <Reveal direction="up" delay={340} duration={700} distance={12} className="mt-6 flex w-full items-center gap-2.5 sm:mt-7 sm:w-auto sm:flex-wrap sm:gap-3">
+          <Reveal direction="up" delay={340} duration={700} distance={12} className="mt-5 flex w-full items-center gap-2 sm:mt-7 sm:w-auto sm:flex-wrap sm:gap-3">
             {/* The main action: the site's green gradient, white text, and the arrow in a white circle. */}
             <Link
               href="/planner"
               className={`${buttonBase} group gap-2.5 bg-primary-gradient pl-5 pr-1.5 sm:gap-3 sm:pl-6 text-white shadow-lg shadow-emerald-900/20 transition-all duration-200 hover:brightness-95 hover:shadow-xl active:scale-95`}
             >
               <span>Plan my system</span>
-              <span className="flex size-[34px] sm:size-10 items-center justify-center rounded-full bg-white text-slate-950 transition-transform duration-200 group-hover:translate-x-0.5">
-                <ArrowRight className="size-4" />
+              <span className="flex size-[30px] sm:size-10 items-center justify-center rounded-full bg-white text-slate-950 transition-transform duration-200 group-hover:translate-x-0.5">
+                <ArrowRight className="size-3.5 sm:size-4" />
               </span>
             </Link>
             {/* The second action: quiet until pointed at, then filled with the brand green. (Plain colour classes on purpose: the site's unlayered theme-*
@@ -187,9 +207,10 @@ export function Hero() {
             </Link>
           </Reveal>
 
-          {/* 3. The animation card: the width of the text column, with a shadow. Its own background is white, so it shows as a card in both themes. */}
-          <Reveal direction="up" delay={480} duration={900} distance={30} className="mt-7 sm:mt-12">
-            <div className="relative aspect-video w-full overflow-hidden rounded-[28px] bg-white shadow-2xl shadow-black/25">
+          {/* 3. The animation. On a phone: a strip the full width of the screen between two hairlines, with the remaining time in a pill (as on Framer's
+              page). From a tablet up: the card the width of the text column, with rounded corners and a shadow. Its own background is white in both themes. */}
+          <Reveal direction="up" delay={480} duration={900} distance={30} className="-mx-[var(--page-gutter)] mt-7 sm:mx-0 sm:mt-12">
+            <div className="relative aspect-video w-full overflow-hidden border-y border-theme-border bg-white sm:rounded-[28px] sm:border-0 sm:shadow-2xl sm:shadow-black/25">
               <video
                 ref={videoRef}
                 className="absolute inset-0 h-full w-full object-cover"
@@ -210,9 +231,10 @@ export function Hero() {
                 type="button"
                 onClick={toggle}
                 aria-label={playing ? "Pause the animation" : "Play the animation"}
-                className="absolute bottom-4 right-4 flex size-11 cursor-pointer items-center justify-center rounded-full bg-black/70 text-white ring-1 ring-white/20 backdrop-blur-sm transition hover:bg-black/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:bottom-5 sm:right-5"
+                className="absolute bottom-3 right-3 inline-flex h-8 cursor-pointer items-center gap-1.5 rounded-full bg-black/70 px-3 text-xs font-semibold tabular-nums text-white ring-1 ring-white/20 backdrop-blur-sm transition hover:bg-black/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:bottom-5 sm:right-5 sm:h-10 sm:gap-2 sm:px-4 sm:text-sm"
               >
-                {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
+                {playing ? <Pause className="size-3.5 sm:size-4" /> : <Play className="size-3.5 sm:size-4" />}
+                {remaining && <span>{remaining}</span>}
               </button>
             </div>
           </Reveal>

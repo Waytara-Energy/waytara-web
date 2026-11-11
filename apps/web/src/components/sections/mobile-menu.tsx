@@ -93,15 +93,15 @@ export function MobileMenu({
               {GROUPS.map((group) => {
                 const expanded = openGroup === group.label;
                 return (
-                  <li key={group.label} className="border-b border-theme-border/60">
+                  <li key={group.label}>
                     <button
                       type="button"
                       aria-expanded={expanded}
                       onClick={() => setOpenGroup((v) => (v === group.label ? null : group.label))}
-                      className="flex w-full cursor-pointer items-center justify-between py-4 text-left text-[22px] font-semibold tracking-tight text-theme-primary outline-none focus-visible:text-theme-highlight"
+                      className="flex w-full cursor-pointer items-center justify-between py-3.5 text-left text-[20px] font-medium tracking-tight text-theme-primary outline-none focus-visible:text-theme-highlight"
                     >
                       <span>{group.label}</span>
-                      <ChevronDown aria-hidden="true" className={cn("size-5 text-theme-muted transition-transform duration-200", expanded && "rotate-180")} />
+                      <ChevronDown aria-hidden="true" className={cn("size-4 text-theme-muted transition-transform duration-200", expanded && "rotate-180")} />
                     </button>
                     {expanded && (
                       <ul className="mb-3 flex flex-col gap-0.5 pb-1">
@@ -110,7 +110,7 @@ export function MobileMenu({
                             <Link
                               href={link.href}
                               onClick={onClose}
-                              className="block rounded-lg px-1 py-2.5 text-base font-medium text-theme-secondary outline-none transition-colors hover:text-theme-primary focus-visible:text-theme-primary"
+                              className="block rounded-lg px-1 py-2 text-[17px] text-theme-secondary outline-none transition-colors hover:text-theme-primary focus-visible:text-theme-primary"
                             >
                               {link.label}
                             </Link>
