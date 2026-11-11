@@ -132,7 +132,7 @@ export function Hero() {
 
       {/* 1. The sky: 60 percent of a screen tall, stuck to the top of the window while this section is on screen, taking no room of its own (the negative
           margin). The layer below scrolls over it. On a wide screen a soft shade under the menu bar keeps its white links readable on the sky; on a phone
-          there is none, so that the top edge is the sky's own colour and the status bar above it (which Safari fills with that colour) blends in. */}
+          there is none. (The status bar above the page is the page colour, drawn by the browser itself.) */}
       <div
         aria-hidden="true"
         className="pointer-events-none sticky top-0 overflow-hidden bg-gradient-to-b from-[#3876ba] to-[#8cbfe8]"
@@ -146,9 +146,6 @@ export function Hero() {
           maxPixelRatio={1}
         />
         <div className="absolute inset-x-0 top-0 hidden h-28 bg-gradient-to-b from-black/35 to-transparent sm:block" />
-        {/* Phone only: the first 56 px of the sky begin in exactly the colour of the status bar above it (the day sky's top colour, which is what the
-            page asks Safari to paint there) and melt into the sky, so there is no seam between the bar and the clouds. */}
-        <div className={`absolute inset-x-0 top-0 h-14 bg-gradient-to-b ${sky === SKY_DUSK ? "from-[#070d1f]" : "from-[#3876ba]"} to-transparent sm:hidden`} />
       </div>
 
       {/* 2. The layer with the content: clear at the top, the page colour from 30 percent down, scrolling with the page. */}
