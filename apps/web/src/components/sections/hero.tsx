@@ -6,6 +6,7 @@ import { useTheme } from "next-themes";
 import { ArrowRight, Pause, Play } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 import { CloudShader } from "@/components/ui/cloud-shader";
+import { FlipWords } from "@/components/ui/flip-words";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 
 const VIDEO = "/videos/energy-banner.mp4";
@@ -13,6 +14,8 @@ const VIDEO = "/videos/energy-banner.mp4";
 const POSTER = "/videos/energy-banner-poster.webp";
 // Height of the fixed menu bar (the same clamp the bar itself uses); everything starts below it.
 const NAV_HEIGHT = "clamp(3.5rem,4.5vw,4.25rem)";
+// The words that take turns in the headline, each one an action the platform does for the whole property.
+const HEADLINE_WORDS = ["Connect.", "Monitor.", "Control.", "Optimise."];
 // The sky behind the hero: the day sky (the text on it is white) and, in the dark theme, the same sky at dusk.
 const SKY_DAY = { top: "#3876ba", bottom: "#8cbfe8", cloud: "#fbf8f2" };
 const SKY_DUSK = { top: "#070d1f", bottom: "#1b2a4a", cloud: "#8d9bb8" };
@@ -199,14 +202,25 @@ export function Hero() {
     <div ref={textRef} className="fluid-container">
       <Reveal direction="up" delay={100} duration={800} distance={24}>
         <h1 className="font-bold tracking-tight leading-[1.05] text-white text-balance text-[clamp(2rem,4.4vw,4.25rem)] drop-shadow-[0_2px_14px_rgba(0,20,60,0.35)]">
-          <span className="block sm:whitespace-nowrap">Your property&rsquo;s energy,</span>
-          <span className="block sm:whitespace-nowrap">built as one system.</span>
+          {/* The whole sentence for screen readers, search engines and anyone without the animation; the visible two lines below are hidden from them. */}
+          <span className="sr-only">One platform to connect, monitor, control and optimise your entire energy ecosystem.</span>
+          <span aria-hidden="true" className="block">
+            <span className="block sm:whitespace-nowrap">
+              One platform to{" "}
+              <FlipWords
+                words={HEADLINE_WORDS}
+                still={reduced}
+                className="bg-gradient-to-r from-emerald-300 via-green-400 to-lime-300 bg-clip-text text-transparent"
+              />
+            </span>
+            <span className="block sm:whitespace-nowrap">Your entire energy ecosystem.</span>
+          </span>
         </h1>
       </Reveal>
 
-      <Reveal direction="up" delay={220} duration={800} distance={16} className="mt-5 max-w-xl">
+      <Reveal direction="up" delay={220} duration={800} distance={16} className="mt-5 max-w-2xl">
         <p className="text-[clamp(1rem,1.3vw,1.2rem)] leading-relaxed text-white/90 drop-shadow-[0_1px_8px_rgba(0,20,60,0.35)]">
-          Solar, battery storage and EV charging, designed, installed and managed together.
+          Connect solar, battery storage, EV chargers, meters and more into one unified management platform. New or existing infrastructure, configured around your needs.
         </p>
       </Reveal>
 
