@@ -1,3 +1,4 @@
+import type { Viewport } from "next";
 import { HomePageContent } from "@/components/sections/home-page-content";
 import { pageMetadata } from "@/lib/seo";
 
@@ -11,6 +12,15 @@ export const metadata = pageMetadata({
     "Rooftop solar, hybrid inverters, battery storage and EV charging for homes, villas, apartments and businesses in Chennai and across India, monitored and controlled in one WayTara dashboard.",
   path: "/",
 });
+
+// The browser's bar colour on the home page, from the first byte: the sky's top colour (the script in the menu bar then keeps it in step with the theme
+// being shown and with the scroll). Without this the HTML starts with the plain page colours and a phone that reads them only at load shows those.
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#3876ba" },
+    { media: "(prefers-color-scheme: dark)", color: "#070d1f" },
+  ],
+};
 
 export default function HomePage() {
   return <HomePageContent />;

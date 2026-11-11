@@ -144,14 +144,15 @@ export function Hero() {
           there is none, so that the top edge is the sky's own colour and the status bar above it (which Safari fills with that colour) blends in. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none sticky top-0 overflow-hidden"
+        className="pointer-events-none sticky top-0 overflow-hidden [--sky-top:#3876ba] [--sky-bottom:#8cbfe8] dark:[--sky-top:#070d1f] dark:[--sky-bottom:#1b2a4a]"
         // This layer is pinned to the top of the screen, and on a newer iPhone Safari paints the status bar in the colour of what is pinned there. So its own
-        // colour is the sky's top colour in the theme being shown (it was always the day blue, which made the bar bright blue over the dark sky), and
+        // colour is the sky's top colour in the theme being shown, set in CSS so it is right on the first paint (it was always the day blue, then the
+        // dark one only after the page had loaded, which is when a refresh in the dark theme turned the bar bright blue), and
         // once the page has scrolled and the menu bar is solid it is the page colour, so the bar follows.
         style={{
           height: SKY_H,
           marginBottom: `calc(${SKY_H} * -1)`,
-          background: atTop ? `linear-gradient(to bottom, ${sky.top}, ${sky.bottom})` : "var(--background)",
+          background: atTop ? "linear-gradient(to bottom, var(--sky-top), var(--sky-bottom))" : "var(--background)",
         }}
       >
         <CloudShader
@@ -162,9 +163,17 @@ export function Hero() {
           maxPixelRatio={1}
         />
         <div className="absolute inset-x-0 top-0 hidden h-28 bg-gradient-to-b from-black/35 to-transparent sm:block" />
-        {/* Phone only: the first 56 px of the sky begin in exactly the colour of the status bar above it (the day sky's top colour, which is what the
-            page asks Safari to paint there) and melt into the sky, so there is no seam between the bar and the clouds. */}
-        <div className={`absolute inset-x-0 top-0 h-14 bg-gradient-to-b ${sky === SKY_DUSK ? "from-[#070d1f]" : "from-[#3876ba]"} to-transparent sm:hidden`} />
+        {/* Phone only: the top of the sky begins in exactly the colour the page asks Safari to paint in the status bar above it, and melts into the
+            clouds, so there is no seam. By day the sky's own top is that blue already, so a short fade does it. By night the clouds are a light grey haze
+            that is far from the bar's navy, so the fade is longer and eased (it holds the navy near the top and lets go gradually). Which one shows is
+            decided by CSS (the dark class), so it is right on the very first paint, before any script has run. */}
+        <div className="sm:hidden">
+          <div className="absolute inset-x-0 top-0 h-14 bg-gradient-to-b from-[#3876ba] to-transparent dark:hidden" />
+          <div
+            className="absolute inset-x-0 top-0 hidden h-36 dark:block"
+            style={{ background: "linear-gradient(to bottom, rgb(7,13,31) 0%, rgba(7,13,31,0.94) 18%, rgba(7,13,31,0.72) 42%, rgba(7,13,31,0.38) 68%, rgba(7,13,31,0.12) 88%, rgba(7,13,31,0) 100%)" }}
+          />
+        </div>
       </div>
 
       {/* 2. The layer with the content: clear at the top, the page colour from 30 percent down, scrolling with the page. */}
