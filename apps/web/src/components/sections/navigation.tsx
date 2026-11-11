@@ -139,6 +139,15 @@ export function Navigation() {
     const overSky = isHome && !isScrolled && !mobileMenuOpen;
     const colour = barDark ? (overSky ? "#070d1f" : "#0A0F0D") : overSky ? "#3876ba" : "#FFFFFF";
     document.querySelectorAll('meta[name="theme-color"]').forEach((tag) => tag.setAttribute("content", colour));
+    // Newer iPhones (iOS 26) take the bar's colour from the page's own background instead (or from a fixed element at the top, and the menu bar is clear
+    // while it is over the sky). So while the sky is showing, the page's background is the sky's colour too; it goes back to normal the moment the sky
+    // is left (scrolled away, another page, a menu open).
+    const root = document.documentElement;
+    if (overSky) root.style.backgroundColor = colour;
+    else root.style.removeProperty("background-color");
+    return () => {
+      root.style.removeProperty("background-color");
+    };
   }, [isHome, isScrolled, mobileMenuOpen, barDark, pathname]);
 
   const shownMenuConfig = HEADER_MENUS.find((m) => m.label === shownMenu);

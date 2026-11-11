@@ -78,8 +78,10 @@ export function Hero() {
       return;
     }
 
+    let inView = false;
     const watcher = new IntersectionObserver(
       ([entry]) => {
+        inView = entry.isIntersecting;
         if (entry.isIntersecting) {
           if (!heldBack.current) void video.play().catch(() => {});
         } else {
@@ -89,7 +91,23 @@ export function Hero() {
       { threshold: 0.05 }
     );
     watcher.observe(video);
-    return () => watcher.disconnect();
+
+    // Some phones refuse to start a video by themselves (an iPhone in Low Power Mode, for one) even when it is silent. A tap is always allowed to start
+    // it, so the first tap anywhere on the page does, as long as the video is on screen and the visitor has not paused it.
+    const startOnTouch = () => {
+      if (video.paused && inView && !heldBack.current) void video.play().catch(() => {});
+    };
+    const taps = ["pointerup", "touchend", "click"] as const;
+    taps.forEach((type) => document.addEventListener(type, startOnTouch, { passive: true }));
+    // And once it has started, none of that is needed.
+    const stopListening = () => taps.forEach((type) => document.removeEventListener(type, startOnTouch));
+    video.addEventListener("playing", stopListening, { once: true });
+
+    return () => {
+      watcher.disconnect();
+      stopListening();
+      video.removeEventListener("playing", stopListening);
+    };
   }, []);
 
   const toggle = () => {
@@ -128,6 +146,9 @@ export function Hero() {
           maxPixelRatio={1}
         />
         <div className="absolute inset-x-0 top-0 hidden h-28 bg-gradient-to-b from-black/35 to-transparent sm:block" />
+        {/* Phone only: the first 56 px of the sky begin in exactly the colour of the status bar above it (the day sky's top colour, which is what the
+            page asks Safari to paint there) and melt into the sky, so there is no seam between the bar and the clouds. */}
+        <div className={`absolute inset-x-0 top-0 h-14 bg-gradient-to-b ${sky === SKY_DUSK ? "from-[#070d1f]" : "from-[#3876ba]"} to-transparent sm:hidden`} />
       </div>
 
       {/* 2. The layer with the content: clear at the top, the page colour from 30 percent down, scrolling with the page. */}
