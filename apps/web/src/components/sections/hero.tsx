@@ -45,6 +45,14 @@ function subscribeReducedMotion(onChange: () => void) {
 const readReducedMotion = () => window.matchMedia(REDUCED_MOTION).matches;
 const serverReducedMotion = () => false;
 
+// Whether the page is still at the top (the menu bar turns solid after 20 px of scrolling; this is the same line).
+function subscribeScroll(onChange: () => void) {
+  window.addEventListener("scroll", onChange, { passive: true });
+  return () => window.removeEventListener("scroll", onChange);
+}
+const readAtTop = () => window.scrollY <= 20;
+const serverAtTop = () => true;
+
 /**
  * The top of the landing page: the cloud sky shows in the top 30 percent of the first screen and fades into the page colour; the headline, one line and
  * two buttons sit on that, and under them the animation card at the width of the text column. Nothing is animated by scrolling except that the page
@@ -61,6 +69,7 @@ export function Hero() {
   const { resolvedTheme } = useTheme();
   const mounted = useHasMounted();
   const sky = mounted && resolvedTheme === "dark" ? SKY_DUSK : SKY_DAY;
+  const atTop = React.useSyncExternalStore(subscribeScroll, readAtTop, serverAtTop);
   // True once the visitor pressed pause, or never asked to play: scrolling back into view must not start it again then.
   const heldBack = React.useRef(false);
 
@@ -132,11 +141,18 @@ export function Hero() {
 
       {/* 1. The sky: 60 percent of a screen tall, stuck to the top of the window while this section is on screen, taking no room of its own (the negative
           margin). The layer below scrolls over it. On a wide screen a soft shade under the menu bar keeps its white links readable on the sky; on a phone
-          there is none. (The status bar above the page is the page colour, drawn by the browser itself.) */}
+          there is none, so that the top edge is the sky's own colour and the status bar above it (which Safari fills with that colour) blends in. */}
       <div
         aria-hidden="true"
-        className="pointer-events-none sticky top-0 overflow-hidden bg-gradient-to-b from-[#3876ba] to-[#8cbfe8]"
-        style={{ height: SKY_H, marginBottom: `calc(${SKY_H} * -1)` }}
+        className="pointer-events-none sticky top-0 overflow-hidden"
+        // This layer is pinned to the top of the screen, and on a newer iPhone Safari paints the status bar in the colour of what is pinned there. So its own
+        // colour is the sky's top colour in the theme being shown (it was always the day blue, which made the bar bright blue over the dark sky), and
+        // once the page has scrolled and the menu bar is solid it is the page colour, so the bar follows.
+        style={{
+          height: SKY_H,
+          marginBottom: `calc(${SKY_H} * -1)`,
+          background: atTop ? `linear-gradient(to bottom, ${sky.top}, ${sky.bottom})` : "var(--background)",
+        }}
       >
         <CloudShader
           className="absolute inset-0 h-full min-h-0"
@@ -146,6 +162,9 @@ export function Hero() {
           maxPixelRatio={1}
         />
         <div className="absolute inset-x-0 top-0 hidden h-28 bg-gradient-to-b from-black/35 to-transparent sm:block" />
+        {/* Phone only: the first 56 px of the sky begin in exactly the colour of the status bar above it (the day sky's top colour, which is what the
+            page asks Safari to paint there) and melt into the sky, so there is no seam between the bar and the clouds. */}
+        <div className={`absolute inset-x-0 top-0 h-14 bg-gradient-to-b ${sky === SKY_DUSK ? "from-[#070d1f]" : "from-[#3876ba]"} to-transparent sm:hidden`} />
       </div>
 
       {/* 2. The layer with the content: clear at the top, the page colour from 30 percent down, scrolling with the page. */}

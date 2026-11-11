@@ -129,16 +129,26 @@ export function Navigation() {
 
   const closeMobileMenu = React.useCallback(() => setMobileMenuOpen(false), []);
 
-  // The colour of the browser's own bar above the page (a phone's status bar). Safari draws that strip itself and the page begins under it, so the clouds
-  // cannot reach it; it is the page colour of the current theme everywhere, home page included: white, or near black. Both of the page's theme-color
-  // tags (light and dark) get the same value, from the theme the site is actually showing (which a visitor may have switched, whatever their phone is
-  // set to). (An earlier version tinted it sky blue over the clouds; on a real iPhone that showed as a flat band with a seam, so it follows the theme.)
+  // The colour of the browser's own bar above the page (a phone's status bar). While the transparent header sits over the clouds at the top of the home
+  // page it is the sky's own colour, so the bar and the clouds read as one; as soon as the solid header appears (after a short scroll, or with a menu
+  // open, or on any other page) it is the page colour of the current theme: white, or near black. Both of the page's theme-color tags (light and dark)
+  // get the same value, from the theme the site is actually showing (which a visitor may have switched, whatever their phone is set to).
   const { resolvedTheme } = useTheme();
   const barDark = resolvedTheme === "dark";
   React.useEffect(() => {
-    const colour = barDark ? "#0A0F0D" : "#FFFFFF";
+    const overSky = isHome && !isScrolled && !mobileMenuOpen;
+    const colour = barDark ? (overSky ? "#070d1f" : "#0A0F0D") : overSky ? "#3876ba" : "#FFFFFF";
     document.querySelectorAll('meta[name="theme-color"]').forEach((tag) => tag.setAttribute("content", colour));
-  }, [barDark, pathname]);
+    // Newer iPhones (iOS 26) take the bar's colour from the page's own background instead (or from a fixed element at the top, and the menu bar is clear
+    // while it is over the sky). So while the sky is showing, the page's background is the sky's colour too; it goes back to normal the moment the sky
+    // is left (scrolled away, another page, a menu open).
+    const root = document.documentElement;
+    if (overSky) root.style.backgroundColor = colour;
+    else root.style.removeProperty("background-color");
+    return () => {
+      root.style.removeProperty("background-color");
+    };
+  }, [isHome, isScrolled, mobileMenuOpen, barDark, pathname]);
 
   const shownMenuConfig = HEADER_MENUS.find((m) => m.label === shownMenu);
   const shownPanel =
