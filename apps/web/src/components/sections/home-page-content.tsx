@@ -11,8 +11,8 @@ import { FinalCTA } from "@/components/sections/final-cta";
 import { Footer } from "@/components/sections/footer";
 
 /**
- * The landing page, in story order (docs/WEBSITE_PLAN.md section 5): the promise, the idea, what WayTara does, the dashboard,
- * who it is for, how a project runs, where to start, and the close.
+ * The landing page, in story order (docs/WEBSITE_PLAN.md section 5): the promise, the idea, what WayTara does,
+ * who it is for, how a project runs, the dashboard, where to start, and the close.
  */
 export function HomePageContent() {
   return (
@@ -32,14 +32,14 @@ export function HomePageContent() {
         {/* 3. What WayTara does: Build, Charge, Manage */}
         <WhatWeDo />
 
-        {/* 4. One dashboard: a card that tips up on scroll, showing the live Monitoring page */}
-        <DashboardShowcase />
-
-        {/* 5. Who we serve: the six property types */}
+        {/* 4. Who we serve: the six property types */}
         <WhoWeServe />
 
-        {/* 6. How a project works */}
+        {/* 5. How a project works */}
         <ProjectSteps />
+
+        {/* 6. One dashboard: a card that tips up on scroll, showing the live Monitoring page (moved here: it follows "Four steps, one team.") */}
+        <DashboardShowcase />
 
         {/* 7. Where to start: the planner */}
         <WhereToStart />
