@@ -12,6 +12,7 @@ export type GuideBlock =
   | { type: "p"; text: string }
   | { type: "list"; items: string[] }
   | { type: "steps"; items: { title: string; body: string }[] }
+  | { type: "cols"; items: { title: string; body: string }[] }
   | { type: "compare"; columns: string[]; rows: { label: string; cells: string[] }[] }
   | { type: "note"; title: string; body: string };
 
@@ -261,16 +262,12 @@ const gridTypes: Guide = {
       accent: "inside each system.",
       blocks: [
         {
-          type: "p",
-          text: "On-grid. Panels feed an on-grid inverter. Your home uses the solar power first and takes any shortfall from the grid. Extra power goes to the grid and is recorded by the net meter. When the grid fails, the inverter has to switch off by design, so that no power is pushed into lines that workers may be repairing. That is why an on-grid system gives no backup.",
-        },
-        {
-          type: "p",
-          text: "Hybrid. A hybrid inverter manages the panels, the battery and the grid together. Solar power runs the home and charges the battery, the battery supplies the home when the sun is down or the grid is off, and the grid fills any gap. You choose which loads are backed up (for example lights, fans, the fridge and the router) and size the battery for how long you want them to run.",
-        },
-        {
-          type: "p",
-          text: "Off-grid. Panels, a battery and an inverter, with no grid. Everything you use must come from the panels and battery, so the system is sized for your worst days, and a generator is sometimes added as a last resort.",
+          type: "cols",
+          items: [
+            { title: "On-grid", body: "Panels feed an on-grid inverter. Your home uses the solar power first and takes any shortfall from the grid. Extra power goes to the grid and is recorded by the net meter. When the grid fails, the inverter has to switch off by design, so that no power is pushed into lines that workers may be repairing. That is why an on-grid system gives no backup." },
+            { title: "Hybrid", body: "A hybrid inverter manages the panels, the battery and the grid together. Solar power runs the home and charges the battery, the battery supplies the home when the sun is down or the grid is off, and the grid fills any gap. You choose which loads are backed up (for example lights, fans, the fridge and the router) and size the battery for how long you want them to run." },
+            { title: "Off-grid", body: "Panels, a battery and an inverter, with no grid. Everything you use must come from the panels and battery, so the system is sized for your worst days, and a generator is sometimes added as a last resort." },
+          ],
         },
       ],
     },

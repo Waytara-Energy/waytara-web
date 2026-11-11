@@ -42,10 +42,22 @@ function withLinks(text: string): React.ReactNode {
  * The blocks of a section, laid out like the other pages: lists as ticked columns under a thin rule, steps as numbered columns (the "Four steps, one team" look),
  * tables across the full width, and plain paragraphs kept to a readable line length.
  */
-function Block({ block }: { block: GuideBlock }) {
+function Block({ block, inColumn }: { block: GuideBlock; /** Inside one half of a two-column run: use the whole half instead of a reading-width cap. */ inColumn?: boolean }) {
+  const cap = inColumn ? "" : "max-w-3xl";
   switch (block.type) {
     case "p":
-      return <p className="max-w-3xl text-base leading-relaxed text-theme-secondary">{withLinks(block.text)}</p>;
+      return <p className={cn(cap, "text-base leading-relaxed text-theme-secondary")}>{withLinks(block.text)}</p>;
+    case "cols":
+      return (
+        <ul className={cn("grid grid-cols-1 gap-x-12 gap-y-10", block.items.length === 2 ? "md:grid-cols-2" : "md:grid-cols-3")}>
+          {block.items.map((item) => (
+            <li key={item.title} className="border-t border-theme-border pt-6">
+              <p className="text-lg font-bold tracking-tight text-theme-primary">{item.title}</p>
+              <p className="mt-2 text-pretty text-[15px] leading-relaxed text-theme-secondary">{withLinks(item.body)}</p>
+            </li>
+          ))}
+        </ul>
+      );
     case "list":
       return (
         <ul className="grid grid-cols-1 gap-x-12 gap-y-4 border-t border-theme-border pt-6 md:grid-cols-2">
@@ -122,12 +134,61 @@ function Block({ block }: { block: GuideBlock }) {
       );
     case "note":
       return (
-        <div className="max-w-3xl border-l-2 border-emerald-500/70 pl-5">
+        <div className={cn(cap, "border-l-2 border-emerald-500/70 pl-5")}>
           <p className="font-semibold text-theme-primary">{block.title}</p>
           <p className="mt-1 text-[15px] leading-relaxed text-theme-secondary">{withLinks(block.body)}</p>
         </div>
       );
   }
+}
+
+/** Text-like blocks: they sit well beside each other, so two or more in a row are set in two columns instead of one narrow column with the right half empty. */
+const isProse = (b: GuideBlock) => b.type === "p" || b.type === "note" || (b.type === "compare" && b.columns.length === 1);
+
+/** Roughly how tall a block is, in characters of text (a table row counts as a couple of lines), to balance the two columns. */
+function weight(b: GuideBlock): number {
+  if (b.type === "p") return b.text.length;
+  if (b.type === "note") return b.title.length + b.body.length;
+  if (b.type === "compare") return b.rows.length * 130;
+  return 0;
+}
+
+/** Blocks in order; each run of two or more text blocks becomes two balanced columns (the first blocks left, the rest right). */
+function Blocks({ blocks }: { blocks: GuideBlock[] }) {
+  const groups: GuideBlock[][] = [];
+  for (const b of blocks) {
+    const last = groups[groups.length - 1];
+    if (last && isProse(b) && isProse(last[0])) last.push(b);
+    else groups.push([b]);
+  }
+  return (
+    <div className="space-y-10">
+      {groups.map((group, gi) => {
+        if (group.length < 2) return <Block key={gi} block={group[0]} />;
+        const total = group.reduce((n, b) => n + weight(b), 0);
+        const left: GuideBlock[] = [];
+        const right: GuideBlock[] = [];
+        let used = 0;
+        for (const b of group) {
+          // a block goes left while its middle is still before the half-way line
+          if (right.length === 0 && used + weight(b) / 2 <= total / 2) left.push(b);
+          else right.push(b);
+          used += weight(b);
+        }
+        return (
+          <div key={gi} className="grid grid-cols-1 gap-x-12 gap-y-6 lg:grid-cols-2">
+            {[left, right].map((col, ci) => (
+              <div key={ci} className="space-y-6">
+                {col.map((b, bi) => (
+                  <Block key={bi} block={b} inColumn />
+                ))}
+              </div>
+            ))}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 /**
@@ -175,11 +236,7 @@ export function GuidePage({ guide }: { guide: Guide }) {
       {guide.sections.map((section) => (
         <SegmentSection key={section.id} id={section.id} badge={section.badge} title={section.title} accent={section.accent} summary={section.summary}>
           <Reveal direction="up" duration={700} distance={16}>
-            <div className="space-y-10">
-              {section.blocks.map((block, i) => (
-                <Block key={i} block={block} />
-              ))}
-            </div>
+            <Blocks blocks={section.blocks} />
           </Reveal>
         </SegmentSection>
       ))}
