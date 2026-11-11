@@ -5,9 +5,9 @@ import { FeatureColumns } from "@/components/segments/segment-parts";
 
 // The planner reads `start` to open on the matching path (built in step 5 of the website plan).
 export const DOORS = [
-  { icon: Hammer, title: "Build a new system", body: "Solar, battery storage and EV charging, designed together for your property.", link: { label: "Get started", href: "/planner?start=build" } },
-  { icon: PlugZap, title: "Set up EV charging", body: "Chargers for your home, workplace or fleet, with the software to manage them.", link: { label: "Get started", href: "/planner?start=charge" } },
-  { icon: SlidersHorizontal, title: "Manage what I have", body: "Connect the supported equipment you already own to one dashboard.", link: { label: "Get started", href: "/planner?start=manage" } },
+  { icon: Hammer, title: "Build a new system", body: "Solar, battery storage and EV charging, designed together for your property.", link: { label: "Plan my system", href: "/planner?start=build" } },
+  { icon: PlugZap, title: "Set up EV charging", body: "Chargers for your home, workplace or fleet, with the software to manage them.", link: { label: "Plan my system", href: "/planner?start=charge" } },
+  { icon: SlidersHorizontal, title: "Manage what I have", body: "Connect the supported equipment you already own to one dashboard.", link: { label: "Plan my system", href: "/planner?start=manage" } },
 ];
 
 /** Not sure what fits? Three doors into the Energy Planner, as the same frameless blocks as the rest of the site. */
