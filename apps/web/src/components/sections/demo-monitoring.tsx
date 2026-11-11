@@ -11,8 +11,12 @@ import {
   CircleAlert,
   CircleCheck,
   Cloud,
+  CloudDrizzle,
+  CloudFog,
+  CloudLightning,
   CloudMoon,
   CloudRain,
+  CloudSnow,
   CloudSun,
   Cpu,
   EvCharger,
@@ -23,7 +27,6 @@ import {
   Server,
   SlidersHorizontal,
   Sun,
-  Thermometer,
   TriangleAlert,
   X,
   Zap,
@@ -40,16 +43,16 @@ import {
   buildSampleData,
   istDay,
   SAMPLE_SITES,
-  weatherAt,
   type DemoData,
   type EvEvent,
   type EvSample,
-  type SampleCondition,
   type SampleDevice,
   type SampleSite,
   type SeriesPoint,
 } from "@/lib/landing-sample";
 import { cn } from "@/lib/utils";
+import type { PublicWeather } from "@/lib/public-weather";
+import type { Condition } from "@/lib/weather";
 
 // The customer's Monitoring page, as a small copy for the website, running on made-up figures (lib/landing-sample.ts): the same header, tabs, cards and charts
 // as the real page. Its figures follow the real clock in India and move on every 10 seconds. The header works like the real one (the site switcher, the weather,
@@ -229,13 +232,46 @@ export interface DemoInitial {
   alert?: number;
 }
 
-const WEATHER_ICON: Record<SampleCondition, { day: LucideIcon; night: LucideIcon; tone: string }> = {
+const WEATHER_ICON: Record<Condition, { day: LucideIcon; night: LucideIcon; tone: string }> = {
   clear: { day: Sun, night: Moon, tone: "text-amber-500" },
   fair: { day: CloudSun, night: CloudMoon, tone: "text-amber-500" },
   partly: { day: CloudSun, night: CloudMoon, tone: "text-amber-500" },
   cloudy: { day: Cloud, night: Cloud, tone: "text-slate-400" },
+  fog: { day: CloudFog, night: CloudFog, tone: "text-slate-400" },
+  drizzle: { day: CloudDrizzle, night: CloudDrizzle, tone: "text-sky-500" },
   rain: { day: CloudRain, night: CloudRain, tone: "text-sky-500" },
+  heavyrain: { day: CloudRain, night: CloudRain, tone: "text-sky-600" },
+  sleet: { day: CloudSnow, night: CloudSnow, tone: "text-sky-400" },
+  snow: { day: CloudSnow, night: CloudSnow, tone: "text-sky-300" },
+  thunder: { day: CloudLightning, night: CloudLightning, tone: "text-violet-500" },
 };
+
+/**
+ * The real weather at the visitor's APPROXIMATE place, from /api/public-weather (the hosting network's city-level position; the browser is never asked for
+ * its location). Null until it arrives or when it is not available: then the header shows a quiet placeholder, never made-up figures. Refreshed every 10 minutes.
+ */
+function useApproxWeather(): PublicWeather | null {
+  const [weather, setWeather] = React.useState<PublicWeather | null>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const res = await fetch("/api/public-weather");
+        const body = (await res.json()) as { weather?: PublicWeather };
+        if (!cancelled && body.weather) setWeather(body.weather);
+      } catch {
+        /* keep whatever is shown */
+      }
+    };
+    void load();
+    const id = window.setInterval(load, 10 * 60_000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(id);
+    };
+  }, []);
+  return weather;
+}
 
 interface Alert {
   kind: "fault" | "action" | "attention" | "good";
@@ -280,7 +316,6 @@ function DemoHeader({
   panel,
   setPanel,
   onSite,
-  nowMs,
   at,
   onDevice,
   activeDeviceId,
@@ -293,7 +328,6 @@ function DemoHeader({
   panel: PanelId | null;
   setPanel: (p: PanelId | null) => void;
   onSite: (id: string) => void;
-  nowMs: number | null;
   at: number;
   onDevice: (d: SampleDevice) => void;
   activeDeviceId: string | null;
@@ -305,8 +339,8 @@ function DemoHeader({
   // on a phone the panels hang from the header itself (as wide as the page), not from the button that opened them
   const wrap = mobile ? "" : "relative";
   const toggle = (p: PanelId) => setPanel(panel === p ? null : p);
-  const w = weatherAt(nowMs);
-  const WIcon = WEATHER_ICON[w.condition][w.night ? "night" : "day"];
+  const w = useApproxWeather();
+  const WIcon = w ? WEATHER_ICON[w.condition][w.night ? "night" : "day"] : Cloud;
   const alerts = ALERTS[site.id] ?? [];
   const [filter, setFilter] = React.useState<"all" | Alert["kind"]>("all");
   const [openAlert, setOpenAlert] = React.useState<number | null>(initialAlert ?? null);
@@ -368,10 +402,10 @@ function DemoHeader({
             onClick={() => toggle("weather")}
             className="flex h-8 cursor-pointer items-center gap-1.5 rounded-md px-1.5 text-sm font-medium text-foreground outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/50"
           >
-            <WIcon className={cn("size-[18px]", WEATHER_ICON[w.condition].tone)} strokeWidth={1.7} />
-            <span className="tabular-nums">{w.tempC}°</span>
+            <WIcon className={cn("size-[18px]", w ? WEATHER_ICON[w.condition].tone : "text-muted-foreground/50")} strokeWidth={1.7} />
+            <span className="tabular-nums">{w ? `${w.tempC}°` : "--°"}</span>
           </button>
-          {panel === "weather" && (
+          {panel === "weather" && w && (
             <div data-demo-panel className={cn(PANEL, mobile ? "left-2 right-2 top-[3.25rem] p-4" : "right-0 top-10 w-[21rem] p-4")}>
               <div className="flex items-center gap-4">
                 <WIcon className={cn("size-12", WEATHER_ICON[w.condition].tone)} strokeWidth={1.4} />
@@ -380,6 +414,7 @@ function DemoHeader({
                   <p className="mt-1 text-sm text-muted-foreground">
                     {w.text} · feels like {w.feelsC}°
                   </p>
+                  {w.place && <p className="mt-0.5 text-xs text-muted-foreground">Near {w.place}</p>}
                 </div>
               </div>
               <div className="mt-3 flex gap-5 text-xs text-muted-foreground">
@@ -404,6 +439,7 @@ function DemoHeader({
                 <Sun className="mt-0.5 size-3.5 shrink-0 text-amber-500" />
                 {w.outlook}
               </p>
+              <p className="mt-2 text-[10px] text-muted-foreground">Weather data from MET Norway</p>
             </div>
           )}
         </div>
@@ -741,7 +777,6 @@ export function DemoMonitoring({ locked = false, mobile = false, initial }: { lo
   const solarW = (L("pv1_power_w") ?? 0) + (L("pv2_power_w") ?? 0);
   const gridW = L("grid_total_power_w");
   const battW = L("battery_power_w");
-  const hottest = Math.max(L("inverter_dc_temperature_c") ?? -Infinity, L("inverter_ac_temperature_c") ?? -Infinity);
   const flowWord = (w: number | null, pos: string, neg: string) => (w === null ? "" : w > 0 ? pos : w < 0 ? neg : "Idle");
   /** The size of a two-way reading (a sign is never shown: the words say which way). */
   const unsigned = (w: number | null | undefined) => (w === null || w === undefined ? w : Math.abs(w));
@@ -768,7 +803,6 @@ export function DemoMonitoring({ locked = false, mobile = false, initial }: { lo
         panel={panel}
         setPanel={setPanel}
         onSite={setSiteId}
-        nowMs={nowMs}
         at={data.at}
         onDevice={(d) => setTab(d.kind === "inverter" ? "hub" : d.id)}
         activeDeviceId={activeCharger ? activeCharger.id : hasInverter ? "inverter" : null}
@@ -817,13 +851,8 @@ export function DemoMonitoring({ locked = false, mobile = false, initial }: { lo
 
           {hasInverter && (
             <>
+              {/* The Main Hub tab is the graphs alone (the four live cards are left out here; the other tabs keep theirs). */}
               <TabsContent value="hub" className="mt-3 space-y-3">
-                <div className={cards}>
-                  <LiveStatusCard icon={Sun} title="Output Power" subtitle="Inverter output power" value={`${kw(L("inverter_output_power_w"))} kW`} statusLabel="Status" badgeLabel="Live" compact />
-                  <LiveStatusCard icon={Gauge} title="Electrical" subtitle={`Current · ${fixed(L("inverter_l1_current_a"), 2)} A`} value={`${fixed(L("inverter_l1_voltage_v"))} V`} statusLabel="Frequency" badgeLabel={`${fixed(L("inverter_output_frequency_hz"), 2)} Hz`} compact />
-                  <LiveStatusCard icon={Zap} title="AC Output" subtitle="Energy today" value={`${fixed(L("day_active_energy_kwh"))} kWh`} statusLabel="Status" badgeLabel="Today" compact />
-                  <LiveStatusCard icon={Thermometer} title="Temperature" subtitle="Hottest · Heat-sink Temperature (DC)" value={Number.isFinite(hottest) ? `${hottest.toFixed(1)} °C` : DASH} statusLabel="Status" badgeLabel="Normal" badgeTone="good" compact />
-                </div>
                 <GroupTitle>Power Flows</GroupTitle>
                 {chart("Inverter output power", "kW", series("inverter_output_power_w", 0.001), FLOW.producing, { tall: true, labelEvery: 1 })}
                 <div className={row2}>
