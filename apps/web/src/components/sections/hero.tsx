@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { ArrowRight, Pause, Play } from "lucide-react";
+import { ArrowRight, AudioWaveform, BatteryCharging, CarFront, Pause, Play, Router, SolarPanel, type LucideIcon } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 import { CloudShader } from "@/components/ui/cloud-shader";
 import { FlipWords } from "@/components/ui/flip-words";
@@ -14,6 +14,14 @@ const VIDEO = "/videos/energy-banner.mp4";
 const POSTER = "/videos/energy-banner-poster.webp";
 // The words that take turns in the headline, each one an action the platform does for the whole property.
 const HEADLINE_WORDS = ["Connect.", "Monitor.", "Control.", "Optimise."];
+// The equipment the platform brings together, shown as a row of small icons with two-line labels at the left end of the row with the buttons.
+const EQUIPMENT: { icon: LucideIcon; lines: [string, string] }[] = [
+  { icon: SolarPanel, lines: ["Solar", "panels"] },
+  { icon: AudioWaveform, lines: ["Solar", "inverters"] }, // the AC wave: an inverter turns the panels' DC into AC
+  { icon: BatteryCharging, lines: ["Battery", "storage"] },
+  { icon: CarFront, lines: ["EV", "chargers"] },
+  { icon: Router, lines: ["WayTara", "gateway"] },
+];
 // The sky behind the top of the hero: the day sky and, in the dark theme, the same sky at dusk.
 const SKY_DAY = { top: "#3876ba", bottom: "#8cbfe8", cloud: "#fbf8f2" };
 const SKY_DUSK = { top: "#070d1f", bottom: "#1b2a4a", cloud: "#8d9bb8" };
@@ -149,7 +157,22 @@ export function Hero() {
             </p>
           </Reveal>
 
-          <Reveal direction="up" delay={340} duration={700} distance={12} className="mt-7 flex flex-wrap items-center gap-3">
+          {/* The row under the line: the equipment at the left end, the two buttons at the right end. On a narrow screen the buttons come first. */}
+          <Reveal direction="up" delay={340} duration={700} distance={12} className="mt-8 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
+            <ul aria-label="What WayTara connects" className="flex flex-wrap items-center gap-x-7 gap-y-4">
+              {EQUIPMENT.map(({ icon: Icon, lines }) => (
+                <li key={lines.join(" ")} className="flex items-center gap-3">
+                  <Icon aria-hidden="true" strokeWidth={1.6} className="size-8 shrink-0 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-sm font-medium leading-snug text-theme-primary">
+                    {lines[0]}
+                    <br />
+                    {lines[1]}
+                  </span>
+                </li>
+              ))}
+            </ul>
+
+            <div className="order-first flex flex-wrap items-center gap-3 lg:order-none">
             {/* The main action: the site's green gradient, white text, and the arrow in a white circle. */}
             <Link
               href="/planner"
@@ -168,6 +191,7 @@ export function Hero() {
             >
               Talk to us
             </Link>
+            </div>
           </Reveal>
 
           {/* 3. The animation card: the width of the text column, with a shadow. Its own background is white, so it shows as a card in both themes. */}
