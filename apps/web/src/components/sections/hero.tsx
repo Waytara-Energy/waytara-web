@@ -17,9 +17,11 @@ const NAV_HEIGHT = "clamp(3.5rem,4.5vw,4.25rem)";
 const SKY_DAY = { top: "#3876ba", bottom: "#8cbfe8", cloud: "#fbf8f2" };
 const SKY_DUSK = { top: "#070d1f", bottom: "#1b2a4a", cloud: "#8d9bb8" };
 
-// The pull-up: how much of the card shows at the start (a fifth of its height), how far the page scrolls (in screens) while it is pulled up and
+// The pull-up: how much of the card shows at the start (30 percent of its height), how far the page scrolls (in screens) while it is pulled up and
 // grown, and how much of that scroll the move itself uses (the rest is a rest, with the whole card in view, before the page moves on).
-const PEEK = 0.2;
+const PEEK = 0.3;
+// How far below the menu bar the headline starts. This is the only space that was added: the gap under the buttons is set by how much of the card shows.
+const TEXT_TOP = `calc(${NAV_HEIGHT} + clamp(3rem, 13vh, 8.5rem))`;
 const TRAVEL_SCREENS = 0.8;
 const MOVE_SHARE = 0.85;
 
@@ -38,7 +40,7 @@ const serverReducedMotion = () => false;
 /**
  * The top of the landing page, kept to the minimum: a headline, one line under it, two small buttons, and a large animation of what the product is.
  *
- * The page opens with only a fifth of the animation card showing at the foot of the screen, as wide as the text above it. Scrolling pins the scene,
+ * The page opens with only 30 percent of the animation card showing at the foot of the screen, as wide as the text above it. Scrolling pins the scene,
  * pulls the card up and grows it to the largest size at which the whole card still fits the window, and the text above lifts away. The video is in the
  * card and scales with it, as one piece. If the visitor stops part-way, the page finishes the move by itself (forwards if they were scrolling down,
  * back to the start if up). The numbers all come from --p (0 to 1, how far along the move is) set from the scroll position, so scrolling never
@@ -80,7 +82,7 @@ export function Hero() {
       const contentW = text.clientWidth - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight);
       const navH = document.querySelector("header")?.getBoundingClientRect().height ?? 64;
       const s0 = Math.min(1, contentW / cardW); // the start width is the text's width
-      const y0 = sceneH - PEEK * cardH * s0; // a fifth of the card shows
+      const y0 = sceneH - PEEK * cardH * s0; // 30 percent of the card shows
       const y1 = navH + Math.max(8, (sceneH - navH - cardH) / 2); // the whole card, centred in what is left below the bar
       scene.style.setProperty("--s0", s0.toFixed(4));
       scene.style.setProperty("--y0", `${Math.round(y0)}px`);
@@ -160,7 +162,7 @@ export function Hero() {
           video.pause();
         }
       },
-      // A twentieth is enough: at the start only a fifth of the card shows, and it should already be playing.
+      // A twentieth is enough: at the start only 30 percent of the card shows, and it should already be playing.
       { threshold: 0.05 }
     );
     watcher.observe(video);
@@ -276,7 +278,7 @@ export function Hero() {
   // Visitors who asked for less motion: no pinning and no movement, just the text and the card at full size under it.
   if (reduced) {
     return (
-      <section className="relative overflow-hidden bg-theme-bg pb-10" style={{ paddingTop: `calc(${NAV_HEIGHT} + clamp(2.5rem, 9vh, 6.5rem))` }}>
+      <section className="relative overflow-hidden bg-theme-bg pb-10" style={{ paddingTop: TEXT_TOP }}>
         {background}
         <link rel="preload" as="image" href={POSTER} fetchPriority="high" />
         <div className="relative z-10">
@@ -302,7 +304,7 @@ export function Hero() {
         <div
           className="absolute inset-x-0 z-10 group-data-[past=1]:pointer-events-none"
           style={{
-            top: `calc(${NAV_HEIGHT} + clamp(2.5rem, 9vh, 6.5rem))`,
+            top: TEXT_TOP,
             transform: "translateY(calc(var(--p) * -90px))",
             opacity: "calc(1 - var(--p) * 1.8)",
           }}
