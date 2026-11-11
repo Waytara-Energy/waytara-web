@@ -2,6 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import {
   Menu,
   ChevronDown,
@@ -49,6 +50,8 @@ function initials(name: string | null, email: string | null): string {
 }
 
 export function Navigation() {
+  const pathname = usePathname();
+  const [isScrolled, setIsScrolled] = React.useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   const [mobileOpen, setMobileOpen] = React.useState<string | null>(null);
   // Which header item's panel is open on desktop (null: none). Opens on hover or focus, closes on leaving the header, Escape, or choosing a link.
@@ -75,6 +78,8 @@ export function Navigation() {
     return () => document.removeEventListener("keydown", onKey);
   }, [activeMenu]);
   const [account, setAccount] = React.useState<Account | null>(null);
+
+  const isHome = pathname === "/";
 
   // Signed-in customer browsing the public site (e.g. via the dashboard's
   // own "Home" link) — swap "Get Started" for their avatar rather than
@@ -127,10 +132,19 @@ export function Navigation() {
     };
   }, []);
 
+  React.useEffect(() => {
+    const handleScroll = () => {
+      setIsScrolled(window.scrollY > 20);
+    };
+
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
+  }, []);
+
   const shownMenuConfig = HEADER_MENUS.find((m) => m.label === shownMenu);
   const shownPanel = shownMenu === "search" ? { key: "search", render: (close: () => void) => <SearchPanel onNavigate={close} /> } : shownMenuConfig ? menuPanel(shownMenuConfig) : null;
-  // The home page's top is light now (headline and animation on the page colour), so the bar uses the theme colours everywhere, as it does on every other page.
-  const isThemeStyled = true;
+  const isThemeStyled = !isHome || isScrolled || activeMenu !== null;
 
   // One look for every text link and icon in the bar: white over the hero, theme colours once the bar is solid.
   const linkClass = cn(

@@ -128,6 +128,8 @@ export function Hero() {
           cloudColor={sky.cloud}
           maxPixelRatio={1}
         />
+        {/* A soft shade under the transparent menu bar, so its white links stay readable on the sky. */}
+        <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/35 to-transparent" />
         <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-theme-bg" />
       </div>
 
