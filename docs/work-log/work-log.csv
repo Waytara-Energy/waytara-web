@@ -517,6 +517,8 @@
 2026-10-21,Documentation,GATEWAY V4 TASKS,"A9 - the three failure causes end to end, what changed and how to verify on the board"
 2026-10-21,Supabase,Database tests; Migration: Recovery hold,"A recovery must hold for a minute before an offline alert closes and ""back online"" is sent"
 2026-10-21,Supabase,Migration: Read rates; Database tests,"Choose the read rate of each value of a unit (cadence seconds), with ""use the map's rate"" to put the original back"
+2026-10-21,Firmware,Gateway v3: board tests,Board tests passed without RS485; the read-rates feature was pushed and deployed; the 72-hour solar soak started (about 11:00)
+2026-10-21,Firmware,Gateway v3,"Gateway v3 progress: what is built and what waits for the board (T7, T17, T25), with the push and deploy order"
 2026-10-22,Customer dashboard,Dashboard page; Nav config; Devices board,Charging pages follow the selected site; Site moves from a Devices tab to its own menu page under Maintenance
 2026-10-22,Customer dashboard,Dashboard page; Site location; Site pane,"Site page redesigned as a full-page map with two floating cards, and a minimal edit form"
 2026-10-22,Customer dashboard,Dashboard page; Glass; Site devices,"Site page - device list with status, two-step edit (place the pin, then the details) and glass cards"
@@ -629,6 +631,7 @@
 2026-10-23,Supabase,Migration: Gateway charger audit actor,Adding a charger to a unit acts as the person who asked (audit trail)
 2026-10-23,Documentation,EV GATEWAY CHECKLIST,Checklist for the EV charger through the monitoring unit (SIM + local Wi-Fi)
 2026-10-23,Customer dashboard,Dashboard page,"Take the EV cards, the charging-sessions carousel (with its images and Start/Stop buttons) off the Overview, to redesign the EV pages"
+2026-10-23,Firmware,Gateway SIM + EV experiment,"A7670C SIM internet and a local Wi-Fi access point with OCPP on the ESP32-S3, in a separate experiment folder"
 2026-10-24,Customer dashboard,Dashboard page; Charging sessions carousel; Energy flow diagram,"EV in the energy flow, Start charging on the Overview, EV tab on Monitoring, colour key in the header"
 2026-10-24,Backend,Library: Ev control; Library: Ev tab; Library: Ev overview,"EV in the energy flow, Start charging on the Overview, EV tab on Monitoring, colour key in the header"
 2026-10-24,Customer dashboard,Energy flow diagram,"The energy flow keeps its circles (greyed, with a dash) when there are no readings"
@@ -649,6 +652,7 @@
 2026-10-24,Documentation,EV GATEWAY CHECKLIST,Checklist - runbook written
 2026-10-24,Supabase,Migration: Gateway ev latest,"Gw_ev_set_latest - the live figures of a charger, written by the OCPP server"
 2026-10-24,Customer dashboard,Device status icons,"A way to show the EV charger on Monitoring, Performance, Reports and Maintenance"
+2026-10-24,Firmware,EV charger Wi-Fi,The EV charger works over a PC hotspot but will not join the unit's own Wi-Fi (ESP32EV); what was tried and the next ideas were written down
 2026-10-25,Customer dashboard,Dashboard page; Appearance setting; Bar trend chart,"Mobile swipeable tabs, weather sunrise/sunset overlay, default line charts and auto theme"
 2026-10-25,Landing page,Tabs; Site styles; Appearance applier,"Mobile swipeable tabs, weather sunrise/sunset overlay, default line charts and auto theme"
 2026-10-25,Backend,Library: Appearance prefs; Library: Chart style; Supabase package: Roles,"Mobile swipeable tabs, weather sunrise/sunset overlay, default line charts and auto theme"
@@ -959,3 +963,4 @@
 2026-11-11,Landing page,Hero section; Navigation section,Status bar strip matches the sky in both themes: the pinned sky layer was always day blue
 2026-11-11,Landing page,Mobile menu section; Navigation section,Smaller brand logo in the phone header and menu
 2026-11-11,Landing page,Home page; Hero section,Dark theme status bar stays navy after a refresh; longer navy fade on the dark sky
+2026-11-11,Backend,Tests and deploy: Work log,"Daily work log: CSV, a workbook with a sheet for each day, and a day-by-day export"
