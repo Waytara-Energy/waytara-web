@@ -171,16 +171,16 @@ export function Navigation() {
     <header
       ref={headerRef}
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-[transform,background-color,color,border-color] duration-200 ease-out h-[clamp(3.5rem,4.5vw,4.25rem)] flex items-center select-none border-b",
+        "fixed top-0 left-0 right-0 z-50 transition-[transform,background-color,color] duration-200 ease-out h-[clamp(3.5rem,4.5vw,4.25rem)] flex items-center select-none",
         // Away while the visitor scrolls down; never while a menu is open.
         scrolledAway && activeMenu === null && !mobileMenuOpen && "-translate-y-full",
         // While a menu is open the bar and the panel are one surface: same solid colour, no seam (otherwise the bar's tint shows the page through it).
-        // No shadow under the bar: a thin line is all that separates it from the page once it is solid.
+        // No shadow and no line under the bar.
         activeMenu !== null
-          ? "border-transparent bg-theme-bg text-theme-primary"
+          ? "bg-theme-bg text-theme-primary"
           : isThemeStyled
-            ? "border-theme-border bg-theme-bg/95 text-theme-primary backdrop-blur-md"
-            : "border-transparent bg-transparent text-white"
+            ? "bg-theme-bg/95 text-theme-primary backdrop-blur-md"
+            : "bg-transparent text-white"
       )}
       onMouseLeave={scheduleClose}
       onMouseEnter={() => {
