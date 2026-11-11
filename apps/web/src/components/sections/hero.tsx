@@ -12,41 +12,22 @@ import { useHasMounted } from "@/hooks/use-has-mounted";
 const VIDEO = "/videos/energy-banner.mp4";
 // A still of the street scene: shown while the video loads, and kept for visitors who ask for less motion or for less data.
 const POSTER = "/videos/energy-banner-poster.webp";
-// Height of the fixed menu bar (the same clamp the bar itself uses); everything starts below it.
-const NAV_HEIGHT = "clamp(3.5rem,4.5vw,4.25rem)";
 // The words that take turns in the headline, each one an action the platform does for the whole property.
 const HEADLINE_WORDS = ["Connect.", "Monitor.", "Control.", "Optimise."];
 // The sky behind the top of the hero: the day sky and, in the dark theme, the same sky at dusk.
 const SKY_DAY = { top: "#3876ba", bottom: "#8cbfe8", cloud: "#fbf8f2" };
 const SKY_DUSK = { top: "#070d1f", bottom: "#1b2a4a", cloud: "#8d9bb8" };
 
-// The pull-up: how much of the card shows at the start (30 percent of its height), how far the page scrolls (in screens) while it is pulled up and
-// grown, and how much of that scroll the move itself uses (the rest is a rest, with the whole card in view, before the page moves on).
-const PEEK = 0.3;
-// The height of the scene (the first screen, but never shorter than 620 px).
+// The height of the first screen (never shorter than 620 px): the sky is as tall as that and stays in place while the page scrolls over it.
 const SCENE_H = "max(100dvh, 620px)";
-// The sky shows clear for the top 8 percent of the scene and fades into the page colour by 30 percent: so only the top 30 percent of the screen shows
-// clouds, and everything below is the page colour (the layer the content sits on). This layer rises with the content and covers the clouds.
+// The layer the content sits on is clear at the top (the sky shows through), fades into the page colour by 30 percent of the first screen, and is the
+// page colour from there on down. So only the top 30 percent of the screen shows clouds, and as the page scrolls this layer, carrying the content,
+// rises over them and hides them.
 const OVERLAY = `linear-gradient(to bottom, transparent 0, transparent calc(${SCENE_H} * 0.08), var(--background) calc(${SCENE_H} * 0.3))`;
 // The headline starts just below the part where the sky shows.
 const TEXT_TOP = `calc(${SCENE_H} * 0.3 + 1.5rem)`;
-const TRAVEL_SCREENS = 0.8;
-const MOVE_SHARE = 0.85;
-// The card starts at this share of the text column's width, and grows from there. 1 is the text column's full width (it was 0.68 for a while).
-const START_SHARE = 1;
-// How quickly the card follows the scroll position: it closes about two thirds of the distance to where the scroll says it should be every this many
-// milliseconds (so about 95 percent of the way in half a second, on any screen's refresh rate). It makes the card glide to its place and settle,
-// instead of being tied to the wheel notch by notch.
-const FOLLOW_MS = 170;
-// Sent on window every time the card has moved, so the menu bar can look at where the card is without being tied to scroll events.
-const CARD_MOVED = "hero-card-moved";
 
-const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
-// The card grows on a curve that starts slowly and finishes slowly (ease in-out), so it opens out. It RISES in step with the layer of content (no
-// easing), so it never slides over the text that is rising with that layer.
-const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
-
-// Whether the visitor asked for less motion. The server-built page assumes not; a visitor who did gets the still layout as soon as the page is live.
+// Whether the visitor asked for less motion. The server-built page assumes not; a visitor who did gets a still word and no autoplaying video.
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 function subscribeReducedMotion(onChange: () => void) {
   const query = window.matchMedia(REDUCED_MOTION);
@@ -57,27 +38,15 @@ const readReducedMotion = () => window.matchMedia(REDUCED_MOTION).matches;
 const serverReducedMotion = () => false;
 
 /**
- * The top of the landing page, kept to the minimum: a headline, one line under it, two small buttons, and a large animation of what the product is.
- *
- * The page opens with the cloud sky showing only in the top 30 percent of the screen; a fade turns it into the page colour, and the headline, the
- * line and the buttons sit on that. Scrolling pins the scene: the page-coloured layer rises with the content and covers the clouds (which stay
- * where they are), while the animation card, 30 percent of it showing at the start, is pulled up and opened out to the largest size at which the
- * whole card still fits the window. The
- * video is in the card and scales with it, as one piece. The card glides after the scroll position (eased, so it settles softly) and there is no
- * automatic scrolling: the page only moves when the visitor moves it. The numbers all come from --p (0 to 1, how far along the move is), --pos and
- * --grow (the same, for the rise and, eased, for the growth), set from the scroll position, so scrolling never re-renders the page.
+ * The top of the landing page: the cloud sky shows in the top 30 percent of the first screen and fades into the page colour; the headline, one line and
+ * two buttons sit on that, and under them the animation card at the width of the text column. Nothing is animated by scrolling except that the page
+ * itself moves: the sky stays where it is, and the page-coloured layer with the content scrolls up over it and covers the clouds.
  *
  * The video has no sound, so it may start on its own. It is paused while out of view, it does not start for visitors who asked for less motion or for
- * less data (they see the still and a play button), and everyone gets a pause button. For visitors who ask for less motion nothing is pinned or moved:
- * the card is simply shown at full size under the text.
+ * less data (they see the still and a play button), and everyone gets a pause button.
  */
 export function Hero() {
   const videoRef = React.useRef<HTMLVideoElement>(null);
-  const outerRef = React.useRef<HTMLDivElement>(null);
-  const sceneRef = React.useRef<HTMLDivElement>(null);
-  const textRef = React.useRef<HTMLDivElement>(null);
-  const overlayRef = React.useRef<HTMLDivElement>(null);
-  const cardRef = React.useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = React.useState(false);
   const reduced = React.useSyncExternalStore(subscribeReducedMotion, readReducedMotion, serverReducedMotion);
   // The theme is not known until the page has loaded in the browser, so the server-built page always has the day sky.
@@ -87,84 +56,6 @@ export function Hero() {
   // True once the visitor pressed pause, or never asked to play: scrolling back into view must not start it again then.
   const heldBack = React.useRef(false);
 
-  // The pull-up: sizes, then the move, following the scroll position softly.
-  React.useEffect(() => {
-    const outer = outerRef.current;
-    const scene = sceneRef.current;
-    const text = textRef.current;
-    const card = cardRef.current;
-    const overlay = overlayRef.current;
-    if (reduced || !outer || !scene || !text || !card || !overlay) return;
-
-    // Where the card starts and ends, from the sizes on this screen.
-    const measure = () => {
-      const sceneH = scene.clientHeight;
-      const cardW = card.offsetWidth;
-      const cardH = card.offsetHeight;
-      const styles = getComputedStyle(text);
-      const contentW = text.clientWidth - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight);
-      const navH = document.querySelector("header")?.getBoundingClientRect().height ?? 64;
-      const s0 = Math.min(1, (contentW * START_SHARE) / cardW); // the start width: a share of the text's width
-      // 30 percent of the card shows, unless the text needs the room (on a short screen): the card never starts over the text.
-      const textBottom = (text.parentElement?.offsetTop ?? 0) + text.offsetHeight;
-      const y0 = Math.max(sceneH - PEEK * cardH * s0, textBottom + 24);
-      const y1 = navH + Math.max(8, (sceneH - navH - cardH) / 2); // the whole card, centred in what is left below the bar
-      scene.style.setProperty("--s0", s0.toFixed(4));
-      scene.style.setProperty("--y0", `${Math.round(y0)}px`);
-      scene.style.setProperty("--y1", `${Math.round(y1)}px`);
-      // The layer with the content rises by the scroll distance of the move (as if it were ordinary page content), and the menu bar needs to know
-      // where the sky has been covered: about the middle of the fade, a fifth of the way down.
-      scene.style.setProperty("--rise", `${Math.round((outer.offsetHeight - scene.offsetHeight) * MOVE_SHARE)}px`);
-      overlay.dataset.solidAt = String(Math.round(sceneH * 0.2));
-    };
-
-    // How far the scroll has got, 0 to 1 (the last part of the travel is a rest with the whole card in view).
-    const wanted = () => {
-      const travel = outer.offsetHeight - scene.offsetHeight;
-      const raw = travel > 0 ? clamp01(-outer.getBoundingClientRect().top / travel) : 0;
-      return clamp01(raw / MOVE_SHARE);
-    };
-
-    let target = wanted(); // where the scroll says the card should be
-    let shown = target; // where the card is drawn; it moves towards the target a little each frame
-    let frame = 0;
-    let last = 0; // the time of the previous frame while moving
-    const apply = (v: number) => {
-      scene.style.setProperty("--p", v.toFixed(4));
-      scene.style.setProperty("--pos", v.toFixed(4));
-      scene.style.setProperty("--grow", easeInOutCubic(v).toFixed(4));
-      window.dispatchEvent(new Event(CARD_MOVED));
-    };
-    const tick = (now: number) => {
-      frame = 0;
-      const dt = last ? Math.min(64, now - last) : 16;
-      last = now;
-      shown += (target - shown) * (1 - Math.exp(-dt / FOLLOW_MS));
-      if (Math.abs(target - shown) < 0.0007) shown = target;
-      apply(shown);
-      if (shown !== target) frame = requestAnimationFrame(tick);
-      else last = 0;
-    };
-    const aim = () => {
-      target = wanted();
-      if (!frame) frame = requestAnimationFrame(tick);
-    };
-
-    measure();
-    apply(shown);
-    window.addEventListener("scroll", aim, { passive: true });
-    const onResize = () => {
-      measure();
-      aim();
-    };
-    window.addEventListener("resize", onResize);
-    return () => {
-      window.removeEventListener("scroll", aim);
-      window.removeEventListener("resize", onResize);
-      cancelAnimationFrame(frame);
-    };
-  }, [reduced]);
-
   // Play and pause.
   React.useEffect(() => {
     const video = videoRef.current;
@@ -173,7 +64,7 @@ export function Hero() {
     setPlaying(!video.paused);
 
     const connection = (navigator as Navigator & { connection?: { saveData?: boolean } }).connection;
-    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches || connection?.saveData) {
+    if (window.matchMedia(REDUCED_MOTION).matches || connection?.saveData) {
       heldBack.current = true;
       video.pause();
       return;
@@ -187,13 +78,11 @@ export function Hero() {
           video.pause();
         }
       },
-      // A twentieth is enough: at the start only 30 percent of the card shows, and it should already be playing.
       { threshold: 0.05 }
     );
     watcher.observe(video);
     return () => watcher.disconnect();
-    // Again when the layout switches for reduced motion: that makes a new video element.
-  }, [reduced]);
+  }, []);
 
   const toggle = () => {
     const video = videoRef.current;
@@ -210,166 +99,108 @@ export function Hero() {
   const buttonBase =
     "inline-flex h-12 sm:h-[3.25rem] items-center rounded-full text-sm sm:text-base font-semibold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-theme-bg";
 
-  // The text block: the headline, the line and the buttons.
-  const text = (
-    <div ref={textRef} className="fluid-container">
-      <Reveal direction="up" delay={100} duration={800} distance={24}>
-        <h1 className="font-bold tracking-tight leading-[1.05] text-theme-primary text-balance text-[clamp(2rem,4.4vw,4.25rem)]">
-          {/* The whole sentence for screen readers, search engines and anyone without the animation; the visible two lines below are hidden from them. */}
-          <span className="sr-only">One platform to connect, monitor, control and optimise your entire energy ecosystem.</span>
-          <span aria-hidden="true" className="block">
-            <span className="block sm:whitespace-nowrap">
-              One platform to{" "}
-              <FlipWords
-                words={HEADLINE_WORDS}
-                still={reduced}
-                className="bg-gradient-to-r from-emerald-600 via-green-500 to-lime-500 bg-clip-text text-transparent dark:from-emerald-300 dark:via-green-400 dark:to-lime-300"
-              />
-            </span>
-            <span className="block sm:whitespace-nowrap">Your entire energy ecosystem.</span>
-          </span>
-        </h1>
-      </Reveal>
-
-      <Reveal direction="up" delay={220} duration={800} distance={16} className="mt-5 max-w-2xl">
-        <p className="text-[clamp(1rem,1.3vw,1.2rem)] leading-relaxed text-theme-secondary">
-          Connect solar, battery storage, EV chargers, meters and more into one unified management platform. New or existing infrastructure, configured around your needs.
-        </p>
-      </Reveal>
-
-      <Reveal direction="up" delay={340} duration={700} distance={12} className="mt-7 flex flex-wrap items-center gap-3">
-        <Link
-          href="/planner"
-          className={`${buttonBase} group gap-3 bg-theme-primary pl-6 pr-1.5 text-theme-bg shadow-xl shadow-black/15 transition-all duration-200 hover:scale-[1.03] active:scale-95`}
-        >
-          <span>Plan my system</span>
-          <span className="flex size-9 sm:size-10 items-center justify-center rounded-full bg-emerald-600 text-white transition-transform duration-200 group-hover:translate-x-0.5">
-            <ArrowRight className="size-4" />
-          </span>
-        </Link>
-        <Link
-          href="/contact"
-          className={`${buttonBase} border border-theme-border bg-theme-surface px-6 text-theme-primary transition-colors duration-200 hover:bg-theme-surface-hover`}
-        >
-          Talk to us
-        </Link>
-      </Reveal>
-    </div>
-  );
-
-  // The card: the animation and its pause button, one piece (it is the card that scales, the video is just inside it).
-  const card = (
-    <div
-      ref={cardRef}
-      data-hero-card=""
-      className="relative aspect-video overflow-hidden rounded-[20px] bg-white sm:rounded-[28px]"
-      style={{
-        // As wide as the page allows, but never so tall that the whole card cannot be in view at once (below the menu bar, with a little air).
-        width: `min(calc(100% - 2rem), calc((max(100dvh, 620px) - ${NAV_HEIGHT} - 1.5rem) * 16 / 9))`,
-        ...(reduced
-          ? {}
-          : {
-              transformOrigin: "50% 0%",
-              translate: "0 calc(var(--y0) + (var(--y1) - var(--y0)) * var(--pos))",
-              scale: "calc(var(--s0) + (1 - var(--s0)) * var(--grow))",
-              willChange: "transform",
-            }),
-      }}
-    >
-      <video
-        ref={videoRef}
-        className="absolute inset-0 h-full w-full object-cover"
-        poster={POSTER}
-        autoPlay
-        muted
-        loop
-        playsInline
-        preload="metadata"
-        aria-label="Animation: a property with solar panels, a battery, an inverter, an IoT gateway and an EV charger, connected to the cloud dashboard where the owner monitors and controls them."
-        onPlay={() => setPlaying(true)}
-        onPause={() => setPlaying(false)}
-      >
-        <source src={VIDEO} type="video/mp4" />
-      </video>
-
-      <button
-        type="button"
-        onClick={toggle}
-        aria-label={playing ? "Pause the animation" : "Play the animation"}
-        className="absolute bottom-4 right-4 flex size-11 cursor-pointer items-center justify-center rounded-full bg-black/70 text-white ring-1 ring-white/20 backdrop-blur-sm transition hover:bg-black/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:bottom-5 sm:right-5"
-      >
-        {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
-      </button>
-    </div>
-  );
-
-  // The sky, with a soft shade under the transparent menu bar (so its white links read). The layer with the content lies over it.
-  const background = (
-    <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-gradient-to-b from-[#3876ba] to-[#8cbfe8]">
-      <CloudShader
-        className="absolute inset-0 h-full min-h-0"
-        skyTopColor={sky.top}
-        skyBottomColor={sky.bottom}
-        cloudColor={sky.cloud}
-        maxPixelRatio={1}
-      />
-      <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/35 to-transparent" />
-    </div>
-  );
-
-  // Visitors who asked for less motion: no pinning and no movement, just the text and the card at full size under it.
-  if (reduced) {
-    return (
-      <section className="relative overflow-hidden bg-theme-bg pb-10" style={{ paddingTop: TEXT_TOP }}>
-        <link rel="preload" as="image" href={POSTER} fetchPriority="high" />
-        <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0" style={{ height: `calc(${SCENE_H} * 0.5)` }}>
-          {background}
-        </div>
-        <div data-hero-overlay="" className="pointer-events-none absolute inset-x-0 top-0" style={{ height: `calc(${SCENE_H} * 0.5)`, background: OVERLAY }} />
-        <div className="relative z-10">
-          {text}
-          <div className="mt-10 flex justify-center">{card}</div>
-        </div>
-      </section>
-    );
-  }
-
   return (
-    // The outer box is taller than the screen; the scene sticks to the top of it while that extra height scrolls by.
-    <div ref={outerRef} className="relative" style={{ height: `calc(max(100dvh, 620px) + ${TRAVEL_SCREENS * 100}dvh)` }}>
-      <section
-        ref={sceneRef}
-        className="group sticky top-0 h-[100dvh] min-h-[620px] overflow-hidden bg-theme-bg [--p:0] [--pos:0] [--grow:0] [--s0:1] [--y0:62dvh] [--y1:5rem] [--rise:60dvh]"
+    <section className="relative bg-theme-bg">
+      {/* The still is what the page paints first, so it is asked for at once. */}
+      <link rel="preload" as="image" href={POSTER} fetchPriority="high" />
+
+      {/* 1. The sky: one screen tall, stuck to the top of the window while this section is on screen, taking no room of its own (the negative margin).
+          The layer below scrolls over it. A soft shade under the menu bar keeps its white links readable on the sky. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none sticky top-0 overflow-hidden bg-gradient-to-b from-[#3876ba] to-[#8cbfe8]"
+        style={{ height: SCENE_H, marginBottom: `calc(${SCENE_H} * -1)` }}
       >
-        {/* The still is what the page paints first, so it is asked for at once. */}
-        <link rel="preload" as="image" href={POSTER} fetchPriority="high" />
+        <CloudShader
+          className="absolute inset-0 h-full min-h-0"
+          skyTopColor={sky.top}
+          skyBottomColor={sky.bottom}
+          cloudColor={sky.cloud}
+          maxPixelRatio={1}
+        />
+        <div className="absolute inset-x-0 top-0 h-28 bg-gradient-to-b from-black/35 to-transparent" />
+      </div>
 
-        {/* 1. The sky. It stays where it is; only the top of it shows at first, and the layer below rises over it. */}
-        {background}
+      {/* 2. The layer with the content: clear at the top, the page colour from 30 percent down, scrolling with the page. */}
+      <div data-hero-overlay="" className="relative z-10 pb-12 sm:pb-16" style={{ background: OVERLAY, paddingTop: TEXT_TOP }}>
+        <div className="fluid-container">
+          <Reveal direction="up" delay={100} duration={800} distance={24}>
+            <h1 className="font-bold tracking-tight leading-[1.05] text-theme-primary text-balance text-[clamp(2rem,4.4vw,4.25rem)]">
+              {/* The whole sentence for screen readers, search engines and anyone without the animation; the visible two lines below are hidden from them. */}
+              <span className="sr-only">One platform to connect, monitor, control and optimise your entire energy ecosystem.</span>
+              <span aria-hidden="true" className="block">
+                <span className="block sm:whitespace-nowrap">
+                  One platform to{" "}
+                  <FlipWords
+                    words={HEADLINE_WORDS}
+                    still={reduced}
+                    className="bg-gradient-to-r from-emerald-600 via-green-500 to-lime-500 bg-clip-text text-transparent dark:from-emerald-300 dark:via-green-400 dark:to-lime-300"
+                  />
+                </span>
+                <span className="block sm:whitespace-nowrap">Your entire energy ecosystem.</span>
+              </span>
+            </h1>
+          </Reveal>
 
-        {/* 2. The layer with the content: clear at the top (the sky shows through), the page colour from about 30 percent of the way down, and as tall as
-            needed below that. It rises with the scroll as if it were ordinary page content, taking the text with it and covering the clouds. */}
-        <div
-          ref={overlayRef}
-          data-hero-overlay=""
-          className="pointer-events-none absolute inset-x-0 top-0 z-10"
-          style={{
-            height: `calc(${SCENE_H} * 3)`,
-            background: OVERLAY,
-            translate: "0 calc(var(--p) * var(--rise) * -1)",
-            willChange: "transform",
-          }}
-        >
-          <div className="pointer-events-auto absolute inset-x-0" style={{ top: TEXT_TOP }}>
-            {text}
-          </div>
+          <Reveal direction="up" delay={220} duration={800} distance={16} className="mt-5 max-w-[52rem]">
+            {/* Two lines on a wide screen (the box is just wide enough, and text-balance evens the two out); it wraps to more on a narrow one. */}
+            <p className="text-balance text-[clamp(1rem,1.3vw,1.2rem)] leading-relaxed text-theme-secondary">
+              Connect solar, batteries, EV chargers, meters and more through WayTara&rsquo;s flexible gateway and unified platform, built for new and existing energy infrastructure.
+            </p>
+          </Reveal>
+
+          <Reveal direction="up" delay={340} duration={700} distance={12} className="mt-7 flex flex-wrap items-center gap-3">
+            {/* The main action: the site's green gradient, white text, and the arrow in a white circle. */}
+            <Link
+              href="/planner"
+              className={`${buttonBase} group gap-3 bg-primary-gradient pl-6 pr-1.5 text-white shadow-lg shadow-emerald-900/20 transition-all duration-200 hover:brightness-95 hover:shadow-xl active:scale-95`}
+            >
+              <span>Plan my system</span>
+              <span className="flex size-9 sm:size-10 items-center justify-center rounded-full bg-white text-slate-950 transition-transform duration-200 group-hover:translate-x-0.5">
+                <ArrowRight className="size-4" />
+              </span>
+            </Link>
+            {/* The second action: quiet until pointed at, then filled with the brand green. (Plain colour classes on purpose: the site's unlayered theme-*
+                classes would override the hover colours.) */}
+            <Link
+              href="/contact"
+              className={`${buttonBase} border border-slate-300 bg-slate-50 px-6 text-slate-900 transition-colors duration-200 hover:border-emerald-600 hover:bg-emerald-600 hover:text-white dark:border-white/20 dark:bg-white/5 dark:text-slate-50 dark:hover:border-emerald-500 dark:hover:bg-emerald-500`}
+            >
+              Talk to us
+            </Link>
+          </Reveal>
+
+          {/* 3. The animation card: the width of the text column, with a shadow. Its own background is white, so it shows as a card in both themes. */}
+          <Reveal direction="up" delay={480} duration={900} distance={30} className="mt-10 sm:mt-12">
+            <div className="relative aspect-video w-full overflow-hidden rounded-[20px] bg-white shadow-2xl shadow-black/25 sm:rounded-[28px]">
+              <video
+                ref={videoRef}
+                className="absolute inset-0 h-full w-full object-cover"
+                poster={POSTER}
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                aria-label="Animation: a property with solar panels, a battery, an inverter, an IoT gateway and an EV charger, connected to the cloud dashboard where the owner monitors and controls them."
+                onPlay={() => setPlaying(true)}
+                onPause={() => setPlaying(false)}
+              >
+                <source src={VIDEO} type="video/mp4" />
+              </video>
+
+              <button
+                type="button"
+                onClick={toggle}
+                aria-label={playing ? "Pause the animation" : "Play the animation"}
+                className="absolute bottom-4 right-4 flex size-11 cursor-pointer items-center justify-center rounded-full bg-black/70 text-white ring-1 ring-white/20 backdrop-blur-sm transition hover:bg-black/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:bottom-5 sm:right-5"
+              >
+                {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
+              </button>
+            </div>
+          </Reveal>
         </div>
-
-        {/* 3. The card, in front of both: placed from the top of the scene by --y0 to --y1 and scaled from --s0 to 1 (see the effect above). */}
-        <div className="absolute inset-x-0 top-0 z-20 flex justify-center pointer-events-none">
-          <div className="pointer-events-auto contents">{card}</div>
-        </div>
-      </section>
-    </div>
+      </div>
+    </section>
   );
 }

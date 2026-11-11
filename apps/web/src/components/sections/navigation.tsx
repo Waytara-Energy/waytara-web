@@ -133,41 +133,13 @@ export function Navigation() {
   }, []);
 
   React.useEffect(() => {
-    // On the home page the bar stays transparent (white links) while the sky is behind it. The hero's layer with the content (data-hero-overlay)
-    // rises over the sky as the page scrolls; once its fade has passed the bar, the sky is gone from behind it and the bar turns solid, and stays
-    // solid from then on. (The card touching the bar always counts too.) On any page without that layer the bar turns solid after a short scroll.
-    const REACH = 24;
-    const update = () => {
-      const overlay = document.querySelector<HTMLElement>("[data-hero-overlay]");
-      const card = document.querySelector("[data-hero-card]");
-      const barBottom = headerRef.current?.getBoundingClientRect().bottom ?? 64;
-      if (!overlay && !card) {
-        setIsScrolled(window.scrollY > 20);
-        return;
-      }
-      const solidAt = Number(overlay?.dataset.solidAt ?? window.innerHeight * 0.2);
-      const skyCovered = overlay ? overlay.getBoundingClientRect().top + solidAt <= barBottom : false;
-      const cardTouches = card ? card.getBoundingClientRect().top <= barBottom + REACH : false;
-      setIsScrolled(skyCovered || cardTouches);
-    };
-    // The card is moved by the hero in an animation frame of its own, so look after that has happened.
-    let frame = 0;
     const handleScroll = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(() => requestAnimationFrame(update));
+      setIsScrolled(window.scrollY > 20);
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    window.addEventListener("resize", handleScroll);
-    // The hero sends this each time it has moved the card (it glides after the scroll, so it can still be moving after scrolling has stopped).
-    window.addEventListener("hero-card-moved", update);
-    update();
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-      window.removeEventListener("resize", handleScroll);
-      window.removeEventListener("hero-card-moved", update);
-      cancelAnimationFrame(frame);
-    };
+    handleScroll();
+    return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
   const shownMenuConfig = HEADER_MENUS.find((m) => m.label === shownMenu);
