@@ -18,6 +18,8 @@ import { MobileMenu } from "@/components/sections/mobile-menu";
 export function Navigation() {
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = React.useState(false);
+  // Scrolling down hides the header, scrolling up brings it back (on every screen size); it is always there at the very top.
+  const [scrolledAway, setScrolledAway] = React.useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
   // Which header item's panel is open on desktop (null: none). Opens on hover or focus, closes on leaving the header, Escape, or choosing a link.
   const [activeMenu, setActiveMenu] = React.useState<string | null>(null);
@@ -109,8 +111,15 @@ export function Navigation() {
   const fleet = useFleet(authState === "in" && (activeMenu === "account" || mobileMenuOpen));
 
   React.useEffect(() => {
+    let lastY = window.scrollY;
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
+      const y = window.scrollY;
+      setIsScrolled(y > 20);
+      // A pull past the top of the page (iPhone rubber band) and the first screenful never hide it; small wobbles (under 8 px) change nothing; and it
+      // stays while the keyboard is inside it (a search being typed, a link being tabbed to).
+      if (y <= 80) setScrolledAway(false);
+      else if (Math.abs(y - lastY) >= 8 && !headerRef.current?.contains(document.activeElement)) setScrolledAway(y > lastY);
+      if (Math.abs(y - lastY) >= 8) lastY = y;
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -162,13 +171,16 @@ export function Navigation() {
     <header
       ref={headerRef}
       className={cn(
-        "fixed top-0 left-0 right-0 z-50 transition-all duration-200 ease-out h-[clamp(3.5rem,4.5vw,4.25rem)] flex items-center select-none border-0",
+        "fixed top-0 left-0 right-0 z-50 transition-[transform,background-color,color,border-color] duration-200 ease-out h-[clamp(3.5rem,4.5vw,4.25rem)] flex items-center select-none border-b",
+        // Away while the visitor scrolls down; never while a menu is open.
+        scrolledAway && activeMenu === null && !mobileMenuOpen && "-translate-y-full",
         // While a menu is open the bar and the panel are one surface: same solid colour, no seam (otherwise the bar's tint shows the page through it).
+        // No shadow under the bar: a thin line is all that separates it from the page once it is solid.
         activeMenu !== null
-          ? "bg-theme-bg text-theme-primary"
+          ? "border-transparent bg-theme-bg text-theme-primary"
           : isThemeStyled
-            ? "bg-theme-bg/95 text-theme-primary shadow-md backdrop-blur-md"
-            : "bg-transparent text-white"
+            ? "border-theme-border bg-theme-bg/95 text-theme-primary backdrop-blur-md"
+            : "border-transparent bg-transparent text-white"
       )}
       onMouseLeave={scheduleClose}
       onMouseEnter={() => {

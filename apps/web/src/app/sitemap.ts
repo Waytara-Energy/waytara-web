@@ -13,6 +13,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/solutions", priority: 0.9, changeFrequency: "weekly" },
     { path: "/technology", priority: 0.9, changeFrequency: "monthly" },
     { path: "/planner", priority: 0.9, changeFrequency: "monthly" },
+    { path: "/guides", priority: 0.8, changeFrequency: "monthly" },
     { path: "/why-waytara", priority: 0.7, changeFrequency: "monthly" },
     { path: "/partner", priority: 0.7, changeFrequency: "monthly" },
     { path: "/support", priority: 0.6, changeFrequency: "monthly" },

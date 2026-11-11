@@ -37,6 +37,9 @@ export const GUIDE_LINKS: NavDestination[] = [
 
 export const SOLUTIONS_HUB: NavDestination = { label: "Solutions", href: "/solutions" };
 
+/** The page that lists the guides. */
+export const GUIDES_HUB: NavDestination = { label: "Guides", href: "/guides" };
+
 /** Plain links that sit next to the Solutions menu. */
 export const PRIMARY_LINKS: NavDestination[] = [
   { label: "Platform", href: "/technology" },
@@ -98,6 +101,11 @@ export const PAGE_MENUS: PageMenu[] = [
     ],
   },
   {
+    label: GUIDES_HUB.label,
+    href: GUIDES_HUB.href,
+    items: GUIDE_LINKS,
+  },
+  {
     label: "About Us",
     href: "/about",
     items: [
@@ -144,9 +152,10 @@ export interface HeaderMenu {
 const ASIDE: Record<string, { title: string; links: NavDestination[] }> = {
   Platform: { title: "Next", links: [PLANNER_LINK, { label: "Solutions", href: "/solutions" }] },
   "Why WayTara": { title: "Next", links: [PLANNER_LINK, { label: "Platform", href: "/technology" }] },
+  Guides: { title: "Next", links: [PLANNER_LINK, { label: "Solutions", href: "/solutions" }, CONTACT_LINK] },
   "About Us": { title: "More", links: [CONTACT_LINK, { label: "Partner with us", href: "/partner" }] },
   Partner: { title: "More", links: [CONTACT_LINK, { label: "About Us", href: "/about" }] },
-  Support: { title: "Quick links", links: [{ label: "Forgot password", href: "/forgot-password" }, { label: "Sign in", href: "/login" }, CONTACT_LINK] },
+  Support: { title: "Quick links", links: [{ label: "Forgot password", href: "/forgot-password" }, { label: "Sign in", href: "/login" }, GUIDES_HUB, CONTACT_LINK] },
 };
 
 /** What each header item opens: the same full-width panel for all five. */
@@ -157,7 +166,7 @@ export const HEADER_MENUS: HeaderMenu[] = [
     bigLabel: "Explore Solutions",
     big: [{ label: "All solutions", href: SOLUTIONS_HUB.href }, ...SOLUTION_SEGMENTS],
     asideTitle: "By need",
-    aside: [...SOLUTION_NEEDS, { label: "Not sure? Use the Energy Planner", href: PLANNER_LINK.href }],
+    aside: [...SOLUTION_NEEDS, { label: "Not sure? Use the Energy Planner", href: PLANNER_LINK.href }, { label: "Read the guides", href: GUIDES_HUB.href }],
   },
   ...PAGE_MENUS.map((m) => ({
     label: m.label,

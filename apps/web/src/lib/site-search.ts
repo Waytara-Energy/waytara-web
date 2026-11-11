@@ -22,6 +22,7 @@ const EXTRA: SearchEntry[] = [
   { title: "Privacy Policy", href: "/privacy", group: "Legal", keywords: "privacy data personal information" },
   { title: "Warranty Policy", href: "/warranty", group: "Legal", keywords: "warranty guarantee" },
   { title: "Cookie Policy", href: "/cookies", group: "Legal", keywords: "cookies tracking" },
+  { title: "Guides: straight answers about solar", href: "/guides", group: "Guides", keywords: "guide guides help how to learn knowledge articles faq" },
   { title: "Solar for your home", href: "/solar-for-home", group: "Guides", keywords: "home villa house roof size how much roof space solar panel price cost rooftop" },
   { title: "On-grid, hybrid or off-grid solar", href: "/on-grid-hybrid-off-grid-solar", group: "Guides", keywords: "on grid hybrid off grid inverter battery power cut backup which to choose" },
   { title: "Solar subsidy and net metering", href: "/solar-subsidy", group: "Guides", keywords: "subsidy pm surya ghar muft bijli net metering apply discom state scheme" },
@@ -44,7 +45,7 @@ export const SEARCH_INDEX: SearchEntry[] = (() => {
   for (const seg of SOLUTION_SEGMENTS) add({ title: seg.label, href: seg.href, group: "Solutions", keywords: seg.blurb ?? "" });
   for (const menu of HEADER_MENUS) {
     add({ title: menu.label, href: menu.href, group: menu.label === "Solutions" ? "Solutions" : "Pages", keywords: menu.big.map((b) => b.label).join(" ") });
-    if (menu.label === "Solutions") continue;
+    if (menu.label === "Solutions" || menu.label === "Guides") continue; // their pages have their own entries, with search words
     for (const item of menu.big) add({ title: item.label, href: item.href, group: menu.label, keywords: item.blurb ?? "" });
   }
   for (const e of EXTRA) add(e);
