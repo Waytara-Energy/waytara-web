@@ -136,7 +136,7 @@ export function Footer() {
           </div>
         </div>
 
-        {/* 2. Brand watermark with a vertical fade (theme adaptive, lowercase) */}
+        {/* 2. Brand watermark with a vertical fade (theme adaptive) */}
         <div
           className="my-1 sm:my-2 text-center select-none pointer-events-none overflow-hidden"
           style={{
@@ -144,7 +144,19 @@ export function Footer() {
             WebkitMaskImage: "linear-gradient(to bottom, rgba(0,0,0,0.16) 0%, rgba(0,0,0,0.04) 60%, rgba(0,0,0,0) 95%)",
           }}
         >
-          <span className="text-[17vw] font-black tracking-[-0.05em] text-theme-primary leading-none block lowercase">waytara</span>
+          {/* The WayTara wordmark (the logo's own lettering, without "ENERGY"), used as a mask so it takes the theme's text colour. Same width as the plain text it replaced. */}
+          <div
+            aria-hidden="true"
+            className="mx-auto aspect-[2172/458] w-[68vw] bg-current text-theme-primary"
+            style={{
+              maskImage: "url(/images/wordmark.png)",
+              WebkitMaskImage: "url(/images/wordmark.png)",
+              maskSize: "100% 100%",
+              WebkitMaskSize: "100% 100%",
+              maskRepeat: "no-repeat",
+              WebkitMaskRepeat: "no-repeat",
+            }}
+          />
         </div>
 
         {/* 3. Bottom bar: copyright and the policy pages */}
