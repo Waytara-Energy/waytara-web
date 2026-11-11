@@ -240,8 +240,8 @@ export function Navigation() {
           </div>
         </div>
 
-        {/* 3. Right (phones and tablets): the account slot (avatar, Login or a loader) and the menu button, two squares of the same size (32 px, in
-            pixels: the page's rem is smaller on a phone), as high as the logo. There is no theme icon here: the phone follows the device's setting. */}
+        {/* 3. Right (phones and tablets): the account slot (avatar, Login or a loader) and the menu button, two controls of the same size (32 px, in
+            pixels: the page's rem is smaller on a phone), as high as the logo; the menu button has no filled background. There is no theme icon here: the phone follows the device's setting. */}
         <div className="flex lg:hidden items-center gap-2.5">
           <span className={cn(!isThemeStyled ? "text-white" : "text-theme-primary")}>
             <AuthSlot state={authState} account={account} solid={isThemeStyled} compact avatarSize="size-[32px]" />
@@ -253,7 +253,7 @@ export function Navigation() {
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-menu"
             onClick={() => setMobileMenuOpen(true)}
-            className={cn("size-[32px] rounded-lg p-0", !isThemeStyled ? "bg-white/15 text-white hover:bg-white/25" : "bg-theme-surface text-theme-primary")}
+            className={cn("size-[32px] rounded-lg p-0", !isThemeStyled ? "text-white hover:bg-white/10" : "text-theme-primary")}
           >
             <Menu className="size-[20px]" />
           </Button>

@@ -79,7 +79,7 @@ export function MobileMenu({
             type="button"
             aria-label="Close the menu"
             onClick={onClose}
-            className="flex size-[32px] cursor-pointer items-center justify-center rounded-lg bg-theme-surface text-theme-primary outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
+            className="flex size-[32px] cursor-pointer items-center justify-center rounded-lg text-theme-primary outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
           >
             <X className="size-[20px]" />
           </button>
