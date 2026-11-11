@@ -24,8 +24,8 @@ const PEEK = 0.3;
 const TEXT_TOP = `calc(${NAV_HEIGHT} + clamp(3rem, 13vh, 8.5rem))`;
 const TRAVEL_SCREENS = 0.8;
 const MOVE_SHARE = 0.85;
-// The card starts at this share of the text column's width (so it starts clearly smaller than the text above it), and grows from there.
-const START_SHARE = 0.68;
+// The card starts at this share of the text column's width, and grows from there. 1 is the text column's full width (it was 0.68 for a while).
+const START_SHARE = 1;
 // How quickly the card follows the scroll position: it closes about two thirds of the distance to where the scroll says it should be every this many
 // milliseconds (so about 95 percent of the way in half a second, on any screen's refresh rate). It makes the card glide to its place and settle,
 // instead of being tied to the wheel notch by notch.
