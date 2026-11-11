@@ -15,8 +15,8 @@ const POSTER = "/videos/energy-banner-poster.webp";
 const NAV_HEIGHT = "clamp(3.5rem,4.5vw,4.25rem)";
 // How far the page scrolls (as a share of the screen's height) before the video card has finished growing.
 const GROW_OVER = 0.55;
-// The sky behind the hero: a pale day sky (light enough for the dark headline to read on it) and, in the dark theme, the same sky at dusk.
-const SKY_DAY = { top: "#a9d2f2", bottom: "#eef6fc", cloud: "#ffffff" };
+// The sky behind the hero: the day sky (the text on it is white) and, in the dark theme, the same sky at dusk.
+const SKY_DAY = { top: "#3876ba", bottom: "#8cbfe8", cloud: "#fbf8f2" };
 const SKY_DUSK = { top: "#070d1f", bottom: "#1b2a4a", cloud: "#8d9bb8" };
 
 /**
@@ -108,7 +108,7 @@ export function Hero() {
   };
 
   const buttonBase =
-    "inline-flex h-10 items-center rounded-full px-5 text-sm font-semibold transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-theme-bg";
+    "inline-flex h-10 items-center rounded-full px-5 text-sm font-semibold transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#3876ba]";
 
   return (
     <section
@@ -133,25 +133,25 @@ export function Hero() {
 
       <div className="fluid-container relative z-10">
         <Reveal direction="up" delay={100} duration={800} distance={24}>
-          <h1 className="font-bold tracking-tight leading-[1.05] text-theme-primary text-balance text-[clamp(2rem,4.4vw,4.25rem)]">
+          <h1 className="font-bold tracking-tight leading-[1.05] text-white text-balance text-[clamp(2rem,4.4vw,4.25rem)] drop-shadow-[0_2px_14px_rgba(0,20,60,0.35)]">
             <span className="block sm:whitespace-nowrap">Your property&rsquo;s energy,</span>
             <span className="block sm:whitespace-nowrap">built as one system.</span>
           </h1>
         </Reveal>
 
         <Reveal direction="up" delay={220} duration={800} distance={16} className="mt-5 max-w-xl">
-          <p className="text-[clamp(1rem,1.3vw,1.2rem)] leading-relaxed text-theme-secondary">
+          <p className="text-[clamp(1rem,1.3vw,1.2rem)] leading-relaxed text-white/90 drop-shadow-[0_1px_8px_rgba(0,20,60,0.35)]">
             Solar, battery storage and EV charging, designed, installed and managed together.
           </p>
         </Reveal>
 
         <Reveal direction="up" delay={340} duration={700} distance={12} className="mt-7 flex flex-wrap items-center gap-3">
-          <Link href="/planner" className={`${buttonBase} bg-theme-primary text-theme-bg hover:opacity-90`}>
+          <Link href="/planner" className={`${buttonBase} bg-white text-slate-950 shadow-lg shadow-black/20 hover:bg-white/90`}>
             Plan my system
           </Link>
           <Link
             href="/contact"
-            className={`${buttonBase} border border-theme-border bg-theme-surface text-theme-primary hover:bg-theme-surface-hover`}
+            className={`${buttonBase} border border-white/30 bg-slate-950/40 text-white backdrop-blur-sm hover:bg-slate-950/55`}
           >
             Talk to us
           </Link>
