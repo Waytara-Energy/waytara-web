@@ -200,7 +200,7 @@ export function Navigation() {
             onClick={() => (activeMenu === "search" ? setActiveMenu(null) : openMenu("search"))}
             className={cn(iconLinkClass, activeMenu === "search" && "text-theme-highlight")}
           >
-            <Search className="h-[clamp(17px,1.15vw,19.5px)] w-[clamp(17px,1.15vw,19.5px)]" />
+            <Search className="size-[20px]" />
           </button>
 
           {/* Theme Toggle Icon */}
@@ -211,7 +211,7 @@ export function Navigation() {
                 ? "text-theme-primary hover:text-theme-highlight hover:bg-theme-surface"
                 : "text-white hover:bg-white/15 drop-shadow-sm"
             )}
-            iconClassName={isThemeStyled ? "text-theme-primary" : "text-white"}
+            iconClassName={cn(isThemeStyled ? "text-theme-primary" : "text-white", "size-[20px]")}
           />
 
           {/* Login button on every page — or, signed in, the account avatar (hover it for the devices and the dashboard's pages), or a loader while
@@ -229,12 +229,13 @@ export function Navigation() {
 
         {/* 3. Right (phones and tablets): theme toggle, the account slot (avatar, Login or a loader) and the menu button. */}
         <div className="flex lg:hidden items-center gap-1.5">
+          {/* The three controls (theme, account, menu) are the same size: 32 px each (in pixels: the page's rem is smaller on a phone). */}
           <ThemeToggle
-            className={cn("p-2 rounded-lg", !isThemeStyled ? "text-white" : "text-theme-primary")}
-            iconClassName={!isThemeStyled ? "text-white" : "text-theme-primary"}
+            className={cn("size-[32px] rounded-full p-0", !isThemeStyled ? "text-white" : "text-theme-primary")}
+            iconClassName={cn(!isThemeStyled ? "text-white" : "text-theme-primary", "size-[22px]")}
           />
           <span className={cn(!isThemeStyled ? "text-white" : "text-theme-primary")}>
-            <AuthSlot state={authState} account={account} solid={isThemeStyled} compact />
+            <AuthSlot state={authState} account={account} solid={isThemeStyled} compact avatarSize="size-[32px]" />
           </span>
           <Button
             variant="ghost"
@@ -243,9 +244,9 @@ export function Navigation() {
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-menu"
             onClick={() => setMobileMenuOpen(true)}
-            className={cn("h-9 w-9 rounded-lg p-0", !isThemeStyled ? "text-white hover:bg-white/10" : "text-theme-primary")}
+            className={cn("size-[32px] rounded-full p-0", !isThemeStyled ? "text-white hover:bg-white/10" : "text-theme-primary")}
           >
-            <Menu className="h-5 w-5" />
+            <Menu className="size-[22px]" />
           </Button>
         </div>
 

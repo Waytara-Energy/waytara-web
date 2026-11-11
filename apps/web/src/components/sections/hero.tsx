@@ -101,7 +101,7 @@ export function Hero() {
   };
 
   const buttonBase =
-    "inline-flex h-12 sm:h-[3.25rem] items-center rounded-full text-sm sm:text-base font-semibold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-theme-bg";
+    "inline-flex h-[44px] sm:h-[3.25rem] items-center rounded-full text-sm sm:text-base font-semibold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-theme-bg";
 
   return (
     <section className="relative bg-theme-bg [--sky:0] [--fade:0] [--text-gap:0px] sm:[--sky:0.3] sm:[--fade:1] sm:[--text-gap:1.5rem]">
@@ -138,7 +138,7 @@ export function Hero() {
         {/* The content block has the page colour itself (on a phone the layer around it is clear). */}
         <div className="fluid-container w-full bg-theme-bg pb-5 sm:pb-16">
           <Reveal direction="up" delay={100} duration={800} distance={24}>
-            <h1 className="font-bold tracking-tight leading-[1.05] text-center text-theme-primary text-balance text-[clamp(26px,8.4vw,34px)] sm:text-left sm:text-[clamp(2rem,4.4vw,4.25rem)]">
+            <h1 className="font-bold tracking-tight leading-[1.12] text-left text-theme-primary text-balance text-[clamp(26px,7.6vw,30px)] sm:leading-[1.05] sm:text-[clamp(2rem,4.4vw,4.25rem)]">
               {/* The whole sentence for screen readers, search engines and anyone without the animation; the visible two lines below are hidden from them. */}
               <span className="sr-only">One platform to connect, monitor, control and optimise your entire energy ecosystem.</span>
               <span aria-hidden="true" className="block">
@@ -159,21 +159,21 @@ export function Hero() {
             </h1>
           </Reveal>
 
-          <Reveal direction="up" delay={220} duration={800} distance={16} className="mt-5 max-w-[52rem]">
+          <Reveal direction="up" delay={220} duration={800} distance={16} className="mt-4 max-w-[52rem] sm:mt-5">
             {/* Two lines on a wide screen (the box is just wide enough, and text-balance evens the two out); it wraps to more on a narrow one. */}
-            <p className="text-balance text-center text-[17px] leading-relaxed text-theme-secondary sm:text-left sm:text-[clamp(1rem,1.3vw,1.2rem)]">
+            <p className="text-balance text-[15px] leading-[1.6] text-theme-secondary sm:text-[clamp(1rem,1.3vw,1.2rem)] sm:leading-relaxed">
               Connect solar, batteries, EV chargers, meters and more through WayTara&rsquo;s flexible gateway and unified platform, built for new and existing energy infrastructure.
             </p>
           </Reveal>
 
-          <Reveal direction="up" delay={340} duration={700} distance={12} className="mt-6 flex w-full items-center justify-center gap-3 sm:mt-7 sm:w-auto sm:flex-wrap sm:justify-start">
+          <Reveal direction="up" delay={340} duration={700} distance={12} className="mt-6 flex w-full items-center gap-2.5 sm:mt-7 sm:w-auto sm:flex-wrap sm:gap-3">
             {/* The main action: the site's green gradient, white text, and the arrow in a white circle. */}
             <Link
               href="/planner"
-              className={`${buttonBase} group flex-1 justify-center gap-3 bg-primary-gradient pl-6 pr-1.5 text-white sm:flex-none shadow-lg shadow-emerald-900/20 transition-all duration-200 hover:brightness-95 hover:shadow-xl active:scale-95`}
+              className={`${buttonBase} group flex-1 justify-center gap-2.5 bg-primary-gradient pl-5 pr-1.5 sm:gap-3 sm:pl-6 text-white sm:flex-none shadow-lg shadow-emerald-900/20 transition-all duration-200 hover:brightness-95 hover:shadow-xl active:scale-95`}
             >
               <span>Plan my system</span>
-              <span className="flex size-9 sm:size-10 items-center justify-center rounded-full bg-white text-slate-950 transition-transform duration-200 group-hover:translate-x-0.5">
+              <span className="flex size-[34px] sm:size-10 items-center justify-center rounded-full bg-white text-slate-950 transition-transform duration-200 group-hover:translate-x-0.5">
                 <ArrowRight className="size-4" />
               </span>
             </Link>
@@ -181,7 +181,7 @@ export function Hero() {
                 classes would override the hover colours.) */}
             <Link
               href="/contact"
-              className={`${buttonBase} border border-slate-300 bg-slate-50 px-6 text-slate-900 transition-colors duration-200 hover:border-emerald-600 hover:bg-emerald-600 hover:text-white dark:border-white/20 dark:bg-white/5 dark:text-slate-50 dark:hover:border-emerald-500 dark:hover:bg-emerald-500`}
+              className={`${buttonBase} border border-slate-300 bg-slate-50 px-5 text-slate-900 sm:px-6 transition-colors duration-200 hover:border-emerald-600 hover:bg-emerald-600 hover:text-white dark:border-white/20 dark:bg-white/5 dark:text-slate-50 dark:hover:border-emerald-500 dark:hover:bg-emerald-500`}
             >
               Talk to us
             </Link>

@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { LogOut } from "lucide-react";
+import { ChevronRight, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -94,7 +94,7 @@ export function AuthSlot({
           variant={solid ? "gradient" : "secondary"}
           className={cn(
             "rounded-lg font-semibold shadow-sm transition-all duration-200",
-            compact ? "h-8 px-3 text-xs" : "h-8 px-3.5 text-xs sm:h-8.5 sm:px-4 sm:text-[13px]",
+            compact ? "h-[32px] px-3 text-xs" : "h-8 px-3.5 text-xs sm:h-8.5 sm:px-4 sm:text-[13px]",
             !solid && "border-0 bg-white font-bold text-slate-950 shadow-md hover:bg-slate-100"
           )}
         >
@@ -235,7 +235,7 @@ function DeviceList({ fleet, onNavigate }: { fleet: Fleet; onNavigate: () => voi
   if (withDevices.length === 0) return <p className="text-sm text-theme-secondary">No devices are connected to your account yet.</p>;
   const showSite = withDevices.length > 1;
   return (
-    <div className="max-h-[17rem] space-y-4 overflow-y-auto pr-2">
+    <div className="space-y-4">
       {withDevices.map((site) => (
         <div key={site.id}>
           {showSite && <p className="mb-1.5 text-xs text-theme-muted">{site.name}</p>}
@@ -265,18 +265,15 @@ function DeviceList({ fleet, onNavigate }: { fleet: Fleet; onNavigate: () => voi
 
 const QUICK_LINKS = [...NAV_ITEMS, ...SECONDARY_NAV_ITEMS];
 
-function QuickLinks({ onNavigate, large = false }: { onNavigate: () => void; large?: boolean }) {
+function QuickLinks({ onNavigate }: { onNavigate: () => void }) {
   return (
-    <ul className={cn("grid gap-x-6", large ? "grid-cols-2 gap-y-1" : "grid-cols-2 gap-y-1.5")}>
+    <ul className="grid grid-cols-2 gap-x-6 gap-y-1.5">
       {QUICK_LINKS.map(({ href, label, icon: Icon }) => (
         <li key={href}>
           <Link
             href={href}
             onClick={onNavigate}
-            className={cn(
-              "flex items-center gap-2.5 rounded-lg outline-none transition-colors hover:text-theme-highlight focus-visible:text-theme-highlight",
-              large ? "px-1 py-2.5 text-[15px] font-medium text-theme-primary" : "px-1 py-1.5 text-[13px] font-semibold text-theme-primary"
-            )}
+            className="flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-[13px] font-semibold text-theme-primary outline-none transition-colors hover:text-theme-highlight focus-visible:text-theme-highlight"
           >
             <Icon aria-hidden="true" className="size-4 shrink-0 text-theme-secondary" />
             {label}
@@ -309,24 +306,8 @@ function SignOutButton({ className }: { className?: string }) {
   );
 }
 
-function AccountHeader({ account }: { account: Account }) {
-  return (
-    <div className="flex items-center gap-3">
-      <Avatar className="h-11 w-11 shrink-0 border-0">
-        {account.avatarUrl && <AvatarImage src={account.avatarUrl} alt={account.fullName ?? "Account"} />}
-        <AvatarFallback className="text-sm">{initials(account.fullName, account.email)}</AvatarFallback>
-      </Avatar>
-      <div className="min-w-0">
-        <p className="truncate text-sm font-bold text-theme-primary">{account.fullName || "My account"}</p>
-        {account.planName && <p className="truncate text-xs font-semibold text-theme-highlight">{account.planName} Plan</p>}
-        <p className="truncate text-xs text-theme-muted">{account.email}</p>
-      </div>
-    </div>
-  );
-}
-
 /** The desktop panel under the header when the avatar is hovered: the devices with their status at the left, the account, the dashboard's pages and Sign out at the right. */
-export function AccountPanel({ account, fleet, onNavigate }: { account: Account; fleet: Fleet; onNavigate: () => void }) {
+export function AccountPanel({ fleet, onNavigate }: { account: Account; fleet: Fleet; onNavigate: () => void }) {
   return (
     <div className="mx-auto w-full max-w-5xl px-6 pb-10 pt-8 sm:px-10">
       <div className="grid grid-cols-1 gap-x-16 gap-y-8 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
@@ -338,14 +319,11 @@ export function AccountPanel({ account, fleet, onNavigate }: { account: Account;
         </div>
 
         <div>
-          <div className="mega-item" style={{ animationDelay: "40ms" }}>
-            <AccountHeader account={account} />
-          </div>
-          <p className="mega-item mt-6 text-xs text-theme-muted" style={{ animationDelay: "70ms" }}>Your dashboard</p>
-          <div className="mega-item mt-2" style={{ animationDelay: "90ms" }}>
+          <p className="mega-item text-xs text-theme-muted" style={{ animationDelay: "40ms" }}>Your dashboard</p>
+          <div className="mega-item mt-3" style={{ animationDelay: "70ms" }}>
             <QuickLinks onNavigate={onNavigate} />
           </div>
-          <div className="mega-item mt-4 border-t border-theme-border pt-3" style={{ animationDelay: "110ms" }}>
+          <div className="mega-item mt-4 border-t border-theme-border pt-3" style={{ animationDelay: "100ms" }}>
             <SignOutButton />
           </div>
         </div>
@@ -354,20 +332,27 @@ export function AccountPanel({ account, fleet, onNavigate }: { account: Account;
   );
 }
 
-/** The same content for the phone's full-screen menu: the account, the devices with their status, the dashboard's pages, Sign out. */
-export function AccountSection({ account, fleet, onNavigate }: { account: Account; fleet: Fleet; onNavigate: () => void }) {
+/** The foot of the phone's menu, kept to two quiet rows: Dashboard (with a line saying how many devices are online) and Sign out. */
+export function AccountSection({ fleet, onNavigate }: { fleet: Fleet; onNavigate: () => void }) {
+  let summary: string | null = null;
+  if (fleet.state === "ready") {
+    const devices = fleet.sites.flatMap((s) => s.devices);
+    summary = devices.length === 0 ? "No devices yet" : `${devices.filter((d) => d.status === "online").length} of ${devices.length} ${devices.length === 1 ? "device" : "devices"} online`;
+  }
   return (
-    <div className="space-y-7">
-      <AccountHeader account={account} />
-      <div>
-        <p className="mb-2 text-xs text-theme-muted">Your devices</p>
-        <DeviceList fleet={fleet} onNavigate={onNavigate} />
-      </div>
-      <div>
-        <p className="mb-1 text-xs text-theme-muted">Your dashboard</p>
-        <QuickLinks onNavigate={onNavigate} large />
-      </div>
-      <SignOutButton className="text-[15px]" />
-    </div>
+    <ul>
+      <li className="border-b border-theme-border/60">
+        <Link href="/dashboard" onClick={onNavigate} className="flex items-center justify-between py-4 outline-none focus-visible:text-theme-highlight">
+          <span>
+            <span className="block text-[17px] font-semibold leading-tight text-theme-primary">Dashboard</span>
+            <span className="mt-0.5 block text-sm text-theme-muted">{summary ?? "Loading your devices…"}</span>
+          </span>
+          <ChevronRight aria-hidden="true" className="size-5 text-theme-muted" />
+        </Link>
+      </li>
+      <li>
+        <SignOutButton className="py-4 text-[17px]" />
+      </li>
+    </ul>
   );
 }

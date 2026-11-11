@@ -105,9 +105,11 @@ export function MegaMenuShell({ menu, open, onNavigate }: { menu: PanelSpec | nu
   return (
     <div
       aria-hidden={!open}
-      className="absolute left-0 right-0 top-full hidden overflow-hidden border-b border-theme-border bg-theme-bg text-theme-primary shadow-xl motion-reduce:!transition-none lg:block"
+      className="absolute left-0 right-0 top-full hidden overflow-y-auto overflow-x-hidden overscroll-contain border-b border-theme-border bg-theme-bg text-theme-primary shadow-xl motion-reduce:!transition-none lg:block"
       style={{
         height,
+        // As tall as its content, but never more than 70 percent of the screen: only beyond that does the panel itself scroll.
+        maxHeight: "70dvh",
         opacity: open ? 1 : 0,
         visibility: open ? "visible" : "hidden",
         pointerEvents: open ? "auto" : "none",

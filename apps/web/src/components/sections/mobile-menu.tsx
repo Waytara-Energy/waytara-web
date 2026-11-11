@@ -4,9 +4,8 @@ import * as React from "react";
 import Link from "next/link";
 import { ChevronDown, X } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
-import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { LOGIN_LINK, PAGE_MENUS, SOLUTIONS_HUB, SOLUTION_NEEDS, SOLUTION_SEGMENTS } from "@/config/site-nav";
+import { PAGE_MENUS, SOLUTIONS_HUB, SOLUTION_NEEDS, SOLUTION_SEGMENTS } from "@/config/site-nav";
 import { AccountSection, AuthSlot, type Account, type AuthState, type Fleet } from "@/components/sections/account-panel";
 
 // The groups that fold open to their pages: Solutions, then every page item.
@@ -18,7 +17,7 @@ const GROUPS = [
 /**
  * The phone's menu: it slides down from the top and fills the whole screen (the pattern of Framer's), with the logo at the left and, at the right, the
  * account slot (the avatar, or Login, or a loader while it is not known yet) and a close button. Under them the site's pages as large rows that fold open;
- * for a signed-in visitor, under those, their account, their devices with each one's status, the dashboard's pages and Sign out.
+ * for a signed-in visitor, under those, two quiet rows: Dashboard (with how many devices are online) and Sign out.
  *
  * It stays in the page when closed (moved off the top and hidden, with `inert` so nothing in it can be focused) so that it can animate both ways.
  * It must not sit inside the header: the header's blur would make the header, not the screen, the thing it is "fixed" to.
@@ -74,15 +73,15 @@ export function MobileMenu({
       <div className="fluid-container flex h-[clamp(3.5rem,4.5vw,4.25rem)] shrink-0 items-center justify-between">
         <Logo />
         <div className="flex items-center gap-2">
-          <AuthSlot state={authState} account={account} solid compact onNavigate={onClose} />
+          <AuthSlot state={authState} account={account} solid compact onNavigate={onClose} avatarSize="size-[32px]" />
           <button
             ref={closeRef}
             type="button"
             aria-label="Close the menu"
             onClick={onClose}
-            className="flex size-9 cursor-pointer items-center justify-center rounded-lg text-theme-primary outline-none transition-colors hover:bg-theme-surface focus-visible:ring-2 focus-visible:ring-emerald-500"
+            className="flex size-[32px] cursor-pointer items-center justify-center rounded-full text-theme-primary outline-none transition-colors hover:bg-theme-surface focus-visible:ring-2 focus-visible:ring-emerald-500"
           >
-            <X className="size-6" />
+            <X className="size-[22px]" />
           </button>
         </div>
       </div>
@@ -125,20 +124,12 @@ export function MobileMenu({
             </ul>
           </nav>
 
-          <div className="mt-8" data-auth-slot="" data-state={authState}>
-            {authState === "in" && account ? (
-              <AccountSection account={account} fleet={fleet} onNavigate={onClose} />
-            ) : (
-              // Hidden by the same first-paint rule as the bar's Login button while it is not known whether the visitor is signed in.
-              <div className="auth-login">
-                <Button asChild variant="gradient" className="h-12 w-full justify-center text-sm">
-                  <Link href={LOGIN_LINK.href} onClick={onClose}>
-                    {LOGIN_LINK.label}
-                  </Link>
-                </Button>
-              </div>
-            )}
-          </div>
+          {/* Signed in: two quiet rows. Signed out: nothing more (the bar above already has Login). */}
+          {authState === "in" && account && (
+            <div className="mt-2">
+              <AccountSection fleet={fleet} onNavigate={onClose} />
+            </div>
+          )}
         </div>
       </div>
     </div>
