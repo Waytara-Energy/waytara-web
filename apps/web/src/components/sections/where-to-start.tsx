@@ -4,7 +4,7 @@ import { SectionHeader } from "@/components/shared/section-header";
 import { FeatureColumns } from "@/components/segments/segment-parts";
 
 // The planner reads `start` to open on the matching path (built in step 5 of the website plan).
-const DOORS = [
+export const DOORS = [
   { icon: Hammer, title: "Build a new system", body: "Solar, battery storage and EV charging, designed together for your property.", link: { label: "Get started", href: "/planner?start=build" } },
   { icon: PlugZap, title: "Set up EV charging", body: "Chargers for your home, workplace or fleet, with the software to manage them.", link: { label: "Get started", href: "/planner?start=charge" } },
   { icon: SlidersHorizontal, title: "Manage what I have", body: "Connect the supported equipment you already own to one dashboard.", link: { label: "Get started", href: "/planner?start=manage" } },

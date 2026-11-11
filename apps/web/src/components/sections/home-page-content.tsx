@@ -6,7 +6,6 @@ import { WhatWeDo } from "@/components/sections/what-we-do";
 import { DashboardShowcase } from "@/components/sections/dashboard-showcase";
 import { WhoWeServe } from "@/components/sections/who-we-serve";
 import { ProjectSteps } from "@/components/sections/project-steps";
-import { WhereToStart } from "@/components/sections/where-to-start";
 import { FinalCTA } from "@/components/sections/final-cta";
 import { Footer } from "@/components/sections/footer";
 
@@ -41,10 +40,7 @@ export function HomePageContent() {
         {/* 6. One dashboard: a card that tips up on scroll, showing the live Monitoring page (moved here: it follows "Four steps, one team.") */}
         <DashboardShowcase />
 
-        {/* 7. Where to start: the planner */}
-        <WhereToStart />
-
-        {/* 8. The close (Why WayTara has its own page, in the header menu) */}
+        {/* 7. The close: the three ways in, then the planner (Why WayTara has its own page, in the header menu) */}
         <FinalCTA />
       </main>
 
