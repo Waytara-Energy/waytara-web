@@ -4,97 +4,48 @@ import { Mail, MessageCircle, Phone, MapPin } from "lucide-react";
 import { SITE } from "@/lib/site";
 import { LEGAL_LINKS, PARTNER_LINK, PRIMARY_LINKS, CONTACT_LINK, SOLUTION_SEGMENTS, GUIDE_LINKS } from "@/config/site-nav";
 
+type FooterLink = { label: string; href: string };
+
+const COMPANY_LINKS: FooterLink[] = [...PRIMARY_LINKS, PARTNER_LINK, { label: "Support", href: "/support" }, CONTACT_LINK, { label: "Customer sign in", href: "/login" }];
+
 const COLUMN_TITLE = "text-xs sm:text-[13px] font-bold text-theme-primary tracking-tight";
 const FOOTER_LINK = "hover:text-theme-primary transition-colors";
 
-/** The easy ways in, on every page: plan a new system, check what you already have, manage it, or ask us. */
-const GET_STARTED = [
-  { label: "Plan my system", href: "/planner" },
-  { label: "Check my equipment", href: "/technology#compatibility" },
-  { label: "Manage my system", href: "/login" },
-  { label: "Talk to us", href: "/contact" },
-];
+function LinkColumn({ title, links }: { title: string; links: readonly FooterLink[] }) {
+  return (
+    <div className="space-y-3">
+      <h4 className={COLUMN_TITLE}>{title}</h4>
+      <ul className="space-y-2.5">
+        {links.map((link) => (
+          <li key={link.href}>
+            <Link href={link.href} className={FOOTER_LINK}>
+              {link.label}
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 export function Footer() {
   return (
     <footer className="border-t border-black/[0.06] dark:border-white/[0.06] bg-theme-bg text-theme-secondary text-xs relative overflow-hidden">
       <div className="fluid-container pt-12 pb-8 relative z-10">
 
-        {/* 1. Main row: the brand with the copyright line, then the link columns (the policy pages close the Company column) */}
+        {/* 1. The brand and its copyright line on the left, the link columns on the right */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 pb-10">
 
-          <div className="lg:col-span-3 space-y-4">
+          <div className="lg:col-span-4 space-y-4">
             <Logo />
             <p className="text-xs text-theme-muted pt-1">© {new Date().getFullYear()} WayTara Energy LLP. All rights reserved.</p>
           </div>
 
-          <div className="lg:col-span-9 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-6 sm:gap-8">
-
-            <div className="space-y-3">
-              <h4 className={COLUMN_TITLE}>Get started</h4>
-              <ul className="space-y-2.5">
-                {GET_STARTED.map((link) => (
-                  <li key={link.href}>
-                    <Link href={link.href} className={FOOTER_LINK}>
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="space-y-3">
-              <h4 className={COLUMN_TITLE}>Solutions</h4>
-              <ul className="space-y-2.5">
-                {SOLUTION_SEGMENTS.map((link) => (
-                  <li key={link.href}>
-                    <Link href={link.href} className={FOOTER_LINK}>
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="space-y-3">
-              <h4 className={COLUMN_TITLE}>Guides</h4>
-              <ul className="space-y-2.5">
-                {GUIDE_LINKS.map((link) => (
-                  <li key={link.href}>
-                    <Link href={link.href} className={FOOTER_LINK}>
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div className="space-y-3">
-              <h4 className={COLUMN_TITLE}>Company</h4>
-              <ul className="space-y-2.5">
-                {[...PRIMARY_LINKS, PARTNER_LINK, { label: "Support", href: "/support" }, CONTACT_LINK].map((link) => (
-                  <li key={link.href}>
-                    <Link href={link.href} className={FOOTER_LINK}>
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-                {/* The header's Get Started now leads to the planner, so customers find their way in here and in the mobile menu. */}
-                <li>
-                  <Link href="/login" className={FOOTER_LINK}>
-                    Customer sign in
-                  </Link>
-                </li>
-                {/* The policy pages, which used to sit in a bar at the very bottom. */}
-                {LEGAL_LINKS.map((link) => (
-                  <li key={link.href}>
-                    <Link href={link.href} className={FOOTER_LINK}>
-                      {link.label}
-                    </Link>
-                  </li>
-                ))}
-              </ul>
-            </div>
+          <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-[1fr_1.1fr_1fr_0.9fr_1.6fr] gap-6 sm:gap-8 xl:gap-6">
+            <LinkColumn title="Solutions" links={SOLUTION_SEGMENTS} />
+            <LinkColumn title="Guides" links={GUIDE_LINKS} />
+            <LinkColumn title="Company" links={COMPANY_LINKS} />
+            <LinkColumn title="Legal" links={LEGAL_LINKS} />
 
             <div className="space-y-3 col-span-2 sm:col-span-1">
               <h4 className={COLUMN_TITLE}>Contact</h4>
