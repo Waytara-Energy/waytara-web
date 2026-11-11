@@ -253,9 +253,8 @@ export function PlannerApp({ intro }: { /** The page heading and one line under 
             })}
           </div>
 
-          {stack.length === 0 && <div className="mt-8 border-t border-theme-border pt-6 lg:hidden">{quickLinks}</div>}
-
-          <div className="mt-10 flex flex-wrap items-center justify-between gap-4 border-t border-theme-border pt-6">
+          {/* On a phone Back and Continue stay at the bottom of the screen while the options scroll; from a laptop up they sit under the options as before. */}
+          <div className="sticky bottom-0 z-30 -mx-[var(--page-gutter)] mt-8 flex items-center justify-between gap-4 border-t border-theme-border bg-theme-bg px-[var(--page-gutter)] pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom))] lg:static lg:mx-0 lg:mt-10 lg:flex-wrap lg:bg-transparent lg:px-0 lg:pt-6 lg:pb-0">
             <div className="flex items-center gap-5">
               <button
                 type="button"
