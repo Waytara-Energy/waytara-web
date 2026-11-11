@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { ArrowRight, BatteryCharging, EvCharger, Pause, Play, PlugZap, Router, SolarPanel } from "lucide-react";
+import { ArrowRight, Pause, Play } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 import { CloudShader } from "@/components/ui/cloud-shader";
 import { FlipWords } from "@/components/ui/flip-words";
@@ -14,33 +14,13 @@ const VIDEO = "/videos/energy-banner.mp4";
 const POSTER = "/videos/energy-banner-poster.webp";
 // The words that take turns in the headline, each one an action the platform does for the whole property.
 const HEADLINE_WORDS = ["Connect.", "Monitor.", "Control.", "Optimise."];
-// A solar inverter: a box with the AC wave on its display and the cables underneath (the icon set has none), drawn like the others (outline, round ends).
-function InverterIcon({ className, strokeWidth = 1.6 }: { className?: string; strokeWidth?: number }) {
-  return (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
-      <rect x="4" y="3" width="16" height="14" rx="2" />
-      <path d="M7 11q1.75-4 3.5 0t3.5 0t3.5 0" />
-      <path d="M9 17v3M15 17v3" />
-    </svg>
-  );
-}
-
-// The equipment the platform brings together, shown as a row of icons with their names under the animation card.
-const EQUIPMENT: { icon: React.ElementType; label: string }[] = [
-  { icon: SolarPanel, label: "Solar panels" },
-  { icon: InverterIcon, label: "Solar inverters" },
-  { icon: BatteryCharging, label: "Battery storage" },
-  { icon: PlugZap, label: "Portable charger" },
-  { icon: EvCharger, label: "Wall-mount charger" },
-  { icon: Router, label: "WayTara gateway" },
-];
 // The sky behind the top of the hero: the day sky and, in the dark theme, the same sky at dusk.
 const SKY_DAY = { top: "#3876ba", bottom: "#8cbfe8", cloud: "#fbf8f2" };
 const SKY_DUSK = { top: "#070d1f", bottom: "#1b2a4a", cloud: "#8d9bb8" };
 
 // The height of the first screen (never shorter than 620 px): the sky is as tall as that and stays in place while the page scrolls over it.
 const SCENE_H = "max(100dvh, 620px)";
-// (--sky is set on the section: 0.3 on a normal screen, 0.08 on a phone.)
+// (--sky is set on the section: 0.3 on a normal screen, 0.18 on a phone.)
 // The layer the content sits on is clear at the top (the sky shows through), fades into the page colour by 30 percent of the first screen, and is the
 // page colour from there on down. So only the top 30 percent of the screen shows clouds, and as the page scrolls this layer, carrying the content,
 // rises over them and hides them.
@@ -121,7 +101,7 @@ export function Hero() {
     "inline-flex h-12 sm:h-[3.25rem] items-center rounded-full text-sm sm:text-base font-semibold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-theme-bg";
 
   return (
-    <section className="relative bg-theme-bg [--sky:0.08] sm:[--sky:0.3]">
+    <section className="relative bg-theme-bg [--sky:0.18] sm:[--sky:0.3]">
       {/* The still is what the page paints first, so it is asked for at once. */}
       <link rel="preload" as="image" href={POSTER} fetchPriority="high" />
 
@@ -143,8 +123,12 @@ export function Hero() {
       </div>
 
       {/* 2. The layer with the content: clear at the top, the page colour from 30 percent down, scrolling with the page. */}
-      <div data-hero-overlay="" className="relative z-10 pb-12 sm:pb-16" style={{ background: OVERLAY, paddingTop: TEXT_TOP }}>
-        <div className="fluid-container">
+      <div
+        data-hero-overlay=""
+        className="relative z-10 flex min-h-dvh flex-col pb-5 sm:block sm:min-h-0 sm:pb-16"
+        style={{ background: OVERLAY, paddingTop: TEXT_TOP }}
+      >
+        <div className="fluid-container flex w-full flex-1 flex-col sm:block">
           <Reveal direction="up" delay={100} duration={800} distance={24}>
             <h1 className="font-bold tracking-tight leading-[1.05] text-theme-primary text-balance text-[clamp(2rem,4.4vw,4.25rem)]">
               {/* The whole sentence for screen readers, search engines and anyone without the animation; the visible two lines below are hidden from them. */}
@@ -192,7 +176,7 @@ export function Hero() {
           </Reveal>
 
           {/* 3. The animation card: the width of the text column, with a shadow. Its own background is white, so it shows as a card in both themes. */}
-          <Reveal direction="up" delay={480} duration={900} distance={30} className="mt-7 sm:mt-12">
+          <Reveal direction="up" delay={480} duration={900} distance={30} className="mt-auto pt-7 sm:mt-12 sm:pt-0">
             <div className="relative aspect-video w-full overflow-hidden rounded-[20px] bg-white shadow-2xl shadow-black/25 sm:rounded-[28px]">
               <video
                 ref={videoRef}
@@ -219,19 +203,6 @@ export function Hero() {
                 {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
               </button>
             </div>
-          </Reveal>
-
-          {/* 4. What it connects, under the card, set out like the "what we do" columns lower on the page: a thin outline icon, the name under it, left-aligned
-              in even columns that line up with the card's edges (six across on a wide screen, three across on a tablet and on a phone). */}
-          <Reveal direction="up" delay={560} duration={800} distance={16} className="mt-6 sm:mt-16">
-            <ul aria-label="What WayTara connects" className="grid grid-cols-3 gap-x-3 gap-y-5 sm:gap-x-8 sm:gap-y-10 lg:grid-cols-6">
-              {EQUIPMENT.map(({ icon: Icon, label }) => (
-                <li key={label} className="flex flex-col items-start gap-2 sm:gap-3.5">
-                  <Icon aria-hidden="true" strokeWidth={1.4} className="size-7 shrink-0 text-theme-primary sm:size-10" />
-                  <span className="text-balance text-xs font-semibold leading-snug text-theme-primary sm:text-base">{label}</span>
-                </li>
-              ))}
-            </ul>
           </Reveal>
         </div>
       </div>

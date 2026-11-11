@@ -1,6 +1,7 @@
 import { Navigation } from "@/components/sections/navigation";
 import { Hero } from "@/components/sections/hero";
 import { OurApproach } from "@/components/sections/our-approach";
+import { EquipmentStrip } from "@/components/sections/equipment-strip";
 import { WhatWeDo } from "@/components/sections/what-we-do";
 import { DashboardShowcase } from "@/components/sections/dashboard-showcase";
 import { WhoWeServe } from "@/components/sections/who-we-serve";
@@ -24,6 +25,9 @@ export function HomePageContent() {
 
         {/* 2. The idea: one coordinated system, shown as small live pictures of its parts */}
         <OurApproach />
+
+        {/* 2b. What it connects: the equipment, as a row of icons */}
+        <EquipmentStrip />
 
         {/* 3. What WayTara does: Build, Charge, Manage */}
         <WhatWeDo />
