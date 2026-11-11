@@ -71,7 +71,7 @@ export function MobileMenu({
     >
       {/* The bar: the same height as the site's header, so nothing jumps when the menu opens. */}
       <div className="fluid-container flex h-[clamp(3.5rem,4.5vw,4.25rem)] shrink-0 items-center justify-between">
-        <Logo imageClassName="h-[30px]" />
+        <Logo imageClassName="h-[24px]" />
         <div className="flex items-center gap-2.5">
           <AuthSlot state={authState} account={account} solid compact onNavigate={onClose} avatarSize="size-[32px]" />
           <button

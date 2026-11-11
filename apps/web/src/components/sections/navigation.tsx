@@ -203,7 +203,7 @@ export function Navigation() {
 
         {/* 1. Left: Minimal Fluid Logo */}
         <div className="flex items-center">
-          <Logo variant={!isThemeStyled ? "white" : "default"} imageClassName="max-lg:h-[30px]" />
+          <Logo variant={!isThemeStyled ? "white" : "default"} imageClassName="max-lg:h-[24px]" />
         </div>
 
         {/* 2. Center: Clean Direct Navigation Links (Fluid Sizing with Smooth In-Page Anchor Scrolling) */}
