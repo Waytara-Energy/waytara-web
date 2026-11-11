@@ -1,0 +1,961 @@
+﻿Date,Area,Page / section,Event
+2026-08-28,Backend,Home page; Logo; Faq,Complete WayTara platform with integrated energy solutions and engineering specification view
+2026-08-31,Landing page,Images and media; Solutions page; README,Convert to pnpm + Turborepo monorepo
+2026-08-31,Backend,API / server: Next.config; API / server: Route; Library: Email,Convert to pnpm + Turborepo monorepo
+2026-08-31,Backend,Library: Enquiries; Supabase package: README; Supabase package: Auth,Add shared @waytara/supabase workspace package
+2026-08-31,Firmware,Generate types,Add shared @waytara/supabase workspace package
+2026-08-31,Firmware,Generate types,Generate real types from the live waytara schema
+2026-08-31,Backend,Supabase package: Types,Generate real types from the live waytara schema
+2026-08-31,Backend,Admin: Next.config; Config package: Package; Config package: Tailwind theme,Scaffold apps/admin with shared packages/ui and packages/config
+2026-08-31,Admin page,Site layout; Admin app; Home page,Scaffold apps/admin with shared packages/ui and packages/config
+2026-08-31,Customer dashboard,Button; Cn; Theme provider,Scaffold apps/admin with shared packages/ui and packages/config
+2026-08-31,Admin page,Invite page; Login page; Admin app,Supabase Auth for both apps via packages/supabase
+2026-08-31,Landing page,Invite page; Login page; Middleware,Supabase Auth for both apps via packages/supabase
+2026-08-31,Customer dashboard,Dashboard page; Input,Supabase Auth for both apps via packages/supabase
+2026-08-31,Backend,Supabase package: Auth; Supabase package: Client server; Supabase package: Index,Supabase Auth for both apps via packages/supabase
+2026-08-31,Admin page,Site styles,@waytara/ui classes weren't generating any CSS
+2026-08-31,Backend,API / server: Route; Library: Notify team,Task 6 — wire the quote-request forms to leads + Resend
+2026-08-31,Landing page,Contact page; Assessment modal section; Energy planner section,Task 6 — wire the quote-request forms to leads + Resend
+2026-08-31,Supabase,Migration: Leads public insert,Task 6 — wire the quote-request forms to leads + Resend
+2026-08-31,Admin page,Leads page,Task 7 — leads inbox + assignment
+2026-08-31,Supabase,Migration: Leads assign and start onboarding,Task 7 — leads inbox + assignment
+2026-08-31,Admin page,Onboarding page; Leads page,"Task 8.1 — quotation pipeline (create, PDF, email, accept/reject)"
+2026-08-31,Backend,Admin: Quotation pdf; Admin: Send quotation email,"Task 8.1 — quotation pipeline (create, PDF, email, accept/reject)"
+2026-08-31,Supabase,Migration: Seed plans; Migration: Quotations policies; Migration: Quotation pdfs staff select,"Task 8.1 — quotation pipeline (create, PDF, email, accept/reject)"
+2026-08-31,Admin page,Onboarding page,"Task 8.2 — payment stage (simulated, no Razorpay yet)"
+2026-08-31,Backend,Admin: Send customer invite email,"Task 8.2 — payment stage (simulated, no Razorpay yet)"
+2026-08-31,Supabase,Migration: Payments policies,"Task 8.2 — payment stage (simulated, no Razorpay yet)"
+2026-08-31,Admin page,Onboarding page,Task 8.3 — account creation status + fix a real Resend bug
+2026-08-31,Backend,Admin: Send customer invite email; Admin: Send quotation email; Library: Notify team,Task 8.3 — account creation status + fix a real Resend bug
+2026-08-31,Admin page,Onboarding page,Task 8.4 - site & device setup
+2026-08-31,Supabase,Migration: Seed device catalog; Migration: Device catalog staff read,Task 8.4 - site & device setup
+2026-08-31,Landing page,Invite page,Task 9 - customer dashboard shell + Basic tier
+2026-08-31,Customer dashboard,Dashboard page; Dashboard nav,Task 9 - customer dashboard shell + Basic tier
+2026-08-31,Backend,Supabase package: Types,Task 9 - customer dashboard shell + Basic tier
+2026-08-31,Supabase,Migration: Customer dashboard policies; Migration: Profile notification preferences; Migration: Device catalog customer read,Task 9 - customer dashboard shell + Basic tier
+2026-08-31,Customer dashboard,Dashboard page; Dashboard nav; Monitoring panel,"Task 10.1 - Monitoring module, shared between apps/web and apps/admin"
+2026-08-31,Landing page,Site styles,"Task 10.1 - Monitoring module, shared between apps/web and apps/admin"
+2026-08-31,Backend,Supabase package: Client browser,"Task 10.1 - Monitoring module, shared between apps/web and apps/admin"
+2026-08-31,Customer dashboard,Dashboard page; Dashboard nav; Performance chart,Task 10.2 — Performance module with historical yield trend chart
+2026-08-31,Customer dashboard,Dashboard page; Dashboard nav; Performance chart,"Task 10.3 — Analytics module with cost savings, ROI, and site comparison"
+2026-08-31,Backend,Supabase package: Types,"Task 10.3 — Analytics module with cost savings, ROI, and site comparison"
+2026-08-31,Supabase,Migration: Customer tariff rate,"Task 10.3 — Analytics module with cost savings, ROI, and site comparison"
+2026-08-31,Backend,API / server: Route; Library: Energy aggregation; Library: Gather report data,Task 10.4 — Reports module with CSV/PDF export
+2026-08-31,Customer dashboard,Dashboard page; Dashboard nav; Report controls,Task 10.4 — Reports module with CSV/PDF export
+2026-08-31,Customer dashboard,Dashboard page; Dashboard nav,"Task 10.5 — instrument settings, plus a real audit-log bug fix"
+2026-08-31,Backend,Library: Instrument settings catalog,"Task 10.5 — instrument settings, plus a real audit-log bug fix"
+2026-08-31,Supabase,Migration: Device settings customer write; Migration: Fix audit log entity id type,"Task 10.5 — instrument settings, plus a real audit-log bug fix"
+2026-08-31,Admin page,Onboarding page,"Task 8.5 — connection test stage, plus a real MonitoringPanel bug fix"
+2026-08-31,Supabase,Migration: Test sessions and readings write,"Task 8.5 — connection test stage, plus a real MonitoringPanel bug fix"
+2026-08-31,Customer dashboard,Monitoring panel,"Task 8.5 — connection test stage, plus a real MonitoringPanel bug fix"
+2026-08-31,Admin page,Onboarding page,"Task 8.6 — install scheduling and completion, closes the onboarding pipeline"
+2026-08-31,Backend,Admin: Send install complete email; Supabase package: Types,"Task 8.6 — install scheduling and completion, closes the onboarding pipeline"
+2026-08-31,Supabase,Migration: Onboarding install scheduling,"Task 8.6 — install scheduling and completion, closes the onboarding pipeline"
+2026-08-31,Backend,Admin: Proxy; API / server: Proxy,Middleware.ts was never invoked in either app — route protection was a no-op
+2026-08-31,Admin page,Devices page; Employees page; Plans page,"Task 11 — employee management, plan catalog, device catalog editor"
+2026-08-31,Backend,Admin: Send employee invite email,"Task 11 — employee management, plan catalog, device catalog editor"
+2026-08-31,Supabase,Migration: Employee invites admin write; Migration: Device catalog admin write,"Task 11 — employee management, plan catalog, device catalog editor"
+2026-08-31,Admin page,Audit page; Sidebar,Task 12.1/12.2 — alert detection and audit log viewer
+2026-08-31,Backend,Admin: Proxy; API / server: Route; Supabase package: Service role,Task 12.1/12.2 — alert detection and audit log viewer
+2026-08-31,Customer dashboard,Dashboard page,Task 12.1/12.2 — alert detection and audit log viewer
+2026-08-31,Landing page,Vercel,Task 12.1/12.2 — alert detection and audit log viewer
+2026-08-31,Supabase,Migration: Alerts acknowledge,Task 12.1/12.2 — alert detection and audit log viewer
+2026-08-31,Backend,Library: Email; Library: Enquiries,"Task 12 final QA — env var audit, remove dead pre-Supabase scaffolding"
+2026-08-31,Landing page,Index,"Task 12 final QA — env var audit, remove dead pre-Supabase scaffolding"
+2026-09-01,Landing page,Navigation section,"Nav 'Get Started' links to customer login, not the energy planner"
+2026-09-01,Admin page,Customers page; Onboarding page; Sidebar,Sidebar Onboarding and Customers links were 404ing
+2026-09-01,Backend,Admin: Proxy,Sidebar Onboarding and Customers links were 404ing
+2026-09-01,Backend,Supabase package: Types,Deleting a user now cascades/nulls every related row correctly
+2026-09-01,Supabase,Migration: Cascade delete on profile removal; Migration: Maintenance tickets customer cascade,Deleting a user now cascades/nulls every related row correctly
+2026-09-01,Admin page,Employees page,Revoke/restore/permanently-delete an employee's access
+2026-09-01,Backend,Supabase package: Auth; Supabase package: Types,Revoke/restore/permanently-delete an employee's access
+2026-09-01,Supabase,Migration: Employee revoke and ghost,Revoke/restore/permanently-delete an employee's access
+2026-09-01,Admin page,Onboarding page,Remove stale 'Site & device setup isn't built yet' copy
+2026-09-01,Backend,Supabase package: Types,Phase 1 of onboarding pipeline redesign — schema foundation
+2026-09-01,Supabase,Migration: Quotation status revision requested; Migration: Onboarding pipeline redesign schema,Phase 1 of onboarding pipeline redesign — schema foundation
+2026-09-01,Admin page,Leads page,Phase 2 of onboarding pipeline redesign — employee lead acknowledgment
+2026-09-01,Admin page,Onboarding page,Phase 3 of onboarding pipeline redesign — GST + plan pricing in quotes
+2026-09-01,Backend,Admin: Send install complete email; Admin: Send quotation email; Admin: Send quote link email,Phase 3 of onboarding pipeline redesign — GST + plan pricing in quotes
+2026-09-01,Admin page,Onboarding page,Task 12/onboarding redesign Phase 4 — public quote response page
+2026-09-01,Landing page,Quote page,Task 12/onboarding redesign Phase 4 — public quote response page
+2026-09-01,Backend,Library: Notify employee of quote response; Library: Send quote accepted email,Task 12/onboarding redesign Phase 4 — public quote response page
+2026-09-01,Customer dashboard,Quotation pdf,Task 12/onboarding redesign Phase 4 — public quote response page
+2026-09-01,Admin page,Onboarding page,Task 12/onboarding redesign Phase 5 — reordered payment flow
+2026-09-01,Landing page,Invite page; Quote page,Task 12/onboarding redesign Phase 5 — reordered payment flow
+2026-09-01,Customer dashboard,Dashboard page,Task 12/onboarding redesign Phase 5 — reordered payment flow
+2026-09-01,Supabase,Migration: Onboarding customer select own; Migration: Onboarding customer update own,Task 12/onboarding redesign Phase 5 — reordered payment flow
+2026-09-01,Customer dashboard,Dashboard page,Task 12/onboarding redesign Phase 6 — customer dashboard gating
+2026-09-01,Backend,API / server: Proxy,Task 12/onboarding redesign Phase 6 — customer dashboard gating
+2026-09-01,Admin page,Onboarding page,Task 12/onboarding redesign Phase 7 — equipment readiness checklist
+2026-09-01,Admin page,Onboarding page,Task 12/onboarding redesign Phase 8 — installation scheduling with time slot
+2026-09-01,Backend,Admin: Send install scheduled email,Task 12/onboarding redesign Phase 8 — installation scheduling with time slot
+2026-09-01,Admin page,Admin app,Commit auto-generated apps/admin AGENTS.md/CLAUDE.md
+2026-09-01,Admin page,Onboarding page,Task 12/onboarding redesign Phase 9 — balance payment at installation
+2026-09-01,Supabase,Migration: Payments employee update own quotation,Task 12/onboarding redesign Phase 9 — balance payment at installation
+2026-09-01,Backend,API / server: Route,Remove Hobby-incompatible Vercel Cron; defer detect-alerts scheduling
+2026-09-01,Landing page,Vercel,Remove Hobby-incompatible Vercel Cron; defer detect-alerts scheduling
+2026-09-01,Admin page,Admin app,Declare build env vars in per-app turbo.json
+2026-09-01,Landing page,Turbo,Declare build env vars in per-app turbo.json
+2026-09-01,Landing page,Turbo,Declare CUSTOMER_APP_URL in web's turbo.json
+2026-09-02,Landing page,Images and media; Forgot password page; Reset password page,Redesign customer login as a split hero/form layout
+2026-09-02,Landing page,Images and media; Login page,Swap login page's light-theme hero photo
+2026-09-02,Landing page,Login page; Cookies page; Privacy page,Add real Terms/Privacy/Cookie/Warranty pages
+2026-09-02,Landing page,Components; Site styles; Site layout,Phase 0 of dashboard redesign — shadcn/ui foundation
+2026-09-02,Customer dashboard,Dashboard page; Dashboard breadcrumb; Dashboard command menu,Phase 1 of dashboard redesign — collapsible Sidebar shell
+2026-09-02,Customer dashboard,Dashboard page,Phase 2 of dashboard redesign — Overview + Sites & Devices
+2026-09-02,Backend,API / server: Route,Dashboard redesign Phase 3 — Monitoring/Performance/Analytics/Reports on shadcn
+2026-09-02,Customer dashboard,Dashboard page; Performance chart; Report controls,Dashboard redesign Phase 3 — Monitoring/Performance/Analytics/Reports on shadcn
+2026-09-02,Landing page,Site styles,Dashboard redesign Phase 3 — Monitoring/Performance/Analytics/Reports on shadcn
+2026-09-02,Customer dashboard,Dashboard page; New maintenance ticket dialog; Settings form,Dashboard redesign Phase 4 — Billing/Maintenance/Settings/Instrument Settings on shadcn
+2026-09-02,Backend,Supabase package: Types,Dashboard redesign Phase 5 — Support module schema & RLS
+2026-09-02,Supabase,Migration: Support module schema,Dashboard redesign Phase 5 — Support module schema & RLS
+2026-09-02,Customer dashboard,Dashboard page; New support ticket dialog; Support thread,Dashboard redesign Phase 6 — Support module customer UI
+2026-09-02,Backend,Library: Support attachments,Dashboard redesign Phase 6 — Support module customer UI
+2026-09-02,Admin page,Support page; Sidebar; Support thread,Dashboard redesign Phase 7 — Support module admin/employee UI
+2026-09-02,Backend,Admin: Support attachments; Admin: Proxy,Dashboard redesign Phase 7 — Support module admin/employee UI
+2026-09-02,Admin page,Admin app; Invite page; Login page,Official brand assets + customer dashboard nav/header/avatar redesign
+2026-09-02,Landing page,Images and media; Apple icon; Favicon,Official brand assets + customer dashboard nav/header/avatar redesign
+2026-09-02,Customer dashboard,Dashboard page; Dashboard breadcrumb; Dashboard command menu,Official brand assets + customer dashboard nav/header/avatar redesign
+2026-09-02,Customer dashboard,Dashboard header; Dashboard sidebar,Dashboard header true-centering + sidebar collapse via edge rail again
+2026-09-02,Landing page,Site styles,Sidebar/popover border-color bug + visible collapse trigger at header's right end
+2026-09-02,Customer dashboard,Dashboard header,Sidebar/popover border-color bug + visible collapse trigger at header's right end
+2026-09-02,Customer dashboard,Dashboard header; Dashboard user menu,"Avatar ring visibility, header trigger to left, tier-next-to-name, marketing nav auth swap"
+2026-09-02,Landing page,Navigation section,"Avatar ring visibility, header trigger to left, tier-next-to-name, marketing nav auth swap"
+2026-09-02,Customer dashboard,Dashboard page; Dashboard header; Dashboard user menu,"Faster marketing-nav avatar, drop avatar rings, drop dropdown plan dot"
+2026-09-02,Landing page,Navigation section,"Faster marketing-nav avatar, drop avatar rings, drop dropdown plan dot"
+2026-09-02,Admin page,Admin app; Apple icon; Favicon,Swap in updated brand assets (logo + icon)
+2026-09-02,Landing page,Images and media; Apple icon; Favicon,Swap in updated brand assets (logo + icon)
+2026-09-02,Customer dashboard,Dashboard page; Dashboard command menu; Dashboard header,Device-centric dashboard Phase 1 — header device switcher
+2026-09-02,Backend,Library: Selected device,Device-centric dashboard Phase 1 — header device switcher
+2026-09-02,Customer dashboard,Dashboard page,Device-centric dashboard Phase 2 — Overview + Monitoring
+2026-09-02,Backend,API / server: Route; Library: Gather report data; Library: Report pdf,"Device-centric dashboard Phase 3 — Performance, Analytics, Reports"
+2026-09-02,Customer dashboard,Dashboard page; Site comparison chart,"Device-centric dashboard Phase 3 — Performance, Analytics, Reports"
+2026-09-02,Customer dashboard,Dashboard page; New maintenance ticket dialog,Device-centric dashboard Phase 4 — Maintenance
+2026-09-02,Backend,Library: Instrument settings catalog; Library: Time of use,Device-centric dashboard Phase 5 — RLS + Deye settings catalog
+2026-09-02,Supabase,Migration: Site and device customer update,Device-centric dashboard Phase 5 — RLS + Deye settings catalog
+2026-09-02,Customer dashboard,Dashboard page; Setting field row; Time of use editor,Device-centric dashboard Phase 6 — Instrument Settings rebuilt
+2026-09-02,Landing page,Site catalog,Device-centric dashboard Phase 6 — Instrument Settings rebuilt
+2026-09-02,Customer dashboard,Dashboard breadcrumb; Dashboard command menu; Dashboard header,Responsive header — no more overlap at mobile/tablet widths
+2026-09-02,Customer dashboard,Dashboard header; Dashboard sidebar; Dashboard user menu,Dashboard header/sidebar sizing — match landing page's fluid scale
+2026-09-02,Backend,Library: Device sync; Library: Deye fault codes; Library: Telemetry catalog,Telemetry-driven dashboard Phase 7 — catalog + fault codes + sync helper
+2026-09-02,Supabase,Migration: Telemetry catalog expansion,Telemetry-driven dashboard Phase 7 — catalog + fault codes + sync helper
+2026-09-02,Customer dashboard,Dashboard page; Device status pill; Energy flow diagram,Telemetry-driven dashboard Phase 8 — Overview rebuild
+2026-09-02,Customer dashboard,Dashboard page; Live metric chart; Pv string comparison,Telemetry-driven dashboard Phase 9 — Monitoring rebuild
+2026-09-02,Customer dashboard,Dashboard page; Diverging bar chart,Telemetry-driven dashboard Phase 10 — Performance rebuild
+2026-09-02,Backend,Library: Energy aggregation,Telemetry-driven dashboard Phase 10 — Performance rebuild
+2026-09-03,Customer dashboard,Dashboard page,Telemetry-driven dashboard Phase 11 — Analytics rebuild
+2026-09-03,Customer dashboard,Dashboard page; Last sync indicator; Temperature gauge,Telemetry-driven dashboard Phase 12 — Maintenance rebuild
+2026-09-03,Customer dashboard,Dashboard page; Fault history; Sd status indicator,Maintenance gap-fill — fault history + SD status
+2026-09-03,Backend,Library: Deye fault codes; Library: Telemetry catalog,Maintenance gap-fill — fault history + SD status
+2026-09-03,Supabase,Migration: Sd status instrument,Maintenance gap-fill — fault history + SD status
+2026-09-03,Customer dashboard,Dashboard page; Lazy charts,"Dedupe request-level fetches, parallelize queries, lazy-load charts"
+2026-09-03,Backend,Library: Selected device; Supabase package: Auth,"Dedupe request-level fetches, parallelize queries, lazy-load charts"
+2026-09-03,Customer dashboard,Dashboard sidebar,Auto-close mobile sidebar on nav item click
+2026-09-03,Customer dashboard,Dashboard header; Dashboard user menu; Device switcher,"Move theme control into avatar menu, tidy device switcher"
+2026-09-03,Landing page,Login page; Skeleton; Spinner,"Comprehensive loading states — skeletons, button spinners"
+2026-09-03,Customer dashboard,Dashboard page; Dashboard user menu; Device switcher,"Comprehensive loading states — skeletons, button spinners"
+2026-09-03,Customer dashboard,Dashboard page,Eliminate duplicate per-navigation auth round trip
+2026-09-03,Backend,Library: Customer plan; Library: Request profile; API / server: Proxy,Eliminate duplicate per-navigation auth round trip
+2026-09-03,Backend,Admin: Proxy; Library: Gather report data; API / server: Proxy,Stop silently dropping refreshed session cookies
+2026-09-03,Admin page,Site layout; Session watcher,Surface a dead client-side session instead of failing silently
+2026-09-03,Customer dashboard,Dashboard page; Session watcher; Use session signed out,Surface a dead client-side session instead of failing silently
+2026-09-03,Supabase,Migration: Default timezone ist,Default the database session timezone to IST
+2026-09-03,Customer dashboard,Dashboard page; Live metric chart; Recent alerts,Supabase Realtime rollout — Phase 1 + 2
+2026-09-03,Customer dashboard,Dashboard page; Realtime refresh,Supabase Realtime rollout — Phase 3 (rest of apps/web)
+2026-09-03,Admin page,Onboarding page; Site layout; Leads page,Supabase Realtime rollout — Phase 4 (apps/admin)
+2026-09-03,Customer dashboard,Monitoring panel,Supabase Realtime rollout — Phase 4 (apps/admin)
+2026-09-03,Customer dashboard,Dashboard page,Modbus register mapping + real hardware read/write agent
+2026-09-03,Backend,Library: Modbus register map; Supabase package: Types,Modbus register mapping + real hardware read/write agent
+2026-09-03,Firmware,Deye modbus agent,Modbus register mapping + real hardware read/write agent
+2026-09-03,Supabase,Migration: Modbus register mapping; Migration: Fix renamed instrument categories,Modbus register mapping + real hardware read/write agent
+2026-09-03,Customer dashboard,Dashboard page,Cut over app code to the register-mapped instrument keys
+2026-09-03,Backend,Library: Energy aggregation; Library: Gather report data; Library: Telemetry catalog,Cut over app code to the register-mapped instrument keys
+2026-09-03,Customer dashboard,Dashboard page; Metric list card,Surface all 34 remaining read-side telemetry fields
+2026-09-03,Backend,Library: Telemetry catalog,Surface all 34 remaining read-side telemetry fields
+2026-09-03,Firmware,Deye modbus agent,Surface all 34 remaining read-side telemetry fields
+2026-09-03,Firmware,Deye modbus agent,Add --no-read flag to deye-modbus-agent.mjs
+2026-09-03,Customer dashboard,Dashboard page,"Live-refresh Overview, Monitoring, Performance, Analytics"
+2026-09-03,Landing page,Home page; Final cta section; Footer section,TEMP_HIDE_LANDING_SECTIONS flag for a simplified landing page
+2026-09-03,Landing page,Final cta section; Footer section,"Hide 2 more badge rows, restructure footer contact/legal"
+2026-09-03,Landing page,Contact page; Cookies page; Privacy page,Update contact number and email site-wide
+2026-09-03,Backend,Library: Notify team,Update contact number and email site-wide
+2026-09-03,Landing page,Footer section,Clean up footer's alt-phone line styling
+2026-09-03,Landing page,Footer section,"Give both footer phone numbers an icon, drop ""Alt"" label"
+2026-09-03,Landing page,Home page; Our team section,"Add Our Team section (vision, mission, 3 bios), below Why WayTara"
+2026-09-03,Landing page,Our team section,"Rewrite Our Team copy in first person, add Our Goal"
+2026-09-03,Landing page,Our team section,Align Our Team's two 3-column grids
+2026-09-03,Landing page,Navigation section; Our team section,"Full name for Manoj, ""Our Team"" header nav link"
+2026-09-03,Landing page,Navigation section,"Mobile nav shows account/Get Started, not a generic CTA"
+2026-09-04,Landing page,Our team section,Redesign Our Team cards as testimonial-style quote cards
+2026-09-04,Landing page,Our team section,Drop literal quote marks from Our Team bios
+2026-09-04,Landing page,Our team section,Drop the dark badge behind Our Team's quote marks
+2026-09-04,Landing page,Our team section,"Shorter, crisper Our Team bios; Manoj reads CTO-caliber"
+2026-09-04,Landing page,Our team section,Rewrite Our Team bios around the actual founding story
+2026-09-04,Landing page,Our team section,Polish Our Team bios per feedback (Arun/Devaansh/Manoj)
+2026-09-04,Landing page,Our team section,"Stack Our Team into 3 rows, bigger text/quote-mark"
+2026-09-04,Landing page,Our team section,"Alternate Our Team rows left/right/left, not left/left/right"
+2026-09-04,Landing page,Our team section,"Vision/Mission/Goal in the icon-badge style, per reference"
+2026-09-04,Landing page,Our team section,"Shrink Vision/Mission/Goal titles, cap descriptions at 4 lines"
+2026-09-04,Landing page,Our team section,Vision/Mission/Goal title size to match Pillars; Team 2+1 rows
+2026-09-04,Landing page,Our team section,"Team rows use full section width, quotes capped at 8 lines"
+2026-09-04,Landing page,Our team section,"Center Team card content, green-gradient quote mark"
+2026-09-04,Landing page,Our team section,Remove the quote-mark icon from Team cards
+2026-09-04,Landing page,Our team section,Add large grey quote mark behind Team card text
+2026-09-04,Landing page,Our team section,Bump up Team card's grey quote mark size
+2026-09-04,Landing page,Our team section,Fix 3 bugs in the manually-edited quote mark styling
+2026-09-04,Landing page,Our team section,"Responsive quote-mark scaling, fix congested Team spacing"
+2026-09-04,Landing page,Our team section,Add missing lg: offset step for the Team quote-mark glyph
+2026-09-04,Landing page,Our team section,"Shrink Team quote-mark glyph, tuck it behind its own text"
+2026-09-04,Landing page,Site styles; Hero section,Raise the mobile floor of the page's side gutter
+2026-09-07,Landing page,Images and media; Hero section,Swap hero background video for theme-aware house photos
+2026-09-09,Landing page,Images and media,Rebuild energy flow diagram on the real device photo
+2026-09-09,Customer dashboard,Dashboard page; Energy flow diagram,Rebuild energy flow diagram on the real device photo
+2026-09-09,Customer dashboard,Dashboard page; Dashboard header; Dashboard sidebar,"Move sidebar collapse toggle into the rail, fix header scroll"
+2026-09-09,Admin page,Admin app; Forgot password page; Reset password page,Rebuild login with password reset and theme-aware hero
+2026-09-16,Admin page,Devices page; Onboarding page; Badge,"Site-centric dashboard redesign, device catalog/stock rebuild, weather widget"
+2026-09-16,Landing page,Images and media; README,"Site-centric dashboard redesign, device catalog/stock rebuild, weather widget"
+2026-09-16,Backend,API / server: Route; Library: Device overview; Library: Gather report data,"Site-centric dashboard redesign, device catalog/stock rebuild, weather widget"
+2026-09-16,Customer dashboard,Dashboard page; Dashboard command menu; Dashboard header,"Site-centric dashboard redesign, device catalog/stock rebuild, weather widget"
+2026-09-16,Firmware,Deye modbus agent,"Site-centric dashboard redesign, device catalog/stock rebuild, weather widget"
+2026-09-16,Supabase,Migration: Split shared site on customer edit; Migration: Device types to stock; Migration: Stock status enum,"Site-centric dashboard redesign, device catalog/stock rebuild, weather widget"
+2026-09-16,Admin page,Onboarding page; Service plans page; Sidebar,"Device warranty/service tracking, sites power_package + geolocation"
+2026-09-16,Backend,Admin: Proxy; API / server: Route; Library: Gather report data,"Device warranty/service tracking, sites power_package + geolocation"
+2026-09-16,Customer dashboard,Dashboard page; Device details card; Device picker,"Device warranty/service tracking, sites power_package + geolocation"
+2026-09-16,Landing page,Site catalog,"Device warranty/service tracking, sites power_package + geolocation"
+2026-09-16,Supabase,Migration: Devices service warranty power package,"Device warranty/service tracking, sites power_package + geolocation"
+2026-09-21,Landing page,Images and media; AGENTS; CLAUDE,"Consolidate device module, EV charging sessions, monitoring redesign"
+2026-09-21,Backend,API / server: Route; Library: Day buckets; Library: Device catalog data,"Consolidate device module, EV charging sessions, monitoring redesign"
+2026-09-21,Customer dashboard,Dashboard page; Analytics content; Bar trend chart,"Consolidate device module, EV charging sessions, monitoring redesign"
+2026-09-21,Firmware,Deye modbus agent,"Consolidate device module, EV charging sessions, monitoring redesign"
+2026-09-21,Supabase,Migration: Ev charger ocpp parameters; Migration: Charging sessions,"Consolidate device module, EV charging sessions, monitoring redesign"
+2026-09-22,Admin page,Admin app; Apple icon legacy; Apple icon,"Rebrand logo/icon assets, EV charger monitoring tabs, team titles"
+2026-09-22,Landing page,Images and media; Apple icon legacy; Apple icon,"Rebrand logo/icon assets, EV charger monitoring tabs, team titles"
+2026-09-22,Customer dashboard,Bar trend chart; Live metric chart; Monitoring content,"Rebrand logo/icon assets, EV charger monitoring tabs, team titles"
+2026-09-24,Admin page,Onboarding page; Audit page; Customers page,"EV charger monitoring redesign, dashboard loading states, Supabase query audit"
+2026-09-24,Backend,API / server: Route; Library: Device readings fetch; Library: Gather report data,"EV charger monitoring redesign, dashboard loading states, Supabase query audit"
+2026-09-24,Customer dashboard,Dashboard page; Analytics content; Bar trend chart,"EV charger monitoring redesign, dashboard loading states, Supabase query audit"
+2026-09-24,Backend,Supabase package: Types,Multi-vendor instrument catalog schema
+2026-09-24,Supabase,Migration: Add site engineer role; Migration: Instrument catalog schema,Multi-vendor instrument catalog schema
+2026-09-24,Supabase,Migration: Seed deye instrument catalog,Seed instrument catalog from the Deye register-map source docs
+2026-09-24,Admin page,Devices page; Onboarding page,Repoint every device_parameters call site onto the new catalog
+2026-09-24,Backend,Library: Device catalog data,Repoint every device_parameters call site onto the new catalog
+2026-09-24,Firmware,Deye modbus agent,Repoint deye-modbus-agent's read catalog off device_parameters
+2026-09-24,Backend,Supabase package: Types,"Drop device_parameters, retired by the instrument catalog"
+2026-09-24,Supabase,Migration: Drop device parameters,"Drop device_parameters, retired by the instrument catalog"
+2026-09-24,Admin page,Devices page,Register Map editor on the Devices page
+2026-09-24,Admin page,Onboarding page,Device feature flags toggle in onboarding's connection test
+2026-09-24,Customer dashboard,Monitoring content,"Generator tab, gated on device_feature_flags"
+2026-09-24,Customer dashboard,Dashboard page; Time of use editor; Tou preset picker,"Time-of-Use preset picker, replacing raw slot editing"
+2026-09-24,Backend,Library: Energy aggregation; Library: Instrument settings catalog; Library: Modbus register map,"Time-of-Use preset picker, replacing raw slot editing"
+2026-09-24,Supabase,Migration: Seed tou presets,"Time-of-Use preset picker, replacing raw slot editing"
+2026-09-24,Admin page,Devices page,Instrument Catalog + Enum Values editor
+2026-09-24,Supabase,Migration: Restrict device parameter map instrument key,Stop instrument_catalog deletes cascading into device_parameter_map
+2026-09-24,Admin page,Devices page,Setting Presets editor with per-device preview
+2026-09-24,Customer dashboard,Dashboard page; Instrument setting row,"Solar inverter Settings fully DB-driven, with regulated confirm+audit"
+2026-09-24,Backend,Library: Device settings data; Library: Instrument settings catalog; Library: Modbus register map,"Solar inverter Settings fully DB-driven, with regulated confirm+audit"
+2026-09-24,Admin page,Employees page; Invite page,Shared feature-flag helper; site_engineer actually usable
+2026-09-24,Backend,Admin: Send employee invite email; Library: Device catalog data; Library: Device feature flags,Shared feature-flag helper; site_engineer actually usable
+2026-09-24,Customer dashboard,Monitoring content,Shared feature-flag helper; site_engineer actually usable
+2026-09-24,Supabase,Migration: Seed ev charger catalog,"Seed EV charger's instrument_catalog, lost when device_parameters was dropped"
+2026-09-24,Customer dashboard,Dashboard page; Charging sessions carousel; Device health content,EV charger fully DB-driven (read + write); unify the catalog fetcher
+2026-09-24,Backend,Library: Ev charger catalog; Library: Instrument catalog data; Library: Instrument settings catalog,EV charger fully DB-driven (read + write); unify the catalog fetcher
+2026-09-24,Admin page,Devices page,"Settings History viewer, per device"
+2026-09-24,Firmware,Deye modbus agent; Register codec,"Real decode/encode engine, write path, and 4 self-test modes"
+2026-09-24,Customer dashboard,Dashboard page; Device overview content; Device status pill,Reconcile solar_inverter's Excel-seed vs live-simulator key vocabulary
+2026-09-24,Backend,Library: Ev charger catalog; Library: Service status; Library: Telemetry catalog,Reconcile solar_inverter's Excel-seed vs live-simulator key vocabulary
+2026-09-24,Firmware,Deye modbus agent,Reconcile solar_inverter's Excel-seed vs live-simulator key vocabulary
+2026-09-24,Supabase,Migration: Reconcile solar inverter key vocabulary,Reconcile solar_inverter's Excel-seed vs live-simulator key vocabulary
+2026-09-24,Supabase,Migration: Ev charger connector suspended label,EV charger error_code vocabulary mismatch + connector_status label precision
+2026-09-25,Firmware,Ev charger backfill,EV charger sample-data backfill script
+2026-10-03,Customer dashboard,Pv string comparison; Sd status indicator,"Equipment schema rename, Deye V119 register fixes, codec updates"
+2026-10-03,Backend,Library: Telemetry catalog; Supabase package: Types,"Equipment schema rename, Deye V119 register fixes, codec updates"
+2026-10-03,Firmware,Deye modbus agent; Ev charger backfill; Register codec,"Equipment schema rename, Deye V119 register fixes, codec updates"
+2026-10-03,Supabase,Migration: Correct deye v119 registers; Migration: Equipment schema rename; Migration: Equipment templates add source,"Equipment schema rename, Deye V119 register fixes, codec updates"
+2026-10-03,Admin page,Devices page; Onboarding page; Employees page,"Sonner toast system, template-driven monitoring redesign, device registers editor"
+2026-10-03,Backend,API / server: Route; Admin: Equipment templates; Library: Device catalog data,"Sonner toast system, template-driven monitoring redesign, device registers editor"
+2026-10-03,Landing page,Quote page; Eslint.config; Forgot password page,"Sonner toast system, template-driven monitoring redesign, device registers editor"
+2026-10-03,Customer dashboard,Dashboard page; Analytics content; Bar trend chart,"Sonner toast system, template-driven monitoring redesign, device registers editor"
+2026-10-03,Admin page,Toast from search params,Wrap ToastFromSearchParams in Suspense so auth pages prerender
+2026-10-03,Customer dashboard,Toast from search params,Wrap ToastFromSearchParams in Suspense so auth pages prerender
+2026-10-03,Customer dashboard,Bar trend chart; Power generation chart,Remove yesterday reference data from bar trend charts
+2026-10-03,Backend,; Tests and deploy: Dependabot; Tests and deploy: Ci,"CI, CodeQL, Dependabot, error boundaries, gitattributes, production-readiness log"
+2026-10-03,Admin page,Error; Loading; Global error,"CI, CodeQL, Dependabot, error boundaries, gitattributes, production-readiness log"
+2026-10-03,Customer dashboard,Dashboard page; Error fallback,"CI, CodeQL, Dependabot, error boundaries, gitattributes, production-readiness log"
+2026-10-03,Landing page,Error; Global error; Not found,"CI, CodeQL, Dependabot, error boundaries, gitattributes, production-readiness log"
+2026-10-03,Documentation,PRODUCTION READINESS,"CI, CodeQL, Dependabot, error boundaries, gitattributes, production-readiness log"
+2026-10-03,Backend,API / server: Route; Admin: Next.config; Admin: Proxy,"Fail-closed cron auth, DB rate limiting, private quotation PDFs, secure proxy matchers, security headers"
+2026-10-03,Admin page,Onboarding page; Quotations page,"Fail-closed cron auth, DB rate limiting, private quotation PDFs, secure proxy matchers, security headers"
+2026-10-03,Landing page,Quote page,"Fail-closed cron auth, DB rate limiting, private quotation PDFs, secure proxy matchers, security headers"
+2026-10-03,Documentation,PRODUCTION READINESS,"Fail-closed cron auth, DB rate limiting, private quotation PDFs, secure proxy matchers, security headers"
+2026-10-03,Supabase,Migration: Security hardening,"Fail-closed cron auth, DB rate limiting, private quotation PDFs, secure proxy matchers, security headers"
+2026-10-03,Admin page,Devices page; Employees page; Leads page,"Enforce roles inside server actions, append-only audit log, local production-shaped DB"
+2026-10-03,Customer dashboard,Dashboard page,"Enforce roles inside server actions, append-only audit log, local production-shaped DB"
+2026-10-03,Documentation,PRODUCTION READINESS,"Enforce roles inside server actions, append-only audit log, local production-shaped DB"
+2026-10-03,Firmware,Local db,"Enforce roles inside server actions, append-only audit log, local production-shaped DB"
+2026-10-03,Backend,Supabase package: Auth,"Enforce roles inside server actions, append-only audit log, local production-shaped DB"
+2026-10-03,Supabase,; Config; Baseline storage,"Enforce roles inside server actions, append-only audit log, local production-shaped DB"
+2026-10-03,Backend,Tests and deploy: Ci; Library: Cron auth; Library: Is expired,"Vitest unit tests, pgTAP RLS/security suite, local DB bootstrap + CI job"
+2026-10-03,Customer dashboard,Field grouping,"Vitest unit tests, pgTAP RLS/security suite, local DB bootstrap + CI job"
+2026-10-03,Landing page,Vitest.config,"Vitest unit tests, pgTAP RLS/security suite, local DB bootstrap + CI job"
+2026-10-03,Documentation,PRODUCTION READINESS,"Vitest unit tests, pgTAP RLS/security suite, local DB bootstrap + CI job"
+2026-10-03,Firmware,Register codec; Test db,"Vitest unit tests, pgTAP RLS/security suite, local DB bootstrap + CI job"
+2026-10-03,Supabase,Database tests,"Vitest unit tests, pgTAP RLS/security suite, local DB bootstrap + CI job"
+2026-10-03,Backend,API / server: Next.config; Tests and deploy: First load js,"Optimise media, drop framer-motion, lazy-load Supabase in marketing nav, AVIF/WebP images"
+2026-10-03,Landing page,Images and media; Login page; Site styles,"Optimise media, drop framer-motion, lazy-load Supabase in marketing nav, AVIF/WebP images"
+2026-10-03,Customer dashboard,Charging sessions carousel,"Optimise media, drop framer-motion, lazy-load Supabase in marketing nav, AVIF/WebP images"
+2026-10-03,Documentation,PRODUCTION READINESS,"Optimise media, drop framer-motion, lazy-load Supabase in marketing nav, AVIF/WebP images"
+2026-10-04,Backend,API / server: Route; Library: Device catalog data; Library: Device overview,"Equipment_latest, server-side telemetry bucketing, RLS initplan rewrite, throttled realtime refresh"
+2026-10-04,Customer dashboard,Dashboard page; Bar trend chart; Monitoring content,"Equipment_latest, server-side telemetry bucketing, RLS initplan rewrite, throttled realtime refresh"
+2026-10-04,Documentation,PRODUCTION READINESS,"Equipment_latest, server-side telemetry bucketing, RLS initplan rewrite, throttled realtime refresh"
+2026-10-04,Supabase,Migration: Performance data layer; Database tests,"Equipment_latest, server-side telemetry bucketing, RLS initplan rewrite, throttled realtime refresh"
+2026-10-04,Admin page,robots.txt,"Server-render home/solutions, metadata, sitemap, robots, JSON-LD (FAQ/Service/Org), llms.txt, OG image"
+2026-10-04,Landing page,Site layout; Solutions page; Seo,"Server-render home/solutions, metadata, sitemap, robots, JSON-LD (FAQ/Service/Org), llms.txt, OG image"
+2026-10-04,Customer dashboard,Dashboard page,"Server-render home/solutions, metadata, sitemap, robots, JSON-LD (FAQ/Service/Org), llms.txt, OG image"
+2026-10-04,Documentation,PRODUCTION READINESS,"Server-render home/solutions, metadata, sitemap, robots, JSON-LD (FAQ/Service/Org), llms.txt, OG image"
+2026-10-04,Backend,Tests and deploy: Ci; Admin: Next.config; Admin: Proxy,Playwright suite against local Supabase; fix admin static-asset proxy regression; approve esbuild build
+2026-10-04,Admin page,Admin app; Login page,Playwright suite against local Supabase; fix admin static-asset proxy regression; approve esbuild build
+2026-10-04,Documentation,PRODUCTION READINESS,Playwright suite against local Supabase; fix admin static-asset proxy regression; approve esbuild build
+2026-10-04,Admin page,Admin app; Error; Global error,"Telemetry rollups + retention, long-range reads via daily rollup, Sentry (opt-in), ops/contributing/security docs, tooling fixes"
+2026-10-04,Backend,Admin: Report error; Library: Device readings fetch; Library: Gather report data,"Telemetry rollups + retention, long-range reads via daily rollup, Sentry (opt-in), ops/contributing/security docs, tooling fixes"
+2026-10-04,Landing page,Eslint.config; Error; Global error,"Telemetry rollups + retention, long-range reads via daily rollup, Sentry (opt-in), ops/contributing/security docs, tooling fixes"
+2026-10-04,Customer dashboard,Dashboard page; Analytics content; Performance content,"Telemetry rollups + retention, long-range reads via daily rollup, Sentry (opt-in), ops/contributing/security docs, tooling fixes"
+2026-10-04,Documentation,CONTRIBUTING; OPERATIONS; PRODUCTION READINESS,"Telemetry rollups + retention, long-range reads via daily rollup, Sentry (opt-in), ops/contributing/security docs, tooling fixes"
+2026-10-04,Supabase,Migration: Telemetry rollups retention; Database tests,"Telemetry rollups + retention, long-range reads via daily rollup, Sentry (opt-in), ops/contributing/security docs, tooling fixes"
+2026-10-04,Backend,Notes,Upgrade Next.js 16.3.2 -> 16.3.8 (3 critical advisories incl. RCE in next/og and AVIF image optimization)
+2026-10-04,Supabase,Config,"Disable Studio in the local Supabase stack (port conflicts on Windows, not needed for tests)"
+2026-10-04,Documentation,OPERATIONS; PRODUCTION READINESS,Record production migration (applied and verified 2026-10-04)
+2026-10-04,Documentation,OPERATIONS,Fix backup path
+2026-10-05,Admin page,Site layout,Vercel Analytics + Speed Insights in both apps; canonical host www; docs
+2026-10-05,Landing page,Security; llms.txt (AI guide); Site layout,Vercel Analytics + Speed Insights in both apps; canonical host www; docs
+2026-10-05,Documentation,OPERATIONS; PRODUCTION READINESS,Vercel Analytics + Speed Insights in both apps; canonical host www; docs
+2026-10-05,Backend,Tests and deploy: Public site; Config package: Security headers,Vercel Analytics + Speed Insights in both apps; canonical host www; docs
+2026-10-05,Backend,API / server: Route; Supabase package: Types,"Compute device last-seen in SQL; the 1,000-row API cap caused false 'never reported' alerts"
+2026-10-05,Documentation,PRODUCTION READINESS,"Compute device last-seen in SQL; the 1,000-row API cap caused false 'never reported' alerts"
+2026-10-05,Supabase,Migration: Device last seen; Database tests,"Compute device last-seen in SQL; the 1,000-row API cap caused false 'never reported' alerts"
+2026-10-05,Backend,Notes,"Declare environment variables in turbo.json (silences Vercel warning, adds them to the build cache key)"
+2026-10-05,Admin page,Devices page,Align offset formula with the live agent; disable JS modbus mode; privacy policy: analytics/monitoring
+2026-10-05,Landing page,Privacy page,Align offset formula with the live agent; disable JS modbus mode; privacy policy: analytics/monitoring
+2026-10-05,Documentation,OPERATIONS,Align offset formula with the live agent; disable JS modbus mode; privacy policy: analytics/monitoring
+2026-10-05,Firmware,Register codec; Deye modbus agent,Align offset formula with the live agent; disable JS modbus mode; privacy policy: analytics/monitoring
+2026-10-06,Backend,API / server: Route; Library: Report types; Library: Report day csv,"Daily report builder - pick a report type and a date, chart + CSV/PDF export"
+2026-10-06,Customer dashboard,Dashboard page; Bar trend chart; Day report,"Daily report builder - pick a report type and a date, chart + CSV/PDF export"
+2026-10-06,Backend,Library: Report types; API / server: Route; Library: Report day data,Daily report uses only the device's enabled equipment_metrics (read + show_for_user)
+2026-10-06,Customer dashboard,Dashboard page; Day report,Daily report uses only the device's enabled equipment_metrics (read + show_for_user)
+2026-10-06,Supabase,Migration: Rollup data layer; Database tests,"Rollup data layer - 15m/1h/1d rollups, ingest_tick, telemetry_series, live channel and snapshot policies"
+2026-10-07,Customer dashboard,Dashboard page; Bar trend chart; Chart states,"Telemetry store - rollup-backed charts with live updates, no refetch"
+2026-10-07,Backend,Library: Cache; Library: Combine; Library: Live manager,"Telemetry store - rollup-backed charts with live updates, no refetch"
+2026-10-07,Customer dashboard,Dashboard page; Device overview content; Ev live cards,Overview numbers update live in place; battery direction fixed
+2026-10-07,Backend,Library: Device overview; Library: Enum labels; Library: Instrument catalog data,Overview numbers update live in place; battery direction fixed
+2026-10-07,Customer dashboard,Dashboard page; Charging sessions carousel; Device status pill,Solar Monitoring screen is live in place - no page refresh
+2026-10-07,Backend,Library: Device sync,Solar Monitoring screen is live in place - no page refresh
+2026-10-07,Customer dashboard,Dashboard page; Analytics content; Device health content,Every reader moved off raw telemetry; field groups live; no page refresh on readings
+2026-10-07,Backend,Library: Report types; Library: Device overview; Library: Device readings fetch,Every reader moved off raw telemetry; field groups live; no page refresh on readings
+2026-10-07,Backend,API / server: Route; Library: Weather codes; Library: Weather,Weather refreshes itself without re-rendering the Overview
+2026-10-07,Customer dashboard,Dashboard page; Interval refresh; Weather header,Weather refreshes itself without re-rendering the Overview
+2026-10-07,Customer dashboard,Bar trend chart; Range bar; Range context,Range picker (Today / 7 / 30 / 90 days / custom 30-day window) on Monitoring
+2026-10-07,Backend,Library: Ranges; Library: React,Range picker (Today / 7 / 30 / 90 days / custom 30-day window) on Monitoring
+2026-10-07,Customer dashboard,Bar trend chart; Go live; Monitoring content,Go Live on Monitoring - every reading of today at the device's own rate
+2026-10-07,Backend,Library: Go live; Library: Device sync,Go Live on Monitoring - every reading of today at the device's own rate
+2026-10-07,Backend,Notes,Pin patched source-map-js and sharp (clears the high-severity audit findings)
+2026-10-07,Customer dashboard,Performance content; Performance range,"Performance follows the range picker - per-hour energy for today, per-day for 7 / 30 / 90 days and custom"
+2026-10-07,Backend,API / server: Route; Library: Report types; Library: Report day csv,"Reports cover a day, 7 / 30 / 90 days or a custom 30-day window, with CSV and PDF exports for the same window"
+2026-10-07,Customer dashboard,Dashboard page; Day report,"Reports cover a day, 7 / 30 / 90 days or a custom 30-day window, with CSV and PDF exports for the same window"
+2026-10-07,Customer dashboard,Ev hub live; Monitoring content; Monitoring shared,EV Monitoring hub is live in place and no longer calls client-module helpers from the server
+2026-10-07,Backend,Library: Temperature rows,EV Monitoring hub is live in place and no longer calls client-module helpers from the server
+2026-10-07,Customer dashboard,Device health content; Live temperature gauges,Maintenance temperature gauges follow the live channel
+2026-10-07,Documentation,CONTRIBUTING; OPERATIONS; PRODUCTION READINESS,"Rollup data layer, live dashboards and cutover status"
+2026-10-07,Documentation,OPERATIONS; PRODUCTION READINESS,"Retire raw telemetry - drop the old hourly rollup, read/purge functions and cron jobs, delete real raw rows"
+2026-10-07,Backend,Supabase package: Types,"Retire raw telemetry - drop the old hourly rollup, read/purge functions and cron jobs, delete real raw rows"
+2026-10-07,Supabase,Database tests; Migration: Retire raw telemetry,"Retire raw telemetry - drop the old hourly rollup, read/purge functions and cron jobs, delete real raw rows"
+2026-10-07,Supabase,Migration: Lock rollup partitions; Database tests,"Lock the rollup partitions (RLS on, no anon/authenticated grants) and lock every new one"
+2026-10-07,Backend,Library: Provider ssr; Library: React,Telemetry provider no longer touches document/window while rendering on the server
+2026-10-07,Landing page,Images and media,Energy flow diagram shows the house as a transparent cut-out (no white backdrop)
+2026-10-07,Customer dashboard,Energy flow diagram,Energy flow diagram shows the house as a transparent cut-out (no white backdrop)
+2026-10-07,Landing page,Images and media,"Energy flow is now an icon-and-line diagram - curved gradient lines, direction colours, room for extra batteries, chargers, generator and UPS"
+2026-10-07,Customer dashboard,Energy flow layout; Energy flow diagram,"Energy flow is now an icon-and-line diagram - curved gradient lines, direction colours, room for extra batteries, chargers, generator and UPS"
+2026-10-07,Customer dashboard,Energy flow diagram,Energy flow marks unused lines with a red gradient cross
+2026-10-07,Customer dashboard,Energy flow diagram,Energy flow draws grid export in the consuming blue
+2026-10-07,Backend,Supabase package: Types,"The agent reports whether the device answers (device_online, last_read_at) and the live message carries it"
+2026-10-07,Supabase,Migration: Device connectivity; Database tests,"The agent reports whether the device answers (device_online, last_read_at) and the live message carries it"
+2026-10-07,Customer dashboard,Energy flow badge; Energy flow summary; Dashboard page,"Icon-and-line energy flow, Overview Go Live, offline device handling"
+2026-10-07,Backend,Library: Agent online; Library: Device state; Library: Go live,"Icon-and-line energy flow, Overview Go Live, offline device handling"
+2026-10-07,Backend,Supabase package: Types,Alert reminders and the agent's reason for a silent device
+2026-10-07,Supabase,Migration: Alert reminders; Database tests,Alert reminders and the agent's reason for a silent device
+2026-10-07,Backend,Library: Device alerts; API / server: Route; Library: Send device alert email,"Device alerts e-mailed to the customer, critical ones repeated every 3 hours"
+2026-10-07,Documentation,OPERATIONS,"Device alerts e-mailed to the customer, critical ones repeated every 3 hours"
+2026-10-07,Customer dashboard,Energy flow insight; Energy flow summary; Dashboard page,Overview board and Monitoring Main Hub rework
+2026-10-07,Landing page,Chart,Overview board and Monitoring Main Hub rework
+2026-10-07,Backend,Library: Energy today; Library: Solar generation; Library: Device overview,Overview board and Monitoring Main Hub rework
+2026-10-07,Backend,API / server: Route,Only remind about devices whose agent reports (unmonitored devices are never e-mailed)
+2026-10-07,Customer dashboard,Bar series; Bar trend chart; Battery trend group,"Monitoring tab rework - Solar Array, Battery, Load and Grid"
+2026-10-08,Backend,Library: Device state; API / server: Route; Library: Device alerts,"Offline / Connection lost status, frozen energy flow, and a one-minute check-in"
+2026-10-08,Customer dashboard,Dashboard page; Device overview content; Device status pill,"Offline / Connection lost status, frozen energy flow, and a one-minute check-in"
+2026-10-08,Documentation,OPERATIONS,"Offline / Connection lost status, frozen energy flow, and a one-minute check-in"
+2026-10-08,Supabase,Migration: Heartbeat interval; Database tests,"Offline / Connection lost status, frozen energy flow, and a one-minute check-in"
+2026-10-08,Customer dashboard,Performance range,"Parent and child equipment, with the battery baseline on the allocated row"
+2026-10-08,Backend,Supabase package: Types,"Parent and child equipment, with the battery baseline on the allocated row"
+2026-10-08,Supabase,Migration: Battery profiles; Migration: Equipment children; Migration: Battery baseline on equipment,"Parent and child equipment, with the battery baseline on the allocated row"
+2026-10-08,Admin page,Onboarding page,"Performance page with lifetime cards per segment, battery cycles and health, and child equipment"
+2026-10-08,Backend,Library: Battery health; Library: Equipment children; Library: Performance metrics,"Performance page with lifetime cards per segment, battery cycles and health, and child equipment"
+2026-10-08,Customer dashboard,Dashboard page; Live status card; Perf data,"Performance page with lifetime cards per segment, battery cycles and health, and child equipment"
+2026-10-08,Documentation,OPERATIONS,"Performance page with lifetime cards per segment, battery cycles and health, and child equipment"
+2026-10-08,Backend,Library: Live manager; Library: Store; Library: Loaders,"Re-read the connection state so a healthy device never stays ""Offline"" in a tab that missed the live messages"
+2026-10-08,Customer dashboard,Diverging bar chart; Live status card; Perf data,"Performance tabs follow the chosen period, with a Today-first range picker and tabs for the five sections"
+2026-10-08,Backend,Library: Performance period; Library: Ranges; Library: Device readings fetch,"Performance tabs follow the chosen period, with a Today-first range picker and tabs for the five sections"
+2026-10-08,Admin page,Tariffs page; Sidebar,"State electricity tariffs (slabs, free units, duty) drive Cost & Savings, with an admin rates page and a daily change job"
+2026-10-08,Backend,Library: Savings; Library: Tariff email; Library: Tariff schedule,"State electricity tariffs (slabs, free units, duty) drive Cost & Savings, with an admin rates page and a daily change job"
+2026-10-08,Customer dashboard,Dashboard page; Analytics content; Cost savings,"State electricity tariffs (slabs, free units, duty) drive Cost & Savings, with an admin rates page and a daily change job"
+2026-10-08,Documentation,OPERATIONS,"State electricity tariffs (slabs, free units, duty) drive Cost & Savings, with an admin rates page and a daily change job"
+2026-10-08,Supabase,Migration: Electricity tariffs; Migration: Seed indicative tariffs; Migration: Tariff slabs,"State electricity tariffs (slabs, free units, duty) drive Cost & Savings, with an admin rates page and a daily change job"
+2026-10-08,Backend,Library: Notification items; Library: Offline notice; Library: Go live,"Claude-style sidebar and header, notification side panel, offline toast, and Go Live on the status"
+2026-10-08,Customer dashboard,Dashboard page; Connection notice; Dashboard breadcrumb,"Claude-style sidebar and header, notification side panel, offline toast, and Go Live on the status"
+2026-10-08,Landing page,Site styles; Sidebar; Sonner,"Claude-style sidebar and header, notification side panel, offline toast, and Go Live on the status"
+2026-10-09,Customer dashboard,Device switcher; Site switcher,"Hide a site from its customer's dashboard without deleting it, and drop the site search box"
+2026-10-09,Backend,Library: Selected site; Supabase package: Types,"Hide a site from its customer's dashboard without deleting it, and drop the site search box"
+2026-10-09,Supabase,Migration: Sites customer hidden,"Hide a site from its customer's dashboard without deleting it, and drop the site search box"
+2026-10-09,Customer dashboard,Dashboard page; Appearance setting; Chart style setting,"Device status icons in the header, account details inside the sidebar, hover-to-peek sidebar, and Light/Dark/Auto appearance in settings"
+2026-10-09,Landing page,Site styles; Auto theme; Theme toggle,"Device status icons in the header, account details inside the sidebar, hover-to-peek sidebar, and Light/Dark/Auto appearance in settings"
+2026-10-09,Backend,Library: Chart style; Library: Device status summary; Library: Device sync,"Device status icons in the header, account details inside the sidebar, hover-to-peek sidebar, and Light/Dark/Auto appearance in settings"
+2026-10-09,Customer dashboard,Bar hover; Bar trend chart; Charger trend group,"Charts redesigned (readout under the title, no value axis, gradients, line/bar setting, shared interval), flow colours, period picker in the calendar, and a Performance headline per tab"
+2026-10-09,Backend,Library: Energy today,"Charts redesigned (readout under the title, no value axis, gradients, line/bar setting, shared interval), flow colours, period picker in the calendar, and a Performance headline per tab"
+2026-10-09,Customer dashboard,Dashboard command menu; Dashboard sidebar; Dashboard user menu,"The sidebar closes when a page is picked, and the dimmed layer behind panels is white in the light theme"
+2026-10-09,Landing page,Dialog; Sheet; Sidebar,"The sidebar closes when a page is picked, and the dimmed layer behind panels is white in the light theme"
+2026-10-09,Customer dashboard,Bar hover; Chart kit; Go live,"Dragging a finger across a chart moves its readout, and the Go Live chart reads the point you touch"
+2026-10-09,Landing page,Chart,"Dragging a finger across a chart moves its readout, and the Go Live chart reads the point you touch"
+2026-10-09,Customer dashboard,Day report,Device status verdict (heartbeat view) and customer reports with schedules and run history
+2026-10-09,Documentation,OPERATIONS,Device status verdict (heartbeat view) and customer reports with schedules and run history
+2026-10-09,Backend,Supabase package: Types,Device status verdict (heartbeat view) and customer reports with schedules and run history
+2026-10-09,Supabase,Migration: Device status; Migration: Customer reports,Device status verdict (heartbeat view) and customer reports with schedules and run history
+2026-10-09,Customer dashboard,Dashboard page; Connection notice; Device status icons,"Header status follows the server verdict on every page, and the Investigate toast shows on every page"
+2026-10-09,Backend,Library: Device state; Library: Live manager; Library: Store,"Header status follows the server verdict on every page, and the Investigate toast shows on every page"
+2026-10-09,Customer dashboard,Analytics content; Flow colors; Main hub trend group,"Monitoring and performance chart polish, and no tooltip on the logo button"
+2026-10-09,Backend,API / server: Route; Library: Custom report; Library: Period math,"Reports rebuilt as Summary, Energy and Generate with a filter panel, custom and scheduled reports, and branded CSV and PDF"
+2026-10-09,Customer dashboard,Dashboard page; Custom report view; My reports,"Reports rebuilt as Summary, Energy and Generate with a filter panel, custom and scheduled reports, and branded CSV and PDF"
+2026-10-09,Landing page,Data table,"Reports rebuilt as Summary, Energy and Generate with a filter panel, custom and scheduled reports, and branded CSV and PDF"
+2026-10-09,Documentation,REPORTS RESEARCH,"Reports rebuilt as Summary, Energy and Generate with a filter panel, custom and scheduled reports, and branded CSV and PDF"
+2026-10-09,Backend,Library: Maintenance health; Library: Troubleshooting guide; API / server: Route,"Maintenance redesigned as Health, Service and Requests with a troubleshooting guide"
+2026-10-09,Customer dashboard,Dashboard page; Device health content; Fault history card,"Maintenance redesigned as Health, Service and Requests with a troubleshooting guide"
+2026-10-12,Backend,API / server: Route; Library: Device about; Library: Map style,"Devices rebuilt with Device info, Settings and Site tabs, live settings, a custom map, address search and a weather forecast page"
+2026-10-12,Landing page,Geo; Geocode; Site catalog,"Devices rebuilt with Device info, Settings and Site tabs, live settings, a custom map, address search and a weather forecast page"
+2026-10-12,Customer dashboard,Dashboard page; Dashboard header; Device about,"Devices rebuilt with Device info, Settings and Site tabs, live settings, a custom map, address search and a weather forecast page"
+2026-10-12,Documentation,AGENT DATA FLOW; OPERATIONS,"Devices rebuilt with Device info, Settings and Site tabs, live settings, a custom map, address search and a weather forecast page"
+2026-10-12,Admin page,Onboarding page,"Property type, power source and power package are staff-only"
+2026-10-12,Supabase,Migration: Site fields staff only,"Property type, power source and power package are staff-only"
+2026-10-13,Backend,API / server: Route; Library: Cadence parse; Library: Cadence keys,"ESP32 cadence history in Google Sheets, Go Live from the unit, and per-minute day reports"
+2026-10-13,Customer dashboard,Go live; Report center,"ESP32 cadence history in Google Sheets, Go Live from the unit, and per-minute day reports"
+2026-10-13,Documentation,OPERATIONS,"ESP32 cadence history in Google Sheets, Go Live from the unit, and per-minute day reports"
+2026-10-13,Supabase,Database tests; Migration: Device ingest token; Migration: Device ingest full,"ESP32 cadence history in Google Sheets, Go Live from the unit, and per-minute day reports"
+2026-10-13,Documentation,DEYE 8K REGISTER DECODE; GATEWAY ARCHITECTURE PLAN,ESP32 gateway architecture plan and Deye 8K register decode formulas
+2026-10-15,Documentation,DEYE 8K REGISTER DECODE; GATEWAY ARCHITECTURE PLAN; GATEWAY ARCHITECTURE V2,"Gateway architecture v2 plan, Deye 8K register decode (CSV) and task roadmap"
+2026-10-15,Supabase,Migration: Site staff and gateway keys; Database tests,"Site assignments, access function and equipment keys (A1)"
+2026-10-15,Supabase,Migration: Gateway claim and helpers; Database tests,Helpers for key management and for a board collecting its key (A4a)
+2026-10-15,Documentation,GATEWAY ARCHITECTURE V2,Backend name hub.waytaraenergy.com and progress table
+2026-10-15,Documentation,GATEWAY ARCHITECTURE V2,MQTT login token and A4b progress in the gateway plan
+2026-10-15,Supabase,Migration: Gateway ingest; Database tests,"Gateway intake functions, replacing summaries, check-ins and per-unit settings (A4c part 1)"
+2026-10-15,Documentation,GATEWAY ARCHITECTURE V2,A4c done in the gateway plan progress table
+2026-10-15,Documentation,GATEWAY ARCHITECTURE V2,"Who may read cadence data, and labels in the catalogue (A5 part 1)"
+2026-10-15,Supabase,Migration: Gateway cadence reports; Database tests,"Who may read cadence data, and labels in the catalogue (A5 part 1)"
+2026-10-15,Documentation,GATEWAY ARCHITECTURE V2,A5 done in the gateway plan progress table
+2026-10-15,Admin page,Cadence page; Sidebar,Cadence data tab for customers and a cadence page for staff
+2026-10-15,Customer dashboard,Cadence panel; Report center,Cadence data tab for customers and a cadence page for staff
+2026-10-15,Backend,Cadence package: Package; Cadence package: Cadence; Cadence package: Client,Cadence data tab for customers and a cadence page for staff
+2026-10-15,Documentation,GATEWAY ARCHITECTURE V2,"EV charger sessions, samples, events and the functions behind the OCPP server (Part B)"
+2026-10-15,Supabase,Migration: Ev ocpp; Database tests,"EV charger sessions, samples, events and the functions behind the OCPP server (Part B)"
+2026-10-15,Customer dashboard,Dashboard page; Ev session charts; Nav config,Charging sessions page for customers with an EV charger (Part B)
+2026-10-15,Backend,Library: Ev sessions; Supabase package: Types,Charging sessions page for customers with an EV charger (Part B)
+2026-10-15,Admin page,Keys page; Sidebar,"Device keys screen - make, replace and revoke a unit's or charger's secret (A10)"
+2026-10-15,Backend,Cadence package: Keys; Cadence package: Package,"Device keys screen - make, replace and revoke a unit's or charger's secret (A10)"
+2026-10-15,Documentation,GATEWAY ARCHITECTURE V2,B4 and the admin Keys screen in the gateway plan progress table
+2026-10-15,Documentation,GATEWAY RUNBOOK,"Production runbook for the gateway - settings, keep-alive, health, undo, security state, first hardware tests"
+2026-10-15,Supabase,Migration: Ev target and active sessions; Database tests,Target units on a charge and the sessions still open (Part B)
+2026-10-15,Customer dashboard,Dashboard page,Charging sessions show the target asked for and explain a session closed without a stop
+2026-10-15,Backend,Library: Ev sessions; Supabase package: Types,Charging sessions show the target asked for and explain a session closed without a stop
+2026-10-16,Firmware,Gateway setup app,"The unit setup web page (A7) - sign in, pick the device, Bluetooth, Wi-Fi, checks, speed test, finish"
+2026-10-16,Documentation,GATEWAY ARCHITECTURE V2; GATEWAY RUNBOOK,"The unit setup web page (A7) - sign in, pick the device, Bluetooth, Wi-Fi, checks, speed test, finish"
+2026-10-16,Backend,Cadence package: Keys,"The unit setup web page (A7) - sign in, pick the device, Bluetooth, Wi-Fi, checks, speed test, finish"
+2026-10-16,Firmware,Gateway setup app,"Database functions for settings write-back and Go Live (A9, A10)"
+2026-10-16,Documentation,GATEWAY ARCHITECTURE V2; GATEWAY RUNBOOK,"Database functions for settings write-back and Go Live (A9, A10)"
+2026-10-16,Supabase,Database tests; Migration: Gateway settings writes; Migration: Gateway live,"Database functions for settings write-back and Go Live (A9, A10)"
+2026-10-16,Backend,Notes,Remove the setup page (moved to its own repository) and its lockfile entries
+2026-10-16,Backend,Library: Cadence hub parse; API / server: Route; Library: Cadence hub,Go Live history and the day report read the hub instead of Google Sheets (A10)
+2026-10-16,Customer dashboard,Go live,Go Live history and the day report read the hub instead of Google Sheets (A10)
+2026-10-16,Documentation,OPERATIONS,Go Live history and the day report read the hub instead of Google Sheets (A10)
+2026-10-16,Admin page,Site access page; Sidebar,Site access page to assign employees and site engineers to sites (A10)
+2026-10-16,Backend,Admin: Proxy,Site access page to assign employees and site engineers to sites (A10)
+2026-10-16,Documentation,GATEWAY ARCHITECTURE V2; GATEWAY RUNBOOK,Site access page to assign employees and site engineers to sites (A10)
+2026-10-16,Admin page,Keys page,"Release unit button, its database function, and an installer guide (A10 part)"
+2026-10-16,Documentation,GATEWAY RUNBOOK; INSTALLER GUIDE,"Release unit button, its database function, and an installer guide (A10 part)"
+2026-10-16,Backend,Cadence package: Keys,"Release unit button, its database function, and an installer guide (A10 part)"
+2026-10-16,Supabase,Migration: Gateway release board; Database tests,"Release unit button, its database function, and an installer guide (A10 part)"
+2026-10-16,Documentation,GATEWAY RUNBOOK,Runbook says the signed-in hub routes are limited per person
+2026-10-16,Backend,Cadence package: Client; Cadence package: Keys; Cadence package: Trim,"Trim slashes and dashes with plain loops, not patterns (CodeQL js/polynomial-redos)"
+2026-10-16,Firmware,Test db,Test 18 makes its own plans; the runner shows psql errors (CI Database check)
+2026-10-16,Supabase,Database tests,Test 18 makes its own plans; the runner shows psql errors (CI Database check)
+2026-10-16,Supabase,Database tests,"Tests 13 and 18 create what they rely on, so they pass on a fresh database"
+2026-10-21,Documentation,GATEWAY V3 TASKS,"One heartbeat for the fleet - e-mail queue, hub health and fleet_tick() (T1 to T3)"
+2026-10-21,Backend,Supabase package: Types,"One heartbeat for the fleet - e-mail queue, hub health and fleet_tick() (T1 to T3)"
+2026-10-21,Supabase,Database tests; Migration: Notification outbox; Migration: Fleet tick,"One heartbeat for the fleet - e-mail queue, hub health and fleet_tick() (T1 to T3)"
+2026-10-21,Backend,Library: Device status mail; API / server: Route; Library: Send device status email,Mailer route and digest e-mails for the device-status queue (T5)
+2026-10-21,Documentation,GATEWAY V3 TASKS,Mailer route and digest e-mails for the device-status queue (T5)
+2026-10-21,Backend,API / server: Route,"The 5-minute alert job no longer handles ""offline"" (T6, part 1)"
+2026-10-21,Documentation,GATEWAY V3 TASKS,"The 5-minute alert job no longer handles ""offline"" (T6, part 1)"
+2026-10-21,Admin page,Keys page; Activity page; Sidebar,"Activity log and push interval (T9, T10) (#19)"
+2026-10-21,Customer dashboard,Dashboard page; Device activity; Go live,"Activity log and push interval (T9, T10) (#19)"
+2026-10-21,Documentation,GATEWAY V3 TASKS,"Activity log and push interval (T9, T10) (#19)"
+2026-10-21,Backend,Cadence package: Keys; Supabase package: Types,"Activity log and push interval (T9, T10) (#19)"
+2026-10-21,Supabase,Database tests; Migration: Device activity log; Migration: Push interval,"Activity log and push interval (T9, T10) (#19)"
+2026-10-21,Documentation,GATEWAY V3 TASKS,T13 measured - Go Live starts in 2.2 s
+2026-10-21,Documentation,GATEWAY V3 TASKS,"Board day checklist (T17, T7, T25, T24)"
+2026-10-21,Documentation,GATEWAY V3 TASKS,T13 re-measured on the flashed firmware - updates every 2.1 s
+2026-10-21,Documentation,GATEWAY V3 TASKS,"Board day first session recorded (memory fix, radar, T7 cable pull)"
+2026-10-21,Documentation,GATEWAY V3 TASKS,Tracker status after the first board session
+2026-10-21,Documentation,GATEWAY V3 TASKS,"T15 and T16 closed on the user's confirmation, with what was not exercised"
+2026-10-21,Documentation,GATEWAY V3 TASKS; GATEWAY V4 TASKS,"Gateway v4 - what is left of v3 and the parked work, in detail"
+2026-10-21,Customer dashboard,Connection notice; Device status icons; Use device state,"The dashboard follows the server's status only; alerts and e-mails say which cause (power or network, or the RS485 line)"
+2026-10-21,Backend,Library: Device state; Library: Device status mail,"The dashboard follows the server's status only; alerts and e-mails say which cause (power or network, or the RS485 line)"
+2026-10-21,Supabase,Database tests; Migration: Cause aware alerts,"The dashboard follows the server's status only; alerts and e-mails say which cause (power or network, or the RS485 line)"
+2026-10-21,Documentation,GATEWAY V4 TASKS,"A9 - the three failure causes end to end, what changed and how to verify on the board"
+2026-10-21,Supabase,Database tests; Migration: Recovery hold,"A recovery must hold for a minute before an offline alert closes and ""back online"" is sent"
+2026-10-21,Supabase,Migration: Read rates; Database tests,"Choose the read rate of each value of a unit (cadence seconds), with ""use the map's rate"" to put the original back"
+2026-10-22,Customer dashboard,Dashboard page; Nav config; Devices board,Charging pages follow the selected site; Site moves from a Devices tab to its own menu page under Maintenance
+2026-10-22,Customer dashboard,Dashboard page; Site location; Site pane,"Site page redesigned as a full-page map with two floating cards, and a minimal edit form"
+2026-10-22,Customer dashboard,Dashboard page; Glass; Site devices,"Site page - device list with status, two-step edit (place the pin, then the details) and glass cards"
+2026-10-22,Customer dashboard,Site location,"Site map opens closer and in 3D, makes one slow turn around the site, and has a Recenter button"
+2026-10-22,Customer dashboard,Site location,"Site map - slower turn (one minute) and no markers, only the site's building in green"
+2026-10-22,Customer dashboard,Cadence panel; Range bar; Range calendar,"Pick a range of days (up to 90) in every date picker: tap the first day, then the last"
+2026-10-22,Backend,Library: Period choice; Library: Ranges,"Pick a range of days (up to 90) in every date picker: tap the first day, then the last"
+2026-10-22,Customer dashboard,Dashboard page; Reports board; Solar monitoring view,Monitoring shows today only (no date picker); the Reports page survives a database statement timeout
+2026-10-22,Backend,Library: Device readings fetch; Library: Gather,Monitoring shows today only (no date picker); the Reports page survives a database statement timeout
+2026-10-22,Backend,API / server: Route,Cadence files work on localhost - the page asks the readings service through its own server
+2026-10-22,Customer dashboard,Cadence panel,Cadence files work on localhost - the page asks the readings service through its own server
+2026-10-22,Admin page,Support page; Login page; Site layout,"Tickets go to the site's team, anyone can take or hand over, e-mails at every step, files, seen marks, ratings (customer and admin)"
+2026-10-22,Backend,Library: Support mail; Admin: Proxy; API / server: Route,"Tickets go to the site's team, anyone can take or hand over, e-mails at every step, files, seen marks, ratings (customer and admin)"
+2026-10-22,Customer dashboard,Dashboard page; New support ticket dialog; Support conversation,"Tickets go to the site's team, anyone can take or hand over, e-mails at every step, files, seen marks, ratings (customer and admin)"
+2026-10-22,Documentation,SUPPORT,"Tickets go to the site's team, anyone can take or hand over, e-mails at every step, files, seen marks, ratings (customer and admin)"
+2026-10-22,Supabase,Migration: Support v2; Migration: Support names; Migration: Support internal files,"Tickets go to the site's team, anyone can take or hand over, e-mails at every step, files, seen marks, ratings (customer and admin)"
+2026-10-22,Admin page,Support page; Support board; Support desk,"Master-detail Support page (list left, chat and widgets right), help and guides when no ticket is open, shadcn selects"
+2026-10-22,Customer dashboard,Dashboard page; New support ticket dialog; Support conversation,"Master-detail Support page (list left, chat and widgets right), help and guides when no ticket is open, shadcn selects"
+2026-10-22,Backend,Library: Support help,"Master-detail Support page (list left, chat and widgets right), help and guides when no ticket is open, shadcn selects"
+2026-10-22,Customer dashboard,Dashboard page; New support ticket dialog; Support conversation,"Calmer ticket list in a card, gradient New ticket button, collapsible widgets, help without the fault-code guide"
+2026-10-22,Customer dashboard,Support help,"Common questions as pill accordion (plus / cross), six questions"
+2026-10-22,Backend,Library: Support help,"Common questions as pill accordion (plus / cross), six questions"
+2026-10-22,Customer dashboard,Dashboard page; Maintenance board; Maintenance requests,Problems are reported in Support; the Maintenance Requests tab and Report an issue are gone
+2026-10-22,Backend,Library: Maintenance health,Problems are reported in Support; the Maintenance Requests tab and Report an issue are gone
+2026-10-23,Admin page,Support board; Support desk,"Support list in a card with roomier rows, collapsible side-panel cards, Files shared"
+2026-10-23,Customer dashboard,Dashboard page; Billing board,"Billing & Plan redesigned in the Performance / Maintenance style (headline, Plan and Payments tabs)"
+2026-10-23,Backend,Library: Billing summary,"Billing & Plan redesigned in the Performance / Maintenance style (headline, Plan and Payments tabs)"
+2026-10-23,Admin page,Customers page,"Record a customer's subscription (Customers page), shown on their Billing & Plan page"
+2026-10-23,Backend,Admin: Subscription period; Supabase package: Types,"Record a customer's subscription (Customers page), shown on their Billing & Plan page"
+2026-10-23,Supabase,Migration: Record subscription; Database tests,"Record a customer's subscription (Customers page), shown on their Billing & Plan page"
+2026-10-23,Admin page,Login page; Actions,Signing out on one device no longer signs out every device; Devices & sessions in Application Settings
+2026-10-23,Landing page,Login page,Signing out on one device no longer signs out every device; Devices & sessions in Application Settings
+2026-10-23,Customer dashboard,Dashboard page; Devices setting,Signing out on one device no longer signs out every device; Devices & sessions in Application Settings
+2026-10-23,Backend,Library: User agent; Supabase package: Types,Signing out on one device no longer signs out every device; Devices & sessions in Application Settings
+2026-10-23,Supabase,Migration: My sessions; Database tests,Signing out on one device no longer signs out every device; Devices & sessions in Application Settings
+2026-10-23,Customer dashboard,Dashboard page; Appearance setting; Chart style setting,"Application Settings rebuilt - profile photo, e-mail change by code, overview cards and background, notifications, addresses and billing, password and idle sign-out, unit converter"
+2026-10-23,Landing page,Address,"Application Settings rebuilt - profile photo, e-mail change by code, overview cards and background, notifications, addresses and billing, password and idle sign-out, unit converter"
+2026-10-23,Backend,Library: Email otp; Library: Overview prefs; Library: Session policy,"Application Settings rebuilt - profile photo, e-mail change by code, overview cards and background, notifications, addresses and billing, password and idle sign-out, unit converter"
+2026-10-23,Documentation,SETTINGS,"Application Settings rebuilt - profile photo, e-mail change by code, overview cards and background, notifications, addresses and billing, password and idle sign-out, unit converter"
+2026-10-23,Supabase,Migration: Profile preferences; Migration: Customer billing details; Database tests,"Application Settings rebuilt - profile photo, e-mail change by code, overview cards and background, notifications, addresses and billing, password and idle sign-out, unit converter"
+2026-10-23,Customer dashboard,Dashboard page; Overview backdrop; Overview board,Overview background covers the whole page; the Overview fits the screen without scrolling
+2026-10-23,Landing page,Login page,"Notifications in categories - account and security (sign-in, sign-out), devices, faults and alarms, billing, support"
+2026-10-23,Backend,API / server: Route; Library: Auth mail; Library: Notification prefs,"Notifications in categories - account and security (sign-in, sign-out), devices, faults and alarms, billing, support"
+2026-10-23,Customer dashboard,Dashboard page; Notifications section,"Notifications in categories - account and security (sign-in, sign-out), devices, faults and alarms, billing, support"
+2026-10-23,Documentation,SETTINGS,"Notifications in categories - account and security (sign-in, sign-out), devices, faults and alarms, billing, support"
+2026-10-23,Backend,Library: Chart units; Library: Notification prefs; Library: Unit fields,"Units tab - choose kW or W, kWh or MJ, degrees C or F for everything or for one reading, applied across the dashboard; device e-mails split into network / inverter / back online"
+2026-10-23,Customer dashboard,Dashboard page; Bar trend chart; Charging sessions carousel,"Units tab - choose kW or W, kWh or MJ, degrees C or F for everything or for one reading, applied across the dashboard; device e-mails split into network / inverter / back online"
+2026-10-23,Landing page,Units provider,"Units tab - choose kW or W, kWh or MJ, degrees C or F for everything or for one reading, applied across the dashboard; device e-mails split into network / inverter / back online"
+2026-10-23,Documentation,SETTINGS,"Units tab - choose kW or W, kWh or MJ, degrees C or F for everything or for one reading, applied across the dashboard; device e-mails split into network / inverter / back online"
+2026-10-23,Backend,Library: Alert rules; API / server: Route; Library: Alert rule mail,"My alerts - customers make their own alerts (""tell me when the battery is below 25%"") and get ready-made ones, some on by default"
+2026-10-23,Customer dashboard,Dashboard page; Alerts manager; Notifications section,"My alerts - customers make their own alerts (""tell me when the battery is below 25%"") and get ready-made ones, some on by default"
+2026-10-23,Documentation,SETTINGS,"My alerts - customers make their own alerts (""tell me when the battery is below 25%"") and get ready-made ones, some on by default"
+2026-10-23,Supabase,Migration: Alert rules; Database tests,"My alerts - customers make their own alerts (""tell me when the battery is below 25%"") and get ready-made ones, some on by default"
+2026-10-23,Customer dashboard,Dashboard page; Addresses section; Alerts manager,Application Settings is full width and built like the other pages: headline and tabs
+2026-10-23,Documentation,SETTINGS,Application Settings is full width and built like the other pages: headline and tabs
+2026-10-23,Landing page,Login page; Site styles; Appearance applier,"Application Settings 2.0 - hero, ten tabs, account health, two-factor sign-in, activity, pause, appearance, start page, data export"
+2026-10-23,Backend,API / server: Route; Library: Account events; Library: Account health,"Application Settings 2.0 - hero, ten tabs, account health, two-factor sign-in, activity, pause, appearance, start page, data export"
+2026-10-23,Customer dashboard,Dashboard page; Account section; Activity list,"Application Settings 2.0 - hero, ten tabs, account health, two-factor sign-in, activity, pause, appearance, start page, data export"
+2026-10-23,Documentation,SETTINGS,"Application Settings 2.0 - hero, ten tabs, account health, two-factor sign-in, activity, pause, appearance, start page, data export"
+2026-10-23,Supabase,Migration: Account events,"Application Settings 2.0 - hero, ten tabs, account health, two-factor sign-in, activity, pause, appearance, start page, data export"
+2026-10-23,Customer dashboard,Dashboard page; Billing board; Nav config,Billing & Plan page moves into Application Settings > Billing
+2026-10-23,Documentation,SETTINGS,Billing & Plan page moves into Application Settings > Billing
+2026-10-23,Customer dashboard,Dashboard page; Ev live cards; Overview board,"Overview is a board of widgets the customer arranges - move, resize, colour themes, add and remove; settings columns without gaps"
+2026-10-23,Landing page,Site styles,"Overview is a board of widgets the customer arranges - move, resize, colour themes, add and remove; settings columns without gaps"
+2026-10-23,Backend,Library: Overview layout; Library: Overview prefs,"Overview is a board of widgets the customer arranges - move, resize, colour themes, add and remove; settings columns without gaps"
+2026-10-23,Customer dashboard,Alert visuals; Alerts manager; Alerts section,"Alerts as coloured tiles like phone shortcuts; ""Ready-made"" becomes ""Smart alerts"""
+2026-10-23,Backend,Library: Alert rule mail; Library: Notification prefs,"Alerts as coloured tiles like phone shortcuts; ""Ready-made"" becomes ""Smart alerts"""
+2026-10-23,Customer dashboard,Dashboard page; Idle sign out; Activity list,"Password changes need an e-mail code and sign out every device; flexible ""staying signed in"""
+2026-10-23,Backend,Library: Auth mail; Library: Mask email; Library: Session policy,"Password changes need an e-mail code and sign out every device; flexible ""staying signed in"""
+2026-10-23,Supabase,Migration: Password change codes; Database tests,"Password changes need an e-mail code and sign out every device; flexible ""staying signed in"""
+2026-10-23,Backend,Library: Invoice pdf; Library: Invoice; API / server: Route,"Billing - view, download and e-mail the invoice of each paid payment; export the payment history"
+2026-10-23,Customer dashboard,Dashboard page; Billing section; Invoice dialog,"Billing - view, download and e-mail the invoice of each paid payment; export the payment history"
+2026-10-23,Backend,Library: Account events; API / server: Route; Library: Auth notify,"Privacy & data without the data download - what we keep, activity history choices, this browser; Account tab without holes"
+2026-10-23,Customer dashboard,Dashboard page; Account section; Privacy section,"Privacy & data without the data download - what we keep, activity history choices, this browser; Account tab without holes"
+2026-10-23,Documentation,SETTINGS,"Privacy & data without the data download - what we keep, activity history choices, this browser; Account tab without holes"
+2026-10-23,Customer dashboard,Dashboard user menu; Account section; Addresses section,"Sidebar foot rows, auto-saving settings, columns that never overlap, a real photo editor"
+2026-10-23,Backend,Library: Avatar crop,"Sidebar foot rows, auto-saving settings, columns that never overlap, a real photo editor"
+2026-10-23,Documentation,SETTINGS,"Sidebar foot rows, auto-saving settings, columns that never overlap, a real photo editor"
+2026-10-23,Landing page,Site styles; Profile live,New photo shows at once; Overview has no Customize button and never scrolls; widgets redesigned like phone widgets
+2026-10-23,Customer dashboard,Dashboard user menu; Energy today cards; Ev live cards,New photo shows at once; Overview has no Customize button and never scrolls; widgets redesigned like phone widgets
+2026-10-23,Backend,Library: Overview layout,New photo shows at once; Overview has no Customize button and never scrolls; widgets redesigned like phone widgets
+2026-10-23,Documentation,SETTINGS,New photo shows at once; Overview has no Customize button and never scrolls; widgets redesigned like phone widgets
+2026-10-23,Customer dashboard,Dashboard page; Energy today cards; Ev live cards,Take the Overview widgets out; the Overview is as it was (four cards beside the energy flow)
+2026-10-23,Landing page,Site styles,Take the Overview widgets out; the Overview is as it was (four cards beside the energy flow)
+2026-10-23,Backend,Library: Overview layout; Library: Overview prefs,Take the Overview widgets out; the Overview is as it was (four cards beside the energy flow)
+2026-10-23,Documentation,SETTINGS,Take the Overview widgets out; the Overview is as it was (four cards beside the energy flow)
+2026-10-23,Landing page,Invite page; Quote page; Forgot password page,Loading skeletons that match every dashboard page; pending states on the last plain submit buttons
+2026-10-23,Customer dashboard,Dashboard page; Settings hero; Skeletons,Loading skeletons that match every dashboard page; pending states on the last plain submit buttons
+2026-10-23,Admin page,Devices page; Support page; Leads page,Shimmering loading skeletons that match each staff dashboard page
+2026-10-23,Admin page,Customers page; Onboarding page; Tariffs page,Submit buttons disable and spin while their form's action runs
+2026-10-23,Customer dashboard,Button,Submit buttons disable and spin while their form's action runs
+2026-10-23,Backend,Library: Data gaps; Library: Gaps; API / server: Route,Show when the device sent no readings - in the Overview and Monitoring charts and in every report
+2026-10-23,Customer dashboard,Bar trend chart; Data gap note; Reports summary,Show when the device sent no readings - in the Overview and Monitoring charts and in every report
+2026-10-23,Admin page,Sonner,"Card-style toasts without close buttons; data gaps keep the line continuous, name the reason and link to device health"
+2026-10-23,Customer dashboard,Bar trend chart; Connection notice; Data gap chip,"Card-style toasts without close buttons; data gaps keep the line continuous, name the reason and link to device health"
+2026-10-23,Landing page,Sonner,"Card-style toasts without close buttons; data gaps keep the line continuous, name the reason and link to device health"
+2026-10-23,Backend,Library: Data gaps; Supabase package: Types,"Card-style toasts without close buttons; data gaps keep the line continuous, name the reason and link to device health"
+2026-10-23,Supabase,Migration: Activity cause,"Card-style toasts without close buttons; data gaps keep the line continuous, name the reason and link to device health"
+2026-10-23,Customer dashboard,Connection notice; Toast style,The offline toast was a card inside a card; it now uses the shared toast card once
+2026-10-23,Customer dashboard,Connection notice,The Dismiss button of the offline toast did nothing
+2026-10-23,Customer dashboard,Bar trend chart; Data gap chip; Device status icons,Inverter menu as a card with the reason and the right buttons; chart gaps are red hatched lines only
+2026-10-23,Backend,Library: Data gaps,Inverter menu as a card with the reason and the right buttons; chart gaps are red hatched lines only
+2026-10-23,Backend,API / server: Route; Library: Data gaps; Library: Outages,Reports and the Data gaps card name the cause; PDFs follow the chart style and mark gaps in red lines; slimmer device menu
+2026-10-23,Customer dashboard,Dashboard page; Data gap note; Device status icons,Reports and the Data gaps card name the cause; PDFs follow the chart style and mark gaps in red lines; slimmer device menu
+2026-10-23,Customer dashboard,Chart kit; Custom report view; Performance chart,"Report chart covers the whole selected window; data gaps in every time chart, the Performance chart, custom reports; gap rows tinted in tables"
+2026-10-23,Landing page,Data table,"Report chart covers the whole selected window; data gaps in every time chart, the Performance chart, custom reports; gap rows tinted in tables"
+2026-10-23,Backend,Library: Custom report; Library: Data gaps,"Report chart covers the whole selected window; data gaps in every time chart, the Performance chart, custom reports; gap rows tinted in tables"
+2026-10-23,Backend,Supabase package: Types,Chargers added to a monitoring unit (gateway_chargers) for EV chargers on the unit's own Wi-Fi
+2026-10-23,Supabase,Migration: Gateway chargers,Chargers added to a monitoring unit (gateway_chargers) for EV chargers on the unit's own Wi-Fi
+2026-10-23,Supabase,Migration: Gateway charger audit actor,Adding a charger to a unit acts as the person who asked (audit trail)
+2026-10-23,Documentation,EV GATEWAY CHECKLIST,Checklist for the EV charger through the monitoring unit (SIM + local Wi-Fi)
+2026-10-23,Customer dashboard,Dashboard page,"Take the EV cards, the charging-sessions carousel (with its images and Start/Stop buttons) off the Overview, to redesign the EV pages"
+2026-10-24,Customer dashboard,Dashboard page; Charging sessions carousel; Energy flow diagram,"EV in the energy flow, Start charging on the Overview, EV tab on Monitoring, colour key in the header"
+2026-10-24,Backend,Library: Ev control; Library: Ev tab; Library: Ev overview,"EV in the energy flow, Start charging on the Overview, EV tab on Monitoring, colour key in the header"
+2026-10-24,Customer dashboard,Energy flow diagram,"The energy flow keeps its circles (greyed, with a dash) when there are no readings"
+2026-10-24,Customer dashboard,Dashboard page; Energy flow diagram; Ev charge control,The charger circle is the charging button; the Overview chip is gone
+2026-10-24,Backend,Library: Ev tab; API / server: Route; Library: Ev period,"Monitoring EV tab = the live charge and today's sessions; Charging sessions page gets periods, totals and CSV"
+2026-10-24,Customer dashboard,Dashboard page; Ev live figures; Ev live tiles,"Monitoring EV tab = the live charge and today's sessions; Charging sessions page gets periods, totals and CSV"
+2026-10-24,Backend,API / server: Route; Library: Ev perf stats; Library: Ev report pdf,"EV charging on Performance and Reports (energy per day, solar share, cost; CSV and PDF report)"
+2026-10-24,Customer dashboard,Dashboard page; Ev performance board; Ev reports board,"EV charging on Performance and Reports (energy per day, solar share, cost; CSV and PDF report)"
+2026-10-24,Customer dashboard,Dashboard page; Ev maint health; Maintenance board,"Maintenance for the EV charger (health checks through its unit, events, report a problem)"
+2026-10-24,Backend,Library: Ev maint health; Library: Ev maint data,"Maintenance for the EV charger (health checks through its unit, events, report a problem)"
+2026-10-24,Customer dashboard,Dashboard page; Ev settings config; Ev settings controls,"'OCPP and charger' settings on the Devices page (connection, unlock/reset, configuration, message log)"
+2026-10-24,Backend,Library: Ev settings; Library: Ev settings data,"'OCPP and charger' settings on the Devices page (connection, unlock/reset, configuration, message log)"
+2026-10-24,Customer dashboard,Nav config; Energy flow layout; Site devices,"Bigger energy-flow diagram, site device rows as a dot before the arrow, no Charging sessions menu entry"
+2026-10-24,Customer dashboard,Ev performance board; Ev reports board; Monitoring content,Monitoring EV tab crashed (icon passed to a client component); sample charges show on Performance and Reports
+2026-10-24,Backend,Library: Ev perf stats,Monitoring EV tab crashed (icon passed to a client component); sample charges show on Performance and Reports
+2026-10-24,Documentation,EV GATEWAY CHECKLIST,EV gateway checklist marked with what is really done (2026-10-24)
+2026-10-24,Documentation,GATEWAY SIM EV RUNBOOK,Runbook for the SIM + EV charger gateway firmware
+2026-10-24,Documentation,EV GATEWAY CHECKLIST,Checklist - runbook written
+2026-10-24,Supabase,Migration: Gateway ev latest,"Gw_ev_set_latest - the live figures of a charger, written by the OCPP server"
+2026-10-24,Customer dashboard,Device status icons,"A way to show the EV charger on Monitoring, Performance, Reports and Maintenance"
+2026-10-25,Customer dashboard,Dashboard page; Appearance setting; Bar trend chart,"Mobile swipeable tabs, weather sunrise/sunset overlay, default line charts and auto theme"
+2026-10-25,Landing page,Tabs; Site styles; Appearance applier,"Mobile swipeable tabs, weather sunrise/sunset overlay, default line charts and auto theme"
+2026-10-25,Backend,Library: Appearance prefs; Library: Chart style; Supabase package: Roles,"Mobile swipeable tabs, weather sunrise/sunset overlay, default line charts and auto theme"
+2026-10-25,Firmware,Apply today cleanup; Benchmark all pages; Configure site access,"Mobile swipeable tabs, weather sunrise/sunset overlay, default line charts and auto theme"
+2026-10-25,Supabase,Migration: Site members; Migration: Equipment customer hidden; Migration: Can view equipment site members,"Mobile swipeable tabs, weather sunrise/sunset overlay, default line charts and auto theme"
+2026-10-29,Customer dashboard,Energy flow diagram,"Overview energy flow - no tooltips; hover darkens the page around, lifts the circle and fades in a details card"
+2026-10-29,Customer dashboard,Energy flow diagram,Overview energy flow - no hover effect and no details card
+2026-10-29,Customer dashboard,Sun context,Sun times read the day once instead of inside a memo (lint error that failed CI)
+2026-10-29,Landing page,Forgot password page; Login page; Reset password page,"Forgot password by e-mailed code (e-mail, code, new password) with a form that survives a reload"
+2026-10-29,Landing page,Login page,The sidebar starts closed at every sign-in
+2026-10-29,Admin page,Plans page; Admin app; Site styles,"Plans page redesigned on shadcn - editable names, offers, GST and tax, flexible modules, live preview"
+2026-10-29,Backend,Admin: Plan pricing; Admin: Utils; Supabase package: Types,"Plans page redesigned on shadcn - editable names, offers, GST and tax, flexible modules, live preview"
+2026-10-29,Supabase,Migration: Plans offers tax,"Plans page redesigned on shadcn - editable names, offers, GST and tax, flexible modules, live preview"
+2026-10-29,Admin page,Devices page,"Stock catalog - overview cards above the table, and an item opens on its own page"
+2026-10-29,Admin page,Devices page; Accordion,"Simpler Add stock item - start fresh or copy an item; technical details and warranty as rows, not JSON"
+2026-10-29,Supabase,Migration: Stock serial unique,"Simpler Add stock item - start fresh or copy an item; technical details and warranty as rows, not JSON"
+2026-10-29,Backend,Admin: Next.config; Admin: Po document; Supabase package: Types,"Purchase order file for stock items - uploaded to a private Supabase bucket, viewed and downloaded on demand"
+2026-10-29,Admin page,Devices page,"Purchase order file for stock items - uploaded to a private Supabase bucket, viewed and downloaded on demand"
+2026-10-29,Supabase,Migration: Stock po documents,"Purchase order file for stock items - uploaded to a private Supabase bucket, viewed and downloaded on demand"
+2026-10-29,Admin page,Devices page,"Stock status shown in colour - green in stock, blue allocated, violet installed, red damaged or out, amber returned"
+2026-10-29,Admin page,Devices page,"Stock category chosen from a list, with ""Add a new category"" - on both Add and Edit"
+2026-10-29,Admin page,Devices page; Command; Dialog,Category picker you can search and add to in place; Solar Inverter and EV Charger read as words
+2026-10-29,Admin page,Devices page,"Stock categories are a list of their own - add in the picker, remove with an X"
+2026-10-29,Backend,Supabase package: Types,"Stock categories are a list of their own - add in the picker, remove with an X"
+2026-10-29,Supabase,Migration: Stock categories,"Stock categories are a list of their own - add in the picker, remove with an X"
+2026-10-29,Backend,Admin: Next.config; Admin: Po document; Admin: Stock documents server,User manual and data sheet for a stock item; documents upload straight from the browser to storage
+2026-10-29,Admin page,Devices page,User manual and data sheet for a stock item; documents upload straight from the browser to storage
+2026-10-29,Supabase,Migration: Stock documents,User manual and data sheet for a stock item; documents upload straight from the browser to storage
+2026-10-29,Backend,Supabase package: Types,"Stock by unit - models, serial/lot units, receipts and a movement history (applied to the live project)"
+2026-10-29,Supabase,Migration: Stock units,"Stock by unit - models, serial/lot units, receipts and a movement history (applied to the live project)"
+2026-10-29,Admin page,Devices page; Onboarding page; Service plans page,"Stock rebuilt around units - catalog of models, serial/lot stock, receive a delivery, reserve for a customer, install by serial number"
+2026-10-29,Backend,Admin: Stock documents server; API / server: Route; Library: Gather,"Stock rebuilt around units - catalog of models, serial/lot stock, receive a delivery, reserve for a customer, install by serial number"
+2026-10-29,Customer dashboard,Dashboard page,"Stock rebuilt around units - catalog of models, serial/lot stock, receive a delivery, reserve for a customer, install by serial number"
+2026-10-29,Supabase,Migration: Equipment serial,"Stock rebuilt around units - catalog of models, serial/lot stock, receive a delivery, reserve for a customer, install by serial number"
+2026-10-29,Admin page,Customers page; Employees page; Keys page,"New shell - collapsible sidebar like the customer dashboard, notification center, alert badges; list pages redesigned on shadcn"
+2026-10-29,Backend,Admin: Admin alerts; Config package: Tailwind theme,"New shell - collapsible sidebar like the customer dashboard, notification center, alert badges; list pages redesigned on shadcn"
+2026-10-29,Admin page,Site layout; Admin command menu; Admin sidebar,"Sidebar folds to an icon rail again; no ""Admin"" tag by the logo; visible avatar"
+2026-10-29,Admin page,Dashboard page; Admin nav; Admin sidebar,Overview page at /dashboard and an Overview line under the sidebar search
+2026-10-29,Admin page,Dashboard page; Leads page; Onboarding page,Overview page crashed - lead statuses and onboarding stages moved out of client files
+2026-10-29,Backend,Admin: Pipeline,Overview page crashed - lead statuses and onboarding stages moved out of client files
+2026-10-29,Admin page,Site layout,Ignore browser-extension attributes on <body> in hydration
+2026-11-02,Landing page,Hero section,Landing hero uses the final homepage copy
+2026-11-02,Landing page,Images and media; Hero section,New daytime hero photo (solar roof against a clear sky)
+2026-11-02,Landing page,Hero section,"Minimal hero - short headline, one clear button, text in the open sky"
+2026-11-02,Landing page,Images and media; Hero section,"Hero headline sits behind the house (cut-out layer), copy moved to the bottom row"
+2026-11-02,Landing page,Hero section,"Hero as a depth-effect wallpaper - huge ""ONE SYSTEM"" behind the house, headline top-left"
+2026-11-02,Landing page,Hero section,"Hero depth-effect wallpaper (00323b6), back to the headline-behind-the-house version"
+2026-11-02,Landing page,Hero section,"Hero headline centred in the sky, no cut-out layer, last line fades"
+2026-11-02,Landing page,Home page content section; Our approach section,"Our Approach section below the hero (copy of Who We Are, with the homepage copy)"
+2026-11-02,Landing page,Approach illustrations section; Our approach section,"Our Approach as four illustrated cards (solar + inverter, battery, EV charger, dashboard)"
+2026-11-02,Landing page,Approach illustrations section; Approach scene section; Our approach section,"Our Approach as one real scene - energy line, pins and a live dashboard card"
+2026-11-02,Backend,API / server: Route; Library: Landing live,A MacBook that opens on scroll and shows the live Monitoring page of the Waytara Office
+2026-11-02,Customer dashboard,Monitoring tabs,A MacBook that opens on scroll and shows the live Monitoring page of the Waytara Office
+2026-11-02,Landing page,Demo monitoring section; Home page content section; Mac showcase section,A MacBook that opens on scroll and shows the live Monitoring page of the Waytara Office
+2026-11-02,Landing page,Approach scene section,Remove the Energy dashboard card from the Our Approach scene
+2026-11-02,Landing page,Images and media; Approach parts section; Our approach section,"Solar panel, inverter and battery drawings with their content, above the integration scene"
+2026-11-02,Landing page,Images and media; Approach parts section,"Panel, inverter, battery and EV charger in one row, without the text"
+2026-11-02,Landing page,Site styles; Approach parts section,"The four parts as one integrated system - equal columns, energy rail, info and a closing line"
+2026-11-03,Landing page,Approach parts section,"The four parts as feature cards with lit stages, status badges and linking connectors"
+2026-11-03,Landing page,Images and media; Approach parts section; Approach vignettes section,"Our Approach columns as small interactive pictures of the product (inverter, battery, EV charger, one app for every site)"
+2026-11-03,Landing page,Images and media; Approach scene section; Our approach section,Remove the photo scene and the four-point list from Our Approach
+2026-11-03,Landing page,Dashboard showcase section; Home page content section; Mac showcase section,Show the live dashboard on Aceternity's container scroll card instead of the laptop
+2026-11-03,Landing page,Approach parts section,Our Approach pictures in a 2 x 2 grid
+2026-11-03,Landing page,Approach parts section; Approach vignettes section,"Wider Our Approach pictures with real product detail (solar bars, battery, EV sessions, site health)"
+2026-11-03,Landing page,Approach parts section; Dashboard showcase section; Our approach section,"Drop the hint, the closing line and the kicker; dashboard heading right under the 2 x 2 grid"
+2026-11-03,Landing page,Dashboard key features section; Dashboard showcase section,Key features of the customer dashboard under the scroll card; remove the caption
+2026-11-03,Landing page,Approach vignettes section,"EV picture redesigned as a car and its charge, like the reference"
+2026-11-03,Landing page,Approach vignettes section; Ev car art section,"The supplied car drawing as the EV picture, its body filled like a battery"
+2026-11-03,Landing page,Approach vignettes section,"Car cells with borders, no badges or markers; car and battery fill on hover"
+2026-11-03,Landing page,Approach parts section; Approach vignettes section; Ev car art section,"Solar, battery and EV in one row; two upright batteries; car filled like the battery"
+2026-11-03,Landing page,Our approach section,"Our Approach heading ""One Smart Energy System. Built Around You."" with the summary at the right end"
+2026-11-03,Landing page,Approach parts section; Approach vignettes section,Our Approach pictures use the full width; bigger batteries spread evenly
+2026-11-03,Landing page,Approach vignettes section,Car filled as one gradient with padding; gradient batteries; low battery at 25 %
+2026-11-03,Landing page,Approach vignettes section,Solar chart in the same style as the battery and car; thinner battery border
+2026-11-03,Backend,API / server: Route; Library: Landing live,The landing dashboard runs on sample data and matches the real Monitoring page
+2026-11-03,Landing page,Dashboard showcase section; Demo monitoring section; Landing sample,The landing dashboard runs on sample data and matches the real Monitoring page
+2026-11-03,Customer dashboard,Dashboard page; Device overview content; Overview live,Take the EV charger out of the Overview's energy flow diagram
+2026-11-03,Customer dashboard,Dashboard page; Overview board; Overview carousel,The Overview is a carousel with one slide per inverter; the first one is set in Application Settings
+2026-11-03,Backend,Library: Overview prefs,The Overview is a carousel with one slide per inverter; the first one is set in Application Settings
+2026-11-03,Customer dashboard,Dashboard page; Ev charger hub; Overview board,"Every device at the site is a slide in the Overview carousel, EV chargers included"
+2026-11-03,Customer dashboard,Overview carousel,The Overview carousel no longer shaves the edge off the cards on the left
+2026-11-03,Customer dashboard,Dashboard page; Overview carousel,The Overview carousel is driven by a device icon button per device in the header
+2026-11-03,Customer dashboard,Dashboard page; Dashboard user menu; Flow legend button,The energy flow colours move into the sidebar; the Overview header is left empty
+2026-11-03,Customer dashboard,Dashboard page; Ev car scene; Ev charger hub,"The EV charger's Overview is a bento with the car and wallbox, the last charge, history and a statistic"
+2026-11-03,Backend,Library: Ev history; Library: Ev overview,"The EV charger's Overview is a bento with the car and wallbox, the last charge, history and a statistic"
+2026-11-04,Customer dashboard,Dashboard page; Ev car scene; Ev car,"The charger hero is just the landing-page car with its figures, and no longer shows ""Charging"" from stale readings"
+2026-11-04,Landing page,Site styles,"The charger hero is just the landing-page car with its figures, and no longer shows ""Charging"" from stale readings"
+2026-11-04,Backend,Library: Ev overview,"The charger hero is just the landing-page car with its figures, and no longer shows ""Charging"" from stale readings"
+2026-11-04,Customer dashboard,Ev overview board,The charger hero's car is bigger and has no shadow under it
+2026-11-04,Landing page,Login page,"A failed profile lookup at sign-in no longer says ""This app is for customer accounts only"""
+2026-11-04,Backend,Supabase package: Auth,"A failed profile lookup at sign-in no longer says ""This app is for customer accounts only"""
+2026-11-04,Customer dashboard,Overview carousel,"The Overview carousel's dots and device name are pinned to the foot of the window, in the middle"
+2026-11-04,Customer dashboard,Dashboard page; Ev charge control; Ev overview board,"The charger hero starts and stops with a round power button, with kWh limits to pick before a charge"
+2026-11-04,Customer dashboard,Ev power panel,"The charger's power button is a glossy hardware-style button, green when ready and red while charging"
+2026-11-04,Customer dashboard,Ev power panel,"The charger's power button is a flat, minimal round button"
+2026-11-04,Customer dashboard,Dashboard page; Ev overview board; Ev session dialog,Every charge in the Overview history opens a detailed view; lost end-of-charge figures are recovered from the readings
+2026-11-04,Backend,Library: Ev session detail; Library: Ev history,Every charge in the Overview history opens a detailed view; lost end-of-charge figures are recovered from the readings
+2026-11-04,Customer dashboard,Dashboard page; Ev overview board,"The EV Overview follows the charger live: connection, connector status and readings, and refreshes its sessions on a change of state"
+2026-11-04,Backend,Library: Ev live keys; Library: Ev overview,"The EV Overview follows the charger live: connection, connector status and readings, and refreshes its sessions on a change of state"
+2026-11-04,Customer dashboard,Dashboard page; Charging sessions carousel; Device overview content,The EV charger lives on its Overview page alone; the old charging-session designs are removed
+2026-11-04,Backend,Library: Ev tab; Library: Ev session totals; Library: Ev sessions list,The EV charger lives on its Overview page alone; the old charging-session designs are removed
+2026-11-04,Customer dashboard,Dashboard page; Device status icons; Ev hub live,"Monitoring, Performance, Reports and Maintenance show the inverter and the EV charger together as tabs"
+2026-11-04,Backend,Library: Ev tab; Library: Ev session totals; Library: Ev sessions list,"Monitoring, Performance, Reports and Maintenance show the inverter and the EV charger together as tabs"
+2026-11-04,Customer dashboard,Dashboard page; Ev overview board; Car section,"A charge on the Overview shows its percentage, range and time left; the cards open the matching EV tab"
+2026-11-04,Backend,Library: Ev car,"A charge on the Overview shows its percentage, range and time left; the cards open the matching EV tab"
+2026-11-04,Customer dashboard,Ev hub live; Ev status line; Ev tab sessions,"The EV Charger tab on Monitoring is one page, with Start / Stop at the right end of its headline"
+2026-11-04,Customer dashboard,Ev live refresh; Ev status line; Monitoring content,"The EV Charger tab on Monitoring no longer repeats the charger's name, state and connection above its tiles"
+2026-11-04,Customer dashboard,Ev performance board; Performance board; Performance content,"The EV Charger tab on Performance has the same headline above the tabs, and the same period picker, as the other tabs"
+2026-11-04,Customer dashboard,Dashboard page; Ev performance board; Ev reports board,The EV Charger tab on Reports has the standard header and lists every charge with filters; the separate charging-sessions page is gone
+2026-11-04,Backend,Library: Ev perf stats,The EV Charger tab on Reports has the standard header and lists every charge with filters; the separate charging-sessions page is gone
+2026-11-04,Customer dashboard,Dashboard page; Maintenance board; Maintenance devices,"Maintenance is one board: the details header on top, then the tabs Inverter, EV Charger and Service (every device in one tab)"
+2026-11-04,Backend,API / server: Route; Library: Ev filters; Library: Ev report pdf,"The EV Charger tab on Reports is a detailed report like Generate's: filters, graphs, tables and CSV / PDF of what is shown"
+2026-11-04,Customer dashboard,Dashboard page; Ev reports board; Reports board,"The EV Charger tab on Reports is a detailed report like Generate's: filters, graphs, tables and CSV / PDF of what is shown"
+2026-11-04,Customer dashboard,Chart kit; Ev reports board,"The EV report's graphs say each charge's energy and duration when pointed at, and leave out sources nobody used"
+2026-11-04,Customer dashboard,Dashboard page; Device activity; Devices board,"The Devices page has tabs for Device info, OCPP, Charger settings and Recent activity / logs instead of one long page"
+2026-11-04,Customer dashboard,Ev reports board; Ev session dialog; Ev sessions browser,"The EV report opens on the table view, lists charges grouped by day, and shows a pressed charge on the page itself instead of in a dialog"
+2026-11-04,Customer dashboard,Dashboard page; Ev reports board; Ev sessions browser,The Devices page drops the Charger settings tab; the EV report leads with six figures and no repeats
+2026-11-04,Customer dashboard,Dashboard page; Ev overview board; Ev performance board,"The EV Overview on a phone ends with Statistic (always the last 7 days), Last charge has its arrow, and every page that shows the charger's sessions follows them live"
+2026-11-04,Customer dashboard,Dashboard page; Performance content,"A charge WayTara closed by itself is listed as ""Closed automatically"" with its energy, not as still charging; a booked-amount stop says so"
+2026-11-04,Backend,Library: Ev recover; Library: Ev session detail; Library: Ev sessions,"A charge WayTara closed by itself is listed as ""Closed automatically"" with its energy, not as still charging; a booked-amount stop says so"
+2026-11-04,Customer dashboard,Ev capabilities; Ev settings section,"The OCPP tab of an EV charger has a ""Request from the charger"" button for its charging-limit abilities"
+2026-11-04,Backend,Library: Ev settings,"The OCPP tab of an EV charger has a ""Request from the charger"" button for its charging-limit abilities"
+2026-11-04,Customer dashboard,Ev charge control; Ev power panel,"Stop shows ""saved, goes out when the charger reconnects"" instead of an error when the charger is out of contact"
+2026-11-04,Backend,Library: Ev session detail,"Stop shows ""saved, goes out when the charger reconnects"" instead of an error when the charger is out of contact"
+2026-11-04,Backend,Supabase package: Retry fetch; API / server: Route; Supabase package: Client browser,"Retry once on the database's stuck-connection error, and retire the old charging-session guesser that made phantom sessions"
+2026-11-04,Documentation,OPERATIONS,"Retry once on the database's stuck-connection error, and retire the old charging-session guesser that made phantom sessions"
+2026-11-04,Supabase,Migration: Retire detect charging sessions; Database tests,"Retry once on the database's stuck-connection error, and retire the old charging-session guesser that made phantom sessions"
+2026-11-04,Customer dashboard,Dashboard page,"The Devices page's activity refresh listens to the table, not the view; migration to take the busy internal tables out of Realtime"
+2026-11-04,Supabase,Migration: Realtime publication trim,"The Devices page's activity refresh listens to the table, not the view; migration to take the busy internal tables out of Realtime"
+2026-11-05,Landing page,Hero section; Cloud shader,The landing hero's sky is a live cloud shader with the house cut-out standing in front of it
+2026-11-05,Landing page,Hero section,"The hero stays pinned while a scroll scene plays - the headline sinks behind the house; ""Talk to an engineer"" removed"
+2026-11-05,Landing page,Site styles; Hero section,Wider site container and a bigger headline on very large screens; the hero's bottom row shares the nav's width
+2026-11-05,Landing page,Logo,"The nav logo is white over the hero (the Logo component now honours variant=""white"")"
+2026-11-05,Landing page,Logo,The nav logo is white over the hero (undone at the user's request)
+2026-11-05,Documentation,WEBSITE PLAN,"Website plan - landing story order, solutions pages, energy planner and header"
+2026-11-05,Documentation,Notes,"Website redesign progress tracker (tasks, status, start/end IST, hours)"
+2026-11-05,Documentation,Notes,"Progress tracker - Platform stays in the header, Partner programme added as task 6b"
+2026-11-05,Landing page,Footer section; Navigation section; Solutions menu section,"New public header (Solutions menu, Platform, Why WayTara, About Us, Partner) and footer; shared section header"
+2026-11-05,Landing page,About page; Contact page; Knowledge centre page,"Landing page in story order - what we do, who we serve, how a project works, where to start, why strip, new closing call"
+2026-11-05,Landing page,Solutions page; Project steps section; Solutions hub section,"Solutions hub and the Homes & Villas page on a shared segment template (long page, sticky in-page menu)"
+2026-11-05,Landing page,Solutions page; Project steps section; Apartments page,"Apartments, RWAs & Developers page on the segment template, with a separate developers band"
+2026-11-05,Landing page,Apartments page; Commercial page; Registry,Commercial & Workspaces page on the segment template
+2026-11-05,Landing page,Factory page; Registry,"Factory & Industrial page on the segment template, with a Tamil Nadu BESS panel and EMS as its own route"
+2026-11-05,Landing page,Ev fleet page; Registry,"EV Fleets & Charging page on the segment template, with WayTara CPMS shown only as built"
+2026-11-05,Landing page,Capabilities; Ev fleet page; It park page,IT Parks & Campuses page on the segment template; all six segment pages now on the new template
+2026-11-05,Backend,API / server: Route,"Platform page (/technology) - how the gateway, EMS and CPMS connect, a live demo, and a compatibility check"
+2026-11-05,Landing page,Technology page; Compatibility form; Page shell,"Platform page (/technology) - how the gateway, EMS and CPMS connect, a live demo, and a compatibility check"
+2026-11-05,Landing page,Why waytara page,"Why WayTara page - four reasons, one system vs separate suppliers, and what we will and won't promise"
+2026-11-05,Landing page,About page,"About Us page - who we are, the vision and team, and where to find us"
+2026-11-05,Admin page,Partners page; Admin nav,"Partner programme - public /partner page and form, admin Partners review, e-mail to the admins (database migration written, not applied)"
+2026-11-05,Backend,Library: Partner mail; Admin: Partners; Admin: Proxy,"Partner programme - public /partner page and form, admin Partners review, e-mail to the admins (database migration written, not applied)"
+2026-11-05,Landing page,Partner page; Partner form,"Partner programme - public /partner page and form, admin Partners review, e-mail to the admins (database migration written, not applied)"
+2026-11-05,Supabase,Migration: Partner applications; Database tests,"Partner programme - public /partner page and form, admin Partners review, e-mail to the admins (database migration written, not applied)"
+2026-11-05,Documentation,Notes,Progress tracker - Partner table applied on the live project and checked
+2026-11-05,Backend,API / server: Route; Library: Engine; Library: Flow,"Energy Planner v3 at /planner - goal-first, adaptive, a blueprint before any contact details"
+2026-11-05,Landing page,Planner page; Blueprint view; Enquiry form,"Energy Planner v3 at /planner - goal-first, adaptive, a blueprint before any contact details"
+2026-11-05,Landing page,Nav dropdown section; Navigation section; Our team section,"Header - Contact icon removed, Partner beside About Us, dropdown menus for Platform, Why WayTara, About Us and Partner"
+2026-11-05,Landing page,Mega menu section; Nav dropdown section; Navigation section,"Header menus as one full-width panel under the header, like the Apple example"
+2026-11-05,Landing page,Navigation section,The header is the same solid colour as the menu panel while a menu is open
+2026-11-05,Landing page,Mega menu section; Navigation section,Moving between header items swaps the panel's content instead of re-opening it (no flicker)
+2026-11-05,Landing page,Site styles; Mega menu section; Navigation section,"Header menu opens, switches and closes with Apple's timing"
+2026-11-05,Backend,API / server: Route,Header search and a Support item with a public /support page; redesign work added to the progress log
+2026-11-05,Landing page,Support page; Site search; Support form,Header search and a Support item with a public /support page; redesign work added to the progress log
+2026-11-05,Landing page,Approach parts section; Our approach section,The first landing section is rewritten from the PDFs
+2026-11-05,Landing page,Hero section,The hero's second supporting line no longer promises lower bills or reliable power
+2026-11-05,Landing page,What we do section,"""What WayTara does"" redesigned like the pillars section"
+2026-11-05,Landing page,What we do section,"""What WayTara does"" keeps its full content in the frameless style"
+2026-11-05,Landing page,What we do section,"""What WayTara does"" - tags and Discover link removed, the two routes centred in their place"
+2026-11-05,Landing page,What we do section,"""What WayTara does"" - the two routes as one centred line"
+2026-11-05,Landing page,What we do section,"""What WayTara does"" shows only the two links"
+2026-11-05,Landing page,What we do section,"""What WayTara does"" checklist uses outlined circle ticks"
+2026-11-05,Landing page,Project steps section,"Project steps redesigned as numbered cards, on the landing page and every page that uses them"
+2026-11-05,Landing page,Dashboard key features section,"The dashboard highlights show six distinctive features, each checked against the product"
+2026-11-05,Landing page,Dashboard key features section,"Nine dashboard highlights, from the owner's list and checked against the product"
+2026-11-05,Landing page,Project steps section,The project steps use the free space on wide screens
+2026-11-05,Landing page,Solutions hub section,"Solutions page ""By need"" in the landing page's frameless three-column style"
+2026-11-05,Landing page,Segment parts,Feature blocks in the Apple product-page style across the segment pages and company pages
+2026-11-05,Landing page,About page; Partner page; Platform page,"Short plain-language feature blocks on every segment page, in the Apple icon style"
+2026-11-05,Landing page,About page; Partner page; Platform page,"Equal line counts across feature rows, fuller wording back, link and two-block placement"
+2026-11-05,Landing page,Faq list,FAQs as separate rounded cards on every page
+2026-11-05,Landing page,Ev fleet page; Homes page; It park page,Replace extra boxes and notes with centred quick links
+2026-11-05,Landing page,Support page; Apartments page; Commercial page,"Frameless Apple style for research stats, enquiry bands and notes"
+2026-11-05,Landing page,Commercial page; Ev fleet page; Homes page,Rows of two feature blocks aligned left instead of centred
+2026-11-05,Landing page,Apartments page; Home support; Segment parts,"Frameless two-block closing bands, support panels and subsidy blocks"
+2026-11-05,Landing page,Apartments page; Commercial page; Factory page,"Full-width text, matching developer band, one note under research figures"
+2026-11-05,Landing page,Dashboard key features section; What we do section; Where to start section,Landing page sections in the shared frameless block style
+2026-11-05,Landing page,Ev fleet page; It park page; Segment parts,Remove the equipment diagrams from EV Fleets and IT Parks
+2026-11-05,Landing page,Compatibility form; Platform page; Segment parts,"Platform page sections and a minimal compatibility form, hub icon for the gateway"
+2026-11-05,Landing page,Compatibility form; Platform page; Dashboard key features section,Guided three-step compatibility form and a Features section on the Platform page
+2026-11-05,Landing page,Compatibility form; Platform page; Site nav,"Form overlap, email and city required, features inside the management sections"
+2026-11-05,Landing page,Platform page; Feature sets,One feature list each for energy management and charger management
+2026-11-05,Landing page,Platform page; Platform steps; Site nav,"""Step by step"" cards with a small dashboard picture on the Platform page"
+2026-11-05,Landing page,Platform page; Platform steps; Site nav,"Remove the ""Step by step"" section from the Platform page"
+2026-11-05,Landing page,Why waytara page; Apartments page; Segment parts,"Why WayTara shows what we do and how to check it, with no comparison"
+2026-11-05,Landing page,Why waytara page; Site nav,Why WayTara as a full page of what the product and the solutions really do
+2026-11-06,Landing page,About page; Office map; Our team section,About Us team as portrait cards and a map of the Mylapore office
+2026-11-06,Landing page,About page; Office map; Footer section,"Smaller closing block, footer Get started column, office as WayTara Energy LLP"
+2026-11-06,Landing page,Contact page; Compatibility form; Partner form,"Partner apply form with searchable state and city lists, no example text"
+2026-11-06,Backend,Library: Partner options,"Partner apply form with searchable state and city lists, no example text"
+2026-11-06,Landing page,Contact page; Contact form; Form part,Contact page in the same style as the other pages
+2026-11-06,Landing page,Our approach section; Solutions hub section; Segment parts,Plain Our Approach heading and By need in the shared block style
+2026-11-06,Landing page,Planner page; Blueprint view; Enquiry form,"Minimal, frameless energy planner with quick starts"
+2026-11-06,Backend,API / server: Route,Sub header only on solution pages; e-mail required in all forms
+2026-11-06,Landing page,About page; Contact page; Page shell,Sub header only on solution pages; e-mail required in all forms
+2026-11-06,Documentation,Notes,Correct the D46 end time to the clock reading (10:42)
+2026-11-06,Landing page,Images and media; Platform page,Gateway picture in a rounded frame on the Platform page
+2026-11-06,Landing page,Gateway picture; Platform page,Equipment icons on the gateway picture
+2026-11-06,Landing page,Gateway picture,Solid icons engraved into the gateway picture's pads
+2026-11-06,Landing page,Gateway picture,"Layers, Calendar-clock and Plug-zap icons on the gateway picture"
+2026-11-06,Landing page,Platform page; Why waytara page,Gateway message is one connection for many devices; drop protocol names
+2026-11-06,Landing page,Plans table; Platform page; Site nav,"Plans section (Observe, Control, Orchestrate) on the Platform page"
+2026-11-06,Landing page,Site styles; Platform dashboard; Platform page,Animated home dashboard with an EV charger on the Platform page
+2026-11-06,Landing page,Plans table,"Plans table with ticks and crosses, no prices, nothing recommended"
+2026-11-06,Landing page,Site styles; Platform dashboard; Platform page,"Cropped, exact Monitoring page with an inverter and an EV charger"
+2026-11-06,Landing page,Demo monitoring section; Landing sample,"Live dashboard demo with devices, EV tabs, weather, alerts and two sites"
+2026-11-06,Landing page,Dashboard showcase section; Demo monitoring section; Container scroll animation,"Landing dashboard in the shared container, and a phone layout"
+2026-11-06,Landing page,Container scroll animation,Landing dashboard container as wide as the page content
+2026-11-06,Landing page,Office map; Dashboard showcase section; Footer section,"Landing spacing, office location in one place, green building on a flat map"
+2026-11-06,Landing page,Support page; Support form; Site nav,Support page built around every way to get help
+2026-11-06,Landing page,Office map; Navigation section; Site nav,"Login in the header on every page, avatar when signed in, 3D office map"
+2026-11-06,Backend,API / server: Next.config,Sign-in page with application slides; remove Knowledge Centre; WhatsApp in the footer
+2026-11-06,Landing page,Forgot password page; Login page; Site styles,Sign-in page with application slides; remove Knowledge Centre; WhatsApp in the footer
+2026-11-06,Landing page,Site styles; Login showcase,Sign-in panel refined with a straight window and a phone view
+2026-11-06,Landing page,Site styles; Login showcase,"Sign-in panel without the phone view and card, more room above the logo"
+2026-11-06,Landing page,Cookies page; Privacy page; Terms page,Legal pages rewritten for the current product; sign-in panel on the dashboard's inner edge
+2026-11-06,Landing page,Login showcase,Sign-in dashboard window corner without the shadow smudge
+2026-11-06,Landing page,Login page; Login showcase,"Sign-in logo spacing, phone slides with Skip, footer removed"
+2026-11-06,Landing page,Login showcase,"Sign-in logo on the Main Hub text, more room above the window header"
+2026-11-06,Landing page,Demo monitoring section,Dashboard window header on the same left padding as the content
+2026-11-06,Landing page,Opengraph image; Twitter image; Seo,"SEO, GEO and AEO foundation: new share card, full sitemap, search titles, local business data, plan"
+2026-11-06,Documentation,SEO PLAN,"SEO, GEO and AEO foundation: new share card, full sitemap, search titles, local business data, plan"
+2026-11-06,Landing page,Seo; llms.txt (AI guide); On grid hybrid off grid solar page,"Four guide pages for search: home solar in Chennai, on-grid/hybrid/off-grid, subsidy in Tamil Nadu, EB bill"
+2026-11-06,Documentation,SEO PLAN,"Four guide pages for search: home solar in Chennai, on-grid/hybrid/off-grid, subsidy in Tamil Nadu, EB bill"
+2026-11-06,Landing page,Guides,Subsidy guide states the figures the way the government does
+2026-11-06,Admin page,Admin app,"Account match security fix and faster sign-in, sign-out and password reset"
+2026-11-06,Landing page,Forgot password page; Login page; Vercel,"Account match security fix and faster sign-in, sign-out and password reset"
+2026-11-06,Customer dashboard,Dashboard page,"Account match security fix and faster sign-in, sign-out and password reset"
+2026-11-06,Backend,Library: Like escape; API / server: Proxy; Supabase package: Auth,"Account match security fix and faster sign-in, sign-out and password reset"
+2026-11-06,Landing page,Forgot password page; Login showcase; Security showcase,"Forgot-password redesigned to match sign-in, with a security panel"
+2026-11-06,Landing page,Security showcase,Password-recovery panel fills its empty space with more protection
+2026-11-06,Landing page,Security showcase,Password-recovery panel as a still design instead of a carousel
+2026-11-06,Landing page,Security showcase,"Password-recovery panel uses its whole half, top to bottom"
+2026-11-06,Documentation,EMAIL INVENTORY,Inventory of every e-mail the application sends and receives
+2026-11-06,Backend,Admin: Send customer invite email; Admin: Send employee invite email; Admin: Send install complete email,One standard WayTara e-mail template for every e-mail in both apps
+2026-11-06,Customer dashboard,Dashboard page; Mail layout,One standard WayTara e-mail template for every e-mail in both apps
+2026-11-06,Documentation,EMAIL TEMPLATE,One standard WayTara e-mail template for every e-mail in both apps
+2026-11-06,Landing page,Forgot password page,Forgot-password checks the address is registered and says so
+2026-11-06,Backend,Library: Email otp,Forgot-password checks the address is registered and says so
+2026-11-06,Landing page,llms.txt (AI guide); Sitemap; Solutions page,"Remove 7,300 lines of dead public-site code; fix /solutions 404; set call and WhatsApp numbers"
+2026-11-06,Backend,Library: Energy aggregation; Library: Format duration; Library: Recommend,"Remove 7,300 lines of dead public-site code; fix /solutions 404; set call and WhatsApp numbers"
+2026-11-06,Landing page,Images and media; README,Remove 3.7 MB of unused files from public/
+2026-11-10,Backend,API / server: Route; Library: Lead ack; Library: Send mail,"No lost e-mails, Reply-To on every message, confirmation to enquirers, one sender"
+2026-11-10,Documentation,EMAIL INVENTORY,"No lost e-mails, Reply-To on every message, confirmation to enquirers, one sender"
+2026-11-10,Customer dashboard,Mail layout,"No lost e-mails, Reply-To on every message, confirmation to enquirers, one sender"
+2026-11-10,Landing page,llms.txt (AI guide); Contact page; Footer section,"No green line, centred code box, approximate place; Instagram added; private files ignored"
+2026-11-10,Backend,Library: Auth mail; Library: Mail layout,"No green line, centred code box, approximate place; Instagram added; private files ignored"
+2026-11-10,Customer dashboard,Mail layout,"No green line, centred code box, approximate place; Instagram added; private files ignored"
+2026-11-10,Landing page,Login page,"Sign-in/dashboard timing, hover-only menu preloading, one request for device status"
+2026-11-10,Customer dashboard,Dashboard page; Dashboard sidebar; Hover prefetch link,"Sign-in/dashboard timing, hover-only menu preloading, one request for device status"
+2026-11-10,Backend,Library: Server timing; Library: Coalesce; Library: Loaders,"Sign-in/dashboard timing, hover-only menu preloading, one request for device status"
+2026-11-10,Landing page,Images and media; Hero section; Navigation section,"Landing hero uses the energy-banner video, headline above and video below"
+2026-11-11,Landing page,Hero section,Minimal hero text and a bigger video card that grows on scroll
+2026-11-11,Landing page,Hero section,Live cloud sky as the hero background
+2026-11-11,Landing page,Hero section,"Restore the old blue sky behind the hero, with white text"
+2026-11-11,Landing page,Hero section; Navigation section,Menu bar transparent over the hero again
+2026-11-11,Landing page,Hero section,Hero video container restyled as a near-black full-width frame
+2026-11-11,Landing page,Hero section,"Hero card peeks, pulls up and grows on scroll; no border; video scales with it"
+2026-11-11,Landing page,Hero section,Hero shows 30% of the card and has more space above the headline
+2026-11-11,Landing page,Hero section; Navigation section,Menu bar solid when it touches the hero card; remove the card's shadow
+2026-11-11,Landing page,Hero section; Navigation section,"Smaller starting card, no auto-scroll, eased pull-out, coloured Plan my system button"
+2026-11-11,Landing page,Hero section,Hero card back to its previous starting size
+2026-11-11,Landing page,Hero section; Flip words,Hero headline with flipping words and a new supporting line
+2026-11-11,Landing page,Hero section; Navigation section,"Hero layered like the reference: clouds in the top 30%, content layer rises over them"
+2026-11-11,Landing page,Hero section; Navigation section,"Still hero card with a shadow, new buttons, old menu bar, new two-line copy"
+2026-11-11,Landing page,Hero section,"Hero equipment icons at the left of the buttons row, buttons at the right end"
+2026-11-11,Landing page,Hero section,Hero equipment icons under the video card; new inverter icon; portable and wall-mount chargers
+2026-11-11,Landing page,Hero section,"Hero icon row restyled like the what-we-do columns, with more space above"
+2026-11-11,Landing page,Equipment strip section; Hero section; Home page content section,Phone first screen with the card at the foot; icon row moved to its own strip
+2026-11-11,Landing page,Hero section,"Phone hero with the card under the buttons, clouds filling the top, stacked headline"
+2026-11-11,Landing page,Site styles; Site layout; Account panel section,"Google-style phone hero, full-screen top menu, account slot with loader, avatar hover panel"
+2026-11-11,Landing page,Account panel section; Hero section; Mega menu section,"Header and phone refinements: no account block, 70% panel cap, matching icons, minimal phone menu foot, calmer phone hero"
+2026-11-11,Landing page,Account panel section; Hero section; Mobile menu section,"Phone bar made even, square avatar, left-aligned hero buttons"
+2026-11-11,Landing page,Hero section; Mobile menu section,"Framer-style phone hero: two-line headline, short line, compact buttons, full-width video strip with time pill"
+2026-11-11,Landing page,Hero section; Navigation section,"iPhone bars: sky no longer touches the bottom edge, top bar follows the sky then the theme; pause button without time"
+2026-11-11,Landing page,Mobile menu section; Navigation section,Phone menu button without its filled background
+2026-11-11,Landing page,Dashboard showcase section; Home page content section,"Move the dashboard section below ""Four steps, one team."""
+2026-11-11,Landing page,Dashboard showcase section; Demo monitoring section; What we do section,"Close the gap under ""What WayTara does""; show the demo's whole first chart above the fade; no minus values in the demo"
+2026-11-11,Backend,API / server: Route,"Demo Main Hub shows the graphs alone; demo weather is real at the visitor's approximate place, with no location prompt"
+2026-11-11,Landing page,Public weather; Demo monitoring section,"Demo Main Hub shows the graphs alone; demo weather is real at the visitor's approximate place, with no location prompt"
+2026-11-11,Landing page,Final cta section; Home page content section; Where to start section,"Join ""Where to start"" and the closing ""Get started"" into one home-page section"
+2026-11-11,Landing page,Final cta section; Where to start section,"Closing section opens like the others, no button, links say ""Plan my system"""
+2026-11-11,Landing page,Images and media; Footer section,Footer watermark is the WayTara wordmark
+2026-11-11,Landing page,Footer section,"Footer: copyright under the logo, policy pages in Company, wordmark last"
+2026-11-11,Landing page,Footer section,"Simpler footer: brand left, columns right, Legal as its own column"
+2026-11-11,Landing page,Planner app,"Planner on phones: no shortcuts block, Back and Continue sticky at the bottom"
+2026-11-11,Backend,API / server: Next.config,Guides are India-wide and use the same design as the other pages
+2026-11-11,Landing page,llms.txt (AI guide); Solar for home page; Solar subsidy page,Guides are India-wide and use the same design as the other pages
+2026-11-11,Documentation,SEO PLAN,Guides are India-wide and use the same design as the other pages
+2026-11-11,Landing page,Guide page; Guides,"Guide pages use their whole width: two columns for text, three for how each system works"
+2026-11-11,Landing page,llms.txt (AI guide); Guides page; Sitemap,"Header without shadow, hides on scroll down and returns on scroll up; Guides menu and /guides page"
+2026-11-11,Landing page,Mega menu section; Navigation section,Header without the bottom line
+2026-11-11,Landing page,Account panel section,"Remove the ""Your devices"" label from the signed-in header panel"
+2026-11-11,Landing page,Time ago; Account panel section,"Header device list shows the last reading time instead of ""Status unknown"""
+2026-11-11,Landing page,llms.txt (AI guide); Pm surya ghar muft bijli yojana page; Guides hub,"PM Surya Ghar: Muft Bijli Yojana guide, added to the Guides"
+2026-11-11,Documentation,SEO PLAN,"PM Surya Ghar: Muft Bijli Yojana guide, added to the Guides"
+2026-11-11,Landing page,Hero section; Navigation section,iPhone Safari: tap starts the hero video when autoplay is blocked; sky top matches the status bar
+2026-11-11,Landing page,Hero section; Navigation section,Status bar strip is the theme colour on the home page too
+2026-11-11,Landing page,Hero section; Navigation section,Status bar strip matches the sky in both themes: the pinned sky layer was always day blue
+2026-11-11,Landing page,Mobile menu section; Navigation section,Smaller brand logo in the phone header and menu
+2026-11-11,Landing page,Home page; Hero section,Dark theme status bar stays navy after a refresh; longer navy fade on the dark sky

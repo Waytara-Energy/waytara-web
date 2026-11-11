@@ -63,3 +63,6 @@ apps/web/public/maplibre/
 .mcp.json
 WayTara-Dashboard-Keys.xlsx
 *.xlsx
+
+# The daily work-log mails: a copy of each workbook that was sent is kept here, not in git
+docs/work-log/sent/
