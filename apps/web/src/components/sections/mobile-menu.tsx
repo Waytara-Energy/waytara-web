@@ -71,17 +71,17 @@ export function MobileMenu({
     >
       {/* The bar: the same height as the site's header, so nothing jumps when the menu opens. */}
       <div className="fluid-container flex h-[clamp(3.5rem,4.5vw,4.25rem)] shrink-0 items-center justify-between">
-        <Logo />
-        <div className="flex items-center gap-2">
+        <Logo imageClassName="h-[30px]" />
+        <div className="flex items-center gap-2.5">
           <AuthSlot state={authState} account={account} solid compact onNavigate={onClose} avatarSize="size-[32px]" />
           <button
             ref={closeRef}
             type="button"
             aria-label="Close the menu"
             onClick={onClose}
-            className="flex size-[32px] cursor-pointer items-center justify-center rounded-full text-theme-primary outline-none transition-colors hover:bg-theme-surface focus-visible:ring-2 focus-visible:ring-emerald-500"
+            className="flex size-[32px] cursor-pointer items-center justify-center rounded-lg bg-theme-surface text-theme-primary outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
           >
-            <X className="size-[22px]" />
+            <X className="size-[20px]" />
           </button>
         </div>
       </div>

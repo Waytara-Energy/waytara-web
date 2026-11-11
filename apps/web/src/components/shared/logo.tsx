@@ -7,9 +7,11 @@ interface LogoProps {
   className?: string;
   isLink?: boolean;
   variant?: "default" | "white";
+  /** Extra classes for the picture itself (the header sets the logo's height on a phone with it). */
+  imageClassName?: string;
 }
 
-export function Logo({ className, isLink = true }: LogoProps) {
+export function Logo({ className, isLink = true, imageClassName }: LogoProps) {
   const content = (
     <div className={cn("inline-flex items-center select-none group", className)}>
       <Image
@@ -18,7 +20,7 @@ export function Logo({ className, isLink = true }: LogoProps) {
         width={180}
         height={48}
         priority
-        className="h-[clamp(1.6rem,2.2vw,2.1rem)] w-auto object-contain transition-opacity duration-200 group-hover:opacity-90"
+        className={cn("h-[clamp(1.6rem,2.2vw,2.1rem)] w-auto object-contain transition-opacity duration-200 group-hover:opacity-90", imageClassName)}
       />
     </div>
   );

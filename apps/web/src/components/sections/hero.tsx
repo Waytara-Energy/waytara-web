@@ -170,7 +170,7 @@ export function Hero() {
             {/* The main action: the site's green gradient, white text, and the arrow in a white circle. */}
             <Link
               href="/planner"
-              className={`${buttonBase} group flex-1 justify-center gap-2.5 bg-primary-gradient pl-5 pr-1.5 sm:gap-3 sm:pl-6 text-white sm:flex-none shadow-lg shadow-emerald-900/20 transition-all duration-200 hover:brightness-95 hover:shadow-xl active:scale-95`}
+              className={`${buttonBase} group gap-2.5 bg-primary-gradient pl-5 pr-1.5 sm:gap-3 sm:pl-6 text-white shadow-lg shadow-emerald-900/20 transition-all duration-200 hover:brightness-95 hover:shadow-xl active:scale-95`}
             >
               <span>Plan my system</span>
               <span className="flex size-[34px] sm:size-10 items-center justify-center rounded-full bg-white text-slate-950 transition-transform duration-200 group-hover:translate-x-0.5">

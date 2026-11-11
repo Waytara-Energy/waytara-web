@@ -80,9 +80,9 @@ export function AuthSlot({
           onClick={onNavigate}
           className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
         >
-          <Avatar className={cn(avatarSize, "border-0")}>
+          <Avatar className={cn(avatarSize, "rounded-lg border-0")}>
             {account.avatarUrl && <AvatarImage src={account.avatarUrl} alt={account.fullName ?? "Account"} />}
-            <AvatarFallback className="text-xs">{initials(account.fullName, account.email)}</AvatarFallback>
+            <AvatarFallback className="rounded-lg text-xs">{initials(account.fullName, account.email)}</AvatarFallback>
           </Avatar>
         </Link>
       )}
@@ -107,7 +107,7 @@ export function AuthSlot({
       <span
         role="status"
         aria-label="Checking whether you are signed in"
-        className={cn("auth-loader items-center justify-center rounded-full border border-current/25 bg-current/5", avatarSize)}
+        className={cn("auth-loader items-center justify-center rounded-lg border border-current/25 bg-current/5", avatarSize)}
       >
         <Spinner className="size-4 opacity-80" />
       </span>

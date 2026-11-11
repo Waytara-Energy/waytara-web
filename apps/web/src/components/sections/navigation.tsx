@@ -169,7 +169,7 @@ export function Navigation() {
 
         {/* 1. Left: Minimal Fluid Logo */}
         <div className="flex items-center">
-          <Logo variant={!isThemeStyled ? "white" : "default"} />
+          <Logo variant={!isThemeStyled ? "white" : "default"} imageClassName="max-lg:h-[30px]" />
         </div>
 
         {/* 2. Center: Clean Direct Navigation Links (Fluid Sizing with Smooth In-Page Anchor Scrolling) */}
@@ -227,13 +227,9 @@ export function Navigation() {
           </div>
         </div>
 
-        {/* 3. Right (phones and tablets): theme toggle, the account slot (avatar, Login or a loader) and the menu button. */}
-        <div className="flex lg:hidden items-center gap-1.5">
-          {/* The three controls (theme, account, menu) are the same size: 32 px each (in pixels: the page's rem is smaller on a phone). */}
-          <ThemeToggle
-            className={cn("size-[32px] rounded-full p-0", !isThemeStyled ? "text-white" : "text-theme-primary")}
-            iconClassName={cn(!isThemeStyled ? "text-white" : "text-theme-primary", "size-[22px]")}
-          />
+        {/* 3. Right (phones and tablets): the account slot (avatar, Login or a loader) and the menu button, two squares of the same size (32 px, in
+            pixels: the page's rem is smaller on a phone), as high as the logo. There is no theme icon here: the phone follows the device's setting. */}
+        <div className="flex lg:hidden items-center gap-2.5">
           <span className={cn(!isThemeStyled ? "text-white" : "text-theme-primary")}>
             <AuthSlot state={authState} account={account} solid={isThemeStyled} compact avatarSize="size-[32px]" />
           </span>
@@ -244,9 +240,9 @@ export function Navigation() {
             aria-expanded={mobileMenuOpen}
             aria-controls="mobile-menu"
             onClick={() => setMobileMenuOpen(true)}
-            className={cn("size-[32px] rounded-full p-0", !isThemeStyled ? "text-white hover:bg-white/10" : "text-theme-primary")}
+            className={cn("size-[32px] rounded-lg p-0", !isThemeStyled ? "bg-white/15 text-white hover:bg-white/25" : "bg-theme-surface text-theme-primary")}
           >
-            <Menu className="size-[22px]" />
+            <Menu className="size-[20px]" />
           </Button>
         </div>
 
