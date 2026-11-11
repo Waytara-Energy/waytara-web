@@ -20,13 +20,16 @@ const SKY_DUSK = { top: "#070d1f", bottom: "#1b2a4a", cloud: "#8d9bb8" };
 
 // The height of the first screen (never shorter than 620 px): the sky is as tall as that and stays in place while the page scrolls over it.
 const SCENE_H = "max(100dvh, 620px)";
-// (--sky is set on the section: 0.3 on a normal screen, 0.18 on a phone.)
+// (--sky, --fade and --text-gap are set on the section. On a normal screen: 0.3, 1 and 1.5rem. On a phone all three are 0: the layer is clear, the
+// content starts at its top, and the sky is shown instead in the room that is left over on the first screen, by the spacer below.)
 // The layer the content sits on is clear at the top (the sky shows through), fades into the page colour by 30 percent of the first screen, and is the
 // page colour from there on down. So only the top 30 percent of the screen shows clouds, and as the page scrolls this layer, carrying the content,
 // rises over them and hides them.
-const OVERLAY = `linear-gradient(to bottom, transparent 0, transparent calc(${SCENE_H} * var(--sky) * 0.27), var(--background) calc(${SCENE_H} * var(--sky)))`;
+const OVERLAY = `linear-gradient(to bottom, transparent 0, transparent calc(${SCENE_H} * var(--sky) * 0.27), color-mix(in srgb, var(--background) calc(var(--fade) * 100%), transparent) calc(${SCENE_H} * var(--sky)))`;
 // The headline starts just below the part where the sky shows.
-const TEXT_TOP = `calc(${SCENE_H} * var(--sky) + clamp(1rem, 2vw, 1.5rem))`;
+const TEXT_TOP = `calc(${SCENE_H} * var(--sky) + var(--text-gap))`;
+// The same fade for the phone's spacer: clear at the top, the page colour at its foot.
+const SPACER = "linear-gradient(to bottom, transparent 0, transparent 27%, var(--background) 100%)";
 
 // Whether the visitor asked for less motion. The server-built page assumes not; a visitor who did gets a still word and no autoplaying video.
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
@@ -101,7 +104,7 @@ export function Hero() {
     "inline-flex h-12 sm:h-[3.25rem] items-center rounded-full text-sm sm:text-base font-semibold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-theme-bg";
 
   return (
-    <section className="relative bg-theme-bg [--sky:0.18] sm:[--sky:0.3]">
+    <section className="relative bg-theme-bg [--sky:0] [--fade:0] [--text-gap:0px] sm:[--sky:0.3] sm:[--fade:1] sm:[--text-gap:1.5rem]">
       {/* The still is what the page paints first, so it is asked for at once. */}
       <link rel="preload" as="image" href={POSTER} fetchPriority="high" />
 
@@ -125,24 +128,33 @@ export function Hero() {
       {/* 2. The layer with the content: clear at the top, the page colour from 30 percent down, scrolling with the page. */}
       <div
         data-hero-overlay=""
-        className="relative z-10 flex min-h-dvh flex-col pb-5 sm:block sm:min-h-0 sm:pb-16"
+        className="relative z-10 flex min-h-dvh flex-col sm:block sm:min-h-0"
         style={{ background: OVERLAY, paddingTop: TEXT_TOP }}
       >
-        <div className="fluid-container flex w-full flex-1 flex-col sm:block">
+        {/* Phone only: whatever room the content leaves on the first screen is the sky, fading into the page colour just above the headline. This
+            puts the card right under the buttons and the clouds at the top (instead of a gap in the middle). */}
+        <div aria-hidden="true" className="min-h-16 flex-1 sm:hidden" style={{ background: SPACER }} />
+
+        {/* The content block has the page colour itself (on a phone the layer around it is clear). */}
+        <div className="fluid-container w-full bg-theme-bg pb-5 sm:pb-16">
           <Reveal direction="up" delay={100} duration={800} distance={24}>
-            <h1 className="font-bold tracking-tight leading-[1.05] text-theme-primary text-balance text-[clamp(2rem,4.4vw,4.25rem)]">
+            <h1 className="font-bold tracking-tight leading-[1.05] text-theme-primary text-balance text-[clamp(22px,7vw,32px)] sm:text-[clamp(2rem,4.4vw,4.25rem)]">
               {/* The whole sentence for screen readers, search engines and anyone without the animation; the visible two lines below are hidden from them. */}
               <span className="sr-only">One platform to connect, monitor, control and optimise your entire energy ecosystem.</span>
               <span aria-hidden="true" className="block">
                 <span className="block sm:whitespace-nowrap">
                   One platform to{" "}
+                  <br className="sm:hidden" />
                   <FlipWords
                     words={HEADLINE_WORDS}
                     still={reduced}
                     className="bg-gradient-to-r from-emerald-600 via-green-500 to-lime-500 bg-clip-text text-transparent dark:from-emerald-300 dark:via-green-400 dark:to-lime-300"
                   />
                 </span>
-                <span className="block sm:whitespace-nowrap">Your entire energy ecosystem.</span>
+                <span className="block sm:whitespace-nowrap">
+                  Your entire energy
+                  <br className="sm:hidden" /> ecosystem.
+                </span>
               </span>
             </h1>
           </Reveal>
@@ -176,7 +188,7 @@ export function Hero() {
           </Reveal>
 
           {/* 3. The animation card: the width of the text column, with a shadow. Its own background is white, so it shows as a card in both themes. */}
-          <Reveal direction="up" delay={480} duration={900} distance={30} className="mt-auto pt-7 sm:mt-12 sm:pt-0">
+          <Reveal direction="up" delay={480} duration={900} distance={30} className="mt-7 sm:mt-12">
             <div className="relative aspect-video w-full overflow-hidden rounded-[20px] bg-white shadow-2xl shadow-black/25 sm:rounded-[28px]">
               <video
                 ref={videoRef}
