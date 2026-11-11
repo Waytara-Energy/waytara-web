@@ -159,39 +159,46 @@ export function Hero() {
           </Link>
         </Reveal>
 
-        {/* The animation card: the full width of the page. Its own background is white, so it shows as a card in both themes. */}
-        <Reveal direction="up" delay={480} duration={900} distance={30} className="mt-10 sm:mt-14">
+      </div>
+
+      {/* The animation container: a near-black frame that runs almost edge to edge (a small margin each side), with big rounded corners and the
+          animation set inside it, and a small dark round play/pause button in its corner. It sits outside the text column so it can be wider. */}
+      <div className="relative z-10 mt-10 px-3 sm:mt-14 sm:px-4">
+        <Reveal direction="up" delay={480} duration={900} distance={30}>
           <div
             ref={cardRef}
-            className="relative aspect-video w-full overflow-hidden border border-theme-border bg-white shadow-2xl shadow-black/10 will-change-transform [--p:0]"
+            className="relative overflow-hidden bg-black p-2.5 shadow-2xl shadow-black/25 ring-1 ring-white/10 will-change-transform sm:p-4 lg:p-5 [--p:0]"
             style={{
               scale: "calc(0.88 + var(--p) * 0.12)",
-              borderRadius: "calc(40px - var(--p) * 20px)",
+              borderRadius: "calc(40px - var(--p) * 14px)",
               transformOrigin: "50% 0%",
             }}
           >
-            <video
-              ref={videoRef}
-              className="absolute inset-0 h-full w-full object-cover will-change-transform"
-              style={{ scale: "calc(1.1 - var(--p) * 0.1)" }}
-              poster={POSTER}
-              autoPlay
-              muted
-              loop
-              playsInline
-              preload="metadata"
-              aria-label="Animation: a property with solar panels, a battery, an inverter, an IoT gateway and an EV charger, connected to the cloud dashboard where the owner monitors and controls them."
-              onPlay={() => setPlaying(true)}
-              onPause={() => setPlaying(false)}
-            >
-              <source src={VIDEO} type="video/mp4" />
-            </video>
+            {/* The animation itself has a white background, so it sits in the frame as a rounded panel. */}
+            <div className="relative aspect-video overflow-hidden rounded-[14px] bg-white sm:rounded-[20px]">
+              <video
+                ref={videoRef}
+                className="absolute inset-0 h-full w-full object-cover will-change-transform"
+                style={{ scale: "calc(1.1 - var(--p) * 0.1)" }}
+                poster={POSTER}
+                autoPlay
+                muted
+                loop
+                playsInline
+                preload="metadata"
+                aria-label="Animation: a property with solar panels, a battery, an inverter, an IoT gateway and an EV charger, connected to the cloud dashboard where the owner monitors and controls them."
+                onPlay={() => setPlaying(true)}
+                onPause={() => setPlaying(false)}
+              >
+                <source src={VIDEO} type="video/mp4" />
+              </video>
+            </div>
 
             <button
               type="button"
               onClick={toggle}
               aria-label={playing ? "Pause the animation" : "Play the animation"}
-              className="absolute bottom-4 right-4 flex size-10 cursor-pointer items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-md ring-1 ring-black/10 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+              className="absolute bottom-5 right-5 flex size-11 cursor-pointer items-center justify-center rounded-full bg-black/70 text-white ring-1 ring-white/20 backdrop-blur-sm transition hover:bg-black/85 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white sm:bottom-8 sm:right-8 lg:bottom-9 lg:right-9"
             >
               {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
             </button>
