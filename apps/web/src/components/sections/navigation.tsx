@@ -133,18 +133,22 @@ export function Navigation() {
   }, []);
 
   React.useEffect(() => {
-    // On the home page the bar stays transparent over the sky until the animation card (marked data-hero-card) reaches it, and is solid from then
-    // on, including once the page has scrolled past the hero. A few pixels of allowance, because the card comes to rest just below the bar. On
-    // any page without that card the bar turns solid after a short scroll, as before.
+    // On the home page the bar stays transparent (white links) while the sky is behind it. The hero's layer with the content (data-hero-overlay)
+    // rises over the sky as the page scrolls; once its fade has passed the bar, the sky is gone from behind it and the bar turns solid, and stays
+    // solid from then on. (The card touching the bar always counts too.) On any page without that layer the bar turns solid after a short scroll.
     const REACH = 24;
     const update = () => {
+      const overlay = document.querySelector<HTMLElement>("[data-hero-overlay]");
       const card = document.querySelector("[data-hero-card]");
-      if (!card) {
+      const barBottom = headerRef.current?.getBoundingClientRect().bottom ?? 64;
+      if (!overlay && !card) {
         setIsScrolled(window.scrollY > 20);
         return;
       }
-      const barBottom = headerRef.current?.getBoundingClientRect().bottom ?? 64;
-      setIsScrolled(card.getBoundingClientRect().top <= barBottom + REACH);
+      const solidAt = Number(overlay?.dataset.solidAt ?? window.innerHeight * 0.2);
+      const skyCovered = overlay ? overlay.getBoundingClientRect().top + solidAt <= barBottom : false;
+      const cardTouches = card ? card.getBoundingClientRect().top <= barBottom + REACH : false;
+      setIsScrolled(skyCovered || cardTouches);
     };
     // The card is moved by the hero in an animation frame of its own, so look after that has happened.
     let frame = 0;
