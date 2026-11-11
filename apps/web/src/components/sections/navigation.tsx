@@ -3,57 +3,21 @@
 import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import {
-  Menu,
-  ChevronDown,
-  Search,
-} from "lucide-react";
+import { Menu, Search } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
-import {
-  HEADER_MENUS,
-  PAGE_MENUS,
-  SOLUTIONS_HUB,
-  SOLUTION_NEEDS,
-  SOLUTION_SEGMENTS,
-  LOGIN_LINK,
-} from "@/config/site-nav";
+import { HEADER_MENUS } from "@/config/site-nav";
 import { MegaMenuShell, menuPanel } from "@/components/sections/mega-menu";
 import { SearchPanel } from "@/components/sections/search-panel";
-
-const MOBILE_LINK_CLASS =
-  "py-2.5 px-2 text-sm font-semibold text-theme-primary hover:text-theme-highlight hover:bg-theme-surface rounded-lg flex items-center justify-between transition-colors text-left";
-
-interface Account {
-  fullName: string | null;
-  email: string | null;
-  avatarUrl: string | null;
-  planName: string | null;
-}
-
-function initials(name: string | null, email: string | null): string {
-  if (name?.trim()) {
-    const parts = name.trim().split(/\s+/);
-    return (parts[0][0] + (parts[1]?.[0] ?? "")).toUpperCase();
-  }
-  return (email?.[0] ?? "?").toUpperCase();
-}
+import { AccountPanel, AuthSlot, getBrowserClient, useFleet, type Account, type AuthState } from "@/components/sections/account-panel";
+import { MobileMenu } from "@/components/sections/mobile-menu";
 
 export function Navigation() {
   const pathname = usePathname();
   const [isScrolled, setIsScrolled] = React.useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = React.useState(false);
-  const [mobileOpen, setMobileOpen] = React.useState<string | null>(null);
   // Which header item's panel is open on desktop (null: none). Opens on hover or focus, closes on leaving the header, Escape, or choosing a link.
   const [activeMenu, setActiveMenu] = React.useState<string | null>(null);
   const [shownMenu, setShownMenu] = React.useState<string | null>(null);
@@ -77,60 +41,71 @@ export function Navigation() {
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [activeMenu]);
+
+  // The phone's menu closes on its own if the window becomes wide enough for the desktop header.
+  React.useEffect(() => {
+    const wide = window.matchMedia("(min-width: 1024px)");
+    const onChange = () => wide.matches && setMobileMenuOpen(false);
+    wide.addEventListener("change", onChange);
+    return () => wide.removeEventListener("change", onChange);
+  }, []);
+
   const [account, setAccount] = React.useState<Account | null>(null);
+  // "pending" until it is known; for a visitor with no sign-in cookie it just stays "pending" (they are anonymous, and the account slot shows Login
+  // for that case without needing anything to change: see globals.css).
+  const [authState, setAuthState] = React.useState<AuthState>("pending");
 
   const isHome = pathname === "/";
 
-  // Signed-in customer browsing the public site (e.g. via the dashboard's
-  // own "Home" link) — swap "Get Started" for their avatar rather than
-  // sending them through the sign-in form again. Client-side check (not a
-  // server-fetched prop) since Navigation is rendered directly by each
-  // marketing page, not a shared server layout.
+  // Signed-in customer browsing the public site (e.g. via the dashboard's own "Home" link) — swap "Login" for their avatar rather than sending them
+  // through the sign-in form again. Client-side check (not a server-fetched prop) since Navigation is rendered directly by each marketing page, not a
+  // shared server layout.
   //
-  // getSession() (not getUser()) deliberately — getUser() always makes a
-  // network round trip to the Auth server to revalidate, which is what
-  // made the avatar visibly slow to appear; getSession() reads the
-  // already-persisted session from local storage first and is effectively
-  // instant for an existing session. Nothing here is security-sensitive
-  // (it only decides which UI to show — RLS still gates the profile read,
-  // and the dashboard itself re-verifies on its own), so the weaker
-  // unrevalidated check is the right tradeoff.
+  // getSession() (not getUser()) deliberately — getUser() always makes a network round trip to the Auth server to revalidate, which is what made the
+  // avatar visibly slow to appear; getSession() reads the already-persisted session from local storage first and is effectively instant for an
+  // existing session. Nothing here is security-sensitive (it only decides which UI to show — RLS still gates the profile read, and the dashboard itself
+  // re-verifies on its own), so the weaker unrevalidated check is the right tradeoff.
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
-      // Anonymous visitors (nearly all marketing traffic) have no Supabase
-      // auth cookie — skip the whole client (~65 KB gzipped) for them. It is
-      // also a dynamic import, so for everyone else it loads after the page
-      // is interactive instead of blocking it.
+      // Anonymous visitors (nearly all marketing traffic) have no Supabase auth cookie — skip the whole client (~65 KB gzipped) for them. It is also
+      // loaded on demand, so for everyone else it arrives after the page is interactive instead of blocking it.
       if (!document.cookie.includes("-auth-token")) return;
-      const { createClient } = await import("@waytara/supabase/client");
+      const supabase = await getBrowserClient();
       if (cancelled) return;
-      const supabase = createClient();
       const {
         data: { session },
       } = await supabase.auth.getSession();
-      if (!session?.user || cancelled) return;
-      // Independent of each other — one round trip instead of two. The
-      // plan lookup mirrors @/lib/customer-plan's server-side query
-      // (customers -> plans), just via the browser client since this
-      // component has no server layout to fetch it for it.
+      if (!session?.user) {
+        if (!cancelled) setAuthState("anon");
+        return;
+      }
+      // Independent of each other — one round trip instead of two. The plan lookup mirrors @/lib/customer-plan's server-side query (customers ->
+      // plans), just via the browser client since this component has no server layout to fetch it for it.
       const [{ data: profile }, { data: customer }] = await Promise.all([
         supabase.from("profiles").select("full_name, email, avatar_url, role").eq("id", session.user.id).maybeSingle(),
         supabase.from("customers").select("plan:plans(name)").eq("id", session.user.id).maybeSingle(),
       ]);
-      if (!cancelled && profile) {
+      if (cancelled) return;
+      if (profile) {
         setAccount({
           fullName: profile.full_name,
           email: profile.email,
           avatarUrl: profile.avatar_url,
           planName: customer?.plan?.name ?? null,
         });
+        setAuthState("in");
+      } else {
+        setAuthState("anon");
       }
     })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // The customer's devices and their status are read the first time the avatar's panel (or the phone's menu) is opened.
+  const fleet = useFleet(authState === "in" && (activeMenu === "account" || mobileMenuOpen));
 
   React.useEffect(() => {
     const handleScroll = () => {
@@ -142,8 +117,17 @@ export function Navigation() {
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
 
+  const closeMobileMenu = React.useCallback(() => setMobileMenuOpen(false), []);
+
   const shownMenuConfig = HEADER_MENUS.find((m) => m.label === shownMenu);
-  const shownPanel = shownMenu === "search" ? { key: "search", render: (close: () => void) => <SearchPanel onNavigate={close} /> } : shownMenuConfig ? menuPanel(shownMenuConfig) : null;
+  const shownPanel =
+    shownMenu === "search"
+      ? { key: "search", render: (close: () => void) => <SearchPanel onNavigate={close} /> }
+      : shownMenu === "account" && account
+        ? { key: "account", render: (close: () => void) => <AccountPanel account={account} fleet={fleet} onNavigate={close} /> }
+        : shownMenuConfig
+          ? menuPanel(shownMenuConfig)
+          : null;
   const isThemeStyled = !isHome || isScrolled || activeMenu !== null;
 
   // One look for every text link and icon in the bar: white over the hero, theme colours once the bar is solid.
@@ -182,7 +166,7 @@ export function Navigation() {
       }}
     >
       <div className="fluid-container flex items-center justify-between h-full">
-        
+
         {/* 1. Left: Minimal Fluid Logo */}
         <div className="flex items-center">
           <Logo variant={!isThemeStyled ? "white" : "default"} />
@@ -206,8 +190,8 @@ export function Navigation() {
           ))}
         </nav>
 
-        {/* 3. Right: search, theme toggle and Login. Contact is reached from the menus, the planner and the footer. */}
-        <div className="hidden sm:flex items-center space-x-[clamp(0.2rem,0.5vw,0.6rem)]">
+        {/* 3. Right (wide screens): search, theme toggle and the account slot. Contact is reached from the menus, the planner and the footer. */}
+        <div className="hidden lg:flex items-center space-x-[clamp(0.2rem,0.5vw,0.6rem)]">
           {/* Search: opens the same panel as the menus */}
           <button
             type="button"
@@ -230,139 +214,39 @@ export function Navigation() {
             iconClassName={isThemeStyled ? "text-theme-primary" : "text-white"}
           />
 
-          {/* Login button on every page — or, signed in, the account avatar */}
-          {account ? (
-            <Link
-              href="/dashboard"
-              aria-label="Go to your dashboard"
-              className="ml-1.5 rounded-full outline-none focus-visible:ring-2 focus-visible:ring-emerald-500"
-            >
-              <Avatar className="h-8 w-8 border-0">
-                {account.avatarUrl && <AvatarImage src={account.avatarUrl} alt={account.fullName ?? "Account"} />}
-                <AvatarFallback className="text-xs">{initials(account.fullName, account.email)}</AvatarFallback>
-              </Avatar>
-            </Link>
-          ) : (
-            <Button
-              asChild
-              size="sm"
-              variant={!isThemeStyled ? "secondary" : "gradient"}
-              className={cn(
-                "h-8 sm:h-8.5 px-3.5 sm:px-4 text-xs sm:text-[13px] font-semibold rounded-lg transition-all duration-200 ml-1.5 shadow-sm",
-                !isThemeStyled
-                  ? "bg-white text-slate-950 hover:bg-slate-100 border-0 shadow-md font-bold"
-                  : ""
-              )}
-            >
-              <Link href={LOGIN_LINK.href}>{LOGIN_LINK.label}</Link>
-            </Button>
-          )}
+          {/* Login button on every page — or, signed in, the account avatar (hover it for the devices and the dashboard's pages), or a loader while
+              it is not known yet */}
+          <div className="ml-1.5">
+            <AuthSlot
+              state={authState}
+              account={account}
+              solid={isThemeStyled}
+              onNavigate={() => setActiveMenu(null)}
+              onAvatarEnter={() => openMenu("account")}
+            />
+          </div>
         </div>
 
-        {/* Mobile Hamburger Drawer */}
-        <div className="flex lg:hidden items-center gap-1">
+        {/* 3. Right (phones and tablets): theme toggle, the account slot (avatar, Login or a loader) and the menu button. */}
+        <div className="flex lg:hidden items-center gap-1.5">
           <ThemeToggle
-            className={cn(
-              "p-2 rounded-lg",
-              !isThemeStyled ? "text-white" : "text-theme-primary"
-            )}
+            className={cn("p-2 rounded-lg", !isThemeStyled ? "text-white" : "text-theme-primary")}
             iconClassName={!isThemeStyled ? "text-white" : "text-theme-primary"}
           />
-          <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
-            <SheetTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={cn(
-                  "h-9 w-9 rounded-lg p-0",
-                  !isThemeStyled ? "text-white hover:bg-white/10" : "text-theme-primary"
-                )}
-                aria-label="Toggle Mobile Menu"
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-[85vw] max-w-sm p-6 flex flex-col justify-between">
-              <div>
-                <SheetHeader className="text-left pb-4 border-b border-theme-border">
-                  <SheetTitle>
-                    <Logo />
-                  </SheetTitle>
-                </SheetHeader>
-
-                <div className="flex flex-col gap-1 mt-6">
-                  {/* Solutions and the page items fold open to their sections */}
-                  {[
-                    { label: SOLUTIONS_HUB.label, links: [{ label: "All solutions", href: SOLUTIONS_HUB.href }, ...SOLUTION_SEGMENTS, ...SOLUTION_NEEDS] },
-                    ...PAGE_MENUS.map((m) => ({ label: m.label, links: [{ label: `${m.label} page`, href: m.href }, ...m.items] })),
-                  ].map((group) => (
-                    <React.Fragment key={group.label}>
-                      <button
-                        type="button"
-                        aria-expanded={mobileOpen === group.label}
-                        onClick={() => setMobileOpen((v) => (v === group.label ? null : group.label))}
-                        className={MOBILE_LINK_CLASS}
-                      >
-                        <span>{group.label}</span>
-                        <ChevronDown className={cn("h-4 w-4 opacity-40 transition-transform duration-200", mobileOpen === group.label && "rotate-180")} />
-                      </button>
-                      {mobileOpen === group.label && (
-                        <div className="mb-1 ml-2 flex flex-col gap-0.5 border-l border-theme-border pl-3">
-                          {group.links.map((link) => (
-                            <Link
-                              key={link.href}
-                              href={link.href}
-                              onClick={() => setMobileMenuOpen(false)}
-                              className="rounded-lg px-2 py-2 text-[13px] font-medium text-theme-secondary transition-colors hover:bg-theme-surface hover:text-theme-primary"
-                            >
-                              {link.label}
-                            </Link>
-                          ))}
-                        </div>
-                      )}
-                    </React.Fragment>
-                  ))}
-                </div>
-              </div>
-
-              <div className="pt-4 border-t border-theme-border">
-                {/* Same account-aware logic as the desktop header's
-                    Login button / avatar (see the "Right: Knowledge,
-                    Contact, Theme Toggle" block above) — signed-in customers
-                    get their account summary instead of a sign-in prompt. */}
-                {account ? (
-                  <Link
-                    href="/dashboard"
-                    onClick={() => setMobileMenuOpen(false)}
-                    className="flex items-center gap-3 rounded-xl p-2 -mx-2 hover:bg-theme-surface transition-colors"
-                    aria-label="Go to your dashboard"
-                  >
-                    <Avatar className="h-11 w-11 border-0 shrink-0">
-                      {account.avatarUrl && <AvatarImage src={account.avatarUrl} alt={account.fullName ?? "Account"} />}
-                      <AvatarFallback className="text-sm">{initials(account.fullName, account.email)}</AvatarFallback>
-                    </Avatar>
-                    <div className="min-w-0">
-                      <p className="text-sm font-bold text-theme-primary truncate">
-                        {account.fullName || "My Account"}
-                      </p>
-                      {account.planName && (
-                        <p className="text-xs font-semibold text-theme-highlight truncate">
-                          {account.planName} Plan
-                        </p>
-                      )}
-                      <p className="text-xs text-theme-muted truncate">{account.email}</p>
-                    </div>
-                  </Link>
-                ) : (
-                  <Button asChild variant="gradient" className="w-full justify-center text-xs h-10">
-                    <Link href={LOGIN_LINK.href} onClick={() => setMobileMenuOpen(false)}>
-                      {LOGIN_LINK.label}
-                    </Link>
-                  </Button>
-                )}
-              </div>
-            </SheetContent>
-          </Sheet>
+          <span className={cn(!isThemeStyled ? "text-white" : "text-theme-primary")}>
+            <AuthSlot state={authState} account={account} solid={isThemeStyled} compact />
+          </span>
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Open the menu"
+            aria-expanded={mobileMenuOpen}
+            aria-controls="mobile-menu"
+            onClick={() => setMobileMenuOpen(true)}
+            className={cn("h-9 w-9 rounded-lg p-0", !isThemeStyled ? "text-white hover:bg-white/10" : "text-theme-primary")}
+          >
+            <Menu className="h-5 w-5" />
+          </Button>
         </div>
 
       </div>
@@ -377,6 +261,9 @@ export function Navigation() {
           activeMenu ? "opacity-100" : "opacity-0"
         )}
       />
+
+    {/* Outside the header on purpose (see MobileMenu). */}
+    <MobileMenu open={mobileMenuOpen} onClose={closeMobileMenu} authState={authState} account={account} fleet={fleet} />
     </>
   );
 }

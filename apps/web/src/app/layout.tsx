@@ -97,6 +97,9 @@ export default function RootLayout({
         className={`${ACTIVE_BRAND_FONT.className} min-h-screen bg-theme-bg text-theme-primary antialiased selection:bg-emerald-500 selection:text-white`}
         suppressHydrationWarning
       >
+        {/* Runs before anything is painted: whether the browser holds a sign-in cookie, so the header's account slot can show Login or a loader
+            from the very first frame (see globals.css). It only reads a cookie's name; nothing is sent anywhere. */}
+        <script dangerouslySetInnerHTML={{ __html: "document.documentElement.dataset.auth=document.cookie.indexOf('-auth-token')>-1?'maybe':'none'" }} />
         {/* Site-wide entity data: who the organisation is and what the site is. */}
         <JsonLd data={[organizationJsonLd(), websiteJsonLd()]} />
         <ThemeProvider

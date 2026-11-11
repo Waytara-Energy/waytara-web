@@ -138,7 +138,7 @@ export function Hero() {
         {/* The content block has the page colour itself (on a phone the layer around it is clear). */}
         <div className="fluid-container w-full bg-theme-bg pb-5 sm:pb-16">
           <Reveal direction="up" delay={100} duration={800} distance={24}>
-            <h1 className="font-bold tracking-tight leading-[1.05] text-theme-primary text-balance text-[clamp(22px,7vw,32px)] sm:text-[clamp(2rem,4.4vw,4.25rem)]">
+            <h1 className="font-bold tracking-tight leading-[1.05] text-center text-theme-primary text-balance text-[clamp(26px,8.4vw,34px)] sm:text-left sm:text-[clamp(2rem,4.4vw,4.25rem)]">
               {/* The whole sentence for screen readers, search engines and anyone without the animation; the visible two lines below are hidden from them. */}
               <span className="sr-only">One platform to connect, monitor, control and optimise your entire energy ecosystem.</span>
               <span aria-hidden="true" className="block">
@@ -161,16 +161,16 @@ export function Hero() {
 
           <Reveal direction="up" delay={220} duration={800} distance={16} className="mt-5 max-w-[52rem]">
             {/* Two lines on a wide screen (the box is just wide enough, and text-balance evens the two out); it wraps to more on a narrow one. */}
-            <p className="text-balance text-[clamp(1rem,1.3vw,1.2rem)] leading-relaxed text-theme-secondary">
+            <p className="text-balance text-center text-[17px] leading-relaxed text-theme-secondary sm:text-left sm:text-[clamp(1rem,1.3vw,1.2rem)]">
               Connect solar, batteries, EV chargers, meters and more through WayTara&rsquo;s flexible gateway and unified platform, built for new and existing energy infrastructure.
             </p>
           </Reveal>
 
-          <Reveal direction="up" delay={340} duration={700} distance={12} className="mt-6 flex flex-wrap items-center gap-3 sm:mt-7">
+          <Reveal direction="up" delay={340} duration={700} distance={12} className="mt-6 flex w-full items-center justify-center gap-3 sm:mt-7 sm:w-auto sm:flex-wrap sm:justify-start">
             {/* The main action: the site's green gradient, white text, and the arrow in a white circle. */}
             <Link
               href="/planner"
-              className={`${buttonBase} group gap-3 bg-primary-gradient pl-6 pr-1.5 text-white shadow-lg shadow-emerald-900/20 transition-all duration-200 hover:brightness-95 hover:shadow-xl active:scale-95`}
+              className={`${buttonBase} group flex-1 justify-center gap-3 bg-primary-gradient pl-6 pr-1.5 text-white sm:flex-none shadow-lg shadow-emerald-900/20 transition-all duration-200 hover:brightness-95 hover:shadow-xl active:scale-95`}
             >
               <span>Plan my system</span>
               <span className="flex size-9 sm:size-10 items-center justify-center rounded-full bg-white text-slate-950 transition-transform duration-200 group-hover:translate-x-0.5">
@@ -189,7 +189,7 @@ export function Hero() {
 
           {/* 3. The animation card: the width of the text column, with a shadow. Its own background is white, so it shows as a card in both themes. */}
           <Reveal direction="up" delay={480} duration={900} distance={30} className="mt-7 sm:mt-12">
-            <div className="relative aspect-video w-full overflow-hidden rounded-[20px] bg-white shadow-2xl shadow-black/25 sm:rounded-[28px]">
+            <div className="relative aspect-video w-full overflow-hidden rounded-[28px] bg-white shadow-2xl shadow-black/25">
               <video
                 ref={videoRef}
                 className="absolute inset-0 h-full w-full object-cover"

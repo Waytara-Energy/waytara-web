@@ -628,3 +628,24 @@ html[data-reduce-motion="true"] *::after {
     animation: none;
   }
 }
+
+/* ------------------------------------------------------------------------------------------------------------------------------------------
+   The header's account slot (AuthSlot in components/sections/account-panel.tsx) holds a Login button and a loader, and shows the right one before
+   any script has run. A tiny script at the top of <body> (root layout) sets html[data-auth] to "maybe" when the browser holds a sign-in cookie and
+   "none" when it does not. While the slot is still "pending" (not yet checked): with no cookie it shows Login (an anonymous visitor never sees a
+   loader), with a cookie it shows the loader (a signed-in visitor never sees "Login" flash up). Once checked, data-state is "in" (the avatar is
+   shown, the Login button hidden) or "anon" (Login shown). These are plain, unlayered rules on purpose: they must beat the layered utilities that
+   give the pieces their display.
+   ------------------------------------------------------------------------------------------------------------------------------------------ */
+[data-auth-slot] .auth-loader {
+  display: none;
+}
+html[data-auth="maybe"] [data-auth-slot][data-state="pending"] .auth-login {
+  display: none;
+}
+html[data-auth="maybe"] [data-auth-slot][data-state="pending"] .auth-loader {
+  display: inline-flex;
+}
+[data-auth-slot][data-state="in"] .auth-login {
+  display: none;
+}
