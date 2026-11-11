@@ -26,6 +26,7 @@ const EXTRA: SearchEntry[] = [
   { title: "Solar for your home", href: "/solar-for-home", group: "Guides", keywords: "home villa house roof size how much roof space solar panel price cost rooftop" },
   { title: "On-grid, hybrid or off-grid solar", href: "/on-grid-hybrid-off-grid-solar", group: "Guides", keywords: "on grid hybrid off grid inverter battery power cut backup which to choose" },
   { title: "Solar subsidy and net metering", href: "/solar-subsidy", group: "Guides", keywords: "subsidy pm surya ghar muft bijli net metering apply discom state scheme" },
+  { title: "PM Surya Ghar: Muft Bijli Yojana", href: "/pm-surya-ghar-muft-bijli-yojana", group: "Guides", keywords: "pm surya ghar muft bijli yojana scheme free electricity 300 units subsidy 78000 apply portal rwa housing society loan government" },
   { title: "Reduce your electricity bill with solar", href: "/reduce-electricity-bill-solar", group: "Guides", keywords: "electricity bill eb bill reduce save free units tariff" },
   { title: "Solar for homes", href: "/solutions/home#benefits", group: "Solutions", keywords: "rooftop villa house subsidy pm surya ghar net metering" },
   { title: "Government support for homes", href: "/solutions/home#support", group: "Solutions", keywords: "subsidy pm surya ghar tamil nadu loan financing" },

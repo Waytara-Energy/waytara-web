@@ -32,6 +32,7 @@ export const GUIDE_LINKS: NavDestination[] = [
   { label: "Solar for your home", href: "/solar-for-home" },
   { label: "On-grid, hybrid or off-grid", href: "/on-grid-hybrid-off-grid-solar" },
   { label: "Solar subsidy and net metering", href: "/solar-subsidy" },
+  { label: "PM Surya Ghar scheme", href: "/pm-surya-ghar-muft-bijli-yojana" },
   { label: "Reduce your electricity bill", href: "/reduce-electricity-bill-solar" },
 ];
 

@@ -1,14 +1,15 @@
-import { BadgeIndianRupee, Home, PlugZap, ReceiptText, type LucideIcon } from "lucide-react";
+import { BadgeIndianRupee, Home, PlugZap, ReceiptText, Sun, type LucideIcon } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 import { EnquiryRoutes, FeatureColumns, SegmentSection } from "@/components/segments/segment-parts";
 import { GUIDES } from "@/data/guides";
 import { PageHero, PageShell } from "./page-shell";
 
-/** The four guides, in reading order: what it is, which type, what help there is, and what it does to the bill. */
+/** The guides, in reading order: what it is, which type, what help there is (the subsidy, then the scheme behind it), and what it does to the bill. */
 const ORDER: { slug: string; icon: LucideIcon; body: string }[] = [
   { slug: "solar-for-home", icon: Home, body: "What a home system is made of, how big yours needs to be, and the steps from enquiry to switch-on." },
   { slug: "on-grid-hybrid-off-grid-solar", icon: PlugZap, body: "With a battery, without one, or with no grid at all: what each does in a power cut, and how to choose." },
   { slug: "solar-subsidy", icon: BadgeIndianRupee, body: "The central PM Surya Ghar subsidy, who can apply, the steps, and what net metering means for you." },
+  { slug: "pm-surya-ghar-muft-bijli-yojana", icon: Sun, body: "The government scheme in plain words: who can apply, the subsidy for homes and societies, what the 300 free units mean, and how to register." },
   { slug: "reduce-electricity-bill-solar", icon: ReceiptText, body: "How solar, net metering and a battery lower a bill, and who saves the most." },
 ];
 
@@ -32,6 +33,7 @@ export function GuidesHub() {
       <SegmentSection id="guides" badge="The guides" title="Pick the question" accent="you have." summary="Each guide answers in the first two sentences, then gives the detail, a short FAQ and where to go next.">
         <Reveal direction="up" duration={700} distance={16}>
           <FeatureColumns
+            columns={3}
             items={ORDER.map(({ slug, icon, body }) => ({
               icon,
               title: GUIDES[slug].name,

@@ -506,7 +506,7 @@ const subsidy: Guide = {
         "Where your quotation says so, we help prepare and submit the paperwork. Whether a project is done under the scheme, and what we handle, is written in the quotation, so there are no surprises. The approval is always the authority's decision.",
     },
   ],
-  related: ["solar-for-home", "reduce-electricity-bill-solar", "on-grid-hybrid-off-grid-solar"],
+  related: ["pm-surya-ghar-muft-bijli-yojana", "solar-for-home", "reduce-electricity-bill-solar"],
   updated: UPDATED,
   updatedLabel: UPDATED_LABEL,
 };
@@ -647,11 +647,246 @@ const bill: Guide = {
   updatedLabel: UPDATED_LABEL,
 };
 
+const scheme: Guide = {
+  slug: "pm-surya-ghar-muft-bijli-yojana",
+  path: "/pm-surya-ghar-muft-bijli-yojana",
+  metaTitle: "PM Surya Ghar Muft Bijli Yojana: Explained",
+  metaDescription:
+    "What the PM Surya Ghar: Muft Bijli Yojana is, who can apply, the subsidy for homes and housing societies, what the 300 free units really mean, how to register on the national portal, and what to check first.",
+  name: "PM Surya Ghar: Muft Bijli Yojana",
+  eyebrow: "Guide · Government scheme",
+  title: "PM Surya Ghar:",
+  accent: "Muft Bijli Yojana, explained.",
+  answer:
+    "PM Surya Ghar: Muft Bijli Yojana is the Government of India's scheme to put rooftop solar on one crore homes. It gives households a central subsidy of up to ₹78,000 on a grid-connected rooftop system, and the government says households can get up to 300 units of electricity free each month, which comes from the solar their own roof produces. You apply on the national portal, pmsuryaghar.gov.in; WayTara explains the scheme and, where your quotation says so, helps with the paperwork.",
+  inShort: [
+    "The Prime Minister launched it on 13 February 2024 and the Union Cabinet approved it on 29 February 2024, with an outlay of ₹75,021 crore, for one crore households.",
+    "The central subsidy is ₹30,000 a kW for the first 2 kW and ₹18,000 for the third kW, so ₹78,000 at most. Special-category states and union territories get 10% more.",
+    "It is for residential electricity consumers, and for housing societies and resident welfare associations. Other kinds of consumer should not apply on the portal.",
+    "The portal showed the scheme closing on 31 March 2027 when we last looked, so check the date before you plan.",
+  ],
+  sections: [
+    {
+      id: "what",
+      summary: "Launched in February 2024 to put rooftop solar on one crore homes.",
+      badge: "The scheme",
+      title: "What the scheme",
+      accent: "is, in short.",
+      blocks: [
+        {
+          type: "p",
+          text: "PM Surya Ghar: Muft Bijli Yojana (in English, the Prime Minister's Solar Home, Free Electricity Scheme) helps households put solar panels on their own roof. The Ministry of New and Renewable Energy runs it, and households apply for the subsidy and choose a vendor on one national portal.",
+        },
+        {
+          type: "list",
+          items: [
+            "Launched by the Prime Minister on 13 February 2024, and approved by the Union Cabinet on 29 February 2024.",
+            "A total outlay of ₹75,021 crore, to install rooftop solar on one crore households.",
+            "A central subsidy for households, and a separate rate for housing societies and resident welfare associations.",
+            "Collateral-free, low-interest loans for household systems up to 3 kW.",
+            "A model solar village in every district, and incentives for urban local bodies and panchayats to promote rooftop solar.",
+          ],
+        },
+      ],
+    },
+    {
+      id: "free-units",
+      summary: "The units come from your own roof, so they depend on the system and the sun.",
+      badge: "Free electricity",
+      title: "What “300 units free”",
+      accent: "really means.",
+      blocks: [
+        {
+          type: "p",
+          text: "The government says households will get up to 300 units of electricity free every month. In practice the units come from your own panels: they run your home first, and the surplus goes to the grid, where net metering adjusts it against the units you take. The government's own estimate is that a 3 kW system generates more than 300 units a month on average.",
+        },
+        {
+          type: "p",
+          text: "So how much your bill falls depends on how many units you use, your tariff and the sunshine at your roof. The portal suggests a system size from your monthly use:",
+        },
+        {
+          type: "compare",
+          columns: ["Suitable system size"],
+          rows: [
+            { label: "Up to 150 units a month", cells: ["1 to 2 kW"] },
+            { label: "150 to 300 units a month", cells: ["2 to 3 kW"] },
+            { label: "More than 300 units a month", cells: ["More than 3 kW"] },
+          ],
+        },
+        {
+          type: "note",
+          title: "An estimate, not a promise",
+          body: "Your own figures come from a design for your roof and your bills. We give estimates and never guarantee savings. See how solar reduces your electricity bill.",
+        },
+      ],
+    },
+    {
+      id: "subsidy",
+      summary: "The central figures from the scheme's own table, as last checked.",
+      badge: "The subsidy",
+      title: "How much",
+      accent: "you can get.",
+      blocks: [
+        {
+          type: "compare",
+          columns: ["Most states", "Special-category states and UTs"],
+          rows: [
+            { label: "First 2 kW", cells: ["₹30,000 per kW", "₹33,000 per kW"] },
+            { label: "Third kW", cells: ["₹18,000 per kW", "₹19,800 per kW"] },
+            { label: "Beyond 3 kW", cells: ["No extra subsidy", "No extra subsidy"] },
+            { label: "Housing societies and RWAs (common facilities, EV charging included)", cells: ["₹18,000 per kW, up to 500 kW (at 3 kW per house)", "₹19,800 per kW"] },
+          ],
+        },
+        {
+          type: "p",
+          text: "The Cabinet described the subsidy as 60% of the system cost for the first 2 kW and 40% of the additional cost between 2 and 3 kW, capped at 3 kW. At the benchmark prices that gives ₹30,000 for 1 kW, ₹60,000 for 2 kW and ₹78,000 for 3 kW or more. For a housing society, the 500 kW limit includes the rooftop systems that individual residents install. See the solar subsidy guide for how it is paid and how net metering fits in.",
+        },
+        {
+          type: "p",
+          text: "Households can also get collateral-free, low-interest loans for systems up to 3 kW: around 7% when the scheme was approved. Lenders and rates change, so ask your bank what it offers now.",
+        },
+        {
+          type: "note",
+          title: "Where these figures come from",
+          body: "The Union Cabinet's release of 29 February 2024, a reply by the Ministry of New and Renewable Energy in the Lok Sabha on 7 August 2024, and the national portal, last checked on 11 November 2026. The government can revise the scheme, so confirm today's figures on pmsuryaghar.gov.in before you decide.",
+        },
+      ],
+    },
+    {
+      id: "who",
+      summary: "Homes and housing societies. Businesses should not apply here.",
+      badge: "Who can apply",
+      title: "Who the scheme",
+      accent: "is for.",
+      blocks: [
+        {
+          type: "list",
+          items: [
+            "Residential electricity consumers: homes and villas with their own roof and connection.",
+            "A valid connection with your electricity distribution company. The portal asks for your consumer account number to fetch your details.",
+            "Housing societies and resident welfare associations, for common facilities such as lifts, pumps, lighting and EV charging.",
+            "Businesses, factories and other kinds of consumer should not apply on this portal, according to the portal's own FAQ.",
+          ],
+        },
+        {
+          type: "p",
+          text: "The scheme's guidelines set the detailed conditions, including equipment and installer rules, and they can change. We tell you what applies to your project, but the guidelines are the authority.",
+        },
+      ],
+    },
+    {
+      id: "apply",
+      summary: "The first steps, as the national portal describes them.",
+      badge: "How to apply",
+      title: "Applying on the",
+      accent: "national portal.",
+      blocks: [
+        {
+          type: "steps",
+          items: [
+            { title: "Open the portal", body: "Go to pmsuryaghar.gov.in and choose Apply Now, or open the Login menu and choose Consumer Login." },
+            { title: "Register with your mobile number", body: "Enter the mobile number registered with your electricity connection and the captcha, confirm that you have read the guidelines, then enter the OTP sent by SMS." },
+            { title: "Add your details", body: "Your name, e-mail, address, state, district and PIN code." },
+            { title: "Apply for rooftop solar", body: "Choose your state, district and electricity distribution company, enter your consumer account number and fetch your details, then fill in the application. You can also start by choosing a vendor." },
+            { title: "Install, connect and claim", body: "A vendor registered on the portal installs the system, your distribution company fits the net meter and inspects it, and you submit the commissioning details and your bank details. The government then pays the subsidy." },
+          ],
+        },
+        {
+          type: "p",
+          text: "The portal's screens change, so it is always the authority. It also lists a toll-free number, 15555. The solar subsidy guide has the steps after you apply.",
+        },
+      ],
+    },
+    {
+      id: "timing",
+      summary: "The portal showed 31 March 2027 as the closing date.",
+      badge: "Timing",
+      title: "Before the scheme",
+      accent: "closes.",
+      blocks: [
+        {
+          type: "p",
+          text: "When we looked on 10 November 2026, the national portal said the scheme closes on 31 March 2027. Governments extend and change schemes, so check the portal for the date that applies when you read this.",
+        },
+        {
+          type: "p",
+          text: "Approvals, the net meter and the weather can all move an installation date. If you want the subsidy, plan so that the installation and commissioning finish well before any closing date, and ask your installer to confirm in writing that your project is done under the scheme.",
+        },
+      ],
+    },
+    {
+      id: "waytara",
+      summary: "What we help with, and what only the authorities can decide.",
+      badge: "What WayTara does",
+      title: "How WayTara",
+      accent: "helps.",
+      blocks: [
+        {
+          type: "list",
+          items: [
+            "We explain the scheme and tell you how it applies to your home, society or project.",
+            "Where your quotation says so, we help prepare and submit the paperwork, using the information and documents you give us. You are responsible for their being true and complete.",
+            "The subsidy is paid by the government to you. It is not a discount from WayTara, and the price in your quotation does not depend on it unless the quotation says otherwise in writing.",
+            "We do not promise that you qualify, that your application will be approved, or when the money will reach you.",
+            "After installation, you see the system on the WayTara dashboard: how the platform connects your equipment.",
+          ],
+        },
+      ],
+    },
+  ],
+  faqs: [
+    {
+      question: "What is PM Surya Ghar: Muft Bijli Yojana?",
+      answer:
+        "It is the Government of India's rooftop solar scheme for one crore households, launched on 13 February 2024 and approved by the Union Cabinet on 29 February 2024 with an outlay of ₹75,021 crore. It gives households a central subsidy on a grid-connected rooftop system, and housing societies a subsidy for common facilities.",
+    },
+    {
+      question: "Is the electricity really free?",
+      answer:
+        "The government says households can get up to 300 units of electricity free each month. The units come from your own solar panels, not from a separate supply: your home uses the solar power first and net metering adjusts what you send to the grid. How much your bill falls depends on your use, your tariff and the sunshine.",
+    },
+    {
+      question: "How much subsidy will I get?",
+      answer:
+        "₹30,000 for each of the first 2 kW and ₹18,000 for the third kW, so ₹60,000 for 2 kW and ₹78,000 for 3 kW or more, which is the most a household gets. Special-category states and union territories get 10% more. Check pmsuryaghar.gov.in for today's figures.",
+    },
+    {
+      question: "Who can apply?",
+      answer:
+        "Residential electricity consumers, and housing societies and resident welfare associations. According to the portal's FAQ, other kinds of consumer should not apply on it. You need a valid connection with your distribution company and a roof that can take the panels.",
+    },
+    {
+      question: "Can a housing society or RWA apply?",
+      answer:
+        "Yes. For common facilities, including EV charging, the subsidy is ₹18,000 per kW up to 500 kW, counted at 3 kW per house, and the limit includes any rooftop systems that individual residents install. It covers common loads, not each flat's own meter.",
+    },
+    {
+      question: "Is there a loan for the rest of the cost?",
+      answer:
+        "The scheme provides for collateral-free, low-interest loans for household systems up to 3 kW, at around 7% when it was approved. Lenders and rates change, so ask your bank what it offers now. The subsidy is paid separately by the government.",
+    },
+    {
+      question: "Where do I apply, and who can I call?",
+      answer:
+        "Apply on the national portal, pmsuryaghar.gov.in. The portal lists a toll-free number, 15555, for help. WayTara can explain the steps and, where your quotation says so, help with the paperwork, but the approval is always the authority's decision.",
+    },
+    {
+      question: "Is the scheme ending soon?",
+      answer:
+        "On 10 November 2026 the national portal showed the scheme closing on 31 March 2027. Dates can be extended or changed, so check the portal, and plan your installation so it finishes well before any closing date.",
+    },
+  ],
+  related: ["solar-subsidy", "solar-for-home", "reduce-electricity-bill-solar"],
+  updated: "2026-11-11",
+  updatedLabel: "11 November 2026",
+};
+
 export const GUIDES: Record<string, Guide> = {
   [solarForHome.slug]: solarForHome,
   [gridTypes.slug]: gridTypes,
   [subsidy.slug]: subsidy,
   [bill.slug]: bill,
+  [scheme.slug]: scheme,
 };
 
-export const GUIDE_LIST: Guide[] = [solarForHome, gridTypes, subsidy, bill];
+export const GUIDE_LIST: Guide[] = [solarForHome, gridTypes, subsidy, scheme, bill];
