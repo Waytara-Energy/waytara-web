@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { ArrowRight, AudioWaveform, BatteryCharging, CarFront, Pause, Play, Router, SolarPanel, type LucideIcon } from "lucide-react";
+import { ArrowRight, BatteryCharging, EvCharger, Pause, Play, PlugZap, Router, SolarPanel } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 import { CloudShader } from "@/components/ui/cloud-shader";
 import { FlipWords } from "@/components/ui/flip-words";
@@ -14,12 +14,24 @@ const VIDEO = "/videos/energy-banner.mp4";
 const POSTER = "/videos/energy-banner-poster.webp";
 // The words that take turns in the headline, each one an action the platform does for the whole property.
 const HEADLINE_WORDS = ["Connect.", "Monitor.", "Control.", "Optimise."];
-// The equipment the platform brings together, shown as a row of small icons with two-line labels at the left end of the row with the buttons.
-const EQUIPMENT: { icon: LucideIcon; lines: [string, string] }[] = [
+// A solar inverter: a box with the AC wave on its display and the cables underneath (the icon set has none), drawn like the others (outline, round ends).
+function InverterIcon({ className, strokeWidth = 1.6 }: { className?: string; strokeWidth?: number }) {
+  return (
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} aria-hidden="true">
+      <rect x="4" y="3" width="16" height="14" rx="2" />
+      <path d="M7 11q1.75-4 3.5 0t3.5 0t3.5 0" />
+      <path d="M9 17v3M15 17v3" />
+    </svg>
+  );
+}
+
+// The equipment the platform brings together, shown as a row of small icons with two-line captions under the animation card.
+const EQUIPMENT: { icon: React.ElementType; lines: [string, string] }[] = [
   { icon: SolarPanel, lines: ["Solar", "panels"] },
-  { icon: AudioWaveform, lines: ["Solar", "inverters"] }, // the AC wave: an inverter turns the panels' DC into AC
+  { icon: InverterIcon, lines: ["Solar", "inverters"] },
   { icon: BatteryCharging, lines: ["Battery", "storage"] },
-  { icon: CarFront, lines: ["EV", "chargers"] },
+  { icon: PlugZap, lines: ["Portable", "charger"] },
+  { icon: EvCharger, lines: ["Wall-mount", "charger"] },
   { icon: Router, lines: ["WayTara", "gateway"] },
 ];
 // The sky behind the top of the hero: the day sky and, in the dark theme, the same sky at dusk.
@@ -28,12 +40,13 @@ const SKY_DUSK = { top: "#070d1f", bottom: "#1b2a4a", cloud: "#8d9bb8" };
 
 // The height of the first screen (never shorter than 620 px): the sky is as tall as that and stays in place while the page scrolls over it.
 const SCENE_H = "max(100dvh, 620px)";
+// (--sky is set on the section: 0.3 on a normal screen, 0.08 on a phone.)
 // The layer the content sits on is clear at the top (the sky shows through), fades into the page colour by 30 percent of the first screen, and is the
 // page colour from there on down. So only the top 30 percent of the screen shows clouds, and as the page scrolls this layer, carrying the content,
 // rises over them and hides them.
-const OVERLAY = `linear-gradient(to bottom, transparent 0, transparent calc(${SCENE_H} * 0.08), var(--background) calc(${SCENE_H} * 0.3))`;
+const OVERLAY = `linear-gradient(to bottom, transparent 0, transparent calc(${SCENE_H} * var(--sky) * 0.27), var(--background) calc(${SCENE_H} * var(--sky)))`;
 // The headline starts just below the part where the sky shows.
-const TEXT_TOP = `calc(${SCENE_H} * 0.3 + 1.5rem)`;
+const TEXT_TOP = `calc(${SCENE_H} * var(--sky) + clamp(1rem, 2vw, 1.5rem))`;
 
 // Whether the visitor asked for less motion. The server-built page assumes not; a visitor who did gets a still word and no autoplaying video.
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
@@ -108,7 +121,7 @@ export function Hero() {
     "inline-flex h-12 sm:h-[3.25rem] items-center rounded-full text-sm sm:text-base font-semibold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-theme-bg";
 
   return (
-    <section className="relative bg-theme-bg">
+    <section className="relative bg-theme-bg [--sky:0.08] sm:[--sky:0.3]">
       {/* The still is what the page paints first, so it is asked for at once. */}
       <link rel="preload" as="image" href={POSTER} fetchPriority="high" />
 
@@ -157,22 +170,7 @@ export function Hero() {
             </p>
           </Reveal>
 
-          {/* The row under the line: the equipment at the left end, the two buttons at the right end. On a narrow screen the buttons come first. */}
-          <Reveal direction="up" delay={340} duration={700} distance={12} className="mt-8 flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between lg:gap-8">
-            <ul aria-label="What WayTara connects" className="flex flex-wrap items-center gap-x-7 gap-y-4">
-              {EQUIPMENT.map(({ icon: Icon, lines }) => (
-                <li key={lines.join(" ")} className="flex items-center gap-3">
-                  <Icon aria-hidden="true" strokeWidth={1.6} className="size-8 shrink-0 text-emerald-600 dark:text-emerald-400" />
-                  <span className="text-sm font-medium leading-snug text-theme-primary">
-                    {lines[0]}
-                    <br />
-                    {lines[1]}
-                  </span>
-                </li>
-              ))}
-            </ul>
-
-            <div className="order-first flex flex-wrap items-center gap-3 lg:order-none">
+          <Reveal direction="up" delay={340} duration={700} distance={12} className="mt-6 flex flex-wrap items-center gap-3 sm:mt-7">
             {/* The main action: the site's green gradient, white text, and the arrow in a white circle. */}
             <Link
               href="/planner"
@@ -191,11 +189,10 @@ export function Hero() {
             >
               Talk to us
             </Link>
-            </div>
           </Reveal>
 
           {/* 3. The animation card: the width of the text column, with a shadow. Its own background is white, so it shows as a card in both themes. */}
-          <Reveal direction="up" delay={480} duration={900} distance={30} className="mt-10 sm:mt-12">
+          <Reveal direction="up" delay={480} duration={900} distance={30} className="mt-7 sm:mt-12">
             <div className="relative aspect-video w-full overflow-hidden rounded-[20px] bg-white shadow-2xl shadow-black/25 sm:rounded-[28px]">
               <video
                 ref={videoRef}
@@ -222,6 +219,22 @@ export function Hero() {
                 {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
               </button>
             </div>
+          </Reveal>
+
+          {/* 4. What it connects, under the card: centred, with room between the items. On a phone a grid of three columns that fits the first screen. */}
+          <Reveal direction="up" delay={560} duration={800} distance={16} className="mt-5 sm:mt-10">
+            <ul aria-label="What WayTara connects" className="grid grid-cols-3 gap-x-2 gap-y-4 sm:flex sm:flex-wrap sm:justify-center sm:gap-x-12 sm:gap-y-6">
+              {EQUIPMENT.map(({ icon: Icon, lines }) => (
+                <li key={lines.join(" ")} className="flex flex-col items-center gap-1.5 text-center sm:flex-row sm:gap-3 sm:text-left">
+                  <Icon aria-hidden="true" strokeWidth={1.6} className="size-7 shrink-0 text-emerald-600 dark:text-emerald-400 sm:size-8" />
+                  <span className="text-xs font-medium leading-snug text-theme-primary sm:text-sm">
+                    {lines[0]}
+                    <br />
+                    {lines[1]}
+                  </span>
+                </li>
+              ))}
+            </ul>
           </Reveal>
         </div>
       </div>
