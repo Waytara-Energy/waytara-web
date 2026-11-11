@@ -104,15 +104,20 @@ function useNow(): [number | null, (ms: number) => void] {
   return [now, setNow];
 }
 
+/** A two-way reading (the grid, the battery) comes from the inverter with a sign. The page never prints that sign: it prints the size and says which way. */
+type Direction = { positive: string; negative: string };
+const directionWord = (v: number, d: Direction) => (v > 0 ? d.positive : v < 0 ? d.negative : "");
+
 /** The tooltip that follows the pointer over a chart. */
-function HoverTip({ active, payload, unit, digits }: { active?: boolean; payload?: { payload: { t: number; v: number } }[]; unit: string; digits: number }) {
+function HoverTip({ active, payload, unit, digits, direction }: { active?: boolean; payload?: { payload: { t: number; v: number } }[]; unit: string; digits: number; direction?: Direction }) {
   const point = payload?.[0]?.payload;
   if (!active || !point) return null;
   return (
     <div className="rounded-lg border bg-background px-2.5 py-1.5 text-xs shadow-md">
       <p className="tabular-nums text-muted-foreground">{clock(point.t)}</p>
       <p className="font-semibold tabular-nums">
-        {point.v.toFixed(digits)} <span className="font-normal text-muted-foreground">{unit}</span>
+        {(direction ? Math.abs(point.v) : point.v).toFixed(digits)} <span className="font-normal text-muted-foreground">{unit}</span>
+        {direction && directionWord(point.v, direction) && <span className="font-normal text-muted-foreground"> · {directionWord(point.v, direction)}</span>}
       </p>
     </div>
   );
@@ -130,6 +135,7 @@ function TrendChart({
   legend,
   tall = false,
   labelEvery = 2,
+  direction,
 }: {
   title: string;
   unit: string;
@@ -142,6 +148,8 @@ function TrendChart({
   tall?: boolean;
   /** A time label every this many hours. */
   labelEvery?: number;
+  /** For a two-way series (grid, battery): the words for the two ways. The values are then shown without their sign. */
+  direction?: Direction;
 }) {
   const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
   const data = React.useMemo(() => points.map(([t, v]) => ({ t, v })), [points]);
@@ -155,8 +163,9 @@ function TrendChart({
         <div className="min-w-0">
           <p className="truncate text-[0.85rem] font-semibold text-foreground">{title}</p>
           <p className="mt-1 flex items-baseline gap-1 tabular-nums">
-            <span className="text-[1.65rem] font-semibold leading-none text-foreground">{last ? last.v.toFixed(digits) : DASH}</span>
+            <span className="text-[1.65rem] font-semibold leading-none text-foreground">{last ? (direction ? Math.abs(last.v) : last.v).toFixed(digits) : DASH}</span>
             <span className="text-xs text-muted-foreground">{unit}</span>
+            {last && direction && directionWord(last.v, direction) && <span className="text-xs font-medium text-muted-foreground">· {directionWord(last.v, direction)}</span>}
           </p>
           <p className="mt-1 text-[0.68rem] text-muted-foreground">{last ? clock(last.t) : "Waiting for readings"}</p>
         </div>
@@ -195,7 +204,7 @@ function TrendChart({
             interval={0}
           />
           <YAxis hide domain={["auto", "auto"]} />
-          <ChartTooltip cursor={CHART_CURSOR} allowEscapeViewBox={{ x: true, y: true }} offset={14} wrapperStyle={{ pointerEvents: "none", zIndex: 20 }} content={<HoverTip unit={unit} digits={digits} />} />
+          <ChartTooltip cursor={CHART_CURSOR} allowEscapeViewBox={{ x: true, y: true }} offset={14} wrapperStyle={{ pointerEvents: "none", zIndex: 20 }} content={<HoverTip unit={unit} digits={digits} direction={direction} />} />
           <Area dataKey="v" type="monotone" stroke={color} strokeWidth={1.8} fill={`url(#g${uid})`} isAnimationActive={false} dot={false} activeDot={{ r: 4, fill: color, stroke: "var(--background)", strokeWidth: 2 }} />
         </AreaChart>
       </ChartContainer>
@@ -725,7 +734,7 @@ export function DemoMonitoring({ locked = false, mobile = false, initial }: { lo
     return ([...by.entries()].sort((a, b) => a[0] - b[0]) as SeriesPoint[]).map(([t, v]) => [t, v * scale]);
   };
 
-  const chart = (title: string, unit: string, points: SeriesPoint[], color: string, opts: { digits?: number; legend?: { color: string; label: string }[]; tall?: boolean; labelEvery?: number } = {}) => (
+  const chart = (title: string, unit: string, points: SeriesPoint[], color: string, opts: { digits?: number; legend?: { color: string; label: string }[]; tall?: boolean; labelEvery?: number; direction?: Direction } = {}) => (
     <TrendChart title={title} unit={unit} points={points} color={color} dayStart={dayStart} now={now} {...opts} labelEvery={mobile ? 4 : opts.labelEvery} />
   );
 
@@ -734,6 +743,8 @@ export function DemoMonitoring({ locked = false, mobile = false, initial }: { lo
   const battW = L("battery_power_w");
   const hottest = Math.max(L("inverter_dc_temperature_c") ?? -Infinity, L("inverter_ac_temperature_c") ?? -Infinity);
   const flowWord = (w: number | null, pos: string, neg: string) => (w === null ? "" : w > 0 ? pos : w < 0 ? neg : "Idle");
+  /** The size of a two-way reading (a sign is never shown: the words say which way). */
+  const unsigned = (w: number | null | undefined) => (w === null || w === undefined ? w : Math.abs(w));
 
   const inverterHeadlines: Record<InverterTab, { value: string; label: string }> = {
     hub: { value: `${kw(L("inverter_output_power_w"))} kW`, label: "Output Power" },
@@ -818,8 +829,8 @@ export function DemoMonitoring({ locked = false, mobile = false, initial }: { lo
                 <div className={row2}>
                   {chart("Solar power", "kW", sum(["pv1_power_w", "pv2_power_w"], 0.001), FLOW.producing)}
                   {chart("Load power", "kW", series("load_total_power_w", 0.001), FLOW.consuming)}
-                  {chart("Grid power", "kW", series("grid_total_power_w", 0.001), FLOW.drawing)}
-                  {chart("Battery power", "kW", series("battery_power_w", 0.001), FLOW.producing)}
+                  {chart("Grid power", "kW", series("grid_total_power_w", 0.001), FLOW.drawing, { direction: { positive: "Importing", negative: "Exporting" } })}
+                  {chart("Battery power", "kW", series("battery_power_w", 0.001), FLOW.producing, { direction: { positive: "Charging", negative: "Discharging" } })}
                 </div>
               </TabsContent>
 
@@ -841,7 +852,7 @@ export function DemoMonitoring({ locked = false, mobile = false, initial }: { lo
               <TabsContent value="battery" className="mt-3 space-y-3">
                 <div className={cards}>
                   <LiveStatusCard icon={BatteryCharging} title="Battery Level" subtitle="State of charge" value={L("battery_soc_pct") === null ? DASH : `${Math.round(L("battery_soc_pct") as number)}%`} statusLabel="Temperature" badgeLabel={`${fixed(L("battery_temperature_c"))} °C`} compact />
-                  <LiveStatusCard icon={Zap} title="Battery Power" subtitle={`${fixed(L("battery_voltage_v"), 2)} V · ${fixed(L("battery_current_a"), 2)} A`} value={`${kw(battW === null ? null : Math.abs(battW))} kW`} statusLabel="Status" badgeLabel={flowWord(battW, "Charging", "Discharging")} badgeTone={battW !== null && battW > 0 ? "good" : battW !== null && battW < 0 ? "warn" : "neutral"} compact />
+                  <LiveStatusCard icon={Zap} title="Battery Power" subtitle={`${fixed(L("battery_voltage_v"), 2)} V · ${fixed(unsigned(L("battery_current_a")), 2)} A`} value={`${kw(battW === null ? null : Math.abs(battW))} kW`} statusLabel="Status" badgeLabel={flowWord(battW, "Charging", "Discharging")} badgeTone={battW !== null && battW > 0 ? "good" : battW !== null && battW < 0 ? "warn" : "neutral"} compact />
                   <LiveStatusCard icon={Zap} title="Charged Today" subtitle="Into the battery" value={`${fixed(L("day_battery_charge_energy_kwh"))} kWh`} statusLabel="Status" badgeLabel="Today" compact />
                   <LiveStatusCard icon={Zap} title="Discharged Today" subtitle="Out of the battery" value={`${fixed(L("day_battery_discharge_energy_kwh"))} kWh`} statusLabel="Status" badgeLabel="Today" compact />
                 </div>
@@ -873,10 +884,10 @@ export function DemoMonitoring({ locked = false, mobile = false, initial }: { lo
                   <LiveStatusCard icon={Zap} title="Live Flow" subtitle={flowWord(gridW, "Importing", "Exporting") || "Grid power"} value={`${kw(gridW === null ? null : Math.abs(gridW))} kW`} statusLabel="Status" badgeLabel={flowWord(gridW, "Importing", "Exporting")} badgeTone={gridW !== null && gridW > 0 ? "warn" : "neutral"} compact />
                   <LiveStatusCard icon={Zap} title="Energy Today" subtitle="Imported / Exported" value={`${fixed(L("day_grid_import_energy_kwh"))} / ${fixed(L("day_grid_export_energy_kwh"))} kWh`} statusLabel="Status" badgeLabel="Today" compact />
                   <LiveStatusCard icon={Gauge} title="Electrical" subtitle={`Current · ${fixed(L("grid_l1_current_a"), 2)} A`} value={`${fixed(L("grid_l1_voltage_v"))} V`} statusLabel="Frequency" badgeLabel={`${fixed(L("grid_frequency_hz"), 2)} Hz`} compact />
-                  <LiveStatusCard icon={Zap} title="CT Meter" subtitle={`Current · ${fixed(L("grid_ct_l1_current_a"), 2)} A`} value={`${kw(L("grid_ct_total_power_w"))} kW`} statusLabel="CT power" badgeLabel={`${fixed(L("grid_ct_total_power_w"), 0)} W`} compact />
+                  <LiveStatusCard icon={Zap} title="CT Meter" subtitle={`Current · ${fixed(unsigned(L("grid_ct_l1_current_a")), 2)} A`} value={`${kw(unsigned(L("grid_ct_total_power_w")))} kW`} statusLabel={flowWord(L("grid_ct_total_power_w"), "CT power · Importing", "CT power · Exporting") || "CT power"} badgeLabel={`${fixed(unsigned(L("grid_ct_total_power_w")), 0)} W`} compact />
                 </div>
                 <GroupTitle>Grid</GroupTitle>
-                {chart("Grid Power", "kW", series("grid_total_power_w", 0.001), FLOW.drawing, { tall: true, labelEvery: 1, legend: [{ color: FLOW.drawing, label: "Importing" }, { color: FLOW.consuming, label: "Exporting" }] })}
+                {chart("Grid Power", "kW", series("grid_total_power_w", 0.001), FLOW.drawing, { tall: true, labelEvery: 1, direction: { positive: "Importing", negative: "Exporting" }, legend: [{ color: FLOW.drawing, label: "Importing" }, { color: FLOW.consuming, label: "Exporting" }] })}
                 <div className={row2}>
                   {chart("Imported today", "kWh", series("day_grid_import_energy_kwh"), FLOW.drawing)}
                   {chart("Exported today", "kWh", series("day_grid_export_energy_kwh"), FLOW.consuming)}

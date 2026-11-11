@@ -37,12 +37,13 @@ export function FittedDemo() {
   );
 }
 
-/** How much of the page is shown in the cropped view (design pixels): the header, the tabs, the live cards and the top of the first chart. */
-const CROP_HEIGHT = 640;
+/** How much of the page is shown in the cropped view (design pixels): the header, the tabs, the live cards and the WHOLE first chart (with its time labels), then the fade.
+ *  Measured: that chart ends at 600 to 670 design pixels on a wide screen and the fade is 100 to 125 design pixels tall, so 785 clears it everywhere. */
+const CROP_HEIGHT = 785;
 /** Below this width the page is drawn in its phone layout, at its own size, instead of as a shrunk desktop page. */
 const PHONE_WIDTH = 720;
-/** How tall the cropped phone layout is (CSS pixels). */
-const PHONE_CROP_HEIGHT = 640;
+/** How tall the cropped phone layout is (CSS pixels): the first chart ends at about 658 px and the fade is about 92 px tall. */
+const PHONE_CROP_HEIGHT = 765;
 
 /**
  * The customer Monitoring page, exactly as the customer sees it, but only its first screen: it cannot be scrolled and it fades out at the bottom, so the rest

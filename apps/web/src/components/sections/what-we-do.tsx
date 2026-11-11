@@ -26,9 +26,9 @@ export function WhatWeDo() {
 
         <FeatureColumns items={OFFERS.map(({ icon, title, blockBody, includes }) => ({ icon, title, body: blockBody, includes }))} />
 
-        {/* The two ways in. The dashboard card that follows slides up over the bottom of this section (its negative top margin), so the space under them is deliberate. */}
+        {/* The two ways in. (The extra space that used to sit under them was for the dashboard card that slid up over this section; that card has moved.) */}
         <Reveal direction="up" duration={700} distance={16} delay={100}>
-          <div className="mx-auto mt-20 flex flex-col items-center gap-3 pb-24 text-center md:flex-row md:flex-wrap md:justify-center md:gap-x-6 md:pb-52">
+          <div className="mx-auto mt-20 flex flex-col items-center gap-3 text-center md:flex-row md:flex-wrap md:justify-center md:gap-x-6">
             <p className="text-sm">
               <Link href="/planner" className={ROUTE_LINK}>
                 Plan a new system
