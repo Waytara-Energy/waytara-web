@@ -2,8 +2,11 @@
 
 import * as React from "react";
 import Link from "next/link";
+import { useTheme } from "next-themes";
 import { Pause, Play } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
+import { CloudShader } from "@/components/ui/cloud-shader";
+import { useHasMounted } from "@/hooks/use-has-mounted";
 
 const VIDEO = "/videos/energy-banner.mp4";
 // A still of the street scene: shown while the video loads, and kept for visitors who ask for less motion or for less data.
@@ -12,6 +15,9 @@ const POSTER = "/videos/energy-banner-poster.webp";
 const NAV_HEIGHT = "clamp(3.5rem,4.5vw,4.25rem)";
 // How far the page scrolls (as a share of the screen's height) before the video card has finished growing.
 const GROW_OVER = 0.55;
+// The sky behind the hero: a pale day sky (light enough for the dark headline to read on it) and, in the dark theme, the same sky at dusk.
+const SKY_DAY = { top: "#a9d2f2", bottom: "#eef6fc", cloud: "#ffffff" };
+const SKY_DUSK = { top: "#070d1f", bottom: "#1b2a4a", cloud: "#8d9bb8" };
 
 /**
  * The top of the landing page, kept to the minimum: a headline, one line under it, two small buttons, and a large animation of what the product is.
@@ -27,6 +33,10 @@ export function Hero() {
   const videoRef = React.useRef<HTMLVideoElement>(null);
   const cardRef = React.useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = React.useState(false);
+  // The theme is not known until the page has loaded in the browser, so the server-built page always has the day sky.
+  const { resolvedTheme } = useTheme();
+  const mounted = useHasMounted();
+  const sky = mounted && resolvedTheme === "dark" ? SKY_DUSK : SKY_DAY;
   // True once the visitor pressed pause, or never asked to play: scrolling back into view must not start it again then.
   const heldBack = React.useRef(false);
 
@@ -102,13 +112,26 @@ export function Hero() {
 
   return (
     <section
-      className="relative bg-theme-bg pb-10 sm:pb-14"
+      className="relative overflow-hidden bg-theme-bg pb-10 sm:pb-14"
       style={{ paddingTop: `calc(${NAV_HEIGHT} + clamp(2rem, 5vw, 3.5rem))` }}
     >
       {/* The still is what the page paints first, so it is asked for at once. */}
       <link rel="preload" as="image" href={POSTER} fetchPriority="high" />
 
-      <div className="fluid-container">
+      {/* The sky: drifting clouds drawn live behind everything (the page colour shows if the browser has no WebGL). Its foot fades into the page
+          colour so the next section starts clean. */}
+      <div aria-hidden="true" className="pointer-events-none absolute inset-0">
+        <CloudShader
+          className="absolute inset-0 h-full min-h-0"
+          skyTopColor={sky.top}
+          skyBottomColor={sky.bottom}
+          cloudColor={sky.cloud}
+          maxPixelRatio={1}
+        />
+        <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-theme-bg" />
+      </div>
+
+      <div className="fluid-container relative z-10">
         <Reveal direction="up" delay={100} duration={800} distance={24}>
           <h1 className="font-bold tracking-tight leading-[1.05] text-theme-primary text-balance text-[clamp(2rem,4.4vw,4.25rem)]">
             <span className="block sm:whitespace-nowrap">Your property&rsquo;s energy,</span>
