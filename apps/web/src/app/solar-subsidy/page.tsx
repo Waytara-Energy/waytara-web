@@ -2,7 +2,7 @@ import { GuidePage } from "@/components/pages/guide-page";
 import { GUIDES } from "@/data/guides";
 import { pageMetadata } from "@/lib/seo";
 
-const guide = GUIDES["solar-subsidy-tamil-nadu"];
+const guide = GUIDES["solar-subsidy"];
 
 export const metadata = pageMetadata({ title: guide.metaTitle, description: guide.metaDescription, path: guide.path });
 

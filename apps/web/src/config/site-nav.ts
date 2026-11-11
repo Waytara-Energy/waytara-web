@@ -29,10 +29,10 @@ export const SOLUTION_NEEDS: NavDestination[] = [
 
 /** The guides (answers to what people search for), shown in the footer: short labels, one page each. */
 export const GUIDE_LINKS: NavDestination[] = [
-  { label: "Solar for your home", href: "/solar-for-home-chennai" },
+  { label: "Solar for your home", href: "/solar-for-home" },
   { label: "On-grid, hybrid or off-grid", href: "/on-grid-hybrid-off-grid-solar" },
-  { label: "Solar subsidy in Tamil Nadu", href: "/solar-subsidy-tamil-nadu" },
-  { label: "Reduce your EB bill", href: "/reduce-electricity-bill-solar" },
+  { label: "Solar subsidy and net metering", href: "/solar-subsidy" },
+  { label: "Reduce your electricity bill", href: "/reduce-electricity-bill-solar" },
 ];
 
 export const SOLUTIONS_HUB: NavDestination = { label: "Solutions", href: "/solutions" };
