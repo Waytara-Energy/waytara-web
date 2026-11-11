@@ -10,6 +10,7 @@ import { NAV_ITEMS, SECONDARY_NAV_ITEMS } from "@/components/dashboard/nav-confi
 import { LOGIN_LINK } from "@/config/site-nav";
 import { isMonitoredCategory } from "@/lib/equipment-children";
 import { cn } from "@/lib/utils";
+import { timeAgo } from "@/lib/time-ago";
 
 /* ------------------------------------------------------------------------------------------------------------------------------------------
    The signed-in side of the header: the account slot (avatar, loader or Login), the data behind the avatar's panel (the customer's devices and
@@ -125,13 +126,16 @@ export interface FleetDevice {
   /** The kind and model, in short. */
   detail: string | null;
   status: DeviceStatus;
+  /** When the newest reading arrived (null: none yet). Shown in place of the status when the server has no verdict for the device. */
+  lastReadMs: number | null;
 }
 export interface FleetSite {
   id: string;
   name: string;
   devices: FleetDevice[];
 }
-export type Fleet = { state: "idle" } | { state: "loading" } | { state: "error" } | { state: "ready"; sites: FleetSite[] };
+/** `loadedAt` is the moment it was read, the "now" that "3 mins ago" is counted from. */
+export type Fleet = { state: "idle" } | { state: "loading" } | { state: "error" } | { state: "ready"; sites: FleetSite[]; loadedAt: number };
 
 const STATUS_TEXT: Record<DeviceStatus, string> = {
   online: "Online",
@@ -147,6 +151,12 @@ const STATUS_DOT: Record<DeviceStatus, string> = {
   waiting: "bg-slate-400",
   unknown: "bg-slate-400",
 };
+
+/** The words at the right of a device: its connection status, or, when the server has no verdict for it, how long ago it last sent a reading. */
+function statusText(d: FleetDevice, nowMs: number): string {
+  if (d.status !== "unknown") return STATUS_TEXT[d.status];
+  return d.lastReadMs === null ? "No readings yet" : `Last reading ${timeAgo(d.lastReadMs, nowMs)}`;
+}
 
 function categoryLabel(category: string | null | undefined): string | null {
   if (category === "ev_charger") return "EV charger";
@@ -188,6 +198,17 @@ export function useFleet(wanted: boolean): Fleet {
         const { loadHeartbeats } = await import("@/lib/telemetry/loaders");
         const beats = ids.length > 0 ? await loadHeartbeats(sb as Parameters<typeof loadHeartbeats>[0], ids) : new Map();
 
+        // The newest reading of a device that has no verdict yet: from its heartbeat row, else from its newest stored value.
+        const lastRead = new Map<string, number | null>();
+        await Promise.all(
+          ids.map(async (id) => {
+            const fromBeat = beats.get(id)?.lastReadMs ?? null;
+            if (fromBeat !== null || beats.get(id)?.verdict) return void lastRead.set(id, fromBeat);
+            const { data: row } = await sb.from("equipment_latest").select("ts").eq("equipment_id", id).order("ts", { ascending: false }).limit(1).maybeSingle();
+            lastRead.set(id, row?.ts ? new Date(row.ts).getTime() : null);
+          }),
+        );
+
         const toStatus = (id: string): DeviceStatus => {
           const verdict = beats.get(id)?.verdict;
           if (!verdict) return "unknown";
@@ -198,6 +219,7 @@ export function useFleet(wanted: boolean): Fleet {
         };
         setFleet({
           state: "ready",
+          loadedAt: Date.now(),
           sites: sites.map((s) => ({
             id: s.id,
             name: s.name,
@@ -206,6 +228,7 @@ export function useFleet(wanted: boolean): Fleet {
               name: d.label || d.device_type?.name || "Device",
               detail: [categoryLabel(d.device_type?.category), d.device_type?.model].filter(Boolean).join(" · ") || null,
               status: toStatus(d.id),
+              lastReadMs: lastRead.get(d.id) ?? beats.get(d.id)?.lastReadMs ?? null,
             })),
           })),
         });
@@ -252,7 +275,7 @@ function DeviceList({ fleet, onNavigate }: { fleet: Fleet; onNavigate: () => voi
                     <span className="block truncate text-sm font-semibold text-theme-primary group-hover:text-theme-highlight">{d.name}</span>
                     {d.detail && <span className="block truncate text-xs text-theme-muted">{d.detail}</span>}
                   </span>
-                  <span className="shrink-0 text-xs font-medium text-theme-secondary">{STATUS_TEXT[d.status]}</span>
+                  <span className="shrink-0 text-xs font-medium text-theme-secondary">{statusText(d, fleet.loadedAt)}</span>
                 </Link>
               </li>
             ))}
