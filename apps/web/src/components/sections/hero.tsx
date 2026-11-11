@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ArrowRight, Pause, Play } from "lucide-react";
+import { Pause, Play } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 
 const VIDEO = "/videos/energy-banner.mp4";
@@ -10,20 +10,54 @@ const VIDEO = "/videos/energy-banner.mp4";
 const POSTER = "/videos/energy-banner-poster.webp";
 // Height of the fixed menu bar (the same clamp the bar itself uses); the headline starts below it.
 const NAV_HEIGHT = "clamp(3.5rem,4.5vw,4.25rem)";
+// How far the page scrolls (as a share of the screen's height) before the video card has finished growing.
+const GROW_OVER = 0.55;
 
 /**
- * The top of the landing page: the promise in words, the way in (the planner), and under them a short animation of what the product is, a property with
- * solar, battery, inverter, gateway and charger, connected to the dashboard.
+ * The top of the landing page, kept to the minimum: a headline, one line under it, two small buttons, and a large animation of what the product is.
  *
- * The video has no sound, so it may start on its own. It is paused when it scrolls out of view (no work for something nobody sees), it does not start for
- * visitors who asked for less motion or for less data (they see the still and a play button), and everyone gets a pause button.
+ * The animation card starts a little smaller, inset and with rounder corners, and grows to the full width of the page as the visitor scrolls, while the
+ * picture inside it settles from slightly zoomed to its true size. It is driven by --p (0 to 1, how far along the growth is), set from the scroll
+ * position and read by the styles below, so scrolling never re-renders the page.
+ *
+ * The video has no sound, so it may start on its own. It is paused while out of view, it does not start for visitors who asked for less motion or for less
+ * data (they see the still and a play button, and the card is full size from the start), and everyone gets a pause button.
  */
 export function Hero() {
   const videoRef = React.useRef<HTMLVideoElement>(null);
+  const cardRef = React.useRef<HTMLDivElement>(null);
   const [playing, setPlaying] = React.useState(false);
   // True once the visitor pressed pause, or never asked to play: scrolling back into view must not start it again then.
   const heldBack = React.useRef(false);
 
+  // The card's growth, from the scroll position.
+  React.useEffect(() => {
+    const card = cardRef.current;
+    if (!card) return;
+    if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+      card.style.setProperty("--p", "1");
+      return;
+    }
+    let frame = 0;
+    const update = () => {
+      frame = 0;
+      const p = Math.min(1, Math.max(0, window.scrollY / (window.innerHeight * GROW_OVER)));
+      card.style.setProperty("--p", p.toFixed(4));
+    };
+    const schedule = () => {
+      if (!frame) frame = requestAnimationFrame(update);
+    };
+    update();
+    window.addEventListener("scroll", schedule, { passive: true });
+    window.addEventListener("resize", schedule);
+    return () => {
+      window.removeEventListener("scroll", schedule);
+      window.removeEventListener("resize", schedule);
+      cancelAnimationFrame(frame);
+    };
+  }, []);
+
+  // Play and pause.
   React.useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -63,56 +97,58 @@ export function Hero() {
     }
   };
 
-  // One clear main action: a pill with a green arrow, in the theme's own text colour so it reads in the light and the dark theme.
-  const primaryButtonClass =
-    "group inline-flex h-12 sm:h-[3.25rem] items-center gap-3 rounded-full bg-theme-primary pl-6 pr-1.5 text-sm sm:text-base font-semibold text-theme-bg shadow-lg shadow-black/15 transition-all duration-200 hover:scale-[1.03] active:scale-95 cursor-pointer";
+  const buttonBase =
+    "inline-flex h-10 items-center rounded-full px-5 text-sm font-semibold transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600 focus-visible:ring-offset-2 focus-visible:ring-offset-theme-bg";
 
   return (
     <section
       className="relative bg-theme-bg pb-10 sm:pb-14"
-      style={{ paddingTop: `calc(${NAV_HEIGHT} + clamp(1.5rem, 4vw, 3rem))` }}
+      style={{ paddingTop: `calc(${NAV_HEIGHT} + clamp(2rem, 5vw, 3.5rem))` }}
     >
       {/* The still is what the page paints first, so it is asked for at once. */}
       <link rel="preload" as="image" href={POSTER} fetchPriority="high" />
 
-      <div className="fluid-container flex flex-col items-center text-center">
+      <div className="fluid-container">
         <Reveal direction="up" delay={100} duration={800} distance={24}>
-          <h1 className="font-bold tracking-tight leading-[1.05] text-theme-primary text-balance text-[clamp(2rem,4.6vw,4.5rem)]">
+          <h1 className="font-bold tracking-tight leading-[1.05] text-theme-primary text-balance text-[clamp(2rem,4.4vw,4.25rem)]">
             <span className="block sm:whitespace-nowrap">Your property&rsquo;s energy,</span>
-            <span className="block sm:whitespace-nowrap bg-gradient-to-r from-emerald-700 to-emerald-500 bg-clip-text text-transparent">
-              built as one system.
-            </span>
+            <span className="block sm:whitespace-nowrap">built as one system.</span>
           </h1>
         </Reveal>
 
-        <Reveal direction="up" delay={250} duration={800} distance={16} className="mt-5 max-w-2xl">
-          <p className="text-[clamp(1.05rem,1.5vw,1.4rem)] font-semibold leading-snug text-theme-primary">
+        <Reveal direction="up" delay={220} duration={800} distance={16} className="mt-5 max-w-xl">
+          <p className="text-[clamp(1rem,1.3vw,1.2rem)] leading-relaxed text-theme-secondary">
             Solar, battery storage and EV charging, designed, installed and managed together.
-          </p>
-          <p className="mt-2 text-sm sm:text-base leading-relaxed text-theme-secondary">
-            Designed, installed and connected by one team. Already have equipment? Bring it into the same dashboard.
           </p>
         </Reveal>
 
-        <Reveal direction="zoom" delay={400} duration={700} className="mt-7">
-          <Link href="/planner" className={primaryButtonClass}>
-            <span>Plan my system</span>
-            <span className="flex size-9 sm:size-10 items-center justify-center rounded-full bg-emerald-600 text-white transition-transform duration-200 group-hover:translate-x-0.5">
-              <ArrowRight className="size-4" />
-            </span>
+        <Reveal direction="up" delay={340} duration={700} distance={12} className="mt-7 flex flex-wrap items-center gap-3">
+          <Link href="/planner" className={`${buttonBase} bg-theme-primary text-theme-bg hover:opacity-90`}>
+            Plan my system
+          </Link>
+          <Link
+            href="/contact"
+            className={`${buttonBase} border border-theme-border bg-theme-surface text-theme-primary hover:bg-theme-surface-hover`}
+          >
+            Talk to us
           </Link>
         </Reveal>
 
-        {/* The animation. Its own background is white, so it sits in a framed card in both themes. As wide as the page allows, but never so tall that
-            it pushes the headline off the first screen. */}
-        <Reveal direction="up" delay={550} duration={900} distance={30} className="mt-8 sm:mt-10 w-full">
+        {/* The animation card: the full width of the page. Its own background is white, so it shows as a card in both themes. */}
+        <Reveal direction="up" delay={480} duration={900} distance={30} className="mt-10 sm:mt-14">
           <div
-            className="relative mx-auto aspect-video w-full overflow-hidden rounded-2xl border border-theme-border bg-white shadow-xl shadow-black/10"
-            style={{ maxWidth: "min(100%, max(40rem, calc((100dvh - 22rem) * 16 / 9)))" }}
+            ref={cardRef}
+            className="relative aspect-video w-full overflow-hidden border border-theme-border bg-white shadow-2xl shadow-black/10 will-change-transform [--p:0]"
+            style={{
+              scale: "calc(0.88 + var(--p) * 0.12)",
+              borderRadius: "calc(40px - var(--p) * 20px)",
+              transformOrigin: "50% 0%",
+            }}
           >
             <video
               ref={videoRef}
-              className="absolute inset-0 h-full w-full object-cover"
+              className="absolute inset-0 h-full w-full object-cover will-change-transform"
+              style={{ scale: "calc(1.1 - var(--p) * 0.1)" }}
               poster={POSTER}
               autoPlay
               muted
@@ -130,7 +166,7 @@ export function Hero() {
               type="button"
               onClick={toggle}
               aria-label={playing ? "Pause the animation" : "Play the animation"}
-              className="absolute bottom-3 right-3 flex size-10 cursor-pointer items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-md ring-1 ring-black/10 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
+              className="absolute bottom-4 right-4 flex size-10 cursor-pointer items-center justify-center rounded-full bg-white/90 text-slate-900 shadow-md ring-1 ring-black/10 transition hover:bg-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-600"
             >
               {playing ? <Pause className="size-4" /> : <Play className="size-4" />}
             </button>
