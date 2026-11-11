@@ -25,14 +25,14 @@ function InverterIcon({ className, strokeWidth = 1.6 }: { className?: string; st
   );
 }
 
-// The equipment the platform brings together, shown as a row of small icons with two-line captions under the animation card.
-const EQUIPMENT: { icon: React.ElementType; lines: [string, string] }[] = [
-  { icon: SolarPanel, lines: ["Solar", "panels"] },
-  { icon: InverterIcon, lines: ["Solar", "inverters"] },
-  { icon: BatteryCharging, lines: ["Battery", "storage"] },
-  { icon: PlugZap, lines: ["Portable", "charger"] },
-  { icon: EvCharger, lines: ["Wall-mount", "charger"] },
-  { icon: Router, lines: ["WayTara", "gateway"] },
+// The equipment the platform brings together, shown as a row of icons with their names under the animation card.
+const EQUIPMENT: { icon: React.ElementType; label: string }[] = [
+  { icon: SolarPanel, label: "Solar panels" },
+  { icon: InverterIcon, label: "Solar inverters" },
+  { icon: BatteryCharging, label: "Battery storage" },
+  { icon: PlugZap, label: "Portable charger" },
+  { icon: EvCharger, label: "Wall-mount charger" },
+  { icon: Router, label: "WayTara gateway" },
 ];
 // The sky behind the top of the hero: the day sky and, in the dark theme, the same sky at dusk.
 const SKY_DAY = { top: "#3876ba", bottom: "#8cbfe8", cloud: "#fbf8f2" };
@@ -221,17 +221,14 @@ export function Hero() {
             </div>
           </Reveal>
 
-          {/* 4. What it connects, under the card: centred, with room between the items. On a phone a grid of three columns that fits the first screen. */}
-          <Reveal direction="up" delay={560} duration={800} distance={16} className="mt-5 sm:mt-10">
-            <ul aria-label="What WayTara connects" className="grid grid-cols-3 gap-x-2 gap-y-4 sm:flex sm:flex-wrap sm:justify-center sm:gap-x-12 sm:gap-y-6">
-              {EQUIPMENT.map(({ icon: Icon, lines }) => (
-                <li key={lines.join(" ")} className="flex flex-col items-center gap-1.5 text-center sm:flex-row sm:gap-3 sm:text-left">
-                  <Icon aria-hidden="true" strokeWidth={1.6} className="size-7 shrink-0 text-emerald-600 dark:text-emerald-400 sm:size-8" />
-                  <span className="text-xs font-medium leading-snug text-theme-primary sm:text-sm">
-                    {lines[0]}
-                    <br />
-                    {lines[1]}
-                  </span>
+          {/* 4. What it connects, under the card, set out like the "what we do" columns lower on the page: a thin outline icon, the name under it, left-aligned
+              in even columns that line up with the card's edges (six across on a wide screen, three across on a tablet and on a phone). */}
+          <Reveal direction="up" delay={560} duration={800} distance={16} className="mt-6 sm:mt-16">
+            <ul aria-label="What WayTara connects" className="grid grid-cols-3 gap-x-3 gap-y-5 sm:gap-x-8 sm:gap-y-10 lg:grid-cols-6">
+              {EQUIPMENT.map(({ icon: Icon, label }) => (
+                <li key={label} className="flex flex-col items-start gap-2 sm:gap-3.5">
+                  <Icon aria-hidden="true" strokeWidth={1.4} className="size-7 shrink-0 text-theme-primary sm:size-10" />
+                  <span className="text-balance text-xs font-semibold leading-snug text-theme-primary sm:text-base">{label}</span>
                 </li>
               ))}
             </ul>
