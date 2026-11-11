@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useTheme } from "next-themes";
-import { Pause, Play } from "lucide-react";
+import { ArrowRight, Pause, Play } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 import { CloudShader } from "@/components/ui/cloud-shader";
 import { useHasMounted } from "@/hooks/use-has-mounted";
@@ -24,8 +24,20 @@ const PEEK = 0.3;
 const TEXT_TOP = `calc(${NAV_HEIGHT} + clamp(3rem, 13vh, 8.5rem))`;
 const TRAVEL_SCREENS = 0.8;
 const MOVE_SHARE = 0.85;
+// The card starts at this share of the text column's width (so it starts clearly smaller than the text above it), and grows from there.
+const START_SHARE = 0.68;
+// How quickly the card follows the scroll position: it closes about two thirds of the distance to where the scroll says it should be every this many
+// milliseconds (so about 95 percent of the way in half a second, on any screen's refresh rate). It makes the card glide to its place and settle,
+// instead of being tied to the wheel notch by notch.
+const FOLLOW_MS = 170;
+// Sent on window every time the card has moved, so the menu bar can look at where the card is without being tied to scroll events.
+const CARD_MOVED = "hero-card-moved";
 
 const clamp01 = (n: number) => Math.min(1, Math.max(0, n));
+// The card rises quickly at first and settles (ease out), and grows on a gentler curve that starts slowly and finishes slowly (ease in-out), so it
+// is first pulled up and then opens out.
+const easeOutCubic = (t: number) => 1 - Math.pow(1 - t, 3);
+const easeInOutCubic = (t: number) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
 // Whether the visitor asked for less motion. The server-built page assumes not; a visitor who did gets the still layout as soon as the page is live.
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
@@ -40,11 +52,11 @@ const serverReducedMotion = () => false;
 /**
  * The top of the landing page, kept to the minimum: a headline, one line under it, two small buttons, and a large animation of what the product is.
  *
- * The page opens with only 30 percent of the animation card showing at the foot of the screen, as wide as the text above it. Scrolling pins the scene,
- * pulls the card up and grows it to the largest size at which the whole card still fits the window, and the text above lifts away. The video is in the
- * card and scales with it, as one piece. If the visitor stops part-way, the page finishes the move by itself (forwards if they were scrolling down,
- * back to the start if up). The numbers all come from --p (0 to 1, how far along the move is) set from the scroll position, so scrolling never
- * re-renders the page.
+ * The page opens with only 30 percent of the animation card showing at the foot of the screen, narrower than the text above it. Scrolling pins the
+ * scene, pulls the card up and opens it out to the largest size at which the whole card still fits the window, and the text above lifts away. The
+ * video is in the card and scales with it, as one piece. The card glides after the scroll position (eased, so it settles softly) and there is no
+ * automatic scrolling: the page only moves when the visitor moves it. The numbers all come from --p (0 to 1, how far along the move is), --pos and
+ * --grow (the same, eased for the rise and for the growth), set from the scroll position, so scrolling never re-renders the page.
  *
  * The video has no sound, so it may start on its own. It is paused while out of view, it does not start for visitors who asked for less motion or for
  * less data (they see the still and a play button), and everyone gets a pause button. For visitors who ask for less motion nothing is pinned or moved:
@@ -65,7 +77,7 @@ export function Hero() {
   // True once the visitor pressed pause, or never asked to play: scrolling back into view must not start it again then.
   const heldBack = React.useRef(false);
 
-  // The pull-up: sizes, then --p from the scroll position, then the finishing move.
+  // The pull-up: sizes, then the move, following the scroll position softly.
   React.useEffect(() => {
     const outer = outerRef.current;
     const scene = sceneRef.current;
@@ -81,7 +93,7 @@ export function Hero() {
       const styles = getComputedStyle(text);
       const contentW = text.clientWidth - parseFloat(styles.paddingLeft) - parseFloat(styles.paddingRight);
       const navH = document.querySelector("header")?.getBoundingClientRect().height ?? 64;
-      const s0 = Math.min(1, contentW / cardW); // the start width is the text's width
+      const s0 = Math.min(1, (contentW * START_SHARE) / cardW); // the start width: a share of the text's width
       const y0 = sceneH - PEEK * cardH * s0; // 30 percent of the card shows
       const y1 = navH + Math.max(8, (sceneH - navH - cardH) / 2); // the whole card, centred in what is left below the bar
       scene.style.setProperty("--s0", s0.toFixed(4));
@@ -89,54 +101,51 @@ export function Hero() {
       scene.style.setProperty("--y1", `${Math.round(y1)}px`);
     };
 
-    const progress = () => {
+    // How far the scroll has got, 0 to 1 (the last part of the travel is a rest with the whole card in view).
+    const wanted = () => {
       const travel = outer.offsetHeight - scene.offsetHeight;
       const raw = travel > 0 ? clamp01(-outer.getBoundingClientRect().top / travel) : 0;
-      return { raw, p: clamp01(raw / MOVE_SHARE), travel };
+      return clamp01(raw / MOVE_SHARE);
     };
 
+    let target = wanted(); // where the scroll says the card should be
+    let shown = target; // where the card is drawn; it moves towards the target a little each frame
     let frame = 0;
-    const paint = () => {
+    let last = 0; // the time of the previous frame while moving
+    const apply = (v: number) => {
+      scene.style.setProperty("--p", v.toFixed(4));
+      scene.style.setProperty("--pos", easeOutCubic(v).toFixed(4));
+      scene.style.setProperty("--grow", easeInOutCubic(v).toFixed(4));
+      scene.dataset.past = v > 0.4 ? "1" : "0"; // the text has faded out from here on, so it must not catch clicks either
+      window.dispatchEvent(new Event(CARD_MOVED));
+    };
+    const tick = (now: number) => {
       frame = 0;
-      const { p } = progress();
-      scene.style.setProperty("--p", p.toFixed(4));
-      scene.dataset.past = p > 0.4 ? "1" : "0"; // the text has faded out from here on, so it must not catch clicks either
+      const dt = last ? Math.min(64, now - last) : 16;
+      last = now;
+      shown += (target - shown) * (1 - Math.exp(-dt / FOLLOW_MS));
+      if (Math.abs(target - shown) < 0.0007) shown = target;
+      apply(shown);
+      if (shown !== target) frame = requestAnimationFrame(tick);
+      else last = 0;
     };
-    const schedule = () => {
-      if (!frame) frame = requestAnimationFrame(paint);
-    };
-
-    // The finishing move: when scrolling stops part-way, carry on to the end of the move (if going down) or back to the start (if going up).
-    let lastY = window.scrollY;
-    let direction = 1;
-    let idle: ReturnType<typeof setTimeout> | undefined;
-    const finish = () => {
-      const { raw, travel } = progress();
-      if (raw <= 0 || raw >= MOVE_SHARE) return; // already at rest at either end
-      const top = outer.getBoundingClientRect().top + window.scrollY;
-      window.scrollTo({ top: direction > 0 ? top + MOVE_SHARE * travel : top, behavior: "smooth" });
-    };
-    const onScroll = () => {
-      direction = window.scrollY >= lastY ? 1 : -1;
-      lastY = window.scrollY;
-      schedule();
-      clearTimeout(idle);
-      idle = setTimeout(finish, 140);
+    const aim = () => {
+      target = wanted();
+      if (!frame) frame = requestAnimationFrame(tick);
     };
 
     measure();
-    paint();
-    window.addEventListener("scroll", onScroll, { passive: true });
+    apply(shown);
+    window.addEventListener("scroll", aim, { passive: true });
     const onResize = () => {
       measure();
-      schedule();
+      aim();
     };
     window.addEventListener("resize", onResize);
     return () => {
-      window.removeEventListener("scroll", onScroll);
+      window.removeEventListener("scroll", aim);
       window.removeEventListener("resize", onResize);
       cancelAnimationFrame(frame);
-      clearTimeout(idle);
     };
   }, [reduced]);
 
@@ -183,7 +192,7 @@ export function Hero() {
   };
 
   const buttonBase =
-    "inline-flex h-10 items-center rounded-full px-5 text-sm font-semibold transition-colors duration-200 cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#3876ba]";
+    "inline-flex h-12 sm:h-[3.25rem] items-center rounded-full text-sm sm:text-base font-semibold cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-[#3876ba]";
 
   // The text block: the headline, the line and the buttons.
   const text = (
@@ -202,12 +211,18 @@ export function Hero() {
       </Reveal>
 
       <Reveal direction="up" delay={340} duration={700} distance={12} className="mt-7 flex flex-wrap items-center gap-3">
-        <Link href="/planner" className={`${buttonBase} bg-white text-slate-950 shadow-lg shadow-black/20 hover:bg-white/90`}>
-          Plan my system
+        <Link
+          href="/planner"
+          className={`${buttonBase} group gap-3 bg-white pl-6 pr-1.5 text-slate-950 shadow-xl shadow-black/25 transition-all duration-200 hover:scale-[1.03] active:scale-95`}
+        >
+          <span>Plan my system</span>
+          <span className="flex size-9 sm:size-10 items-center justify-center rounded-full bg-emerald-600 text-white transition-transform duration-200 group-hover:translate-x-0.5">
+            <ArrowRight className="size-4" />
+          </span>
         </Link>
         <Link
           href="/contact"
-          className={`${buttonBase} border border-white/30 bg-slate-950/40 text-white backdrop-blur-sm hover:bg-slate-950/55`}
+          className={`${buttonBase} border border-white/30 bg-slate-950/40 px-6 text-white backdrop-blur-sm transition-colors duration-200 hover:bg-slate-950/55`}
         >
           Talk to us
         </Link>
@@ -228,8 +243,8 @@ export function Hero() {
           ? {}
           : {
               transformOrigin: "50% 0%",
-              translate: "0 calc(var(--y0) + (var(--y1) - var(--y0)) * var(--p))",
-              scale: "calc(var(--s0) + (1 - var(--s0)) * var(--p))",
+              translate: "0 calc(var(--y0) + (var(--y1) - var(--y0)) * var(--pos))",
+              scale: "calc(var(--s0) + (1 - var(--s0)) * var(--grow))",
               willChange: "transform",
             }),
       }}
@@ -295,7 +310,7 @@ export function Hero() {
     <div ref={outerRef} className="relative" style={{ height: `calc(max(100dvh, 620px) + ${TRAVEL_SCREENS * 100}dvh)` }}>
       <section
         ref={sceneRef}
-        className="group sticky top-0 h-[100dvh] min-h-[620px] overflow-hidden bg-[#3876ba] [--p:0] [--s0:0.85] [--y0:62dvh] [--y1:5rem]"
+        className="group sticky top-0 h-[100dvh] min-h-[620px] overflow-hidden bg-[#3876ba] [--p:0] [--pos:0] [--grow:0] [--s0:0.6] [--y0:62dvh] [--y1:5rem]"
       >
         {/* The still is what the page paints first, so it is asked for at once. */}
         <link rel="preload" as="image" href={POSTER} fetchPriority="high" />

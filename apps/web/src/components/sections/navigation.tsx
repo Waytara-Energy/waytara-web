@@ -155,10 +155,13 @@ export function Navigation() {
 
     window.addEventListener("scroll", handleScroll, { passive: true });
     window.addEventListener("resize", handleScroll);
+    // The hero sends this each time it has moved the card (it glides after the scroll, so it can still be moving after scrolling has stopped).
+    window.addEventListener("hero-card-moved", update);
     update();
     return () => {
       window.removeEventListener("scroll", handleScroll);
       window.removeEventListener("resize", handleScroll);
+      window.removeEventListener("hero-card-moved", update);
       cancelAnimationFrame(frame);
     };
   }, []);
