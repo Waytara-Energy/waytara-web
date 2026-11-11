@@ -133,13 +133,34 @@ export function Navigation() {
   }, []);
 
   React.useEffect(() => {
+    // On the home page the bar stays transparent over the sky until the animation card (marked data-hero-card) reaches it, and is solid from then
+    // on, including once the page has scrolled past the hero. A few pixels of allowance, because the card comes to rest just below the bar. On
+    // any page without that card the bar turns solid after a short scroll, as before.
+    const REACH = 24;
+    const update = () => {
+      const card = document.querySelector("[data-hero-card]");
+      if (!card) {
+        setIsScrolled(window.scrollY > 20);
+        return;
+      }
+      const barBottom = headerRef.current?.getBoundingClientRect().bottom ?? 64;
+      setIsScrolled(card.getBoundingClientRect().top <= barBottom + REACH);
+    };
+    // The card is moved by the hero in an animation frame of its own, so look after that has happened.
+    let frame = 0;
     const handleScroll = () => {
-      setIsScrolled(window.scrollY > 20);
+      cancelAnimationFrame(frame);
+      frame = requestAnimationFrame(() => requestAnimationFrame(update));
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
-    handleScroll();
-    return () => window.removeEventListener("scroll", handleScroll);
+    window.addEventListener("resize", handleScroll);
+    update();
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+      window.removeEventListener("resize", handleScroll);
+      cancelAnimationFrame(frame);
+    };
   }, []);
 
   const shownMenuConfig = HEADER_MENUS.find((m) => m.label === shownMenu);

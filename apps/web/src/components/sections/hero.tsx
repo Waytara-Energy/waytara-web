@@ -219,7 +219,8 @@ export function Hero() {
   const card = (
     <div
       ref={cardRef}
-      className="relative aspect-video overflow-hidden rounded-[20px] bg-white shadow-2xl shadow-black/25 sm:rounded-[28px]"
+      data-hero-card=""
+      className="relative aspect-video overflow-hidden rounded-[20px] bg-white sm:rounded-[28px]"
       style={{
         // As wide as the page allows, but never so tall that the whole card cannot be in view at once (below the menu bar, with a little air).
         width: `min(calc(100% - 2rem), calc((max(100dvh, 620px) - ${NAV_HEIGHT} - 1.5rem) * 16 / 9))`,
