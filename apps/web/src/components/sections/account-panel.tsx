@@ -312,8 +312,7 @@ export function AccountPanel({ fleet, onNavigate }: { account: Account; fleet: F
     <div className="mx-auto w-full max-w-5xl px-6 pb-10 pt-8 sm:px-10">
       <div className="grid grid-cols-1 gap-x-16 gap-y-8 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
         <div>
-          <p className="mega-item text-xs text-theme-muted">Your devices</p>
-          <div className="mega-item mt-3" style={{ animationDelay: "50ms" }}>
+          <div className="mega-item" style={{ animationDelay: "50ms" }}>
             <DeviceList fleet={fleet} onNavigate={onNavigate} />
           </div>
         </div>
