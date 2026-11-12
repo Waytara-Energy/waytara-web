@@ -46,7 +46,15 @@ export function OverviewBoard({
         </div>
         {/* The whole middle is the drawing: as tall as the board allows, less its colour key. */}
         <div className="order-1 flex min-w-0 flex-col items-center justify-center gap-3 lg:order-2" style={{ "--flow-h": "calc(max(100svh - 9.5rem, 30rem) - 3.5rem)" } as CSSProperties}>
-          <div className="w-full">{center ?? (flow ? <LiveEnergyFlow {...flow} fit /> : null)}</div>
+          {center ? (
+            <div className="w-full">{center}</div>
+          ) : flow ? (
+            // on a phone the drawing is 111% of the screen's width (centred by the column): its circles sit about 10% in from its edges, so they stay on the screen and
+            // only its empty margins run past it (the carousel's slide clips them)
+            <div className="w-full max-sm:w-[111vw] max-sm:max-w-none max-sm:shrink-0">
+              <LiveEnergyFlow {...flow} fit />
+            </div>
+          ) : null}
         </div>
         <div className={`${side} lg:order-3`} style={style}>
           {solar && <EnergyTodayCards {...solar} cards={right} />}

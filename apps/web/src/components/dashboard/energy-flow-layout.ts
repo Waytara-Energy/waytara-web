@@ -29,15 +29,15 @@ export interface Point {
 }
 
 export const VIEW_W = 440;
-export const NODE_R = 36;
-export const HUB_R = 46;
+export const NODE_R = 44;
+export const HUB_R = 56;
 const HUB_X = VIEW_W / 2;
-const SIDE_X = 66; // centre of the left column (the right column mirrors it): the hub-to-node line is as long as the solar one
-const ROW_GAP = 124; // between nodes stacked on the left / right
+const SIDE_X = 86; // centre of the left column (the right column mirrors it): short hub-to-node lines, and the circle's outer edge 42 units (almost 10%) in from the drawing's edge
+const ROW_GAP = 140; // between nodes stacked on the left / right
 const COL_GAP = 158; // between nodes side by side on the top / bottom
 const MAX_PER_ROW = 3; // more than this wraps onto another row
-const ROW_PITCH = 104; // between wrapped rows
-const TOP_BOTTOM_DIST = 140; // hub centre to the first top / bottom row
+const ROW_PITCH = 138; // between wrapped rows
+const TOP_BOTTOM_DIST = 150; // hub centre to the first top / bottom row
 const TEXT_BELOW = 46; // room for a node's value line and label under its circle
 const TEXT_ABOVE = 46;
 const EDGE_PAD = 8;
