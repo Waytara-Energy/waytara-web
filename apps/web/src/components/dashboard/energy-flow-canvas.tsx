@@ -8,9 +8,10 @@ import type { IconShape } from "./flow-icon-shapes";
 //  - each circle's ICON, made of small grains on a fine grid (a dot-matrix of the icon, nothing around it). The grains shimmer in place and a soft sheen
 //    runs through them the way the energy goes; the icon's lines are thicker the more power moves. Pointing at a circle (or pressing it on a phone)
 //    SCATTERS the grains about inside the ring, and when the pointer leaves they fly back into the icon. They also fly in when the drawing first appears;
-//  - the DROPS of power on the connecting lines: a bright head with a tapering tail that runs along the line the way the energy goes (more of them, larger
-//    and faster with more power), and a small ripple where each one arrives.
-// The rings themselves are plain CSS (see the diagram). Nothing moves for visitors who asked for less motion, or while the unit is offline: then the
+//  - the BEAMS on the connecting lines, the way a phone shows that it is charging: a line of light with a glow round it, brighter towards where the energy
+//    is going, with surges of light running along it, small sparks streaming beside it and drawing in to it as they arrive, and a flare where it pours
+//    into the circle. All of it is wider, brighter and faster with more power.
+// The rings themselves are the diagram's (a ball of light each). Nothing moves for visitors who asked for less motion, or while the unit is offline: then the
 // icons are drawn once, still.
 
 export interface FlowCanvasNode {
@@ -24,8 +25,6 @@ export interface FlowCanvasNode {
   stroke: number;
   /** The icon's size as a share of the circle's diameter. */
   iconScale: number;
-  /** The inverter's circle: on a wide drawing its icon sits a little higher, to leave room for the word under it. */
-  hub?: boolean;
   /** Which way the sheen runs: towards this point (energy leaving the circle that way) or away from it (energy arriving from there). */
   port: Point | null;
   dir: "in" | "out" | "none";
@@ -51,9 +50,6 @@ export interface FlowCanvasScene {
   frozen: boolean;
   dark: boolean;
 }
-
-/** From this width (CSS px) the inverter's circle shows its word, so its icon moves up (the same line as the `@md` container query in the diagram). */
-const WIDE_PX = 448;
 
 // ---- the icons as grids of grains -------------------------------------------------------------------------------------------------------------------
 
@@ -138,12 +134,29 @@ interface Grains {
   scattered: boolean;
 }
 
-interface Pulse {
-  x: number;
-  y: number;
-  color: string;
-  at: number;
+/** One spark beside a beam. */
+interface Spark {
+  /** How far along the line it is (0 to 1). */
+  t: number;
+  speed: number;
+  /** Which side of the line, and how far out (0 to 1). */
+  side: number;
+  off: number;
+  size: number;
+  seed: number;
 }
+interface Beam {
+  phase: number;
+  sparks: Spark[];
+}
+const newSpark = (anywhere: boolean): Spark => ({
+  t: anywhere ? Math.random() : Math.random() * 0.06,
+  speed: 0.35 + Math.random() * 0.75,
+  side: Math.random() < 0.5 ? -1 : 1,
+  off: Math.pow(Math.random(), 1.6),
+  size: 0.7 + Math.random() * 1.1,
+  seed: Math.random(),
+});
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
 const smooth = (a: number, b: number, v: number) => {
@@ -172,8 +185,7 @@ export function EnergyFlowCanvas({ scene, className }: { scene: FlowCanvasScene;
 
     const reduced = window.matchMedia?.("(prefers-reduced-motion: reduce)").matches ?? false;
     const grains = new Map<string, Grains>();
-    const pulses: Pulse[] = [];
-    const dropPhase = new Map<string, number>();
+    const beams = new Map<string, Beam>();
     const pointer = { x: 0, y: 0, inside: false, down: false };
     let cssW = 1;
     let cssH = 1;
@@ -245,7 +257,7 @@ export function EnergyFlowCanvas({ scene, className }: { scene: FlowCanvasScene;
     };
     const sameShape = new Map<string, IconShape>();
 
-    const iconCenter = (node: FlowCanvasNode): Point => ({ x: node.center.x, y: node.center.y - (node.hub && cssW >= WIDE_PX ? node.radius * 0.17 : 0) });
+    const iconCenter = (node: FlowCanvasNode): Point => node.center;
 
     const draw = (dt: number) => {
       const s = sceneRef.current;
@@ -257,81 +269,124 @@ export function EnergyFlowCanvas({ scene, className }: { scene: FlowCanvasScene;
       const px = pointer.x / scale;
       const py = pointer.y / scale;
 
-      // ---- the drops on the lines
+      // ---- the beams on the lines
       if (!still) {
+        ctx.lineCap = "round";
         for (const line of s.lines) {
           if (!line.active) {
-            dropPhase.delete(line.id);
+            beams.delete(line.id);
             continue;
           }
-          const [c1, c2] = curveControls(line.from, line.to, line.vertical);
-          const at = (t: number): Point => ({ x: bez(line.from.x, c1.x, c2.x, line.to.x, t), y: bez(line.from.y, c1.y, c2.y, line.to.y, t) });
-          const period = 2.7 - 1.4 * line.level;
-          const count = line.level < 0.34 ? 1 : line.level < 0.67 ? 2 : 3;
-          const before = dropPhase.get(line.id) ?? Math.random();
-          const phase = before + dt / period;
-          dropPhase.set(line.id, phase % 1);
-          const head = 2.1 + 1.5 * line.level;
-          for (let k = 0; k < count; k++) {
-            const t0 = (before + k / count) % 1;
-            const t = (phase + k / count) % 1;
-            // it has arrived: a ripple where the line meets the circle
-            if (t < t0) pulses.push({ x: line.to.x, y: line.to.y, color: line.color, at: clock });
-            const fade = smooth(0, 0.1, t) * (1 - smooth(0.9, 1, t));
-            // the tail, thinning out behind the head
-            const TAIL = 16;
-            for (let j = TAIL; j >= 1; j--) {
-              const tt = t - j * 0.013 * (1 + line.level);
-              if (tt <= 0) continue;
-              const p = at(tt);
-              const f = 1 - j / (TAIL + 1);
-              ctx.globalAlpha = fade * f * f * 0.55;
-              ctx.fillStyle = line.color;
+          const { from, to } = line;
+          const [c1, c2] = curveControls(from, to, line.vertical);
+          const at = (t: number): Point => ({ x: bez(from.x, c1.x, c2.x, to.x, t), y: bez(from.y, c1.y, c2.y, to.y, t) });
+          // the direction across the line at t (to set the sparks beside it)
+          const across = (t: number): Point => {
+            const u = 1 - t;
+            const dx = 3 * u * u * (c1.x - from.x) + 6 * u * t * (c2.x - c1.x) + 3 * t * t * (to.x - c2.x);
+            const dy = 3 * u * u * (c1.y - from.y) + 6 * u * t * (c2.y - c1.y) + 3 * t * t * (to.y - c2.y);
+            const d = Math.hypot(dx, dy) || 1;
+            return { x: -dy / d, y: dx / d };
+          };
+          const L = line.level;
+          let beam = beams.get(line.id);
+          if (!beam) beams.set(line.id, (beam = { phase: Math.random(), sparks: [] }));
+          const want = 9 + Math.round(20 * L);
+          while (beam.sparks.length < want) beam.sparks.push(newSpark(true));
+          beam.sparks.length = want;
+          beam.phase = (beam.phase + dt * (0.42 + 0.7 * L)) % 1;
+
+          const path = new Path2D();
+          path.moveTo(from.x, from.y);
+          path.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, to.x, to.y);
+          const w = 1 + 1.1 * L;
+          const breathe = 0.86 + 0.14 * Math.sin(clock * 3.1 + beam.phase * 6.283);
+          // light adds up on the dark theme (so the middle of the beam burns white); on the light theme it is laid on as colour
+          ctx.globalCompositeOperation = s.dark ? "lighter" : "source-over";
+          const along = ctx.createLinearGradient(from.x, from.y, to.x, to.y);
+          along.addColorStop(0, `${line.color}66`);
+          along.addColorStop(1, line.color);
+          ctx.strokeStyle = along;
+          // the glow round the beam, then the beam
+          const halo: [number, number][] = s.dark
+            ? [
+                [12, 0.05],
+                [6.5, 0.1],
+                [3.2, 0.24],
+              ]
+            : [
+                [10, 0.045],
+                [5.5, 0.08],
+                [2.8, 0.18],
+              ];
+          for (const [width, alpha] of halo) {
+            ctx.lineWidth = width * w;
+            ctx.globalAlpha = alpha * breathe;
+            ctx.stroke(path);
+          }
+          ctx.lineWidth = 1.15 * w;
+          ctx.globalAlpha = (s.dark ? 0.9 : 0.7) * breathe;
+          ctx.stroke(path);
+
+          // the surges: stretches of brighter light that run along the beam, each fading out behind its head
+          const surges = 2 + Math.round(2 * L);
+          const SEG = 9;
+          for (let k = 0; k < surges; k++) {
+            const head = (beam.phase + k / surges) % 1;
+            const edge = smooth(0, 0.12, head) * (1 - smooth(0.92, 1, head));
+            for (let j = 0; j < SEG; j++) {
+              const t1 = head - 0.22 * (1 - j / SEG);
+              const t2 = head - 0.22 * (1 - (j + 1) / SEG);
+              if (t2 <= 0) continue;
+              const a = at(Math.max(0, t1));
+              const b = at(t2);
+              const f = (j + 1) / SEG;
+              ctx.strokeStyle = line.color;
+              ctx.globalAlpha = edge * f * f * (s.dark ? 0.7 : 0.95);
+              ctx.lineWidth = w * (1.3 + 1.5 * f);
               ctx.beginPath();
-              ctx.arc(p.x, p.y, head * (0.25 + 0.6 * f), 0, Math.PI * 2);
-              ctx.fill();
-            }
-            const p = at(t);
-            // the glow round the head
-            const glow = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, head * 4);
-            glow.addColorStop(0, line.color);
-            glow.addColorStop(1, "transparent");
-            ctx.globalAlpha = fade * (s.dark ? 0.5 : 0.16);
-            ctx.fillStyle = glow;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, head * 4, 0, Math.PI * 2);
-            ctx.fill();
-            // the head, with a light core
-            ctx.globalAlpha = fade;
-            ctx.fillStyle = line.color;
-            ctx.beginPath();
-            ctx.arc(p.x, p.y, head, 0, Math.PI * 2);
-            ctx.fill();
-            if (s.dark) {
-              ctx.globalAlpha = fade * 0.9;
-              ctx.fillStyle = "#fff";
-              ctx.beginPath();
-              ctx.arc(p.x, p.y, head * 0.45, 0, Math.PI * 2);
-              ctx.fill();
+              ctx.moveTo(a.x, a.y);
+              ctx.lineTo(b.x, b.y);
+              ctx.stroke();
+              if (s.dark) {
+                ctx.strokeStyle = "#ffffff";
+                ctx.globalAlpha = edge * f * f * 0.9;
+                ctx.lineWidth = w * (0.5 + 0.7 * f);
+                ctx.stroke();
+              }
             }
           }
-        }
-        // the ripples
-        for (let i = pulses.length - 1; i >= 0; i--) {
-          const age = (clock - pulses[i].at) / 0.5;
-          if (age >= 1) {
-            pulses.splice(i, 1);
-            continue;
+
+          // the sparks: small grains that stream beside the beam and draw in to it as they arrive
+          for (const sp of beam.sparks) {
+            sp.t += dt * sp.speed * (0.6 + 0.9 * L);
+            if (sp.t >= 1) Object.assign(sp, newSpark(false));
+            const p = at(sp.t);
+            const n = across(sp.t);
+            const out = (1 + 7 * Math.pow(1 - sp.t, 1.4)) * sp.off * sp.side + Math.sin(clock * (2 + sp.seed * 4) + sp.seed * 30) * 0.8;
+            const fade = smooth(0, 0.15, sp.t) * (1 - smooth(0.88, 1, sp.t));
+            const twinkle = 0.6 + 0.4 * Math.sin(clock * (5 + sp.seed * 9) + sp.seed * 70);
+            const size = sp.size * (0.8 + 0.5 * L);
+            ctx.globalAlpha = fade * twinkle * (s.dark ? 0.95 : 0.8);
+            ctx.fillStyle = s.dark && sp.seed < 0.45 ? "#ffffff" : line.color;
+            ctx.fillRect(p.x + n.x * out - size / 2, p.y + n.y * out - size / 2, size, size);
           }
-          ctx.globalAlpha = (1 - age) * (1 - age) * 0.6;
-          ctx.strokeStyle = pulses[i].color;
-          ctx.lineWidth = 1.4;
+
+          // the flare where the beam pours into the circle
+          const r = (7 + 7 * L) * breathe;
+          const flare = ctx.createRadialGradient(to.x, to.y, 0, to.x, to.y, r);
+          flare.addColorStop(0, s.dark ? "#ffffff" : line.color);
+          flare.addColorStop(0.22, line.color);
+          flare.addColorStop(1, `${line.color}00`);
+          ctx.globalAlpha = (s.dark ? 0.6 : 0.32) * breathe;
+          ctx.fillStyle = flare;
           ctx.beginPath();
-          ctx.arc(pulses[i].x, pulses[i].y, 2.5 + age * 9, 0, Math.PI * 2);
-          ctx.stroke();
+          ctx.arc(to.x, to.y, r, 0, Math.PI * 2);
+          ctx.fill();
         }
+        ctx.globalCompositeOperation = "source-over";
       } else {
-        pulses.length = 0;
+        beams.clear();
       }
 
       // ---- the icons
