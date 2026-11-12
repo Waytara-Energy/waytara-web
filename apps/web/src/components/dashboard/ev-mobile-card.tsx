@@ -103,7 +103,7 @@ export function EvMobileCard({
       : "Ready";
 
   return (
-    <section aria-label="Charger" className="relative overflow-hidden rounded-3xl border border-border bg-card/75 px-4 pb-4 pt-5 shadow-sm backdrop-blur-md sm:hidden">
+    <section aria-label="Charger" className="relative pt-2 sm:hidden">
       <p className="text-center text-sm font-semibold text-foreground">{offline ? "Charger offline" : charging ? "Charging" : status}</p>
 
       {/* the car, standing in a pool of light that is green while it charges */}
