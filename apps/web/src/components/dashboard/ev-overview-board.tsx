@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ChevronRight, Clock, IndianRupee, Leaf, Zap } from "lucide-react";
+import { ArrowUpRight, Clock, IndianRupee, Leaf, Zap } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useUnits } from "@/components/units-provider";
 import { useLiveNumbers } from "@/lib/telemetry/live-values";
@@ -30,20 +30,23 @@ function span(s: number): string {
   return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")} min`;
 }
 
+/** A card's heading: the title, and at the right (after whatever else belongs there) the same round arrow button as the solar cards on the Overview. */
 function Title({ children, aside, href }: { children: React.ReactNode; aside?: React.ReactNode; href?: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <h3 className="text-sm font-semibold text-foreground">
-        {href ? (
-          <Link href={href} className="group relative z-10 inline-flex items-center gap-0.5 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring">
-            {children}
-            <ChevronRight className="size-4 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+      <h3 className="text-sm font-semibold text-foreground">{children}</h3>
+      <div className="flex shrink-0 items-center gap-2">
+        {aside}
+        {href && (
+          <Link
+            href={href}
+            aria-label={`Open ${typeof children === "string" ? children.toLowerCase() : "details"}`}
+            className="group relative z-10 grid size-9 place-items-center rounded-full bg-muted text-foreground outline-none transition-colors hover:bg-emerald-500 hover:text-white focus-visible:ring-2 focus-visible:ring-ring"
+          >
+            <ArrowUpRight className="size-4" />
           </Link>
-        ) : (
-          children
         )}
-      </h3>
-      {aside}
+      </div>
     </div>
   );
 }
@@ -167,18 +170,7 @@ function History({ sessions, onOpen, chargerId }: { sessions: EvHistorySession[]
   const u = useUnits();
   return (
     <Card className="flex min-h-0 flex-col gap-2 p-4 lg:col-span-5">
-      <Title
-        href={`/dashboard/reports?device=${encodeURIComponent(chargerId)}#ev`}
-        aside={
-          sessions.length > 0 ? (
-            <a href={`/api/ev/sessions.csv?device=${encodeURIComponent(chargerId)}&period=30d`} download className="rounded-md px-1.5 py-0.5 text-xs text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
-              Export CSV
-            </a>
-          ) : null
-        }
-      >
-        History
-      </Title>
+      <Title href={`/dashboard/reports?device=${encodeURIComponent(chargerId)}#ev`}>History</Title>
       {sessions.length === 0 ? (
         <p className="grid flex-1 place-items-center text-sm text-muted-foreground">Finished charges are listed here.</p>
       ) : (

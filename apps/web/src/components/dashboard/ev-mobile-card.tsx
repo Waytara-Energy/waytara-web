@@ -169,9 +169,9 @@ export function EvMobileCard({
   return (
     // At first the screen shows this section down to the source of the energy and nothing of what follows: it is at least as tall as the room above the fixed
     // control (the screen less the header and the control with the room under it for the dots), and its content sits at the bottom, so any spare height is
-    // space above the car. That spare height is cut by a fifth: the section is 80 % of that room plus a fifth of its content's height (about 107 % of the
-    // screen's width), so the space above the car is about 20 % smaller than it first was.
-    <section aria-label={`Charger: ${offline ? "offline" : charging ? "charging" : status}`} className="relative flex min-h-[calc(0.8*(100svh-8rem-var(--overview-dots-room,0.75rem))+21.4vw)] flex-col justify-end pt-2 sm:hidden">
+    // space above the car. That spare height is cut by two fifths: the section is 60 % of that room plus 40 % of its content's height (about 107 % of the
+    // screen's width), so the space above the car is about 40 % smaller than it first was.
+    <section aria-label={`Charger: ${offline ? "offline" : charging ? "charging" : status}`} className="relative flex min-h-[calc(0.6*(100svh-8rem-var(--overview-dots-room,0.75rem))+42.8vw)] flex-col justify-end pt-2 sm:hidden">
       {/* the car, standing in a pool of light that is green while it charges */}
       <Link href={`/dashboard/monitoring?device=${encodeURIComponent(chargerId)}#ev`} aria-label="Open the charger on Monitoring" className="relative block outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <span aria-hidden="true" className={cn("absolute inset-x-2 bottom-0 h-10 rounded-full blur-2xl transition-colors duration-700", charging ? "bg-emerald-500/45 motion-safe:animate-pulse" : "bg-foreground/10")} />
