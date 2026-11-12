@@ -16,6 +16,7 @@ import { getCustomerPlan } from "@/lib/customer-plan";
 import { parseCarProfile } from "@/lib/ev-car";
 import { OverviewBoard } from "@/components/dashboard/overview-board";
 import { OverviewCarousel, type OverviewSlide } from "@/components/dashboard/overview-carousel";
+import { OverviewSky } from "@/components/dashboard/overview-sky";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { backgroundCss, initialSlideIndex, parseOverviewPrefs } from "@/lib/overview-prefs";
 
@@ -161,6 +162,9 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
       )}
       {/* The device status icons (each one a live connection) are in the page header on every page, and an offline device is announced by a toast
           at the top (both live in the dashboard layout). */}
+
+      {/* The cloud sky across the top, unless the person chose a background of their own (then that is what shows). */}
+      {slides.length > 0 && !background && <OverviewSky />}
 
       {slides.length === 0 ? (
         <Empty className="border">
