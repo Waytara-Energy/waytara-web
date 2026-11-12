@@ -123,10 +123,10 @@ export function OverviewCarousel({ slides, initialIndex, background }: { slides:
           }
         }}
         style={start === 0 ? undefined : { visibility: "hidden" }}
-        className="-mx-2 -my-2 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="-mx-2 -my-2 flex max-sm:-mx-6 snap-x snap-mandatory overflow-x-auto overscroll-x-contain outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {slides.map((s, i) => (
-          <div key={s.id} role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${count}: ${s.name}`} aria-hidden={i !== index} className="group/slide w-full shrink-0 snap-center snap-always px-2 py-2">
+          <div key={s.id} role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${count}: ${s.name}`} aria-hidden={i !== index} className="group/slide w-full shrink-0 snap-center snap-always px-2 py-2 max-sm:overflow-x-clip max-sm:px-6">
             {s.content}
           </div>
         ))}

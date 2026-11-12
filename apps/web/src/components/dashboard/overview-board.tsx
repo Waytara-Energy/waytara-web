@@ -75,8 +75,10 @@ export function OverviewBoard({
             {center ? (
               <div className="w-full">{center}</div>
             ) : flow ? (
-              // on a phone it fades and lifts away as the page snaps down to the cards, and comes back the same way
-              <div data-snap="flow" className="w-full max-sm:snap-start">
+              // on a phone it fades and lifts away as the page snaps down to the cards, and comes back the same way. It is drawn wider than the screen's
+              // content area (111% of the screen's width): the circles sit 7% in from the drawing's edges, so they stay on the screen and the
+              // drawing's empty margins are what run past it (the slide clips them).
+              <div data-snap="flow" className="w-full max-sm:ml-[calc((100%-111vw)/2)] max-sm:w-[111vw] max-sm:max-w-none max-sm:shrink-0 max-sm:snap-start">
                 <div className="max-sm:[opacity:calc(1-var(--flow-away,0)*0.85)] max-sm:[translate:0_calc(var(--flow-away,0)*-1.25rem)]">
                   <LiveEnergyFlow {...flow} fit />
                 </div>
