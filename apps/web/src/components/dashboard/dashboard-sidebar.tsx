@@ -23,13 +23,19 @@ import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { cn } from "@/lib/utils";
 import { DashboardCommandMenu } from "./dashboard-command-menu";
 import { DashboardUserMenu } from "./dashboard-user-menu";
+import { SidebarDeviceRow } from "./sidebar-device-row";
+import type { ChargerSidebarInfo } from "@/lib/sidebar-device-info";
 import { visibleNavItems } from "./nav-config";
 import { useDeviceState } from "./use-device-state";
 
 export interface SidebarDevice {
   id: string;
   name: string;
+  /** An inverter or an EV charger has its own controls in the list (state, last reading or session, Refresh, Go live); anything else is a name and a dot. */
+  kind: "inverter" | "ev" | null;
   sync: DeviceSyncInit;
+  /** A charger's connector status and latest charging session. */
+  charger?: ChargerSidebarInfo;
 }
 
 export interface SidebarAccount {
@@ -61,10 +67,13 @@ function DeviceStatusDot({ deviceId, sync }: { deviceId: string; sync: DeviceSyn
 export function DashboardSidebar({
   features = {},
   devices = [],
+  selectedDeviceId = null,
   account,
 }: {
   features?: Record<string, boolean>;
   devices?: SidebarDevice[];
+  /** The device the pages show (the page's ?device=, else the one last picked). */
+  selectedDeviceId?: string | null;
   account: SidebarAccount;
 }) {
   const pathname = usePathname();
@@ -72,6 +81,7 @@ export function DashboardSidebar({
   const navItems = visibleNavItems(features).filter((i) => i.href !== "/dashboard/devices");
   const { isMobile, setOpenMobile, setOpen } = useSidebar();
   const openDevice = searchParams.get("device");
+  const shownDevice = devices.some((d) => d.id === openDevice) ? openDevice : devices.some((d) => d.id === selectedDeviceId) ? selectedDeviceId : (devices[0]?.id ?? null);
 
   // The sidebar lies over the page (a sheet on a phone): picking a page closes it. Its collapse icon, or a click outside it, closes
   // it too.
@@ -121,7 +131,10 @@ export function DashboardSidebar({
           <SidebarGroupContent>
             <SidebarMenu>
               {devices.length === 0 && <li className="px-2 py-1.5 text-xs text-sidebar-foreground/60">No devices yet</li>}
-              {devices.map((d) => (
+              {devices.map((d) =>
+                d.kind ? (
+                  <SidebarDeviceRow key={d.id} device={{ id: d.id, name: d.name, kind: d.kind, charger: d.charger }} selected={d.id === shownDevice} onNavigate={handleNavClick} />
+                ) : (
                 <SidebarMenuItem key={d.id}>
                   <SidebarMenuButton asChild isActive={pathname === "/dashboard/devices" && openDevice === d.id}>
                     <HoverPrefetchLink href={`/dashboard/devices?device=${d.id}`} onClick={handleNavClick}>
@@ -130,7 +143,8 @@ export function DashboardSidebar({
                     </HoverPrefetchLink>
                   </SidebarMenuButton>
                 </SidebarMenuItem>
-              ))}
+                )
+              )}
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>

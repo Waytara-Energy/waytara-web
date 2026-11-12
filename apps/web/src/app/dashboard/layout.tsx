@@ -8,6 +8,8 @@ import { HeaderSlotProvider } from "@/components/dashboard/header-slot";
 import { ChartStyleProvider } from "@/components/dashboard/chart-style";
 import { CHART_STYLE_COOKIE, parseChartStyle } from "@/lib/chart-style";
 import { SidebarBrandToggle } from "@/components/dashboard/sidebar-brand-toggle";
+import { DeviceLiveHub } from "@/components/dashboard/device-live-hub";
+import { fetchChargerSidebarInfo } from "@/lib/sidebar-device-info";
 import { SessionWatcher } from "@/components/dashboard/session-watcher";
 import { IdleSignOut } from "@/components/dashboard/idle-sign-out";
 import { parseSessionPolicy } from "@/lib/session-policy";
@@ -132,18 +134,20 @@ export default async function DashboardLayout({
   // (the dots then follow the live channel themselves).
   const sidebarDevices = await Promise.all(
     (selectedSite?.devices ?? []).map(async (d) => {
-      const { lastTs, agentSeenTs, deviceOnline, intervalS, heartbeatS, verdict } = await getLastSyncInfo(d.id);
-      return { id: d.id, name: deviceDisplayId(d), category: d.deviceType?.category ?? null, sync: { lastTs, agentSeenTs, deviceOnline, intervalS, heartbeatS, verdict } };
+      const category = d.deviceType?.category ?? null;
+      // (a charger's status and latest session are read alongside its connection, in parallel)
+      const [{ lastTs, agentSeenTs, deviceOnline, intervalS, heartbeatS, verdict }, charger] = await Promise.all([
+        getLastSyncInfo(d.id),
+        category === "ev_charger" ? createClient().then((sb) => fetchChargerSidebarInfo(sb, d.id)).catch(() => undefined) : Promise.resolve(undefined),
+      ]);
+      const kind = category === "ev_charger" ? ("ev" as const) : category === "solar_inverter" ? ("inverter" as const) : null;
+      return { id: d.id, name: deviceDisplayId(d), category, kind, charger, sync: { lastTs, agentSeenTs, deviceOnline, intervalS, heartbeatS, verdict } };
     })
   );
   watch.mark("device status");
   logTiming("dashboard layout", watch);
-  // The header's status icons: the inverters and EV chargers of the selected site.
-  const statusDevices = sidebarDevices.flatMap((d) =>
-    d.category === "solar_inverter" || d.category === "ev_charger"
-      ? [{ id: d.id, name: d.name, kind: d.category === "ev_charger" ? ("ev" as const) : ("inverter" as const), sync: d.sync }]
-      : []
-  );
+  // The inverters and EV chargers of the selected site: their controls are in the sidebar (and the brand button badges the ones that stop reporting).
+  const statusDevices = sidebarDevices.flatMap((d) => (d.kind ? [{ id: d.id, name: d.name, kind: d.kind, sync: d.sync }] : []));
 
   const noticeDevice = statusDevices.find((d) => d.kind === "inverter");
 
@@ -156,6 +160,7 @@ export default async function DashboardLayout({
       <AppearanceProvider initial={appearance}>
       <SunProvider coordinates={selectedSite ? { latitude: selectedSite.latitude, longitude: selectedSite.longitude } : null}>
       <HeaderSlotProvider>
+      <DeviceLiveHub devices={statusDevices}>
         <SessionWatcher />
         <IdleSignOut policy={sessionPolicy} />
         <AppearanceApplier prefs={appearance} />
@@ -170,6 +175,7 @@ export default async function DashboardLayout({
         <DashboardSidebar
           features={features}
           devices={sidebarDevices}
+          selectedDeviceId={cookieStore.get(SELECTED_DEVICE_COOKIE)?.value ?? null}
           account={{ fullName: profile?.full_name ?? null, email: profile?.email ?? null, avatarUrl: profile?.avatar_url ?? null, planName: customerPlan?.planName ?? null }}
         />
         {/* h-svh + overflow-clip caps this to the viewport instead of
@@ -192,8 +198,6 @@ export default async function DashboardLayout({
             selectedSiteId={selectedSite?.id ?? null}
             alertDeviceIds={allDeviceIds}
             devices={sites.flatMap((s) => s.devices.map((d) => ({ id: d.id, name: deviceDisplayId(d) })))}
-            statusDevices={statusDevices}
-            selectedDeviceId={cookieStore.get(SELECTED_DEVICE_COOKIE)?.value ?? null}
             initialAlerts={initialAlerts}
             initialFaults={initialFaults}
           />
@@ -202,6 +206,7 @@ export default async function DashboardLayout({
             <div className="p-6 pt-3">{children}</div>
           </main>
         </SidebarInset>
+      </DeviceLiveHub>
       </HeaderSlotProvider>
       </SunProvider>
       </AppearanceProvider>

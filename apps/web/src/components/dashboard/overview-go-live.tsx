@@ -1,85 +1,14 @@
 "use client";
 
 import * as React from "react";
-import { useSearchParams } from "next/navigation";
 import { OVERVIEW_LIVE_KEYS } from "@/lib/overview-keys";
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { useTelemetryStore } from "@/lib/telemetry/react";
 import type { EnumOption } from "@/lib/enum-labels";
-import { DeviceStatusIcon, type StatusDevice } from "./device-status-icons";
-import { GoLiveProvider, GoLiveStatusButton, useGoLive } from "./go-live";
-import { LiveChannelKeeper, LiveStatusPill } from "./overview-live";
+import { GoLiveProvider, GoLiveStatusButton } from "./go-live";
+import { LiveStatusPill } from "./overview-live";
+import { OverviewLiveBridge } from "./overview-live-bridge";
 import { useDeviceState } from "./use-device-state";
-
-/** While Go Live is on, feeds every reading the device sends (at its own rate) into the same live store the Overview
- *  already reads, so the energy flow, status row and numbers follow them in place. When it is paused or stops, nothing
- *  more arrives from here and the page simply keeps following the saved updates from Supabase. */
-function OverviewLiveBridge({ deviceId, keys }: { deviceId: string; keys: string[] }) {
-  const live = useGoLive();
-  const store = useTelemetryStore();
-  const register = live?.register;
-  const state = live?.state;
-  const seen = React.useRef(new Map<string, number>());
-
-  React.useEffect(() => (register ? register(keys) : undefined), [register, keys]);
-
-  React.useEffect(() => {
-    if (!state || state.status !== "live") {
-      seen.current.clear();
-      return;
-    }
-    const values: Record<string, number> = {};
-    let newest = 0;
-    for (const [key, s] of state.series) {
-      const n = s.t.length;
-      if (n === 0 || s.t[n - 1] <= (seen.current.get(key) ?? 0)) continue;
-      seen.current.set(key, s.t[n - 1]);
-      values[key] = s.v[n - 1];
-      newest = Math.max(newest, s.t[n - 1]);
-    }
-    if (newest > 0) store.applyTick(deviceId, { ts: new Date(newest).toISOString(), values });
-  }, [state, store, deviceId]);
-
-  return null;
-}
-
-const EV_LIVE_KEYS = ["power_active_import_kw", "power_offered_kw", "current_import_l1_a", "voltage_l1_n_v", "connector_temperature_c"];
-
-/** The device status for the page header (every page), as icons: a server for the inverters and a charger for the EV chargers, each with its
- *  count in the colour of its state - nothing is written out, the colour is the status. Each icon is its own Go Live: clicking it
- *  tries a live connection to that kind of device and feeds the readings into the page (see DeviceStatusIcon). */
-export function OverviewHeaderStatus({ devices, pvKeys, defaultSelectedId }: { devices: StatusDevice[]; pvKeys: string[]; defaultSelectedId: string | null }) {
-  // The device the page is showing: the page's own ?device=, else the one last picked (the cookie), else the first.
-  const param = useSearchParams().get("device");
-  const selectedId = devices.some((d) => d.id === param) ? (param as string) : devices.some((d) => d.id === defaultSelectedId) ? (defaultSelectedId as string) : (devices[0]?.id ?? "");
-  const groups = (["inverter", "ev"] as const)
-    .map((kind) => ({ kind, devices: devices.filter((d) => d.kind === kind) }))
-    .filter((g) => g.devices.length > 0);
-  return (
-    <div className="flex items-center gap-2">
-      {/* The header is on every page, so every page keeps the devices' live channel and the 30-second connection check running:
-          without it a page with no live number on it (Reports, Maintenance, Devices, Settings) would never hear that a device is
-          still checking in and would show it offline. */}
-      <LiveChannelKeeper deviceIds={devices.map((d) => d.id)} />
-      {groups.map((g, i) => (
-        <LiveKind key={g.kind} kind={g.kind} devices={g.devices} index={i} pvKeys={pvKeys} selectedId={selectedId} />
-      ))}
-    </div>
-  );
-}
-
-/** One kind of device with its own Go Live session (on its selected device, or its first), its icon, and the bridge that feeds the
- *  readings in. Switching to another device of the kind starts the session over for it. */
-function LiveKind({ kind, devices, index, pvKeys, selectedId }: { kind: "inverter" | "ev"; devices: StatusDevice[]; index: number; pvKeys: string[]; selectedId: string }) {
-  const target = devices.find((d) => d.id === selectedId) ?? devices[0];
-  const keys = React.useMemo(() => (kind === "inverter" ? [...OVERVIEW_LIVE_KEYS, ...pvKeys] : EV_LIVE_KEYS), [kind, pvKeys]);
-  return (
-    <GoLiveProvider key={target.id} deviceId={target.id} agentOnline history={false}>
-      <DeviceStatusIcon kind={kind} devices={devices} selectedId={selectedId} index={index} />
-      <OverviewLiveBridge deviceId={target.id} keys={keys} />
-    </GoLiveProvider>
-  );
-}
 
 /** The Overview's status for the page header (top right): the inverter's state with the Go Live icon in front of it, and the time of its last reading under it. */
 export function OverviewStatus({
