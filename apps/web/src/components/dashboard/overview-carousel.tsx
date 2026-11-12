@@ -100,7 +100,8 @@ export function OverviewCarousel({ slides, initialIndex, background }: { slides:
   }
 
   return (
-    <div className="relative">
+    // (--overview-dots-room: how much room a control fixed to the bottom of the screen leaves for the dots under it)
+    <div className="relative" style={{ "--overview-dots-room": "3.75rem" } as React.CSSProperties}>
       {background && <OverviewBackdrop css={background} />}
       {/* the cloud sky, on the inverter's slide only (it fades as the slide changes), unless the person chose a background of their own */}
       {!background && <OverviewSky active={slides[index]?.sky ?? false} />}
@@ -126,7 +127,7 @@ export function OverviewCarousel({ slides, initialIndex, background }: { slides:
         className="-mx-2 -my-2 flex snap-x snap-mandatory overflow-x-auto overscroll-x-contain outline-none [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {slides.map((s, i) => (
-          <div key={s.id} role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${count}: ${s.name}`} aria-hidden={i !== index} className="w-full shrink-0 snap-center snap-always px-2 py-2">
+          <div key={s.id} role="group" aria-roledescription="slide" aria-label={`${i + 1} of ${count}: ${s.name}`} aria-hidden={i !== index} className="group/slide w-full shrink-0 snap-center snap-always px-2 py-2">
             {s.content}
           </div>
         ))}

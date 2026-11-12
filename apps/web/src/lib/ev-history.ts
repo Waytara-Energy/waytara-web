@@ -1,4 +1,5 @@
 import type { createClient } from "@waytara/supabase/server";
+import { sourceShares, type SourceShare } from "@/lib/ev-sessions";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
 
@@ -18,6 +19,8 @@ export interface EvHistorySession {
   peakKw: number | null;
   /** the share of the energy that came from the site's solar (null when the site's numbers were not available for it) */
   solarSharePct: number | null;
+  /** where its energy came from (solar, battery, grid), null when the site's figures were not available for it */
+  shares: SourceShare[] | null;
   /** what it cost: the recorded amount, else the energy at the customer's rate */
   cost: number | null;
   stopReason: string | null;
@@ -58,7 +61,7 @@ function rowKwh(r: { start_energy_kwh: number | null; end_energy_kwh: number | n
 export async function fetchEvHistory(supabase: SupabaseServerClient, chargerId: string, tariffRate: number): Promise<EvHistory> {
   const { data } = await supabase
     .from("ev_sessions")
-    .select("id, started_at, ended_at, start_energy_kwh, end_energy_kwh, meter_start_wh, meter_stop_wh, stop_reason, status, is_test, peak_power_kw, charging_seconds, solar_share_pct, cost_amount, target_kwh")
+    .select("id, started_at, ended_at, start_energy_kwh, end_energy_kwh, meter_start_wh, meter_stop_wh, stop_reason, status, is_test, peak_power_kw, charging_seconds, solar_share_pct, cost_amount, target_kwh, energy_from_solar_kwh, energy_from_battery_kwh, energy_from_grid_kwh, energy_unattributed_kwh")
     .eq("equipment_id", chargerId)
     .not("ended_at", "is", null)
     .order("started_at", { ascending: false })
@@ -97,6 +100,7 @@ export async function fetchEvHistory(supabase: SupabaseServerClient, chargerId: 
       durationS: r.charging_seconds ?? spanS,
       peakKw: r.peak_power_kw,
       solarSharePct: r.solar_share_pct,
+      shares: sourceShares(r),
       cost: r.cost_amount ?? kwh * tariffRate,
       stopReason: r.stop_reason,
       targetKwh: r.target_kwh,

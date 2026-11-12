@@ -3,32 +3,79 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { IndianRupee, Loader2, Power, Tag, Zap } from "lucide-react";
+import { BatteryCharging, Clock, IndianRupee, Loader2, Power, Sun, Zap } from "lucide-react";
 import { parseTarget } from "@/lib/ev-control";
 import { kmText, minutesText, type ChargeProgress } from "@/lib/ev-car";
+import type { SourceShare } from "@/lib/ev-sessions";
 import { cn } from "@/lib/utils";
 import { useEvCharge } from "./ev-charge-control";
-import { Chip, PRESETS_KWH } from "./ev-power-panel";
+import { FLOW } from "./flow-colors";
 
-const inr = (v: number, digits = 0) => `₹${v.toLocaleString("en-IN", { minimumFractionDigits: digits, maximumFractionDigits: digits })}`;
+/** The same colours and icons as the charge's own detail and the energy flow: solar green, battery amber, grid grey. */
+const SOURCE = {
+  solar: { icon: Sun, color: FLOW.producing },
+  battery: { icon: BatteryCharging, color: FLOW.drawing },
+  grid: { icon: Zap, color: FLOW.idle },
+  unattributed: { icon: Zap, color: "var(--border)" },
+} as const;
 
-function Row({ icon: Icon, label, value, accent = false }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; accent?: boolean }) {
+/** 5420 s -> "1 h 30 min", 154 s -> "3 min" (under a minute is "< 1 min"). */
+function span(s: number): string {
+  const min = Math.round(s / 60);
+  if (min < 1) return "< 1 min";
+  return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")} min`;
+}
+
+function Stat({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
   return (
-    <div className="flex items-center gap-3 py-3">
-      <span className="grid size-8 shrink-0 place-items-center rounded-lg bg-foreground/[0.06] text-muted-foreground">
-        <Icon className="size-4" />
+    <div className="min-w-0 rounded-2xl bg-foreground/[0.05] p-3">
+      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+        <Icon className="size-3.5 shrink-0" />
+        <span className="truncate">{label}</span>
       </span>
-      <span className="flex-1 text-sm text-muted-foreground">{label}</span>
-      <span className={cn("text-lg font-semibold tabular-nums", accent ? "text-emerald-500" : "text-foreground")}>{value}</span>
+      <p className="mt-1.5 truncate text-lg font-semibold tabular-nums text-foreground">{value}</p>
+    </div>
+  );
+}
+
+/** Where the energy of the charge came from: one bar split into solar, battery and grid, and each one's share beneath it. */
+function Source({ shares }: { shares: SourceShare[] | null }) {
+  const parts = (shares ?? []).filter((s) => s.pct > 0);
+  const shown = (["solar", "battery", "grid"] as const).map((key) => ({ key, pct: shares?.find((s) => s.key === key)?.pct ?? null }));
+  return (
+    <div className="rounded-2xl bg-foreground/[0.05] p-3.5">
+      <p className="text-xs text-muted-foreground">Source of the energy</p>
+      <div className="mt-2.5 flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-foreground/[0.08]" role="img" aria-label={shares ? parts.map((s) => `${s.label} ${Math.round(s.pct)}%`).join(", ") : "Source not measured"}>
+        {parts.map((s) => (
+          <span key={s.key} className="h-full first:rounded-l-full last:rounded-r-full" style={{ width: `${s.pct}%`, backgroundColor: SOURCE[s.key].color }} />
+        ))}
+      </div>
+      <ul className="mt-3 grid grid-cols-3 gap-2">
+        {shown.map(({ key, pct }) => {
+          const Icon = SOURCE[key].icon;
+          return (
+            <li key={key} className="flex min-w-0 items-center gap-2">
+              <span className="grid size-7 shrink-0 place-items-center rounded-lg" style={{ backgroundColor: `color-mix(in srgb, ${SOURCE[key].color} 18%, transparent)`, color: SOURCE[key].color }}>
+                <Icon className="size-3.5" />
+              </span>
+              <span className="min-w-0 leading-tight">
+                <span className="block truncate text-[11px] capitalize text-muted-foreground">{key}</span>
+                <span className="block truncate text-sm font-semibold tabular-nums text-foreground">{pct === null ? "—" : `${Math.round(pct)}%`}</span>
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </div>
   );
 }
 
 /**
  * A charger's Overview on a phone, in the way of a car's charging screen: the car, how far the charge has got in large figures with what it
- * means beside it (time left, distance added), a bar for the progress, the tariff, the speed and the cost so far, and one large Start / Stop
- * button (before a charge, the choice of how many kWh to stop after sits above it). Everything comes from the page, which has the live numbers.
- * Phones only (the page shows its own wider layout from `sm` up).
+ * means beside it (time left, distance added), a bar for the progress, the energy, the time and the cost of the charge (this one, or the last one
+ * when none runs) and where its energy came from (solar, battery, grid), and, fixed to the bottom of the screen, the control: before a charge a
+ * field for how many kWh to stop after (empty = no limit) beside a Start button; once it has started the field goes and Stop fills the width.
+ * Everything comes from the page, which has the live numbers. Phones only (the page shows its own wider layout from `sm` up).
  */
 export function EvMobileCard({
   chargerId,
@@ -39,10 +86,12 @@ export function EvMobileCard({
   transactionId,
   progress,
   headlineKwh,
-  powerText,
-  chargeKwh,
-  tariff,
-  lastCharge,
+  caption,
+  energy,
+  startedAt,
+  durationText,
+  cost,
+  shares,
 }: {
   chargerId: string;
   connected: boolean | null;
@@ -54,29 +103,37 @@ export function EvMobileCard({
   progress: ChargeProgress;
   /** The energy of this charge in words ("3.40 kWh"), or null. */
   headlineKwh: string | null;
-  /** The power now in words ("7.20 kW"), or null. */
-  powerText: string | null;
-  /** The energy of this charge in kWh, for the cost. */
-  chargeKwh: number | null;
-  /** The person's tariff, per kWh. */
-  tariff: number;
-  /** The newest finished charge in words, shown when no charge runs. */
-  lastCharge: string | null;
+  /** Which charge the figures below are: "This charge" while one runs, else "Last charge" (null = none to show). */
+  caption: string | null;
+  energy: string | null;
+  /** When the charge that runs began (ISO), for its time so far; null when none runs. */
+  startedAt: string | null;
+  /** The time of the last charge in words, when none runs. */
+  durationText: string | null;
+  cost: string | null;
+  shares: SourceShare[] | null;
 }) {
   const { busy, waiting, error, notice, pending, start, stop } = useEvCharge({ chargerId, sessionOpen, transactionId });
-  const [preset, setPreset] = React.useState<number | null>(null);
-  const [other, setOther] = React.useState(false);
   const [text, setText] = React.useState("");
   const typed = parseTarget(text);
-  const bad = other && text.trim() !== "" && !typed.ok;
-  const target = other ? (typed.ok ? typed.kwh : null) : preset;
+  const empty = text.trim() === "";
+  const bad = !empty && !typed.ok;
+  const target = !empty && typed.ok ? typed.kwh : null;
 
   const on = sessionOpen || charging;
   const offline = connected === false;
   const stopping = busy === "stop";
   const starting = busy === "start" || waiting;
-  const disabled = stopping || starting || (!on && (offline || bad));
-  const label = on ? (stopping ? "Stopping…" : "Stop charging") : starting ? "Starting…" : offline ? "Charger offline" : "Start charging";
+  // the time so far of the charge that runs, moved on every 30 seconds
+  const [now, setNow] = React.useState<number | null>(null);
+  React.useEffect(() => {
+    if (!startedAt) return;
+    const tick = () => setNow(Date.now());
+    tick();
+    const id = window.setInterval(tick, 30_000);
+    return () => window.clearInterval(id);
+  }, [startedAt]);
+  const duration = startedAt ? (now === null ? null : span(Math.max(0, (now - Date.parse(startedAt)) / 1000))) : durationText;
 
   const percent = progress.percent;
   // what stands on the right of the large figure
@@ -86,7 +143,7 @@ export function EvMobileCard({
           progress.minutesLeft !== null ? { label: "Time left", value: minutesText(progress.minutesLeft) } : headlineKwh !== null && percent !== null ? { label: "This charge", value: headlineKwh } : null,
           progress.kmAdded !== null ? { label: "Range added", value: `+${kmText(progress.kmAdded)}` } : null,
         ]
-      : [lastCharge !== null ? { label: "Last charge", value: lastCharge } : null]
+      : []
   ).filter((x): x is { label: string; value: string } => x !== null);
 
   const headline = charging
@@ -101,6 +158,10 @@ export function EvMobileCard({
     : offline
       ? "Offline"
       : "Ready";
+
+  const showField = !on && !starting && !offline;
+  const startDisabled = bad || starting || offline;
+  const label = on ? (stopping ? "Stopping…" : "Stop charging") : starting ? "Starting…" : offline ? "Charger offline" : "Start charging";
 
   return (
     <section aria-label="Charger" className="relative pt-2 sm:hidden">
@@ -133,73 +194,62 @@ export function EvMobileCard({
         {charging && percent === null ? (
           <div className="h-full w-full origin-left rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 motion-safe:animate-car-charge" />
         ) : (
-          <div
-            className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-[width] duration-700 ease-out"
-            style={{ width: `${Math.max(charging ? 4 : 0, percent ?? 0)}%` }}
-          >
+          <div className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-[width] duration-700 ease-out" style={{ width: `${Math.max(charging ? 4 : 0, percent ?? 0)}%` }}>
             {charging && <span aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle,rgba(255,255,255,0.55)_1px,transparent_1.5px)] bg-[length:9px_9px] opacity-60 motion-safe:animate-pulse" />}
           </div>
         )}
       </div>
 
-      <div className="mt-3 divide-y divide-border/70 rounded-2xl bg-foreground/[0.04] px-4">
-        <Row icon={Tag} label="Tariff" value={`${inr(tariff, 2)} /kWh`} />
-        <Row icon={Zap} label="Speed" value={powerText ?? "—"} />
-        <Row icon={IndianRupee} label="Cost" value={chargeKwh !== null && on ? inr(chargeKwh * tariff, 2) : "—"} accent={chargeKwh !== null && on} />
-      </div>
-
-      {!on && !offline && (
-        <div role="group" aria-label="Stop after" className="mt-4 flex flex-wrap items-center gap-2">
-          <span className="mr-1 text-xs text-muted-foreground">Stop after</span>
-          <Chip selected={target === null && !bad} onClick={() => { setPreset(null); setOther(false); setText(""); }}>
-            No limit
-          </Chip>
-          {PRESETS_KWH.map((kwh) => (
-            <Chip key={kwh} selected={!other && preset === kwh} onClick={() => { setOther(false); setPreset(preset === kwh ? null : kwh); }} label={`Stop after ${kwh} kWh`}>
-              {kwh} kWh
-            </Chip>
-          ))}
-          {other ? (
-            <label className={cn("flex h-9 items-center gap-1.5 rounded-full border px-3.5 text-sm tabular-nums", bad ? "border-destructive text-destructive" : "border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300")}>
-              <input autoFocus inputMode="decimal" value={text} onChange={(e) => setText(e.target.value)} placeholder="0" aria-label="Stop after this many kWh" className="w-12 bg-transparent text-right font-medium outline-none placeholder:text-current/50" />
-              kWh
-            </label>
-          ) : (
-            <Chip selected={false} onClick={() => { setOther(true); setPreset(null); }}>
-              Other
-            </Chip>
-          )}
-        </div>
+      {caption !== null && (
+        <>
+          <p className="mt-5 text-sm font-semibold text-foreground">{caption}</p>
+          <div className="mt-2.5 grid grid-cols-3 gap-2.5">
+            <Stat icon={Zap} label="Energy" value={energy ?? "—"} />
+            <Stat icon={Clock} label="Duration" value={duration ?? "—"} />
+            <Stat icon={IndianRupee} label="Cost" value={cost ?? "—"} />
+          </div>
+          <div className="mt-2.5">
+            <Source shares={shares} />
+          </div>
+        </>
       )}
 
-      <button
-        type="button"
-        aria-pressed={on}
-        disabled={disabled}
-        onClick={() => (on ? void stop() : void start(target))}
-        className={cn(
-          "mt-4 flex h-14 w-full items-center justify-center gap-2.5 rounded-2xl text-base font-semibold outline-none transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background enabled:active:scale-[0.99] disabled:cursor-not-allowed",
-          disabled && !stopping && !starting
-            ? "bg-muted text-muted-foreground/70"
-            : on
-              ? "bg-red-500/10 text-red-600 ring-1 ring-inset ring-red-500/40 focus-visible:ring-red-500 dark:text-red-400"
-              : "bg-emerald-500/15 text-emerald-600 ring-1 ring-inset ring-emerald-500/40 focus-visible:ring-emerald-500 dark:text-emerald-400",
-          (stopping || starting) && "cursor-wait"
-        )}
-      >
-        {pending ? <Loader2 className="size-5 animate-spin" /> : <Power className="size-5" strokeWidth={2.25} />}
-        {label}
-      </button>
-      {error ? (
-        <p role="alert" className="mt-2 text-center text-xs text-destructive">
-          {error}
-        </p>
-      ) : null}
-      {notice ? (
-        <p role="status" className="mt-2 text-center text-xs text-amber-700 dark:text-amber-400">
-          {notice}
-        </p>
-      ) : null}
+      {/* The control, fixed to the bottom of the screen (only while this is the slide being shown). Before a charge: the kWh to stop after (empty = no
+          limit) and Start. Once it runs: Stop, the full width. The room under it is the carousel's dots when there are several devices. */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-4 pt-3 pb-[var(--overview-dots-room,calc(0.75rem+env(safe-area-inset-bottom)))] backdrop-blur-md group-aria-hidden/slide:hidden">
+        {error ? (
+          <p role="alert" className="mb-2 text-center text-xs text-destructive">
+            {error}
+          </p>
+        ) : null}
+        {notice ? (
+          <p role="status" className="mb-2 text-center text-xs text-amber-700 dark:text-amber-400">
+            {notice}
+          </p>
+        ) : null}
+        <div className="flex items-center gap-3">
+          {showField && (
+            <label className={cn("flex h-12 w-[7.5rem] shrink-0 items-center gap-1.5 rounded-2xl border bg-background px-3 text-sm tabular-nums", bad ? "border-destructive text-destructive" : "border-border focus-within:border-emerald-500")}>
+              <input inputMode="decimal" value={text} onChange={(e) => setText(e.target.value)} placeholder="No limit" aria-label="Stop after this many kWh (empty for no limit)" className="min-w-0 flex-1 bg-transparent font-medium outline-none placeholder:text-muted-foreground placeholder:font-normal" />
+              <span className="text-xs text-muted-foreground">kWh</span>
+            </label>
+          )}
+          <button
+            type="button"
+            aria-pressed={on}
+            disabled={on ? stopping : startDisabled}
+            onClick={() => (on ? void stop() : void start(target))}
+            className={cn(
+              "flex h-12 min-w-0 flex-1 items-center justify-center gap-2.5 rounded-2xl text-base font-semibold outline-none transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background enabled:active:scale-[0.99] disabled:cursor-not-allowed",
+              !on && (offline || bad) ? "bg-muted text-muted-foreground/70" : on ? "bg-red-500/10 text-red-600 ring-1 ring-inset ring-red-500/40 focus-visible:ring-red-500 dark:text-red-400" : "bg-emerald-500/15 text-emerald-600 ring-1 ring-inset ring-emerald-500/40 focus-visible:ring-emerald-500 dark:text-emerald-400",
+              (stopping || starting) && "cursor-wait"
+            )}
+          >
+            {pending ? <Loader2 className="size-5 animate-spin" /> : <Power className="size-5" strokeWidth={2.25} />}
+            {label}
+          </button>
+        </div>
+      </div>
     </section>
   );
 }

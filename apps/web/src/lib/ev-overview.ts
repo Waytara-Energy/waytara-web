@@ -4,6 +4,7 @@ import { getLastSyncInfo } from "@/lib/device-sync";
 import { getConnectorStatusLabel } from "@/lib/ev-charger-catalog";
 import { fetchEnumOptions, type EnumOption } from "@/lib/instrument-catalog-data";
 import { sessionKwh } from "@/lib/ev-control";
+import { sourceShares, type SourceShare } from "@/lib/ev-sessions";
 import { EV_LIVE_KEYS } from "@/lib/ev-live-keys";
 
 type SupabaseServerClient = Awaited<ReturnType<typeof createClient>>;
@@ -20,6 +21,8 @@ export interface OpenCharge {
   targetKwh: number | null;
   kwh: number | null;
   kw: number | null;
+  /** where its energy has come from so far (solar, battery, grid), null when the site's figures are not available for it */
+  shares: SourceShare[] | null;
 }
 
 /** What the Overview needs about the site's charger: its connection, its connector status, the day's energy and the charge that is open. */
@@ -43,7 +46,7 @@ export async function fetchEvOverview(supabase: SupabaseServerClient, chargerId:
     fetchTodayChargingSessions(supabase, chargerId),
     getLastSyncInfo(chargerId).catch(() => null),
     fetchEnumOptions(supabase, ["connector_status"]).then((m) => m.get("connector_status") ?? []),
-    supabase.from("ev_sessions").select("id, ocpp_transaction_id, started_at, start_energy_kwh, target_kwh").eq("equipment_id", chargerId).is("ended_at", null).order("started_at", { ascending: false }).limit(1).maybeSingle(),
+    supabase.from("ev_sessions").select("id, ocpp_transaction_id, started_at, start_energy_kwh, target_kwh, energy_from_solar_kwh, energy_from_battery_kwh, energy_from_grid_kwh, energy_unattributed_kwh").eq("equipment_id", chargerId).is("ended_at", null).order("started_at", { ascending: false }).limit(1).maybeSingle(),
     supabase.from("equipment_latest").select("key_name, value").eq("equipment_id", chargerId).in("key_name", EV_LIVE_KEYS),
   ]);
   const latest: Record<string, number | null> = Object.fromEntries(EV_LIVE_KEYS.map((k) => [k, null]));
@@ -69,6 +72,7 @@ export async function fetchEvOverview(supabase: SupabaseServerClient, chargerId:
       targetKwh: row.target_kwh,
       kwh: live?.energyKwh ?? sessionKwh(row.start_energy_kwh, null),
       kw: today.currentPowerW === null ? null : today.currentPowerW / 1000,
+      shares: sourceShares(row),
     };
   }
   return { chargerId, connected, status, todayKwh, open, latest, connectorOptions: options };

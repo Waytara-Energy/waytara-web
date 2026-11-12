@@ -309,10 +309,13 @@ export function EvOverviewBoard({
         transactionId={open?.transactionId ?? null}
         progress={progress}
         headlineKwh={chargeKwh !== null ? kwh(chargeKwh, 2) : null}
-        powerText={powerKw !== null ? u.format(powerKw, "kW", "power_active_import_kw", 2) : null}
-        chargeKwh={chargeKwh}
-        tariff={tariff}
-        lastCharge={last ? kwh(last.kwh, 1) : null}
+        // the figures of the charge that runs, else of the last finished one
+        caption={charging ? "This charge" : last ? "Last charge" : null}
+        energy={charging ? (chargeKwh !== null ? kwh(chargeKwh, 2) : null) : last ? kwh(last.kwh, 2) : null}
+        startedAt={charging ? (open?.startedAt ?? null) : null}
+        durationText={!charging && last ? span(last.durationS) : null}
+        cost={charging ? (chargeKwh !== null ? inr(chargeKwh * tariff) : null) : last && last.cost !== null ? inr(last.cost) : null}
+        shares={charging ? (open?.shares ?? null) : (last?.shares ?? null)}
       />
       {/* the charger itself has no card: the car stands on the page */}
       <section className="flex min-h-0 flex-col items-center justify-between gap-3 py-2 max-sm:hidden lg:col-span-7">
@@ -351,6 +354,8 @@ export function EvOverviewBoard({
       <LastCharge last={last} onOpen={setOpenId} chargerId={chargerId} />
       <History sessions={history.recent} onOpen={setOpenId} chargerId={chargerId} />
       <EvSessionDialog sessionId={openId} onClose={() => setOpenId(null)} load={loadSession} />
+      {/* room for the control that is fixed to the bottom of the screen on a phone */}
+      <div aria-hidden="true" className="h-24 sm:hidden" />
     </div>
   );
 }
