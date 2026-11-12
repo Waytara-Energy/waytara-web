@@ -2,9 +2,10 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
+import { useTheme } from "next-themes";
 import { BatteryCharging, CarFront, Fuel, Home, Server, ShieldCheck, Sun, Zap, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import Orb from "@/components/ui/orb";
+import CrystalizedBall from "@/components/ui/crystalized-ball";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 import { useUnits } from "@/components/units-provider";
 import type { UnitPrefs } from "@/lib/unit-prefs";
@@ -23,28 +24,31 @@ const COLOR = {
 } as const;
 type Tone = keyof typeof COLOR;
 /**
- * Each circle is an Orb (React Bits): a living ring of light drawn behind the icon. Its three colours are the circle's tone (bright, base, deep); the
- * inverter's is all three flow colours at once. How much power moves decides how hard it burns: glow, wobble of the ring, the orbiting highlight, its trail
- * and its speed all rise with the power, and a circle with energy moving is held in the "awake" state (brighter, turning slowly). An idle circle is a
- * calm, dim grey ring, and when the unit is offline the rings are frozen (one still frame, greyed).
+ * Each circle is a Crystalized Ball (React Bits): a ball of crackling light and drifting crystal dust drawn behind the icon. What the ball does says what the
+ * circle is doing, so the picture can be read without the numbers:
+ *  - its colour is the circle's tone (green producing, amber drawing, blue consuming, grey idle); the inverter takes the tone of whatever is moving most;
+ *  - the DIRECTION is the way the dust travels: a circle that is sending energy to the inverter (solar producing, the grid importing, the battery
+ *    discharging) lets its dust RISE, away from it; a circle that is taking energy from the inverter (the load, the EV charger, the battery charging, an
+ *    export to the grid) lets its dust FALL, as if being filled; an idle one just drifts; the inverter, which everything meets at, has its dust orbit;
+ *  - the battery's ball is filled to its state of charge (a 40 % battery is a ball 40 % full), the others fill with how hard they work;
+ *  - the POWER sets how many strands crackle round the rim, how violently, how many flares and sparks, the glow, the twinkle, the sway and the speed of
+ *    both the rim and the dust, and how many grains there are (in three steps, so the grains are not rebuilt at every new reading);
+ *  - an idle circle is a nearly still, dim ball with hardly any rim; when the unit is offline the balls are paused (one still frame) and greyed.
+ * Pointing at a ball stirs its dust and heats the rim nearest the pointer, and pressing on it sets off a burst.
  */
-const ORB_COLORS: Record<Tone, [string, string, string]> = {
-  producing: ["#6ee7b7", COLOR.producing, "#047857"],
-  drawing: ["#fcd34d", COLOR.drawing, "#b45309"],
-  consuming: ["#93c5fd", COLOR.consuming, "#1d4ed8"],
-  idle: ["#cbd5e1", COLOR.idle, "#475569"],
-};
-const HUB_ORB_COLORS: [string, string, string] = [COLOR.producing, COLOR.consuming, COLOR.drawing];
-/** The ring of an Orb sits at 0.8 of its half-width, so its canvas is this much wider than the circle it rings. */
-const ORB_SPAN = 1 / 0.8;
-/** The power (in W) at which a circle burns at full strength. */
+const BALL_COLOR: Record<Tone, string> = { ...COLOR };
+type BallMotion = "rise" | "fall" | "drift" | "orbit";
+/** The ball's canvas is this much wider than the circle it fills, to leave room for the crackle and flares round the rim. */
+const BALL_SPAN = 1.4;
+/** The power (in W) at which a circle works at full strength. */
 const FULL_BURN_W = 5000;
-/** The orb is drawn for the dark path of its shader (a transparent glow), on both themes, so it sits on whatever is behind the diagram (the page, or the Overview's sky). */
-const ORB_BACKGROUND = "#000000";
+/** A halo in the page colour round an icon or a word that sits over a ball, so the grains behind it do not swallow it. */
+const HALO = "drop-shadow(0 0 3px var(--background)) drop-shadow(0 0 7px var(--background))";
+const TEXT_HALO = "0 0 4px var(--background), 0 0 9px var(--background), 0 0 14px var(--background)";
 
-// Whether this browser can draw an Orb (it needs WebGL 2). Asked once; if it cannot, the circles keep their plain look (a border and a solid fill).
+// Whether this browser can draw a ball (it needs WebGL 2). Asked once; if it cannot, the circles keep their plain look (a border and a solid fill).
 let webgl2Supported: boolean | null = null;
-function canDrawOrbs(): boolean {
+function canDrawBalls(): boolean {
   if (webgl2Supported === null) {
     try {
       const gl = document.createElement("canvas").getContext("webgl2");
@@ -58,54 +62,64 @@ function canDrawOrbs(): boolean {
 }
 const subscribeNever = () => () => undefined;
 
-/** The orb behind one circle: `radius` is the circle's radius in drawing units, `level` is 0 to 1 (how hard it burns), `active` is whether energy moves. */
-function FlowOrb({
+/** The ball behind one circle. `radius` is the circle's radius in drawing units, `level` 0 to 1 is how hard it works. */
+function FlowBall({
   at,
   radius,
   width,
-  colors,
+  color,
+  motion,
+  fill,
   level,
   active,
   frozen,
+  dark,
   hub = false,
 }: {
   at: { left: string; top: string };
   radius: number;
   width: number;
-  colors: [string, string, string];
+  color: string;
+  motion: BallMotion;
+  fill: number;
   level: number;
   active: boolean;
   frozen: boolean;
+  dark: boolean;
   hub?: boolean;
 }) {
+  // The grains, in three steps (a change of the count rebuilds them), and more of them on the inverter's larger ball.
+  const grains = Math.round((active ? (level < 0.34 ? 1200 : level < 0.67 ? 1800 : 2600) : 700) * (hub ? 1.5 : 1));
   return (
     <div
       aria-hidden="true"
       className={cn("pointer-events-none absolute aspect-square -translate-x-1/2 -translate-y-1/2 transition-[filter,opacity] duration-500", frozen && "opacity-60 grayscale")}
-      style={{ left: at.left, top: at.top, width: `${((2 * radius * ORB_SPAN) / width) * 100}%` }}
+      style={{ left: at.left, top: at.top, width: `${((2 * radius * BALL_SPAN) / width) * 100}%` }}
     >
-      <Orb
-        colors={colors}
-        hue={0}
-        backgroundColor={ORB_BACKGROUND}
-        size={1}
-        glow={active ? 0.75 + 1.15 * level : 0.55}
-        bleed={1}
-        wobble={active ? 0.45 + 1.1 * level : 0.3}
-        highlight={active ? 0.9 + 0.8 * level : 0.25}
-        trail={active ? 1.2 : 0.4}
-        tiltX={0}
-        tiltY={0}
-        speed={active ? 0.45 + 0.9 * level : 0.2}
-        hoverIntensity={hub ? 1.3 : 1}
-        rotateOnHover
-        forceHoverState={active && !frozen}
-        followCursor
-        clickPulse
+      <CrystalizedBall
+        preset="plasma"
+        color={color}
+        theme={dark ? "dark" : "light"}
+        size={1 / BALL_SPAN}
+        strands={active ? (hub ? 3 : 2) + Math.round((hub ? 3 : 4) * level) : 1}
+        crackle={active ? 0.35 + 0.65 * level : 0.15}
+        flares={active ? 0.25 + 0.6 * level : 0.1}
+        glow={active ? 0.6 + 0.6 * level : 0.35}
+        sparks={active ? 0.2 + 0.7 * level : 0.05}
+        particleCount={grains}
+        fill={Math.min(1, Math.max(0.06, fill))}
+        motion={motion}
+        particleShape="square"
+        depth={0.6}
+        sway={0.15 + 0.35 * level}
+        twinkle={active ? 0.45 + 0.35 * level : 0.25}
+        haze={active ? 0.7 : 0.4}
+        speed={active ? 0.5 + 0.8 * level : 0.25}
+        dustSpeed={active ? 0.8 + 0.9 * level : 0.35}
+        interactive
+        hoverStrength={hub ? 0.9 : 0.7}
         intro
-        opacity={active ? 1 : 0.65}
         paused={frozen}
-        dpr={1.5}
       />
     </div>
   );
@@ -272,8 +286,8 @@ export function EnergyFlowDiagram({
   const router = useRouter();
   const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
   const { prefs } = useUnits();
-  // The orbs are only alive while the drawing is on screen: each is its own WebGL context (a browser allows about sixteen), and the Overview keeps
-  // one drawing per device, side by side, so a slide that is scrolled away lets its orbs go and gets them back (with their short intro) when it returns.
+  // The balls are only alive while the drawing is on screen: each is its own WebGL context (a browser allows about sixteen), and the Overview keeps
+  // one drawing per device, side by side, so a slide that is scrolled away lets its balls go and gets them back (with their short intro) when it returns.
   const rootRef = React.useRef<HTMLDivElement>(null);
   const [onScreen, setOnScreen] = React.useState(false);
   React.useEffect(() => {
@@ -284,8 +298,9 @@ export function EnergyFlowDiagram({
     return () => watcher.disconnect();
   }, []);
   // Assumed to work until the browser says it cannot (so the first paint has the orb look, not the plain one).
-  const orbsOk = React.useSyncExternalStore(subscribeNever, canDrawOrbs, () => true);
+  const ballsOk = React.useSyncExternalStore(subscribeNever, canDrawBalls, () => true);
   const mounted = useHasMounted();
+  const { resolvedTheme } = useTheme();
 
   const nodes: FlowNode[] = [
     // A circle is drawn when it has a reading, or - with no reading yet (the unit is offline, a new day without data) - when the site is known to have
@@ -306,6 +321,9 @@ export function EnergyFlowDiagram({
   ];
 
   const layout = layoutFlow(nodes, (n) => n.kind);
+  // The inverter's ball takes the tone of whatever is moving most, and works as hard as that does.
+  const busiest = nodes.reduce<FlowNode | null>((best, n) => (n.dir !== "none" && (!best || n.watts > best.watts) ? n : best), null);
+  const hubLevel = busiest ? Math.min(1, Math.sqrt(busiest.watts / FULL_BURN_W)) : 0;
   const { width: W, height: H, hub } = layout;
   const pctX = (x: number) => `${(x / W) * 100}%`;
   const pctY = (y: number) => `${(y / H) * 100}%`;
@@ -341,31 +359,42 @@ export function EnergyFlowDiagram({
           ...(fit ? { width: `min(100%, calc(var(--flow-h, calc(max(100svh - 14rem, 26rem) - 3.5rem)) * ${W / H}))` } : {}),
         }}
       >
-        {/* The orbs, under the lines and the icons. */}
-        {orbsOk && onScreen && mounted && (
+        {/* The balls, under the lines and the icons. */}
+        {ballsOk && onScreen && mounted && (
           <>
-            <FlowOrb
+            <FlowBall
               hub
               at={{ left: pctX(hub.x), top: pctY(hub.y) }}
               radius={HUB_R}
               width={W}
-              colors={frozen ? ORB_COLORS.idle : HUB_ORB_COLORS}
-              level={Math.min(1, Math.sqrt(Math.max(0, ...nodes.map((n) => n.watts)) / FULL_BURN_W))}
+              color={frozen ? COLOR.idle : COLOR[busiest ? busiest.tone : "idle"]}
+              motion="orbit"
+              fill={0.25 + 0.6 * hubLevel}
+              level={hubLevel}
               active={nodes.some((n) => n.dir !== "none")}
               frozen={!!frozen}
+              dark={resolvedTheme === "dark"}
             />
-            {layout.nodes.map(({ item, center }) => (
-              <FlowOrb
-                key={item.id}
-                at={{ left: pctX(center.x), top: pctY(center.y) }}
-                radius={NODE_R}
-                width={W}
-                colors={frozen ? ORB_COLORS.idle : ORB_COLORS[item.tone]}
-                level={Math.min(1, Math.sqrt(item.watts / FULL_BURN_W))}
-                active={item.dir !== "none"}
-                frozen={!!frozen}
-              />
-            ))}
+            {layout.nodes.map(({ item, center }) => {
+              const level = Math.min(1, Math.sqrt(item.watts / FULL_BURN_W));
+              return (
+                <FlowBall
+                  key={item.id}
+                  at={{ left: pctX(center.x), top: pctY(center.y) }}
+                  radius={NODE_R}
+                  width={W}
+                  color={frozen ? COLOR.idle : BALL_COLOR[item.tone]}
+                  // Sending energy to the inverter: the dust rises. Taking energy from it: the dust falls. Neither: it drifts.
+                  motion={item.dir === "in" ? "rise" : item.dir === "out" ? "fall" : "drift"}
+                  // The battery is as full as it is charged; the others as full as they are working.
+                  fill={item.soc !== null ? item.soc / 100 : item.dir === "none" ? 0.12 : 0.3 + 0.6 * level}
+                  level={level}
+                  active={item.dir !== "none"}
+                  frozen={!!frozen}
+                  dark={resolvedTheme === "dark"}
+                />
+              );
+            })}
           </>
         )}
 
@@ -442,12 +471,12 @@ export function EnergyFlowDiagram({
           aria-label={`Inverter: ${summary.text}`}
           className={cn(
             "absolute flex aspect-square -translate-x-1/2 -translate-y-1/2 cursor-default flex-col items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-theme-highlight",
-            !orbsOk && "border-2 border-theme-active bg-theme-surface"
+            !ballsOk && "border-2 border-theme-active bg-theme-surface"
           )}
           style={{ left: pctX(hub.x), top: pctY(hub.y), width: `${((2 * HUB_R) / W) * 100}%` }}
         >
-          <Server className="size-[38%] text-theme-secondary @md:size-[32%]" strokeWidth={1.75} />
-          <span className="mt-0.5 hidden font-medium leading-none text-theme-secondary @md:block" style={{ fontSize: "clamp(8px, 1.3cqw, 11px)" }}>
+          <Server className="size-[38%] text-theme-secondary @md:size-[32%]" strokeWidth={1.75} style={ballsOk ? { filter: HALO } : undefined} />
+          <span className="mt-0.5 hidden font-medium leading-none text-theme-secondary @md:block" style={{ fontSize: "clamp(8px, 1.3cqw, 11px)", ...(ballsOk ? { textShadow: TEXT_HALO } : {}) }}>
             {summary.mode}
           </span>
         </div>
@@ -477,16 +506,16 @@ export function EnergyFlowDiagram({
                 {...handlers}
                 className={cn(
                   "absolute flex aspect-square -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-theme-highlight",
-                  !orbsOk && "border-2 bg-theme-surface"
+                  !ballsOk && "border-2 bg-theme-surface"
                 )}
                 style={{
                   left: pctX(center.x),
                   top: pctY(center.y),
                   width: `${((2 * NODE_R) / W) * 100}%`,
-                  ...(orbsOk ? {} : { borderColor: idle ? "var(--border)" : color, boxShadow: idle ? undefined : `0 0 16px ${color}33` }),
+                  ...(ballsOk ? {} : { borderColor: idle ? "var(--border)" : color, boxShadow: idle ? undefined : `0 0 16px ${color}33` }),
                 }}
               >
-                <Icon className={cn("size-[46%]", idle && "text-theme-muted")} style={idle ? undefined : { color }} strokeWidth={1.75} />
+                <Icon className={cn("size-[46%]", idle && "text-theme-muted")} style={{ ...(idle ? {} : { color }), ...(ballsOk ? { filter: HALO } : {}) }} strokeWidth={1.75} />
               </div>
               <div
                 className="absolute flex -translate-x-1/2 cursor-pointer flex-col items-center whitespace-nowrap text-center"
