@@ -282,6 +282,14 @@ export function EvOverviewBoard({
   }
 
   const last = history.recent[0] ?? null;
+  // How the last charge ended: against the amount booked (Completed if it got there, else the percentage it stopped at); with none booked, against the car's
+  // battery when the car is known (the share of the battery it added); with neither there is no goal to measure it by, so it is Completed (the bar full).
+  const finished = (() => {
+    if (!last) return null;
+    const p = chargeProgress({ deliveredKwh: last.kwh, targetKwh: last.targetKwh, powerKw: null, car });
+    const completed = p.percent === null || p.percent >= 98;
+    return { percent: completed ? 100 : (p.percent as number), completed, when: `${dayMonth(last.startedAt)}, ${clock(last.startedAt)}` };
+  })();
   // a charge opens on its own page (Reports, the charger's tab, with that charge open), not in a popup
   const openCharge = (id: string) => router.push(`/dashboard/reports?device=${encodeURIComponent(chargerId)}&session=${encodeURIComponent(id)}#ev`);
 
@@ -297,10 +305,10 @@ export function EvOverviewBoard({
         transactionId={open?.transactionId ?? null}
         progress={progress}
         headlineKwh={chargeKwh !== null ? kwh(chargeKwh, 2) : null}
-        // the figures of the charge that runs, else of the last finished one
-        caption={charging ? "This charge" : last ? "Last charge" : null}
-        // when it was: the start of the charge that runs, else the date and time of the last one
-        when={charging ? (open?.startedAt ? `Since ${clock(open.startedAt)}` : null) : last ? `${dayMonth(last.startedAt)}, ${clock(last.startedAt)}` : null}
+        // the last finished charge, where "Ready" would be: how far it got and when
+        finished={finished}
+        // the figures below are of the charge that runs, else of the last finished one
+        showStats={charging || last !== null}
         energy={charging ? (chargeKwh !== null ? kwh(chargeKwh, 2) : null) : last ? kwh(last.kwh, 2) : null}
         startedAt={charging ? (open?.startedAt ?? null) : null}
         durationText={!charging && last ? span(last.durationS) : null}

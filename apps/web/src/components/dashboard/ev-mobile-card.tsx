@@ -86,8 +86,8 @@ export function EvMobileCard({
   transactionId,
   progress,
   headlineKwh,
-  caption,
-  when,
+  finished,
+  showStats,
   energy,
   startedAt,
   durationText,
@@ -104,10 +104,10 @@ export function EvMobileCard({
   progress: ChargeProgress;
   /** The energy of this charge in words ("3.40 kWh"), or null. */
   headlineKwh: string | null;
-  /** Which charge the figures below are: "This charge" while one runs, else "Last charge" (null = none to show). */
-  caption: string | null;
-  /** When it was, at the end of the heading line ("Since 6:47 pm", "4 Nov, 6:47 pm"). */
-  when: string | null;
+  /** The last finished charge, shown where "Ready" would be when none runs: how far it got (percent; completed = it reached its goal, or had none), the date and time. */
+  finished: { percent: number; completed: boolean; when: string } | null;
+  /** Whether the energy, time, cost and source tiles are shown (a charge runs, or there is a last one). */
+  showStats: boolean;
   energy: string | null;
   /** When the charge that runs began (ISO), for its time so far; null when none runs. */
   startedAt: string | null;
@@ -140,13 +140,17 @@ export function EvMobileCard({
 
   const percent = progress.percent;
   // what stands on the right of the large figure
+  // (a finished charge is shown only when the charger is reachable and none runs)
+  const done = !charging && !offline ? finished : null;
   const aside = (
     charging
       ? [
           progress.minutesLeft !== null ? { label: "Time left", value: minutesText(progress.minutesLeft) } : headlineKwh !== null && percent !== null ? { label: "This charge", value: headlineKwh } : null,
           progress.kmAdded !== null ? { label: "Range added", value: `+${kmText(progress.kmAdded)}` } : null,
         ]
-      : []
+      : done
+        ? [{ label: "Last charge", value: done.when }]
+        : []
   ).filter((x): x is { label: string; value: string } => x !== null);
 
   const headline = charging
@@ -160,7 +164,18 @@ export function EvMobileCard({
       : (headlineKwh ?? "Charging")
     : offline
       ? "Offline"
-      : "Ready";
+      : done
+        ? done.completed
+          ? "Completed"
+          : (
+              <>
+                {Math.round(done.percent)}
+                <span className="ml-0.5 text-2xl font-normal text-muted-foreground">%</span>
+              </>
+            )
+        : "Ready";
+  // how full the bar is: the charge that runs (see above), else the last one's
+  const fill = charging ? percent : done ? done.percent : null;
 
   const showField = !on && !starting && !offline;
   const startDisabled = bad || starting || offline;
@@ -181,7 +196,7 @@ export function EvMobileCard({
       </Link>
 
       <div className="mt-4 flex items-end justify-between gap-4">
-        <p className={cn("text-6xl font-light leading-none tracking-tight tabular-nums", charging ? "text-foreground" : "text-muted-foreground")}>{headline}</p>
+        <p className={cn("font-light leading-none tracking-tight tabular-nums", done?.completed ? "text-5xl" : "text-6xl", charging ? "text-foreground" : "text-muted-foreground")}>{headline}</p>
         {aside.length > 0 && (
           <div className="flex shrink-0 gap-4 pb-1 text-left">
             {aside.map((a) => (
@@ -195,23 +210,19 @@ export function EvMobileCard({
       </div>
 
       {/* the progress: full of the amount booked (or the car's battery); running without an end when neither is known; empty when no charge runs */}
-      <div className="mt-4 h-7 overflow-hidden rounded-full bg-foreground/[0.08] p-1" role="progressbar" aria-label="Charge progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={percent !== null ? Math.round(percent) : undefined}>
+      <div className="mt-4 h-7 overflow-hidden rounded-full bg-foreground/[0.08] p-1" role="progressbar" aria-label="Charge progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fill !== null ? Math.round(fill) : undefined}>
         {charging && percent === null ? (
           <div className="h-full w-full origin-left rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 motion-safe:animate-car-charge" />
         ) : (
-          <div className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-[width] duration-700 ease-out" style={{ width: `${Math.max(charging ? 4 : 0, percent ?? 0)}%` }}>
+          <div className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-[width] duration-700 ease-out" style={{ width: `${Math.max(charging ? 4 : 0, fill ?? 0)}%` }}>
             {charging && <span aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle,rgba(255,255,255,0.55)_1px,transparent_1.5px)] bg-[length:9px_9px] opacity-60 motion-safe:animate-pulse" />}
           </div>
         )}
       </div>
 
-      {caption !== null && (
+      {showStats && (
         <>
-          <div className="mt-5 flex items-baseline justify-between gap-3">
-            <p className="text-sm font-semibold text-foreground">{caption}</p>
-            {when !== null && <span className="text-xs text-muted-foreground">{when}</span>}
-          </div>
-          <div className="mt-2.5 grid grid-cols-3 gap-2.5">
+          <div className="mt-5 grid grid-cols-3 gap-2.5">
             <Stat icon={Zap} label="Energy" value={energy ?? "—"} />
             <Stat icon={Clock} label="Duration" value={duration ?? "—"} />
             <Stat icon={IndianRupee} label="Cost" value={cost ?? "—"} />
