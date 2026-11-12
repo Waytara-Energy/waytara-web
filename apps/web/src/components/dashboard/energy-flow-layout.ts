@@ -140,3 +140,62 @@ export function curvePath(from: Point, to: Point, vertical: boolean): string {
   const [c1, c2] = curveControls(from, to, vertical);
   return `M ${f(from.x)} ${f(from.y)} C ${f(c1.x)} ${f(c1.y)}, ${f(c2.x)} ${f(c2.y)}, ${f(to.x)} ${f(to.y)}`;
 }
+
+// ---- The collapsed drawing (a phone, once the page has been scrolled): the same circles, smaller, in a tight block under the header.
+//
+// The hub sits in the middle of the first row with the two most important circles (solar to its left, the load to its right) and the rest are in a
+// row (or rows) of up to three below. The drawing is in the same units as the full one and starts at the top of it, so the two can be blended.
+
+export const COMPACT_NODE_R = 24;
+export const COMPACT_HUB_R = 30;
+const COMPACT_ROW1_DX = 125; // hub centre to the first row's side circles
+const COMPACT_LABEL = 19; // a circle's value line, and the gap above it
+const COMPACT_ROW_GAP = 10; // between a label and the next row's circles
+const COMPACT_COL_GAP = 130;
+const COMPACT_TOP = 8;
+
+/** Who gets the first row's two places beside the hub: the energy source and where it goes first; the rest follow in this order. */
+const COMPACT_RANK: Record<NodeKind, number> = { solar: 0, home: 1, grid: 2, battery: 3, ups: 4, generator: 5, ev: 6 };
+
+export function compactLayout<T>(items: T[], kindOf: (item: T) => NodeKind): Layout<T> {
+  const ordered = [...items].sort((a, b) => COMPACT_RANK[kindOf(a)] - COMPACT_RANK[kindOf(b)]);
+  const hub: Point = { x: HUB_X, y: COMPACT_TOP + COMPACT_HUB_R };
+  const row1 = ordered.slice(0, 2);
+  const rest = ordered.slice(2);
+  const nodes: LaidOutNode<T>[] = [];
+  const point = (center: Point, side: Side, fanSign: number): Point[] => {
+    if (side === "left" || side === "right") {
+      const sign = side === "left" ? -1 : 1;
+      return [
+        { x: center.x - sign * COMPACT_NODE_R, y: center.y },
+        { x: hub.x + sign * COMPACT_HUB_R, y: hub.y },
+      ];
+    }
+    return [
+      { x: center.x, y: center.y - COMPACT_NODE_R },
+      { x: hub.x + fanSign * COMPACT_HUB_R * 0.55, y: hub.y + Math.sqrt(COMPACT_HUB_R ** 2 - (COMPACT_HUB_R * 0.55) ** 2) },
+    ];
+  };
+  row1.forEach((item, i) => {
+    const side: Side = i === 0 ? "left" : "right";
+    const center: Point = { x: HUB_X + (i === 0 ? -1 : 1) * COMPACT_ROW1_DX, y: hub.y };
+    const [anchor, hubAnchor] = point(center, side, 0);
+    nodes.push({ item, side, center, anchor, hubAnchor });
+  });
+  // the first row's labels sit under its circles; the next row starts under them
+  const rowTop = hub.y + COMPACT_NODE_R + COMPACT_LABEL + COMPACT_ROW_GAP;
+  const pitch = COMPACT_NODE_R * 2 + COMPACT_LABEL + COMPACT_ROW_GAP;
+  let bottom = hub.y + Math.max(COMPACT_NODE_R, COMPACT_HUB_R) + COMPACT_LABEL;
+  for (let r = 0; r * MAX_PER_ROW < rest.length; r++) {
+    const row = rest.slice(r * MAX_PER_ROW, (r + 1) * MAX_PER_ROW);
+    const y = rowTop + COMPACT_NODE_R + r * pitch;
+    row.forEach((item, i) => {
+      const x = HUB_X + spread(row.length, i, COMPACT_COL_GAP);
+      const center: Point = { x, y };
+      const [anchor, hubAnchor] = point(center, "bottom", Math.sign(x - HUB_X));
+      nodes.push({ item, side: "bottom", center, anchor, hubAnchor });
+    });
+    bottom = y + COMPACT_NODE_R + COMPACT_LABEL;
+  }
+  return { width: VIEW_W, height: bottom + 4, hub, nodes };
+}

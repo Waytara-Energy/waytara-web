@@ -1,16 +1,10 @@
 "use client";
 
-import {
-  Fragment,
-  type ComponentProps,
-  type CSSProperties,
-  type ReactNode,
-} from "react";
+import type { ComponentProps, CSSProperties, ReactNode } from "react";
 import type { SolarCardsProps } from "./solar-live-status-cards";
 import { LiveEnergyFlow } from "./overview-live";
 import { EnergyTodayCards } from "./energy-today-cards";
 import { OverviewBackdrop } from "./overview-backdrop";
-import { FlowSnap } from "./flow-snap";
 import { splitCards, type OverviewCardId } from "@/lib/overview-prefs";
 import { cn } from "@/lib/utils";
 
@@ -44,22 +38,22 @@ export function OverviewBoard({
     "order-2 grid min-h-0 grid-cols-2 gap-3 lg:h-full lg:grid-cols-1 lg:[grid-template-rows:var(--rows)]";
   const style = { "--rows": rows } as CSSProperties;
   const { left, right } = splitCards(cards);
-  // the inverter's board (with the energy flow) snaps between the drawing and the cards on a phone
-  const Snap = flow ? FlowSnap : Fragment;
   return (
     <div
+      data-flow-board
       className={cn(
+        // on a phone the energy flow is fixed and the cards scroll up under it: the board is at least as long as the page must be to close the drawing up
+        // (--flow-room is the distance it takes, set by the drawing) and for the cards to then fill the screen below it
+        flow && "max-sm:min-h-[calc(var(--flow-room,0px)+100svh-clamp(3.5rem,4.5vw,4.25rem)-2.5rem)]",
         background &&
           "[&_[data-slot=card]]:border-white/15 [&_[data-slot=card]]:bg-card/60 [&_[data-slot=card]]:backdrop-blur-md [&_a.group]:border-white/15 [&_a.group]:bg-card/60 [&_a.group]:backdrop-blur-md",
       )}
     >
       {background && backdrop && <OverviewBackdrop css={background} />}
-      <Snap>
         <div className="grid gap-4 lg:h-[max(calc(100svh-9.5rem),30rem)] lg:grid-cols-[minmax(15rem,1fr)_minmax(0,42rem)_minmax(15rem,1fr)]">
           <div
-            className={cn(side, "lg:order-1", flow && "max-sm:snap-start")}
+            className={cn(side, "lg:order-1")}
             style={style}
-            data-snap={flow ? "cards" : undefined}
           >
             {solar && <EnergyTodayCards {...solar} cards={left} />}
           </div>
@@ -75,13 +69,9 @@ export function OverviewBoard({
             {center ? (
               <div className="w-full">{center}</div>
             ) : flow ? (
-              // on a phone it fades and lifts away as the page snaps down to the cards, and comes back the same way. It is drawn wider than the screen's
-              // content area (111% of the screen's width): the circles sit 7% in from the drawing's edges, so they stay on the screen and the
-              // drawing's empty margins are what run past it (the slide clips them).
-              <div data-snap="flow" className="w-full max-sm:w-[111vw] max-sm:max-w-none max-sm:shrink-0 max-sm:snap-start">
-                <div className="max-sm:[opacity:calc(1-var(--flow-away,0)*0.85)] max-sm:[translate:0_calc(var(--flow-away,0)*-1.25rem)]">
-                  <LiveEnergyFlow {...flow} fit />
-                </div>
+              // on a phone the drawing is fixed under the header, 111% of the screen's width, and closes up as the page scrolls (see EnergyFlowDiagram)
+              <div className="w-full">
+                <LiveEnergyFlow {...flow} fit stick />
               </div>
             ) : null}
           </div>
@@ -89,7 +79,6 @@ export function OverviewBoard({
             {solar && <EnergyTodayCards {...solar} cards={right} />}
           </div>
         </div>
-      </Snap>
     </div>
   );
 }
