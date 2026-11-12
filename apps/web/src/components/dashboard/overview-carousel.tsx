@@ -100,8 +100,7 @@ export function OverviewCarousel({ slides, initialIndex, background }: { slides:
   }
 
   return (
-    // (--overview-dots-room: how much room a control fixed to the bottom of the screen leaves for the dots under it)
-    <div className="relative" style={{ "--overview-dots-room": "3.75rem" } as React.CSSProperties}>
+    <div className="relative">
       {background && <OverviewBackdrop css={background} />}
       {/* the cloud sky, on the inverter's slide only (it fades as the slide changes), unless the person chose a background of their own */}
       {!background && <OverviewSky active={slides[index]?.sky ?? false} />}
@@ -134,8 +133,8 @@ export function OverviewCarousel({ slides, initialIndex, background }: { slides:
       </div>
 
       {/* Pinned to the foot of the window, in the middle (the sidebar overlays the page, so the window's middle is the page's middle), on the same
-          line as the framework's dev badge at the left. */}
-      <div className="pointer-events-none fixed bottom-[1.1875rem] left-1/2 z-30 flex max-w-[90vw] -translate-x-1/2 flex-col items-center gap-1.5 rounded-full bg-background/70 px-4 py-1.5 backdrop-blur-sm">
+          line as the framework's dev badge at the left. Not shown on a phone (a swipe changes the device there). */}
+      <div className="pointer-events-none fixed bottom-[1.1875rem] left-1/2 z-30 flex max-w-[90vw] -translate-x-1/2 flex-col items-center gap-1.5 rounded-full bg-background/70 px-4 py-1.5 backdrop-blur-sm max-sm:hidden">
         <span className="max-w-full truncate text-xs text-muted-foreground" aria-hidden="true">
           {slides[index]?.name}
         </span>
