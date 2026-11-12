@@ -88,7 +88,6 @@ export function EvMobileCard({
   headlineKwh,
   caption,
   when,
-  onDetails,
   energy,
   startedAt,
   durationText,
@@ -109,8 +108,6 @@ export function EvMobileCard({
   caption: string | null;
   /** When it was, at the end of the heading line ("Since 6:47 pm", "4 Nov, 6:47 pm"). */
   when: string | null;
-  /** Opens the finished charge's details (shown after the date and time). */
-  onDetails?: () => void;
   energy: string | null;
   /** When the charge that runs began (ISO), for its time so far; null when none runs. */
   startedAt: string | null;
@@ -170,11 +167,12 @@ export function EvMobileCard({
   const label = on ? (stopping ? "Stopping…" : "Stop charging") : starting ? "Starting…" : offline ? "Charger offline" : "Start charging";
 
   return (
-    <section aria-label="Charger" className="relative pt-2 sm:hidden">
-      <p className="text-center text-sm font-semibold text-foreground">{offline ? "Charger offline" : charging ? "Charging" : status}</p>
-
+    // At first the screen shows this section down to the source of the energy and nothing of what follows: it is at least as tall as the room above the fixed
+    // control (the screen less the header and the control with the room under it for the dots), and its content sits at the bottom, so any spare height is
+    // space above the car.
+    <section aria-label={`Charger: ${offline ? "offline" : charging ? "charging" : status}`} className="relative flex min-h-[calc(100svh-8rem-var(--overview-dots-room,0.75rem))] flex-col justify-end pt-2 sm:hidden">
       {/* the car, standing in a pool of light that is green while it charges */}
-      <Link href={`/dashboard/monitoring?device=${encodeURIComponent(chargerId)}#ev`} aria-label="Open the charger on Monitoring" className="relative mt-3 block outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <Link href={`/dashboard/monitoring?device=${encodeURIComponent(chargerId)}#ev`} aria-label="Open the charger on Monitoring" className="relative block outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <span aria-hidden="true" className={cn("absolute inset-x-2 bottom-0 h-10 rounded-full blur-2xl transition-colors duration-700", charging ? "bg-emerald-500/45 motion-safe:animate-pulse" : "bg-foreground/10")} />
         <Image src="/images/ev-car.webp" alt="" width={1200} height={416} sizes="(max-width: 640px) 92vw, 0px" className={cn("relative h-auto w-full transition-[filter] duration-700 dark:brightness-125 dark:contrast-110", !charging && "opacity-90")} />
         {/* the car's own reflection on the floor */}
@@ -210,14 +208,7 @@ export function EvMobileCard({
         <>
           <div className="mt-5 flex items-baseline justify-between gap-3">
             <p className="text-sm font-semibold text-foreground">{caption}</p>
-            {when !== null &&
-              (onDetails ? (
-                <button type="button" onClick={onDetails} className="rounded-md text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
-                  {when} · Details
-                </button>
-              ) : (
-                <span className="text-xs text-muted-foreground">{when}</span>
-              ))}
+            {when !== null && <span className="text-xs text-muted-foreground">{when}</span>}
           </div>
           <div className="mt-2.5 grid grid-cols-3 gap-2.5">
             <Stat icon={Zap} label="Energy" value={energy ?? "—"} />

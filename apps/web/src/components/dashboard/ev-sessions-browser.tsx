@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useSearchParams } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -27,13 +28,15 @@ function dayLabel(day: string, today: string): string {
 /** The charges of a period as a list grouped by day (newest first, each day with its count and energy) beside the one that is open, shown on the
  *  page itself, like Support's list and conversation. Pressing a charge opens it; on a narrow screen the list and the charge take turns. */
 export function EvSessionsBrowser({ rows, periodName, today, load = getEvSessionDetail }: { rows: EvRow[]; periodName: string; today: string; /** How a charge is read (the dashboard's server action unless a page brings its own). */ load?: EvSessionLoader }) {
-  const [selected, setSelected] = React.useState<string | null>(null);
-  const [narrowOpen, setNarrowOpen] = React.useState(false);
+  // a link from the Overview names the charge to open (?session=): it opens even when it is older than the period the list shows
+  const linked = useSearchParams().get("session");
+  const [selected, setSelected] = React.useState<string | null>(linked);
+  const [narrowOpen, setNarrowOpen] = React.useState(linked !== null);
   const [more, setMore] = React.useState<{ key: string; n: number } | null>(null);
   const key = `${rows.length}|${rows[0]?.id ?? ""}`;
   const shown = more && more.key === key ? more.n : PAGE;
   // the open charge: the one pressed while it is still in the list, else the newest
-  const activeId = rows.some((r) => r.id === selected) ? selected : (rows[0]?.id ?? null);
+  const activeId = selected !== null && (selected === linked || rows.some((r) => r.id === selected)) ? selected : (rows[0]?.id ?? null);
 
   const days = React.useMemo(() => {
     const out: { day: string; rows: EvRow[]; kwh: number }[] = [];

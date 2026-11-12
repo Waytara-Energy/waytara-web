@@ -16,8 +16,6 @@ import type { EvHistory, EvHistorySession } from "@/lib/ev-history";
 import type { OpenCharge } from "@/lib/ev-overview";
 import { cn } from "@/lib/utils";
 import { EvPowerPanel } from "./ev-power-panel";
-import { EvSessionDialog, type EvSessionLoader } from "./ev-session-dialog";
-import { getEvSessionDetail } from "@/app/dashboard/ev-session-detail-action";
 import { EvCar } from "./ev-car";
 import { EvMobileCard } from "./ev-mobile-card";
 
@@ -221,7 +219,6 @@ export function EvOverviewBoard({
   history,
   car = null,
   tariff = 8,
-  loadSession = getEvSessionDetail,
 }: {
   chargerId: string;
   /** The charger answers through its unit, as the server saw it when the page loaded (null = no verdict yet); the live channel takes over. */
@@ -235,8 +232,6 @@ export function EvOverviewBoard({
   car?: CarProfile | null;
   /** The person's tariff per kWh, for the cost of a charge on a phone. */
   tariff?: number;
-  /** How a charge's detail is fetched (the dashboard's server action unless a page supplies its own). */
-  loadSession?: EvSessionLoader;
 }) {
   const u = useUnits();
   const n = useLiveNumbers([chargerId], EV_LIVE_KEYS, initial);
@@ -295,7 +290,8 @@ export function EvOverviewBoard({
   }
 
   const last = history.recent[0] ?? null;
-  const [openId, setOpenId] = React.useState<string | null>(null);
+  // a charge opens on its own page (Reports, the charger's tab, with that charge open), not in a popup
+  const openCharge = (id: string) => router.push(`/dashboard/reports?device=${encodeURIComponent(chargerId)}&session=${encodeURIComponent(id)}#ev`);
 
   return (
     <div className="grid gap-4 lg:h-[max(calc(100svh-9.5rem),30rem)] lg:grid-cols-12 lg:grid-rows-[minmax(0,11fr)_minmax(0,9fr)]">
@@ -311,9 +307,8 @@ export function EvOverviewBoard({
         headlineKwh={chargeKwh !== null ? kwh(chargeKwh, 2) : null}
         // the figures of the charge that runs, else of the last finished one
         caption={charging ? "This charge" : last ? "Last charge" : null}
-        // when it was: the start of the charge that runs, else the date and time of the last one (which opens its details)
+        // when it was: the start of the charge that runs, else the date and time of the last one
         when={charging ? (open?.startedAt ? `Since ${clock(open.startedAt)}` : null) : last ? `${dayMonth(last.startedAt)}, ${clock(last.startedAt)}` : null}
-        onDetails={!charging && last ? () => setOpenId(last.id) : undefined}
         energy={charging ? (chargeKwh !== null ? kwh(chargeKwh, 2) : null) : last ? kwh(last.kwh, 2) : null}
         startedAt={charging ? (open?.startedAt ?? null) : null}
         durationText={!charging && last ? span(last.durationS) : null}
@@ -354,9 +349,8 @@ export function EvOverviewBoard({
         />
       </section>
       <Statistic history={history} chargerId={chargerId} />
-      <LastCharge last={last} onOpen={setOpenId} chargerId={chargerId} />
-      <History sessions={history.recent} onOpen={setOpenId} chargerId={chargerId} />
-      <EvSessionDialog sessionId={openId} onClose={() => setOpenId(null)} load={loadSession} />
+      <LastCharge last={last} onOpen={openCharge} chargerId={chargerId} />
+      <History sessions={history.recent} onOpen={openCharge} chargerId={chargerId} />
       {/* room for the control that is fixed to the bottom of the screen on a phone */}
       <div aria-hidden="true" className="h-24 max-lg:order-last sm:hidden" />
     </div>
