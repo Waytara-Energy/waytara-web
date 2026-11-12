@@ -1,3 +1,4 @@
+import type { Viewport } from "next";
 import { Zap } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { deviceDisplayId, getSelectedSite } from "@/lib/selected-site";
@@ -19,6 +20,16 @@ import { OverviewCarousel, type OverviewSlide } from "@/components/dashboard/ove
 import { OverviewSky } from "@/components/dashboard/overview-sky";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { backgroundCss, initialSlideIndex, parseOverviewPrefs } from "@/lib/overview-prefs";
+
+// The browser's bar colour on the Overview, from the first byte: the cloud sky's top colour (the script in OverviewSky then keeps it in step with the theme
+// being shown and with the scroll). Without it the HTML starts with the plain page colours and an iPhone, which reads them at load, paints its status bar
+// white (or near black) above the sky.
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#5f9fd6" },
+    { media: "(prefers-color-scheme: dark)", color: "#070d1f" },
+  ],
+};
 
 // Site-centric redesign: Overview is now the selected *site*'s overview —
 // a customer can have several sites, and each site can have several
