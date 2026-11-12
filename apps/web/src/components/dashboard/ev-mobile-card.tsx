@@ -87,6 +87,8 @@ export function EvMobileCard({
   progress,
   headlineKwh,
   caption,
+  when,
+  onDetails,
   energy,
   startedAt,
   durationText,
@@ -105,6 +107,10 @@ export function EvMobileCard({
   headlineKwh: string | null;
   /** Which charge the figures below are: "This charge" while one runs, else "Last charge" (null = none to show). */
   caption: string | null;
+  /** When it was, at the end of the heading line ("Since 6:47 pm", "4 Nov, 6:47 pm"). */
+  when: string | null;
+  /** Opens the finished charge's details (shown after the date and time). */
+  onDetails?: () => void;
   energy: string | null;
   /** When the charge that runs began (ISO), for its time so far; null when none runs. */
   startedAt: string | null;
@@ -202,7 +208,17 @@ export function EvMobileCard({
 
       {caption !== null && (
         <>
-          <p className="mt-5 text-sm font-semibold text-foreground">{caption}</p>
+          <div className="mt-5 flex items-baseline justify-between gap-3">
+            <p className="text-sm font-semibold text-foreground">{caption}</p>
+            {when !== null &&
+              (onDetails ? (
+                <button type="button" onClick={onDetails} className="rounded-md text-xs text-muted-foreground outline-none transition-colors hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
+                  {when} · Details
+                </button>
+              ) : (
+                <span className="text-xs text-muted-foreground">{when}</span>
+              ))}
+          </div>
           <div className="mt-2.5 grid grid-cols-3 gap-2.5">
             <Stat icon={Zap} label="Energy" value={energy ?? "—"} />
             <Stat icon={Clock} label="Duration" value={duration ?? "—"} />

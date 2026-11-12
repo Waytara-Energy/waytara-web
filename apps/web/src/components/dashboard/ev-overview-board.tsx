@@ -136,7 +136,7 @@ function Statistic({ history, chargerId }: { history: EvHistory; chargerId: stri
 function LastCharge({ last, onOpen, chargerId }: { last: EvHistorySession | null; onOpen: (id: string) => void; chargerId: string }) {
   const u = useUnits();
   return (
-    <Card className="relative flex min-h-0 flex-col gap-3 p-4 transition-colors hover:border-primary/40 lg:col-span-7">
+    <Card className="relative flex min-h-0 flex-col gap-3 p-4 transition-colors hover:border-primary/40 max-sm:hidden lg:col-span-7">
       {/* the whole card is a link to the charger's tab on Monitoring; what must stay pressable on its own sits above it */}
       <Link href={`/dashboard/monitoring?device=${encodeURIComponent(chargerId)}#ev`} aria-label="Open the charger on Monitoring" className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring" />
       <Title
@@ -311,6 +311,9 @@ export function EvOverviewBoard({
         headlineKwh={chargeKwh !== null ? kwh(chargeKwh, 2) : null}
         // the figures of the charge that runs, else of the last finished one
         caption={charging ? "This charge" : last ? "Last charge" : null}
+        // when it was: the start of the charge that runs, else the date and time of the last one (which opens its details)
+        when={charging ? (open?.startedAt ? `Since ${clock(open.startedAt)}` : null) : last ? `${dayMonth(last.startedAt)}, ${clock(last.startedAt)}` : null}
+        onDetails={!charging && last ? () => setOpenId(last.id) : undefined}
         energy={charging ? (chargeKwh !== null ? kwh(chargeKwh, 2) : null) : last ? kwh(last.kwh, 2) : null}
         startedAt={charging ? (open?.startedAt ?? null) : null}
         durationText={!charging && last ? span(last.durationS) : null}
@@ -355,7 +358,7 @@ export function EvOverviewBoard({
       <History sessions={history.recent} onOpen={setOpenId} chargerId={chargerId} />
       <EvSessionDialog sessionId={openId} onClose={() => setOpenId(null)} load={loadSession} />
       {/* room for the control that is fixed to the bottom of the screen on a phone */}
-      <div aria-hidden="true" className="h-24 sm:hidden" />
+      <div aria-hidden="true" className="h-24 max-lg:order-last sm:hidden" />
     </div>
   );
 }
