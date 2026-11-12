@@ -9,8 +9,10 @@ import type { IconShape } from "./flow-icon-shapes";
 //    runs through them the way the energy goes; the icon's lines are thicker the more power moves. Pointing at a circle (or pressing it on a phone)
 //    SCATTERS the grains about inside the ring, and when the pointer leaves they fly back into the icon. They also fly in when the drawing first appears;
 //  - the BEAMS on the connecting lines, the way a phone shows that it is charging: a line of light with a glow round it, brighter towards where the energy
-//    is going, with surges of light running along it, small sparks streaming beside it and drawing in to it as they arrive, and a flare where it pours
-//    into the circle. All of it is wider, brighter and faster with more power.
+//    is going, and FLOW LINES running along it (fine streaks of light of different lengths, a few thicker ones among them, each at its own speed, close
+//    beside one another), small sparks streaming beside them and drawing in as they arrive, and a flare where the beam pours into the circle.
+//    The POWER is read from the line itself: a thicker beam, more and faster flow lines and more sparks mean more power; a thin, slow line with a few
+//    sparks means little.
 // The rings themselves are the diagram's (a ball of light each). Nothing moves for visitors who asked for less motion, or while the unit is offline: then the
 // icons are drawn once, still.
 
@@ -145,10 +147,33 @@ interface Spark {
   size: number;
   seed: number;
 }
+/** One flow line: a streak of light that runs along the beam. */
+interface Streak {
+  /** Where its head is along the line (it starts before 0 and leaves past 1, so it slides in and out). */
+  head: number;
+  /** Its length, as a share of the line. */
+  len: number;
+  speed: number;
+  /** How far to the side of the beam's middle it runs (-1 to 1). */
+  off: number;
+  /** 0 to 1: how thick it is (most are fine, a few are thick). */
+  weight: number;
+}
 interface Beam {
   phase: number;
   sparks: Spark[];
+  streaks: Streak[];
 }
+const newStreak = (anywhere: boolean): Streak => {
+  const len = 0.16 + Math.random() * 0.34;
+  return {
+    head: anywhere ? Math.random() * (1 + len) : 0,
+    len,
+    speed: 0.55 + Math.random() * 0.9,
+    off: (Math.random() * 2 - 1) * Math.random(),
+    weight: Math.pow(Math.random(), 2.2),
+  };
+};
 const newSpark = (anywhere: boolean): Spark => ({
   t: anywhere ? Math.random() : Math.random() * 0.06,
   speed: 0.35 + Math.random() * 0.75,
@@ -290,8 +315,12 @@ export function EnergyFlowCanvas({ scene, className }: { scene: FlowCanvasScene;
           };
           const L = line.level;
           let beam = beams.get(line.id);
-          if (!beam) beams.set(line.id, (beam = { phase: Math.random(), sparks: [] }));
-          const want = 9 + Math.round(20 * L);
+          if (!beam) beams.set(line.id, (beam = { phase: Math.random(), sparks: [], streaks: [] }));
+          // more power: more sparks and more flow lines
+          const want = 6 + Math.round(24 * L);
+          const lanes = 3 + Math.round(7 * L);
+          while (beam.streaks.length < lanes) beam.streaks.push(newStreak(true));
+          beam.streaks.length = lanes;
           while (beam.sparks.length < want) beam.sparks.push(newSpark(true));
           beam.sparks.length = want;
           beam.phase = (beam.phase + dt * (0.42 + 0.7 * L)) % 1;
@@ -299,7 +328,7 @@ export function EnergyFlowCanvas({ scene, className }: { scene: FlowCanvasScene;
           const path = new Path2D();
           path.moveTo(from.x, from.y);
           path.bezierCurveTo(c1.x, c1.y, c2.x, c2.y, to.x, to.y);
-          const w = 1 + 1.1 * L;
+          const w = 0.7 + 1.7 * L;
           const breathe = 0.86 + 0.14 * Math.sin(clock * 3.1 + beam.phase * 6.283);
           // light adds up on the dark theme (so the middle of the beam burns white); on the light theme it is laid on as colour
           ctx.globalCompositeOperation = s.dark ? "lighter" : "source-over";
@@ -328,38 +357,44 @@ export function EnergyFlowCanvas({ scene, className }: { scene: FlowCanvasScene;
           ctx.globalAlpha = (s.dark ? 0.9 : 0.7) * breathe;
           ctx.stroke(path);
 
-          // the surges: stretches of brighter light that run along the beam, each fading out behind its head
-          const surges = 2 + Math.round(2 * L);
-          const SEG = 9;
-          for (let k = 0; k < surges; k++) {
-            const head = (beam.phase + k / surges) % 1;
-            const edge = smooth(0, 0.12, head) * (1 - smooth(0.92, 1, head));
+          // the flow lines: fine streaks (and a few thicker ones) running along the beam, each at its own speed and a little to one side of the middle,
+          // fading in from its tail to its head
+          const SEG = 8;
+          const reach = 0.9 + 2.3 * L;
+          for (const st of beam.streaks) {
+            st.head += dt * st.speed * (0.45 + 1.15 * L);
+            if (st.head - st.len >= 1) Object.assign(st, newStreak(false));
+            const side = st.off * reach;
+            const width = (0.32 + 0.95 * st.weight) * (0.75 + 0.6 * L);
+            // the ones in the middle of the beam are white-hot on the dark theme
+            const hot = s.dark && Math.abs(st.off) < 0.3;
+            ctx.strokeStyle = hot ? "#ffffff" : line.color;
+            ctx.lineWidth = width;
             for (let j = 0; j < SEG; j++) {
-              const t1 = head - 0.22 * (1 - j / SEG);
-              const t2 = head - 0.22 * (1 - (j + 1) / SEG);
-              if (t2 <= 0) continue;
-              const a = at(Math.max(0, t1));
-              const b = at(t2);
+              const t1 = st.head - st.len * (1 - j / SEG);
+              const t2 = st.head - st.len * (1 - (j + 1) / SEG);
+              if (t2 <= 0 || t1 >= 1) continue;
+              const ta = Math.max(0, t1);
+              const tb = Math.min(1, t2);
+              const a = at(ta);
+              const b = at(tb);
+              const na = across(ta);
+              const nb = across(tb);
+              // it draws in to the middle as it reaches the circle
+              const sa = side * (1 - smooth(0.8, 1, ta));
+              const sb = side * (1 - smooth(0.8, 1, tb));
               const f = (j + 1) / SEG;
-              ctx.strokeStyle = line.color;
-              ctx.globalAlpha = edge * f * f * (s.dark ? 0.7 : 0.95);
-              ctx.lineWidth = w * (1.3 + 1.5 * f);
+              ctx.globalAlpha = f * f * (s.dark ? 0.9 : 0.85) * (0.55 + 0.45 * st.weight) * (1 - smooth(0.9, 1, tb));
               ctx.beginPath();
-              ctx.moveTo(a.x, a.y);
-              ctx.lineTo(b.x, b.y);
+              ctx.moveTo(a.x + na.x * sa, a.y + na.y * sa);
+              ctx.lineTo(b.x + nb.x * sb, b.y + nb.y * sb);
               ctx.stroke();
-              if (s.dark) {
-                ctx.strokeStyle = "#ffffff";
-                ctx.globalAlpha = edge * f * f * 0.9;
-                ctx.lineWidth = w * (0.5 + 0.7 * f);
-                ctx.stroke();
-              }
             }
           }
 
           // the sparks: small grains that stream beside the beam and draw in to it as they arrive
           for (const sp of beam.sparks) {
-            sp.t += dt * sp.speed * (0.6 + 0.9 * L);
+            sp.t += dt * sp.speed * (0.45 + 1.1 * L);
             if (sp.t >= 1) Object.assign(sp, newSpark(false));
             const p = at(sp.t);
             const n = across(sp.t);
