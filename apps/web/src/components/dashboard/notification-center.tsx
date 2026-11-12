@@ -10,7 +10,6 @@ import { Spinner } from "@/components/ui/spinner";
 import { acknowledgeAlert, acknowledgeAllAlerts } from "@/app/dashboard/actions";
 import { alertTitleAndBody, applyFilter, faultItems, filterCounts, NOTIFICATION_FILTERS, unreadTotal, type NotificationFilter } from "@/lib/notification-items";
 import { cn } from "@/lib/utils";
-import { useIsMobile } from "@/hooks/use-mobile";
 import { useDeviceFaultCodes } from "./use-device-faults";
 import type { AlertRow } from "./recent-alerts";
 
@@ -108,7 +107,6 @@ export function NotificationCenter({
   const [now, setNow] = React.useState(() => Date.now());
   const [markingAll, startMarkAll] = React.useTransition();
   const filterStr = `device_id=in.(${deviceIds.join(",")})`;
-  const isMobile = useIsMobile();
 
   useRealtimeTable<AlertRow>(
     "alerts",
@@ -187,14 +185,13 @@ export function NotificationCenter({
               aria-label="Notifications"
               onAnimationEnd={() => setPhase((p) => (p === "closing" ? "closed" : p))}
               className={cn(
-                // On a phone: about three quarters of the screen, black (the `dark` class gives the contents their dark colours).
+                // On a phone: about three quarters of the screen, in the theme's colours.
                 "fixed inset-y-0 right-0 z-[61] flex w-full max-w-sm flex-col text-foreground max-md:w-3/4 max-md:min-w-64",
-                isMobile && "dark",
                 phase === "open" ? "[animation:panel-in-right_350ms_cubic-bezier(0.32,0.72,0,1)_both]" : "[animation:panel-out-right_250ms_cubic-bezier(0.32,0.72,0,1)_both]"
               )}
             >
-              {/* Above the page: a solid background that fades out at its left edge (black on a phone), contents kept clear of the fade. */}
-              <div aria-hidden className={cn("pointer-events-none absolute inset-0 -z-10 [mask-image:linear-gradient(to_left,#000_calc(100%-1rem),transparent)]", isMobile ? "bg-black" : "bg-background")} />
+              {/* Above the page: a solid background that fades out at its left edge, contents kept clear of the fade. */}
+              <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-background [mask-image:linear-gradient(to_left,#000_calc(100%-1rem),transparent)]" />
               <div className="flex items-center justify-between gap-2 py-3 pl-6 pr-4">
                 <h2 className="text-sm font-semibold">Notifications</h2>
                 <Button type="button" variant="ghost" size="icon" className="size-8" onClick={close} aria-label="Close notifications">

@@ -26,9 +26,14 @@ export interface SidebarControlDevice {
 export const DEVICE_PAGES = ["/dashboard/devices", "/dashboard/ev-sessions", "/dashboard/maintenance", "/dashboard/monitoring", "/dashboard/performance", "/dashboard/reports"];
 export const isDevicePage = (pathname: string) => DEVICE_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
-const DOT: Record<ConnectionStatus, string> = { online: "bg-emerald-500", connection_lost: "bg-amber-500", offline: "bg-red-500" };
-const TONE: Record<Exclude<ConnectionStatus, "online">, string> = { connection_lost: "text-amber-500", offline: "text-red-500" };
-const STATE_TEXT: Record<ConnectionStatus, string> = { online: "Online", connection_lost: CONNECTION_LABEL.connection_lost, offline: CONNECTION_LABEL.offline };
+/** The dot says everything about the device's state, in colour only: green (reporting; for a charger also "Available"), amber (connection lost), red (offline), and
+ *  blue while a charger is in use (charging). */
+type Dot = ConnectionStatus | "charging";
+const DOT: Record<Dot, string> = { online: "bg-emerald-500 shadow-[0_0_6px_rgba(16,185,129,0.7)]", connection_lost: "bg-amber-500", offline: "bg-red-500", charging: "bg-blue-500 shadow-[0_0_6px_rgba(59,130,246,0.7)]" };
+const DOT_TEXT: Record<ConnectionStatus, string> = { online: "Online", connection_lost: CONNECTION_LABEL.connection_lost, offline: CONNECTION_LABEL.offline };
+
+/** The Go live button is hidden for now; it comes back by turning this on (everything behind it, the sessions in DeviceLiveHub included, is kept). */
+const SHOW_GO_LIVE = false;
 
 const timeOnly = (ms: number) => new Date(ms).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
 /** "10:42 am" today, "11 Nov, 10:42 am" on another day. */
@@ -38,12 +43,12 @@ function stamp(ms: number, now: number) {
 
 /**
  * One inverter or charger in the sidebar:
- *  - its name with a dot for its connection (green reporting, amber connection lost, red offline), which is all that is said about a device that is fine;
- *    pressing the name opens that device (on a page about one device it switches the page to it, from any other page it opens the device's page),
- *  - a word only when there is something to say: Connection lost or Offline, or a charger's connector status (Available, Charging ...),
+ *  - its name with a dot that says its state in colour alone, no words: green (reporting, and for a charger available), amber (connection lost), red
+ *    (offline), blue (a charger in use, charging); pressing the name opens that device (on a page about one device it switches the page to it, from any
+ *    other page it opens the device's page),
  *  - one line of value: how long ago an inverter last sent a reading ("5 mins ago"); a charger's latest charging session ("1.0 kWh . 4 Nov, 6:56 pm", or
  *    "Since 6:56 pm" while one is open),
- *  - at the right end of that line a small Go live button (it stays on while the sidebar is shut).
+ *  - at the right end of that line a small Go live button (hidden for now: SHOW_GO_LIVE).
  * Nothing here has a tooltip. What it shows follows the live channel; a charger's sessions come from the server and are read again whenever the page is.
  */
 export function SidebarDeviceRow({ device, selected, onNavigate }: { device: SidebarControlDevice; selected: boolean; onNavigate: () => void }) {
@@ -67,6 +72,9 @@ export function SidebarDeviceRow({ device, selected, onNavigate }: { device: Sid
   const code = useLatest(device.id, "connector_status");
   const connector = device.charger ? (code ? getConnectorStatusLabel(code.value, device.charger.connectorOptions).label : device.charger.status) : null;
   const session = device.charger?.lastSession ?? null;
+  // in use: the connector says Charging (live; the server's word until the first live message), or, when it says nothing, a session that is still open
+  const charging = status === "online" && device.kind === "ev" && (connector ? /^charging$/i.test(connector) : session !== null && session.endedAt === null);
+  const dot: Dot = charging ? "charging" : status;
   let value: string | null = null;
   if (mounted) {
     if (device.kind === "inverter") value = lastRead ? timeAgo(lastRead, clock) : "No reading yet";
@@ -95,17 +103,12 @@ export function SidebarDeviceRow({ device, selected, onNavigate }: { device: Sid
       <SidebarMenuButton isActive={selected} onClick={open} disabled={opening}>
         <Icon className="size-4 shrink-0 opacity-70" />
         <span className="truncate text-[clamp(12.5px,0.85vw,13.5px)]">{device.name}</span>
-        <span role="img" aria-label={STATE_TEXT[status]} className={cn("ml-auto size-2 shrink-0 rounded-full", DOT[status], status === "online" && "shadow-[0_0_6px_rgba(16,185,129,0.7)]")} />
+        <span role="img" aria-label={charging ? "Charging" : status === "online" && connector ? connector : DOT_TEXT[status]} className={cn("ml-auto size-2 shrink-0 rounded-full", DOT[dot])} />
       </SidebarMenuButton>
-      <div className="flex items-center gap-2 pb-2 pl-8 pr-2 pt-0.5">
-        <div className="min-w-0 flex-1">
-          {status !== "online" ? (
-            <p className={cn("text-[11.5px] font-medium leading-tight", TONE[status])}>{STATE_TEXT[status]}</p>
-          ) : (
-            connector && <p className="text-[11.5px] font-medium leading-tight text-sidebar-foreground/80">{connector}</p>
-          )}
-          <p className="min-h-[14px] text-[11px] leading-tight tabular-nums text-sidebar-foreground/60">{value}</p>
-        </div>
+      {/* pl-8 = the name's own start (the button's padding, its icon and the gap), so the lines sit exactly under the name */}
+      <div className="flex items-center gap-2 pb-2 pl-8 pr-2">
+        <p className="min-h-[14px] min-w-0 flex-1 text-[11px] leading-tight tabular-nums text-sidebar-foreground/60">{value}</p>
+        {SHOW_GO_LIVE && (
         <button
           type="button"
           onClick={() => (connecting || isLive ? control?.stop() : control?.start())}
@@ -118,6 +121,7 @@ export function SidebarDeviceRow({ device, selected, onNavigate }: { device: Sid
         >
           <Radio className="size-3.5" />
         </button>
+        )}
       </div>
     </SidebarMenuItem>
   );

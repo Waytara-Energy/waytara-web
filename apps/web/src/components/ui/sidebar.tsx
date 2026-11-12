@@ -188,9 +188,10 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          // On a phone: about half the screen, in the theme's sidebar colour (white by day, near black by night, the same as the desktop's); a tap
-          // outside closes it.
-          className="w-1/2 min-w-60 max-w-80 border-0 bg-sidebar p-0 text-sidebar-foreground sm:max-w-80 [&>button]:hidden"
+          // On a phone: about half the screen, in the theme's sidebar colour (white by day, near black by night, the same as the desktop's), fading
+          // out at its right edge instead of ending in a line (the sheet itself is clear and has no shadow; the fade is the layer inside, as in the
+          // desktop's overlay sidebar); a tap outside closes it.
+          className="w-1/2 min-w-60 max-w-80 border-0 !bg-transparent p-0 text-sidebar-foreground !shadow-none sm:max-w-80 [&>button]:hidden"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,
@@ -202,7 +203,10 @@ function Sidebar({
             <SheetTitle>Sidebar</SheetTitle>
             <SheetDescription>Displays the mobile sidebar.</SheetDescription>
           </SheetHeader>
-          <div className="flex h-full w-full flex-col">{children}</div>
+          <div className="relative isolate flex h-full w-full flex-col pr-3">
+            <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 bg-sidebar [mask-image:linear-gradient(to_right,#000_calc(100%-1rem),transparent)]" />
+            {children}
+          </div>
         </SheetContent>
       </Sheet>
     )
