@@ -19,13 +19,18 @@ const SKY_HEIGHT = "clamp(240px, 36vh, 360px)";
 const SKY_SCROLL_PX = 160;
 /** 0 = the sky is fully there, 1 = it has scrolled away. Set on the dashboard's content area as the page scrolls; everything below reads it. */
 const GONE = "--overview-sky-gone";
-const g = `var(${GONE},0)`;
+/** 1 = the slide being shown has the sky, 0 = it has not (a charger). Set on the content area when the slide changes and eased over 0.45 s (see CSS). */
+const SLIDE = "--overview-sky-slide";
+// How much of the sky is taken away, from either cause: scrolled off the top, or on a slide that has none (0 = all there, 1 = all gone).
+const g = `max(var(${GONE},0), 1 - var(${SLIDE},1))`;
 const there = `(1 - ${g})`;
 
 // Everything the sky changes outside itself, as plain CSS that is in the page from the first byte (so the first paint is already right: this matters on an
 // iPhone, where Safari colours the status bar from what it finds at the top of the page as it loads). The theme is a class on <html> that is set before
 // anything is painted, so the day / dusk colours are chosen here in CSS and not by a script.
 const CSS = `
+@property ${SLIDE}{syntax:"<number>";inherits:true;initial-value:1}
+${HOST}{transition:${SLIDE} .45s cubic-bezier(.4,0,.2,1)}
 :root{--overview-sky-top:${SKY_DAY.top};--overview-sky-bottom:${SKY_DAY.bottom}}
 .dark{--overview-sky-top:${SKY_DUSK.top};--overview-sky-bottom:${SKY_DUSK.bottom}}
 html:not([data-overview-scrolled]){background-color:var(--overview-sky-top)}
@@ -43,15 +48,39 @@ ${HOST} > header::after{opacity:${g}}
  * top edge and has that colour, <html> has it, and the theme-color tags are set to it); once the sky has scrolled away they are the page colour again.
  * The layer does not reach the bottom of the window, so the bottom toolbar keeps the page colour.
  *
+ * THE SKY BELONGS TO THE INVERTER'S SLIDE: `active` says whether the slide being shown has it. On any other device's slide (a charger) the page has the plain
+ * theme background: the sky fades away (and the header, the page and the browser's bar turn back to the page colour with it) as the slide changes, and
+ * fades in again on the way back; the cloud drawing is stopped once it has faded.
+ *
  * Shown only when the person has not chosen a background of their own for the Overview (Application Settings). It must be rendered where no ancestor
- * inside the content area is positioned (the page's own top level), so that "the top" is the top of the window.
+ * inside the content area is positioned, so that "the top" is the top of the window.
  */
-export function OverviewSky() {
+export function OverviewSky({ active = true }: { active?: boolean }) {
   const ref = React.useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
   const mounted = useHasMounted();
   const dark = mounted && resolvedTheme === "dark";
   const sky = dark ? SKY_DUSK : SKY_DAY;
+  // The cloud drawing runs only while the sky is there: it is stopped half a second after the sky has faded, and started again at once.
+  const [stopped, setStopped] = React.useState(false);
+  React.useEffect(() => {
+    if (active) return;
+    const t = window.setTimeout(() => setStopped(true), 600);
+    return () => {
+      window.clearTimeout(t);
+      setStopped(false);
+    };
+  }, [active]);
+  const drawing = active || !stopped;
+  // The slide being shown, as a number the CSS eases between.
+  React.useEffect(() => {
+    const host = ref.current?.closest<HTMLElement>(HOST);
+    if (!host) return;
+    host.style.setProperty(SLIDE, active ? "1" : "0");
+    return () => {
+      host.style.removeProperty(SLIDE);
+    };
+  }, [active]);
 
   // How far the sky is gone follows the scroll of the page's own scroll region, shared as a CSS variable (no React re-render per scroll event). The same
   // moment decides the browser's bar: the sky's top colour while the sky shows, the page colour once it has gone.
@@ -67,7 +96,7 @@ export function OverviewSky() {
       frame = 0;
       const gone = Math.min(1, Math.max(0, scroller.scrollTop / SKY_SCROLL_PX));
       host.style.setProperty(GONE, gone.toFixed(3));
-      const now = gone > 0.6;
+      const now = gone > 0.6 || !active;
       if (now === scrolled) return;
       scrolled = now;
       root.toggleAttribute("data-overview-scrolled", now);
@@ -87,7 +116,7 @@ export function OverviewSky() {
       // leaving the Overview: back to the page colour of the theme (the next page sets its own right after, but this keeps the bar from holding the sky's colour)
       tags.forEach((t) => t.setAttribute("content", dark ? PAGE.dark : PAGE.light));
     };
-  }, [dark]);
+  }, [dark, active]);
 
   return (
     <>
@@ -107,7 +136,7 @@ export function OverviewSky() {
           backgroundImage: "linear-gradient(to bottom, var(--overview-sky-top), var(--overview-sky-bottom))",
         }}
       >
-        <CloudShader className="absolute inset-0 h-full min-h-0" skyTopColor={sky.top} skyBottomColor={sky.bottom} cloudColor={sky.cloud} maxPixelRatio={1} />
+        {drawing && <CloudShader className="absolute inset-0 h-full min-h-0" skyTopColor={sky.top} skyBottomColor={sky.bottom} cloudColor={sky.cloud} maxPixelRatio={1} />}
       </div>
     </>
   );

@@ -3,6 +3,7 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { OverviewBackdrop } from "./overview-backdrop";
+import { OverviewSky } from "./overview-sky";
 
 export interface OverviewSlide {
   id: string;
@@ -10,6 +11,8 @@ export interface OverviewSlide {
   name: string;
   /** That device's Overview (the board). */
   content: React.ReactNode;
+  /** Whether this slide has the cloud sky behind it (the inverter's does; every other device has the plain theme background). */
+  sky: boolean;
 }
 
 /**
@@ -89,6 +92,8 @@ export function OverviewCarousel({ slides, initialIndex, background }: { slides:
     return (
       <>
         {background && <OverviewBackdrop css={background} />}
+        {/* the cloud sky, on the inverter's slide only, unless the person chose a background of their own */}
+        {!background && <OverviewSky active={slides[0]?.sky ?? false} />}
         {slides[0]?.content}
       </>
     );
@@ -97,6 +102,8 @@ export function OverviewCarousel({ slides, initialIndex, background }: { slides:
   return (
     <div className="relative">
       {background && <OverviewBackdrop css={background} />}
+      {/* the cloud sky, on the inverter's slide only (it fades as the slide changes), unless the person chose a background of their own */}
+      {!background && <OverviewSky active={slides[index]?.sky ?? false} />}
 
       <div
         ref={track}
