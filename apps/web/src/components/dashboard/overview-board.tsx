@@ -5,6 +5,7 @@ import type { SolarCardsProps } from "./solar-live-status-cards";
 import { LiveEnergyFlow } from "./overview-live";
 import { EnergyTodayCards } from "./energy-today-cards";
 import { OverviewBackdrop } from "./overview-backdrop";
+import { FlowGrow } from "./flow-grow";
 import { splitCards, type OverviewCardId } from "@/lib/overview-prefs";
 import { cn } from "@/lib/utils";
 
@@ -46,7 +47,7 @@ export function OverviewBoard({
         </div>
         {/* The whole middle is the drawing: as tall as the board allows, less its colour key. */}
         <div className="order-1 flex min-w-0 flex-col items-center justify-center gap-3 lg:order-2" style={{ "--flow-h": "calc(max(100svh - 9.5rem, 30rem) - 3.5rem)" } as CSSProperties}>
-          <div className="w-full">{center ?? (flow ? <LiveEnergyFlow {...flow} fit /> : null)}</div>
+          {center ? <div className="w-full">{center}</div> : flow ? <FlowGrow className="w-full"><LiveEnergyFlow {...flow} fit /></FlowGrow> : null}
         </div>
         <div className={`${side} lg:order-3`} style={style}>
           {solar && <EnergyTodayCards {...solar} cards={right} />}
