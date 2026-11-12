@@ -111,7 +111,6 @@ export function LiveEnergyFlow({
   powerSourceCategory,
   pvKeys = [],
   fit = false,
-  stick = false,
   sync,
 }: {
   inverterIds: string[];
@@ -122,8 +121,6 @@ export function LiveEnergyFlow({
   pvKeys?: string[];
   /** Size the drawing to the screen's height (the Overview board). */
   fit?: boolean;
-  /** On a phone the drawing stays fixed under the header and closes up as the page scrolls (see EnergyFlowDiagram). */
-  stick?: boolean;
   /** The device's connection, so the drawing can freeze while the unit is offline or has lost the device. */
   sync: DeviceSyncInit;
 }) {
@@ -139,7 +136,6 @@ export function LiveEnergyFlow({
     powerPackage,
     powerSourceCategory,
     fit,
-    stick,
     inverterId: inverterIds[0],
     frozen: status === "online" ? null : status,
     pvInputs: pvKeys.map((k) => ({ label: `PV${/^pv(\d+)_/.exec(k)?.[1] ?? ""}`, watts: n[k] ?? null })),

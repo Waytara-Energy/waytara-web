@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { COMPACT_HUB_R, COMPACT_NODE_R, compactLayout, curvePath, HUB_R, layoutFlow, NODE_R, SIDE_OF, VIEW_W, type NodeKind } from "./energy-flow-layout";
+import { curvePath, HUB_R, layoutFlow, NODE_R, SIDE_OF, VIEW_W, type NodeKind } from "./energy-flow-layout";
 
 const lay = (kinds: NodeKind[]) => layoutFlow(kinds, (k) => k);
 const dist = (a: { x: number; y: number }, b: { x: number; y: number }) => Math.hypot(a.x - b.x, a.y - b.y);
@@ -70,32 +70,5 @@ describe("curvePath", () => {
   it("leaves along the travel axis", () => {
     expect(curvePath({ x: 0, y: 0 }, { x: 100, y: 40 }, false)).toBe("M 0 0 C 50 0, 50 40, 100 40");
     expect(curvePath({ x: 0, y: 0 }, { x: 40, y: 100 }, true)).toBe("M 0 0 C 0 50, 40 50, 40 100");
-  });
-});
-
-describe("compactLayout", () => {
-  const kinds: NodeKind[][] = [["solar", "grid", "battery", "home"], ["solar", "grid", "battery", "home", "ev"], ["grid", "home"], ["solar"], ["solar", "grid", "battery", "home", "generator", "ups", "ev"]];
-  it("keeps every circle inside the drawing and clear of the others", () => {
-    for (const ks of kinds) {
-      const l = compactLayout(ks, (k) => k);
-      expect(l.nodes).toHaveLength(ks.length);
-      for (const n of l.nodes) {
-        expect(n.center.x - COMPACT_NODE_R).toBeGreaterThanOrEqual(0);
-        expect(n.center.x + COMPACT_NODE_R).toBeLessThanOrEqual(VIEW_W);
-        expect(n.center.y + COMPACT_NODE_R).toBeLessThanOrEqual(l.height);
-        expect(dist(n.center, l.hub)).toBeGreaterThan(COMPACT_NODE_R + COMPACT_HUB_R + 8);
-      }
-      for (let i = 0; i < l.nodes.length; i++) for (let j = i + 1; j < l.nodes.length; j++) expect(dist(l.nodes[i].center, l.nodes[j].center)).toBeGreaterThan(2 * COMPACT_NODE_R + 20);
-    }
-  });
-  it("puts the hub in a row of three with solar on its left and the load on its right, the rest under it", () => {
-    const l = compactLayout(["solar", "grid", "battery", "home"] as NodeKind[], (k) => k);
-    const at = (k: NodeKind) => l.nodes.find((n) => n.item === k)!;
-    expect(at("solar").center.y).toBe(l.hub.y);
-    expect(at("home").center.y).toBe(l.hub.y);
-    expect(at("solar").center.x).toBeLessThan(l.hub.x);
-    expect(at("home").center.x).toBeGreaterThan(l.hub.x);
-    expect(at("grid").center.y).toBeGreaterThan(l.hub.y);
-    expect(at("battery").center.y).toBeGreaterThan(l.hub.y);
   });
 });

@@ -34,51 +34,24 @@ export function OverviewBoard({
 }) {
   // Two tall cards per side.
   const rows = "1fr 1fr";
-  const side =
-    "order-2 grid min-h-0 grid-cols-2 gap-3 lg:h-full lg:grid-cols-1 lg:[grid-template-rows:var(--rows)]";
+  const side = "order-2 grid min-h-0 grid-cols-2 gap-3 lg:h-full lg:grid-cols-1 lg:[grid-template-rows:var(--rows)]";
   const style = { "--rows": rows } as CSSProperties;
   const { left, right } = splitCards(cards);
   return (
-    <div
-      data-flow-board
-      className={cn(
-        // on a phone the energy flow is fixed and the cards scroll up under it: the board is at least as long as the page must be to close the drawing up
-        // (--flow-room is the distance it takes, set by the drawing) and for the cards to then fill the screen below it
-        flow && "max-sm:min-h-[calc(var(--flow-room,0px)+100svh-clamp(3.5rem,4.5vw,4.25rem)-2.5rem)]",
-        background &&
-          "[&_[data-slot=card]]:border-white/15 [&_[data-slot=card]]:bg-card/60 [&_[data-slot=card]]:backdrop-blur-md [&_a.group]:border-white/15 [&_a.group]:bg-card/60 [&_a.group]:backdrop-blur-md",
-      )}
-    >
+    <div className={cn(background && "[&_[data-slot=card]]:border-white/15 [&_[data-slot=card]]:bg-card/60 [&_[data-slot=card]]:backdrop-blur-md [&_a.group]:border-white/15 [&_a.group]:bg-card/60 [&_a.group]:backdrop-blur-md")}>
       {background && backdrop && <OverviewBackdrop css={background} />}
-        <div className="grid gap-4 lg:h-[max(calc(100svh-9.5rem),30rem)] lg:grid-cols-[minmax(15rem,1fr)_minmax(0,42rem)_minmax(15rem,1fr)]">
-          <div
-            className={cn(side, "lg:order-1")}
-            style={style}
-          >
-            {solar && <EnergyTodayCards {...solar} cards={left} />}
-          </div>
-          {/* The whole middle is the drawing: as tall as the board allows, less its colour key. */}
-          <div
-            className="order-1 flex min-w-0 flex-col items-center justify-center gap-3 lg:order-2"
-            style={
-              {
-                "--flow-h": "calc(max(100svh - 9.5rem, 30rem) - 3.5rem)",
-              } as CSSProperties
-            }
-          >
-            {center ? (
-              <div className="w-full">{center}</div>
-            ) : flow ? (
-              // on a phone the drawing is fixed under the header, 111% of the screen's width, and closes up as the page scrolls (see EnergyFlowDiagram)
-              <div className="w-full">
-                <LiveEnergyFlow {...flow} fit stick />
-              </div>
-            ) : null}
-          </div>
-          <div className={`${side} lg:order-3`} style={style}>
-            {solar && <EnergyTodayCards {...solar} cards={right} />}
-          </div>
+      <div className="grid gap-4 lg:h-[max(calc(100svh-9.5rem),30rem)] lg:grid-cols-[minmax(15rem,1fr)_minmax(0,42rem)_minmax(15rem,1fr)]">
+        <div className={`${side} lg:order-1`} style={style}>
+          {solar && <EnergyTodayCards {...solar} cards={left} />}
         </div>
+        {/* The whole middle is the drawing: as tall as the board allows, less its colour key. */}
+        <div className="order-1 flex min-w-0 flex-col items-center justify-center gap-3 lg:order-2" style={{ "--flow-h": "calc(max(100svh - 9.5rem, 30rem) - 3.5rem)" } as CSSProperties}>
+          <div className="w-full">{center ?? (flow ? <LiveEnergyFlow {...flow} fit /> : null)}</div>
+        </div>
+        <div className={`${side} lg:order-3`} style={style}>
+          {solar && <EnergyTodayCards {...solar} cards={right} />}
+        </div>
+      </div>
     </div>
   );
 }

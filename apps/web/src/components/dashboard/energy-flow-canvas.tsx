@@ -21,8 +21,6 @@ export interface FlowCanvasNode {
   center: Point;
   /** The circle's radius, in the drawing's own units. */
   radius: number;
-  /** The radius its grains are built and move at, when the circle is drawn smaller than that (the collapsed drawing): they are scaled down with it, not rebuilt. */
-  fullRadius?: number;
   color: string;
   icon: IconShape;
   /** The icon's line thickness, in its own 24-unit drawing. */
@@ -41,8 +39,6 @@ export interface FlowCanvasLine {
   from: Point;
   to: Point;
   vertical: boolean;
-  /** The curve's control points, when they are not the ones `vertical` gives (the drawing while it closes up). */
-  controls?: [Point, Point];
   color: string;
   active: boolean;
   level: number;
@@ -236,9 +232,9 @@ export function EnergyFlowCanvas({ scene, className }: { scene: FlowCanvasScene;
 
     /** The grains of one circle, rebuilt when its icon, its line thickness or its size on screen changes; the grains keep where they are and re-form. */
     const grainsFor = (node: FlowCanvasNode, scale: number): Grains => {
-      const iconUnits = (node.fullRadius ?? node.radius) * 2 * node.iconScale;
-      // about one grain every 1.15 CSS pixels, between 18 and 44 across the icon (in steps of four, so a size that is changing does not rebuild them every frame)
-      const n = clamp(Math.round((iconUnits * scale) / 1.15 / 4) * 4, 16, 44);
+      const iconUnits = node.radius * 2 * node.iconScale;
+      // about one grain every 1.15 CSS pixels, between 18 and 44 across the icon
+      const n = clamp(Math.round((iconUnits * scale) / 1.15), 18, 44);
       const key = `${node.stroke}/${n}/${iconUnits.toFixed(1)}`;
       const old = grains.get(node.id);
       if (old && old.key === key && sameShape.get(node.id) === node.icon) return old;
@@ -276,7 +272,7 @@ export function EnergyFlowCanvas({ scene, className }: { scene: FlowCanvasScene;
         } else {
           // first appearance: scattered about the circle, then they gather
           const a = Math.random() * Math.PI * 2;
-          const r = Math.sqrt(Math.random()) * (node.fullRadius ?? node.radius) * 0.82;
+          const r = Math.sqrt(Math.random()) * node.radius * 0.82;
           g.x[i] = Math.cos(a) * r;
           g.y[i] = Math.sin(a) * r;
         }
@@ -307,7 +303,7 @@ export function EnergyFlowCanvas({ scene, className }: { scene: FlowCanvasScene;
             continue;
           }
           const { from, to } = line;
-          const [c1, c2] = line.controls ?? curveControls(from, to, line.vertical);
+          const [c1, c2] = curveControls(from, to, line.vertical);
           const at = (t: number): Point => ({ x: bez(from.x, c1.x, c2.x, to.x, t), y: bez(from.y, c1.y, c2.y, to.y, t) });
           // the direction across the line at t (to set the sparks beside it)
           const across = (t: number): Point => {
@@ -435,19 +431,16 @@ export function EnergyFlowCanvas({ scene, className }: { scene: FlowCanvasScene;
         seen.add(node.id);
         const g = grainsFor(node, scale);
         const c = iconCenter(node);
-        // the grains live at the circle's full size; a smaller circle draws them scaled down
-        const R = node.fullRadius ?? node.radius;
-        const k = node.radius / R;
         // pointing at the circle (or pressing it) scatters its grains; leaving lets them go back
         const hovered = !still && pointer.inside && Math.hypot(px - node.center.x, py - node.center.y) < node.radius * 1.05;
         if (hovered && !g.scattered) {
           // the icon bursts: every grain is thrown its own way, a little more away from the pointer than towards it
           for (let i = 0; i < g.count; i++) {
             const a = Math.random() * Math.PI * 2;
-            const ax = c.x + g.x[i] * k - px;
-            const ay = c.y + g.y[i] * k - py;
+            const ax = c.x + g.x[i] - px;
+            const ay = c.y + g.y[i] - py;
             const d = Math.hypot(ax, ay) || 1;
-            const push = R * (0.8 + 2.4 * Math.random());
+            const push = node.radius * (0.8 + 2.4 * Math.random());
             g.vx[i] += Math.cos(a) * push + (ax / d) * push * 0.35;
             g.vy[i] += Math.sin(a) * push + (ay / d) * push * 0.35;
           }
@@ -455,7 +448,7 @@ export function EnergyFlowCanvas({ scene, className }: { scene: FlowCanvasScene;
         if (!hovered && g.scattered) g.releasedAt = clock;
         g.scattered = hovered;
 
-        const keepIn = R * 0.84;
+        const keepIn = node.radius * 0.84;
         const offX = c.x - node.center.x;
         const offY = c.y - node.center.y;
         // the sheen: a band of light that runs through the icon towards the line (energy leaving) or in from it (energy arriving)
@@ -466,7 +459,7 @@ export function EnergyFlowCanvas({ scene, className }: { scene: FlowCanvasScene;
           sx = ((node.port.x - node.center.x) / d) * (node.dir === "in" ? 1 : -1);
           sy = ((node.port.y - node.center.y) / d) * (node.dir === "in" ? 1 : -1);
         }
-        const half = R * node.iconScale;
+        const half = node.radius * node.iconScale;
         const sheenAt = node.dir === "none" || still ? 9 : ((clock * (0.35 + 0.5 * node.level)) % 1) * 3.2 - 1.6;
 
         ctx.fillStyle = node.color;
@@ -476,8 +469,8 @@ export function EnergyFlowCanvas({ scene, className }: { scene: FlowCanvasScene;
             if (g.scattered) {
               // adrift inside the ring: a slow swirl, kept in by the ring
               const w = g.seed[i] * 6.283;
-              g.vx[i] += Math.cos(clock * 0.9 + w + g.y[i] * 0.08) * R * 0.9 * dt;
-              g.vy[i] += Math.sin(clock * 0.7 + w * 1.7 + g.x[i] * 0.08) * R * 0.9 * dt;
+              g.vx[i] += Math.cos(clock * 0.9 + w + g.y[i] * 0.08) * node.radius * 0.9 * dt;
+              g.vy[i] += Math.sin(clock * 0.7 + w * 1.7 + g.x[i] * 0.08) * node.radius * 0.9 * dt;
               const drag = Math.exp(-dt * 1.5);
               g.vx[i] *= drag;
               g.vy[i] *= drag;
@@ -516,9 +509,9 @@ export function EnergyFlowCanvas({ scene, className }: { scene: FlowCanvasScene;
           const along = (g.tx[i] * sx + g.ty[i] * sy) / half;
           const lit = g.scattered ? 0 : Math.exp(-((along - sheenAt) * (along - sheenAt)) / 0.16);
           const twinkle = still ? 1 : 0.82 + 0.18 * Math.sin(clock * (2 + g.seed[i] * 5) + g.seed[i] * 50);
-          const size = base * k * (0.7 + 0.3 * g.cover[i]) * (1 + 0.28 * lit);
+          const size = base * (0.7 + 0.3 * g.cover[i]) * (1 + 0.28 * lit);
           ctx.globalAlpha = clamp((0.62 + 0.38 * g.cover[i]) * twinkle * (node.dir === "none" ? 0.85 : 1) + 0.25 * lit, 0, 1);
-          ctx.fillRect(c.x + g.x[i] * k - size / 2, c.y + g.y[i] * k - size / 2, size, size);
+          ctx.fillRect(c.x + g.x[i] - size / 2, c.y + g.y[i] - size / 2, size, size);
         }
         if (g.scattered) settling = true;
       }

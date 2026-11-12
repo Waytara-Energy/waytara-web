@@ -9,7 +9,7 @@ import { useHasMounted } from "@/hooks/use-has-mounted";
 import { useUnits } from "@/components/units-provider";
 import type { UnitPrefs } from "@/lib/unit-prefs";
 import { badgeFor, homeSourceOf, type StateBadge } from "./energy-flow-badge";
-import { COMPACT_HUB_R, COMPACT_NODE_R, compactLayout, curveControls, HUB_R, layoutFlow, NODE_R, type NodeKind, type Point } from "./energy-flow-layout";
+import { curvePath, HUB_R, layoutFlow, NODE_R, type NodeKind } from "./energy-flow-layout";
 import { fmtKw, summarize } from "./energy-flow-summary";
 import { EnergyFlowCanvas, type FlowCanvasScene } from "./energy-flow-canvas";
 import { BATTERYCHARGING_SHAPE, CARFRONT_SHAPE, FUEL_SHAPE, HOME_SHAPE, SERVER_SHAPE, SHIELDCHECK_SHAPE, SUN_SHAPE, ZAP_SHAPE, type IconShape } from "./flow-icon-shapes";
@@ -211,7 +211,7 @@ function canDrawBalls(): boolean {
 }
 const subscribeNever = () => () => undefined;
 
-type Spot = { left: string; top: string; width: string; scale?: number };
+type Spot = { left: string; top: string; width: string };
 
 /** The frosted disc behind a circle, so its icon reads on whatever is behind (the page, the sky, a person's own picture), with a little light inside. */
 function FlowDisc({ spot, color, moving }: { spot: Spot; color: string; moving: boolean }) {
@@ -272,7 +272,6 @@ export function EnergyFlowDiagram({
   extras = [],
   fit = false,
   frozen = null,
-  stick = false,
 }: {
   solarW: number | null;
   /** positive = charging, negative = discharging */
@@ -300,9 +299,6 @@ export function EnergyFlowDiagram({
   /** (Not used: a click on a circle goes nowhere.) */
   inverterId?: string;
   chargerId?: string;
-  /** A phone's Overview: the drawing is fixed under the header and, as the page is scrolled, closes up (smaller circles in a tight block, three in a row and the
-   *  rest under them) while the cards scroll up beneath it. Without it the drawing is an ordinary block. */
-  stick?: boolean;
   /** The monitoring unit is offline / has lost the device: nothing flows, so the drawing stops (last readings, no moving
    *  dots, muted) and picks up again by itself when readings return. The page says why in a notice at the top (ConnectionNotice). */
   frozen?: "offline" | "connection_lost" | null;
@@ -324,20 +320,6 @@ export function EnergyFlowDiagram({
   }, []);
   // Assumed to work until the browser says it cannot.
   const ballsOk = React.useSyncExternalStore(subscribeNever, canDrawBalls, () => true);
-  // The slide this drawing is on is the one being shown (a carousel keeps one per device, and the fixed one of a slide that is swiped away must let its balls go).
-  const [slideOn, setSlideOn] = React.useState(true);
-  React.useEffect(() => {
-    const slide = rootRef.current?.closest<HTMLElement>('[aria-roledescription="slide"]');
-    if (!slide) return;
-    const read = () => setSlideOn(slide.getAttribute("aria-hidden") !== "true");
-    read();
-    const watcher = new MutationObserver(read);
-    watcher.observe(slide, { attributes: true, attributeFilter: ["aria-hidden"] });
-    return () => watcher.disconnect();
-  }, []);
-  // How far the drawing has closed up, 0 (open) to 1 (closed): the page's scroll over the distance the drawing's height shrinks by (so the cards, which scroll
-  // up by the same amount, stay right under it). Only on a phone, and only for `stick`.
-  const [collapse, setCollapse] = React.useState(0);
   const { resolvedTheme } = useTheme();
   // (Known only in the browser: the server-built page, and the first paint, take the light look.)
   const dark = live && resolvedTheme === "dark";
@@ -377,77 +359,6 @@ export function EnergyFlowDiagram({
     const to = e.item.dir === "out" ? e.anchor : e.hubAnchor;
     return { from, to, vertical: e.side === "top" || e.side === "bottom" };
   };
-
-  // ---- the drawing between its two forms: open (the cross, big circles) and closed (a tight block, small circles). `t` is how far it has closed, and
-  // moves the height in a straight line; `e` is the same, eased, and moves everything inside.
-  const compact = compactLayout(nodes, (n) => n.kind);
-  const compactOf = new Map(compact.nodes.map((c) => [c.item.id, c]));
-  const Hc = compact.height;
-  const t = stick ? collapse : 0;
-  const ease = t * t * (3 - 2 * t);
-  const mix = (a: number, b: number, k: number) => a + (b - a) * k;
-  const mixP = (a: Point, b: Point, k: number): Point => ({ x: mix(a.x, b.x, k), y: mix(a.y, b.y, k) });
-  const Hnow = mix(H, Hc, t);
-  const hubC = mixP(hub, compact.hub, ease);
-  const hubR = mix(HUB_R, COMPACT_HUB_R, ease);
-  const shown = layout.nodes.map((entry) => {
-    const c = stick ? compactOf.get(entry.item.id) : undefined;
-    const a = lineOf(entry);
-    const b = c ? { from: entry.item.dir === "out" ? c.hubAnchor : c.anchor, to: entry.item.dir === "out" ? c.anchor : c.hubAnchor, vertical: c.side === "bottom" } : a;
-    const [a1, a2] = curveControls(a.from, a.to, a.vertical);
-    const [b1, b2] = curveControls(b.from, b.to, b.vertical);
-    const k = c ? ease : 0;
-    const open = entry.item.id === "ev" && homeEntry ? { x: entry.center.x, y: entry.center.y - NODE_R } : entry.anchor;
-    return {
-      ...entry,
-      center: c ? mixP(entry.center, c.center, k) : entry.center,
-      r: mix(NODE_R, COMPACT_NODE_R, k),
-      port: mixP(open, c ? c.anchor : open, k),
-      line: { from: mixP(a.from, b.from, k), to: mixP(a.to, b.to, k), vertical: k < 0.5 ? a.vertical : b.vertical, controls: [mixP(a1, b1, k), mixP(a2, b2, k)] as [Point, Point] },
-    };
-  });
-  const linePath = (l: (typeof shown)[number]["line"]) => {
-    const f = (n: number) => Math.round(n * 100) / 100;
-    const [c1, c2] = l.controls;
-    return `M ${f(l.from.x)} ${f(l.from.y)} C ${f(c1.x)} ${f(c1.y)}, ${f(c2.x)} ${f(c2.y)}, ${f(l.to.x)} ${f(l.to.y)}`;
-  };
-  /** Where a circle's frosted disc, ring and hit area go: at the full radius (so the ball inside is never resized) and scaled down to the radius it has now. */
-  const spotOf = (center: Point, full: number, now: number, span = 1) => ({ left: pctX(center.x), top: pctY(center.y), width: `${((2 * full * span) / W) * 100}%`, scale: now / full });
-
-  // On a phone the drawing is fixed under the header; how far the page has scrolled, over the height the drawing loses, closes it. (The listener sits on the page's
-  // scroll region; `collapse` is set only when it changes, so a still page does not re-render.)
-  React.useEffect(() => {
-    if (!stick) return;
-    const scroller = rootRef.current?.closest<HTMLElement>('[data-slot="sidebar-inset"]')?.querySelector<HTMLElement>("main");
-    const board = rootRef.current?.closest<HTMLElement>("[data-flow-board]");
-    if (!scroller) return;
-    const phone = window.matchMedia("(max-width: 639px)");
-    let frame = 0;
-    const update = () => {
-      frame = 0;
-      // the drawing is 111% of the screen's width, and the height it loses is that width times (H - Hc) / W
-      const room = document.documentElement.clientWidth * 1.11 * ((H - Hc) / W);
-      // the board has to be long enough for the page to scroll that far (it sets a minimum height from this)
-      board?.style.setProperty("--flow-room", `${Math.round(room)}px`);
-      const next = phone.matches ? Math.min(1, Math.max(0, scroller.scrollTop / room)) : 0;
-      setCollapse((old) => (Math.abs(old - next) < 0.002 ? old : Math.round(next * 1000) / 1000));
-    };
-    const onScroll = () => {
-      if (!frame) frame = requestAnimationFrame(update);
-    };
-    update();
-    scroller.addEventListener("scroll", onScroll, { passive: true });
-    window.addEventListener("resize", onScroll);
-    phone.addEventListener("change", onScroll);
-    return () => {
-      board?.style.removeProperty("--flow-room");
-      scroller.removeEventListener("scroll", onScroll);
-      window.removeEventListener("resize", onScroll);
-      phone.removeEventListener("change", onScroll);
-      cancelAnimationFrame(frame);
-    };
-  }, [stick, H, Hc, W]);
-
   const levelOf = (watts: number) => Math.min(1, Math.sqrt(watts / FULL_BURN_W));
   // The colour of a circle's grains and drops, and how thick its icon's lines are: thin when idle, thicker the more power moves (in quarter steps).
   const paint = (tone: Tone) => (frozen ? COLOR.idle : dark ? LIT[tone] : INK[tone]);
@@ -460,209 +371,176 @@ export function EnergyFlowDiagram({
     frozen: !!frozen,
     dark,
     nodes: [
-      { id: "hub", center: hubC, radius: hubR, fullRadius: HUB_R, color: paint(busiest ? busiest.tone : "idle"), icon: SERVER_SHAPE, stroke: strokeOf(!!busiest, hubLevel), iconScale: 0.42, port: null, dir: busiest ? "in" : "none", level: hubLevel },
-      ...shown.map((n) => ({
-        id: n.item.id,
-        center: n.center,
-        radius: n.r,
-        fullRadius: NODE_R,
-        color: paint(flows(n.item) ? n.item.tone : "idle"),
-        icon: ICON_SHAPE[n.item.kind],
-        stroke: strokeOf(flows(n.item), levelOf(n.item.watts)),
+      { id: "hub", center: hub, radius: HUB_R, color: paint(busiest ? busiest.tone : "idle"), icon: SERVER_SHAPE, stroke: strokeOf(!!busiest, hubLevel), iconScale: 0.42, port: null, dir: busiest ? "in" : "none", level: hubLevel },
+      ...layout.nodes.map((e) => ({
+        id: e.item.id,
+        center: e.center,
+        radius: NODE_R,
+        color: paint(flows(e.item) ? e.item.tone : "idle"),
+        icon: ICON_SHAPE[e.item.kind],
+        stroke: strokeOf(flows(e.item), levelOf(e.item.watts)),
         iconScale: 0.5,
         // where its line meets it (the charger's line comes down from the load)
-        port: n.port,
-        dir: flows(n.item) ? n.item.dir : ("none" as const),
-        level: levelOf(n.item.watts),
+        port: e.item.id === "ev" && homeEntry ? { x: e.center.x, y: e.center.y - NODE_R } : e.anchor,
+        dir: flows(e.item) ? e.item.dir : ("none" as const),
+        level: levelOf(e.item.watts),
       })),
     ],
-    lines: shown.map((n) => ({ id: n.item.id, ...n.line, color: paint(n.item.tone), active: flows(n.item), level: levelOf(n.item.watts) })),
+    lines: layout.nodes.map((e) => ({ id: e.item.id, ...lineOf(e), color: paint(e.item.tone), active: flows(e.item), level: levelOf(e.item.watts) })),
   };
-  // The fixed layer's own look as the drawing closes: it takes the page's colour and blurs what scrolls up behind it (the cards), fading out at its lower edge.
-  const layerLook: React.CSSProperties = stick
-    ? {
-        background: `color-mix(in srgb, var(--background) ${Math.round(t * 82)}%, transparent)`,
-        ...(t > 0.01
-          ? {
-              backdropFilter: `blur(${(t * 14).toFixed(1)}px)`,
-              WebkitBackdropFilter: `blur(${(t * 14).toFixed(1)}px)`,
-              maskImage: "linear-gradient(to bottom, #000 calc(100% - 14px), transparent)",
-              WebkitMaskImage: "linear-gradient(to bottom, #000 calc(100% - 14px), transparent)",
-            }
-          : {}),
-      }
-    : {};
   return (
     <div className={cn("mx-auto w-full", !fit && "max-w-xl")} role="group" aria-label="Energy flow">
-      {stick && (
-        // On a phone the drawing itself is fixed under the header (below); this holds its place in the page, as tall as the open drawing, so the cards start under it
-        // and scroll up past it.
-        <div aria-hidden="true" className="sm:hidden" style={{ height: `calc(111vw * ${H / W})` }} />
-      )}
       <div
-        className={cn(
-          stick &&
-            "max-sm:fixed max-sm:inset-x-0 max-sm:top-[clamp(3.5rem,4.5vw,4.25rem)] max-sm:z-10 max-sm:h-[var(--flow-layer-h)] max-sm:overflow-hidden max-sm:pt-3 max-sm:transition-opacity max-sm:group-aria-hidden/slide:pointer-events-none max-sm:group-aria-hidden/slide:opacity-0"
-        )}
-        // (the layer: the page's top padding (0.75rem) under the header, the drawing as tall as it is now, and the gap the cards have under it (1rem))
-        style={stick ? ({ "--flow-layer-h": `calc(111vw * ${Hnow / W} + 1.75rem)`, ...layerLook } as React.CSSProperties) : undefined}
+        ref={rootRef}
+        className="@container relative mx-auto w-full"
+        style={{
+          aspectRatio: `${W} / ${H}`,
+          // fit: as large as the column allows, but never taller than the room the board leaves (--flow-h, set by the board; less
+          // room the drawing's neighbours take).
+          ...(fit ? { width: `min(100%, calc(var(--flow-h, calc(max(100svh - 14rem, 26rem) - 3.5rem)) * ${W / H}))` } : {}),
+        }}
       >
-        <div
-          ref={rootRef}
-          className={cn("@container relative", stick ? "max-sm:ml-[-5.5vw] max-sm:w-[111vw] sm:mx-auto sm:w-[min(100%,calc(var(--flow-h,calc(max(100svh-14rem,26rem)-3.5rem))*var(--flow-ratio)))]" : "mx-auto w-full")}
-          style={{
-            aspectRatio: `${W} / ${H}`,
-            ...(stick ? ({ "--flow-ratio": W / H } as React.CSSProperties) : {}),
-            // fit: as large as the column allows, but never taller than the room the board leaves (--flow-h, set by the board; less
-            // room the drawing's neighbours take).
-            ...(fit && !stick ? { width: `min(100%, calc(var(--flow-h, calc(max(100svh - 14rem, 26rem) - 3.5rem)) * ${W / H}))` } : {}),
-          }}
-        >
-          {/* Under everything: each circle's frosted disc, and its ring (the rim of a ball of light). */}
-          <FlowDisc spot={spotOf(hubC, HUB_R, hubR)} color={frozen ? COLOR.idle : COLOR[busiest ? busiest.tone : "idle"]} moving={!!busiest && !frozen} />
-          {shown.map((n) => (
-            <FlowDisc key={n.item.id} spot={spotOf(n.center, NODE_R, n.r)} color={frozen || !flows(n.item) ? COLOR.idle : COLOR[n.item.tone]} moving={flows(n.item) && !frozen} />
-          ))}
-          {ballsOk && live && onScreen && slideOn && (
-            <>
+        {/* Under everything: each circle's frosted disc, and its ring (the rim of a ball of light). */}
+        <FlowDisc spot={{ left: pctX(hub.x), top: pctY(hub.y), width: `${((2 * HUB_R) / W) * 100}%` }} color={frozen ? COLOR.idle : COLOR[busiest ? busiest.tone : "idle"]} moving={!!busiest && !frozen} />
+        {layout.nodes.map(({ item, center }) => (
+          <FlowDisc key={item.id} spot={{ left: pctX(center.x), top: pctY(center.y), width: `${((2 * NODE_R) / W) * 100}%` }} color={frozen || !flows(item) ? COLOR.idle : COLOR[item.tone]} moving={flows(item) && !frozen} />
+        ))}
+        {ballsOk && live && onScreen && (
+          <>
+            <FlowBall
+              hub
+              spot={{ left: pctX(hub.x), top: pctY(hub.y), width: `${((2 * HUB_R * BALL_SPAN) / W) * 100}%` }}
+              color={frozen ? COLOR.idle : COLOR[busiest ? busiest.tone : "idle"]}
+              level={hubLevel}
+              active={!!busiest}
+              frozen={!!frozen}
+              dark={dark}
+            />
+            {layout.nodes.map(({ item, center }) => (
               <FlowBall
-                hub
-                spot={spotOf(hubC, HUB_R, hubR, BALL_SPAN)}
-                color={frozen ? COLOR.idle : COLOR[busiest ? busiest.tone : "idle"]}
-                level={hubLevel}
-                active={!!busiest}
+                key={item.id}
+                spot={{ left: pctX(center.x), top: pctY(center.y), width: `${((2 * NODE_R * BALL_SPAN) / W) * 100}%` }}
+                color={frozen || !flows(item) ? COLOR.idle : COLOR[item.tone]}
+                level={levelOf(item.watts)}
+                active={flows(item)}
                 frozen={!!frozen}
                 dark={dark}
               />
-              {shown.map((n) => (
-                <FlowBall
-                  key={n.item.id}
-                  spot={spotOf(n.center, NODE_R, n.r, BALL_SPAN)}
-                  color={frozen || !flows(n.item) ? COLOR.idle : COLOR[n.item.tone]}
-                  level={levelOf(n.item.watts)}
-                  active={flows(n.item)}
-                  frozen={!!frozen}
-                  dark={dark}
-                />
-              ))}
-            </>
-          )}
+            ))}
+          </>
+        )}
 
-          {/* The lines: hairlines. The energy on them (the beams) is drawn by the canvas. */}
-          <svg viewBox={`0 0 ${W} ${H}`} className={cn("absolute inset-0 h-full w-full transition-opacity", frozen && "opacity-50 grayscale")} aria-hidden="true">
-            <defs>
-              <linearGradient id={`${uid}-off`} x1="0" y1="0" x2="1" y2="1">
-                <stop offset="0" stopColor="#fca5a5" />
-                <stop offset="0.5" stopColor="#ef4444" />
-                <stop offset="1" stopColor="#b91c1c" />
-              </linearGradient>
-            </defs>
-            {shown.map((n) => {
-              const { item } = n;
-              const { from, to } = n.line;
-              const active = flows(item);
-              return (
-                <g key={item.id}>
-                  {/* in use: a fine line in the flow's colour; not in use: a fainter, dotted one */}
-                  <path
-                    d={linePath(n.line)}
-                    fill="none"
-                    stroke={active ? COLOR[item.tone] : COLOR.idle}
-                    strokeOpacity={active ? 0.3 : 0.45}
-                    strokeWidth={1.4}
-                    strokeLinecap="round"
-                    strokeDasharray={active ? undefined : "0.5 6"}
-                  />
-                  {item.offline && (
-                    // An offline charger: a small red cross on its line, at the midpoint (a symmetric curve passes through the average of its ends).
-                    <g transform={`translate(${(from.x + to.x) / 2} ${(from.y + to.y) / 2})`}>
-                      <path d={`M -${CROSS} -${CROSS} L ${CROSS} ${CROSS} M -${CROSS} ${CROSS} L ${CROSS} -${CROSS}`} stroke={`url(#${uid}-off)`} strokeWidth={2.4} strokeLinecap="round" fill="none" />
-                    </g>
-                  )}
-                </g>
-              );
-            })}
-          </svg>
-
-          {/* The hub: the inverter every line meets. A click on a circle goes nowhere (only the charger's, when the page gives it something to do). */}
-          <div
-            role="img"
-            aria-label={`Inverter: ${summary.text}`}
-            className="absolute flex aspect-square -translate-x-1/2 -translate-y-1/2 cursor-default flex-col items-center justify-center rounded-full outline-none"
-            style={spotOf(hubC, HUB_R, hubR)}
-          >
-            {!ballsOk && <FlowRing hub color={frozen ? COLOR.idle : COLOR[busiest ? busiest.tone : "idle"]} active={!!busiest} level={hubLevel} soc={null} frozen={!!frozen} dark={dark} />}
-            {/* (The plain icon holds the place and shows until the canvas draws the icon in grains.) */}
-            <Server className="relative size-[38%] text-theme-secondary transition-opacity duration-700" strokeWidth={1.75} style={{ opacity: live ? 0 : 1 }} />
-          </div>
-
-          {shown.map((n) => {
-            const { item, side, center } = n;
-            const Icon = ICON[item.kind];
-            const color = COLOR[item.tone];
-            const idle = item.tone === "idle";
-            // The load's own label goes above its circle when a charger hangs below it (the line to the charger would run through the text), if there is room.
-            const labelAbove = side === "top" || (item.kind === "home" && layout.nodes.some((o) => o.item.id === "ev") && center.y - NODE_R - 46 >= 0);
-            // While the drawing closes, a label that was above its circle fades out, and comes back under it; the second line fades away for good.
-            const above = labelAbove && ease < 0.5;
-            const press = item.kind === "ev" && onEvPress ? onEvPress : null;
-            const handlers = press
-              ? {
-                  onClick: press,
-                  onKeyDown: (ev: React.KeyboardEvent) => {
-                    if (ev.key === "Enter" || ev.key === " ") {
-                      ev.preventDefault();
-                      press();
-                    }
-                  },
-                }
-              : {};
+        {/* The lines: hairlines. The energy on them (the beams) is drawn by the canvas. */}
+        <svg viewBox={`0 0 ${W} ${H}`} className={cn("absolute inset-0 h-full w-full transition-opacity", frozen && "opacity-50 grayscale")} aria-hidden="true">
+          <defs>
+            <linearGradient id={`${uid}-off`} x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0" stopColor="#fca5a5" />
+              <stop offset="0.5" stopColor="#ef4444" />
+              <stop offset="1" stopColor="#b91c1c" />
+            </linearGradient>
+          </defs>
+          {layout.nodes.map((entry) => {
+            const { item } = entry;
+            const { from, to, vertical } = lineOf(entry);
+            const active = flows(item);
             return (
-              <React.Fragment key={item.id}>
-                <div
-                  {...(press ? { role: "button", tabIndex: 0 } : { role: "img" })}
-                  aria-label={`${item.label}: ${item.value}, ${item.badge.label}`}
-                  {...handlers}
-                  className={cn("absolute flex aspect-square -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-theme-highlight", press ? "cursor-pointer" : "cursor-default")}
-                  style={spotOf(center, NODE_R, n.r)}
-                >
-                  {!ballsOk && <FlowRing color={frozen || !flows(item) ? COLOR.idle : color} active={flows(item)} level={levelOf(item.watts)} soc={item.soc} frozen={!!frozen} dark={dark} />}
-                  <Icon className={cn("relative size-[46%] transition-opacity duration-700", idle && "text-theme-muted")} style={{ ...(idle ? {} : { color }), opacity: live ? 0 : 1 }} strokeWidth={1.75} />
-                </div>
-                <div
-                  className={cn("pointer-events-none absolute flex -translate-x-1/2 flex-col items-center whitespace-nowrap text-center", press && "pointer-events-auto cursor-pointer")}
-                  style={{
-                    left: pctX(center.x),
-                    ...(above ? { bottom: pctY(H - (center.y - n.r - 6)) } : { top: pctY(center.y + n.r + mix(6, 3, ease)) }),
-                    ...(labelAbove ? { opacity: Math.abs(1 - 2 * ease) } : {}),
-                  }}
-                  {...handlers}
-                >
-                  <span className="font-semibold leading-tight tabular-nums text-theme-primary" style={{ fontSize: "clamp(11px, 2.1cqw, 17px)" }}>
-                    {item.evText ? item.evText.line1 : item.value}
-                    {item.soc !== null && ` · ${item.soc}%`}
-                  </span>
-                  <span className="leading-tight text-theme-muted" style={{ fontSize: "clamp(10px, 1.7cqw, 14px)", opacity: Math.max(0, 1 - ease * 2.4) }}>
-                    {item.evText ? (
-                      item.evText.line2
-                    ) : (
-                      <>
-                        {item.label}
-                        <span className="hidden font-medium @md:inline" style={{ color: idle ? "var(--text-muted)" : color }}>
-                          {" · "}
-                          {item.badge.label}
-                        </span>
-                      </>
-                    )}
-                  </span>
-                </div>
-              </React.Fragment>
+              <g key={item.id}>
+                {/* in use: a fine line in the flow's colour; not in use: a fainter, dotted one */}
+                <path
+                  d={curvePath(from, to, vertical)}
+                  fill="none"
+                  stroke={active ? COLOR[item.tone] : COLOR.idle}
+                  strokeOpacity={active ? 0.3 : 0.45}
+                  strokeWidth={1.4}
+                  strokeLinecap="round"
+                  strokeDasharray={active ? undefined : "0.5 6"}
+                />
+                {item.offline && (
+                  // An offline charger: a small red cross on its line, at the midpoint (a symmetric curve passes through the average of its ends).
+                  <g transform={`translate(${(from.x + to.x) / 2} ${(from.y + to.y) / 2})`}>
+                    <path d={`M -${CROSS} -${CROSS} L ${CROSS} ${CROSS} M -${CROSS} ${CROSS} L ${CROSS} -${CROSS}`} stroke={`url(#${uid}-off)`} strokeWidth={2.4} strokeLinecap="round" fill="none" />
+                  </g>
+                )}
+              </g>
             );
           })}
+        </svg>
 
-          {/* The icons' grains and the drops on the lines. */}
-          {live && <EnergyFlowCanvas scene={scene} className={cn("pointer-events-none absolute inset-0 h-full w-full transition-opacity", frozen && "opacity-60")} />}
+        {/* The hub: the inverter every line meets. */}
+        <div
+          role="img"
+          aria-label={`Inverter: ${summary.text}`}
+          className="absolute flex aspect-square -translate-x-1/2 -translate-y-1/2 cursor-default flex-col items-center justify-center rounded-full outline-none"
+          style={{ left: pctX(hub.x), top: pctY(hub.y), width: `${((2 * HUB_R) / W) * 100}%` }}
+        >
+          {!ballsOk && <FlowRing hub color={frozen ? COLOR.idle : COLOR[busiest ? busiest.tone : "idle"]} active={!!busiest} level={hubLevel} soc={null} frozen={!!frozen} dark={dark} />}
+          {/* (The plain icon holds the place and shows until the canvas draws the icon in grains.) */}
+          <Server className="relative size-[38%] text-theme-secondary transition-opacity duration-700" strokeWidth={1.75} style={{ opacity: live ? 0 : 1 }} />
         </div>
+
+        {layout.nodes.map(({ item, side, center }) => {
+          const Icon = ICON[item.kind];
+          const color = COLOR[item.tone];
+          const idle = item.tone === "idle";
+          // The load's own label goes above its circle when a charger hangs below it (the line to the charger would run through the text), if there is room.
+          const labelAbove = side === "top" || (item.kind === "home" && layout.nodes.some((n) => n.item.id === "ev") && center.y - NODE_R - 46 >= 0);
+          // A click on a circle goes nowhere (only the charger's, when the page gives it something to do).
+          const press = item.kind === "ev" && onEvPress ? onEvPress : null;
+          const handlers = press
+            ? {
+                onClick: press,
+                onKeyDown: (e: React.KeyboardEvent) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    press();
+                  }
+                },
+              }
+            : {};
+          return (
+            <React.Fragment key={item.id}>
+              <div
+                {...(press ? { role: "button", tabIndex: 0 } : { role: "img" })}
+                aria-label={`${item.label}: ${item.value}, ${item.badge.label}`}
+                {...handlers}
+                className={cn("absolute flex aspect-square -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-theme-highlight", press ? "cursor-pointer" : "cursor-default")}
+                style={{ left: pctX(center.x), top: pctY(center.y), width: `${((2 * NODE_R) / W) * 100}%` }}
+              >
+                {!ballsOk && <FlowRing color={frozen || !flows(item) ? COLOR.idle : color} active={flows(item)} level={levelOf(item.watts)} soc={item.soc} frozen={!!frozen} dark={dark} />}
+                <Icon className={cn("relative size-[46%] transition-opacity duration-700", idle && "text-theme-muted")} style={{ ...(idle ? {} : { color }), opacity: live ? 0 : 1 }} strokeWidth={1.75} />
+              </div>
+              <div
+                className={cn("absolute flex -translate-x-1/2 flex-col items-center whitespace-nowrap text-center", press ? "cursor-pointer" : "pointer-events-none")}
+                style={{
+                  left: pctX(center.x),
+                  ...(labelAbove ? { bottom: pctY(H - (center.y - NODE_R - 6)) } : { top: pctY(center.y + NODE_R + 6) }),
+                }}
+                {...handlers}
+              >
+                <span className="font-semibold leading-tight tabular-nums text-theme-primary" style={{ fontSize: "clamp(11px, 2.1cqw, 17px)" }}>
+                  {item.evText ? item.evText.line1 : item.value}
+                  {item.soc !== null && ` · ${item.soc}%`}
+                </span>
+                <span className="leading-tight text-theme-muted" style={{ fontSize: "clamp(10px, 1.7cqw, 14px)" }}>
+                  {item.evText ? (
+                    item.evText.line2
+                  ) : (
+                    <>
+                      {item.label}
+                      <span className="hidden font-medium @md:inline" style={{ color: idle ? "var(--text-muted)" : color }}>
+                        {" · "}
+                        {item.badge.label}
+                      </span>
+                    </>
+                  )}
+                </span>
+              </div>
+            </React.Fragment>
+          );
+        })}
+
+        {/* The icons' grains and the drops on the lines. */}
+        {live && <EnergyFlowCanvas scene={scene} className={cn("pointer-events-none absolute inset-0 h-full w-full transition-opacity", frozen && "opacity-60")} />}
       </div>
     </div>
   );
