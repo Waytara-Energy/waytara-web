@@ -6,9 +6,9 @@ import { parseTarget } from "@/lib/ev-control";
 import { cn } from "@/lib/utils";
 import { useEvCharge } from "./ev-charge-control";
 
-const PRESETS_KWH = [5, 10, 20, 30];
+export const PRESETS_KWH = [5, 10, 20, 30];
 
-function Chip({ selected, invalid = false, onClick, children, label }: { selected: boolean; invalid?: boolean; onClick: () => void; children: React.ReactNode; label?: string }) {
+export function Chip({ selected, invalid = false, onClick, children, label }: { selected: boolean; invalid?: boolean; onClick: () => void; children: React.ReactNode; label?: string }) {
   return (
     <button
       type="button"

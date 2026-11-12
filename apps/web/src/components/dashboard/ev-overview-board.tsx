@@ -19,6 +19,7 @@ import { EvPowerPanel } from "./ev-power-panel";
 import { EvSessionDialog, type EvSessionLoader } from "./ev-session-dialog";
 import { getEvSessionDetail } from "@/app/dashboard/ev-session-detail-action";
 import { EvCar } from "./ev-car";
+import { EvMobileCard } from "./ev-mobile-card";
 
 
 const inr = (v: number) => `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
@@ -219,6 +220,7 @@ export function EvOverviewBoard({
   initial,
   history,
   car = null,
+  tariff = 8,
   loadSession = getEvSessionDetail,
 }: {
   chargerId: string;
@@ -231,6 +233,8 @@ export function EvOverviewBoard({
   history: EvHistory;
   /** The person's car (battery size, km per kWh), for what a charge adds; null when not entered. */
   car?: CarProfile | null;
+  /** The person's tariff per kWh, for the cost of a charge on a phone. */
+  tariff?: number;
   /** How a charge's detail is fetched (the dashboard's server action unless a page supplies its own). */
   loadSession?: EvSessionLoader;
 }) {
@@ -295,8 +299,23 @@ export function EvOverviewBoard({
 
   return (
     <div className="grid gap-4 lg:h-[max(calc(100svh-9.5rem),30rem)] lg:grid-cols-12 lg:grid-rows-[minmax(0,11fr)_minmax(0,9fr)]">
+      {/* On a phone the charger is one card in the way of a car's charging screen (the wider layout below is for a tablet and up). */}
+      <EvMobileCard
+        chargerId={chargerId}
+        connected={connected}
+        status={status}
+        charging={charging}
+        sessionOpen={open !== null}
+        transactionId={open?.transactionId ?? null}
+        progress={progress}
+        headlineKwh={chargeKwh !== null ? kwh(chargeKwh, 2) : null}
+        powerText={powerKw !== null ? u.format(powerKw, "kW", "power_active_import_kw", 2) : null}
+        chargeKwh={chargeKwh}
+        tariff={tariff}
+        lastCharge={last ? kwh(last.kwh, 1) : null}
+      />
       {/* the charger itself has no card: the car stands on the page */}
-      <section className="flex min-h-0 flex-col items-center justify-between gap-3 py-2 lg:col-span-7">
+      <section className="flex min-h-0 flex-col items-center justify-between gap-3 py-2 max-sm:hidden lg:col-span-7">
         {/* what the charge is doing, only while one runs; the space is kept so the car does not move when it starts */}
         <Link href={`/dashboard/monitoring?device=${encodeURIComponent(chargerId)}#ev`} aria-label="Open the charger on Monitoring" className="flex min-h-0 w-full flex-1 flex-col items-center justify-between gap-3 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring">
           <div className="min-h-[5rem] text-center">
