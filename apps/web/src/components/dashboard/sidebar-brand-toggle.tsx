@@ -23,10 +23,12 @@ export function SidebarBrandToggle({ floating = false, className }: { floating?:
   };
   React.useEffect(() => () => cancelHover(), []);
   const Icon = collapsed ? PanelLeftOpen : PanelLeftClose;
-  // The badge: the logo stays as it is. While devices are not reporting, a small red badge sits on its corner: a plain dot for one device, the number for
+  // The badge: the logo stays as it is. While devices are not reporting, a small badge sits on its corner (amber for a lost connection, red for offline): a plain dot for one device, the number for
   // more (9+ for more than nine). It goes away by itself when they report again.
   const { problems } = useDeviceHub();
   const down = problems.length;
+  // The badge is the colour of the device's dot in the sidebar: amber for a lost connection, red for offline (red when there are several and any one is offline).
+  const badgeColour = problems.some((p) => p.status === "offline") ? "bg-red-500" : "bg-amber-500";
   const label = (isMobile ? "Open menu" : collapsed ? "Show sidebar" : "Hide sidebar") + (down ? `. ${down === 1 ? "1 device is" : `${down} devices are`} not reporting` : "");
   return (
     <button
@@ -55,9 +57,9 @@ export function SidebarBrandToggle({ floating = false, className }: { floating?:
       <LogoMark className="size-[22px] transition-all duration-200 group-hover/brand:scale-75 group-hover/brand:opacity-0 group-focus-visible/brand:scale-75 group-focus-visible/brand:opacity-0 max-md:group-hover/brand:scale-100 max-md:group-hover/brand:opacity-100" />
       {down > 0 &&
         (down === 1 ? (
-          <span aria-hidden className="absolute -right-0.5 -top-0.5 size-3 rounded-full bg-rose-500 ring-2 ring-background" />
+          <span aria-hidden className={cn("absolute -right-0.5 -top-0.5 size-3 rounded-full ring-2 ring-background", badgeColour)} />
         ) : (
-          <span aria-hidden className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-background">
+          <span aria-hidden className={cn("absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-background", badgeColour)}>
             {down > 9 ? "9+" : down}
           </span>
         ))}
