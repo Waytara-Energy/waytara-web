@@ -170,7 +170,7 @@ export function NotificationCenter({
 
   return (
     <>
-      <Button type="button" variant="outline" size="icon" className="relative h-8 w-8 shrink-0" onClick={() => (open ? close() : show())} aria-expanded={open} aria-label="Notifications">
+      <Button type="button" variant="ghost" size="icon" className="relative h-8 w-8 shrink-0 hover:!bg-transparent hover:!text-foreground" onClick={() => (open ? close() : show())} aria-expanded={open} aria-label="Notifications">
         <Bell className="h-4 w-4" />
         {unread > 0 && (
           <span className="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] leading-none font-semibold text-white">{unread > 9 ? "9+" : unread}</span>

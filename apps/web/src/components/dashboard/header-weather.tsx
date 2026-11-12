@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
-import { CONDITION_TEXT, type Weather } from "@/lib/weather";
+import { type Weather } from "@/lib/weather";
 import { cn } from "@/lib/utils";
 import { WEATHER_ICON, temp } from "./weather-ui";
 
@@ -47,9 +47,8 @@ export function HeaderWeather({ siteId }: { siteId: string | null }) {
   return (
     <Link
       href="/dashboard/weather"
-      title={`${CONDITION_TEXT[n.condition]}${n.tempC !== null ? `, ${Math.round(n.tempC)}°C` : ""} at the site. Open the weather forecast.`}
       aria-label="Weather at the site. Open the forecast."
-      className="-mr-1 flex h-8 shrink-0 items-center gap-1.5 rounded-md px-1 text-sm font-medium text-foreground outline-none transition-colors hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring/50"
+      className="-mr-1 flex h-8 shrink-0 items-center gap-1.5 rounded-md px-1 text-sm font-medium text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
     >
       <Icon className={cn("size-[18px]", WEATHER_ICON[n.condition].tone)} strokeWidth={1.7} />
       <span className="tabular-nums">{temp(n.tempC)}</span>

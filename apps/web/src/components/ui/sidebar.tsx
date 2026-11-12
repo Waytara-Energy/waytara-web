@@ -188,9 +188,9 @@ function Sidebar({
           data-sidebar="sidebar"
           data-slot="sidebar"
           data-mobile="true"
-          // On a phone: about half the screen, in black (the `dark` class gives the contents their dark colours); a tap outside
-          // closes it.
-          className="dark w-1/2 min-w-60 max-w-80 border-0 bg-black p-0 text-sidebar-foreground sm:max-w-80 [&>button]:hidden"
+          // On a phone: about half the screen, in the theme's sidebar colour (white by day, near black by night, the same as the desktop's); a tap
+          // outside closes it.
+          className="w-1/2 min-w-60 max-w-80 border-0 bg-sidebar p-0 text-sidebar-foreground sm:max-w-80 [&>button]:hidden"
           style={
             {
               "--sidebar-width": SIDEBAR_WIDTH_MOBILE,

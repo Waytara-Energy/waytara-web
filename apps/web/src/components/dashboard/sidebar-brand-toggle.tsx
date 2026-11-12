@@ -1,7 +1,7 @@
 "use client";
 
 import * as React from "react";
-import { EvCharger, PanelLeftClose, PanelLeftOpen, Server } from "lucide-react";
+import { PanelLeftClose, PanelLeftOpen } from "lucide-react";
 import { LogoMark } from "@/components/shared/logo";
 import { useSidebar } from "@/components/ui/sidebar";
 import { cn } from "@/lib/utils";
@@ -23,21 +23,11 @@ export function SidebarBrandToggle({ floating = false, className }: { floating?:
   };
   React.useEffect(() => () => cancelHover(), []);
   const Icon = collapsed ? PanelLeftOpen : PanelLeftClose;
-  // The badge: while a device is not reporting, the logo gives way to that device's own icon (the inverter's, the charger's; both in turn when both are
-  // down) in the colour of the trouble, with a soft pulse; once everything reports again it is the logo.
+  // The badge: the logo stays as it is. While devices are not reporting, a small red badge sits on its corner: a plain dot for one device, the number for
+  // more (9+ for more than nine). It goes away by itself when they report again.
   const { problems } = useDeviceHub();
-  const kinds = [...new Set(problems.map((p) => p.kind))];
-  const [turn, setTurn] = React.useState(0);
-  React.useEffect(() => {
-    if (kinds.length < 2) return;
-    const id = window.setInterval(() => setTurn((t) => t + 1), 2600);
-    return () => window.clearInterval(id);
-  }, [kinds.length]);
-  const badgeKind = kinds.length ? kinds[turn % kinds.length] : null;
-  const badgeOffline = problems.some((p) => p.kind === badgeKind && p.status === "offline");
-  const BadgeIcon = badgeKind === "ev" ? EvCharger : Server;
-  const trouble = badgeKind === null ? "" : `${kinds.map((k) => (k === "ev" ? "EV charger" : "Inverter")).join(" and ")} not reporting`;
-  const label = (isMobile ? "Open menu" : collapsed ? "Show sidebar" : "Hide sidebar") + (trouble ? `. ${trouble}` : "");
+  const down = problems.length;
+  const label = (isMobile ? "Open menu" : collapsed ? "Show sidebar" : "Hide sidebar") + (down ? `. ${down === 1 ? "1 device is" : `${down} devices are`} not reporting` : "");
   return (
     <button
       type="button"
@@ -62,20 +52,15 @@ export function SidebarBrandToggle({ floating = false, className }: { floating?:
         className
       )}
     >
-      {badgeKind ? (
-        <>
-          <span aria-hidden className={cn("absolute inset-0 rounded-full opacity-25 motion-safe:animate-ping", badgeOffline ? "bg-red-500" : "bg-amber-500")} />
-          <BadgeIcon
-            key={badgeKind}
-            className={cn(
-              "size-[18px] transition-all duration-200 [animation:icon-pop_650ms_cubic-bezier(0.34,1.56,0.64,1)_both] motion-reduce:animate-none group-hover/brand:scale-75 group-hover/brand:opacity-0 group-focus-visible/brand:scale-75 group-focus-visible/brand:opacity-0 max-md:group-hover/brand:scale-100 max-md:group-hover/brand:opacity-100",
-              badgeOffline ? "text-red-500" : "text-amber-500"
-            )}
-          />
-        </>
-      ) : (
-        <LogoMark className="size-[22px] transition-all duration-200 group-hover/brand:scale-75 group-hover/brand:opacity-0 group-focus-visible/brand:scale-75 group-focus-visible/brand:opacity-0 max-md:group-hover/brand:scale-100 max-md:group-hover/brand:opacity-100" />
-      )}
+      <LogoMark className="size-[22px] transition-all duration-200 group-hover/brand:scale-75 group-hover/brand:opacity-0 group-focus-visible/brand:scale-75 group-focus-visible/brand:opacity-0 max-md:group-hover/brand:scale-100 max-md:group-hover/brand:opacity-100" />
+      {down > 0 &&
+        (down === 1 ? (
+          <span aria-hidden className="absolute -right-0.5 -top-0.5 size-3 rounded-full bg-rose-500 ring-2 ring-background" />
+        ) : (
+          <span aria-hidden className="absolute -right-1.5 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[10px] font-semibold leading-none text-white ring-2 ring-background">
+            {down > 9 ? "9+" : down}
+          </span>
+        ))}
       <Icon className="absolute size-[18px] scale-75 text-sidebar-foreground opacity-0 transition-all duration-200 group-hover/brand:scale-100 group-hover/brand:opacity-100 group-focus-visible/brand:scale-100 group-focus-visible/brand:opacity-100 max-md:hidden" />
     </button>
   );

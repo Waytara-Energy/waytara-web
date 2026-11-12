@@ -23,7 +23,7 @@ import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { cn } from "@/lib/utils";
 import { DashboardCommandMenu } from "./dashboard-command-menu";
 import { DashboardUserMenu } from "./dashboard-user-menu";
-import { SidebarDeviceRow } from "./sidebar-device-row";
+import { SidebarDeviceRow, isDevicePage } from "./sidebar-device-row";
 import type { ChargerSidebarInfo } from "@/lib/sidebar-device-info";
 import { visibleNavItems } from "./nav-config";
 import { useDeviceState } from "./use-device-state";
@@ -133,7 +133,7 @@ export function DashboardSidebar({
               {devices.length === 0 && <li className="px-2 py-1.5 text-xs text-sidebar-foreground/60">No devices yet</li>}
               {devices.map((d) =>
                 d.kind ? (
-                  <SidebarDeviceRow key={d.id} device={{ id: d.id, name: d.name, kind: d.kind, charger: d.charger }} selected={d.id === shownDevice} onNavigate={handleNavClick} />
+                  <SidebarDeviceRow key={d.id} device={{ id: d.id, name: d.name, kind: d.kind, charger: d.charger }} selected={isDevicePage(pathname) && d.id === shownDevice} onNavigate={handleNavClick} />
                 ) : (
                 <SidebarMenuItem key={d.id}>
                   <SidebarMenuButton asChild isActive={pathname === "/dashboard/devices" && openDevice === d.id}>

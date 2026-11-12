@@ -1,17 +1,15 @@
 "use client";
 
 import * as React from "react";
-import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { EvCharger, Radio, RefreshCw, Server, SlidersHorizontal } from "lucide-react";
+import { EvCharger, Radio, Server } from "lucide-react";
 import { SidebarMenuButton, SidebarMenuItem } from "@/components/ui/sidebar";
-import { Spinner } from "@/components/ui/spinner";
 import { CONNECTION_LABEL, type ConnectionStatus } from "@/lib/device-state";
 import type { ChargerSidebarInfo } from "@/lib/sidebar-device-info";
 import { getConnectorStatusLabel } from "@/lib/ev-charger-catalog";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 import { timeAgo } from "@/lib/time-ago";
-import { useLatest, useTelemetryStore } from "@/lib/telemetry/react";
+import { useLatest } from "@/lib/telemetry/react";
 import { cn } from "@/lib/utils";
 import { selectDevice } from "@/app/dashboard/actions";
 import { useDeviceHub } from "./device-live-hub";
@@ -23,11 +21,14 @@ export interface SidebarControlDevice {
   charger?: ChargerSidebarInfo;
 }
 
-const DOT: Record<ConnectionStatus, string> = { online: "bg-emerald-500", connection_lost: "bg-amber-500", offline: "bg-red-500" };
-const TONE: Record<ConnectionStatus, string> = { online: "text-emerald-500", connection_lost: "text-amber-500", offline: "text-red-500" };
-const STATE_TEXT: Record<ConnectionStatus, string> = { online: "Online", connection_lost: CONNECTION_LABEL.connection_lost, offline: CONNECTION_LABEL.offline };
+/** The pages that are about one device (they follow ?device=): on these the device the page shows is marked in the list, and pressing another device's
+ *  name switches the page to it. On any other page pressing a name opens that device's page. */
+export const DEVICE_PAGES = ["/dashboard/devices", "/dashboard/ev-sessions", "/dashboard/maintenance", "/dashboard/monitoring", "/dashboard/performance", "/dashboard/reports"];
+export const isDevicePage = (pathname: string) => DEVICE_PAGES.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 
-const MINI = "inline-flex h-6 items-center gap-1 whitespace-nowrap rounded-md px-2 text-[11px] font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-sidebar-ring disabled:pointer-events-none disabled:opacity-60";
+const DOT: Record<ConnectionStatus, string> = { online: "bg-emerald-500", connection_lost: "bg-amber-500", offline: "bg-red-500" };
+const TONE: Record<Exclude<ConnectionStatus, "online">, string> = { connection_lost: "text-amber-500", offline: "text-red-500" };
+const STATE_TEXT: Record<ConnectionStatus, string> = { online: "Online", connection_lost: CONNECTION_LABEL.connection_lost, offline: CONNECTION_LABEL.offline };
 
 const timeOnly = (ms: number) => new Date(ms).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit" });
 /** "10:42 am" today, "11 Nov, 10:42 am" on another day. */
@@ -36,21 +37,22 @@ function stamp(ms: number, now: number) {
 }
 
 /**
- * One inverter or charger in the sidebar, with its own controls (these used to be the device icons in the page header):
- *  - the name (press it to make it the device the pages show, as the header's icon menu did) and a dot for its connection,
- *  - its state, and under it how long ago it last sent a reading; for a charger its connector status and its latest charging session,
- *  - Refresh (re-reads its connection and the page), Go live (watch its readings as they arrive; it stays on while the sidebar is shut) and its settings.
- * What it shows follows the live channel; the sessions come from the server and are fetched again by Refresh.
+ * One inverter or charger in the sidebar:
+ *  - its name with a dot for its connection (green reporting, amber connection lost, red offline), which is all that is said about a device that is fine;
+ *    pressing the name opens that device (on a page about one device it switches the page to it, from any other page it opens the device's page),
+ *  - a word only when there is something to say: Connection lost or Offline, or a charger's connector status (Available, Charging ...),
+ *  - one line of value: how long ago an inverter last sent a reading ("5 mins ago"); a charger's latest charging session ("1.0 kWh . 4 Nov, 6:56 pm", or
+ *    "Since 6:56 pm" while one is open),
+ *  - at the right end of that line a small Go live button (it stays on while the sidebar is shut).
+ * Nothing here has a tooltip. What it shows follows the live channel; a charger's sessions come from the server and are read again whenever the page is.
  */
 export function SidebarDeviceRow({ device, selected, onNavigate }: { device: SidebarControlDevice; selected: boolean; onNavigate: () => void }) {
   const { controls, states, clock } = useDeviceHub();
-  const store = useTelemetryStore();
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const mounted = useHasMounted();
-  const [switching, startSwitch] = React.useTransition();
-  const [refreshing, startRefresh] = React.useTransition();
+  const [opening, startOpen] = React.useTransition();
   const state = states[device.id];
   const status: ConnectionStatus = state?.status ?? "online";
   const control = controls[device.id];
@@ -64,72 +66,58 @@ export function SidebarDeviceRow({ device, selected, onNavigate }: { device: Sid
   // a charger's connector status, live (the server's word until the first live message)
   const code = useLatest(device.id, "connector_status");
   const connector = device.charger ? (code ? getConnectorStatusLabel(code.value, device.charger.connectorOptions).label : device.charger.status) : null;
-  const statusWord = status !== "online" ? STATE_TEXT[status] : (connector ?? STATE_TEXT.online);
   const session = device.charger?.lastSession ?? null;
-  let line2: string | null = null;
+  let value: string | null = null;
   if (mounted) {
-    if (device.kind === "inverter") line2 = lastRead ? `Last reading ${timeAgo(lastRead, clock)}` : "No reading yet";
-    else if (!session) line2 = "No charging sessions yet";
-    else if (session.endedAt === null) line2 = `Charging since ${stamp(new Date(session.startedAt).getTime(), clock)}`;
-    else line2 = `Last session ${session.kwh === null ? "" : `${session.kwh.toFixed(1)} kWh · `}${stamp(new Date(session.endedAt).getTime(), clock)}`;
+    if (device.kind === "inverter") value = lastRead ? timeAgo(lastRead, clock) : "No reading yet";
+    else if (!session) value = "No sessions yet";
+    else if (session.endedAt === null) value = `Since ${stamp(new Date(session.startedAt).getTime(), clock)}`;
+    else value = `${session.kwh === null ? "" : `${session.kwh.toFixed(1)} kWh · `}${stamp(new Date(session.endedAt).getTime(), clock)}`;
   }
 
-  function pick() {
-    startSwitch(async () => {
+  function open() {
+    startOpen(async () => {
       await selectDevice(device.id);
       onNavigate();
-      // A device-scoped page follows ?device=; the Overview is the whole site, so it just reloads.
-      if (pathname === "/dashboard") router.refresh();
-      else {
+      if (isDevicePage(pathname)) {
         const params = new URLSearchParams(searchParams.toString());
         params.set("device", device.id);
         router.push(`${pathname}?${params.toString()}`);
+      } else {
+        router.push(`/dashboard/devices?device=${device.id}`);
       }
     });
   }
-  function refresh() {
-    startRefresh(async () => {
-      await store.refreshHeartbeat(device.id);
-      router.refresh();
-    });
-  }
-  const goText = failed ? "Try again" : connecting ? "Connecting…" : isLive ? "Live" : "Go live";
+  const goLabel = failed ? "Go live failed. Try again" : connecting ? "Connecting. Stop" : isLive ? "Live. Stop" : "Go live";
 
   return (
     <SidebarMenuItem>
-      <SidebarMenuButton isActive={selected} onClick={pick} disabled={switching} title={selected ? "The device the pages show" : "Show this device on the pages"}>
+      <SidebarMenuButton isActive={selected} onClick={open} disabled={opening}>
         <Icon className="size-4 shrink-0 opacity-70" />
         <span className="truncate text-[clamp(12.5px,0.85vw,13.5px)]">{device.name}</span>
-        <span role="img" aria-label={STATE_TEXT[status]} title={STATE_TEXT[status]} className={cn("ml-auto size-2 shrink-0 rounded-full", DOT[status], status === "online" && "shadow-[0_0_6px_rgba(16,185,129,0.7)]")} />
+        <span role="img" aria-label={STATE_TEXT[status]} className={cn("ml-auto size-2 shrink-0 rounded-full", DOT[status], status === "online" && "shadow-[0_0_6px_rgba(16,185,129,0.7)]")} />
       </SidebarMenuButton>
-      <div className="pb-2 pl-8 pr-2 pt-0.5">
-        <p className={cn("text-[11.5px] font-medium leading-tight", TONE[status])}>{statusWord}</p>
-        <p className="min-h-[14px] text-[11px] leading-tight text-sidebar-foreground/60">{line2}</p>
-        <div className="mt-1.5 flex items-center gap-1.5">
-          <button type="button" onClick={refresh} disabled={refreshing} className={cn(MINI, "bg-sidebar-accent text-sidebar-foreground hover:bg-sidebar-accent/70")}>
-            {refreshing ? <Spinner className="size-3" /> : <RefreshCw className="size-3" />}
-            Refresh
-          </button>
-          <button
-            type="button"
-            onClick={() => (connecting || isLive ? control?.stop() : control?.start())}
-            disabled={!control}
-            className={cn(MINI, isLive ? "bg-emerald-600 text-white" : connecting ? "bg-orange-500 text-white" : failed ? "bg-red-600 text-white" : "bg-sidebar-foreground text-sidebar hover:opacity-90")}
-            title={isLive || connecting ? "Stop watching live" : "Watch its readings as they arrive"}
-          >
-            <Radio className={cn("size-3", connecting && "motion-safe:animate-pulse")} />
-            {goText}
-          </button>
-          <Link
-            href={`/dashboard/devices?device=${device.id}`}
-            onClick={onNavigate}
-            aria-label="Open device settings"
-            title="Open device settings"
-            className="ml-auto grid size-6 place-items-center rounded-md text-sidebar-foreground/70 outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring"
-          >
-            <SlidersHorizontal className="size-3.5" />
-          </Link>
+      <div className="flex items-center gap-2 pb-2 pl-8 pr-2 pt-0.5">
+        <div className="min-w-0 flex-1">
+          {status !== "online" ? (
+            <p className={cn("text-[11.5px] font-medium leading-tight", TONE[status])}>{STATE_TEXT[status]}</p>
+          ) : (
+            connector && <p className="text-[11.5px] font-medium leading-tight text-sidebar-foreground/80">{connector}</p>
+          )}
+          <p className="min-h-[14px] text-[11px] leading-tight tabular-nums text-sidebar-foreground/60">{value}</p>
         </div>
+        <button
+          type="button"
+          onClick={() => (connecting || isLive ? control?.stop() : control?.start())}
+          disabled={!control}
+          aria-label={goLabel}
+          className={cn(
+            "grid size-6 shrink-0 place-items-center rounded-full outline-none transition-colors focus-visible:ring-2 focus-visible:ring-sidebar-ring disabled:opacity-50",
+            isLive ? "bg-emerald-600 text-white" : connecting ? "bg-orange-500 text-white motion-safe:animate-pulse" : failed ? "bg-red-600 text-white" : "bg-sidebar-accent text-sidebar-foreground/70 hover:text-sidebar-foreground"
+          )}
+        >
+          <Radio className="size-3.5" />
+        </button>
       </div>
     </SidebarMenuItem>
   );
