@@ -1,5 +1,6 @@
 "use client";
 
+import * as React from "react";
 import Link from "next/link";
 import { ArrowDown, ArrowUp, ArrowUpRight } from "lucide-react";
 import { cn } from "@/lib/utils";
@@ -8,8 +9,17 @@ import { TodayAreaChart } from "./today-area-chart";
 
 export type Trend = { direction: "up" | "down"; good: boolean };
 
+// A phone: below Tailwind's `sm` (640 px). There the card drops its line of detail and the graph's time labels, and the graph takes their room.
+const PHONE = "(max-width: 639px)";
+const subscribePhone = (onChange: () => void) => {
+  const query = window.matchMedia(PHONE);
+  query.addEventListener("change", onChange);
+  return () => query.removeEventListener("change", onChange);
+};
+
 /** One of Overview's four "today" cards: a title with a round arrow button, the big total (with a small up / down
- *  arrow), a line of detail under it and the last two hours' graph filling the rest. The whole card opens `href`. */
+ *  arrow), a line of detail under it and the last two hours' graph filling the rest. The whole card opens `href`. On a phone the line of detail and the
+ *  graph's time labels are left out and the graph is taller. */
 export function TodayStatCard({
   title,
   href,
@@ -41,6 +51,7 @@ export function TodayStatCard({
   negLabel?: string;
 }) {
   const Arrow = trend?.direction === "down" ? ArrowDown : ArrowUp;
+  const phone = React.useSyncExternalStore(subscribePhone, () => window.matchMedia(PHONE).matches, () => false);
   return (
     <Link
       href={href}
@@ -58,10 +69,10 @@ export function TodayStatCard({
           <span className="text-sm text-muted-foreground">{unit}</span>
           {trend && <Arrow className={cn("size-5 self-center", trend.good ? "text-emerald-500" : "text-amber-500")} strokeWidth={2.4} />}
         </div>
-        <p className="mt-2 text-xs text-muted-foreground">{detail}</p>
+        <p className="mt-2 text-xs text-muted-foreground max-sm:hidden">{detail}</p>
       </div>
-      <div className="min-h-28 flex-1 lg:min-h-0">
-        <TodayAreaChart points={points} now={now} posColor={posColor} negColor={negColor} posLabel={posLabel} negLabel={negLabel} />
+      <div className="min-h-28 flex-1 max-sm:min-h-36 lg:min-h-0">
+        <TodayAreaChart points={points} now={now} posColor={posColor} negColor={negColor} posLabel={posLabel} negLabel={negLabel} compact={phone} />
       </div>
     </Link>
   );

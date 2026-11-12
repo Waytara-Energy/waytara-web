@@ -25,6 +25,7 @@ export function TodayAreaChart({
   posLabel,
   negLabel,
   unit = "kW",
+  compact = false,
 }: {
   points: AreaPoint[];
   /** The newest moment (epoch ms): the right end of the graph. */
@@ -36,6 +37,8 @@ export function TodayAreaChart({
   posLabel: string;
   negLabel?: string;
   unit?: string;
+  /** A small screen: no time labels under the graph, so the graph takes their room (the tooltip still gives the time). */
+  compact?: boolean;
 }) {
   const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
   const u = useUnits();
@@ -87,6 +90,7 @@ export function TodayAreaChart({
   );
   const xAxis = (
     <XAxis
+      hide={compact}
       type="number"
       dataKey="t"
       domain={[axis.start, axis.end]}
