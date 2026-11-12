@@ -5,14 +5,14 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { BatteryCharging, CarFront, Fuel, Home, Server, ShieldCheck, Sun, Zap, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import CrystalizedBall, { type IconShape } from "@/components/ui/crystalized-ball";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 import { useUnits } from "@/components/units-provider";
 import type { UnitPrefs } from "@/lib/unit-prefs";
 import { badgeFor, homeSourceOf, type StateBadge } from "./energy-flow-badge";
 import { curvePath, HUB_R, layoutFlow, NODE_R, type NodeKind } from "./energy-flow-layout";
-import { fmtKw, lineWidth, summarize } from "./energy-flow-summary";
-import { BATTERYCHARGING_SHAPE, CARFRONT_SHAPE, FUEL_SHAPE, HOME_SHAPE, SERVER_SHAPE, SHIELDCHECK_SHAPE, SUN_SHAPE, ZAP_SHAPE } from "./flow-icon-shapes";
+import { fmtKw, summarize } from "./energy-flow-summary";
+import { EnergyFlowCanvas, type FlowCanvasScene } from "./energy-flow-canvas";
+import { BATTERYCHARGING_SHAPE, CARFRONT_SHAPE, FUEL_SHAPE, HOME_SHAPE, SERVER_SHAPE, SHIELDCHECK_SHAPE, SUN_SHAPE, ZAP_SHAPE, type IconShape } from "./flow-icon-shapes";
 
 /** Colors encode *direction*, not identity: green = producing or storing (solar producing, battery charging),
  *  amber = drawing on a source (grid import, battery discharging, generator), blue = energy leaving to a consumer
@@ -25,116 +25,57 @@ const COLOR = {
 } as const;
 type Tone = keyof typeof COLOR;
 /**
- * Each circle is a Crystalized Ball (React Bits): a ball of crackling light and drifting crystal dust drawn behind the icon. What the ball does says what the
- * circle is doing, so the picture can be read without the numbers:
- *  - its colour is the circle's tone (green producing, amber drawing, blue consuming, grey idle); the inverter takes the tone of whatever is moving most;
- *  - the DIRECTION is the way the dust travels: a circle that is sending energy to the inverter (solar producing, the grid importing, the battery
- *    discharging) lets its dust RISE, away from it; a circle that is taking energy from the inverter (the load, the EV charger, the battery charging, an
- *    export to the grid) lets its dust FALL, as if being filled; an idle one just drifts; the inverter, which everything meets at, has its dust orbit;
- *  - the battery's ball is filled to its state of charge (a 40 % battery is a ball 40 % full), the others fill with how hard they work;
- *  - the POWER sets how many strands crackle round the rim, how violently, how many flares and sparks, the glow, the twinkle, the sway and the speed of
- *    both the rim and the dust, and how many grains there are (in three steps, so the grains are not rebuilt at every new reading);
- *  - an idle circle is a nearly still, dim ball with hardly any rim; when the unit is offline the balls are paused (one still frame) and greyed.
- *  - the ICON of the circle is made of the ball's grains: they gather on the icon's strokes (solar's sun, the grid's bolt, the battery, the house, the car, the
- *    inverter's box), and the strokes get THICKER the more power moves (more grains on thicker lines, brighter and slightly larger). Pointing at the ball
- *    SHATTERS the icon (the grains are thrown and fall back into the ball's dust, with a few sparks) and when the pointer leaves they gather again.
- * Pointing at a ball also stirs its dust and heats the rim nearest the pointer, and pressing on it sets off a burst.
+ * THE LOOK: quiet and clean, like a phone showing that it is charging.
+ *  - Each circle is a thin RING of light on a frosted disc. While energy moves through it, a streak of light runs round the ring (faster with more power)
+ *    with a soft glow; an idle circle is just the faint ring. The battery's ring is also its gauge: the lit part of the ring is its state of charge.
+ *  - The ICON in the ring is made of small grains and nothing else (energy-flow-canvas.tsx): it shimmers, its lines get thicker with the power, it scatters
+ *    when pointed at and gathers again.
+ *  - The LINES are hairlines, and the energy is DROPS of light running along them the way it flows (also the canvas).
+ * Colour keeps its meaning (green producing or storing, amber drawing on a source, blue going to a consumer, grey idle); the inverter takes the colour of
+ * whatever is moving most. When the unit is offline everything stands still and grey.
  */
-const BALL_COLOR: Record<Tone, string> = { ...COLOR };
-type BallMotion = "rise" | "fall" | "drift" | "orbit";
-/** The ball's canvas is this much wider than the circle it fills, to leave room for the crackle and flares round the rim. */
-const BALL_SPAN = 1.4;
+/** The grains and drops use a deeper shade of each colour on the light theme (the 600s, to stand out on white and on the sky) and a brighter one on the
+ *  dark theme (the 400s, so they glow). */
+const INK: Record<Tone, string> = { producing: "#059669", drawing: "#d97706", consuming: "#2563eb", idle: "#64748b" };
+const LIT: Record<Tone, string> = { producing: "#34d399", drawing: "#fbbf24", consuming: "#60a5fa", idle: "#94a3b8" };
 /** The power (in W) at which a circle works at full strength. */
 const FULL_BURN_W = 5000;
-/** A halo in the page colour round an icon or a word that sits over a ball, so the grains behind it do not swallow it. */
-const HALO = "drop-shadow(0 0 3px var(--background)) drop-shadow(0 0 7px var(--background))";
-const TEXT_HALO = "0 0 4px var(--background), 0 0 9px var(--background), 0 0 14px var(--background)";
+/** The ring's thickness: it grows a little with the drawing (cqw is a hundredth of the drawing's width). */
+const RING = "clamp(1.5px, 0.5cqw, 3px)";
+const ringMask = (width: string) => {
+  const m = `radial-gradient(farthest-side, transparent calc(100% - ${width} - 0.5px), #000 calc(100% - ${width}))`;
+  return { maskImage: m, WebkitMaskImage: m };
+};
 
-// Whether this browser can draw a ball (it needs WebGL 2). Asked once; if it cannot, the circles keep their plain look (a border and a solid fill).
-let webgl2Supported: boolean | null = null;
-function canDrawBalls(): boolean {
-  if (webgl2Supported === null) {
-    try {
-      const gl = document.createElement("canvas").getContext("webgl2");
-      webgl2Supported = !!gl;
-      gl?.getExtension("WEBGL_lose_context")?.loseContext();
-    } catch {
-      webgl2Supported = false;
-    }
-  }
-  return webgl2Supported;
-}
-const subscribeNever = () => () => undefined;
-
-/** The ball behind one circle. `radius` is the circle's radius in drawing units, `level` 0 to 1 is how hard it works. */
-function FlowBall({
-  at,
-  radius,
-  width,
-  color,
-  motion,
-  fill,
-  level,
-  active,
-  frozen,
-  dark,
-  icon,
-  hub = false,
-}: {
-  at: { left: string; top: string };
-  radius: number;
-  width: number;
-  color: string;
-  motion: BallMotion;
-  fill: number;
-  level: number;
-  active: boolean;
-  frozen: boolean;
-  dark: boolean;
-  icon: IconShape;
-  hub?: boolean;
-}) {
-  // The grains, in three steps (a change of the count rebuilds them), and more of them on the inverter's larger ball.
-  // (More of them than a plain ball needs: most make the icon.) The icon's line is thin when idle and gets thicker with the power, in half steps.
-  const grains = Math.round((active ? (level < 0.34 ? 2400 : level < 0.67 ? 3200 : 4200) : 1400) * (hub ? 1.4 : 1));
-  const stroke = (active ? Math.round((1.5 + 1.5 * level) * 2) / 2 : 1.25) * (hub ? 0.7 : 1);
+/** The ring of one circle (drawn inside the circle's own element). */
+function FlowRing({ color, active, level, soc, frozen, dark, hub = false }: { color: string; active: boolean; level: number; soc: number | null; frozen: boolean; dark: boolean; hub?: boolean }) {
+  const moving = active && !frozen;
+  // a streak that is clear for the first half of the turn and brightest at its head
+  const streak = `conic-gradient(from 0deg, ${color}00 0%, ${color}00 42%, ${color}cc 88%, ${dark ? "#ffffff" : color} 100%)`;
+  const turn = { animationDuration: `${((hub ? 5.2 : 4.2) - 2.3 * level).toFixed(2)}s` };
   return (
-    <div
-      aria-hidden="true"
-      className={cn("pointer-events-none absolute aspect-square -translate-x-1/2 -translate-y-1/2 transition-[filter,opacity] duration-500", frozen && "opacity-60 grayscale")}
-      style={{ left: at.left, top: at.top, width: `${((2 * radius * BALL_SPAN) / width) * 100}%` }}
-    >
-      <CrystalizedBall
-        preset="plasma"
-        color={color}
-        theme={dark ? "dark" : "light"}
-        size={1 / BALL_SPAN}
-        strands={active ? (hub ? 3 : 2) + Math.round((hub ? 3 : 4) * level) : 1}
-        crackle={active ? 0.35 + 0.65 * level : 0.15}
-        flares={active ? 0.25 + 0.6 * level : 0.1}
-        glow={active ? 0.6 + 0.6 * level : 0.35}
-        sparks={active ? 0.2 + 0.7 * level : 0.05}
-        particleCount={grains}
-        fill={Math.min(1, Math.max(0.06, fill))}
-        motion={motion}
-        particleShape="square"
-        depth={0.6}
-        sway={0.15 + 0.35 * level}
-        twinkle={active ? 0.45 + 0.35 * level : 0.25}
-        haze={active ? 0.7 : 0.4}
-        speed={active ? 0.5 + 0.8 * level : 0.25}
-        dustSpeed={active ? 0.8 + 0.9 * level : 0.35}
-        interactive
-        icon={icon}
-        iconStroke={stroke}
-        // (The inverter's circle also has a word under its icon, so its icon is smaller.)
-        iconScale={hub ? 0.28 : 0.46}
-        iconShare={0.6}
-        hoverStrength={hub ? 0.9 : 0.7}
-        intro
-        paused={frozen}
-      />
-    </div>
+    <>
+      {/* the frosted disc, so the icon reads on whatever is behind (the page, the sky, a person's own picture) */}
+      <span className="absolute inset-0 rounded-full bg-background/55 backdrop-blur-[3px]" />
+      {/* a little light inside */}
+      <span className="absolute inset-0 rounded-full" style={{ background: `radial-gradient(circle at 50% 58%, ${color}${moving ? "2b" : "12"} 0%, ${color}00 72%)` }} />
+      {/* the ring itself, faint */}
+      <span className="absolute inset-0 rounded-full" style={{ boxShadow: `inset 0 0 0 ${RING} ${color}${moving ? "40" : "33"}` }} />
+      {/* the battery's charge, as the lit part of the ring (from the top, clockwise) */}
+      {soc !== null && <span className="absolute inset-0 rounded-full" style={{ background: `conic-gradient(${color} ${soc}%, ${color}00 0)`, opacity: moving ? 0.75 : 0.5, ...ringMask(`calc(${RING} * 1.5)`) }} />}
+      {moving && (
+        <>
+          {/* the streak's glow (the blurred element is the one that turns, so the browser only has to rotate a ready-made picture) */}
+          <span className="absolute inset-[-6%] animate-spin rounded-full motion-reduce:animate-none" style={{ ...turn, filter: `blur(${hub ? 7 : 5}px)`, opacity: dark ? 0.85 : 0.55 }}>
+            <span className="absolute inset-[5.4%] rounded-full" style={{ background: streak, ...ringMask(`calc(${RING} * 2.4)`) }} />
+          </span>
+          {/* the streak */}
+          <span className="absolute inset-0 animate-spin rounded-full motion-reduce:animate-none" style={{ ...turn, background: streak, ...ringMask(`calc(${RING} * 1.25)`) }} />
+        </>
+      )}
+      {/* the inverter has a second, fainter ring round it */}
+      {hub && <span className="absolute inset-[-9%] rounded-full" style={{ boxShadow: `inset 0 0 0 1px ${color}30` }} />}
+    </>
   );
 }
 
@@ -254,11 +195,8 @@ export function evLabel(evW: number | null, status: string | null, sessionKwh: n
   };
 }
 
-/** Half-length of the "not in use" cross, in drawing units. */
-const CROSS = 8;
-/** How many dots travel along an active line. */
-const DOTS = 3;
-
+/** Half-length of the "offline" cross, in drawing units. */
+const CROSS = 6;
 export function EnergyFlowDiagram({
   solarW,
   batteryW,
@@ -309,24 +247,11 @@ export function EnergyFlowDiagram({
   const router = useRouter();
   const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
   const { prefs } = useUnits();
-  // The balls are only alive while the drawing is on screen: each is its own WebGL context (a browser allows about sixteen), and the Overview keeps
-  // one drawing per device, side by side, so a slide that is scrolled away lets its balls go and gets them back (with their short intro) when it returns.
-  const rootRef = React.useRef<HTMLDivElement>(null);
-  const [onScreen, setOnScreen] = React.useState(false);
-  React.useEffect(() => {
-    const el = rootRef.current;
-    if (!el) return;
-    const watcher = new IntersectionObserver((entries) => setOnScreen(entries.some((e) => e.isIntersecting)), { rootMargin: "80px" });
-    watcher.observe(el);
-    return () => watcher.disconnect();
-  }, []);
-  // Assumed to work until the browser says it cannot (so the first paint has the orb look, not the plain one).
-  const ballsOk = React.useSyncExternalStore(subscribeNever, canDrawBalls, () => true);
-  const mounted = useHasMounted();
-  // While the balls are alive they draw the icons themselves (out of grains), so the plain icons fade out; they are what shows without WebGL 2, and
-  // before the balls start.
-  const ballsLive = ballsOk && onScreen && mounted;
+  // The moving part (the grains and the drops) is a canvas, which only exists in the browser: until it is there the plain icons show.
+  const live = useHasMounted();
   const { resolvedTheme } = useTheme();
+  // (Known only in the browser: the server-built page, and the first paint, take the light look.)
+  const dark = live && resolvedTheme === "dark";
 
   const nodes: FlowNode[] = [
     // A circle is drawn when it has a reading, or - with no reading yet (the unit is offline, a new day without data) - when the site is known to have
@@ -347,7 +272,7 @@ export function EnergyFlowDiagram({
   ];
 
   const layout = layoutFlow(nodes, (n) => n.kind);
-  // The inverter's ball takes the tone of whatever is moving most, and works as hard as that does.
+  // The inverter takes the tone of whatever is moving most, and works as hard as that does.
   const busiest = nodes.reduce<FlowNode | null>((best, n) => (n.dir !== "none" && (!best || n.watts > best.watts) ? n : best), null);
   const hubLevel = busiest ? Math.min(1, Math.sqrt(busiest.watts / FULL_BURN_W)) : 0;
   const { width: W, height: H, hub } = layout;
@@ -373,10 +298,38 @@ export function EnergyFlowDiagram({
   const go = (href: string | null) => {
     if (href) router.push(href);
   };
+  const levelOf = (watts: number) => Math.min(1, Math.sqrt(watts / FULL_BURN_W));
+  // The colour of a circle's grains and drops, and how thick its icon's lines are: thin when idle, thicker the more power moves (in quarter steps).
+  const paint = (tone: Tone) => (frozen ? COLOR.idle : dark ? LIT[tone] : INK[tone]);
+  const strokeOf = (active: boolean, level: number) => (active ? Math.round((1.6 + 1.5 * level) * 4) / 4 : 1.4);
+  // An offline charger moves nothing, whatever its last reading says.
+  const flows = (n: FlowNode) => n.dir !== "none" && !n.offline;
+  const scene: FlowCanvasScene = {
+    width: W,
+    height: H,
+    frozen: !!frozen,
+    dark,
+    nodes: [
+      { id: "hub", center: hub, radius: HUB_R, color: paint(busiest ? busiest.tone : "idle"), icon: SERVER_SHAPE, stroke: strokeOf(!!busiest, hubLevel), iconScale: 0.36, hub: true, port: null, dir: busiest ? "in" : "none", level: hubLevel },
+      ...layout.nodes.map((e) => ({
+        id: e.item.id,
+        center: e.center,
+        radius: NODE_R,
+        color: paint(flows(e.item) ? e.item.tone : "idle"),
+        icon: ICON_SHAPE[e.item.kind],
+        stroke: strokeOf(flows(e.item), levelOf(e.item.watts)),
+        iconScale: 0.5,
+        // where its line meets it (the charger's line comes down from the load)
+        port: e.item.id === "ev" && homeEntry ? { x: e.center.x, y: e.center.y - NODE_R } : e.anchor,
+        dir: flows(e.item) ? e.item.dir : ("none" as const),
+        level: levelOf(e.item.watts),
+      })),
+    ],
+    lines: layout.nodes.map((e) => ({ id: e.item.id, ...lineOf(e), color: paint(e.item.tone), active: flows(e.item), level: levelOf(e.item.watts) })),
+  };
   return (
     <div className={cn("mx-auto w-full", !fit && "max-w-xl")} role="group" aria-label="Energy flow">
       <div
-        ref={rootRef}
         className="@container relative mx-auto w-full"
         style={{
           aspectRatio: `${W} / ${H}`,
@@ -385,47 +338,7 @@ export function EnergyFlowDiagram({
           ...(fit ? { width: `min(100%, calc(var(--flow-h, calc(max(100svh - 14rem, 26rem) - 3.5rem)) * ${W / H}))` } : {}),
         }}
       >
-        {/* The balls, under the lines and the icons. */}
-        {ballsLive && (
-          <>
-            <FlowBall
-              hub
-              at={{ left: pctX(hub.x), top: pctY(hub.y) }}
-              radius={HUB_R}
-              width={W}
-              color={frozen ? COLOR.idle : COLOR[busiest ? busiest.tone : "idle"]}
-              motion="orbit"
-              fill={0.25 + 0.6 * hubLevel}
-              level={hubLevel}
-              active={nodes.some((n) => n.dir !== "none")}
-              frozen={!!frozen}
-              dark={resolvedTheme === "dark"}
-              icon={SERVER_SHAPE}
-            />
-            {layout.nodes.map(({ item, center }) => {
-              const level = Math.min(1, Math.sqrt(item.watts / FULL_BURN_W));
-              return (
-                <FlowBall
-                  key={item.id}
-                  at={{ left: pctX(center.x), top: pctY(center.y) }}
-                  radius={NODE_R}
-                  width={W}
-                  color={frozen ? COLOR.idle : BALL_COLOR[item.tone]}
-                  // Sending energy to the inverter: the dust rises. Taking energy from it: the dust falls. Neither: it drifts.
-                  motion={item.dir === "in" ? "rise" : item.dir === "out" ? "fall" : "drift"}
-                  // The battery is as full as it is charged; the others as full as they are working.
-                  fill={item.soc !== null ? item.soc / 100 : item.dir === "none" ? 0.12 : 0.3 + 0.6 * level}
-                  level={level}
-                  active={item.dir !== "none"}
-                  frozen={!!frozen}
-                  dark={resolvedTheme === "dark"}
-                  icon={ICON_SHAPE[item.kind]}
-                />
-              );
-            })}
-          </>
-        )}
-
+        {/* The lines: hairlines. The energy on them (the drops) is drawn by the canvas. */}
         <svg viewBox={`0 0 ${W} ${H}`} className={cn("absolute inset-0 h-full w-full transition-opacity", frozen && "opacity-50 grayscale")} aria-hidden="true">
           <defs>
             <linearGradient id={`${uid}-off`} x1="0" y1="0" x2="1" y2="1">
@@ -433,54 +346,29 @@ export function EnergyFlowDiagram({
               <stop offset="0.5" stopColor="#ef4444" />
               <stop offset="1" stopColor="#b91c1c" />
             </linearGradient>
-            {layout.nodes.map((entry) => {
-              const { item } = entry;
-              const { from, to } = lineOf(entry);
-              const color = COLOR[item.tone];
-              const active = item.dir !== "none";
-              return (
-                <linearGradient key={item.id} id={`${uid}-${item.id}`} gradientUnits="userSpaceOnUse" x1={from.x} y1={from.y} x2={to.x} y2={to.y}>
-                  <stop offset="0" stopColor={color} stopOpacity={active ? 0.95 : 0.4} />
-                  <stop offset="0.6" stopColor={color} stopOpacity={active ? 0.6 : 0.28} />
-                  <stop offset="1" stopColor={color} stopOpacity={active ? 0.18 : 0.1} />
-                </linearGradient>
-              );
-            })}
           </defs>
           {layout.nodes.map((entry) => {
             const { item } = entry;
             const { from, to, vertical } = lineOf(entry);
-            const d = curvePath(from, to, vertical);
-            // A charger that is only idle shows a quiet grey line; the red cross is for a charger that is offline.
-            const cross = item.id === "ev" && item.evText ? !!item.offline : item.dir === "none";
-            const durS = Math.min(5, Math.max(1.6, 5 - item.watts / 3000));
-            const dur = `${durS.toFixed(1)}s`;
+            const active = flows(item);
             return (
               <g key={item.id}>
+                {/* in use: a fine line in the flow's colour; not in use: a fainter, dotted one */}
                 <path
-                  d={d}
+                  d={curvePath(from, to, vertical)}
                   fill="none"
-                  stroke={`url(#${uid}-${item.id})`}
-                  strokeWidth={item.dir === "none" ? 2 : lineWidth(item.watts)}
+                  stroke={active ? COLOR[item.tone] : COLOR.idle}
+                  strokeOpacity={active ? 0.42 : 0.45}
+                  strokeWidth={1.4}
                   strokeLinecap="round"
+                  strokeDasharray={active ? undefined : "0.5 6"}
                 />
-                {cross && (
-                  // Not in use: a red cross on the line, at its midpoint (a symmetric curve passes through the average of its ends).
-                  <g transform={`translate(${(from.x + to.x) / 2} ${(from.y + to.y) / 2})`} style={{ filter: "drop-shadow(0 0 3px rgba(239,68,68,0.55))" }}>
-                    <path d={`M -${CROSS} -${CROSS} L ${CROSS} ${CROSS} M -${CROSS} ${CROSS} L ${CROSS} -${CROSS}`} stroke={`url(#${uid}-off)`} strokeWidth={3} strokeLinecap="round" fill="none" />
+                {item.offline && (
+                  // An offline charger: a small red cross on its line, at the midpoint (a symmetric curve passes through the average of its ends).
+                  <g transform={`translate(${(from.x + to.x) / 2} ${(from.y + to.y) / 2})`}>
+                    <path d={`M -${CROSS} -${CROSS} L ${CROSS} ${CROSS} M -${CROSS} ${CROSS} L ${CROSS} -${CROSS}`} stroke={`url(#${uid}-off)`} strokeWidth={2.4} strokeLinecap="round" fill="none" />
                   </g>
                 )}
-                {item.dir !== "none" && !frozen &&
-                  // Dots streaming the way the energy moves; faster for more power.
-                  Array.from({ length: DOTS }, (_, i) => {
-                    const begin = `${(-(i * durS) / DOTS).toFixed(2)}s`;
-                    return (
-                      <circle key={i} r={2.6} fill={COLOR[item.tone]} className="motion-reduce:hidden">
-                        <animateMotion dur={dur} begin={begin} repeatCount="indefinite" path={d} />
-                        <animate attributeName="opacity" values="0;1;1;0" keyTimes="0;0.15;0.8;1" dur={dur} begin={begin} repeatCount="indefinite" />
-                      </circle>
-                    );
-                  })}
               </g>
             );
           })}
@@ -497,14 +385,13 @@ export function EnergyFlowDiagram({
             }
           }}
           aria-label={`Inverter: ${summary.text}`}
-          className={cn(
-            "absolute flex aspect-square -translate-x-1/2 -translate-y-1/2 cursor-default flex-col items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-theme-highlight",
-            !ballsOk && "border-2 border-theme-active bg-theme-surface"
-          )}
+          className="absolute flex aspect-square -translate-x-1/2 -translate-y-1/2 cursor-default flex-col items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-theme-highlight"
           style={{ left: pctX(hub.x), top: pctY(hub.y), width: `${((2 * HUB_R) / W) * 100}%` }}
         >
-          <Server className="size-[38%] text-theme-secondary @md:size-[32%]" strokeWidth={1.75} style={ballsOk ? { filter: HALO, opacity: ballsLive ? 0 : 1, transition: "opacity 1s" } : undefined} />
-          <span className="mt-0.5 hidden font-medium leading-none text-theme-secondary @md:block" style={{ fontSize: "clamp(8px, 1.3cqw, 11px)", ...(ballsOk ? { textShadow: TEXT_HALO } : {}) }}>
+          <FlowRing hub color={frozen ? COLOR.idle : COLOR[busiest ? busiest.tone : "idle"]} active={!!busiest} level={hubLevel} soc={null} frozen={!!frozen} dark={dark} />
+          {/* (The plain icon holds the place and shows until the canvas draws the icon in grains.) */}
+          <Server className="relative size-[38%] text-theme-secondary transition-opacity duration-700 @md:size-[32%]" strokeWidth={1.75} style={{ opacity: live ? 0 : 1 }} />
+          <span className="relative mt-0.5 hidden font-medium leading-none text-theme-secondary @md:block" style={{ fontSize: "clamp(8px, 1.3cqw, 11px)" }}>
             {summary.mode}
           </span>
         </div>
@@ -532,18 +419,11 @@ export function EnergyFlowDiagram({
                 tabIndex={0}
                 aria-label={`${item.label}: ${item.value}, ${item.badge.label}`}
                 {...handlers}
-                className={cn(
-                  "absolute flex aspect-square -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-theme-highlight",
-                  !ballsOk && "border-2 bg-theme-surface"
-                )}
-                style={{
-                  left: pctX(center.x),
-                  top: pctY(center.y),
-                  width: `${((2 * NODE_R) / W) * 100}%`,
-                  ...(ballsOk ? {} : { borderColor: idle ? "var(--border)" : color, boxShadow: idle ? undefined : `0 0 16px ${color}33` }),
-                }}
+                className="absolute flex aspect-square -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full outline-none focus-visible:ring-2 focus-visible:ring-theme-highlight"
+                style={{ left: pctX(center.x), top: pctY(center.y), width: `${((2 * NODE_R) / W) * 100}%` }}
               >
-                <Icon className={cn("size-[46%]", idle && "text-theme-muted")} style={{ ...(idle ? {} : { color }), ...(ballsOk ? { filter: HALO, opacity: ballsLive ? 0 : 1, transition: "opacity 1s" } : {}) }} strokeWidth={1.75} />
+                <FlowRing color={frozen || !flows(item) ? COLOR.idle : color} active={flows(item)} level={levelOf(item.watts)} soc={item.soc} frozen={!!frozen} dark={dark} />
+                <Icon className={cn("relative size-[46%] transition-opacity duration-700", idle && "text-theme-muted")} style={{ ...(idle ? {} : { color }), opacity: live ? 0 : 1 }} strokeWidth={1.75} />
               </div>
               <div
                 className="absolute flex -translate-x-1/2 cursor-pointer flex-col items-center whitespace-nowrap text-center"
@@ -574,6 +454,9 @@ export function EnergyFlowDiagram({
             </React.Fragment>
           );
         })}
+
+        {/* The icons' grains and the drops on the lines. */}
+        {live && <EnergyFlowCanvas scene={scene} className={cn("pointer-events-none absolute inset-0 h-full w-full transition-opacity", frozen && "opacity-60")} />}
       </div>
     </div>
   );

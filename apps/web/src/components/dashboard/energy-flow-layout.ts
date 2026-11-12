@@ -118,13 +118,25 @@ export function layoutFlow<T>(items: T[], kindOf: (item: T) => NodeKind): Layout
   return { width: VIEW_W, height, hub, nodes };
 }
 
+/** The two control points of the connector's curve (see curvePath). */
+export function curveControls(from: Point, to: Point, vertical: boolean): [Point, Point] {
+  if (vertical) {
+    const my = (from.y + to.y) / 2;
+    return [
+      { x: from.x, y: my },
+      { x: to.x, y: my },
+    ];
+  }
+  const mx = (from.x + to.x) / 2;
+  return [
+    { x: mx, y: from.y },
+    { x: mx, y: to.y },
+  ];
+}
+
 /** A smooth connector from `from` to `to`, tangent to the axis it travels along (so it enters circles head-on). */
 export function curvePath(from: Point, to: Point, vertical: boolean): string {
   const f = (n: number) => Math.round(n * 100) / 100;
-  if (vertical) {
-    const my = (from.y + to.y) / 2;
-    return `M ${f(from.x)} ${f(from.y)} C ${f(from.x)} ${f(my)}, ${f(to.x)} ${f(my)}, ${f(to.x)} ${f(to.y)}`;
-  }
-  const mx = (from.x + to.x) / 2;
-  return `M ${f(from.x)} ${f(from.y)} C ${f(mx)} ${f(from.y)}, ${f(mx)} ${f(to.y)}, ${f(to.x)} ${f(to.y)}`;
+  const [c1, c2] = curveControls(from, to, vertical);
+  return `M ${f(from.x)} ${f(from.y)} C ${f(c1.x)} ${f(c1.y)}, ${f(c2.x)} ${f(c2.y)}, ${f(to.x)} ${f(to.y)}`;
 }
