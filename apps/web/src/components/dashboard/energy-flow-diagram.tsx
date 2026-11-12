@@ -5,13 +5,14 @@ import { useRouter } from "next/navigation";
 import { useTheme } from "next-themes";
 import { BatteryCharging, CarFront, Fuel, Home, Server, ShieldCheck, Sun, Zap, type LucideIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
-import CrystalizedBall from "@/components/ui/crystalized-ball";
+import CrystalizedBall, { type IconShape } from "@/components/ui/crystalized-ball";
 import { useHasMounted } from "@/hooks/use-has-mounted";
 import { useUnits } from "@/components/units-provider";
 import type { UnitPrefs } from "@/lib/unit-prefs";
 import { badgeFor, homeSourceOf, type StateBadge } from "./energy-flow-badge";
 import { curvePath, HUB_R, layoutFlow, NODE_R, type NodeKind } from "./energy-flow-layout";
 import { fmtKw, lineWidth, summarize } from "./energy-flow-summary";
+import { BATTERYCHARGING_SHAPE, CARFRONT_SHAPE, FUEL_SHAPE, HOME_SHAPE, SERVER_SHAPE, SHIELDCHECK_SHAPE, SUN_SHAPE, ZAP_SHAPE } from "./flow-icon-shapes";
 
 /** Colors encode *direction*, not identity: green = producing or storing (solar producing, battery charging),
  *  amber = drawing on a source (grid import, battery discharging, generator), blue = energy leaving to a consumer
@@ -34,7 +35,10 @@ type Tone = keyof typeof COLOR;
  *  - the POWER sets how many strands crackle round the rim, how violently, how many flares and sparks, the glow, the twinkle, the sway and the speed of
  *    both the rim and the dust, and how many grains there are (in three steps, so the grains are not rebuilt at every new reading);
  *  - an idle circle is a nearly still, dim ball with hardly any rim; when the unit is offline the balls are paused (one still frame) and greyed.
- * Pointing at a ball stirs its dust and heats the rim nearest the pointer, and pressing on it sets off a burst.
+ *  - the ICON of the circle is made of the ball's grains: they gather on the icon's strokes (solar's sun, the grid's bolt, the battery, the house, the car, the
+ *    inverter's box), and the strokes get THICKER the more power moves (more grains on thicker lines, brighter and slightly larger). Pointing at the ball
+ *    SHATTERS the icon (the grains are thrown and fall back into the ball's dust, with a few sparks) and when the pointer leaves they gather again.
+ * Pointing at a ball also stirs its dust and heats the rim nearest the pointer, and pressing on it sets off a burst.
  */
 const BALL_COLOR: Record<Tone, string> = { ...COLOR };
 type BallMotion = "rise" | "fall" | "drift" | "orbit";
@@ -74,6 +78,7 @@ function FlowBall({
   active,
   frozen,
   dark,
+  icon,
   hub = false,
 }: {
   at: { left: string; top: string };
@@ -86,10 +91,13 @@ function FlowBall({
   active: boolean;
   frozen: boolean;
   dark: boolean;
+  icon: IconShape;
   hub?: boolean;
 }) {
   // The grains, in three steps (a change of the count rebuilds them), and more of them on the inverter's larger ball.
-  const grains = Math.round((active ? (level < 0.34 ? 1200 : level < 0.67 ? 1800 : 2600) : 700) * (hub ? 1.5 : 1));
+  // (More of them than a plain ball needs: most make the icon.) The icon's line is thin when idle and gets thicker with the power, in half steps.
+  const grains = Math.round((active ? (level < 0.34 ? 2400 : level < 0.67 ? 3200 : 4200) : 1400) * (hub ? 1.4 : 1));
+  const stroke = (active ? Math.round((1.5 + 1.5 * level) * 2) / 2 : 1.25) * (hub ? 0.7 : 1);
   return (
     <div
       aria-hidden="true"
@@ -117,6 +125,11 @@ function FlowBall({
         speed={active ? 0.5 + 0.8 * level : 0.25}
         dustSpeed={active ? 0.8 + 0.9 * level : 0.35}
         interactive
+        icon={icon}
+        iconStroke={stroke}
+        // (The inverter's circle also has a word under its icon, so its icon is smaller.)
+        iconScale={hub ? 0.28 : 0.46}
+        iconShare={0.6}
         hoverStrength={hub ? 0.9 : 0.7}
         intro
         paused={frozen}
@@ -138,6 +151,16 @@ const ICON: Record<NodeKind, LucideIcon> = {
   ups: ShieldCheck,
   home: Home,
   ev: CarFront,
+};
+// The same icons as drawings, for the balls to build out of grains.
+const ICON_SHAPE: Record<NodeKind, IconShape> = {
+  solar: SUN_SHAPE,
+  grid: ZAP_SHAPE,
+  generator: FUEL_SHAPE,
+  battery: BATTERYCHARGING_SHAPE,
+  ups: SHIELDCHECK_SHAPE,
+  home: HOME_SHAPE,
+  ev: CARFRONT_SHAPE,
 };
 const DEFAULT_LABEL: Record<NodeKind, string> = {
   solar: "Solar",
@@ -300,6 +323,9 @@ export function EnergyFlowDiagram({
   // Assumed to work until the browser says it cannot (so the first paint has the orb look, not the plain one).
   const ballsOk = React.useSyncExternalStore(subscribeNever, canDrawBalls, () => true);
   const mounted = useHasMounted();
+  // While the balls are alive they draw the icons themselves (out of grains), so the plain icons fade out; they are what shows without WebGL 2, and
+  // before the balls start.
+  const ballsLive = ballsOk && onScreen && mounted;
   const { resolvedTheme } = useTheme();
 
   const nodes: FlowNode[] = [
@@ -360,7 +386,7 @@ export function EnergyFlowDiagram({
         }}
       >
         {/* The balls, under the lines and the icons. */}
-        {ballsOk && onScreen && mounted && (
+        {ballsLive && (
           <>
             <FlowBall
               hub
@@ -374,6 +400,7 @@ export function EnergyFlowDiagram({
               active={nodes.some((n) => n.dir !== "none")}
               frozen={!!frozen}
               dark={resolvedTheme === "dark"}
+              icon={SERVER_SHAPE}
             />
             {layout.nodes.map(({ item, center }) => {
               const level = Math.min(1, Math.sqrt(item.watts / FULL_BURN_W));
@@ -392,6 +419,7 @@ export function EnergyFlowDiagram({
                   active={item.dir !== "none"}
                   frozen={!!frozen}
                   dark={resolvedTheme === "dark"}
+                  icon={ICON_SHAPE[item.kind]}
                 />
               );
             })}
@@ -475,7 +503,7 @@ export function EnergyFlowDiagram({
           )}
           style={{ left: pctX(hub.x), top: pctY(hub.y), width: `${((2 * HUB_R) / W) * 100}%` }}
         >
-          <Server className="size-[38%] text-theme-secondary @md:size-[32%]" strokeWidth={1.75} style={ballsOk ? { filter: HALO } : undefined} />
+          <Server className="size-[38%] text-theme-secondary @md:size-[32%]" strokeWidth={1.75} style={ballsOk ? { filter: HALO, opacity: ballsLive ? 0 : 1, transition: "opacity 1s" } : undefined} />
           <span className="mt-0.5 hidden font-medium leading-none text-theme-secondary @md:block" style={{ fontSize: "clamp(8px, 1.3cqw, 11px)", ...(ballsOk ? { textShadow: TEXT_HALO } : {}) }}>
             {summary.mode}
           </span>
@@ -515,7 +543,7 @@ export function EnergyFlowDiagram({
                   ...(ballsOk ? {} : { borderColor: idle ? "var(--border)" : color, boxShadow: idle ? undefined : `0 0 16px ${color}33` }),
                 }}
               >
-                <Icon className={cn("size-[46%]", idle && "text-theme-muted")} style={{ ...(idle ? {} : { color }), ...(ballsOk ? { filter: HALO } : {}) }} strokeWidth={1.75} />
+                <Icon className={cn("size-[46%]", idle && "text-theme-muted")} style={{ ...(idle ? {} : { color }), ...(ballsOk ? { filter: HALO, opacity: ballsLive ? 0 : 1, transition: "opacity 1s" } : {}) }} strokeWidth={1.75} />
               </div>
               <div
                 className="absolute flex -translate-x-1/2 cursor-pointer flex-col items-center whitespace-nowrap text-center"
