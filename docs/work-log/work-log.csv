@@ -964,3 +964,40 @@
 2026-11-11,Landing page,Mobile menu section; Navigation section,Smaller brand logo in the phone header and menu
 2026-11-11,Landing page,Home page; Hero section,Dark theme status bar stays navy after a refresh; longer navy fade on the dark sky
 2026-11-11,Backend,Tests and deploy: Work log,"Daily work log: CSV, a workbook with a sheet for each day, and a day-by-day export"
+2026-11-11,Documentation,Notes,Firmware rows added by hand and the first sync after the tool commit
+2026-11-11,Backend,; Package lock; Package,"First cut of the promo film for the hero, built with Remotion"
+2026-11-12,Customer dashboard,Dashboard page; Overview sky,Customer Overview gets the landing page's cloud sky across the top
+2026-11-12,Customer dashboard,Energy flow diagram,The energy flow diagram's circles are Orbs (React Bits)
+2026-11-12,Landing page,Orb,The energy flow diagram's circles are Orbs (React Bits)
+2026-11-12,Customer dashboard,Energy flow diagram,"The energy flow's circles are Crystalized Balls, driven by power and direction"
+2026-11-12,Landing page,Crystalized ball; Orb,"The energy flow's circles are Crystalized Balls, driven by power and direction"
+2026-11-12,Customer dashboard,Energy flow diagram; Flow icon shapes,The energy flow's icons are made of the ball's grains: they shatter on hover and gather again
+2026-11-12,Landing page,Crystalized ball,The energy flow's icons are made of the ball's grains: they shatter on hover and gather again
+2026-11-12,Customer dashboard,Energy flow canvas; Energy flow diagram; Energy flow layout,"Energy flow redrawn minimal, like a phone charging: rings, grain icons, drops of power"
+2026-11-12,Landing page,Crystalized ball,"Energy flow redrawn minimal, like a phone charging: rings, grain icons, drops of power"
+2026-11-12,Customer dashboard,Energy flow canvas; Energy flow diagram,"Energy flow: Crystalized Ball rims as the rings, charging-style beams on the lines"
+2026-11-12,Landing page,Crystalized ball,"Energy flow: Crystalized Ball rims as the rings, charging-style beams on the lines"
+2026-11-12,Customer dashboard,Energy flow canvas,"Energy flow beams: flow lines instead of drop shapes; thickness, speed and sparks show the power"
+2026-11-12,Customer dashboard,Overview sky,Overview header reads over the sky (frosted capsules); the browser's top bar follows the sky
+2026-11-12,Customer dashboard,Overview sky,"Undo the Overview header changes (frosted capsules, sky-coloured top bar)"
+2026-11-12,Customer dashboard,Dashboard page; Dashboard header; Dashboard sidebar,Device controls move from the header into the sidebar; the brand logo badges a device that stops reporting
+2026-11-12,Backend,Library: Sidebar device info,Device controls move from the header into the sidebar; the brand logo badges a device that stops reporting
+2026-11-12,Customer dashboard,Dashboard sidebar; Header weather; Notification center,"Sidebar device cards, brand badge and header controls: eleven corrections"
+2026-11-12,Landing page,Sidebar,"Sidebar device cards, brand badge and header controls: eleven corrections"
+2026-11-12,Customer dashboard,Notification center; Sidebar device row,Phone notification panel and sidebar follow the theme with fades; the dot carries the device state; Go live hidden
+2026-11-12,Landing page,Sidebar,Phone notification panel and sidebar follow the theme with fades; the dot carries the device state; Go live hidden
+2026-11-12,Customer dashboard,Sidebar brand toggle,"The brand badge takes the colour of the device's dot (amber lost, red offline)"
+2026-11-12,Customer dashboard,Energy today cards; Today area chart; Today stat card,"Overview cards: titles without ""today""; phone cards drop the sentence and the time labels"
+2026-11-12,Customer dashboard,Dashboard page; Overview sky,Overview on an iPhone: the status bar takes the cloud sky's colour
+2026-11-12,Landing page,Images and media,"EV Overview on a phone: one card like a car's charging screen, with the user's car"
+2026-11-12,Customer dashboard,Dashboard page; Ev mobile card; Ev overview board,"EV Overview on a phone: one card like a car's charging screen, with the user's car"
+2026-11-12,Customer dashboard,Ev mobile card,EV Overview on a phone: remove the card behind the layout
+2026-11-12,Customer dashboard,Dashboard page; Overview carousel; Overview sky,"Overview: the cloud sky only on the inverter's slide, with a soft change to the plain theme on other devices"
+2026-11-12,Customer dashboard,Ev mobile card; Ev overview board; Overview carousel,"EV Overview on a phone: control fixed to the bottom; energy, duration, cost and source of the charge"
+2026-11-12,Backend,Library: Ev history; Library: Ev overview,"EV Overview on a phone: control fixed to the bottom; energy, duration, cost and source of the charge"
+2026-11-12,Customer dashboard,Ev mobile card; Ev overview board,EV Overview on a phone: one Last charge with its date and time; close the gap before Statistic
+2026-11-12,Customer dashboard,Ev mobile card; Ev overview board; Ev sessions browser,"EV Overview: a charge opens on its own page, not a popup; no text above the car; phone content sits down the screen"
+2026-11-12,Customer dashboard,Ev mobile card,EV Overview on a phone: cut the space above the car by a tenth
+2026-11-12,Customer dashboard,Ev mobile card,EV Overview on a phone: cut the space above the car by another tenth
+2026-11-12,Customer dashboard,Ev mobile card; Ev overview board,EV Overview: less top space; History without Export CSV; round arrows on the card headings
+2026-11-12,Customer dashboard,Ev mobile card; Ev overview board,EV Overview on a phone: the last charge is the headline and the progress bar when none runs

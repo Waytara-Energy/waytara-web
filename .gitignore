@@ -66,3 +66,6 @@ WayTara-Dashboard-Keys.xlsx
 
 # The daily work-log mails: a copy of each workbook that was sent is kept here, not in git
 docs/work-log/sent/
+
+# python bytecode (the work-log script)
+__pycache__/

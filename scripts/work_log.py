@@ -12,6 +12,8 @@ Areas: Landing page, Customer dashboard, Admin page, Firmware, Supabase, Backend
   python scripts/work_log.py export --date 2026-11-12 --out day.xlsx    a workbook with that one day's sheet
   python scripts/work_log.py export --all --out all.xlsx                a workbook with every day's sheet
   python scripts/work_log.py body --date 2026-11-12    the e-mail body (HTML) for one day; "body --all" for the every-day mail
+  python scripts/work_log.py days                      JSON: every date that has rows, oldest first
+  python scripts/work_log.py day --date 2026-11-12     JSON: that day's rows ([area, section, event], in the CSV's order); used by update-work-log-excel.ps1
 
 The commits are read from git (the author's date, in India time). Each file a commit changed is placed in an area by its path, and the page or section
 is named from the file; a commit that touched two areas gives one row in each. Only the standard library is used.
@@ -351,6 +353,16 @@ def cmd_body(args):
     print("\n".join(lines))
 
 
+def cmd_days(_args):
+    import json
+    print(json.dumps(sorted({r[0] for r in read_rows()})))
+
+
+def cmd_day(args):
+    import json
+    print(json.dumps([r[1:] for r in read_rows() if r[0] == args.date], ensure_ascii=False))
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     sub = ap.add_subparsers(dest="cmd", required=True)
@@ -362,6 +374,10 @@ def main():
     a.add_argument("--event", required=True)
     a.set_defaults(fn=cmd_add)
     sub.add_parser("build").set_defaults(fn=cmd_build)
+    sub.add_parser("days").set_defaults(fn=cmd_days)
+    d = sub.add_parser("day")
+    d.add_argument("--date", required=True)
+    d.set_defaults(fn=cmd_day)
     e = sub.add_parser("export")
     e.add_argument("--date")
     e.add_argument("--all", action="store_true")

@@ -13,4 +13,6 @@ The commits are read from git by `scripts/work_log.py sync` (author date, India 
 python scripts/work_log.py add --date 2026-11-12 --area Supabase --section "Migration: devices" --event "What was done"
 ```
 
-Every day around 19:00 a scheduled task runs `sync`, makes that day's workbook (`export --date`) and e-mails it. The first mail (2026-11-11) had every day's sheet; from 2026-11-12 each mail has only that day. Copies of what was sent are kept in `sent/` (not in git).
+Every morning around 07:40 a scheduled task (`daily-work-log-excel`) runs `sync` and then `scripts/update-work-log-excel.ps1`, which adds a sheet for every finished day (every date before today) that the shared workbook does not have yet. The shared workbook is `C:\Users\Admin\OneDrive - Waytara Energy LLP\1-Worklogs\work-log-all-days-2026-11-11.xlsx`; the script uses Excel itself, so a person's own edits and formatting in it are kept, a day that already has a sheet is never touched, and nothing is deleted. Nothing is e-mailed any more (the all-days e-mail of 2026-11-11 was sent by hand; copies are in `sent/`, not in git). The two read-only commands the script uses are `python scripts/work_log.py days` and `python scripts/work_log.py day --date YYYY-MM-DD` (JSON).
+
+To run it by hand: `python scripts/work_log.py sync`, then `powershell -NoProfile -ExecutionPolicy Bypass -File scripts\update-work-log-excel.ps1` (add `-Path some.xlsx -Today YYYY-MM-DD` to try it on a copy).
