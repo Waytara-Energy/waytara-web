@@ -17,6 +17,10 @@ const PAGE = { light: "#FFFFFF", dark: "#0A0F0D" };
 // How tall the sky is, and how far the page has to scroll to take it away.
 const SKY_HEIGHT = "clamp(240px, 36vh, 360px)";
 const SKY_SCROLL_PX = 160;
+// How the sky fades into the page: not along a straight line but along a "U": the sky reaches lowest in the middle and fades out higher towards both sides
+// (an ellipse centred on the top edge, as tall as the sky layer and 72% as wide as the window each way, so it is clear exactly at the layer's bottom edge in the
+// middle and the sides have faded before the top corners). Solid to 28% of the way out, clear at the edge.
+const SKY_FADE = "radial-gradient(ellipse 72% 100% at 50% 0%, #000 28%, transparent 100%)";
 /** 0 = the sky is fully there, 1 = it has scrolled away. Set on the dashboard's content area as the page scrolls; everything below reads it. */
 const GONE = "--overview-sky-gone";
 /** 1 = the slide being shown has the sky, 0 = it has not (a charger). Set on the content area when the slide changes and eased over 0.45 s (see CSS). */
@@ -39,8 +43,8 @@ ${HOST} > header::after{opacity:${g}}
 `;
 
 /**
- * The cloud sky across the top of the Overview, the way the landing page has it: clouds drifting at the very top that melt into the page colour a
- * third of the way down. It is pinned to the top of the window behind everything (the dashboard's content area is its own layer, and the header is
+ * The cloud sky across the top of the Overview, the way the landing page has it: clouds drifting at the very top that melt into the page colour along a
+ * U-shaped edge (lowest in the middle, higher towards the sides). It is pinned to the top of the window behind everything (the dashboard's content area is its own layer, and the header is
  * clear while the sky shows), and as the page is scrolled it fades away over the first 160 px while the header turns back into its usual page-coloured
  * bar, so the cards never slide under a clear header.
  *
@@ -128,9 +132,9 @@ export function OverviewSky({ active = true }: { active?: boolean }) {
         style={{
           height: SKY_HEIGHT,
           opacity: `calc(${there})`,
-          // clear of any cloud by a third of the way down, and the page colour from there to the bottom edge
-          maskImage: "linear-gradient(to bottom, #000 0, #000 30%, transparent 100%)",
-          WebkitMaskImage: "linear-gradient(to bottom, #000 0, #000 30%, transparent 100%)",
+          // fades out along a U (see SKY_FADE): the page colour from there on
+          maskImage: SKY_FADE,
+          WebkitMaskImage: SKY_FADE,
           // its own colour is the sky's top colour while the sky shows and the page colour once it has gone (what Safari reads for the status bar)
           backgroundColor: `color-mix(in srgb, var(--overview-sky-top) calc(${there} * 100%), var(--background))`,
           backgroundImage: "linear-gradient(to bottom, var(--overview-sky-top), var(--overview-sky-bottom))",
