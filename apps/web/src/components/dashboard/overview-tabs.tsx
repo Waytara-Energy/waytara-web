@@ -16,7 +16,7 @@ export interface OverviewTab {
   kind: "site" | "inverter" | "charger";
   /** That page (a board). */
   content: React.ReactNode;
-  /** Whether this page has the cloud sky behind it (an inverter's does; the others have the plain theme background). */
+  /** Whether this page has the cloud sky behind it (every page of the Overview has; a page can be given the plain theme background with false). */
   sky: boolean;
 }
 
@@ -136,7 +136,7 @@ export function OverviewTabs({ tabs, initialId, background }: { tabs: OverviewTa
     <TabsContext.Provider value={context}>
       <div className="relative">
         {background && <OverviewBackdrop css={background} />}
-        {/* the cloud sky, on an inverter's page only (it fades as the page changes), unless the person chose a background of their own */}
+        {/* the cloud sky, on every page (a page with `sky: false` fades it away), unless the person chose a background of their own */}
         {!background && <OverviewSky active={current.sky} />}
 
         {/* On a phone this box reaches the screen's edges and the page keeps its own margin inside (an inverter's energy flow is a little wider than the

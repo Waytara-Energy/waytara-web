@@ -151,7 +151,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
         id: d.device.id,
         name: deviceDisplayId(d.device),
         kind: "charger",
-        sky: false,
+        sky: true,
         content: (
           <EvOverviewBoard
             chargerId={d.device.id}
@@ -223,7 +223,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
             id: SITE_TAB,
             name: "Overview",
             kind: "site",
-            sky: false,
+            sky: true,
             content: <SiteOverviewBoard siteId={site.id} place={site.address?.city ?? site.name} devices={siteDevices} inverters={siteInverters} chargers={siteChargers} car={car} background={background} />,
           },
           ...deviceTabs,

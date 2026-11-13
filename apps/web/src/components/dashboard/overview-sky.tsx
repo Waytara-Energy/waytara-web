@@ -52,9 +52,9 @@ ${HOST} > header::after{opacity:${g}}
  * top edge and has that colour, <html> has it, and the theme-color tags are set to it); once the sky has scrolled away they are the page colour again.
  * The layer does not reach the bottom of the window, so the bottom toolbar keeps the page colour.
  *
- * THE SKY BELONGS TO THE INVERTER'S SLIDE: `active` says whether the slide being shown has it. On any other device's slide (a charger) the page has the plain
- * theme background: the sky fades away (and the header, the page and the browser's bar turn back to the page colour with it) as the slide changes, and
- * fades in again on the way back; the cloud drawing is stopped once it has faded.
+ * `active` says whether the page being shown has the sky (every page of the Overview does). A page without it has the plain theme background: the sky
+ * fades away (and the header, the page and the browser's bar turn back to the page colour with it) as the page changes, and fades in again on the way back;
+ * the cloud drawing is stopped once it has faded.
  *
  * Shown only when the person has not chosen a background of their own for the Overview (Application Settings). It must be rendered where no ancestor
  * inside the content area is positioned, so that "the top" is the top of the window.
