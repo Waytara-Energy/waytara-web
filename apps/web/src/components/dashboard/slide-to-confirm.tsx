@@ -109,8 +109,8 @@ export function SlideToConfirm({
 
   return (
     <div ref={trackRef} className={cn("relative h-12 select-none overflow-hidden rounded-2xl", look.track, className)}>
-      {/* what has been taken so far */}
-      <span aria-hidden="true" className={cn("absolute inset-y-0 left-0 rounded-2xl", look.fill, !dragging && "transition-[width] duration-300")} style={{ width: x + THUMB + PAD * 2 }} />
+      {/* what has been taken so far (nothing at rest) */}
+      <span aria-hidden="true" className={cn("absolute inset-y-0 left-0 rounded-2xl", look.fill, !dragging && "transition-[width] duration-300")} style={{ width: x > 0 ? x + THUMB + PAD * 2 : 0 }} />
       {/* the words: fade as the thumb comes over them */}
       <span aria-live="polite" className="pointer-events-none absolute inset-y-0 right-3 left-[3.75rem] flex flex-col items-center justify-center text-center leading-tight transition-opacity" style={{ opacity: Math.max(0, 1 - progress * 1.4) }}>
         <span className="max-w-full truncate text-[13px] font-semibold">{label}</span>

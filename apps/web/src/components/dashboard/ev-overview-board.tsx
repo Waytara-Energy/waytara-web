@@ -14,6 +14,8 @@ import type { EnumOption } from "@/lib/enum-labels";
 import { chargeProgress, type CarProfile } from "@/lib/ev-car";
 import { unknownAsSolar } from "./ev-source";
 import type { EvHistory, EvHistorySession } from "@/lib/ev-history";
+import type { EvLogEntry } from "@/lib/ev-log";
+import { useFitRows } from "@/hooks/use-fit-rows";
 import type { OpenCharge } from "@/lib/ev-overview";
 import { cn } from "@/lib/utils";
 import { EvMobileCard } from "./ev-mobile-card";
@@ -50,74 +52,18 @@ function Title({ children, aside, href }: { children: React.ReactNode; aside?: R
   );
 }
 
-/** Energy per day as plain bars: 7 or 30 days, today last. Hovering (or focusing) a bar names its day and figure in the header line. */
-function Statistic({ history, chargerId }: { history: EvHistory; chargerId: string }) {
-  const u = useUnits();
-  const [active, setActive] = React.useState<number | null>(null);
-  // always the last 7 days
-  const days = history.daily.slice(-7);
-  const max = Math.max(0.1, ...days.map((d) => d.kwh));
-  const total = days.reduce((s, d) => s + d.kwh, 0);
-  const label = (day: string, long: boolean) =>
-    new Date(`${day}T00:00:00Z`).toLocaleDateString("en-IN", long ? { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" } : { weekday: "short", timeZone: "UTC" });
-  const shown = active !== null ? days[active] : null;
-
-  return (
-    <Card className="flex min-h-0 flex-col gap-3 p-4 border-border! bg-transparent! shadow-none! max-lg:order-last lg:col-span-5 lg:col-start-8 lg:row-start-2 lg:p-5">
-      <Title href={`/dashboard/performance?device=${encodeURIComponent(chargerId)}#ev`}>Statistic</Title>
-      <div>
-        <p className="text-2xl font-semibold tabular-nums text-foreground">{u.format(shown ? shown.kwh : total, "kWh", "ev_energy_today_kwh", 1)}</p>
-        <p className="text-xs text-muted-foreground">{shown ? label(shown.day, true) : "delivered in the last 7 days"}</p>
-      </div>
-      <div className="relative min-h-28 flex-1" onMouseLeave={() => setActive(null)}>
-        <div aria-hidden="true" className="absolute inset-x-0 top-0 bottom-5 flex flex-col justify-between">
-          {[0, 1, 2].map((i) => (
-            <div key={i} className="border-t border-dashed border-border/70" />
-          ))}
-        </div>
-        <div className="absolute inset-x-0 top-0 bottom-5 flex items-end gap-[3px]">
-          {days.map((d, i) => (
-            <button
-              key={d.day}
-              type="button"
-              aria-label={`${label(d.day, true)}: ${d.kwh.toFixed(1)} kWh`}
-              onMouseEnter={() => setActive(i)}
-              onFocus={() => setActive(i)}
-              onBlur={() => setActive(null)}
-              className="group flex h-full min-w-0 flex-1 items-end outline-none"
-            >
-              <span
-                className={cn(
-                  "mx-auto block w-full max-w-[2.25rem] rounded-t-md transition-colors",
-                  d.kwh > 0 ? (i === days.length - 1 ? "bg-emerald-500" : "bg-emerald-500/55 group-hover:bg-emerald-500 group-focus-visible:bg-emerald-500") : "bg-muted",
-                )}
-                style={{ height: d.kwh > 0 ? `${Math.max(4, (d.kwh / max) * 100)}%` : "3px" }}
-              />
-            </button>
-          ))}
-        </div>
-        <div aria-hidden="true" className="absolute inset-x-0 bottom-0 flex gap-[3px] text-[10px] text-muted-foreground">
-          {days.map((d) => (
-            <span key={d.day} className="min-w-0 flex-1 truncate text-center">
-              {label(d.day, false)}
-            </span>
-          ))}
-        </div>
-      </div>
-    </Card>
-  );
-}
-
 function History({ sessions, onOpen, chargerId }: { sessions: EvHistorySession[]; onOpen: (id: string) => void; chargerId: string }) {
   const u = useUnits();
+  // only as many rows as fit (three on a phone); the arrow opens all of them
+  const { ref, count } = useFitRows(3);
   return (
     <Card className="flex min-h-0 flex-col gap-2 p-4 border-border! bg-transparent! shadow-none! lg:col-span-7 lg:col-start-1 lg:row-start-2 lg:p-5">
       <Title href={`/dashboard/reports?device=${encodeURIComponent(chargerId)}#ev`}>History</Title>
       {sessions.length === 0 ? (
         <p className="grid flex-1 place-items-center text-sm text-muted-foreground">Finished charges are listed here.</p>
       ) : (
-        <ul className="-mx-2 max-h-60 min-h-0 flex-1 divide-y overflow-y-auto px-1 lg:max-h-none">
-          {sessions.map((s) => {
+        <ul ref={ref} className="-mx-2 min-h-0 flex-1 divide-y overflow-hidden px-1">
+          {sessions.slice(0, count).map((s) => {
             // the solar share is the one the source card shows (what the meters could not place counts as solar)
             const solar = s.shares ? (unknownAsSolar(s.shares)?.find((x) => x.key === "solar")?.pct ?? 0) : s.solarSharePct;
             return (
@@ -143,6 +89,31 @@ function History({ sessions, onOpen, chargerId }: { sessions: EvHistorySession[]
   );
 }
 
+const TONE_DOT: Record<EvLogEntry["tone"], string> = { good: "bg-emerald-500", info: "bg-sky-500", warn: "bg-amber-500", bad: "bg-red-500" };
+
+/** The charger's log: what happened to it (a charge was asked for, started, ended; it went offline; a fault), newest first, only as many lines as fit; the Maintenance page has the rest. */
+function ChargerLog({ log, chargerId }: { log: EvLogEntry[]; chargerId: string }) {
+  const { ref, count } = useFitRows(3);
+  return (
+    <Card className="flex min-h-0 flex-col gap-2 p-4 border-border! bg-transparent! shadow-none! max-lg:order-last lg:col-span-5 lg:col-start-8 lg:row-start-2 lg:p-5">
+      <Title href={`/dashboard/maintenance?device=${encodeURIComponent(chargerId)}`}>Charger log</Title>
+      {log.length === 0 ? (
+        <p className="grid flex-1 place-items-center text-sm text-muted-foreground">What happens to the charger is listed here.</p>
+      ) : (
+        <ul ref={ref} className="-mx-2 min-h-0 flex-1 divide-y overflow-hidden px-1">
+          {log.slice(0, count).map((e) => (
+            <li key={e.id} className="flex items-center gap-3 px-2 py-2">
+              <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full", TONE_DOT[e.tone])} />
+              <p className="min-w-0 flex-1 truncate text-sm text-foreground">{e.text}</p>
+              <p className="shrink-0 text-xs tabular-nums text-muted-foreground">{`${dayMonth(e.ts)}, ${clock(e.ts)}`}</p>
+            </li>
+          ))}
+        </ul>
+      )}
+    </Card>
+  );
+}
+
 /**
  * A charger's Overview: the charger and car drawn with what it is doing (live power, current and voltage, the charge so far, Start / Stop),
  * the last finished charge, the list of recent ones and the energy per day. The words and the open charge come from the server (the page
@@ -155,6 +126,7 @@ export function EvOverviewBoard({
   open,
   initial,
   history,
+  log = [],
   car = null,
   tariff = 8,
 }: {
@@ -166,6 +138,8 @@ export function EvOverviewBoard({
   open: OpenCharge | null;
   initial: Record<string, number | null>;
   history: EvHistory;
+  /** The charger's latest log lines (who started and stopped it, faults, connection), newest first; the card shows as many as fit. */
+  log?: EvLogEntry[];
   /** The person's car (battery size, km per kWh), for what a charge adds; null when not entered. */
   car?: CarProfile | null;
   /** The person's tariff per kWh, for the cost of a charge on a phone. */
@@ -245,7 +219,7 @@ export function EvOverviewBoard({
           { label: "Voltage", value: n.voltage_l1_n_v !== null ? `${Math.round(n.voltage_l1_n_v)} V` : "—" },
         ]}
       />
-      <Statistic history={history} chargerId={chargerId} />
+      <ChargerLog log={log} chargerId={chargerId} />
       <History sessions={history.recent} onOpen={openCharge} chargerId={chargerId} />
       {/* room for the control that is fixed to the bottom of the screen on a phone */}
       <div aria-hidden="true" className="h-24 max-lg:order-last sm:hidden" />

@@ -11,6 +11,7 @@ import { SITE_OVERVIEW_KEYS } from "@/lib/overview-keys";
 import { fetchSolarCardsProps } from "@/components/dashboard/solar-live-status-cards";
 import { EvOverviewBoard } from "@/components/dashboard/ev-overview-board";
 import { fetchEvHistory, type EvHistory } from "@/lib/ev-history";
+import { fetchEvLog, type EvLogEntry } from "@/lib/ev-log";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { fetchEvOverview } from "@/lib/ev-overview";
 import { getCustomerPlan } from "@/lib/customer-plan";
@@ -80,7 +81,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
   const emptySync: DeviceSyncInit = { lastTs: null, agentSeenTs: null, deviceOnline: null, intervalS: null, heartbeatS: null };
   type SlideData =
     | { kind: "inverter"; device: (typeof site.devices)[number]; syncInit: DeviceSyncInit; pvKeys: string[]; initial: Record<string, number | null>; solar: Awaited<ReturnType<typeof fetchSolarCardsProps>> }
-    | { kind: "charger"; device: (typeof site.devices)[number]; ev: Awaited<ReturnType<typeof fetchEvOverview>>; history: EvHistory; tariff: number };
+    | { kind: "charger"; device: (typeof site.devices)[number]; ev: Awaited<ReturnType<typeof fetchEvOverview>>; history: EvHistory; log: EvLogEntry[]; tariff: number };
   const [slideData, uiRow] = await Promise.all([
     Promise.all(
       site.devices.map(async (device): Promise<SlideData | null> => {
@@ -97,8 +98,8 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
         }
         if (category === "ev_charger") {
           const [ev, plan] = await Promise.all([fetchEvOverview(supabase, device.id), getCustomerPlan()]);
-          const history = await fetchEvHistory(supabase, device.id, plan?.tariffRatePerKwh ?? 8);
-          return { kind: "charger", device, ev, history, tariff: plan?.tariffRatePerKwh ?? 8 };
+          const [history, log] = await Promise.all([fetchEvHistory(supabase, device.id, plan?.tariffRatePerKwh ?? 8), fetchEvLog(supabase, device.id)]);
+          return { kind: "charger", device, ev, history, log, tariff: plan?.tariffRatePerKwh ?? 8 };
         }
         return null;
       }),
@@ -151,6 +152,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
             open={d.ev.open}
             initial={d.ev.latest}
             history={d.history}
+            log={d.log}
             car={car}
             tariff={d.tariff}
           />

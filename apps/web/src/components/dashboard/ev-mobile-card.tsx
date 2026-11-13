@@ -189,18 +189,18 @@ export function EvMobileCard({
 
   const showField = !on && !starting && !offline;
   const startDisabled = bad || starting || offline;
-  // The words on the slide. To start: the plug is confirmed by sliding, and the limit that has been set is read back (an unreadable one stops the start).
+  // The words on the slide: to start, sliding confirms the plug (an unreadable limit stops the start; an empty or a set limit needs no words).
   const slide = on
     ? stopping
       ? { label: "Stopping…", hint: "ending the charge" }
-      : { label: "Slide to stop", hint: "ends this charge" }
+      : { label: "Slide to stop" }
     : starting
       ? { label: "Starting…", hint: "waiting for the charger" }
       : offline
         ? { label: "Charger offline", hint: "it cannot be started now" }
         : bad
           ? { label: "Check the limit", hint: "kWh as a number, or empty" }
-          : { label: "Slide to start", hint: target !== null ? `plug connected · ${target} kWh` : "plug connected · no limit" };
+          : { label: "Plugged in? Slide to start" };
 
   return (
     // On a phone one column that is as tall as its content and starts right under the header: the car, the charge, the figures, the source of the energy and the
