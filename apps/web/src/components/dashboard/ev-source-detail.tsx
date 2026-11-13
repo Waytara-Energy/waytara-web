@@ -18,7 +18,7 @@ function topPath(left: number, mid: number, right: number): string {
 }
 
 /**
- * Where the energy of a charge came from, in detail (a wide screen): one column for each of solar, battery and grid, as wide as its share, with a soft
+ * Where the energy of a charge came from, in detail (a wide screen): one column for each of solar, battery and grid, all the same width (how high its top is says the share), with a soft
  * wavy top that runs on from one column to the next, a label with its icon at the foot, and its share (and energy) under it.
  */
 export function EvSourceDetail({ shares, total, charging = false, className }: { shares: SourceShare[] | null; total: string | null; charging?: boolean; className?: string }) {
@@ -49,8 +49,8 @@ export function EvSourceDetail({ shares, total, charging = false, className }: {
           const Icon = SOURCE[key].icon;
           const color = SOURCE[key].color;
           return (
-            // as wide as its share (never narrower than its icon and figure need)
-            <div key={key} className="flex min-w-[5.5rem] flex-col gap-2" style={{ flexGrow: Math.max(pct ?? 0, 14), flexBasis: 0 }}>
+            // all three the same width (the height of the top says the share)
+            <div key={key} className="flex min-w-[5.5rem] flex-1 basis-0 flex-col gap-2">
               <svg width="0" height="0" className="absolute" aria-hidden="true">
                 <clipPath id={`${uid}${key}`} clipPathUnits="objectBoundingBox">
                   <path d={topPath(joins[i].left, mids[i], joins[i].right)} />
