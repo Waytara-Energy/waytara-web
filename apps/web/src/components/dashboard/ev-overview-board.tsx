@@ -3,7 +3,7 @@
 import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, Clock, IndianRupee, Leaf, Zap } from "lucide-react";
+import { ArrowUpRight } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { useUnits } from "@/components/units-provider";
 import { useLiveNumbers } from "@/lib/telemetry/live-values";
@@ -11,12 +11,10 @@ import { useDeviceLive } from "@/lib/telemetry/react";
 import { getConnectorStatusLabel } from "@/lib/ev-charger-catalog";
 import { EV_LIVE_KEYS } from "@/lib/ev-live-keys";
 import type { EnumOption } from "@/lib/enum-labels";
-import { chargeProgress, kmText, minutesText, type CarProfile } from "@/lib/ev-car";
+import { chargeProgress, type CarProfile } from "@/lib/ev-car";
 import type { EvHistory, EvHistorySession } from "@/lib/ev-history";
 import type { OpenCharge } from "@/lib/ev-overview";
 import { cn } from "@/lib/utils";
-import { EvPowerPanel } from "./ev-power-panel";
-import { EvCar } from "./ev-car";
 import { EvMobileCard } from "./ev-mobile-card";
 
 
@@ -51,30 +49,6 @@ function Title({ children, aside, href }: { children: React.ReactNode; aside?: R
   );
 }
 
-function Tile({ icon: Icon, label, value, hint }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string; hint?: string }) {
-  return (
-    <div className="flex min-h-0 min-w-0 flex-col justify-between rounded-xl bg-muted/50 p-3">
-      <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
-        <Icon className="size-3.5 shrink-0" />
-        <span className="truncate">{label}</span>
-      </span>
-      <div className="mt-1">
-        <p className="truncate text-xl font-semibold tabular-nums text-foreground">{value}</p>
-        {hint ? <p className="truncate text-xs text-muted-foreground">{hint}</p> : null}
-      </div>
-    </div>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0">
-      <p className="truncate text-xs text-muted-foreground">{label}</p>
-      <p className="truncate text-lg font-semibold tabular-nums text-foreground">{value}</p>
-    </div>
-  );
-}
-
 /** Energy per day as plain bars: 7 or 30 days, today last. Hovering (or focusing) a bar names its day and figure in the header line. */
 function Statistic({ history, chargerId }: { history: EvHistory; chargerId: string }) {
   const u = useUnits();
@@ -88,7 +62,7 @@ function Statistic({ history, chargerId }: { history: EvHistory; chargerId: stri
   const shown = active !== null ? days[active] : null;
 
   return (
-    <Card className="flex min-h-0 flex-col gap-3 p-4 border-border! bg-transparent! shadow-none! max-lg:order-last lg:col-span-5 lg:p-5">
+    <Card className="flex min-h-0 flex-col gap-3 p-4 border-border! bg-transparent! shadow-none! max-lg:order-last lg:col-span-5 lg:col-start-8 lg:row-start-2 lg:p-5">
       <Title href={`/dashboard/performance?device=${encodeURIComponent(chargerId)}#ev`}>Statistic</Title>
       <div>
         <p className="text-2xl font-semibold tabular-nums text-foreground">{u.format(shown ? shown.kwh : total, "kWh", "ev_energy_today_kwh", 1)}</p>
@@ -133,43 +107,10 @@ function Statistic({ history, chargerId }: { history: EvHistory; chargerId: stri
   );
 }
 
-/** What a charge was: its energy, time and cost, and how much of the energy was the site's own solar. */
-function LastCharge({ last, onOpen, chargerId }: { last: EvHistorySession | null; onOpen: (id: string) => void; chargerId: string }) {
-  const u = useUnits();
-  return (
-    <Card className="relative flex min-h-0 flex-col gap-3 p-4 border-border! bg-transparent! shadow-none! transition-colors hover:border-primary/40! max-sm:hidden lg:col-span-7 lg:p-5">
-      {/* the whole card is a link to the charger's tab on Monitoring; what must stay pressable on its own sits above it */}
-      <Link href={`/dashboard/monitoring?device=${encodeURIComponent(chargerId)}#ev`} aria-label="Open the charger on Monitoring" className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring" />
-      <Title
-        href={`/dashboard/monitoring?device=${encodeURIComponent(chargerId)}#ev`}
-        aside={
-          last ? (
-            <button type="button" onClick={() => onOpen(last.id)} className="relative z-10 rounded-md px-1.5 py-0.5 text-xs text-muted-foreground outline-none transition-colors hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring">
-              {`${dayMonth(last.startedAt)}, ${clock(last.startedAt)}`} · Details
-            </button>
-          ) : null
-        }
-      >
-        Last charge
-      </Title>
-      {last ? (
-        <div className="pointer-events-none relative grid min-h-0 flex-1 grid-cols-2 grid-rows-2 gap-2.5">
-          <Tile icon={Zap} label="Energy" value={u.format(last.kwh, "kWh", "ev_energy_today_kwh", 2)} hint={last.peakKw !== null ? `peak ${u.format(last.peakKw, "kW", "power_active_import_kw", 1)}` : undefined} />
-          <Tile icon={Clock} label="Time" value={span(last.durationS)} hint={`until ${clock(last.endedAt)}`} />
-          <Tile icon={IndianRupee} label="Cost" value={last.cost !== null ? inr(last.cost) : "—"} />
-          <Tile icon={Leaf} label="From solar" value={last.solarSharePct !== null ? `${Math.round(last.solarSharePct)}%` : "—"} hint={last.solarSharePct !== null ? "of this charge" : "not measured"} />
-        </div>
-      ) : (
-        <p className="grid flex-1 place-items-center text-sm text-muted-foreground">No charge yet.</p>
-      )}
-    </Card>
-  );
-}
-
 function History({ sessions, onOpen, chargerId }: { sessions: EvHistorySession[]; onOpen: (id: string) => void; chargerId: string }) {
   const u = useUnits();
   return (
-    <Card className="flex min-h-0 flex-col gap-2 p-4 border-border! bg-transparent! shadow-none! lg:col-span-5 lg:p-5">
+    <Card className="flex min-h-0 flex-col gap-2 p-4 border-border! bg-transparent! shadow-none! lg:col-span-7 lg:col-start-1 lg:row-start-2 lg:p-5">
       <Title href={`/dashboard/reports?device=${encodeURIComponent(chargerId)}#ev`}>History</Title>
       {sessions.length === 0 ? (
         <p className="grid flex-1 place-items-center text-sm text-muted-foreground">Finished charges are listed here.</p>
@@ -256,31 +197,8 @@ export function EvOverviewBoard({
   const chargeKwh = open ? (reg !== null && open.startEnergyKwh !== null ? Math.max(0, reg - open.startEnergyKwh) : open.kwh) : null;
   const target = open?.targetKwh ?? null;
   const progress = chargeProgress({ deliveredKwh: chargeKwh, targetKwh: target, powerKw, car });
-  const level = progress.percent ?? 0;
 
   const kwh = (v: number, digits = 1) => u.format(v, "kWh", "ev_energy_today_kwh", digits);
-  // The line over the car while a charge runs: how far along it is (of the amount booked, else of the car's battery), the energy so far, and
-  // what that means: the distance it adds and the time left to the booked amount. Without a booked amount or a car it is the energy alone.
-  let headline: React.ReactNode = null;
-  let sub = "";
-  let detail = "";
-  if (charging) {
-    const energy = chargeKwh !== null ? kwh(chargeKwh, 2) : "—";
-    if (progress.percent !== null) {
-      headline = (
-        <>
-          {Math.round(progress.percent)}
-          <span className="ml-0.5 align-top text-base font-medium text-muted-foreground">%</span>
-        </>
-      );
-      sub = progress.percentOf === "booked" && target !== null ? `${energy} of ${kwh(target)} booked` : `${energy} this charge · of your ${car ? kwh(car.batteryKwh, car.batteryKwh % 1 === 0 ? 0 : 1) : ""} battery`;
-    } else {
-      headline = chargeKwh !== null ? kwh(chargeKwh, 2) : "Charging";
-      sub = "this charge";
-    }
-    detail = [progress.kmAdded !== null ? `adds about ${kmText(progress.kmAdded)}` : null, progress.minutesLeft !== null ? `about ${minutesText(progress.minutesLeft)} left` : null].filter(Boolean).join(" · ");
-  }
-
   const last = history.recent[0] ?? null;
   // How the last charge ended: against the amount booked (Completed if it got there, else the percentage it stopped at); with none booked, against the car's
   // battery when the car is known (the share of the battery it added); with neither there is no goal to measure it by, so it is Completed (the bar full).
@@ -293,9 +211,10 @@ export function EvOverviewBoard({
   // a charge opens on its own page (Reports, the charger's tab, with that charge open), not in a popup
   const openCharge = (id: string) => router.push(`/dashboard/reports?device=${encodeURIComponent(chargerId)}&session=${encodeURIComponent(id)}#ev`);
 
+  // On a wide screen the board fits the screen (at least 44 rem, so a short window scrolls a little rather than squeezing the cards): the car and the charge with the figures and the control beside them in the first row (never shorter than the figures, source, live readings and control need), the history and the statistic under them.
   return (
-    <div className="grid gap-4 lg:h-[max(calc(100svh-9.5rem),30rem)] lg:grid-cols-12 lg:grid-rows-[minmax(0,11fr)_minmax(0,9fr)]">
-      {/* On a phone the charger is one card in the way of a car's charging screen (the wider layout below is for a tablet and up). */}
+    <div className="grid gap-4 lg:h-[max(calc(100svh-9.5rem),44rem)] lg:grid-cols-12 lg:grid-rows-[minmax(27rem,12fr)_minmax(14rem,8fr)]">
+      {/* The charger in the way of a car's charging screen: the car, the charge and the figures (one column on a phone and a tablet; on a wide screen the car and the charge on the left, the figures and the control on the right). */}
       <EvMobileCard
         chargerId={chargerId}
         connected={connected}
@@ -314,42 +233,14 @@ export function EvOverviewBoard({
         durationText={!charging && last ? span(last.durationS) : null}
         cost={charging ? (chargeKwh !== null ? inr(chargeKwh * tariff) : null) : last && last.cost !== null ? inr(last.cost) : null}
         shares={charging ? (open?.shares ?? null) : (last?.shares ?? null)}
+        // the live readings, as tiles beside the car on a wide screen
+        live={[
+          { label: "Power", value: powerKw !== null ? u.format(powerKw, "kW", "power_active_import_kw", 2) : "—" },
+          { label: "Current", value: n.current_import_l1_a !== null ? u.format(n.current_import_l1_a, "A", "current_import_l1_a", 1) : "—" },
+          { label: "Voltage", value: n.voltage_l1_n_v !== null ? `${Math.round(n.voltage_l1_n_v)} V` : "—" },
+        ]}
       />
-      {/* the charger itself has no card: the car stands on the page */}
-      <section className="flex min-h-0 flex-col items-center justify-between gap-3 py-2 max-sm:hidden lg:col-span-7">
-        {/* what the charge is doing, only while one runs; the space is kept so the car does not move when it starts */}
-        <Link href={`/dashboard/monitoring?device=${encodeURIComponent(chargerId)}#ev`} aria-label="Open the charger on Monitoring" className="flex min-h-0 w-full flex-1 flex-col items-center justify-between gap-3 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring">
-          <div className="min-h-[5rem] text-center">
-            {headline !== null && (
-              <>
-                <p className="text-4xl font-semibold leading-none tracking-tight text-foreground tabular-nums">{headline}</p>
-                <p className="mt-1.5 text-xs text-muted-foreground tabular-nums">{sub}</p>
-                {detail ? <p className="mt-0.5 text-xs text-muted-foreground tabular-nums">{detail}</p> : null}
-              </>
-            )}
-          </div>
-          <div className="flex min-h-0 w-full max-w-[40rem] flex-1 items-center justify-center">
-            <EvCar level={level} sweep={charging && progress.percent === null} className="max-h-full" />
-          </div>
-        </Link>
-        <EvPowerPanel
-          chargerId={chargerId}
-          sessionOpen={open !== null}
-          transactionId={open?.transactionId ?? null}
-          connected={connected}
-          charging={charging}
-          stats={
-            <div className="grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-4">
-              <Stat label="Power" value={powerKw !== null ? u.format(powerKw, "kW", "power_active_import_kw", 2) : "—"} />
-              <Stat label="Current" value={n.current_import_l1_a !== null ? u.format(n.current_import_l1_a, "A", "current_import_l1_a", 1) : "—"} />
-              <Stat label="Voltage" value={n.voltage_l1_n_v !== null ? `${Math.round(n.voltage_l1_n_v)} V` : "—"} />
-              <Stat label="This charge" value={chargeKwh !== null ? kwh(chargeKwh, 2) : "—"} />
-            </div>
-          }
-        />
-      </section>
       <Statistic history={history} chargerId={chargerId} />
-      <LastCharge last={last} onOpen={openCharge} chargerId={chargerId} />
       <History sessions={history.recent} onOpen={openCharge} chargerId={chargerId} />
       {/* room for the control that is fixed to the bottom of the screen on a phone */}
       <div aria-hidden="true" className="h-24 max-lg:order-last sm:hidden" />

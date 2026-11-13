@@ -3,7 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { BatteryCharging, Clock, IndianRupee, Loader2, Power, Sun, Zap } from "lucide-react";
+import { Activity, BatteryCharging, Clock, Gauge, IndianRupee, Loader2, Power, Sun, Zap } from "lucide-react";
 import { parseTarget } from "@/lib/ev-control";
 import { kmText, minutesText, type ChargeProgress } from "@/lib/ev-car";
 import type { SourceShare } from "@/lib/ev-sessions";
@@ -100,6 +100,7 @@ export function EvMobileCard({
   durationText,
   cost,
   shares,
+  live = null,
 }: {
   chargerId: string;
   connected: boolean | null;
@@ -122,6 +123,8 @@ export function EvMobileCard({
   durationText: string | null;
   cost: string | null;
   shares: SourceShare[] | null;
+  /** The live electrical readings (power, current, voltage), shown as tiles on a wider screen while a charge runs. */
+  live?: { label: string; value: string }[] | null;
 }) {
   const { busy, waiting, error, notice, pending, start, stop } = useEvCharge({ chargerId, sessionOpen, transactionId });
   const [text, setText] = React.useState("");
@@ -189,20 +192,21 @@ export function EvMobileCard({
   const label = on ? (stopping ? "Stopping…" : "Stop charging") : starting ? "Starting…" : offline ? "Charger offline" : "Start charging";
 
   return (
-    // The section is as tall as its content and starts right under the header: no spare room above the car (it used to be at least as tall as the room above the
-    // fixed control, with its content at the bottom, which left empty space above the car), so the first screen shows the car, the charge, the figures, the
-    // source of the energy and the start of the history.
-    <section aria-label={`Charger: ${offline ? "offline" : charging ? "charging" : status}`} className="relative flex flex-col pt-2 sm:hidden">
+    // On a phone one column that is as tall as its content and starts right under the header: the car, the charge, the figures, the source of the energy and the
+    // start of the history. From `lg` up the section has no box of its own and its two parts are cells of the page's grid: the car with the charge on the left, the
+    // figures, the source, the live readings and the control on the right (the history and the statistic are the row below).
+    <section aria-label={`Charger: ${offline ? "offline" : charging ? "charging" : status}`} className="relative flex flex-col pt-2 lg:contents">
+      <div className="flex flex-col lg:col-span-7 lg:row-start-1 lg:min-h-0">
       {/* the car, standing in a pool of light that is green while it charges */}
-      <Link href={`/dashboard/monitoring?device=${encodeURIComponent(chargerId)}#ev`} aria-label="Open the charger on Monitoring" className="relative mb-3 block outline-none focus-visible:ring-2 focus-visible:ring-ring">
+      <Link href={`/dashboard/monitoring?device=${encodeURIComponent(chargerId)}#ev`} aria-label="Open the charger on Monitoring" className="relative mb-3 block outline-none focus-visible:ring-2 focus-visible:ring-ring lg:mb-0 lg:flex lg:min-h-0 lg:flex-1 lg:items-end lg:justify-center">
         <span aria-hidden="true" className={cn("absolute inset-x-[8%] bottom-0 h-10 rounded-full blur-2xl transition-colors duration-700", charging ? "bg-emerald-500/45 motion-safe:animate-pulse" : "bg-foreground/10")} />
-        <Image src="/images/ev-car-nexon-v2.webp" alt="" width={1400} height={796} sizes="(max-width: 640px) 81vw, 0px" className={cn("relative mx-auto h-auto w-[92%] transition-[filter] duration-700 dark:brightness-125 dark:contrast-110", !charging && "opacity-90")} />
+        <Image src="/images/ev-car-nexon-v2.webp" alt="" width={1400} height={796} sizes="(max-width: 640px) 81vw, 40vw" className={cn("relative mx-auto h-auto w-[92%] max-w-[34rem] transition-[filter] lg:h-full lg:max-h-full lg:w-auto lg:max-w-full lg:object-contain duration-700 dark:brightness-125 dark:contrast-110", !charging && "opacity-90")} />
         {/* the car's own reflection on the floor */}
         <span aria-hidden="true" className="pointer-events-none absolute inset-x-[16%] -bottom-1 h-3 rounded-full bg-black/25 blur-md dark:bg-black/60" />
       </Link>
 
       <div className="mt-4 flex items-end justify-between gap-4">
-        <p className={cn("font-light leading-none tracking-tight tabular-nums", done?.completed ? "text-5xl" : "text-6xl", charging ? "text-foreground" : "text-muted-foreground")}>{headline}</p>
+        <p className={cn("font-light leading-none tracking-tight tabular-nums", done?.completed ? "text-5xl lg:text-6xl" : "text-6xl lg:text-7xl", charging ? "text-foreground" : "text-muted-foreground")}>{headline}</p>
         {aside.length > 0 && (
           <div className="flex shrink-0 gap-4 pb-1 text-left">
             {aside.map((a) => (
@@ -229,22 +233,36 @@ export function EvMobileCard({
         )}
       </div>
 
-      {showStats && (
-        <>
-          <div className="mt-5 grid grid-cols-3 gap-2.5">
-            <Stat icon={Zap} label="Energy" value={energy ?? "—"} />
-            <Stat icon={Clock} label="Duration" value={duration ?? "—"} />
-            <Stat icon={IndianRupee} label="Cost" value={cost ?? "—"} />
+      </div>
+
+      <div className="flex flex-col lg:col-span-5 lg:row-start-1 lg:min-h-0 lg:justify-between lg:gap-3 lg:pt-2">
+        {showStats ? (
+          <div>
+            <div className="mt-5 grid grid-cols-3 gap-2.5 lg:mt-0">
+              <Stat icon={Zap} label="Energy" value={energy ?? "—"} />
+              <Stat icon={Clock} label="Duration" value={duration ?? "—"} />
+              <Stat icon={IndianRupee} label="Cost" value={cost ?? "—"} />
+            </div>
+            <div className="mt-2.5">
+              <Source shares={shares} charging={charging} />
+            </div>
           </div>
-          <div className="mt-2.5">
-            <Source shares={shares} charging={charging} />
+        ) : (
+          <div className="hidden lg:block" />
+        )}
+
+        {/* the live readings of a running charge (a wider screen only) */}
+        {charging && live && live.length > 0 && (
+          <div className="grid grid-cols-3 gap-2.5 max-sm:hidden">
+            {live.map((l, i) => (
+              <Stat key={l.label} icon={[Gauge, Activity, Zap][i] ?? Zap} label={l.label} value={l.value} />
+            ))}
           </div>
-        </>
-      )}
+        )}
 
       {/* The control, fixed to the bottom of the screen (only while this is the slide being shown). Before a charge: the kWh to stop after (empty = no
           limit) and Start. Once it runs: Stop, the full width. (The carousel's dots are not shown on a phone, so nothing is under it.) */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-5 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))] backdrop-blur-md group-aria-hidden/slide:hidden">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-5 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))] backdrop-blur-md group-aria-hidden/slide:hidden sm:static sm:z-auto sm:mt-4 sm:border-t-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none lg:mt-0">
         {error ? (
           <p role="alert" className="mb-2 text-center text-xs text-destructive">
             {error}
@@ -277,6 +295,7 @@ export function EvMobileCard({
             {label}
           </button>
         </div>
+      </div>
       </div>
     </section>
   );
