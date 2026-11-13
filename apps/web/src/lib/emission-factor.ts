@@ -14,3 +14,12 @@ export function emissionFactorNote(): string {
   const f = EMISSION_FACTOR;
   return `${f.kgPerKwh} kg CO2/kWh - ${f.source}, ${f.year}${f.provisional ? ", provisional" : ""}`;
 }
+
+/** What a petrol car gives off per km, the other side of an electric car's saving. 2.31 kg CO2 for every litre of petrol burnt (the usual combustion factor)
+ *  at an assumed 15 km per litre, a typical petrol hatchback or small SUV in everyday use. An estimate, shown as one wherever it is used. */
+export const PETROL_CAR = {
+  kgPerLitre: 2.31,
+  kmPerLitre: 15,
+  kgPerKm: 2.31 / 15,
+  note: "petrol car at 15 km per litre, 2.31 kg CO2 per litre",
+} as const;

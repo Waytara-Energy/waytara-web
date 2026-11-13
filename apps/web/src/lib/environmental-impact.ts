@@ -1,4 +1,4 @@
-import { EMISSION_FACTOR } from "./emission-factor";
+import { EMISSION_FACTOR, PETROL_CAR } from "./emission-factor";
 
 /**
  * CO2-avoided / trees-equivalent conversion for solar generation — the
@@ -22,4 +22,14 @@ export function co2AvoidedKg(energyKwh: number): number {
 
 export function treesEquivalent(co2Kg: number): number {
   return co2Kg / CO2_KG_PER_TREE_PER_YEAR;
+}
+
+/**
+ * What driving an electric car instead of a petrol one has saved: the petrol car's emissions over the same distance, less what the electricity that
+ * charged the car gave off (only the part drawn from the grid, at the grid's factor; solar and battery energy count as clean). `evKwh` is all the energy
+ * charged, `gridKwh` the part of it from the grid, `kmPerKwh` how far the car goes on one kWh. Never below zero.
+ */
+export function evCo2SavedKg(evKwh: number, gridKwh: number, kmPerKwh: number): { kg: number; km: number } {
+  const km = Math.max(0, evKwh) * kmPerKwh;
+  return { kg: Math.max(0, km * PETROL_CAR.kgPerKm - Math.max(0, gridKwh) * EMISSION_FACTOR.kgPerKwh), km };
 }

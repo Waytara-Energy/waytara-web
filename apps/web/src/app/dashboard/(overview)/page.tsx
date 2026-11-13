@@ -10,7 +10,8 @@ import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { SITE_OVERVIEW_KEYS, siteAgg } from "@/lib/overview-keys";
 import { fetchSolarCardsProps } from "@/components/dashboard/solar-live-status-cards";
 import { EvOverviewBoard } from "@/components/dashboard/ev-overview-board";
-import { fetchEvHistory, istDay, type EvHistory } from "@/lib/ev-history";
+import { fetchEvHistory, type EvHistory } from "@/lib/ev-history";
+import { fetchSiteSavings } from "@/lib/site-savings";
 import { fetchEvLog, type EvLogEntry } from "@/lib/ev-log";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { fetchEvOverview } from "@/lib/ev-overview";
@@ -35,17 +36,6 @@ export const viewport: Viewport = {
 
 // The Overview of the selected site, as tabs: first the site's own Overview (every device together, as widgets: solar, the weather at the site, the
 // devices and their state, load, grid, battery, the charger), then one tab per device (an inverter's energy flow and cards, a charger's page).
-
-/** The energy of today's charges that did not come from the grid, kWh: each finished charge of today and the one that runs, by the share its meters put on
- *  the grid (what they could not place counts as solar, as everywhere on the charger's pages). Charges without a source split count as their solar share. */
-function cleanKwhToday(recent: EvHistory["recent"], open: { kwh: number | null; shares: { key: string; pct: number }[] | null } | null): number {
-  const today = istDay(Date.now());
-  const clean = (shares: { key: string; pct: number }[] | null, solarPct: number | null) => (shares ? 100 - (shares.find((x) => x.key === "grid")?.pct ?? 0) : (solarPct ?? 0));
-  let kwh = 0;
-  for (const x of recent) if (istDay(Date.parse(x.startedAt)) === today) kwh += (x.kwh * clean(x.shares, x.solarSharePct)) / 100;
-  if (open && open.kwh !== null) kwh += (open.kwh * clean(open.shares, null)) / 100;
-  return kwh;
-}
 
 /** How one metric of several inverters combines into the site's number: powers and day counters add up, state of charge averages, a state or
  *  fault register takes the worst (see siteAgg). Null when no inverter has a value. */
@@ -99,7 +89,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
   type SlideData =
     | { kind: "inverter"; device: (typeof site.devices)[number]; syncInit: DeviceSyncInit; pvKeys: string[]; initial: Record<string, number | null>; solar: Awaited<ReturnType<typeof fetchSolarCardsProps>> }
     | { kind: "charger"; device: (typeof site.devices)[number]; ev: Awaited<ReturnType<typeof fetchEvOverview>>; history: EvHistory; log: EvLogEntry[]; tariff: number };
-  const [slideData, uiRow] = await Promise.all([
+  const [slideData, uiRow, savings] = await Promise.all([
     Promise.all(
       site.devices.map(async (device): Promise<SlideData | null> => {
         const one = { ...site, devices: [device] };
@@ -123,6 +113,8 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
     ),
     // the person's own choices for this page (which four cards, what is behind it, which device it opens on): see Application Settings
     profile ? supabase.from("profiles").select("ui_preferences").eq("id", profile.id).maybeSingle() : Promise.resolve({ data: null }),
+    // what the solar and the car have saved since the start (the first Overview tab's cost and CO2 tiles)
+    fetchSiteSavings(supabase, site),
   ]);
   const overviewPrefs = parseOverviewPrefs(uiRow.data?.ui_preferences);
   const car = parseCarProfile(uiRow.data?.ui_preferences);
@@ -207,7 +199,6 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
     last: d.history.recent[0] ?? null,
     sessions30: d.history.sessions30,
     kwh30: d.history.kwh30,
-    todayCleanKwh: cleanKwhToday(d.history.recent, d.ev.open),
   }));
   const siteList: SiteBoardSite[] = allSites.map((x) => ({ id: x.id, name: x.name, place: x.address?.city ?? null, deviceCount: x.devices.length, selected: x.id === site.id }));
   const siteDevices: SiteBoardDevice[] = site.devices.map((device) => {
@@ -238,7 +229,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
             name: "Overview",
             kind: "site",
             sky: true,
-            content: <SiteOverviewBoard siteId={site.id} place={site.address?.city ?? site.name} sites={siteList} devices={siteDevices} inverters={siteInverters} chargers={siteChargers} car={car} background={background} />,
+            content: <SiteOverviewBoard siteId={site.id} siteName={site.name} place={site.address?.city ?? site.name} location={site.latitude !== null && site.longitude !== null ? { lat: site.latitude, lng: site.longitude } : null} savings={savings} sites={siteList} devices={siteDevices} inverters={siteInverters} chargers={siteChargers} car={car} background={background} />,
           },
           ...deviceTabs,
         ];

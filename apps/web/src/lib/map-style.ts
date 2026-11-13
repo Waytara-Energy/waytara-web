@@ -186,7 +186,7 @@ export function mapStyle(theme: MapTheme, threeD = false): StyleSpecification {
       layout: { visibility: threeD ? "visible" : "none" },
       paint: {
         "fill-extrusion-color": p.site.fill,
-        "fill-extrusion-height": ["+", ["coalesce", ["get", "render_height"], 9], 0.3] as never,
+        "fill-extrusion-height": ["+", ["coalesce", ["get", "render_height"], 9], 1.2] as never,
         "fill-extrusion-base": ["coalesce", ["get", "render_min_height"], 0] as never,
         "fill-extrusion-opacity": 0.7,
         "fill-extrusion-vertical-gradient": true,

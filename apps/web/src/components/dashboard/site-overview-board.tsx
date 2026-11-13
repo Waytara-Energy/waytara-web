@@ -4,7 +4,7 @@ import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { ArrowUpRight, BatteryCharging, Check, EvCharger, Home, Leaf, MapPin, Server, Sun, Zap, type LucideIcon } from "lucide-react";
+import { ArrowUpRight, BatteryCharging, Check, ChevronRight, EvCharger, Home, IndianRupee, Leaf, MapPin, Server, Sun, Zap, type LucideIcon } from "lucide-react";
 import { selectSite } from "@/app/dashboard/actions";
 import { useUnits } from "@/components/units-provider";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -14,13 +14,14 @@ import { CONNECTION_LABEL, type ConnectionStatus } from "@/lib/device-state";
 import { agoText } from "@/lib/device-status-summary";
 import { areaPoints, TODAY_COUNTER_KEYS as K } from "@/lib/energy-today";
 import type { EnumOption } from "@/lib/enum-labels";
-import { co2AvoidedKg } from "@/lib/environmental-impact";
-import { chargeProgress, minutesText, type CarProfile } from "@/lib/ev-car";
+import { co2AvoidedKg, evCo2SavedKg, treesEquivalent } from "@/lib/environmental-impact";
+import { DEFAULT_KM_PER_KWH, chargeProgress, minutesText, type CarProfile } from "@/lib/ev-car";
 import { getConnectorStatusLabel } from "@/lib/ev-charger-catalog";
 import type { EvHistorySession } from "@/lib/ev-history";
 import { EV_LIVE_KEYS } from "@/lib/ev-live-keys";
 import type { OpenCharge } from "@/lib/ev-overview";
 import { siteAgg } from "@/lib/overview-keys";
+import type { SiteSavings } from "@/lib/site-savings";
 import { solarGenerationW } from "@/lib/solar-generation";
 import { useLiveNumbers, type Agg } from "@/lib/telemetry/live-values";
 import { useDeviceLive, useTodaySeries } from "@/lib/telemetry/react";
@@ -30,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { useDeviceHub } from "./device-live-hub";
 import { FLOW } from "./flow-colors";
 import { useOverviewTabs } from "./overview-tabs";
+import { SiteMapCard } from "./site-map-card";
 import { TodayAreaChart } from "./today-area-chart";
 import { WEATHER_ICON, temp } from "./weather-ui";
 
@@ -60,8 +62,6 @@ export interface SiteBoardCharger {
   /** Charges and their energy over the last 30 days. */
   sessions30: number;
   kwh30: number;
-  /** The energy of today's charges that did not come from the grid (solar, and what the meters could not place, which is shown as solar), kWh. */
-  todayCleanKwh: number;
 }
 
 /** One of the customer's sites. */
@@ -304,34 +304,38 @@ function BatteryWidget({ inv, className }: { inv: SiteBoardInverters; className?
   );
 }
 
-/** The carbon dioxide today's clean energy avoided (the grid's emission factor, an estimate): the figure is the solar generated; under it the part of
- *  that clean energy that went through the battery (what it discharged) and into the car (the charges not drawn from the grid), each as kg and as a
- *  percentage of the figure. (They are parts of the same energy, so they are not added to it.) */
-function Co2Widget({ inv, evCleanKwh, className }: { inv: SiteBoardInverters; evCleanKwh: number | null; className?: string }) {
-  const f = useFigures();
-  const n = useLiveNumbers(inv.ids, [K.solar, K.discharged], inv.initial, agg);
-  const solar = n[K.solar];
-  const kg = solar === null ? null : co2AvoidedKg(solar);
+const inr = (v: number) => `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+const monthsText = (m: number) => (m < 12 ? `${Math.max(1, Math.round(m))} ${Math.round(m) <= 1 ? "month" : "months"}` : `${(m / 12).toFixed(1)} years`);
+
+/**
+ * The carbon dioxide saved since the start by the solar and by the electric car (estimates). Solar: the energy the inverters have made, at the grid's emission
+ * factor (what it did not have to draw from the grid). Electric car: the petrol car's emissions over the same distance, less what the grid part of the charging
+ * gave off (distance = the energy charged times the car's km per kWh, 6 until the car is entered). The two do not overlap, so they are added: the figure is
+ * their total, with each one's share under it.
+ */
+function Co2Widget({ inv, savings, car, className }: { inv: SiteBoardInverters; savings: SiteSavings | null; car: CarProfile | null; className?: string }) {
+  const solarKg = savings && savings.solarKwh !== null ? co2AvoidedKg(savings.solarKwh) : null;
+  const ev = savings && savings.evKwh > 0 ? evCo2SavedKg(savings.evKwh, savings.evGridKwh, car?.kmPerKwh ?? DEFAULT_KM_PER_KWH) : null;
+  const total = solarKg === null && ev === null ? null : (solarKg ?? 0) + (ev?.kg ?? 0);
+  const trees = total === null ? null : treesEquivalent(total);
+  const text = (v: number) => (v >= 10000 ? `${(v / 1000).toFixed(1)}` : v.toLocaleString("en-IN", { maximumFractionDigits: v >= 100 ? 0 : 1 }));
+  const unit = total !== null && total >= 10000 ? "tonnes" : "kg";
   const parts = [
-    { key: "battery", label: "Through the battery", icon: BatteryCharging, tone: TONE.battery, kwh: inv.hasBattery ? n[K.discharged] : null },
-    { key: "ev", label: "Into the car", icon: EvCharger, tone: TONE.ev, kwh: evCleanKwh },
-  ].flatMap((r) => {
-    if (r.kwh === null) return [];
-    const part = co2AvoidedKg(r.kwh);
-    return [{ ...r, kg: part, pct: kg !== null && kg > 0 ? Math.min(100, (part / kg) * 100) : null }];
-  });
-  const text = (v: number) => v.toFixed(v >= 100 ? 0 : 1);
+    ...(solarKg !== null ? [{ key: "solar", label: `Solar · ${savings!.solarKwh!.toLocaleString("en-IN", { maximumFractionDigits: 0 })} kWh`, icon: Sun, tone: TONE.solar, kg: solarKg }] : []),
+    ...(ev ? [{ key: "ev", label: `Electric car · ${ev.km.toLocaleString("en-IN", { maximumFractionDigits: 0 })} km`, icon: EvCharger, tone: TONE.ev, kg: ev.kg }] : []),
+  ];
   return (
-    <Widget href={`/dashboard/performance?device=${encodeURIComponent(inv.ids[0])}`} label="Carbon dioxide avoided today. Open Performance." className={className}>
-      <Head icon={Leaf} tone={TONE.green} title="CO₂ avoided" note="Today, estimated" />
+    <Widget href={`/dashboard/performance?device=${encodeURIComponent(inv.ids[0])}`} label="Carbon dioxide saved so far. Open Performance." className={className}>
+      <Head icon={Leaf} tone={TONE.green} title="CO₂ saved" note="Since the start, estimated" />
       <span className="mt-3 block">
-        <Figure value={kg === null ? "—" : text(kg)} unit="kg" />
-        <Sub>{solar === null ? "No readings yet" : `from ${f.kwh(solar, K.solar)} of solar`}</Sub>
+        <Figure value={total === null ? "—" : text(unit === "tonnes" ? total / 1000 : total)} unit={unit} />
+        <Sub>{trees !== null && trees >= 1 ? `As much as ${Math.round(trees).toLocaleString("en-IN")} trees take up in a year` : total === null ? "No readings yet" : "Since the system started"}</Sub>
       </span>
-      {parts.length > 0 && (
+      {parts.length > 0 && total !== null && total > 0 && (
         <span className="mt-auto block space-y-1.5 pt-2">
           {parts.map((r) => {
             const Icon = r.icon;
+            const pct = (r.kg / total) * 100;
             return (
               <span key={r.key} className="block">
                 <span className="flex items-center gap-2 text-xs">
@@ -340,17 +344,76 @@ function Co2Widget({ inv, evCleanKwh, className }: { inv: SiteBoardInverters; ev
                   </span>
                   <span className="min-w-0 flex-1 truncate text-muted-foreground">{r.label}</span>
                   <span className="shrink-0 tabular-nums text-foreground">
-                    {text(r.kg)} kg{r.pct === null ? "" : ` · ${Math.round(r.pct)}%`}
+                    {text(r.kg)} kg · {Math.round(pct)}%
                   </span>
                 </span>
                 <span className="mt-1 block h-1 overflow-hidden rounded-full bg-foreground/[0.08] [@media(max-height:819px)]:lg:hidden">
-                  <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${r.pct ?? 0}%` }} />
+                  <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
                 </span>
               </span>
             );
           })}
         </span>
       )}
+    </Widget>
+  );
+}
+
+/** What the electricity has cost and what the solar has saved: the saving since the start (the same sum as Performance's Cost & Savings), this month's bill
+ *  without the solar and with it, and how much of what was paid for the system the savings have already paid back. */
+function SavingsWidget({ savings, className }: { savings: SiteSavings | null; className?: string }) {
+  const m = savings?.month ?? null;
+  const saved = savings?.savedTotal ?? null;
+  const invested = savings?.invested ?? 0;
+  const paidPct = saved !== null && invested > 0 ? Math.min(100, Math.max(0, (saved / invested) * 100)) : null;
+  const without = m ? Math.max(m.withoutSolar, 0.01) : 1;
+  const bar = (v: number) => `${Math.min(100, Math.max(0, (Math.max(0, v) / without) * 100))}%`;
+  return (
+    <Widget href="/dashboard/performance" label="Cost and savings. Open Performance." className={className}>
+      <Head icon={IndianRupee} tone={TONE.green} title="Cost & savings" note="Since the solar started" />
+      <span className="mt-3 block">
+        <Figure value={saved === null ? "—" : inr(saved)} />
+        <Sub>saved on the electricity bill so far</Sub>
+      </span>
+      <span className="mt-auto block space-y-2 pt-3">
+        {m ? (
+          <>
+            <span className="block">
+              <span className="flex items-baseline justify-between gap-2 text-xs">
+                <span className="truncate text-muted-foreground">{m.label} without solar</span>
+                <span className="shrink-0 tabular-nums text-foreground">{inr(m.withoutSolar)}</span>
+              </span>
+              <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-foreground/[0.08]">
+                <span className="block h-full rounded-full bg-orange-400" style={{ width: bar(m.withoutSolar) }} />
+              </span>
+            </span>
+            <span className="block">
+              <span className="flex items-baseline justify-between gap-2 text-xs">
+                <span className="truncate text-muted-foreground">with solar</span>
+                <span className="shrink-0 tabular-nums text-foreground">{inr(m.withSolar)}</span>
+              </span>
+              <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-foreground/[0.08]">
+                <span className="block h-full rounded-full bg-emerald-500" style={{ width: bar(m.withSolar) }} />
+              </span>
+            </span>
+          </>
+        ) : null}
+        {paidPct !== null && savings ? (
+          <span className="block border-t border-border pt-2">
+            <span className="flex items-baseline justify-between gap-2 text-xs">
+              <span className="truncate text-muted-foreground">Paid back of {inr(invested)}</span>
+              <span className="shrink-0 tabular-nums text-foreground">{Math.round(paidPct)}%</span>
+            </span>
+            <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-foreground/[0.08]">
+              <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${paidPct}%` }} />
+            </span>
+            <span className="mt-1 block truncate text-[11px] text-muted-foreground">
+              {savings.paybackMonths === 0 ? "The savings have paid for the system" : savings.paybackMonths === null ? "Payback time shows once there are a few days of readings" : `About ${monthsText(savings.paybackMonths)} to go at the recent pace`}
+            </span>
+          </span>
+        ) : null}
+        {!m && paidPct === null && <span className="block text-xs text-muted-foreground">{saved === null ? "No readings yet" : "This month's bill shows once there are readings"}</span>}
+      </span>
     </Widget>
   );
 }
@@ -532,7 +595,6 @@ function StatusWord({ status, word, pulse = false }: { status: ConnectionStatus 
   );
 }
 
-const inr = (v: number) => `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 /** 5420 s -> "1 h 30 min", 154 s -> "3 min" (under a minute is "< 1 min"). */
 function span(sec: number): string {
   const min = Math.round(sec / 60);
@@ -634,8 +696,41 @@ function DevicesWidget({ devices, chargers, className }: { devices: SiteBoardDev
     <Widget className={className}>
       <Head icon={Server} tone={TONE.plain} title="Devices" note={summary} href="/dashboard/devices" />
 
-      {/* a phone or a tablet: the devices as icons with their state, and the whole tile opens the Devices page */}
-      <span className="flex flex-1 flex-col lg:hidden">
+      {/* a phone: the devices as a list; pressing one goes to its page */}
+      <ul className="-mx-2 mt-2 divide-y md:hidden">
+        {rows.map((d) => {
+          const Icon = DEVICE_ICON[d.kind];
+          const charger = d.kind === "charger" ? chargers.find((c) => c.id === d.id) : undefined;
+          const hasTab = tabs?.has(d.id) ?? false;
+          const body = (
+            <>
+              <span className={cn("grid size-9 shrink-0 place-items-center rounded-xl", d.kind === "inverter" ? TONE.solar : d.kind === "charger" ? TONE.ev : TONE.plain)}>
+                <Icon className="size-[18px]" />
+              </span>
+              <span className="min-w-0 flex-1 leading-tight">
+                <span className="block truncate text-sm font-medium text-foreground">{d.name}</span>
+                {d.model ? <span className="block truncate text-xs text-muted-foreground">{d.model}</span> : null}
+              </span>
+              {charger ? <ChargerWord charger={charger} status={d.status} /> : <StatusWord status={d.status} />}
+              {hasTab && <ChevronRight aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />}
+            </>
+          );
+          return (
+            <li key={d.id}>
+              {hasTab ? (
+                <button type="button" onClick={() => tabs?.open(d.id)} aria-label={`Open ${d.name}`} className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left outline-none transition-colors active:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring">
+                  {body}
+                </button>
+              ) : (
+                <span className="flex items-center gap-3 px-2 py-2.5">{body}</span>
+              )}
+            </li>
+          );
+        })}
+      </ul>
+
+      {/* a tablet: the devices as icons with their state, and the whole tile opens the Devices page */}
+      <span className="flex flex-1 flex-col max-md:hidden lg:hidden">
         <span className="mt-3 flex flex-wrap gap-2">
           {rows.slice(0, 4).map((d) => {
             const Icon = DEVICE_ICON[d.kind];
@@ -834,7 +929,10 @@ function EvMonthWidget({ charger, className }: { charger: SiteBoardCharger; clas
  */
 export function SiteOverviewBoard({
   siteId,
+  siteName,
   place,
+  location,
+  savings,
   sites,
   devices,
   inverters,
@@ -843,8 +941,13 @@ export function SiteOverviewBoard({
   background,
 }: {
   siteId: string;
+  siteName: string;
   /** Where the site is, in a word (its city, else its name). */
   place: string | null;
+  /** The site's saved position, for the map (null when none is saved). */
+  location: { lat: number; lng: number } | null;
+  /** What the solar and the car have saved since the start (null when it could not be worked out). */
+  savings: SiteSavings | null;
   /** Every site of the customer. */
   sites: SiteBoardSite[];
   devices: SiteBoardDevice[];
@@ -858,7 +961,6 @@ export function SiteOverviewBoard({
   // the charger shown: the one that is charging, else the first
   const charger = chargers.find((c) => c.open !== null) ?? chargers[0] ?? null;
   const inv = inverters;
-  const evCleanKwh = chargers.length > 0 ? chargers.reduce((a, c) => a + c.todayCleanKwh, 0) : null;
 
   // the small tiles in the order of a wide screen; `phone` is where each stands on a phone (see the order of the others below) and how wide it is there
   const smalls: { key: string; phone: string; render: (className: string) => React.ReactNode }[] = [];
@@ -866,11 +968,11 @@ export function SiteOverviewBoard({
     smalls.push({ key: "load", phone: "order-[6] min-h-40", render: (c) => <LoadWidget inv={inv} className={c} /> });
     if (inv.hasGrid) smalls.push({ key: "grid", phone: "order-[7] min-h-40", render: (c) => <GridWidget inv={inv} className={c} /> });
     if (inv.hasBattery) smalls.push({ key: "battery", phone: "order-[8] max-md:col-span-2 min-h-48", render: (c) => <BatteryWidget inv={inv} className={c} /> });
-    smalls.push({ key: "co2", phone: "order-[10] max-md:col-span-2 min-h-52", render: (c) => <Co2Widget inv={inv} evCleanKwh={evCleanKwh} className={c} /> });
+    smalls.push({ key: "co2", phone: "order-[12] max-md:col-span-2 min-h-52", render: (c) => <Co2Widget inv={inv} savings={savings} car={car} className={c} /> });
   } else if (charger) {
     smalls.push({ key: "month", phone: "order-[6] min-h-40", render: (c) => <EvMonthWidget charger={charger} className={c} /> });
   }
-  smalls.push({ key: "sites", phone: "order-[4] min-h-44", render: (c) => <SitesWidget sites={sites} className={c} /> });
+  smalls.push({ key: "sites", phone: "max-md:hidden min-h-44", render: (c) => <SitesWidget sites={sites} className={c} /> });
 
   // The four-column grid (from a tablet up). Solar is two cells (four when there is no charger to fill the row under it), the charger two (four on its
   // own), the devices list one column over two rows, everything else one cell. What would be left empty goes to the weather and the last small tile.
@@ -898,8 +1000,13 @@ export function SiteOverviewBoard({
       {inv && <SolarWidget inv={inv} className={cn("order-[5] col-span-2 min-h-56 md:order-none md:min-h-0", solarTall && "md:row-span-2")} />}
       {/* a tablet and wider: the weather as a tile */}
       <WeatherWidget state={weather} place={place} wide={weatherWide} className={cn("max-md:hidden md:min-h-0", weatherWide && "md:col-span-2")} />
-      <DevicesWidget devices={devices} chargers={chargers} className={cn("order-[3] min-h-44 md:order-none md:col-start-4 md:row-span-2 md:min-h-0", weatherWide ? "md:row-start-2" : "md:row-start-1")} />
-      {smalls.map((x, i) => x.render(cn(x.phone, "md:order-none md:min-h-0", i === smalls.length - 1 && lastSpan)))}
+      <DevicesWidget devices={devices} chargers={chargers} className={cn("order-[3] max-md:col-span-2 min-h-44 md:order-none md:col-start-4 md:row-span-2 md:min-h-0", weatherWide ? "md:row-start-2" : "md:row-start-1")} />
+      {smalls.map((x, i) => (
+        <React.Fragment key={x.key}>{x.render(cn(x.phone, "md:order-none md:min-h-0", i === smalls.length - 1 && lastSpan))}</React.Fragment>
+      ))}
+      {/* a phone: the site on a 3D map, and the cost and savings, above the carbon dioxide */}
+      <SiteMapCard latitude={location?.lat ?? null} longitude={location?.lng ?? null} siteName={siteName} className="order-[10] col-span-2 h-72 md:hidden" />
+      {inv && <SavingsWidget savings={savings} className="order-[11] col-span-2 min-h-56 md:hidden" />}
       {charger && <EvWidget charger={charger} car={car} className={cn("order-[9] col-span-2 min-h-52 md:order-none md:min-h-0", evBig && "md:row-span-2")} />}
     </div>
   );
