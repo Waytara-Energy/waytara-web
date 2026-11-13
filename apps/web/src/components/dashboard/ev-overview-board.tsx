@@ -233,8 +233,6 @@ export function EvOverviewBoard({
         durationText={!charging && last ? span(last.durationS) : null}
         cost={charging ? (chargeKwh !== null ? inr(chargeKwh * tariff) : null) : last && last.cost !== null ? inr(last.cost) : null}
         shares={charging ? (open?.shares ?? null) : (last?.shares ?? null)}
-        // the last charges as small bars in the source detail (a wide screen), oldest first
-        recent={history.recent.slice(0, 7).reverse().map((r) => ({ id: r.id, when: dayMonth(r.startedAt), kwh: r.kwh, shares: r.shares }))}
         // the live readings, as tiles beside the car on a wide screen
         live={[
           { label: "Power", value: powerKw !== null ? u.format(powerKw, "kW", "power_active_import_kw", 2) : "—" },

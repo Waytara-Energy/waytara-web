@@ -10,8 +10,8 @@ import type { SourceShare } from "@/lib/ev-sessions";
 import { cn } from "@/lib/utils";
 import { useEvCharge } from "./ev-charge-control";
 import { FlowFill } from "./flow-fill";
-import { SOURCE } from "./ev-source";
-import { EvSourceDetail, type RecentCharge } from "./ev-source-detail";
+import { SOURCE, unknownAsSolar } from "./ev-source";
+import { EvSourceDetail } from "./ev-source-detail";
 
 /** 5420 s -> "1 h 30 min", 154 s -> "3 min" (under a minute is "< 1 min"). */
 function span(s: number): string {
@@ -95,7 +95,6 @@ export function EvMobileCard({
   cost,
   shares,
   live = null,
-  recent = [],
 }: {
   chargerId: string;
   connected: boolean | null;
@@ -120,10 +119,10 @@ export function EvMobileCard({
   shares: SourceShare[] | null;
   /** The live electrical readings (power, current, voltage), shown as tiles on a wider screen while a charge runs. */
   live?: { label: string; value: string }[] | null;
-  /** The last few finished charges, for the small bars of the source detail on a wide screen. */
-  recent?: RecentCharge[];
 }) {
   const { busy, waiting, error, notice, pending, start, stop } = useEvCharge({ chargerId, sessionOpen, transactionId });
+  // what the meters could not place is shown as solar (see unknownAsSolar)
+  const sources = React.useMemo(() => unknownAsSolar(shares), [shares]);
   const [text, setText] = React.useState("");
   const typed = parseTarget(text);
   const empty = text.trim() === "";
@@ -241,10 +240,10 @@ export function EvMobileCard({
               <Stat icon={IndianRupee} label="Cost" value={cost ?? "—"} />
             </div>
             <div className="mt-2.5 lg:hidden">
-              <Source shares={shares} charging={charging} />
+              <Source shares={sources} charging={charging} />
             </div>
-            {/* a wide screen has the room for the source in detail: a ring, each source's energy and share, and the last charges */}
-            <EvSourceDetail shares={shares} total={energy} recent={recent} showRecent={!charging} className="mt-3 hidden lg:flex lg:flex-1" />
+            {/* a wide screen has the room for the source in detail: a column for each source, as wide as its share */}
+            <EvSourceDetail shares={sources} total={energy} className="mt-3 hidden lg:flex lg:flex-1" />
           </div>
         ) : (
           <div className="hidden lg:block lg:flex-1" />
