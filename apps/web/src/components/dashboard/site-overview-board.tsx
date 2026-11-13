@@ -515,7 +515,7 @@ function WeatherHero({ state, place, siteName, className }: { state: WeatherStat
   const today = weather?.days[0];
   return (
     <Link href="/dashboard/weather" aria-label="Weather. Open the forecast." className={cn("flex flex-col items-center rounded-2xl px-2 pt-2 pb-3 text-center outline-none focus-visible:ring-2 focus-visible:ring-ring", className)}>
-      <span className="max-w-full truncate text-lg font-medium text-foreground">{place && place !== siteName ? `${siteName} · ${place}` : siteName}</span>
+      <span className="max-w-full truncate text-lg font-medium text-foreground">{place ?? siteName}</span>
       {weather === undefined ? (
         <span className="mt-3 flex flex-col items-center gap-2">
           <Skeleton className="h-20 w-32" />

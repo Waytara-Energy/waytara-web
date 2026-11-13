@@ -217,7 +217,7 @@ export function EvMobileCard({
       </Link>
 
       <div className="mt-4 flex items-end justify-between gap-4">
-        <p className={cn("font-light leading-none tracking-tight tabular-nums", done?.completed ? "text-5xl lg:text-6xl" : "text-6xl lg:text-7xl", charging ? "text-foreground" : "text-muted-foreground")}>{headline}</p>
+        <p className={cn("leading-none tracking-tight tabular-nums", done?.completed ? "text-5xl font-medium text-foreground/80 lg:text-6xl" : cn("font-light text-6xl lg:text-7xl", charging ? "text-foreground" : "text-muted-foreground"))}>{headline}</p>
         {aside.length > 0 && (
           <div className="flex shrink-0 gap-4 pb-1 text-left">
             {aside.map((a) => (

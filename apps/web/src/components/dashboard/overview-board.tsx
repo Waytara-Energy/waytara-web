@@ -34,7 +34,7 @@ export function OverviewBoard({
 }) {
   // Two tall cards per side.
   const rows = "1fr 1fr";
-  const side = "order-2 grid min-h-0 grid-cols-2 gap-3 lg:h-full lg:grid-cols-1 lg:[grid-template-rows:var(--rows)]";
+  const side = "order-2 grid min-h-0 grid-cols-1 gap-3 sm:grid-cols-2 lg:h-full lg:grid-cols-1 lg:[grid-template-rows:var(--rows)]";
   const style = { "--rows": rows } as CSSProperties;
   const { left, right } = splitCards(cards);
   return (
