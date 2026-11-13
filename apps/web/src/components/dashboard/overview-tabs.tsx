@@ -1,7 +1,6 @@
 "use client";
 
 import * as React from "react";
-import { flushSync } from "react-dom";
 import { cn } from "@/lib/utils";
 import { OverviewBackdrop } from "./overview-backdrop";
 import { OverviewSky } from "./overview-sky";
@@ -21,8 +20,6 @@ export interface OverviewTab {
   sky: boolean;
 }
 
-type Direction = "next" | "prev";
-
 const TabsContext = React.createContext<{ open: (id: string) => void; has: (id: string) => boolean } | null>(null);
 /** For what is inside a page: open another page (the site's Overview opens a device's page when the device is pressed). Null outside the Overview. */
 export const useOverviewTabs = () => React.useContext(TabsContext);
@@ -32,81 +29,34 @@ export const useOverviewTabs = () => React.useContext(TabsContext);
 const NO_SWIPE = 'input, textarea, select, [role="slider"], [data-no-swipe="true"], .no-swipe, .maplibregl-canvas, .maplibregl-map';
 const TYPING = 'input, textarea, select, [contenteditable="true"], [role="slider"], [role="tab"], [role="menu"], [role="dialog"]';
 
-type TransitionDocument = Document & { startViewTransition?: (update: () => void) => { finished: Promise<void>; ready: Promise<void> } };
-
 /**
  * The Overview as pages you swipe between: the site's own Overview first (every device together, as widgets), then one page per device (an
  * inverter's energy flow and cards, a charger's page). There is no tab row: swipe left or right on a touch screen, swipe sideways with two fingers
  * on a trackpad, use the left and right arrow keys, or (on a wide screen) press a dot at the foot of the window. Only the page being shown is drawn.
  *
- * THE CHANGE OF PAGE is a view transition where the browser has them: the page that leaves slides away to its side, shrinking a little and blurring as
- * it fades, while the new one glides in from the other side (see globals.css). The browser animates pictures of the two pages, so nothing in the live
- * page is transformed and what is fixed to the screen inside a page (a charger's Start / Stop bar on a phone) stays where it is. Without view
- * transitions the new page comes in by its left edge; with reduced motion it simply changes.
+ * THE CHANGE OF PAGE has no animation: the next page simply replaces the one showing.
  *
  * It opens on `initialId` (the device asked for in the address or chosen in Application Settings, else the site's Overview) and follows it when it
  * changes (a device chosen from the sidebar while the Overview is open).
  */
 export function OverviewTabs({ tabs, initialId, background }: { tabs: OverviewTab[]; initialId: string; background: string | null }) {
   const [value, setValue] = React.useState(initialId);
-  // the side the page comes in from when the browser has no view transitions (null = no movement)
-  const [fallback, setFallback] = React.useState<Direction | null>(null);
   // a new device asked for from outside (the address changed): go there (done while rendering, from what the prop was)
   const [seen, setSeen] = React.useState(initialId);
   if (seen !== initialId) {
     setSeen(initialId);
     setValue(initialId);
-    setFallback(null);
   }
   const found = tabs.findIndex((t) => t.id === value);
   const index = found >= 0 ? found : 0;
   const current = tabs[index];
   const ids = tabs.map((t) => t.id).join("|");
 
-  const busy = React.useRef(false);
-  const box = React.useRef<HTMLDivElement>(null);
   const go = React.useCallback(
     (to: number) => {
       const order = ids.split("|");
-      if (to < 0 || to >= order.length || to === index || busy.current) return;
-      const direction: Direction = to > index ? "next" : "prev";
-      const doc = document as TransitionDocument;
-      const still = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-      if (!doc.startViewTransition || still) {
-        setFallback(still ? null : direction);
-        setValue(order[to]);
-        return;
-      }
-      // the direction is on <html> for the length of the transition: the CSS names the page there and chooses the movement by it
-      const root = document.documentElement;
-      root.dataset.overviewDir = direction;
-      // When the page has been scrolled, its top is under the dashboard's header: the pictures are cut there, so nothing shows over the header.
-      const scroller = box.current?.closest("main");
-      const hidden = scroller && box.current ? scroller.getBoundingClientRect().top + parseFloat(getComputedStyle(scroller).paddingTop) - box.current.getBoundingClientRect().top : 0;
-      root.style.setProperty("--overview-clip-top", `${Math.max(0, Math.round(hidden))}px`);
-      busy.current = true;
-      // (a transition that never reports its end must not leave the pages stuck: it is closed after a second and a half at the latest)
-      const guard = window.setTimeout(() => done(), 1500);
-      const done = () => {
-        window.clearTimeout(guard);
-        delete root.dataset.overviewDir;
-        root.style.removeProperty("--overview-clip-top");
-        busy.current = false;
-      };
-      try {
-        const transition = doc.startViewTransition(() =>
-          flushSync(() => {
-            setFallback(null);
-            setValue(order[to]);
-          })
-        );
-        // a transition the browser gives up (the window changed size, the tab was hidden) still changes the page: it only has no movement
-        transition.ready.catch(() => {});
-        transition.finished.then(done, done);
-      } catch {
-        done();
-        setValue(order[to]);
-      }
+      if (to < 0 || to >= order.length || to === index) return;
+      setValue(order[to]);
     },
     [ids, index]
   );
@@ -193,7 +143,6 @@ export function OverviewTabs({ tabs, initialId, background }: { tabs: OverviewTa
             page there, and only its empty margins may be cut). A sideways drag here is the page's own (the next page), so the browser is told not to take
             it for one of its gestures (touch-action: up and down scrolling and pinch only). */}
         <div
-          ref={box}
           role="region"
           aria-roledescription="carousel"
           aria-label="Overview of the site and of each device"
@@ -209,7 +158,7 @@ export function OverviewTabs({ tabs, initialId, background }: { tabs: OverviewTa
             role="group"
             aria-roledescription="slide"
             aria-label={`${index + 1} of ${tabs.length}: ${current.name}`}
-            className={cn("overview-panel relative max-sm:px-6", fallback === "next" && "overview-tab-from-right", fallback === "prev" && "overview-tab-from-left")}
+            className="relative max-sm:px-6"
           >
             {current.content}
           </div>
