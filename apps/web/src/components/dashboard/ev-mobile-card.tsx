@@ -28,7 +28,7 @@ function span(s: number): string {
 
 function Stat({ icon: Icon, label, value }: { icon: React.ComponentType<{ className?: string }>; label: string; value: string }) {
   return (
-    <div className="min-w-0 rounded-2xl bg-foreground/[0.05] p-3">
+    <div className="min-w-0 rounded-2xl border border-border p-3">
       <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
         <Icon className="size-3.5 shrink-0" />
         <span className="truncate">{label}</span>
@@ -43,7 +43,7 @@ function Source({ shares }: { shares: SourceShare[] | null }) {
   const parts = (shares ?? []).filter((s) => s.pct > 0);
   const shown = (["solar", "battery", "grid"] as const).map((key) => ({ key, pct: shares?.find((s) => s.key === key)?.pct ?? null }));
   return (
-    <div className="rounded-2xl bg-foreground/[0.05] p-3.5">
+    <div className="rounded-2xl border border-border p-3.5">
       <p className="text-xs text-muted-foreground">Source of the energy</p>
       <div className="mt-2.5 flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-foreground/[0.08]" role="img" aria-label={shares ? parts.map((s) => `${s.label} ${Math.round(s.pct)}%`).join(", ") : "Source not measured"}>
         {parts.map((s) => (

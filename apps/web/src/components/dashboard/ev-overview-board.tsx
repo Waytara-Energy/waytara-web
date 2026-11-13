@@ -34,7 +34,7 @@ function span(s: number): string {
 function Title({ children, aside, href }: { children: React.ReactNode; aside?: React.ReactNode; href?: string }) {
   return (
     <div className="flex items-center justify-between gap-3">
-      <h3 className="text-sm font-semibold text-foreground">{children}</h3>
+      <h3 className="text-sm font-medium text-foreground">{children}</h3>
       <div className="flex shrink-0 items-center gap-2">
         {aside}
         {href && (
@@ -88,7 +88,7 @@ function Statistic({ history, chargerId }: { history: EvHistory; chargerId: stri
   const shown = active !== null ? days[active] : null;
 
   return (
-    <Card className="flex min-h-0 flex-col gap-3 p-4 max-lg:order-last lg:col-span-5">
+    <Card className="flex min-h-0 flex-col gap-3 p-4 border-border! bg-transparent! shadow-none! max-lg:order-last lg:col-span-5 lg:p-5">
       <Title href={`/dashboard/performance?device=${encodeURIComponent(chargerId)}#ev`}>Statistic</Title>
       <div>
         <p className="text-2xl font-semibold tabular-nums text-foreground">{u.format(shown ? shown.kwh : total, "kWh", "ev_energy_today_kwh", 1)}</p>
@@ -137,7 +137,7 @@ function Statistic({ history, chargerId }: { history: EvHistory; chargerId: stri
 function LastCharge({ last, onOpen, chargerId }: { last: EvHistorySession | null; onOpen: (id: string) => void; chargerId: string }) {
   const u = useUnits();
   return (
-    <Card className="relative flex min-h-0 flex-col gap-3 p-4 transition-colors hover:border-primary/40 max-sm:hidden lg:col-span-7">
+    <Card className="relative flex min-h-0 flex-col gap-3 p-4 border-border! bg-transparent! shadow-none! transition-colors hover:border-primary/40! max-sm:hidden lg:col-span-7 lg:p-5">
       {/* the whole card is a link to the charger's tab on Monitoring; what must stay pressable on its own sits above it */}
       <Link href={`/dashboard/monitoring?device=${encodeURIComponent(chargerId)}#ev`} aria-label="Open the charger on Monitoring" className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring" />
       <Title
@@ -169,7 +169,7 @@ function LastCharge({ last, onOpen, chargerId }: { last: EvHistorySession | null
 function History({ sessions, onOpen, chargerId }: { sessions: EvHistorySession[]; onOpen: (id: string) => void; chargerId: string }) {
   const u = useUnits();
   return (
-    <Card className="flex min-h-0 flex-col gap-2 p-4 lg:col-span-5">
+    <Card className="flex min-h-0 flex-col gap-2 p-4 border-border! bg-transparent! shadow-none! lg:col-span-5 lg:p-5">
       <Title href={`/dashboard/reports?device=${encodeURIComponent(chargerId)}#ev`}>History</Title>
       {sessions.length === 0 ? (
         <p className="grid flex-1 place-items-center text-sm text-muted-foreground">Finished charges are listed here.</p>
