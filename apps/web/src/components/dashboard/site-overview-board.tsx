@@ -3,12 +3,15 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { ArrowUpRight, BatteryCharging, EvCharger, Home, Leaf, Server, Sun, Zap, type LucideIcon } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { ArrowUpRight, BatteryCharging, Check, EvCharger, Home, Leaf, MapPin, Server, Sun, Zap, type LucideIcon } from "lucide-react";
+import { selectSite } from "@/app/dashboard/actions";
 import { useUnits } from "@/components/units-provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFitRows } from "@/hooks/use-fit-rows";
 import { useSiteWeather } from "@/hooks/use-site-weather";
 import { CONNECTION_LABEL, type ConnectionStatus } from "@/lib/device-state";
+import { agoText } from "@/lib/device-status-summary";
 import { areaPoints, TODAY_COUNTER_KEYS as K } from "@/lib/energy-today";
 import type { EnumOption } from "@/lib/enum-labels";
 import { co2AvoidedKg } from "@/lib/environmental-impact";
@@ -22,6 +25,7 @@ import { solarGenerationW } from "@/lib/solar-generation";
 import { useLiveNumbers, type Agg } from "@/lib/telemetry/live-values";
 import { useDeviceLive, useTodaySeries } from "@/lib/telemetry/react";
 import { CONDITION_TEXT } from "@/lib/weather";
+import { solarVerdict } from "@/lib/weather-format";
 import { cn } from "@/lib/utils";
 import { useDeviceHub } from "./device-live-hub";
 import { FLOW } from "./flow-colors";
@@ -56,6 +60,19 @@ export interface SiteBoardCharger {
   /** Charges and their energy over the last 30 days. */
   sessions30: number;
   kwh30: number;
+  /** The energy of today's charges that did not come from the grid (solar, and what the meters could not place, which is shown as solar), kWh. */
+  todayCleanKwh: number;
+}
+
+/** One of the customer's sites. */
+export interface SiteBoardSite {
+  id: string;
+  name: string;
+  /** Its city, when it has an address. */
+  place: string | null;
+  deviceCount: number;
+  /** The site being shown. */
+  selected: boolean;
 }
 
 /** A device in the site's list. */
@@ -67,6 +84,9 @@ export interface SiteBoardDevice {
   model: string | null;
   /** Its connection as the server saw it (null = not known); the live channel takes over. */
   status: ConnectionStatus | null;
+  /** An inverter's first numbers and PV power keys (for the figures in the devices list). */
+  initial?: Record<string, number | null>;
+  pvKeys?: string[];
 }
 
 const agg = (k: string) => siteAgg(k) as Agg;
@@ -142,23 +162,10 @@ function Figure({ value, unit, large = false }: { value: React.ReactNode; unit?:
 
 const Sub = ({ children }: { children: React.ReactNode }) => <span className="mt-1.5 block shrink-0 truncate text-xs text-muted-foreground">{children}</span>;
 
-/** A ring for a share of 100. */
-function Ring({ pct, color }: { pct: number | null; color: string }) {
-  const r = 26;
-  const c = 2 * Math.PI * r;
-  const part = pct === null ? 0 : Math.min(100, Math.max(0, pct)) / 100;
-  return (
-    <svg viewBox="0 0 64 64" className="size-16 shrink-0 -rotate-90" aria-hidden="true">
-      <circle cx="32" cy="32" r={r} fill="none" strokeWidth="7" className="stroke-foreground/[0.08]" />
-      {part > 0 && <circle cx="32" cy="32" r={r} fill="none" strokeWidth="7" strokeLinecap="round" stroke={color} strokeDasharray={`${c * part} ${c}`} />}
-    </svg>
-  );
-}
-
 // ---- the inverters' numbers -----------------------------------------------------------------------------------------------------------
 
 /** Today's curve of one or more power keys (added up), in kW. Drawn for a site with one inverter (the readings of several are not added up here). */
-function useDayCurve(inv: SiteBoardInverters, keys: string[]) {
+function useDayCurve(inv: SiteBoardInverters, keys: string[], sign: 1 | -1 = 1) {
   const single = inv.ids.length === 1;
   const series = useTodaySeries(inv.ids[0], single ? keys : NO_KEYS, 15);
   if (!single) return { points: null, now: series.nowMs };
@@ -172,7 +179,7 @@ function useDayCurve(inv: SiteBoardInverters, keys: string[]) {
         any = true;
       }
     }
-    return any ? sum : null;
+    return any ? sum * sign : null;
   });
   return { points: areaPoints(series.axis, values, series.nowMs, 0.001), now: series.nowMs };
 }
@@ -264,8 +271,10 @@ function GridWidget({ inv, className }: { inv: SiteBoardInverters; className?: s
 function BatteryWidget({ inv, className }: { inv: SiteBoardInverters; className?: string }) {
   const f = useFigures();
   const n = useLiveNumbers(inv.ids, ["battery_soc_pct", "battery_power_w", K.charged, K.discharged], inv.initial, agg);
+  // today's charging and discharging: the inverter reports discharging as positive, the graph draws charging as the main colour (as the inverter's own card does)
+  const curve = useDayCurve(inv, ["battery_power_w"], -1);
   const soc = n.battery_soc_pct;
-  const w = n.battery_power_w; // the inverter reports discharging as positive
+  const w = n.battery_power_w;
   const power = f.kw(w, "battery_power_w");
   const state = w === null ? "No reading" : w > 20 ? `Discharging · ${power.value} ${power.unit}` : w < -20 ? `Charging · ${power.value} ${power.unit}` : "Idle";
   const level = soc === null ? 0 : Math.round(Math.min(100, Math.max(0, soc)) / 10);
@@ -276,60 +285,83 @@ function BatteryWidget({ inv, className }: { inv: SiteBoardInverters; className?
       <span className="mt-3 block">
         <Figure value={soc === null ? "—" : Math.round(soc)} unit="%" />
         <Sub>
-          {f.kwh(n[K.charged], K.charged)} in · {f.kwh(n[K.discharged], K.discharged)} out today
+          {f.kwh(n[K.charged], K.charged)} charged · {f.kwh(n[K.discharged], K.discharged)} discharged today
         </Sub>
       </span>
-      {/* the charge, in ten steps */}
-      <span className="mt-auto flex gap-1 pt-3" role="img" aria-label={soc === null ? "State of charge not known" : `State of charge ${Math.round(soc)}%`}>
-        {Array.from({ length: 10 }, (_, i) => (
-          <span key={i} className={cn("h-2.5 flex-1 rounded-full", i < level ? color : "bg-foreground/[0.08]")} />
-        ))}
-      </span>
-    </Widget>
-  );
-}
-
-function SelfPoweredWidget({ inv, className }: { inv: SiteBoardInverters; className?: string }) {
-  const f = useFigures();
-  const n = useLiveNumbers(inv.ids, [K.load, K.imported], inv.initial, agg);
-  const load = n[K.load];
-  const imported = n[K.imported];
-  const pct = load !== null && load > 0 && imported !== null ? Math.min(100, Math.max(0, (1 - imported / load) * 100)) : null;
-  return (
-    <Widget href={monitoring(inv, "grid")} label="Self-powered today. Open it on Monitoring." className={className}>
-      <Head icon={Sun} tone={TONE.green} title="Self-powered" note="Today" />
-      <span className="flex flex-1 items-center justify-between gap-3 pt-3">
-        <span className="min-w-0">
-          <Figure value={pct === null ? "—" : pct.toFixed(0)} unit="%" />
-          <Sub>{load !== null && imported !== null ? `${f.kwh(imported, K.imported)} bought` : "No readings yet"}</Sub>
+      {curve.points ? (
+        <div className="mt-2 min-h-12 flex-1">
+          <TodayAreaChart points={curve.points} now={curve.now} posColor={FLOW.producing} negColor={FLOW.drawing} posLabel="Charging" negLabel="Discharging" compact />
+        </div>
+      ) : (
+        // (the curves are drawn for one inverter) several inverters: the charge in ten steps
+        <span className="mt-auto flex gap-1 pt-3" role="img" aria-label={soc === null ? "State of charge not known" : `State of charge ${Math.round(soc)}%`}>
+          {Array.from({ length: 10 }, (_, i) => (
+            <span key={i} className={cn("h-2.5 flex-1 rounded-full", i < level ? color : "bg-foreground/[0.08]")} />
+          ))}
         </span>
-        <Ring pct={pct} color={FLOW.producing} />
-      </span>
+      )}
     </Widget>
   );
 }
 
-function Co2Widget({ inv, className }: { inv: SiteBoardInverters; className?: string }) {
+/** The carbon dioxide today's clean energy avoided (the grid's emission factor, an estimate): the figure is the solar generated; under it the part of
+ *  that clean energy that went through the battery (what it discharged) and into the car (the charges not drawn from the grid), each as kg and as a
+ *  percentage of the figure. (They are parts of the same energy, so they are not added to it.) */
+function Co2Widget({ inv, evCleanKwh, className }: { inv: SiteBoardInverters; evCleanKwh: number | null; className?: string }) {
   const f = useFigures();
-  const n = useLiveNumbers(inv.ids, [K.solar], inv.initial, agg);
+  const n = useLiveNumbers(inv.ids, [K.solar, K.discharged], inv.initial, agg);
   const solar = n[K.solar];
   const kg = solar === null ? null : co2AvoidedKg(solar);
+  const parts = [
+    { key: "battery", label: "Through the battery", icon: BatteryCharging, tone: TONE.battery, kwh: inv.hasBattery ? n[K.discharged] : null },
+    { key: "ev", label: "Into the car", icon: EvCharger, tone: TONE.ev, kwh: evCleanKwh },
+  ].flatMap((r) => {
+    if (r.kwh === null) return [];
+    const part = co2AvoidedKg(r.kwh);
+    return [{ ...r, kg: part, pct: kg !== null && kg > 0 ? Math.min(100, (part / kg) * 100) : null }];
+  });
+  const text = (v: number) => v.toFixed(v >= 100 ? 0 : 1);
   return (
     <Widget href={`/dashboard/performance?device=${encodeURIComponent(inv.ids[0])}`} label="Carbon dioxide avoided today. Open Performance." className={className}>
-      <Leaf aria-hidden="true" className="pointer-events-none absolute -right-4 -bottom-5 size-28 text-emerald-500/10" strokeWidth={1.5} />
       <Head icon={Leaf} tone={TONE.green} title="CO₂ avoided" note="Today, estimated" />
       <span className="mt-3 block">
-        <Figure value={kg === null ? "—" : kg.toFixed(kg >= 100 ? 0 : 1)} unit="kg" />
+        <Figure value={kg === null ? "—" : text(kg)} unit="kg" />
         <Sub>{solar === null ? "No readings yet" : `from ${f.kwh(solar, K.solar)} of solar`}</Sub>
       </span>
+      {parts.length > 0 && (
+        <span className="mt-auto block space-y-1.5 pt-2">
+          {parts.map((r) => {
+            const Icon = r.icon;
+            return (
+              <span key={r.key} className="block">
+                <span className="flex items-center gap-2 text-xs">
+                  <span className={cn("grid size-5 shrink-0 place-items-center rounded-md", r.tone)}>
+                    <Icon className="size-3" />
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-muted-foreground">{r.label}</span>
+                  <span className="shrink-0 tabular-nums text-foreground">
+                    {text(r.kg)} kg{r.pct === null ? "" : ` · ${Math.round(r.pct)}%`}
+                  </span>
+                </span>
+                <span className="mt-1 block h-1 overflow-hidden rounded-full bg-foreground/[0.08] [@media(max-height:819px)]:lg:hidden">
+                  <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${r.pct ?? 0}%` }} />
+                </span>
+              </span>
+            );
+          })}
+        </span>
+      )}
     </Widget>
   );
 }
 
 // ---- the weather ----------------------------------------------------------------------------------------------------------------------
 
-function WeatherWidget({ siteId, place, wide, className }: { siteId: string; place: string | null; wide: boolean; className?: string }) {
-  const { weather, reason } = useSiteWeather(siteId);
+type WeatherState = ReturnType<typeof useSiteWeather>;
+
+/** The weather as a tile (a tablet and wider). */
+function WeatherWidget({ state, place, wide, className }: { state: WeatherState; place: string | null; wide: boolean; className?: string }) {
+  const { weather, reason } = state;
   if (!weather) {
     return (
       <Widget href="/dashboard/weather" label="Weather. Open the forecast." className={className}>
@@ -393,6 +425,75 @@ function WeatherWidget({ siteId, place, wide, className }: { siteId: string; pla
   );
 }
 
+/** On a phone the weather is not a tile but the head of the page, as in a weather app: the place, the temperature large, the condition, high and low. */
+function WeatherHero({ state, place, className }: { state: WeatherState; place: string | null; className?: string }) {
+  const { weather, reason } = state;
+  const n = weather?.now;
+  const today = weather?.days[0];
+  const look = n ? WEATHER_ICON[n.condition] : null;
+  const Icon = n && look ? look[n.night ? "night" : "day"] : null;
+  return (
+    <Link href="/dashboard/weather" aria-label="Weather. Open the forecast." className={cn("flex flex-col items-center rounded-2xl px-2 pt-2 pb-3 text-center outline-none focus-visible:ring-2 focus-visible:ring-ring", className)}>
+      <span className="text-xl font-medium text-foreground">{place ?? "Weather"}</span>
+      {weather === undefined ? (
+        <span className="mt-3 flex flex-col items-center gap-2">
+          <Skeleton className="h-20 w-32" />
+          <Skeleton className="h-4 w-28" />
+        </span>
+      ) : !n || !look || !Icon ? (
+        <span className="mt-3 text-sm text-muted-foreground">{reason === "no-location" ? "This site has no saved location yet." : "The weather could not be read just now."}</span>
+      ) : (
+        <>
+          <span className="mt-1 text-[5.25rem] font-light leading-none tracking-tight tabular-nums text-foreground">{temp(n.tempC)}</span>
+          <span className="mt-1.5 flex items-center gap-1.5 text-base font-medium text-foreground/80">
+            <Icon className={cn("size-5", look.tone)} strokeWidth={1.8} />
+            {CONDITION_TEXT[n.condition]}
+          </span>
+          {today && (
+            <span className="mt-0.5 text-base tabular-nums text-foreground/80">
+              H:{temp(today.maxC)} L:{temp(today.minC)}
+            </span>
+          )}
+        </>
+      )}
+    </Link>
+  );
+}
+
+/** The sunshine for solar today, hour by hour (a phone: under the weather at the head of the page). */
+function SunshineTile({ state, className }: { state: WeatherState; className?: string }) {
+  const { weather } = state;
+  if (!weather) return null;
+  const today = weather.days[0];
+  const hours = weather.solar.hours;
+  const sunshine = weather.solar.potentialPct;
+  const nowHour = new Date(Date.parse(weather.now.at) + IST_MS).getUTCHours();
+  return (
+    <Widget href="/dashboard/weather" label="Sunshine for solar today. Open the forecast." className={className}>
+      <Head icon={Sun} tone={TONE.solar} title="Sunshine for solar" note={solarVerdict(sunshine).text} />
+      <span className="mt-3 flex items-end gap-4">
+        <span className="shrink-0">
+          <Figure value={sunshine} unit="%" />
+          <Sub>of a clear day</Sub>
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="flex h-14 items-end gap-[3px]" role="img" aria-label="Expected sunshine by hour today">
+            {hours.map((h) => (
+              <span key={h.hour} className="relative flex-1 rounded-t-sm bg-foreground/[0.08]" style={{ height: `${Math.max(4, (h.clearWm2 / 1100) * 100)}%` }}>
+                <span className={cn("absolute inset-x-0 bottom-0 rounded-t-sm", h.hour === nowHour ? "bg-amber-500" : "bg-amber-400/80")} style={{ height: `${h.clearWm2 > 0 ? (h.wm2 / h.clearWm2) * 100 : 0}%` }} />
+              </span>
+            ))}
+          </span>
+          <span className="mt-1 flex justify-between text-[10px] text-muted-foreground">
+            <span>{today?.sunrise ? clockOf(today.sunrise) : ""}</span>
+            <span>{today?.sunset ? clockOf(today.sunset) : ""}</span>
+          </span>
+        </span>
+      </span>
+    </Widget>
+  );
+}
+
 // ---- the devices ----------------------------------------------------------------------------------------------------------------------
 
 const DEVICE_ICON: Record<SiteBoardDevice["kind"], LucideIcon> = { inverter: Sun, charger: EvCharger, other: Server };
@@ -431,6 +532,92 @@ function StatusWord({ status, word, pulse = false }: { status: ConnectionStatus 
   );
 }
 
+const inr = (v: number) => `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
+/** 5420 s -> "1 h 30 min", 154 s -> "3 min" (under a minute is "< 1 min"). */
+function span(sec: number): string {
+  const min = Math.round(sec / 60);
+  if (min < 1) return "< 1 min";
+  return min < 60 ? `${min} min` : `${Math.floor(min / 60)} h ${String(min % 60).padStart(2, "0")} min`;
+}
+
+/** Three small figures side by side, each with its label over it. */
+function Facts({ items }: { items: { label: string; value: string }[] }) {
+  return (
+    <span className="mt-2 grid grid-cols-3 gap-2">
+      {items.map((x) => (
+        <span key={x.label} className="min-w-0 leading-tight">
+          <span className="block truncate text-[11px] text-muted-foreground">{x.label}</span>
+          <span className="block truncate text-sm font-semibold tabular-nums text-foreground">{x.value}</span>
+        </span>
+      ))}
+    </span>
+  );
+}
+
+/** An inverter in the devices list: what it makes now and today, the battery, and when it last reported. */
+function InverterFacts({ device, ago }: { device: SiteBoardDevice; ago: string | null }) {
+  const f = useFigures();
+  const pv = device.pvKeys ?? NO_KEYS;
+  const keys = React.useMemo(() => [...pv, "inverter_output_power_w", "battery_soc_pct", "load_total_power_w", "grid_total_power_w", "battery_power_w", K.solar], [pv]);
+  const n = useLiveNumbers([device.id], keys, device.initial ?? {});
+  const soc = n.battery_soc_pct;
+  const power = (w: number | null | undefined, key: string) => {
+    const x = f.kw(w ?? null, key);
+    return x.value === "—" ? "—" : `${x.value} ${x.unit}`;
+  };
+  const grid = n.grid_total_power_w;
+  return (
+    <>
+      <Facts
+        items={[
+          { label: "Generating", value: power(solarGenerationW(n, pv), "inverter_output_power_w") },
+          { label: "Today", value: f.kwh(n[K.solar], K.solar) },
+          { label: "Battery", value: soc === null ? "—" : `${Math.round(soc)}%` },
+        ]}
+      />
+      <Facts
+        items={[
+          { label: "Load", value: power(n.load_total_power_w, "load_total_power_w") },
+          { label: grid === null ? "Grid" : grid < -20 ? "To the grid" : grid > 20 ? "From the grid" : "Grid", value: power(grid, "grid_total_power_w") },
+          { label: n.battery_power_w === null ? "Battery power" : n.battery_power_w > 20 ? "Discharging" : n.battery_power_w < -20 ? "Charging" : "Battery power", value: power(n.battery_power_w, "battery_power_w") },
+        ]}
+      />
+      <span className="mt-1.5 block truncate text-xs text-muted-foreground">{ago ? `Last reading ${ago}` : "No reading yet"}</span>
+    </>
+  );
+}
+
+/** A charger in the devices list: today's and the month's charging, its last session, and when it last reported. */
+function ChargerFacts({ charger, ago }: { charger: SiteBoardCharger; ago: string | null }) {
+  const { u } = useFigures();
+  const live = useChargerLive(charger, null);
+  const kwh = (v: number | null, digits = 1) => (v === null ? "—" : u.format(v, "kWh", "ev_energy_today_kwh", digits));
+  const last = charger.last;
+  return (
+    <>
+      <Facts
+        items={[
+          { label: live.charging ? "This charge" : "Last charge", value: live.charging ? kwh(live.chargeKwh, 2) : last ? kwh(last.kwh, 2) : "—" },
+          { label: "Today", value: kwh(charger.todayKwh) },
+          { label: "30 days", value: kwh(charger.kwh30, charger.kwh30 >= 100 ? 0 : 1) },
+        ]}
+      />
+      {/* the last finished session */}
+      <Facts
+        items={[
+          { label: "Duration", value: last ? span(last.durationS) : "—" },
+          { label: "Peak power", value: last && last.peakKw !== null ? u.format(last.peakKw, "kW", "power_active_import_kw", 1) : "—" },
+          { label: "Cost", value: last && last.cost !== null ? inr(last.cost) : "—" },
+        ]}
+      />
+      <span className="mt-1.5 block truncate text-xs text-muted-foreground">
+        {live.charging ? "Charging now" : last ? `Last session ${dayOf(last.startedAt)}, ${clockOf(last.startedAt)}` : "No session yet"}
+        {ago ? ` · reading ${ago}` : ""}
+      </span>
+    </>
+  );
+}
+
 function DevicesWidget({ devices, chargers, className }: { devices: SiteBoardDevice[]; chargers: SiteBoardCharger[]; className?: string }) {
   const hub = useDeviceHub();
   const tabs = useOverviewTabs();
@@ -439,12 +626,16 @@ function DevicesWidget({ devices, chargers, className }: { devices: SiteBoardDev
   const known = rows.filter((d) => d.status !== null);
   const down = known.filter((d) => d.status !== "online").length;
   const summary = known.length === 0 ? "No data yet" : down === 0 ? "All online" : `${down} of ${known.length} not reporting`;
+  const agoOf = (id: string) => {
+    const iso = hub.states[id]?.lastReadAt ?? null;
+    return iso && hub.clock > 0 ? agoText(hub.clock - Date.parse(iso)) : null;
+  };
   return (
     <Widget className={className}>
       <Head icon={Server} tone={TONE.plain} title="Devices" note={summary} href="/dashboard/devices" />
 
-      {/* a phone: the devices as icons with their state, and the whole tile opens the Devices page */}
-      <span className="flex flex-1 flex-col md:hidden">
+      {/* a phone or a tablet: the devices as icons with their state, and the whole tile opens the Devices page */}
+      <span className="flex flex-1 flex-col lg:hidden">
         <span className="mt-3 flex flex-wrap gap-2">
           {rows.slice(0, 4).map((d) => {
             const Icon = DEVICE_ICON[d.kind];
@@ -462,36 +653,78 @@ function DevicesWidget({ devices, chargers, className }: { devices: SiteBoardDev
         <Link href="/dashboard/devices" aria-label="Open the devices" className="absolute inset-0 rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring" />
       </span>
 
-      {/* wider: one row per device (as many as fit); pressing one opens its tab */}
-      <ul ref={ref} className="-mx-2 mt-2 min-h-0 flex-1 divide-y overflow-hidden px-1 max-md:hidden">
+      {/* a wide screen: each device with its figures, its last reading and (a charger) its last session, as many as fit; pressing one opens its tab */}
+      <ul ref={ref} className="-mx-2 mt-2 min-h-0 flex-1 divide-y overflow-hidden px-1 max-lg:hidden">
         {rows.slice(0, count).map((d) => {
           const Icon = DEVICE_ICON[d.kind];
           const charger = d.kind === "charger" ? chargers.find((c) => c.id === d.id) : undefined;
           const hasTab = tabs?.has(d.id) ?? false;
           const body = (
             <>
-              <span className={cn("grid size-8 shrink-0 place-items-center rounded-xl", d.kind === "inverter" ? TONE.solar : d.kind === "charger" ? TONE.ev : TONE.plain)}>
-                <Icon className="size-4" />
+              <span className="flex items-center gap-3">
+                <span className={cn("grid size-8 shrink-0 place-items-center rounded-xl", d.kind === "inverter" ? TONE.solar : d.kind === "charger" ? TONE.ev : TONE.plain)}>
+                  <Icon className="size-4" />
+                </span>
+                <span className="min-w-0 flex-1 leading-tight">
+                  <span className="block truncate text-sm font-medium text-foreground">{d.name}</span>
+                  {d.model ? <span className="block truncate text-xs text-muted-foreground">{d.model}</span> : null}
+                </span>
+                {charger ? <ChargerWord charger={charger} status={d.status} /> : <StatusWord status={d.status} />}
               </span>
-              <span className="min-w-0 flex-1 leading-tight">
-                <span className="block truncate text-sm font-medium text-foreground">{d.name}</span>
-                {d.model ? <span className="block truncate text-xs text-muted-foreground">{d.model}</span> : null}
-              </span>
-              {charger ? <ChargerWord charger={charger} status={d.status} /> : <StatusWord status={d.status} />}
+              {charger ? <ChargerFacts charger={charger} ago={agoOf(d.id)} /> : d.kind === "inverter" ? <InverterFacts device={d} ago={agoOf(d.id)} /> : <span className="mt-1.5 block truncate text-xs text-muted-foreground">{agoOf(d.id) ? `Last reading ${agoOf(d.id)}` : "No reading yet"}</span>}
             </>
           );
           return (
             <li key={d.id}>
               {hasTab ? (
-                <button type="button" onClick={() => tabs?.open(d.id)} aria-label={`Open ${d.name}`} className="flex w-full items-center gap-3 rounded-lg px-2 py-2.5 text-left outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring">
+                <button type="button" onClick={() => tabs?.open(d.id)} aria-label={`Open ${d.name}`} className="block w-full rounded-lg px-2 py-3 text-left outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring">
                   {body}
                 </button>
               ) : (
-                <span className="flex items-center gap-3 px-2 py-2.5">{body}</span>
+                <span className="block px-2 py-3">{body}</span>
               )}
             </li>
           );
         })}
+      </ul>
+    </Widget>
+  );
+}
+
+/** The customer's sites: the one being shown is ticked; pressing another shows that site's Overview (the same choice as the site switcher in the header). */
+function SitesWidget({ sites, className }: { sites: SiteBoardSite[]; className?: string }) {
+  const router = useRouter();
+  const [pending, startTransition] = React.useTransition();
+  const { ref, count } = useFitRows(2);
+  const choose = (id: string) =>
+    startTransition(async () => {
+      await selectSite(id);
+      router.refresh();
+    });
+  return (
+    <Widget className={className}>
+      <Head icon={MapPin} tone={TONE.plain} title="Sites" note={`${sites.length} ${sites.length === 1 ? "site" : "sites"}`} arrow={false} />
+      <ul ref={ref} className={cn("-mx-2 mt-2 min-h-0 flex-1 divide-y overflow-hidden px-1", pending && "opacity-60")}>
+        {sites.slice(0, count).map((x) => (
+          <li key={x.id}>
+            <button
+              type="button"
+              onClick={() => (x.selected ? undefined : choose(x.id))}
+              disabled={pending}
+              aria-current={x.selected}
+              aria-label={x.selected ? `${x.name}, showing` : `Show ${x.name}`}
+              className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <span className="min-w-0 flex-1 leading-tight">
+                <span className="block truncate text-sm font-medium text-foreground">{x.name}</span>
+                <span className="block truncate text-xs text-muted-foreground">
+                  {[x.place, `${x.deviceCount} ${x.deviceCount === 1 ? "device" : "devices"}`].filter(Boolean).join(" · ")}
+                </span>
+              </span>
+              <Check className={cn("size-4 shrink-0 text-emerald-500", x.selected ? "opacity-100" : "opacity-0")} />
+            </button>
+          </li>
+        ))}
       </ul>
     </Widget>
   );
@@ -544,25 +777,22 @@ function EvWidget({ charger, car, className }: { charger: SiteBoardCharger; car:
 
   return (
     <Widget className={className}>
-      {/* the car, at the right, fading into the tile */}
+      {/* the car, at the right, whole */}
       <Image
         src="/images/ev-car-nexon-v2.webp"
         alt=""
         width={1400}
         height={796}
-        sizes="(max-width: 767px) 70vw, 30vw"
-        className={cn(
-          "pointer-events-none absolute -right-[9%] bottom-[4%] h-[70%] w-auto max-w-none select-none object-contain [mask-image:linear-gradient(to_right,transparent_2%,black_38%)] dark:brightness-125 dark:contrast-110",
-          !live.charging && "opacity-80"
-        )}
+        sizes="(max-width: 767px) 46vw, 24vw"
+        className="pointer-events-none absolute right-3 bottom-3 h-auto w-[46%] max-w-[24rem] select-none dark:brightness-125 dark:contrast-110"
       />
       <span className="relative flex min-h-0 flex-1 flex-col">
         <Head icon={EvCharger} tone={TONE.ev} title={charger.name} note={note} arrow={open !== null} />
-        <span className="mt-3 block max-w-[62%]">
+        <span className="mt-3 block max-w-[50%]">
           <Figure value={figure.value} unit={figure.unit} large />
           <Sub>{sub}</Sub>
         </span>
-        <span className="mt-auto block max-w-[62%] pt-3">
+        <span className="mt-auto block max-w-[50%] pt-3">
           <span className="block h-2 overflow-hidden rounded-full bg-foreground/[0.08]" role="img" aria-label={fill === null ? "No charge to show" : `${Math.round(fill)}% of the charge`}>
             {fill !== null && fill > 0 && <span className={cn("block h-full rounded-full bg-emerald-500", live.charging && "motion-safe:animate-pulse")} style={{ width: `${Math.min(100, fill)}%` }} />}
           </span>
@@ -593,16 +823,19 @@ function EvMonthWidget({ charger, className }: { charger: SiteBoardCharger; clas
 // ---- the board ------------------------------------------------------------------------------------------------------------------------
 
 /**
- * The site's own Overview: every device together, as widgets. Solar now and today with the day's curve, the weather at the site, the devices and their
- * state (pressing one opens its tab), the load, the grid, the battery, how much of the day's use did not come from the grid, the carbon dioxide the
- * day's solar avoided, and the charger with its car. A widget is there only when the site has what it shows (no charger tile without a charger, no
- * battery tile without a battery), and the tiles are laid out to fill a four-column grid whatever is there: the weather widens (and shows the
- * sunshine hour by hour) and the last small tile stretches when a cell would be left empty. On a wide screen the grid fits the screen's height; on a
- * phone it is two columns that scroll. The numbers are live (in place, no page refresh); the curves are today's 15-minute readings (one inverter).
+ * The site's own Overview: every device together, as widgets. Solar now and today with the day's curve, the weather at the site, the devices (each with
+ * its figures, its last reading and a charger's last session; pressing one opens its page), the customer's sites, the load, the grid, the battery (with
+ * today's charging and discharging), the carbon dioxide avoided (with the part that went through the battery and into the car) and the charger with its
+ * car. A widget is there only when the site has what it shows, and the tiles are laid out to fill a four-column grid whatever is there: the weather
+ * widens (and shows the sunshine hour by hour) and the last small tile stretches when a cell would be left empty. On a wide screen the grid fits the
+ * screen's height. On a phone the weather is the head of the page, as in a weather app (the place, the temperature large, the condition, high and low),
+ * with the sunshine under it, then the devices and sites side by side, solar, load and grid, the battery, the charger and, last, the carbon dioxide. The
+ * numbers are live (in place, no page refresh); the curves are today's 15-minute readings (one inverter).
  */
 export function SiteOverviewBoard({
   siteId,
   place,
+  sites,
   devices,
   inverters,
   chargers,
@@ -612,6 +845,8 @@ export function SiteOverviewBoard({
   siteId: string;
   /** Where the site is, in a word (its city, else its name). */
   place: string | null;
+  /** Every site of the customer. */
+  sites: SiteBoardSite[];
   devices: SiteBoardDevice[];
   inverters: SiteBoardInverters | null;
   chargers: SiteBoardCharger[];
@@ -619,20 +854,23 @@ export function SiteOverviewBoard({
   /** The CSS of the person's own background (null for none): the tiles turn to frosted glass over it. */
   background: string | null;
 }) {
+  const weather = useSiteWeather(siteId);
   // the charger shown: the one that is charging, else the first
   const charger = chargers.find((c) => c.open !== null) ?? chargers[0] ?? null;
   const inv = inverters;
+  const evCleanKwh = chargers.length > 0 ? chargers.reduce((a, c) => a + c.todayCleanKwh, 0) : null;
 
-  const smalls: ((className: string) => React.ReactNode)[] = [];
+  // the small tiles in the order of a wide screen; `phone` is where each stands on a phone (see the order of the others below) and how wide it is there
+  const smalls: { key: string; phone: string; render: (className: string) => React.ReactNode }[] = [];
   if (inv) {
-    smalls.push((c) => <LoadWidget key="load" inv={inv} className={c} />);
-    if (inv.hasGrid) smalls.push((c) => <GridWidget key="grid" inv={inv} className={c} />);
-    if (inv.hasBattery) smalls.push((c) => <BatteryWidget key="battery" inv={inv} className={c} />);
-    if (inv.hasGrid) smalls.push((c) => <SelfPoweredWidget key="self" inv={inv} className={c} />);
-    smalls.push((c) => <Co2Widget key="co2" inv={inv} className={c} />);
+    smalls.push({ key: "load", phone: "order-[6] min-h-40", render: (c) => <LoadWidget inv={inv} className={c} /> });
+    if (inv.hasGrid) smalls.push({ key: "grid", phone: "order-[7] min-h-40", render: (c) => <GridWidget inv={inv} className={c} /> });
+    if (inv.hasBattery) smalls.push({ key: "battery", phone: "order-[8] max-md:col-span-2 min-h-48", render: (c) => <BatteryWidget inv={inv} className={c} /> });
+    smalls.push({ key: "co2", phone: "order-[10] max-md:col-span-2 min-h-52", render: (c) => <Co2Widget inv={inv} evCleanKwh={evCleanKwh} className={c} /> });
   } else if (charger) {
-    smalls.push((c) => <EvMonthWidget key="month" charger={charger} className={c} />);
+    smalls.push({ key: "month", phone: "order-[6] min-h-40", render: (c) => <EvMonthWidget charger={charger} className={c} /> });
   }
+  smalls.push({ key: "sites", phone: "order-[4] min-h-44", render: (c) => <SitesWidget sites={sites} className={c} /> });
 
   // The four-column grid (from a tablet up). Solar is two cells (four when there is no charger to fill the row under it), the charger two (four on its
   // own), the devices list one column over two rows, everything else one cell. What would be left empty goes to the weather and the last small tile.
@@ -653,14 +891,16 @@ export function SiteOverviewBoard({
         background && "[&_[data-widget]]:border-white/15 [&_[data-widget]]:bg-card/60 [&_[data-widget]]:backdrop-blur-md"
       )}
     >
-      {inv && <SolarWidget inv={inv} className={cn("order-3 col-span-2 min-h-56 md:order-none md:min-h-0", solarTall && "md:row-span-2")} />}
-      <WeatherWidget siteId={siteId} place={place} wide={weatherWide} className={cn("order-2 min-h-44 md:order-none md:min-h-0", weatherWide && "md:col-span-2")} />
-      <DevicesWidget devices={devices} chargers={chargers} className={cn("order-1 min-h-44 md:order-none md:col-start-4 md:row-span-2 md:min-h-0", weatherWide ? "md:row-start-2" : "md:row-start-1")} />
-      {smalls.map((render, i) => {
-        const last = i === smalls.length - 1;
-        return render(cn("order-4 min-h-40 md:order-none md:min-h-0", last && smalls.length % 2 === 1 && "max-md:col-span-2 max-md:min-h-32", last && lastSpan));
-      })}
-      {charger && <EvWidget charger={charger} car={car} className={cn("order-5 col-span-2 min-h-48 md:order-none md:min-h-0", evBig && "md:row-span-2")} />}
+      {/* a phone: the weather as the head of the page, and the sunshine under it */}
+      <WeatherHero state={weather} place={place} className="order-[1] col-span-2 md:hidden" />
+      <SunshineTile state={weather} className="order-[2] col-span-2 md:hidden" />
+
+      {inv && <SolarWidget inv={inv} className={cn("order-[5] col-span-2 min-h-56 md:order-none md:min-h-0", solarTall && "md:row-span-2")} />}
+      {/* a tablet and wider: the weather as a tile */}
+      <WeatherWidget state={weather} place={place} wide={weatherWide} className={cn("max-md:hidden md:min-h-0", weatherWide && "md:col-span-2")} />
+      <DevicesWidget devices={devices} chargers={chargers} className={cn("order-[3] min-h-44 md:order-none md:col-start-4 md:row-span-2 md:min-h-0", weatherWide ? "md:row-start-2" : "md:row-start-1")} />
+      {smalls.map((x, i) => x.render(cn(x.phone, "md:order-none md:min-h-0", i === smalls.length - 1 && lastSpan)))}
+      {charger && <EvWidget charger={charger} car={car} className={cn("order-[9] col-span-2 min-h-52 md:order-none md:min-h-0", evBig && "md:row-span-2")} />}
     </div>
   );
 }

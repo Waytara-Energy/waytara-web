@@ -1,7 +1,7 @@
 import type { Viewport } from "next";
 import { Zap } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { deviceDisplayId, getSelectedSite } from "@/lib/selected-site";
+import { deviceDisplayId, getCustomerSites, getSelectedSite } from "@/lib/selected-site";
 import { getRequestProfile } from "@/lib/request-profile";
 import { fetchSiteOverview } from "@/lib/device-overview";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -10,7 +10,7 @@ import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { SITE_OVERVIEW_KEYS, siteAgg } from "@/lib/overview-keys";
 import { fetchSolarCardsProps } from "@/components/dashboard/solar-live-status-cards";
 import { EvOverviewBoard } from "@/components/dashboard/ev-overview-board";
-import { fetchEvHistory, type EvHistory } from "@/lib/ev-history";
+import { fetchEvHistory, istDay, type EvHistory } from "@/lib/ev-history";
 import { fetchEvLog, type EvLogEntry } from "@/lib/ev-log";
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { fetchEvOverview } from "@/lib/ev-overview";
@@ -18,7 +18,7 @@ import { getCustomerPlan } from "@/lib/customer-plan";
 import { parseCarProfile } from "@/lib/ev-car";
 import { OverviewBoard } from "@/components/dashboard/overview-board";
 import { OverviewTabs, SITE_TAB, type OverviewTab } from "@/components/dashboard/overview-tabs";
-import { SiteOverviewBoard, type SiteBoardCharger, type SiteBoardDevice, type SiteBoardInverters } from "@/components/dashboard/site-overview-board";
+import { SiteOverviewBoard, type SiteBoardCharger, type SiteBoardDevice, type SiteBoardInverters, type SiteBoardSite } from "@/components/dashboard/site-overview-board";
 import type { ConnectionStatus } from "@/lib/device-state";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { backgroundCss, parseOverviewPrefs } from "@/lib/overview-prefs";
@@ -35,6 +35,17 @@ export const viewport: Viewport = {
 
 // The Overview of the selected site, as tabs: first the site's own Overview (every device together, as widgets: solar, the weather at the site, the
 // devices and their state, load, grid, battery, the charger), then one tab per device (an inverter's energy flow and cards, a charger's page).
+
+/** The energy of today's charges that did not come from the grid, kWh: each finished charge of today and the one that runs, by the share its meters put on
+ *  the grid (what they could not place counts as solar, as everywhere on the charger's pages). Charges without a source split count as their solar share. */
+function cleanKwhToday(recent: EvHistory["recent"], open: { kwh: number | null; shares: { key: string; pct: number }[] | null } | null): number {
+  const today = istDay(Date.now());
+  const clean = (shares: { key: string; pct: number }[] | null, solarPct: number | null) => (shares ? 100 - (shares.find((x) => x.key === "grid")?.pct ?? 0) : (solarPct ?? 0));
+  let kwh = 0;
+  for (const x of recent) if (istDay(Date.parse(x.startedAt)) === today) kwh += (x.kwh * clean(x.shares, x.solarSharePct)) / 100;
+  if (open && open.kwh !== null) kwh += (open.kwh * clean(open.shares, null)) / 100;
+  return kwh;
+}
 
 /** How one metric of several inverters combines into the site's number: powers and day counters add up, state of charge averages, a state or
  *  fault register takes the worst (see siteAgg). Null when no inverter has a value. */
@@ -54,7 +65,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
   // @/lib/request-profile), but running it alongside the site lookup
   // rather than after it still saves a round trip's worth of latency on
   // whichever one is slower.
-  const [profile, site, { device: deviceParam }] = await Promise.all([getRequestProfile(), getSelectedSite(), searchParams]);
+  const [profile, site, { device: deviceParam }, allSites] = await Promise.all([getRequestProfile(), getSelectedSite(), searchParams, getCustomerSites()]);
 
   if (!site) {
     return (
@@ -196,7 +207,9 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
     last: d.history.recent[0] ?? null,
     sessions30: d.history.sessions30,
     kwh30: d.history.kwh30,
+    todayCleanKwh: cleanKwhToday(d.history.recent, d.ev.open),
   }));
+  const siteList: SiteBoardSite[] = allSites.map((x) => ({ id: x.id, name: x.name, place: x.address?.city ?? null, deviceCount: x.devices.length, selected: x.id === site.id }));
   const siteDevices: SiteBoardDevice[] = site.devices.map((device) => {
     const data = slideData.find((d) => d?.device.id === device.id);
     let status: ConnectionStatus | null = null;
@@ -213,6 +226,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
       kind: data?.kind === "inverter" ? "inverter" : data?.kind === "charger" ? "charger" : "other",
       model: type ? [type.brand ?? type.manufacturer, type.model ?? type.name].filter(Boolean).join(" ") || null : null,
       status,
+      ...(data?.kind === "inverter" ? { initial: data.initial, pvKeys: data.pvKeys } : {}),
     };
   });
   const tabs: OverviewTab[] =
@@ -224,7 +238,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
             name: "Overview",
             kind: "site",
             sky: true,
-            content: <SiteOverviewBoard siteId={site.id} place={site.address?.city ?? site.name} devices={siteDevices} inverters={siteInverters} chargers={siteChargers} car={car} background={background} />,
+            content: <SiteOverviewBoard siteId={site.id} place={site.address?.city ?? site.name} sites={siteList} devices={siteDevices} inverters={siteInverters} chargers={siteChargers} car={car} background={background} />,
           },
           ...deviceTabs,
         ];
