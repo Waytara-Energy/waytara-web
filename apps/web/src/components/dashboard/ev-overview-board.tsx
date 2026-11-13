@@ -12,6 +12,7 @@ import { getConnectorStatusLabel } from "@/lib/ev-charger-catalog";
 import { EV_LIVE_KEYS } from "@/lib/ev-live-keys";
 import type { EnumOption } from "@/lib/enum-labels";
 import { chargeProgress, type CarProfile } from "@/lib/ev-car";
+import { unknownAsSolar } from "./ev-source";
 import type { EvHistory, EvHistorySession } from "@/lib/ev-history";
 import type { OpenCharge } from "@/lib/ev-overview";
 import { cn } from "@/lib/utils";
@@ -116,22 +117,26 @@ function History({ sessions, onOpen, chargerId }: { sessions: EvHistorySession[]
         <p className="grid flex-1 place-items-center text-sm text-muted-foreground">Finished charges are listed here.</p>
       ) : (
         <ul className="-mx-2 max-h-60 min-h-0 flex-1 divide-y overflow-y-auto px-1 lg:max-h-none">
-          {sessions.map((s) => (
+          {sessions.map((s) => {
+            // the solar share is the one the source card shows (what the meters could not place counts as solar)
+            const solar = s.shares ? (unknownAsSolar(s.shares)?.find((x) => x.key === "solar")?.pct ?? 0) : s.solarSharePct;
+            return (
             <li key={s.id}>
               <button type="button" onClick={() => onOpen(s.id)} className="flex w-full items-center justify-between gap-3 rounded-lg px-2 py-2 text-left outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-foreground">{`${dayMonth(s.startedAt)}, ${clock(s.startedAt)}`}</p>
                   <p className="truncate text-xs text-muted-foreground">
-                    {[span(s.durationS), s.targetKwh !== null ? `booked ${s.targetKwh} kWh` : null, s.solarSharePct !== null ? `${Math.round(s.solarSharePct)}% solar` : null, s.closedAutomatically ? "closed automatically" : null].filter(Boolean).join(" · ")}
+                    {[span(s.durationS), s.cost !== null ? inr(s.cost) : null, solar !== null ? `${Math.round(solar)}% solar` : null, s.closedAutomatically ? "closed automatically" : null].filter(Boolean).join(" · ")}
                   </p>
                 </div>
                 <div className="shrink-0 text-right">
                   <p className="text-sm font-semibold tabular-nums text-foreground">{u.format(s.kwh, "kWh", "ev_energy_today_kwh", 2)}</p>
-                  {s.cost !== null ? <p className="text-xs tabular-nums text-muted-foreground">{inr(s.cost)}</p> : null}
+                  <p className="text-xs tabular-nums text-muted-foreground">{s.targetKwh !== null ? `of ${u.format(s.targetKwh, "kWh", "ev_energy_today_kwh", s.targetKwh % 1 === 0 ? 0 : 1)} booked` : "no limit"}</p>
                 </div>
               </button>
             </li>
-          ))}
+            );
+          })}
         </ul>
       )}
     </Card>

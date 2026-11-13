@@ -60,7 +60,7 @@ export function EvSourceDetail({ shares, total, charging = false, className }: {
                 className="relative min-h-0 flex-1 overflow-hidden rounded-b-[1.4rem] rounded-t-md [container-type:size]"
                 style={{
                   clipPath: `url(#${uid}${key})`,
-                  background: `linear-gradient(to bottom, color-mix(in srgb, ${color} 78%, transparent), color-mix(in srgb, ${color} 26%, transparent))`,
+                  background: `linear-gradient(to bottom, ${color}, color-mix(in srgb, ${color} 74%, transparent))`,
                 }}
               >
                 {/* particles rising from the foot to the top of the column (the dust of a Crystalized Ball) */}

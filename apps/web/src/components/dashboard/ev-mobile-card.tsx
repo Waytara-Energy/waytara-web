@@ -36,7 +36,10 @@ function Stat({ icon: Icon, label, value }: { icon: React.ComponentType<{ classN
 function Source({ shares, charging }: { shares: SourceShare[] | null; charging: boolean }) {
   const parts = (shares ?? []).filter((s) => s.pct > 0);
   const total = Math.min(100, parts.reduce((a, s) => a + s.pct, 0));
-  const shown = (["solar", "battery", "grid"] as const).map((key) => ({ key, pct: shares?.find((s) => s.key === key)?.pct ?? null }));
+  const shown = (["solar", "battery", "grid"] as const).map((key) => {
+    const s = shares?.find((x) => x.key === key);
+    return { key, pct: s?.pct ?? null, kwh: s?.kwh ?? null };
+  });
   return (
     <div className="rounded-2xl border border-border p-3.5">
       <p className="text-xs text-muted-foreground">Source of the energy</p>
@@ -52,7 +55,7 @@ function Source({ shares, charging }: { shares: SourceShare[] | null; charging: 
         )}
       </div>
       <ul className="mt-3 grid grid-cols-3 gap-2">
-        {shown.map(({ key, pct }) => {
+        {shown.map(({ key, pct, kwh }) => {
           const Icon = SOURCE[key].icon;
           return (
             <li key={key} className="flex min-w-0 items-center gap-2">
@@ -60,8 +63,8 @@ function Source({ shares, charging }: { shares: SourceShare[] | null; charging: 
                 <Icon className="size-3.5" />
               </span>
               <span className="min-w-0 leading-tight">
-                <span className="block truncate text-[11px] capitalize text-muted-foreground">{key}</span>
                 <span className="block truncate text-sm font-semibold tabular-nums text-foreground">{pct === null ? "—" : `${Math.round(pct)}%`}</span>
+                <span className="block truncate text-[11px] tabular-nums text-muted-foreground">{kwh === null ? "—" : `${kwh.toFixed(2)} kWh`}</span>
               </span>
             </li>
           );
