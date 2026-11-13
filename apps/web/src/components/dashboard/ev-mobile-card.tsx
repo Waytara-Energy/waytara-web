@@ -10,6 +10,7 @@ import type { SourceShare } from "@/lib/ev-sessions";
 import { cn } from "@/lib/utils";
 import { useEvCharge } from "./ev-charge-control";
 import { FLOW } from "./flow-colors";
+import { FlowFill } from "./flow-fill";
 
 /** The same colours and icons as the charge's own detail and the energy flow: solar green, battery amber, grid grey. */
 const SOURCE = {
@@ -39,16 +40,23 @@ function Stat({ icon: Icon, label, value }: { icon: React.ComponentType<{ classN
 }
 
 /** Where the energy of the charge came from: one bar split into solar, battery and grid, and each one's share beneath it. */
-function Source({ shares }: { shares: SourceShare[] | null }) {
+function Source({ shares, charging }: { shares: SourceShare[] | null; charging: boolean }) {
   const parts = (shares ?? []).filter((s) => s.pct > 0);
+  const total = Math.min(100, parts.reduce((a, s) => a + s.pct, 0));
   const shown = (["solar", "battery", "grid"] as const).map((key) => ({ key, pct: shares?.find((s) => s.key === key)?.pct ?? null }));
   return (
     <div className="rounded-2xl border border-border p-3.5">
       <p className="text-xs text-muted-foreground">Source of the energy</p>
-      <div className="mt-2.5 flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-foreground/[0.08]" role="img" aria-label={shares ? parts.map((s) => `${s.label} ${Math.round(s.pct)}%`).join(", ") : "Source not measured"}>
+      <div className="relative mt-2.5 flex h-2.5 gap-0.5 overflow-hidden rounded-full bg-foreground/[0.08] [container-type:inline-size]" role="img" aria-label={shares ? parts.map((s) => `${s.label} ${Math.round(s.pct)}%`).join(", ") : "Source not measured"}>
         {parts.map((s) => (
           <span key={s.key} className="h-full first:rounded-l-full last:rounded-r-full" style={{ width: `${s.pct}%`, backgroundColor: SOURCE[s.key].color }} />
         ))}
+        {/* the glitter of the Crystalized Ball's dust runs along what has been delivered (only over the parts that are there) */}
+        {total > 0 && (
+          <div aria-hidden="true" className="pointer-events-none absolute inset-y-0 left-0 overflow-hidden" style={{ width: `${total}%` }}>
+            <FlowFill color="#ffffff" speed={charging ? 1 : 0.5} className="opacity-90" />
+          </div>
+        )}
       </div>
       <ul className="mt-3 grid grid-cols-3 gap-2">
         {shown.map(({ key, pct }) => {
@@ -210,12 +218,15 @@ export function EvMobileCard({
       </div>
 
       {/* the progress: full of the amount booked (or the car's battery); running without an end when neither is known; empty when no charge runs */}
-      <div className="mt-4 h-7 overflow-hidden rounded-full bg-foreground/[0.08] p-1" role="progressbar" aria-label="Charge progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fill !== null ? Math.round(fill) : undefined}>
+      <div className="mt-4 h-7 overflow-hidden rounded-full bg-foreground/[0.08] p-1 [container-type:inline-size]" role="progressbar" aria-label="Charge progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={fill !== null ? Math.round(fill) : undefined}>
         {charging && percent === null ? (
-          <div className="h-full w-full origin-left rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 motion-safe:animate-car-charge" />
+          <div className="relative h-full w-full origin-left overflow-hidden rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 motion-safe:animate-car-charge">
+            <FlowFill speed={1.4} />
+          </div>
         ) : (
           <div className="relative h-full overflow-hidden rounded-full bg-gradient-to-r from-emerald-600 to-emerald-400 transition-[width] duration-700 ease-out" style={{ width: `${Math.max(charging ? 4 : 0, fill ?? 0)}%` }}>
-            {charging && <span aria-hidden="true" className="absolute inset-0 bg-[radial-gradient(circle,rgba(255,255,255,0.55)_1px,transparent_1.5px)] bg-[length:9px_9px] opacity-60 motion-safe:animate-pulse" />}
+            {/* power flowing through what has been filled: the dust of a Crystalized Ball, lively while charging and calm once the charge is complete */}
+            {fill !== null && fill > 0 && <FlowFill speed={charging ? 1.4 : 0.5} />}
           </div>
         )}
       </div>
@@ -228,7 +239,7 @@ export function EvMobileCard({
             <Stat icon={IndianRupee} label="Cost" value={cost ?? "—"} />
           </div>
           <div className="mt-2.5">
-            <Source shares={shares} />
+            <Source shares={shares} charging={charging} />
           </div>
         </>
       )}

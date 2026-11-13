@@ -197,7 +197,7 @@ const BALL_SPAN = 1.4;
 
 // Whether this browser can draw a ball (it needs WebGL 2). Asked once; if it cannot, the circles get the plain ring.
 let webgl2Supported: boolean | null = null;
-function canDrawBalls(): boolean {
+export function canDrawBalls(): boolean {
   if (webgl2Supported === null) {
     try {
       const gl = document.createElement("canvas").getContext("webgl2");
