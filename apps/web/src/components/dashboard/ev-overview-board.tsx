@@ -213,7 +213,7 @@ export function EvOverviewBoard({
 
   // On a wide screen the board fits the screen (at least 44 rem, so a short window scrolls a little rather than squeezing the cards): the car and the charge with the figures and the control beside them in the first row (never shorter than the figures, source, live readings and control need), the history and the statistic under them.
   return (
-    <div className="grid gap-4 lg:h-[max(calc(100svh-9.5rem),44rem)] lg:grid-cols-12 lg:grid-rows-[minmax(27rem,12fr)_minmax(14rem,8fr)]">
+    <div className="grid gap-4 lg:h-[max(calc(100svh-9.5rem),44rem)] lg:grid-cols-12 lg:grid-rows-[minmax(27rem,14fr)_minmax(14rem,6fr)]">
       {/* The charger in the way of a car's charging screen: the car, the charge and the figures (one column on a phone and a tablet; on a wide screen the car and the charge on the left, the figures and the control on the right). */}
       <EvMobileCard
         chargerId={chargerId}
@@ -233,6 +233,8 @@ export function EvOverviewBoard({
         durationText={!charging && last ? span(last.durationS) : null}
         cost={charging ? (chargeKwh !== null ? inr(chargeKwh * tariff) : null) : last && last.cost !== null ? inr(last.cost) : null}
         shares={charging ? (open?.shares ?? null) : (last?.shares ?? null)}
+        // the last charges as small bars in the source detail (a wide screen), oldest first
+        recent={history.recent.slice(0, 7).reverse().map((r) => ({ id: r.id, when: dayMonth(r.startedAt), kwh: r.kwh, shares: r.shares }))}
         // the live readings, as tiles beside the car on a wide screen
         live={[
           { label: "Power", value: powerKw !== null ? u.format(powerKw, "kW", "power_active_import_kw", 2) : "—" },

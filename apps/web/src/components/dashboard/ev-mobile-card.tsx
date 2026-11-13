@@ -3,21 +3,15 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Activity, BatteryCharging, Clock, Gauge, IndianRupee, Loader2, Power, Sun, Zap } from "lucide-react";
+import { Activity, Clock, Gauge, IndianRupee, Loader2, Power, Zap } from "lucide-react";
 import { parseTarget } from "@/lib/ev-control";
 import { kmText, minutesText, type ChargeProgress } from "@/lib/ev-car";
 import type { SourceShare } from "@/lib/ev-sessions";
 import { cn } from "@/lib/utils";
 import { useEvCharge } from "./ev-charge-control";
 import { FlowFill } from "./flow-fill";
-
-/** The source bar's own colours (not the energy flow's): the sun's warm yellow, a calm teal for the battery, indigo for the grid. */
-const SOURCE = {
-  solar: { icon: Sun, color: "#fbbf24" },
-  battery: { icon: BatteryCharging, color: "#14b8a6" },
-  grid: { icon: Zap, color: "#6366f1" },
-  unattributed: { icon: Zap, color: "var(--border)" },
-} as const;
+import { SOURCE } from "./ev-source";
+import { EvSourceDetail, type RecentCharge } from "./ev-source-detail";
 
 /** 5420 s -> "1 h 30 min", 154 s -> "3 min" (under a minute is "< 1 min"). */
 function span(s: number): string {
@@ -101,6 +95,7 @@ export function EvMobileCard({
   cost,
   shares,
   live = null,
+  recent = [],
 }: {
   chargerId: string;
   connected: boolean | null;
@@ -125,6 +120,8 @@ export function EvMobileCard({
   shares: SourceShare[] | null;
   /** The live electrical readings (power, current, voltage), shown as tiles on a wider screen while a charge runs. */
   live?: { label: string; value: string }[] | null;
+  /** The last few finished charges, for the small bars of the source detail on a wide screen. */
+  recent?: RecentCharge[];
 }) {
   const { busy, waiting, error, notice, pending, start, stop } = useEvCharge({ chargerId, sessionOpen, transactionId });
   const [text, setText] = React.useState("");
@@ -235,20 +232,22 @@ export function EvMobileCard({
 
       </div>
 
-      <div className="flex flex-col lg:col-span-5 lg:row-start-1 lg:min-h-0 lg:justify-between lg:gap-3 lg:pt-2">
+      <div className="flex flex-col lg:col-span-5 lg:row-start-1 lg:min-h-0 lg:gap-3 lg:pt-2">
         {showStats ? (
-          <div>
+          <div className="flex flex-col lg:min-h-0 lg:flex-1">
             <div className="mt-5 grid grid-cols-3 gap-2.5 lg:mt-0">
               <Stat icon={Zap} label="Energy" value={energy ?? "—"} />
               <Stat icon={Clock} label="Duration" value={duration ?? "—"} />
               <Stat icon={IndianRupee} label="Cost" value={cost ?? "—"} />
             </div>
-            <div className="mt-2.5">
+            <div className="mt-2.5 lg:hidden">
               <Source shares={shares} charging={charging} />
             </div>
+            {/* a wide screen has the room for the source in detail: a ring, each source's energy and share, and the last charges */}
+            <EvSourceDetail shares={shares} total={energy} recent={recent} showRecent={!charging} className="mt-3 hidden lg:flex lg:flex-1" />
           </div>
         ) : (
-          <div className="hidden lg:block" />
+          <div className="hidden lg:block lg:flex-1" />
         )}
 
         {/* the live readings of a running charge (a wider screen only) */}
