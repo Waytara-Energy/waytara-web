@@ -9,14 +9,13 @@ import { kmText, minutesText, type ChargeProgress } from "@/lib/ev-car";
 import type { SourceShare } from "@/lib/ev-sessions";
 import { cn } from "@/lib/utils";
 import { useEvCharge } from "./ev-charge-control";
-import { FLOW } from "./flow-colors";
 import { FlowFill } from "./flow-fill";
 
-/** The same colours and icons as the charge's own detail and the energy flow: solar green, battery amber, grid grey. */
+/** The source bar's own colours (not the energy flow's): the sun's warm yellow, a calm teal for the battery, indigo for the grid. */
 const SOURCE = {
-  solar: { icon: Sun, color: FLOW.producing },
-  battery: { icon: BatteryCharging, color: FLOW.drawing },
-  grid: { icon: Zap, color: FLOW.idle },
+  solar: { icon: Sun, color: "#fbbf24" },
+  battery: { icon: BatteryCharging, color: "#14b8a6" },
+  grid: { icon: Zap, color: "#6366f1" },
   unattributed: { icon: Zap, color: "var(--border)" },
 } as const;
 
