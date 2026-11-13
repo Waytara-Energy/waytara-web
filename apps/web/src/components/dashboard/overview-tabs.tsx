@@ -130,6 +130,16 @@ export function OverviewTabs({ tabs, initialId, background }: { tabs: OverviewTa
     return () => window.removeEventListener("keydown", onKey);
   }, [go, index]);
 
+  // The whole-site page has the weather of its own, so the header's weather (a click away from the forecast) is hidden while it shows: a mark on <html> that a rule in
+  // globals.css reads. The device pages (the inverter's and the charger's) and every other page keep the header's weather.
+  const siteShown = current?.kind === "site";
+  React.useLayoutEffect(() => {
+    if (!siteShown) return;
+    const root = document.documentElement;
+    root.setAttribute("data-overview-site", "");
+    return () => root.removeAttribute("data-overview-site");
+  }, [siteShown]);
+
   if (!current) return null;
 
   return (
@@ -158,8 +168,8 @@ export function OverviewTabs({ tabs, initialId, background }: { tabs: OverviewTa
             role="group"
             aria-roledescription="slide"
             aria-label={`${index + 1} of ${tabs.length}: ${current.name}`}
-            // on a phone the page starts a quarter of the screen's width lower, so the sky has room above what is on it
-            className="relative max-sm:px-6 max-sm:pt-[25%]"
+            // on a phone the page starts 15% of the screen's width lower, so the sky has room above what is on it
+            className="relative max-sm:px-6 max-sm:pt-[15%]"
           >
             {current.content}
           </div>

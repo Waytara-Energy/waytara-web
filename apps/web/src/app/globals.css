@@ -649,3 +649,6 @@ html[data-auth="maybe"] [data-auth-slot][data-state="pending"] .auth-loader {
 [data-auth-slot][data-state="in"] .auth-login {
   display: none;
 }
+
+/* The Overview's whole-site page shows the weather itself: the header's weather is hidden while it is the page showing (see OverviewTabs). */
+html[data-overview-site] [data-header-weather] { display: none; }

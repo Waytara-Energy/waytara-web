@@ -31,6 +31,7 @@ import { CONDITION_TEXT } from "@/lib/weather";
 import { solarVerdict } from "@/lib/weather-format";
 import { cn } from "@/lib/utils";
 import { useDeviceHub } from "./device-live-hub";
+import { badgeFor, homeSourceOf } from "./energy-flow-badge";
 import { useEvCharge } from "./ev-charge-control";
 import { SlideToConfirm } from "./slide-to-confirm";
 import { FLOW } from "./flow-colors";
@@ -204,11 +205,13 @@ function SolarWidget({ inv, className }: { inv: SiteBoardInverters; className?: 
   const f = useFigures();
   const solarKeys = inv.pvKeys.length > 0 ? inv.pvKeys : ["inverter_output_power_w"];
   const n = useLiveNumbers(inv.ids, [...solarKeys, K.solar], inv.initial, agg);
-  const now = f.kw(solarGenerationW(n, inv.pvKeys), solarKeys[0]);
+  const solarW = solarGenerationW(n, inv.pvKeys);
+  const now = f.kw(solarW, solarKeys[0]);
   const curve = useDayCurve(inv, solarKeys);
   return (
     <Widget href={monitoring(inv, "solar")} label="Solar generation. Open it on Monitoring." className={className}>
-      <Head icon={Sun} tone={TONE.solar} title="Solar" note="Generating now" />
+      {/* the state in the energy flow's own words (Producing, Idle) */}
+      <Head icon={Sun} tone={TONE.solar} title="Solar" note={badgeFor("solar", solarW).label} />
       <span className="mt-3 flex items-end justify-between gap-4">
         <Figure value={now.value} unit={now.unit} large />
         <span className="shrink-0 text-right leading-tight">
@@ -227,12 +230,15 @@ function SolarWidget({ inv, className }: { inv: SiteBoardInverters; className?: 
 
 function LoadWidget({ inv, className }: { inv: SiteBoardInverters; className?: string }) {
   const f = useFigures();
-  const n = useLiveNumbers(inv.ids, ["load_total_power_w", K.load], inv.initial, agg);
+  const solarKeys = inv.pvKeys.length > 0 ? inv.pvKeys : ["inverter_output_power_w"];
+  const n = useLiveNumbers(inv.ids, [...solarKeys, "load_total_power_w", "battery_power_w", "grid_total_power_w", K.load], inv.initial, agg);
   const now = f.kw(n.load_total_power_w, "load_total_power_w");
   const curve = useDayCurve(inv, ["load_total_power_w"]);
+  // what is supplying the load, in the energy flow's own words (Solar-powered, Grid power, Battery-powered, Idle)
+  const source = homeSourceOf(n.load_total_power_w, solarGenerationW(n, inv.pvKeys), n.battery_power_w === null ? null : -n.battery_power_w, n.grid_total_power_w);
   return (
     <Widget href={monitoring(inv, "load")} label="Load. Open it on Monitoring." className={className}>
-      <Head icon={Home} tone={TONE.load} title="Load" note="Using now" />
+      <Head icon={Home} tone={TONE.load} title="Load" note={badgeFor("home", n.load_total_power_w, source).label} />
       <span className="mt-3 block">
         <Figure value={now.value} unit={now.unit} />
         <Sub>{f.kwh(n[K.load], K.load)} today</Sub>
@@ -250,8 +256,8 @@ function GridWidget({ inv, className }: { inv: SiteBoardInverters; className?: s
   const f = useFigures();
   const n = useLiveNumbers(inv.ids, ["grid_total_power_w", K.imported, K.exported], inv.initial, agg);
   const w = n.grid_total_power_w;
-  // the inverter reports buying from the grid as positive
-  const state = w === null ? "No reading" : w > 20 ? "Importing now" : w < -20 ? "Exporting now" : "Idle";
+  // the inverter reports buying from the grid as positive; the words are the energy flow's own (Importing, Exporting, Idle)
+  const state = w === null ? "No reading" : badgeFor("grid", w).label;
   const now = f.kw(w, "grid_total_power_w");
   const curve = useDayCurve(inv, ["grid_total_power_w"]);
   return (
@@ -280,7 +286,9 @@ function BatteryWidget({ inv, className }: { inv: SiteBoardInverters; className?
   const soc = n.battery_soc_pct;
   const w = n.battery_power_w;
   const power = f.kw(w, "battery_power_w");
-  const state = w === null ? "No reading" : w > 20 ? `Discharging · ${power.value} ${power.unit}` : w < -20 ? `Charging · ${power.value} ${power.unit}` : "Idle";
+  // the inverter reports discharging as positive; the energy flow takes charging as positive and words it Charging, Discharging, Idle
+  const word = w === null ? null : badgeFor("battery", -w).label;
+  const state = word === null ? "No reading" : word === "Idle" ? "Idle" : `${word} · ${power.value} ${power.unit}`;
   const level = soc === null ? 0 : Math.round(Math.min(100, Math.max(0, soc)) / 10);
   const color = soc !== null && soc < 20 ? "bg-red-500" : soc !== null && soc < 40 ? "bg-amber-500" : "bg-emerald-500";
   return (
@@ -507,8 +515,7 @@ function WeatherHero({ state, place, siteName, className }: { state: WeatherStat
   const today = weather?.days[0];
   return (
     <Link href="/dashboard/weather" aria-label="Weather. Open the forecast." className={cn("flex flex-col items-center rounded-2xl px-2 pt-2 pb-3 text-center outline-none focus-visible:ring-2 focus-visible:ring-ring", className)}>
-      <span className="text-xs font-medium text-muted-foreground">{siteName}</span>
-      <span className="text-xl font-medium text-foreground">{place ?? "Weather"}</span>
+      <span className="max-w-full truncate text-lg font-medium text-foreground">{place && place !== siteName ? `${siteName} · ${place}` : siteName}</span>
       {weather === undefined ? (
         <span className="mt-3 flex flex-col items-center gap-2">
           <Skeleton className="h-20 w-32" />
@@ -518,10 +525,10 @@ function WeatherHero({ state, place, siteName, className }: { state: WeatherStat
         <span className="mt-3 text-sm text-muted-foreground">{reason === "no-location" ? "This site has no saved location yet." : "The weather could not be read just now."}</span>
       ) : (
         <>
-          <span className="mt-1 text-[5.25rem] font-light leading-none tracking-tight tabular-nums text-foreground">{temp(n.tempC)}</span>
-          <span className="mt-1.5 text-base font-medium text-foreground/80">{CONDITION_TEXT[n.condition]}</span>
+          <span className="mt-1 text-[6.75rem] font-light leading-none tracking-tight tabular-nums text-foreground">{temp(n.tempC)}</span>
+          <span className="mt-2 text-xl font-medium text-foreground/80">{CONDITION_TEXT[n.condition]}</span>
           {today && (
-            <span className="mt-0.5 text-base tabular-nums text-foreground/80">
+            <span className="mt-0.5 text-lg tabular-nums text-foreground/80">
               H:{temp(today.maxC)} L:{temp(today.minC)}
             </span>
           )}
@@ -648,8 +655,8 @@ function InverterFacts({ device, ago }: { device: SiteBoardDevice; ago: string |
       <Facts
         items={[
           { label: "Load", value: power(n.load_total_power_w, "load_total_power_w") },
-          { label: grid === null ? "Grid" : grid < -20 ? "To the grid" : grid > 20 ? "From the grid" : "Grid", value: power(grid, "grid_total_power_w") },
-          { label: n.battery_power_w === null ? "Battery power" : n.battery_power_w > 20 ? "Discharging" : n.battery_power_w < -20 ? "Charging" : "Battery power", value: power(n.battery_power_w, "battery_power_w") },
+          { label: grid === null ? "Grid" : grid < 0 ? "To the grid" : grid > 0 ? "From the grid" : "Grid", value: power(grid, "grid_total_power_w") },
+          { label: n.battery_power_w === null ? "Battery power" : n.battery_power_w > 0 ? "Discharging" : n.battery_power_w < 0 ? "Charging" : "Battery power", value: power(n.battery_power_w, "battery_power_w") },
         ]}
       />
       <span className="mt-1.5 block truncate text-xs text-muted-foreground">{ago ? `Last reading ${ago}` : "No reading yet"}</span>
@@ -874,7 +881,7 @@ function EvWidget({ charger, car, className }: { charger: SiteBoardCharger; car:
         .filter(Boolean)
         .join(" · ") || "A charge is running"
     : last
-      ? `Last charge · ${dayOf(last.startedAt)}, ${clockOf(last.startedAt)}`
+      ? `${dayOf(last.startedAt)}, ${clockOf(last.startedAt)}`
       : live.offline
         ? "The charger is not answering"
         : "No charge yet";
@@ -895,7 +902,7 @@ function EvWidget({ charger, car, className }: { charger: SiteBoardCharger; car:
       />
       <span className="relative flex min-h-0 flex-1 flex-col">
         <Head icon={EvCharger} tone={TONE.ev} title={charger.name} note={note} arrow={open !== null} />
-        <span className="mt-3 block max-w-[50%] max-md:min-h-[7rem]">
+        <span className="mt-3 block max-w-[50%] max-md:flex max-md:min-h-[7rem] max-md:flex-col max-md:justify-center">
           <Figure value={figure.value} unit={figure.unit} large />
           <Sub>{sub}</Sub>
         </span>

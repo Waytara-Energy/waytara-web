@@ -11,22 +11,18 @@ import "maplibre-gl/dist/maplibre-gl.css";
 
 /** How the map is tilted and how close it is: near enough to see the building and its neighbours. */
 const VIEW = { zoom: 17.6, pitch: 58, bearing: -17 };
-/** One full turn around the site takes this many seconds. */
-const TURN_SECONDS = 60;
 
 /**
  * The site on a small 3D map, as a tile for the Overview: the same map as the Devices page (our own light and dark style on OpenFreeMap's tiles, raised
- * buildings), tilted, with the site's own building painted green, turning slowly around it all the time. It is a picture: it cannot be moved, so a swipe or a
- * scroll over it is the page's; pressing it opens the Devices page, where the location is set. The map is made only when the tile comes into view and its
- * turning stops when it leaves (a phone allows only a few maps at once, and a hidden one should not use the battery); with reduced motion it does not turn.
+ * buildings), tilted, with the site's own building painted green. It is a still picture: it does not turn and it cannot be moved, so a swipe or a scroll over it
+ * is the page's; pressing it opens the Devices page, where the location is set. The map is made only when the tile comes into view (a phone allows only a few
+ * maps at once).
  */
 export function SiteMapCard({ latitude, longitude, siteName, className }: { latitude: number | null; longitude: number | null; siteName: string; className?: string }) {
   const box = React.useRef<HTMLDivElement>(null);
   const tile = React.useRef<HTMLAnchorElement>(null);
   const mapRef = React.useRef<import("maplibre-gl").Map | null>(null);
   const builtKey = React.useRef("");
-  const turning = React.useRef(false);
-  const visible = React.useRef(false);
   const { resolvedTheme } = useTheme();
   const theme: MapTheme = resolvedTheme === "dark" ? "dark" : "light";
   const themeKnown = resolvedTheme !== undefined;
@@ -41,39 +37,13 @@ export function SiteMapCard({ latitude, longitude, siteName, className }: { lati
     if (!el || !hasSite) return;
     const watcher = new IntersectionObserver(
       (entries) => {
-        const on = entries.some((e) => e.isIntersecting);
-        visible.current = on;
-        if (on) setShown(true);
-        const map = mapRef.current;
-        if (!map) return;
-        if (on) startTurn();
-        else stopTurn();
+        if (entries.some((e) => e.isIntersecting)) setShown(true);
       },
       { rootMargin: "200px" }
     );
     watcher.observe(el);
     return () => watcher.disconnect();
   }, [hasSite]);
-
-  /** The turn: steps of 90 degrees at an even pace, one after the other, until stopped. */
-  function startTurn() {
-    const map = mapRef.current;
-    if (!map || turning.current || window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-    turning.current = true;
-    const step = () => {
-      const m = mapRef.current;
-      if (!m || !turning.current) return;
-      m.easeTo({ bearing: m.getBearing() + 90, duration: (TURN_SECONDS * 1000) / 4, easing: (t) => t, essential: true });
-      m.once("moveend", () => {
-        if (turning.current) step();
-      });
-    };
-    step();
-  }
-  function stopTurn() {
-    turning.current = false;
-    mapRef.current?.stop();
-  }
 
   /** Paints the building under the site green: its outline is read from what the map has drawn and handed to the style's own layers. */
   const syncBuilding = React.useCallback(() => {
@@ -121,12 +91,8 @@ export function SiteMapCard({ latitude, longitude, siteName, className }: { lati
         builtKey.current = "";
         fold();
       });
-      // The map never goes idle while it turns, so the building is looked for as the tiles arrive (until it is found) and at the end of every quarter turn.
+      // The building is looked for as the tiles arrive (until it is found) and once the map is still.
       map.on("idle", () => {
-        fold();
-        syncBuilding();
-      });
-      map.on("moveend", () => {
         fold();
         syncBuilding();
       });
@@ -138,13 +104,11 @@ export function SiteMapCard({ latitude, longitude, siteName, className }: { lati
         fold();
         syncBuilding();
         setDrawn(true);
-        if (visible.current) startTurn();
       });
       mapRef.current = map;
     })();
     return () => {
       cancelled = true;
-      turning.current = false;
       map?.remove();
       mapRef.current = null;
       setDrawn(false);
