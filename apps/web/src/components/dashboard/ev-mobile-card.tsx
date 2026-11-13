@@ -197,7 +197,7 @@ export function EvMobileCard({
       {/* the car, standing in a pool of light that is green while it charges */}
       <Link href={`/dashboard/monitoring?device=${encodeURIComponent(chargerId)}#ev`} aria-label="Open the charger on Monitoring" className="relative block outline-none focus-visible:ring-2 focus-visible:ring-ring">
         <span aria-hidden="true" className={cn("absolute inset-x-[8%] bottom-0 h-10 rounded-full blur-2xl transition-colors duration-700", charging ? "bg-emerald-500/45 motion-safe:animate-pulse" : "bg-foreground/10")} />
-        <Image src="/images/ev-car.webp" alt="" width={1400} height={796} sizes="(max-width: 640px) 72vw, 0px" className={cn("relative mx-auto h-auto w-[80%] transition-[filter] duration-700 dark:brightness-125 dark:contrast-110", !charging && "opacity-90")} />
+        <Image src="/images/ev-car-nexon.webp" alt="" width={1400} height={796} sizes="(max-width: 640px) 72vw, 0px" className={cn("relative mx-auto h-auto w-[80%] transition-[filter] duration-700 dark:brightness-125 dark:contrast-110", !charging && "opacity-90")} />
         {/* the car's own reflection on the floor */}
         <span aria-hidden="true" className="pointer-events-none absolute inset-x-[16%] -bottom-1 h-3 rounded-full bg-black/25 blur-md dark:bg-black/60" />
       </Link>
