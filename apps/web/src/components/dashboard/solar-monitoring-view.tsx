@@ -337,17 +337,19 @@ export function SolarMonitoringView({
         <TabsContent value="hub" className="space-y-4">
           <FaultBanner faultCode={activeFaultCode} />
 
-          <div className={`grid grid-cols-1 gap-4 sm:grid-cols-2 ${inverterTemperatureRows.length > 0 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
+          <div className={`grid auto-rows-fr grid-cols-2 gap-3 sm:gap-4 ${inverterTemperatureRows.length > 0 ? "lg:grid-cols-4" : "lg:grid-cols-3"}`}>
             <LiveStatusCard
+              compact="phone"
               icon={Sun}
               title="Output Power"
-              subtitle="Inverter output power"
+              subtitle="Inverter output"
               value={liveOutputKw}
               statusLabel="Status"
               badgeLabel="Live"
               badgeTone="neutral"
             />
             <LiveStatusCard
+              compact="phone"
               icon={Gauge}
               title="Electrical"
               subtitle={`Current · ${currentText}`}
@@ -357,6 +359,7 @@ export function SolarMonitoringView({
               badgeTone="neutral"
             />
             <LiveStatusCard
+              compact="phone"
               icon={Zap}
               title="AC Output"
               subtitle="Energy today"
@@ -367,12 +370,13 @@ export function SolarMonitoringView({
             />
             {inverterTemperatureRows.length > 0 && (
               <LiveStatusCard
+                compact="phone"
                 icon={Thermometer}
                 iconTone={tempRatio >= 0.85 ? "warn" : "neutral"}
                 title="Temperature"
-                subtitle={hottest ? `Hottest · ${hottest.label}` : "Inverter sensors"}
+                subtitle={hottest ? "Hottest sensor" : "Inverter sensors"}
                 value={hottest ? u.format(hottest.c, "°C", null, 1) : "—"}
-                statusLabel="Status"
+                statusLabel={hottest ? hottest.label : "Status"}
                 badgeLabel={tempBadge}
                 badgeTone={!hottest ? "neutral" : tempRatio >= 0.85 ? "warn" : "good"}
               />
@@ -420,8 +424,9 @@ export function SolarMonitoringView({
 
         {solarEnabled && (
           <TabsContent value="solar" className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
               <LiveStatusCard
+                compact="phone"
                 icon={Sun}
                 title="Live Output"
                 subtitle="Current power"
@@ -431,6 +436,7 @@ export function SolarMonitoringView({
                 badgeTone="neutral"
               />
               <LiveStatusCard
+                compact="phone"
                 icon={Zap}
                 title="Generated Today"
                 subtitle="So far today"
@@ -441,6 +447,7 @@ export function SolarMonitoringView({
               />
               {pvInputs.map((pv) => (
                 <LiveStatusCard
+              compact="phone"
                   key={pv.n}
                   icon={Sun}
                   title={`PV${pv.n}`}
@@ -465,8 +472,9 @@ export function SolarMonitoringView({
 
         {batteryEnabled && (
           <TabsContent value="battery" className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
               <LiveStatusCard
+                compact="phone"
                 icon={BatteryCharging}
                 title="Battery Level"
                 subtitle="State of charge"
@@ -476,6 +484,7 @@ export function SolarMonitoringView({
                 badgeTone={batteryTempWarm ? "warn" : "neutral"}
               />
               <LiveStatusCard
+                compact="phone"
                 icon={Zap}
                 title="Battery Power"
                 subtitle={`${batteryVoltageText} · ${batteryCurrentText}`}
@@ -485,6 +494,7 @@ export function SolarMonitoringView({
                 badgeTone={batteryDirectionTone}
               />
               <LiveStatusCard
+                compact="phone"
                 icon={ArrowDownToLine}
                 title="Charged Today"
                 subtitle="Into the battery"
@@ -494,6 +504,7 @@ export function SolarMonitoringView({
                 badgeTone="neutral"
               />
               <LiveStatusCard
+                compact="phone"
                 icon={ArrowUpFromLine}
                 title="Discharged Today"
                 subtitle="Out of the battery"
@@ -546,8 +557,9 @@ export function SolarMonitoringView({
 
         {loadEnabled && (
           <TabsContent value="load" className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
               <LiveStatusCard
+                compact="phone"
                 icon={Home}
                 title="Live Draw"
                 subtitle="Current draw"
@@ -557,6 +569,7 @@ export function SolarMonitoringView({
                 badgeTone="neutral"
               />
               <LiveStatusCard
+                compact="phone"
                 icon={Zap}
                 title="Consumed Today"
                 subtitle="So far today"
@@ -566,6 +579,7 @@ export function SolarMonitoringView({
                 badgeTone="neutral"
               />
               <LiveStatusCard
+                compact="phone"
                 icon={Activity}
                 title="L1 Power"
                 subtitle="Phase L1"
@@ -575,6 +589,7 @@ export function SolarMonitoringView({
                 badgeTone="neutral"
               />
               <LiveStatusCard
+                compact="phone"
                 icon={Gauge}
                 title="Electrical"
                 subtitle={`Current · ${loadCurrentText}`}
@@ -618,8 +633,9 @@ export function SolarMonitoringView({
 
         {gridEnabled && (
           <TabsContent value="grid" className="space-y-4">
-            <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+            <div className="grid auto-rows-fr grid-cols-2 gap-3 sm:gap-4 lg:grid-cols-4">
               <LiveStatusCard
+                compact="phone"
                 icon={Zap}
                 title="Live Flow"
                 subtitle={gridDirection}
@@ -629,6 +645,7 @@ export function SolarMonitoringView({
                 badgeTone={gridConnected === 0 ? "warn" : gridDirectionTone}
               />
               <LiveStatusCard
+                compact="phone"
                 icon={ArrowDownToLine}
                 title="Energy Today"
                 subtitle="Imported / Exported"
@@ -638,6 +655,7 @@ export function SolarMonitoringView({
                 badgeTone="neutral"
               />
               <LiveStatusCard
+                compact="phone"
                 icon={Gauge}
                 title="Electrical"
                 subtitle={`Current · ${gridCurrentText}`}
@@ -647,6 +665,7 @@ export function SolarMonitoringView({
                 badgeTone="neutral"
               />
               <LiveStatusCard
+                compact="phone"
                 icon={Activity}
                 title="CT Meter"
                 subtitle={`Current · ${gridCtCurrentText}`}
@@ -701,6 +720,7 @@ export function SolarMonitoringView({
           <TabsContent value="generator" className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <LiveStatusCard
+                compact="phone"
                 icon={Fuel}
                 title="Live Output"
                 subtitle="Generator power"
@@ -710,6 +730,7 @@ export function SolarMonitoringView({
                 badgeTone={genPowerW && genPowerW > 0 ? "good" : "neutral"}
               />
               <LiveStatusCard
+                compact="phone"
                 icon={Gauge}
                 title="Voltage"
                 subtitle="Output voltage"
@@ -719,6 +740,7 @@ export function SolarMonitoringView({
                 badgeTone="neutral"
               />
               <LiveStatusCard
+                compact="phone"
                 icon={Activity}
                 title="Frequency"
                 subtitle="Output frequency"

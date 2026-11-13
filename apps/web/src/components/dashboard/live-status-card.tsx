@@ -49,15 +49,18 @@ export function LiveStatusCard({
    *  device + section (e.g. `/dashboard/monitoring?device=<id>#power`) —
    *  omit for a card with nowhere to drill into. */
   href?: string;
-  /** Tighter padding and a smaller value, for screens that must fit without scrolling (Overview). */
-  compact?: boolean;
+  /** Tighter padding and a smaller value, for screens that must fit without scrolling (Overview). "phone" is the same on a phone only (a card of a two-by-two grid there). */
+  compact?: boolean | "phone";
   /** Makes the card a button (for a row of cards that each reveal a section below); `selected` marks the open one. */
   onClick?: () => void;
   selected?: boolean;
 }) {
+  const phone = compact === "phone";
+  // "Status" in front of a badge says nothing the badge does not ("Status ... Live"): the badge alone is the line then
+  const bare = statusLabel === "Status" && badgeLabel !== "";
   const card = (
-    <Card className={cn(compact && "h-full", (href || onClick) && "transition-colors hover:border-primary/40", selected && "border-primary ring-1 ring-primary/40")}>
-      <CardContent className={compact ? "p-3.5" : "p-5"}>
+    <Card className={cn((compact || phone) && "h-full", (href || onClick) && "transition-colors hover:border-primary/40", selected && "border-primary ring-1 ring-primary/40")}>
+      <CardContent className={compact === true ? "p-3.5" : phone ? "p-5 max-sm:p-3" : "p-5"}>
         <div className="flex items-center gap-2">
           {Icon && (
             <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-full", ICON_TONE_CLASS[iconTone])}>
@@ -70,12 +73,12 @@ export function LiveStatusCard({
           </div>
         </div>
 
-        <p className={cn("truncate font-semibold tabular-nums", valueTone && valueTone !== "neutral" ? BADGE_TONE_CLASS[valueTone] : "text-foreground", compact ? "mt-2 text-xl" : "mt-3 text-2xl")}>{value}</p>
+        <p className={cn("truncate font-semibold tabular-nums", valueTone && valueTone !== "neutral" ? BADGE_TONE_CLASS[valueTone] : "text-foreground", compact === true ? "mt-2 text-xl" : phone ? "mt-3 text-2xl max-sm:mt-2 max-sm:text-xl" : "mt-3 text-2xl")}>{value}</p>
         <div className="mt-1 flex items-center justify-between gap-2 text-xs">
-          <span className="min-w-0 truncate text-muted-foreground" title={statusLabel}>
-            {statusLabel || "\u00a0"}
+          <span className={cn("min-w-0 truncate", bare ? cn("font-medium", BADGE_TONE_CLASS[badgeTone]) : "text-muted-foreground")} title={bare ? badgeLabel : statusLabel}>
+            {bare ? badgeLabel : statusLabel || "\u00a0"}
           </span>
-          {badgeLabel && <span className={cn("shrink-0 font-medium", BADGE_TONE_CLASS[badgeTone])}>{badgeLabel}</span>}
+          {badgeLabel && !bare && <span className={cn("shrink-0 font-medium", BADGE_TONE_CLASS[badgeTone])}>{badgeLabel}</span>}
         </div>
       </CardContent>
     </Card>
