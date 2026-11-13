@@ -32,7 +32,7 @@ export const useOverviewTabs = () => React.useContext(TabsContext);
 const NO_SWIPE = 'input, textarea, select, [role="slider"], [data-no-swipe="true"], .no-swipe, .maplibregl-canvas, .maplibregl-map';
 const TYPING = 'input, textarea, select, [contenteditable="true"], [role="slider"], [role="tab"], [role="menu"], [role="dialog"]';
 
-type TransitionDocument = Document & { startViewTransition?: (update: () => void) => { finished: Promise<void> } };
+type TransitionDocument = Document & { startViewTransition?: (update: () => void) => { finished: Promise<void>; ready: Promise<void> } };
 
 /**
  * The Overview as pages you swipe between: the site's own Overview first (every device together, as widgets), then one page per device (an
@@ -94,14 +94,15 @@ export function OverviewTabs({ tabs, initialId, background }: { tabs: OverviewTa
         busy.current = false;
       };
       try {
-        doc
-          .startViewTransition(() =>
-            flushSync(() => {
-              setFallback(null);
-              setValue(order[to]);
-            })
-          )
-          .finished.then(done, done);
+        const transition = doc.startViewTransition(() =>
+          flushSync(() => {
+            setFallback(null);
+            setValue(order[to]);
+          })
+        );
+        // a transition the browser gives up (the window changed size, the tab was hidden) still changes the page: it only has no movement
+        transition.ready.catch(() => {});
+        transition.finished.then(done, done);
       } catch {
         done();
         setValue(order[to]);
