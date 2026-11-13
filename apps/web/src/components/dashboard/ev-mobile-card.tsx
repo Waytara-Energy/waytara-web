@@ -3,13 +3,14 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Activity, Clock, Gauge, IndianRupee, Loader2, Power, Zap } from "lucide-react";
+import { Activity, Clock, Gauge, IndianRupee, Zap } from "lucide-react";
 import { parseTarget } from "@/lib/ev-control";
 import { kmText, minutesText, type ChargeProgress } from "@/lib/ev-car";
 import type { SourceShare } from "@/lib/ev-sessions";
 import { cn } from "@/lib/utils";
 import { useEvCharge } from "./ev-charge-control";
 import { FlowFill } from "./flow-fill";
+import { SlideToConfirm } from "./slide-to-confirm";
 import { SOURCE, unknownAsSolar } from "./ev-source";
 import { EvSourceDetail } from "./ev-source-detail";
 
@@ -188,7 +189,18 @@ export function EvMobileCard({
 
   const showField = !on && !starting && !offline;
   const startDisabled = bad || starting || offline;
-  const label = on ? (stopping ? "Stopping…" : "Stop charging") : starting ? "Starting…" : offline ? "Charger offline" : "Start charging";
+  // The words on the slide. To start: the plug is confirmed by sliding, and the limit that has been set is read back (an unreadable one stops the start).
+  const slide = on
+    ? stopping
+      ? { label: "Stopping…", hint: "ending the charge" }
+      : { label: "Slide to stop", hint: "ends this charge" }
+    : starting
+      ? { label: "Starting…", hint: "waiting for the charger" }
+      : offline
+        ? { label: "Charger offline", hint: "it cannot be started now" }
+        : bad
+          ? { label: "Check the limit", hint: "kWh as a number, or empty" }
+          : { label: "Slide to start", hint: target !== null ? `plug connected · ${target} kWh` : "plug connected · no limit" };
 
   return (
     // On a phone one column that is as tall as its content and starts right under the header: the car, the charge, the figures, the source of the energy and the
@@ -281,20 +293,16 @@ export function EvMobileCard({
               <span className="text-xs text-muted-foreground">kWh</span>
             </label>
           )}
-          <button
-            type="button"
-            aria-pressed={on}
-            disabled={on ? stopping : startDisabled}
-            onClick={() => (on ? void stop() : void start(target))}
-            className={cn(
-              "flex h-12 min-w-0 flex-1 items-center justify-center gap-2.5 rounded-2xl text-base font-semibold outline-none transition-all focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-offset-background enabled:active:scale-[0.99] disabled:cursor-not-allowed",
-              !on && (offline || bad) ? "bg-muted text-muted-foreground/70" : on ? "bg-red-500/10 text-red-600 ring-1 ring-inset ring-red-500/40 focus-visible:ring-red-500 dark:text-red-400" : "bg-emerald-500/15 text-emerald-600 ring-1 ring-inset ring-emerald-500/40 focus-visible:ring-emerald-500 dark:text-emerald-400",
-              (stopping || starting) && "cursor-wait"
-            )}
-          >
-            {pending ? <Loader2 className="size-5 animate-spin" /> : <Power className="size-5" strokeWidth={2.25} />}
-            {label}
-          </button>
+          <SlideToConfirm
+            className="min-w-0 flex-1"
+            tone={on ? "stop" : "start"}
+            label={slide.label}
+            hint={slide.hint}
+            busy={stopping || starting || pending}
+            disabled={on ? false : startDisabled && !starting}
+            ariaLabel={on ? "Slide to stop charging" : "Slide to start charging"}
+            onConfirm={() => (on ? void stop() : void start(target))}
+          />
         </div>
       </div>
       </div>
