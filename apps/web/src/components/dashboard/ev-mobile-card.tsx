@@ -191,15 +191,15 @@ export function EvMobileCard({
   return (
     // At first the screen shows this section down to the source of the energy and nothing of what follows: it is at least as tall as the room above the fixed
     // control (the screen less the header and the control), and its content sits at the bottom, so any spare height is
-    // space above the car. That spare height is cut by two fifths: the section is 60 % of that room plus 40 % of its content's height (about 107 % of the
-    // screen's width), so the space above the car is about 40 % smaller than it first was.
-    <section aria-label={`Charger: ${offline ? "offline" : charging ? "charging" : status}`} className="relative flex min-h-[calc(0.6*(100svh-8rem-1.5rem)+42.8vw)] flex-col justify-end pt-2 sm:hidden">
+    // space above the car. That spare height is cut by two fifths: the section is 60 % of that room plus 40 % of its content's height (about 116 % of the
+    // screen's width, with the taller car), so the space above the car is about 40 % smaller than it first was.
+    <section aria-label={`Charger: ${offline ? "offline" : charging ? "charging" : status}`} className="relative flex min-h-[calc(0.6*(100svh-8rem-1.5rem)+46.6vw)] flex-col justify-end pt-2 sm:hidden">
       {/* the car, standing in a pool of light that is green while it charges */}
       <Link href={`/dashboard/monitoring?device=${encodeURIComponent(chargerId)}#ev`} aria-label="Open the charger on Monitoring" className="relative block outline-none focus-visible:ring-2 focus-visible:ring-ring">
-        <span aria-hidden="true" className={cn("absolute inset-x-2 bottom-0 h-10 rounded-full blur-2xl transition-colors duration-700", charging ? "bg-emerald-500/45 motion-safe:animate-pulse" : "bg-foreground/10")} />
-        <Image src="/images/ev-car.webp" alt="" width={1200} height={416} sizes="(max-width: 640px) 92vw, 0px" className={cn("relative h-auto w-full transition-[filter] duration-700 dark:brightness-125 dark:contrast-110", !charging && "opacity-90")} />
+        <span aria-hidden="true" className={cn("absolute inset-x-[8%] bottom-0 h-10 rounded-full blur-2xl transition-colors duration-700", charging ? "bg-emerald-500/45 motion-safe:animate-pulse" : "bg-foreground/10")} />
+        <Image src="/images/ev-car.webp" alt="" width={1400} height={796} sizes="(max-width: 640px) 72vw, 0px" className={cn("relative mx-auto h-auto w-[80%] transition-[filter] duration-700 dark:brightness-125 dark:contrast-110", !charging && "opacity-90")} />
         {/* the car's own reflection on the floor */}
-        <span aria-hidden="true" className="pointer-events-none absolute inset-x-6 -bottom-1 h-3 rounded-full bg-black/25 blur-md dark:bg-black/60" />
+        <span aria-hidden="true" className="pointer-events-none absolute inset-x-[16%] -bottom-1 h-3 rounded-full bg-black/25 blur-md dark:bg-black/60" />
       </Link>
 
       <div className="mt-4 flex items-end justify-between gap-4">
