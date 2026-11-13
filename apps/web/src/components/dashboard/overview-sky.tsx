@@ -38,25 +38,25 @@ ${HOST}{transition:${SLIDE} .45s cubic-bezier(.4,0,.2,1)}
 :root{--overview-sky-top:${SKY_DAY.top};--overview-sky-bottom:${SKY_DAY.bottom}}
 .dark{--overview-sky-top:${SKY_DUSK.top};--overview-sky-bottom:${SKY_DUSK.bottom}}
 html:not([data-overview-scrolled]){background-color:var(--overview-sky-top)}
-${HOST} > header{background:color-mix(in srgb,var(--background) calc(${g} * 100%),transparent)!important}
-${HOST} > header::after{opacity:${g}}
+${HOST} > header{background:color-mix(in srgb,var(--background) calc(${g} * 78%),transparent)!important;-webkit-backdrop-filter:blur(calc(${g} * 14px));backdrop-filter:blur(calc(${g} * 14px))}
+${HOST} > header::after{opacity:calc(${g} * 0.7)}
 `;
 
 /**
- * The cloud sky across the top of the Overview, the way the landing page has it: clouds drifting at the very top that melt into the page colour along a
+ * The cloud sky across the top of every dashboard page, the way the landing page has it: clouds drifting at the very top that melt into the page colour along a
  * U-shaped edge (lowest in the middle, higher towards the sides). It is pinned to the top of the window behind everything (the dashboard's content area is its own layer, and the header is
- * clear while the sky shows), and as the page is scrolled it fades away over the first 160 px while the header turns back into its usual page-coloured
- * bar, so the cards never slide under a clear header.
+ * clear while the sky shows), and as the page is scrolled it fades away over the first 160 px while the header turns into frosted glass (the page
+ * colour at 78% with what is under it blurred), so the cards never slide under a clear header.
  *
  * THE BROWSER'S BAR (an iPhone's status bar): while the sky shows, the colour at the top of the page is the sky's top colour (this layer is pinned to the
  * top edge and has that colour, <html> has it, and the theme-color tags are set to it); once the sky has scrolled away they are the page colour again.
  * The layer does not reach the bottom of the window, so the bottom toolbar keeps the page colour.
  *
- * `active` says whether the page being shown has the sky (every page of the Overview does). A page without it has the plain theme background: the sky
+ * `active` says whether the page being shown has the sky (every dashboard page does). A page without it has the plain theme background: the sky
  * fades away (and the header, the page and the browser's bar turn back to the page colour with it) as the page changes, and fades in again on the way back;
  * the cloud drawing is stopped once it has faded.
  *
- * Shown only when the person has not chosen a background of their own for the Overview (Application Settings). It must be rendered where no ancestor
+ * A background the person has chosen for the Overview (Application Settings) is painted over it (see OverviewBackdrop). It must be rendered where no ancestor
  * inside the content area is positioned, so that "the top" is the top of the window.
  */
 export function OverviewSky({ active = true }: { active?: boolean }) {
@@ -75,7 +75,9 @@ export function OverviewSky({ active = true }: { active?: boolean }) {
       setStopped(false);
     };
   }, [active]);
-  const drawing = active || !stopped;
+  // ... and not either once the page has scrolled the sky away (it is on every page now, and a drawing nobody can see should not be running)
+  const [away, setAway] = React.useState(false);
+  const drawing = (active || !stopped) && !away;
   // The slide being shown, as a number the CSS eases between.
   React.useEffect(() => {
     const host = ref.current?.closest<HTMLElement>(HOST);
@@ -100,6 +102,7 @@ export function OverviewSky({ active = true }: { active?: boolean }) {
       frame = 0;
       const gone = Math.min(1, Math.max(0, scroller.scrollTop / SKY_SCROLL_PX));
       host.style.setProperty(GONE, gone.toFixed(3));
+      setAway(gone >= 0.999);
       const now = gone > 0.6 || !active;
       if (now === scrolled) return;
       scrolled = now;

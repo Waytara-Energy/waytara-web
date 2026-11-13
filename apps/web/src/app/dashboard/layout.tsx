@@ -1,9 +1,11 @@
+import type { Viewport } from "next";
 import { cookies } from "next/headers";
 import { createClient } from "@waytara/supabase/server";
 import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { DashboardSidebar } from "@/components/dashboard/dashboard-sidebar";
 import { navFeatures } from "@/components/dashboard/nav-config";
 import { DashboardHeader } from "@/components/dashboard/dashboard-header";
+import { OverviewSky } from "@/components/dashboard/overview-sky";
 import { HeaderSlotProvider } from "@/components/dashboard/header-slot";
 import { ChartStyleProvider } from "@/components/dashboard/chart-style";
 import { CHART_STYLE_COOKIE, parseChartStyle } from "@/lib/chart-style";
@@ -50,6 +52,16 @@ import { logTiming, startStopwatch } from "@/lib/server-timing";
 // in two parallel batches instead of four sequential ones.
 // The customer dashboard is private; never index it.
 export const metadata = NO_INDEX;
+
+// The browser's bar colour on every dashboard page, from the first byte: the cloud sky's top colour (the script in OverviewSky then keeps it in step with the theme being
+// shown and with the scroll). Without it the HTML starts with the plain page colours and an iPhone, which reads them at load, paints its status bar white (or near black)
+// above the sky.
+export const viewport: Viewport = {
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#5f9fd6" },
+    { media: "(prefers-color-scheme: dark)", color: "#070d1f" },
+  ],
+};
 
 export default async function DashboardLayout({
   children,
@@ -193,6 +205,9 @@ export default async function DashboardLayout({
             scroll container at all, so no scrollTop can land on it by any
             path. */}
         <SidebarInset className="isolate h-svh overflow-clip">
+          {/* The cloud sky behind every page, pinned to the top of the window; it scrolls away over the first 160 px of any page, and the header floats over it
+              (see OverviewSky). It must be a direct child of this container, where nothing is positioned. */}
+          <OverviewSky />
           <DashboardHeader
             sites={sites.map((s) => ({ id: s.id, name: s.name, deviceCount: s.devices.length }))}
             selectedSiteId={selectedSite?.id ?? null}
@@ -201,7 +216,7 @@ export default async function DashboardLayout({
             initialAlerts={initialAlerts}
             initialFaults={initialFaults}
           />
-          {/* The header floats over this scroll region (transparent, fading what scrolls under it), so the content starts below it. */}
+          {/* The header floats over this scroll region (clear over the sky, frosted glass once the page has scrolled), so the content starts below it. */}
           <main className="flex-1 overflow-y-auto pt-[clamp(3.5rem,4.5vw,4.25rem)]">
             <div className="p-6 pt-3">{children}</div>
           </main>

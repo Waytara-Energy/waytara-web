@@ -17,7 +17,7 @@ export function OverviewBackdrop({ css }: { css: string }) {
   if (!host) return null;
   return createPortal(
     <>
-      <style>{`${HOST} > header{background:transparent!important}${HOST} > header::after{display:none}`}</style>
+      <style>{`${HOST} > header{background:transparent!important;-webkit-backdrop-filter:none!important;backdrop-filter:none!important}${HOST} > header::after{display:none}`}</style>
       <div aria-hidden className="pointer-events-none absolute inset-0 -z-10" style={{ background: css }} />
     </>,
     host,

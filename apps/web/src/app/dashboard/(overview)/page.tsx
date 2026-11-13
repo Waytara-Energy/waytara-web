@@ -1,4 +1,3 @@
-import type { Viewport } from "next";
 import { Zap } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
 import { deviceDisplayId, getCustomerSites, getSelectedSite } from "@/lib/selected-site";
@@ -23,16 +22,6 @@ import { SiteOverviewBoard, type SiteBoardCharger, type SiteBoardDevice, type Si
 import type { ConnectionStatus } from "@/lib/device-state";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { backgroundCss, parseOverviewPrefs } from "@/lib/overview-prefs";
-
-// The browser's bar colour on the Overview, from the first byte: the cloud sky's top colour (the script in OverviewSky then keeps it in step with the theme
-// being shown and with the scroll). Without it the HTML starts with the plain page colours and an iPhone, which reads them at load, paints its status bar
-// white (or near black) above the sky.
-export const viewport: Viewport = {
-  themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#5f9fd6" },
-    { media: "(prefers-color-scheme: dark)", color: "#070d1f" },
-  ],
-};
 
 // The Overview of the selected site, as tabs: first the site's own Overview (every device together, as widgets: solar, the weather at the site, the
 // devices and their state, load, grid, battery, the charger), then one tab per device (an inverter's energy flow and cards, a charger's page).
@@ -129,7 +118,6 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
           id: d.device.id,
           name: deviceDisplayId(d.device),
           kind: "inverter",
-          sky: true,
           content: (
             <OverviewBoard
               cards={overviewPrefs.cards}
@@ -154,7 +142,6 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
         id: d.device.id,
         name: deviceDisplayId(d.device),
         kind: "charger",
-        sky: true,
         content: (
           <EvOverviewBoard
             chargerId={d.device.id}
@@ -228,8 +215,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
             id: SITE_TAB,
             name: "Overview",
             kind: "site",
-            sky: true,
-            content: <SiteOverviewBoard siteId={site.id} siteName={site.name} place={site.address?.city ?? site.name} location={site.latitude !== null && site.longitude !== null ? { lat: site.latitude, lng: site.longitude } : null} savings={savings} sites={siteList} devices={siteDevices} inverters={siteInverters} chargers={siteChargers} car={car} background={background} />,
+              content: <SiteOverviewBoard siteId={site.id} siteName={site.name} place={site.address?.city ?? site.name} location={site.latitude !== null && site.longitude !== null ? { lat: site.latitude, lng: site.longitude } : null} savings={savings} sites={siteList} devices={siteDevices} inverters={siteInverters} chargers={siteChargers} car={car} background={background} />,
           },
           ...deviceTabs,
         ];

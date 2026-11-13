@@ -3,7 +3,6 @@
 import * as React from "react";
 import { cn } from "@/lib/utils";
 import { OverviewBackdrop } from "./overview-backdrop";
-import { OverviewSky } from "./overview-sky";
 
 /** The id of the first page: the site's own Overview (every device together). The other pages carry their device's id. */
 export const SITE_TAB = "site";
@@ -16,8 +15,6 @@ export interface OverviewTab {
   kind: "site" | "inverter" | "charger";
   /** That page (a board). */
   content: React.ReactNode;
-  /** Whether this page has the cloud sky behind it (every page of the Overview has; a page can be given the plain theme background with false). */
-  sky: boolean;
 }
 
 const TabsContext = React.createContext<{ open: (id: string) => void; has: (id: string) => boolean } | null>(null);
@@ -146,8 +143,6 @@ export function OverviewTabs({ tabs, initialId, background }: { tabs: OverviewTa
     <TabsContext.Provider value={context}>
       <div className="relative">
         {background && <OverviewBackdrop css={background} />}
-        {/* the cloud sky, on every page (a page with `sky: false` fades it away), unless the person chose a background of their own */}
-        {!background && <OverviewSky active={current.sky} />}
 
         {/* On a phone this box reaches the screen's edges and the page keeps its own margin inside (an inverter's energy flow is a little wider than the
             page there, and only its empty margins may be cut). A sideways drag here is the page's own (the next page), so the browser is told not to take
