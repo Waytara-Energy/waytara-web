@@ -20,6 +20,8 @@ export interface SiteSavings {
   savedTotal: number | null;
   /** This month's bill without the solar and with it, rupees. */
   month: { label: string; withoutSolar: number; withSolar: number; saved: number } | null;
+  /** What the solar saved in each of the last six months (the current one last), rupees, for the chart. */
+  monthly: { label: string; saved: number }[];
   /** What was paid for the system (every paid payment), rupees. */
   invested: number;
   /** Months until the savings have paid for it at the recent pace: 0 = already, null = not known yet. */
@@ -91,6 +93,7 @@ export async function fetchSiteSavings(supabase: SupabaseServerClient, site: Cus
 
     let savedTotal: number | null = null;
     let month: SiteSavings["month"] = null;
+    let monthly: SiteSavings["monthly"] = [];
     let payback: number | null = null;
     let solarKwh: number | null = null;
     if (inverters.length > 0) {
@@ -104,6 +107,7 @@ export async function fetchSiteSavings(supabase: SupabaseServerClient, site: Cus
       savedTotal = lifetimeBillFor(days, months, lifetime, rates)?.saved ?? null;
       const current = months.find((m) => m.month === today.slice(0, 7));
       month = current ? { label: current.label, withoutSolar: current.bill.withoutSolar, withSolar: current.bill.withSolar, saved: current.bill.saved } : null;
+      monthly = months.slice(-6).map((m) => ({ label: m.label, saved: m.bill.saved }));
       payback = paybackMonths(invested, savedTotal ?? 0, recentSavedPerDay(days, rates));
       const pvs = perInverter.map((p) => p.pvKwh);
       solarKwh = pvs.every((v) => v !== null) ? (pvs as number[]).reduce((a, b) => a + b, 0) : null;
@@ -118,7 +122,7 @@ export async function fetchSiteSavings(supabase: SupabaseServerClient, site: Cus
       // a charge whose source split is not on file counts as drawn from the grid (the cautious way round)
       evGridKwh += s.energy_from_grid_kwh !== null ? Math.min(kwh, s.energy_from_grid_kwh) : kwh;
     }
-    return { savedTotal, month, invested, paybackMonths: payback, solarKwh, evKwh, evGridKwh };
+    return { savedTotal, month, monthly, invested, paybackMonths: payback, solarKwh, evKwh, evGridKwh };
   } catch {
     return null;
   }

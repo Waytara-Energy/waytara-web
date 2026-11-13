@@ -122,8 +122,14 @@ export function SiteMapCard({ latitude, longitude, siteName, className }: { lati
         fold();
       });
       // The map never goes idle while it turns, so the building is looked for as the tiles arrive (until it is found) and at the end of every quarter turn.
-      map.on("idle", syncBuilding);
-      map.on("moveend", syncBuilding);
+      map.on("idle", () => {
+        fold();
+        syncBuilding();
+      });
+      map.on("moveend", () => {
+        fold();
+        syncBuilding();
+      });
       map.on("sourcedata", (e) => {
         if (e.sourceId === "openmaptiles" && e.isSourceLoaded && !builtKey.current) syncBuilding();
       });
@@ -169,12 +175,6 @@ export function SiteMapCard({ latitude, longitude, siteName, className }: { lati
   return (
     <Link ref={tile} href="/dashboard/devices" data-widget aria-label={`${siteName} on the map. Open the devices and the site's location.`} className={cn("group relative block min-h-0 min-w-0 overflow-hidden rounded-2xl border border-border bg-muted/40 outline-none focus-visible:ring-2 focus-visible:ring-ring", className)}>
       <div ref={box} aria-hidden="true" className={cn("absolute inset-0 transition-opacity duration-700", drawn ? "opacity-100" : "opacity-0")} />
-      <span className="pointer-events-none absolute top-3 left-3 flex max-w-[70%] items-center gap-2 rounded-full bg-background/80 py-1 pr-3 pl-1.5 text-sm font-medium text-foreground shadow-sm backdrop-blur-md">
-        <span className="grid size-6 place-items-center rounded-full bg-emerald-500/15 text-emerald-600 dark:text-emerald-400">
-          <MapPin className="size-3.5" />
-        </span>
-        <span className="truncate">{siteName}</span>
-      </span>
       <span aria-hidden="true" className="absolute top-3 right-3 grid size-7 place-items-center rounded-full bg-background/80 text-foreground shadow-sm backdrop-blur-md transition-colors group-hover:bg-emerald-500 group-hover:text-white">
         <ArrowUpRight className="size-3.5" />
       </span>

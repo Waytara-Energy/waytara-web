@@ -6,6 +6,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ArrowUpRight, BatteryCharging, Check, ChevronRight, EvCharger, Home, IndianRupee, Leaf, MapPin, Server, Sun, Zap, type LucideIcon } from "lucide-react";
 import { selectSite } from "@/app/dashboard/actions";
+import { parseTarget } from "@/lib/ev-control";
+import { inr } from "@/lib/savings";
 import { useUnits } from "@/components/units-provider";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useFitRows } from "@/hooks/use-fit-rows";
@@ -29,6 +31,8 @@ import { CONDITION_TEXT } from "@/lib/weather";
 import { solarVerdict } from "@/lib/weather-format";
 import { cn } from "@/lib/utils";
 import { useDeviceHub } from "./device-live-hub";
+import { useEvCharge } from "./ev-charge-control";
+import { SlideToConfirm } from "./slide-to-confirm";
 import { FLOW } from "./flow-colors";
 import { useOverviewTabs } from "./overview-tabs";
 import { SiteMapCard } from "./site-map-card";
@@ -304,14 +308,38 @@ function BatteryWidget({ inv, className }: { inv: SiteBoardInverters; className?
   );
 }
 
-const inr = (v: number) => `₹${v.toLocaleString("en-IN", { maximumFractionDigits: 0 })}`;
 const monthsText = (m: number) => (m < 12 ? `${Math.max(1, Math.round(m))} ${Math.round(m) <= 1 ? "month" : "months"}` : `${(m / 12).toFixed(1)} years`);
+
+/** A ring cut into parts (each part's colour and size); the middle is free for a figure. */
+function Donut({ parts, size, children }: { parts: { value: number; color: string }[]; size: number; children?: React.ReactNode }) {
+  const r = 28;
+  const c = 2 * Math.PI * r;
+  const total = parts.reduce((a, p) => a + Math.max(0, p.value), 0);
+  let offset = 0;
+  return (
+    <span className="relative grid shrink-0 place-items-center" style={{ width: size, height: size }}>
+      <svg viewBox="0 0 72 72" className="size-full -rotate-90" aria-hidden="true">
+        <circle cx="36" cy="36" r={r} fill="none" strokeWidth="9" className="stroke-foreground/[0.08]" />
+        {total > 0 &&
+          parts.map((p, k) => {
+            const len = (Math.max(0, p.value) / total) * c;
+            const seg = (
+              <circle key={k} cx="36" cy="36" r={r} fill="none" strokeWidth="9" stroke={p.color} strokeDasharray={`${Math.max(0, len - (parts.length > 1 ? 1.5 : 0))} ${c}`} strokeDashoffset={-offset} strokeLinecap="butt" />
+            );
+            offset += len;
+            return seg;
+          })}
+      </svg>
+      <span className="absolute inset-0 grid place-items-center">{children}</span>
+    </span>
+  );
+}
 
 /**
  * The carbon dioxide saved since the start by the solar and by the electric car (estimates). Solar: the energy the inverters have made, at the grid's emission
- * factor (what it did not have to draw from the grid). Electric car: the petrol car's emissions over the same distance, less what the grid part of the charging
- * gave off (distance = the energy charged times the car's km per kWh, 6 until the car is entered). The two do not overlap, so they are added: the figure is
- * their total, with each one's share under it.
+ * factor (what it did not have to draw from the grid). Electric car: the petrol car's emissions over the distance driven, less what the grid part of the charging
+ * gave off (distance = the energy charged times the car's km per kWh, 6 until the car is entered). The two do not overlap, so they are added: a ring split
+ * between them around a leaf, the total beside it with the trees a year would take up, and under it each one's kilograms and share.
  */
 function Co2Widget({ inv, savings, car, className }: { inv: SiteBoardInverters; savings: SiteSavings | null; car: CarProfile | null; className?: string }) {
   const solarKg = savings && savings.solarKwh !== null ? co2AvoidedKg(savings.solarKwh) : null;
@@ -321,98 +349,82 @@ function Co2Widget({ inv, savings, car, className }: { inv: SiteBoardInverters; 
   const text = (v: number) => (v >= 10000 ? `${(v / 1000).toFixed(1)}` : v.toLocaleString("en-IN", { maximumFractionDigits: v >= 100 ? 0 : 1 }));
   const unit = total !== null && total >= 10000 ? "tonnes" : "kg";
   const parts = [
-    ...(solarKg !== null ? [{ key: "solar", label: `Solar · ${savings!.solarKwh!.toLocaleString("en-IN", { maximumFractionDigits: 0 })} kWh`, icon: Sun, tone: TONE.solar, kg: solarKg }] : []),
-    ...(ev ? [{ key: "ev", label: `Electric car · ${ev.km.toLocaleString("en-IN", { maximumFractionDigits: 0 })} km`, icon: EvCharger, tone: TONE.ev, kg: ev.kg }] : []),
+    ...(solarKg !== null ? [{ key: "solar", label: "Solar", detail: `${savings!.solarKwh!.toLocaleString("en-IN", { maximumFractionDigits: 0 })} kWh`, color: "#fbbf24", kg: solarKg }] : []),
+    ...(ev ? [{ key: "ev", label: "Electric car", detail: `${ev.km.toLocaleString("en-IN", { maximumFractionDigits: 0 })} km`, color: "#10b981", kg: ev.kg }] : []),
   ];
   return (
     <Widget href={`/dashboard/performance?device=${encodeURIComponent(inv.ids[0])}`} label="Carbon dioxide saved so far. Open Performance." className={className}>
       <Head icon={Leaf} tone={TONE.green} title="CO₂ saved" note="Since the start, estimated" />
-      <span className="mt-3 block">
-        <Figure value={total === null ? "—" : text(unit === "tonnes" ? total / 1000 : total)} unit={unit} />
-        <Sub>{trees !== null && trees >= 1 ? `As much as ${Math.round(trees).toLocaleString("en-IN")} trees take up in a year` : total === null ? "No readings yet" : "Since the system started"}</Sub>
+      <span className="mt-3 flex items-center gap-4">
+        <Donut size={84} parts={parts.map((p) => ({ value: p.kg, color: p.color }))}>
+          <Leaf className="size-6 text-emerald-500" strokeWidth={1.8} />
+        </Donut>
+        <span className="min-w-0 flex-1">
+          <Figure value={total === null ? "—" : text(unit === "tonnes" ? total / 1000 : total)} unit={unit} />
+          <Sub>{trees !== null && trees >= 1 ? `As much as ${Math.round(trees).toLocaleString("en-IN")} trees take up in a year` : total === null ? "No readings yet" : "Since the system started"}</Sub>
+        </span>
       </span>
       {parts.length > 0 && total !== null && total > 0 && (
-        <span className="mt-auto block space-y-1.5 pt-2">
-          {parts.map((r) => {
-            const Icon = r.icon;
-            const pct = (r.kg / total) * 100;
-            return (
-              <span key={r.key} className="block">
-                <span className="flex items-center gap-2 text-xs">
-                  <span className={cn("grid size-5 shrink-0 place-items-center rounded-md", r.tone)}>
-                    <Icon className="size-3" />
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-muted-foreground">{r.label}</span>
-                  <span className="shrink-0 tabular-nums text-foreground">
-                    {text(r.kg)} kg · {Math.round(pct)}%
-                  </span>
-                </span>
-                <span className="mt-1 block h-1 overflow-hidden rounded-full bg-foreground/[0.08] [@media(max-height:819px)]:lg:hidden">
-                  <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${pct}%` }} />
-                </span>
+        <span className="mt-auto grid gap-1.5 pt-3">
+          {parts.map((r) => (
+            <span key={r.key} className="flex items-center gap-2 text-xs">
+              <span aria-hidden="true" className="size-2.5 shrink-0 rounded-full" style={{ backgroundColor: r.color }} />
+              <span className="min-w-0 flex-1 truncate text-muted-foreground">
+                {r.label} · {r.detail}
               </span>
-            );
-          })}
+              <span className="shrink-0 tabular-nums text-foreground">
+                {text(r.kg)} kg · {Math.round((r.kg / total) * 100)}%
+              </span>
+            </span>
+          ))}
         </span>
       )}
     </Widget>
   );
 }
 
-/** What the electricity has cost and what the solar has saved: the saving since the start (the same sum as Performance's Cost & Savings), this month's bill
- *  without the solar and with it, and how much of what was paid for the system the savings have already paid back. */
+/**
+ * What the electricity has cost and what the solar has saved: the saving since the start, with a ring for how much of the system's price it has paid back,
+ * a chart of what was saved in each of the last six months (this month marked), and this month's bill against what it would have been without the solar
+ * (a bill below zero is a credit: more was sent to the grid than bought).
+ */
 function SavingsWidget({ savings, className }: { savings: SiteSavings | null; className?: string }) {
   const m = savings?.month ?? null;
   const saved = savings?.savedTotal ?? null;
   const invested = savings?.invested ?? 0;
   const paidPct = saved !== null && invested > 0 ? Math.min(100, Math.max(0, (saved / invested) * 100)) : null;
-  const without = m ? Math.max(m.withoutSolar, 0.01) : 1;
-  const bar = (v: number) => `${Math.min(100, Math.max(0, (Math.max(0, v) / without) * 100))}%`;
+  const monthly = savings?.monthly ?? [];
+  const top = Math.max(1, ...monthly.map((x) => x.saved));
+  const billText = (v: number) => (v < 0 ? `a ${inr(-v)} credit` : inr(v));
   return (
     <Widget href="/dashboard/performance" label="Cost and savings. Open Performance." className={className}>
       <Head icon={IndianRupee} tone={TONE.green} title="Cost & savings" note="Since the solar started" />
-      <span className="mt-3 block">
-        <Figure value={saved === null ? "—" : inr(saved)} />
-        <Sub>saved on the electricity bill so far</Sub>
-      </span>
-      <span className="mt-auto block space-y-2 pt-3">
-        {m ? (
-          <>
-            <span className="block">
-              <span className="flex items-baseline justify-between gap-2 text-xs">
-                <span className="truncate text-muted-foreground">{m.label} without solar</span>
-                <span className="shrink-0 tabular-nums text-foreground">{inr(m.withoutSolar)}</span>
-              </span>
-              <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-foreground/[0.08]">
-                <span className="block h-full rounded-full bg-orange-400" style={{ width: bar(m.withoutSolar) }} />
-              </span>
-            </span>
-            <span className="block">
-              <span className="flex items-baseline justify-between gap-2 text-xs">
-                <span className="truncate text-muted-foreground">with solar</span>
-                <span className="shrink-0 tabular-nums text-foreground">{inr(m.withSolar)}</span>
-              </span>
-              <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-foreground/[0.08]">
-                <span className="block h-full rounded-full bg-emerald-500" style={{ width: bar(m.withSolar) }} />
-              </span>
-            </span>
-          </>
-        ) : null}
-        {paidPct !== null && savings ? (
-          <span className="block border-t border-border pt-2">
-            <span className="flex items-baseline justify-between gap-2 text-xs">
-              <span className="truncate text-muted-foreground">Paid back of {inr(invested)}</span>
-              <span className="shrink-0 tabular-nums text-foreground">{Math.round(paidPct)}%</span>
-            </span>
-            <span className="mt-1 block h-1.5 overflow-hidden rounded-full bg-foreground/[0.08]">
-              <span className="block h-full rounded-full bg-emerald-500" style={{ width: `${paidPct}%` }} />
-            </span>
-            <span className="mt-1 block truncate text-[11px] text-muted-foreground">
-              {savings.paybackMonths === 0 ? "The savings have paid for the system" : savings.paybackMonths === null ? "Payback time shows once there are a few days of readings" : `About ${monthsText(savings.paybackMonths)} to go at the recent pace`}
-            </span>
+      <span className="mt-3 flex items-center justify-between gap-3">
+        <span className="min-w-0">
+          <Figure value={saved === null ? "—" : inr(saved)} />
+          <Sub>saved on the electricity bill so far</Sub>
+        </span>
+        {paidPct !== null && (
+          <span className="flex shrink-0 flex-col items-center gap-0.5" title={savings?.paybackMonths === 0 ? "The savings have paid for the system" : savings?.paybackMonths ? `About ${monthsText(savings.paybackMonths)} to go at the recent pace` : undefined}>
+            <Donut size={60} parts={[{ value: paidPct, color: "#10b981" }, { value: 100 - paidPct, color: "transparent" }]}>
+              <span className="text-xs font-semibold tabular-nums text-foreground">{Math.round(paidPct)}%</span>
+            </Donut>
+            <span className="text-[10px] text-muted-foreground">paid back</span>
           </span>
-        ) : null}
-        {!m && paidPct === null && <span className="block text-xs text-muted-foreground">{saved === null ? "No readings yet" : "This month's bill shows once there are readings"}</span>}
+        )}
+      </span>
+      {monthly.length > 0 && (
+        <span className="mt-3 flex min-h-14 flex-1 items-end gap-1.5" role="img" aria-label={`Saved each month: ${monthly.map((x) => `${x.label} ${inr(x.saved)}`).join(", ")}`}>
+          {monthly.map((x, k) => (
+            <span key={x.label} className="flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1" title={`${x.label}: ${inr(x.saved)}`}>
+              <span className={cn("w-full rounded-t-md", k === monthly.length - 1 ? "bg-emerald-500" : "bg-emerald-500/35")} style={{ height: `${Math.max(6, (Math.max(0, x.saved) / top) * 100)}%` }} />
+              <span className="text-[10px] leading-none text-muted-foreground">{x.label.slice(0, 3)}</span>
+            </span>
+          ))}
+        </span>
+      )}
+      <span className="mt-2 block truncate text-xs text-muted-foreground">
+        {m ? `This month: ${billText(m.withSolar)} instead of ${inr(m.withoutSolar)}` : saved === null ? "No readings yet" : "This month's bill shows once there are readings"}
       </span>
     </Widget>
   );
@@ -489,29 +501,25 @@ function WeatherWidget({ state, place, wide, className }: { state: WeatherState;
 }
 
 /** On a phone the weather is not a tile but the head of the page, as in a weather app: the place, the temperature large, the condition, high and low. */
-function WeatherHero({ state, place, className }: { state: WeatherState; place: string | null; className?: string }) {
+function WeatherHero({ state, place, siteName, className }: { state: WeatherState; place: string | null; siteName: string; className?: string }) {
   const { weather, reason } = state;
   const n = weather?.now;
   const today = weather?.days[0];
-  const look = n ? WEATHER_ICON[n.condition] : null;
-  const Icon = n && look ? look[n.night ? "night" : "day"] : null;
   return (
     <Link href="/dashboard/weather" aria-label="Weather. Open the forecast." className={cn("flex flex-col items-center rounded-2xl px-2 pt-2 pb-3 text-center outline-none focus-visible:ring-2 focus-visible:ring-ring", className)}>
+      <span className="text-xs font-medium text-muted-foreground">{siteName}</span>
       <span className="text-xl font-medium text-foreground">{place ?? "Weather"}</span>
       {weather === undefined ? (
         <span className="mt-3 flex flex-col items-center gap-2">
           <Skeleton className="h-20 w-32" />
           <Skeleton className="h-4 w-28" />
         </span>
-      ) : !n || !look || !Icon ? (
+      ) : !n ? (
         <span className="mt-3 text-sm text-muted-foreground">{reason === "no-location" ? "This site has no saved location yet." : "The weather could not be read just now."}</span>
       ) : (
         <>
           <span className="mt-1 text-[5.25rem] font-light leading-none tracking-tight tabular-nums text-foreground">{temp(n.tempC)}</span>
-          <span className="mt-1.5 flex items-center gap-1.5 text-base font-medium text-foreground/80">
-            <Icon className={cn("size-5", look.tone)} strokeWidth={1.8} />
-            {CONDITION_TEXT[n.condition]}
-          </span>
+          <span className="mt-1.5 text-base font-medium text-foreground/80">{CONDITION_TEXT[n.condition]}</span>
           {today && (
             <span className="mt-0.5 text-base tabular-nums text-foreground/80">
               H:{temp(today.maxC)} L:{temp(today.minC)}
@@ -694,10 +702,13 @@ function DevicesWidget({ devices, chargers, className }: { devices: SiteBoardDev
   };
   return (
     <Widget className={className}>
-      <Head icon={Server} tone={TONE.plain} title="Devices" note={summary} href="/dashboard/devices" />
+      {/* (a phone has only the list) */}
+      <div className="max-md:hidden">
+        <Head icon={Server} tone={TONE.plain} title="Devices" note={summary} href="/dashboard/devices" />
+      </div>
 
       {/* a phone: the devices as a list; pressing one goes to its page */}
-      <ul className="-mx-2 mt-2 divide-y md:hidden">
+      <ul className="-mx-2 -my-1 divide-y md:hidden">
         {rows.map((d) => {
           const Icon = DEVICE_ICON[d.kind];
           const charger = d.kind === "charger" ? chargers.find((c) => c.id === d.id) : undefined;
@@ -869,33 +880,124 @@ function EvWidget({ charger, car, className }: { charger: SiteBoardCharger; car:
         : "No charge yet";
   const fill = live.charging ? percent : live.offline ? null : lastPercent;
   const open = tabs?.has(charger.id) ? () => tabs.open(charger.id) : null;
+  const elapsed = useElapsed(live.charging ? (charger.open?.startedAt ?? null) : null);
 
   return (
     <Widget className={className}>
-      {/* the car, at the right, whole */}
+      {/* the car: at the bottom right of a wide tile, beside the figure on a phone */}
       <Image
         src="/images/ev-car-nexon-v2.webp"
         alt=""
         width={1400}
         height={796}
-        sizes="(max-width: 767px) 46vw, 24vw"
-        className="pointer-events-none absolute right-3 bottom-3 h-auto w-[46%] max-w-[24rem] select-none dark:brightness-125 dark:contrast-110"
+        sizes="(max-width: 767px) 42vw, 24vw"
+        className="pointer-events-none absolute right-3 h-auto select-none dark:brightness-125 dark:contrast-110 max-md:top-[3.75rem] max-md:w-[42%] md:bottom-3 md:w-[46%] md:max-w-[24rem]"
       />
       <span className="relative flex min-h-0 flex-1 flex-col">
         <Head icon={EvCharger} tone={TONE.ev} title={charger.name} note={note} arrow={open !== null} />
-        <span className="mt-3 block max-w-[50%]">
+        <span className="mt-3 block max-w-[50%] max-md:min-h-[7rem]">
           <Figure value={figure.value} unit={figure.unit} large />
           <Sub>{sub}</Sub>
         </span>
-        <span className="mt-auto block max-w-[50%] pt-3">
+        {/* a wide tile: the progress and today's energy under the figure */}
+        <span className="mt-auto block max-w-[50%] pt-3 max-md:hidden">
           <span className="block h-2 overflow-hidden rounded-full bg-foreground/[0.08]" role="img" aria-label={fill === null ? "No charge to show" : `${Math.round(fill)}% of the charge`}>
             {fill !== null && fill > 0 && <span className={cn("block h-full rounded-full bg-emerald-500", live.charging && "motion-safe:animate-pulse")} style={{ width: `${Math.min(100, fill)}%` }} />}
           </span>
           <span className="mt-1.5 block truncate text-xs text-muted-foreground">Today {charger.todayKwh === null ? "—" : kwh(charger.todayKwh, 1)}</span>
         </span>
+        {/* a phone: while it charges, the few figures that matter (the rest is on the charger's own page, which pressing the tile opens), then the control */}
+        {live.charging && (
+          <span className="block md:hidden">
+            <Facts
+              items={[
+                { label: "Energy", value: live.chargeKwh === null ? "—" : kwh(live.chargeKwh, 2) },
+                { label: "Duration", value: elapsed ?? "—" },
+                { label: "Power", value: live.powerKw === null ? "—" : u.format(live.powerKw, "kW", "power_active_import_kw", 1) },
+              ]}
+            />
+          </span>
+        )}
+        <EvTileControl charger={charger} charging={live.charging} offline={live.offline} className="md:hidden" />
       </span>
       {open && <button type="button" onClick={open} aria-label={`Open ${charger.name}`} className="absolute inset-0 cursor-pointer rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring" />}
     </Widget>
+  );
+}
+
+/** The time since a charge began, in words, moved on every half minute (null when none runs). */
+function useElapsed(startedAt: string | null): string | null {
+  const [now, setNow] = React.useState<number | null>(null);
+  React.useEffect(() => {
+    if (!startedAt) return;
+    const tick = () => setNow(Date.now());
+    tick();
+    const id = window.setInterval(tick, 30_000);
+    return () => window.clearInterval(id);
+  }, [startedAt]);
+  if (!startedAt || now === null) return null;
+  return span(Math.max(0, (now - Date.parse(startedAt)) / 1000));
+}
+
+/**
+ * The charger's control inside its tile (a phone): before a charge the kWh to stop after (empty = no limit) beside the slide that starts it; while it runs
+ * the slide that stops it. The same words and rules as the charger's own page. It sits above the tile's "open the charger" button, so using it does not
+ * open the page.
+ */
+function EvTileControl({ charger, charging, offline, className }: { charger: SiteBoardCharger; charging: boolean; offline: boolean; className?: string }) {
+  const { busy, waiting, error, notice, pending, start, stop } = useEvCharge({ chargerId: charger.id, sessionOpen: charger.open !== null, transactionId: charger.open?.transactionId ?? null });
+  const [text, setText] = React.useState("");
+  const typed = parseTarget(text);
+  const empty = text.trim() === "";
+  const bad = !empty && !typed.ok;
+  const target = !empty && typed.ok ? typed.kwh : null;
+  const on = charger.open !== null || charging;
+  const stopping = busy === "stop";
+  const starting = busy === "start" || waiting;
+  const startDisabled = bad || starting || offline;
+  const showField = !on && !starting && !offline;
+  const slide = on
+    ? stopping
+      ? { label: "Stopping…", hint: "ending the charge" }
+      : { label: "Slide to stop" }
+    : starting
+      ? { label: "Starting…", hint: "waiting for the charger" }
+      : offline
+        ? { label: "Charger offline", hint: "it cannot be started now" }
+        : bad
+          ? { label: "Check the limit", hint: "kWh as a number, or empty" }
+          : { label: "Plugged in? Slide to start" };
+  return (
+    <span className={cn("relative z-10 mt-3 block", className)}>
+      {error ? (
+        <span role="alert" className="mb-2 block text-center text-xs text-destructive">
+          {error}
+        </span>
+      ) : null}
+      {notice ? (
+        <span role="status" className="mb-2 block text-center text-xs text-amber-700 dark:text-amber-400">
+          {notice}
+        </span>
+      ) : null}
+      <span className="flex items-center gap-2.5">
+        {showField && (
+          <label className={cn("flex h-12 w-[6.75rem] shrink-0 items-center gap-1.5 rounded-2xl border bg-background px-3 text-sm tabular-nums", bad ? "border-destructive text-destructive" : "border-border focus-within:border-emerald-500")}>
+            <input inputMode="decimal" value={text} onChange={(e) => setText(e.target.value)} placeholder="No limit" aria-label="Stop after this many kWh (empty for no limit)" className="min-w-0 flex-1 bg-transparent font-medium outline-none placeholder:font-normal placeholder:text-muted-foreground" />
+            <span className="text-xs text-muted-foreground">kWh</span>
+          </label>
+        )}
+        <SlideToConfirm
+          className="min-w-0 flex-1"
+          tone={on ? "stop" : "start"}
+          label={slide.label}
+          hint={slide.hint}
+          busy={stopping || starting || pending}
+          disabled={on ? false : startDisabled && !starting}
+          ariaLabel={on ? "Slide to stop charging" : "Slide to start charging"}
+          onConfirm={() => (on ? void stop() : void start(target))}
+        />
+      </span>
+    </span>
   );
 }
 
@@ -994,13 +1096,13 @@ export function SiteOverviewBoard({
       )}
     >
       {/* a phone: the weather as the head of the page, and the sunshine under it */}
-      <WeatherHero state={weather} place={place} className="order-[1] col-span-2 md:hidden" />
+      <WeatherHero state={weather} place={place} siteName={siteName} className="order-[1] col-span-2 md:hidden" />
       <SunshineTile state={weather} className="order-[2] col-span-2 md:hidden" />
 
       {inv && <SolarWidget inv={inv} className={cn("order-[5] col-span-2 min-h-56 md:order-none md:min-h-0", solarTall && "md:row-span-2")} />}
       {/* a tablet and wider: the weather as a tile */}
       <WeatherWidget state={weather} place={place} wide={weatherWide} className={cn("max-md:hidden md:min-h-0", weatherWide && "md:col-span-2")} />
-      <DevicesWidget devices={devices} chargers={chargers} className={cn("order-[3] max-md:col-span-2 min-h-44 md:order-none md:col-start-4 md:row-span-2 md:min-h-0", weatherWide ? "md:row-start-2" : "md:row-start-1")} />
+      <DevicesWidget devices={devices} chargers={chargers} className={cn("order-[3] max-md:col-span-2 md:order-none md:col-start-4 md:row-span-2 md:min-h-0", weatherWide ? "md:row-start-2" : "md:row-start-1")} />
       {smalls.map((x, i) => (
         <React.Fragment key={x.key}>{x.render(cn(x.phone, "md:order-none md:min-h-0", i === smalls.length - 1 && lastSpan))}</React.Fragment>
       ))}

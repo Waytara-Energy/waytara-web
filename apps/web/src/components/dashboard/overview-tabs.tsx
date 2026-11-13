@@ -158,7 +158,8 @@ export function OverviewTabs({ tabs, initialId, background }: { tabs: OverviewTa
             role="group"
             aria-roledescription="slide"
             aria-label={`${index + 1} of ${tabs.length}: ${current.name}`}
-            className="relative max-sm:px-6"
+            // on a phone the page starts a quarter of the screen's width lower, so the sky has room above what is on it
+            className="relative max-sm:px-6 max-sm:pt-[25%]"
           >
             {current.content}
           </div>
