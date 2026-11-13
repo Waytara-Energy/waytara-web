@@ -649,7 +649,7 @@ export function SiteOverviewBoard({
     <div
       style={{ "--rows": rows } as React.CSSProperties}
       className={cn(
-        "grid grid-flow-dense grid-cols-2 gap-3 md:auto-rows-[minmax(12.5rem,auto)] md:grid-cols-4 lg:h-[max(calc(100svh-9.75rem),34rem)] lg:auto-rows-auto lg:gap-4 lg:[grid-template-rows:repeat(var(--rows),minmax(0,1fr))]",
+        "grid grid-flow-dense grid-cols-2 gap-3 md:auto-rows-[minmax(12.5rem,auto)] md:grid-cols-4 lg:h-[max(calc(100svh-9.5rem),34rem)] lg:auto-rows-auto lg:gap-4 lg:[grid-template-rows:repeat(var(--rows),minmax(0,1fr))]",
         background && "[&_[data-widget]]:border-white/15 [&_[data-widget]]:bg-card/60 [&_[data-widget]]:backdrop-blur-md"
       )}
     >

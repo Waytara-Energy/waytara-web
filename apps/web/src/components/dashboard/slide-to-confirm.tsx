@@ -12,7 +12,7 @@ const DONE = 0.82; // how far it must be taken for it to count
  * A slide-to-confirm control: take the power button across the track to confirm (Start or Stop a charge). The words on the track say what is being
  * confirmed, in a short line and a smaller one under it. Letting go before the end sends the thumb back; while `busy` it waits at the end with a
  * spinner and returns when `busy` ends (the request failed, or the control changes to the other action). Without a pointer: Enter or Space on the
- * thumb confirms. `touch-action: none` on the thumb keeps a drag from scrolling the page, and `data-no-swipe` keeps it from being taken as a swipe to the next tab.
+ * thumb confirms. `touch-action: none` on the thumb keeps a drag from scrolling the page, and `data-no-swipe` keeps it from being taken as a swipe to the next page of the Overview.
  */
 export function SlideToConfirm({
   tone,
