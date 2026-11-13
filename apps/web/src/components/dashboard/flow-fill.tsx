@@ -72,3 +72,62 @@ export function FlowFill({ color = "#34d399", speed = 1, density = 14000, classN
     </div>
   );
 }
+
+/**
+ * The same dust, running UP: for a column that is clipped to its own shape (the source of the energy). The ball is a square as large as the column's longer side,
+ * centred on it, so the column sees only part of it, and the particles that rise run from its foot to its top. Put it inside an element with
+ * `container-type: size` (it is as large as that element's longer side, `max(100cqw, 100cqh)`) that clips what is outside it.
+ */
+export function FlowRise({ color = "#ffffff", speed = 1, density = 2400, className }: { color?: string; speed?: number; density?: number; className?: string }) {
+  const ref = React.useRef<HTMLDivElement>(null);
+  const [onScreen, setOnScreen] = React.useState(false);
+  React.useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const watcher = new IntersectionObserver((entries) => setOnScreen(entries.some((e) => e.isIntersecting)), { rootMargin: "60px" });
+    watcher.observe(el);
+    return () => watcher.disconnect();
+  }, []);
+  const ok = React.useSyncExternalStore(subscribeNever, canDrawBalls, () => true);
+  const reduced = React.useSyncExternalStore(
+    (cb) => {
+      const q = window.matchMedia("(prefers-reduced-motion: reduce)");
+      q.addEventListener("change", cb);
+      return () => q.removeEventListener("change", cb);
+    },
+    () => window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+    () => false,
+  );
+  return (
+    <div ref={ref} aria-hidden="true" className={cn("pointer-events-none absolute inset-0 overflow-hidden", className)}>
+      {ok && onScreen && (
+        <div className="absolute top-1/2 left-1/2 size-[max(100cqw,100cqh)] -translate-x-1/2 -translate-y-1/2">
+          <CrystalizedBall
+            preset="plasma"
+            color={color}
+            theme="dark"
+            size={1.5}
+            strands={0}
+            crackle={0}
+            flares={0}
+            sparks={0}
+            haze={0}
+            glow={0}
+            particleCount={density}
+            fill={1}
+            motion="rise"
+            particleShape="round"
+            depth={0.6}
+            sway={0.2}
+            twinkle={0.7}
+            dustSpeed={speed}
+            speed={speed}
+            interactive={false}
+            intro={false}
+            paused={reduced}
+          />
+        </div>
+      )}
+    </div>
+  );
+}

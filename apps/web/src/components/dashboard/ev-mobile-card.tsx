@@ -243,7 +243,7 @@ export function EvMobileCard({
               <Source shares={sources} charging={charging} />
             </div>
             {/* a wide screen has the room for the source in detail: a column for each source, as wide as its share */}
-            <EvSourceDetail shares={sources} total={energy} className="mt-3 hidden lg:flex lg:flex-1" />
+            <EvSourceDetail shares={sources} total={energy} charging={charging} className="mt-3 hidden lg:flex lg:flex-1" />
           </div>
         ) : (
           <div className="hidden lg:block lg:flex-1" />

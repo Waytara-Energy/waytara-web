@@ -3,12 +3,10 @@
 import * as React from "react";
 import type { SourceShare } from "@/lib/ev-sessions";
 import { cn } from "@/lib/utils";
+import { FlowRise } from "./flow-fill";
 import { SOURCE } from "./ev-source";
 
 const KEYS = ["solar", "battery", "grid"] as const;
-
-/** Fine wavy lines (a water-like grain) laid over each column's colour. */
-const GRAIN = `url("data:image/svg+xml,${encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='22' height='7'><path d='M0 3.5 Q5.5 0 11 3.5 T22 3.5' fill='none' stroke='white' stroke-opacity='0.5' stroke-width='0.9'/></svg>")}")`;
 
 /**
  * The shape of a column: a smooth top edge between where it starts on the left and where it ends on the right (so the tops of the columns run on as one
@@ -23,7 +21,7 @@ function topPath(left: number, mid: number, right: number): string {
  * Where the energy of a charge came from, in detail (a wide screen): one column for each of solar, battery and grid, as wide as its share, with a soft
  * wavy top that runs on from one column to the next, a label with its icon at the foot, and its share (and energy) under it.
  */
-export function EvSourceDetail({ shares, total, className }: { shares: SourceShare[] | null; total: string | null; className?: string }) {
+export function EvSourceDetail({ shares, total, charging = false, className }: { shares: SourceShare[] | null; total: string | null; charging?: boolean; className?: string }) {
   const uid = React.useId().replace(/[^a-zA-Z0-9]/g, "");
   const rows = KEYS.map((key) => {
     const s = shares?.find((x) => x.key === key);
@@ -51,36 +49,34 @@ export function EvSourceDetail({ shares, total, className }: { shares: SourceSha
           const Icon = SOURCE[key].icon;
           const color = SOURCE[key].color;
           return (
-            // as wide as its share (never narrower than its label's icon)
-            <div key={key} className="flex min-w-[3.75rem] flex-col gap-2 [container-type:inline-size]" style={{ flexGrow: Math.max(pct ?? 0, 14), flexBasis: 0 }}>
+            // as wide as its share (never narrower than its icon and figure need)
+            <div key={key} className="flex min-w-[5.5rem] flex-col gap-2" style={{ flexGrow: Math.max(pct ?? 0, 14), flexBasis: 0 }}>
               <svg width="0" height="0" className="absolute" aria-hidden="true">
                 <clipPath id={`${uid}${key}`} clipPathUnits="objectBoundingBox">
                   <path d={topPath(joins[i].left, mids[i], joins[i].right)} />
                 </clipPath>
               </svg>
               <div
-                className="relative min-h-0 flex-1 rounded-b-[1.4rem] rounded-t-md"
+                className="relative min-h-0 flex-1 overflow-hidden rounded-b-[1.4rem] rounded-t-md [container-type:size]"
                 style={{
                   clipPath: `url(#${uid}${key})`,
                   background: `linear-gradient(to bottom, color-mix(in srgb, ${color} 78%, transparent), color-mix(in srgb, ${color} 26%, transparent))`,
                 }}
               >
-                {/* the grain of fine wavy lines */}
-                <span aria-hidden="true" className="absolute inset-0 opacity-80" style={{ backgroundImage: GRAIN, backgroundSize: "22px 7px" }} />
-                {/* the label, at the foot */}
-                <span className="absolute bottom-2.5 left-2.5 flex max-w-[calc(100%-1.25rem)] items-center gap-1.5 rounded-full bg-background/80 p-1 pr-1 shadow-sm backdrop-blur-sm @[6.5rem]:pr-3">
-                  <span className="grid size-6 shrink-0 place-items-center rounded-full" style={{ backgroundColor: `color-mix(in srgb, ${color} 22%, transparent)`, color }}>
-                    <Icon className="size-3.5" />
-                  </span>
-                  <span className="hidden truncate text-xs capitalize text-foreground @[6.5rem]:inline">{key}</span>
-                </span>
+                {/* particles rising from the foot to the top of the column (the dust of a Crystalized Ball) */}
+                <FlowRise speed={charging ? 1.3 : 0.7} />
               </div>
-              <div className="leading-none">
-                <p className="text-2xl font-light tabular-nums text-foreground">
-                  {pct === null ? "—" : Math.round(pct)}
-                  <span className="text-base text-muted-foreground">%</span>
-                </p>
-                <p className="mt-1 truncate text-[11px] tabular-nums text-muted-foreground">{kwh === null ? "—" : `${kwh.toFixed(2)} kWh`}</p>
+              <div className="flex items-center gap-2.5">
+                <span className="grid size-8 shrink-0 place-items-center rounded-xl" style={{ backgroundColor: `color-mix(in srgb, ${color} 20%, transparent)`, color }}>
+                  <Icon className="size-4" />
+                </span>
+                <div className="min-w-0 leading-none">
+                  <p className="text-2xl font-light tabular-nums text-foreground">
+                    {pct === null ? "—" : Math.round(pct)}
+                    <span className="text-base text-muted-foreground">%</span>
+                  </p>
+                  <p className="mt-1 truncate text-[11px] tabular-nums text-muted-foreground">{kwh === null ? "—" : `${kwh.toFixed(2)} kWh`}</p>
+                </div>
               </div>
             </div>
           );
