@@ -273,9 +273,9 @@ export function EvMobileCard({
           </div>
         )}
 
-      {/* The control, fixed to the bottom of the screen (only while this is the slide being shown). Before a charge: the kWh to stop after (empty = no
-          limit) and Start. Once it runs: Stop, the full width. (The carousel's dots are not shown on a phone, so nothing is under it.) */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-5 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))] backdrop-blur-md group-aria-hidden/slide:hidden sm:static sm:z-auto sm:mt-4 sm:border-t-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none lg:mt-0">
+      {/* The control, fixed to the bottom of the screen. Before a charge: the kWh to stop after (empty = no
+          limit) and Start. Once it runs: Stop, the full width. */}
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 px-5 pt-3 pb-[calc(1.5rem+env(safe-area-inset-bottom))] backdrop-blur-md sm:static sm:z-auto sm:mt-4 sm:border-t-0 sm:bg-transparent sm:p-0 sm:backdrop-blur-none lg:mt-0">
         {error ? (
           <p role="alert" className="mb-2 text-center text-xs text-destructive">
             {error}

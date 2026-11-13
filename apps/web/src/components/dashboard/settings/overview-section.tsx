@@ -58,7 +58,8 @@ export function OverviewSection({ userId, initial, imageUrl, devices, severalSit
   const [cards, setCards] = React.useState<OverviewCardId[]>(initial.cards);
   const [device, setDevice] = React.useState<string>(initial.device ?? FIRST_DEVICE);
   // the Overview is a carousel only at a site with two or more devices, so there is only something to choose when one has
-  const hasCarousel = devices.some((d) => devices.filter((o) => o.siteId === d.siteId).length > 1);
+  // the Overview has a tab for the site and one per device, so the choice is there as soon as there is a device
+  const hasCarousel = devices.length > 0;
   // the background, the four cards and the device are saved together, so each save carries the others as last saved
   const savedCards = React.useRef<OverviewCardId[]>(initial.cards);
   const savedDevice = React.useRef<string | null>(initial.device);
@@ -142,7 +143,7 @@ export function OverviewSection({ userId, initial, imageUrl, devices, severalSit
           title="Device to show first"
           icon={Server}
           tone="sky"
-          description="At a site with more than one device, the Overview has a page for each (inverters and chargers): swipe, or use the arrows at the top, to move between them. Choose the one it opens on."
+          description="The Overview has a tab for the whole site and one for each device (inverters and chargers): press a tab, or swipe, to move between them. Choose the one it opens on."
         >
           <div className="max-w-sm">
             <Select value={device} onValueChange={(v) => void saveDevice(v)}>
@@ -150,7 +151,7 @@ export function OverviewSection({ userId, initial, imageUrl, devices, severalSit
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value={FIRST_DEVICE}>The first one</SelectItem>
+                <SelectItem value={FIRST_DEVICE}>The whole site</SelectItem>
                 {devices.map((d) => (
                   <SelectItem key={d.id} value={d.id}>
                     {severalSites ? `${d.name} · ${d.site}` : d.name}
@@ -159,7 +160,7 @@ export function OverviewSection({ userId, initial, imageUrl, devices, severalSit
               </SelectContent>
             </Select>
           </div>
-          {severalSites && <p className="text-xs text-muted-foreground">If this device is at another site, the Overview opens on the first device of the site you are looking at.</p>}
+          {severalSites && <p className="text-xs text-muted-foreground">If this device is at another site, the Overview opens on the whole site of the site you are looking at.</p>}
         </SettingsCard>
       )}
       <TwoColumns

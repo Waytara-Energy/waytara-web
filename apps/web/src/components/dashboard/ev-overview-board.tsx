@@ -192,7 +192,7 @@ export function EvOverviewBoard({
 
   // On a wide screen the board fits the screen (at least 44 rem, so a short window scrolls a little rather than squeezing the cards): the car and the charge with the figures and the control beside them in the first row (never shorter than the figures, source, live readings and control need), the history and the statistic under them.
   return (
-    <div className="grid gap-4 lg:h-[max(calc(100svh-9.5rem),44rem)] lg:grid-cols-12 lg:grid-rows-[minmax(27rem,14fr)_minmax(14rem,6fr)]">
+    <div className="grid gap-4 lg:h-[max(calc(100svh-9.75rem),44rem)] lg:grid-cols-12 lg:grid-rows-[minmax(27rem,14fr)_minmax(14rem,6fr)]">
       {/* The charger in the way of a car's charging screen: the car, the charge and the figures (one column on a phone and a tablet; on a wide screen the car and the charge on the left, the figures and the control on the right). */}
       <EvMobileCard
         chargerId={chargerId}

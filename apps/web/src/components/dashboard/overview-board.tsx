@@ -40,12 +40,12 @@ export function OverviewBoard({
   return (
     <div className={cn(background && "[&_[data-slot=card]]:border-white/15 [&_[data-slot=card]]:bg-card/60 [&_[data-slot=card]]:backdrop-blur-md [&_a.group]:border-white/15 [&_a.group]:bg-card/60 [&_a.group]:backdrop-blur-md")}>
       {background && backdrop && <OverviewBackdrop css={background} />}
-      <div className="grid gap-4 lg:h-[max(calc(100svh-9.5rem),30rem)] lg:grid-cols-[minmax(15rem,1fr)_minmax(0,42rem)_minmax(15rem,1fr)]">
+      <div className="grid gap-4 lg:h-[max(calc(100svh-9.75rem),30rem)] lg:grid-cols-[minmax(15rem,1fr)_minmax(0,42rem)_minmax(15rem,1fr)]">
         <div className={`${side} lg:order-1`} style={style}>
           {solar && <EnergyTodayCards {...solar} cards={left} />}
         </div>
         {/* The whole middle is the drawing: as tall as the board allows, less its colour key. */}
-        <div className="order-1 flex min-w-0 flex-col items-center justify-center gap-3 lg:order-2" style={{ "--flow-h": "calc(max(100svh - 9.5rem, 30rem) - 3.5rem)" } as CSSProperties}>
+        <div className="order-1 flex min-w-0 flex-col items-center justify-center gap-3 lg:order-2" style={{ "--flow-h": "calc(max(100svh - 9.75rem, 30rem) - 3.5rem)" } as CSSProperties}>
           {center ? (
             <div className="w-full">{center}</div>
           ) : flow ? (

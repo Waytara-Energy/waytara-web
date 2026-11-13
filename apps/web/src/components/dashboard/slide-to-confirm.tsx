@@ -12,7 +12,7 @@ const DONE = 0.82; // how far it must be taken for it to count
  * A slide-to-confirm control: take the power button across the track to confirm (Start or Stop a charge). The words on the track say what is being
  * confirmed, in a short line and a smaller one under it. Letting go before the end sends the thumb back; while `busy` it waits at the end with a
  * spinner and returns when `busy` ends (the request failed, or the control changes to the other action). Without a pointer: Enter or Space on the
- * thumb confirms. `touch-action: none` on the thumb keeps a drag from swiping the page's carousel.
+ * thumb confirms. `touch-action: none` on the thumb keeps a drag from scrolling the page, and `data-no-swipe` keeps it from being taken as a swipe to the next tab.
  */
 export function SlideToConfirm({
   tone,
@@ -108,7 +108,7 @@ export function SlideToConfirm({
       : { track: "bg-emerald-500/15 text-emerald-700 ring-1 ring-inset ring-emerald-500/40 dark:text-emerald-400", fill: "bg-emerald-500/25", thumb: "bg-emerald-500 text-white" };
 
   return (
-    <div ref={trackRef} className={cn("relative h-12 select-none overflow-hidden rounded-2xl", look.track, className)}>
+    <div ref={trackRef} data-no-swipe="true" className={cn("relative h-12 select-none overflow-hidden rounded-2xl", look.track, className)}>
       {/* what has been taken so far (nothing at rest) */}
       <span aria-hidden="true" className={cn("absolute inset-y-0 left-0 rounded-2xl", look.fill, !dragging && "transition-[width] duration-300")} style={{ width: x > 0 ? x + THUMB + PAD * 2 : 0 }} />
       {/* the words: fade as the thumb comes over them */}
