@@ -126,8 +126,8 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
     headline: { label: "Recent activity", value: activity.length === 0 ? "Nothing yet" : `${activity.length} ${activity.length === 1 ? "entry" : "entries"}`, figures: activity[0]?.at ? [{ label: "Latest", value: new Date(activity[0].at).toLocaleDateString("en-IN", { day: "numeric", month: "short" }) }] : [] },
     node: (
       <div className="space-y-4">
-        <DeviceActivity rows={activity} />
-        {evInfo && isStaff ? <EvMessageLogPanel chargerId={device.id} /> : null}
+        <DeviceActivity key="activity" rows={activity} />
+        {evInfo && isStaff ? <EvMessageLogPanel key="log" chargerId={device.id} /> : null}
       </div>
     ),
   });
@@ -137,10 +137,11 @@ export default async function DevicesPage({ searchParams }: { searchParams: Prom
       {/* The settings screen listens to equipment_configs itself; only the small hard-coded list needs the page re-read. */}
       {/* what is done to the device (a restart, a changed setting, going offline) shows in Activity as it happens. The page reads the
           device_activity_log VIEW, but Realtime only reports changes of a table, so this listens to the table behind it. */}
-      <RealtimeRefresh table="device_activity" event="INSERT" filter={`equipment_id=eq.${device.id}`} debounceMs={800} />
-      {canEditSettings && !isCatalogDriven && <RealtimeRefresh table="equipment_configs" event="INSERT" filter={`equipment_id=eq.${device.id}`} />}
+      <RealtimeRefresh key="activity" table="device_activity" event="INSERT" filter={`equipment_id=eq.${device.id}`} debounceMs={800} />
+      {canEditSettings && !isCatalogDriven && <RealtimeRefresh key="configs" table="equipment_configs" event="INSERT" filter={`equipment_id=eq.${device.id}`} />}
 
       <DevicesBoard
+        key="board"
         deviceId={device.id}
         sync={sync}
         fields={settingsFields}

@@ -3,9 +3,7 @@
 import * as React from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
-import { ArrowUpRight, BatteryCharging, Check, ChevronRight, EvCharger, Home, IndianRupee, Leaf, MapPin, Server, Sun, Zap, type LucideIcon } from "lucide-react";
-import { selectSite } from "@/app/dashboard/actions";
+import { ArrowUpRight, BatteryCharging, ChevronRight, EvCharger, Home, IndianRupee, Leaf, Server, Sun, Zap, type LucideIcon } from "lucide-react";
 import { parseTarget } from "@/lib/ev-control";
 import { inr } from "@/lib/savings";
 import { useUnits } from "@/components/units-provider";
@@ -67,17 +65,6 @@ export interface SiteBoardCharger {
   /** Charges and their energy over the last 30 days. */
   sessions30: number;
   kwh30: number;
-}
-
-/** One of the customer's sites. */
-export interface SiteBoardSite {
-  id: string;
-  name: string;
-  /** Its city, when it has an address. */
-  place: string | null;
-  deviceCount: number;
-  /** The site being shown. */
-  selected: boolean;
 }
 
 /** A device in the site's list. */
@@ -443,7 +430,7 @@ function SavingsWidget({ savings, className }: { savings: SiteSavings | null; cl
 type WeatherState = ReturnType<typeof useSiteWeather>;
 
 /** The weather as a tile (a tablet and wider). */
-function WeatherWidget({ state, place, wide, className }: { state: WeatherState; place: string | null; wide: boolean; className?: string }) {
+function WeatherWidget({ state, place, className }: { state: WeatherState; place: string | null; className?: string }) {
   const { weather, reason } = state;
   if (!weather) {
     return (
@@ -464,8 +451,6 @@ function WeatherWidget({ state, place, wide, className }: { state: WeatherState;
   const look = WEATHER_ICON[n.condition];
   const today = weather.days[0];
   const sunshine = weather.solar.potentialPct;
-  const hours = weather.solar.hours;
-  const nowHour = new Date(Date.parse(n.at) + IST_MS).getUTCHours();
   return (
     <Widget href="/dashboard/weather" label="Weather. Open the forecast." className={className}>
       <Head icon={look[n.night ? "night" : "day"]} tone={cn("bg-amber-500/15", look.tone)} title="Weather" note={place} />
@@ -487,22 +472,6 @@ function WeatherWidget({ state, place, wide, className }: { state: WeatherState;
             </span>
           </span>
         </span>
-        {/* the sunshine hour by hour: what the cloud leaves, over a faded bar for a clear sky */}
-        {wide && hours.length > 0 && (
-          <span className="flex min-w-0 flex-1 flex-col max-md:hidden">
-            <span className="flex min-h-12 flex-1 items-end gap-[3px]" role="img" aria-label="Expected sunshine by hour today">
-              {hours.map((h) => (
-                <span key={h.hour} className="relative flex-1 rounded-t-sm bg-foreground/[0.08]" style={{ height: `${Math.max(4, (h.clearWm2 / 1100) * 100)}%` }}>
-                  <span className={cn("absolute inset-x-0 bottom-0 rounded-t-sm", h.hour === nowHour ? "bg-amber-500" : "bg-amber-400/80")} style={{ height: `${h.clearWm2 > 0 ? (h.wm2 / h.clearWm2) * 100 : 0}%` }} />
-                </span>
-              ))}
-            </span>
-            <span className="mt-1 flex justify-between text-[10px] text-muted-foreground">
-              <span>{today?.sunrise ? clockOf(today.sunrise) : ""}</span>
-              <span>{today?.sunset ? clockOf(today.sunset) : ""}</span>
-            </span>
-          </span>
-        )}
       </span>
     </Widget>
   );
@@ -804,45 +773,6 @@ function DevicesWidget({ devices, chargers, className }: { devices: SiteBoardDev
   );
 }
 
-/** The customer's sites: the one being shown is ticked; pressing another shows that site's Overview (the same choice as the site switcher in the header). */
-function SitesWidget({ sites, className }: { sites: SiteBoardSite[]; className?: string }) {
-  const router = useRouter();
-  const [pending, startTransition] = React.useTransition();
-  const { ref, count } = useFitRows(2);
-  const choose = (id: string) =>
-    startTransition(async () => {
-      await selectSite(id);
-      router.refresh();
-    });
-  return (
-    <Widget className={className}>
-      <Head icon={MapPin} tone={TONE.plain} title="Sites" note={`${sites.length} ${sites.length === 1 ? "site" : "sites"}`} arrow={false} />
-      <ul ref={ref} className={cn("-mx-2 mt-2 min-h-0 flex-1 divide-y overflow-hidden px-1", pending && "opacity-60")}>
-        {sites.slice(0, count).map((x) => (
-          <li key={x.id}>
-            <button
-              type="button"
-              onClick={() => (x.selected ? undefined : choose(x.id))}
-              disabled={pending}
-              aria-current={x.selected}
-              aria-label={x.selected ? `${x.name}, showing` : `Show ${x.name}`}
-              className="flex w-full items-center gap-2.5 rounded-lg px-2 py-2 text-left outline-none transition-colors hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <span className="min-w-0 flex-1 leading-tight">
-                <span className="block truncate text-sm font-medium text-foreground">{x.name}</span>
-                <span className="block truncate text-xs text-muted-foreground">
-                  {[x.place, `${x.deviceCount} ${x.deviceCount === 1 ? "device" : "devices"}`].filter(Boolean).join(" · ")}
-                </span>
-              </span>
-              <Check className={cn("size-4 shrink-0 text-emerald-500", x.selected ? "opacity-100" : "opacity-0")} />
-            </button>
-          </li>
-        ))}
-      </ul>
-    </Widget>
-  );
-}
-
 // ---- the charger ----------------------------------------------------------------------------------------------------------------------
 
 function EvWidget({ charger, car, className }: { charger: SiteBoardCharger; car: CarProfile | null; className?: string }) {
@@ -852,13 +782,6 @@ function EvWidget({ charger, car, className }: { charger: SiteBoardCharger; car:
   const kwh = (v: number, digits = 2) => u.format(v, "kWh", "ev_energy_today_kwh", digits);
   const last = charger.last;
   const percent = live.progress.percent;
-
-  // how the last charge ended: against what was booked (or the car's battery), full when there was nothing to measure it by
-  const lastPercent = (() => {
-    if (!last) return null;
-    const p = chargeProgress({ deliveredKwh: last.kwh, targetKwh: last.targetKwh, powerKw: null, car }).percent;
-    return p === null || p >= 98 ? 100 : p;
-  })();
 
   const note = live.offline ? "Offline" : live.charging ? "Charging" : live.status;
   const figure = live.charging
@@ -885,37 +808,29 @@ function EvWidget({ charger, car, className }: { charger: SiteBoardCharger; car:
       : live.offline
         ? "The charger is not answering"
         : "No charge yet";
-  const fill = live.charging ? percent : live.offline ? null : lastPercent;
   const open = tabs?.has(charger.id) ? () => tabs.open(charger.id) : null;
   const elapsed = useElapsed(live.charging ? (charger.open?.startedAt ?? null) : null);
 
   return (
     <Widget className={className}>
-      {/* the car: at the bottom right of a wide tile, beside the figure on a phone */}
+      {/* the car, at the right beside the figure */}
       <Image
         src="/images/ev-car-nexon-v2.webp"
         alt=""
         width={1400}
         height={796}
-        sizes="(max-width: 767px) 42vw, 24vw"
-        className="pointer-events-none absolute right-3 h-auto select-none dark:brightness-125 dark:contrast-110 max-md:top-[3.75rem] max-md:w-[42%] md:bottom-3 md:w-[46%] md:max-w-[24rem]"
+        sizes="(max-width: 767px) 42vw, 20vw"
+        className="pointer-events-none absolute top-[3.75rem] right-3 h-auto w-[42%] select-none dark:brightness-125 dark:contrast-110 md:w-[30%] md:max-w-[15rem]"
       />
       <span className="relative flex min-h-0 flex-1 flex-col">
         <Head icon={EvCharger} tone={TONE.ev} title={charger.name} note={note} arrow={open !== null} />
-        <span className="mt-3 block max-w-[50%] max-md:flex max-md:min-h-[7rem] max-md:flex-col max-md:justify-center">
+        <span className="mt-3 flex min-h-[7rem] max-w-[50%] flex-col justify-center">
           <Figure value={figure.value} unit={figure.unit} large />
           <Sub>{sub}</Sub>
         </span>
-        {/* a wide tile: the progress and today's energy under the figure */}
-        <span className="mt-auto block max-w-[50%] pt-3 max-md:hidden">
-          <span className="block h-2 overflow-hidden rounded-full bg-foreground/[0.08]" role="img" aria-label={fill === null ? "No charge to show" : `${Math.round(fill)}% of the charge`}>
-            {fill !== null && fill > 0 && <span className={cn("block h-full rounded-full bg-emerald-500", live.charging && "motion-safe:animate-pulse")} style={{ width: `${Math.min(100, fill)}%` }} />}
-          </span>
-          <span className="mt-1.5 block truncate text-xs text-muted-foreground">Today {charger.todayKwh === null ? "—" : kwh(charger.todayKwh, 1)}</span>
-        </span>
-        {/* a phone: while it charges, the few figures that matter (the rest is on the charger's own page, which pressing the tile opens), then the control */}
+        {/* while it charges, the few figures that matter (the rest is on the charger's own page, which pressing the tile opens), then the control */}
         {live.charging && (
-          <span className="block md:hidden">
+          <span className="block">
             <Facts
               items={[
                 { label: "Energy", value: live.chargeKwh === null ? "—" : kwh(live.chargeKwh, 2) },
@@ -925,7 +840,7 @@ function EvWidget({ charger, car, className }: { charger: SiteBoardCharger; car:
             />
           </span>
         )}
-        <EvTileControl charger={charger} charging={live.charging} offline={live.offline} className="md:hidden" />
+        <EvTileControl charger={charger} charging={live.charging} offline={live.offline} />
       </span>
       {open && <button type="button" onClick={open} aria-label={`Open ${charger.name}`} className="absolute inset-0 cursor-pointer rounded-2xl outline-none focus-visible:ring-2 focus-visible:ring-ring" />}
     </Widget>
@@ -1028,13 +943,17 @@ function EvMonthWidget({ charger, className }: { charger: SiteBoardCharger; clas
 
 /**
  * The site's own Overview: every device together, as widgets. Solar now and today with the day's curve, the weather at the site, the devices (each with
- * its figures, its last reading and a charger's last session; pressing one opens its page), the customer's sites, the load, the grid, the battery (with
- * today's charging and discharging), the carbon dioxide avoided (with the part that went through the battery and into the car) and the charger with its
- * car. A widget is there only when the site has what it shows, and the tiles are laid out to fill a four-column grid whatever is there: the weather
- * widens (and shows the sunshine hour by hour) and the last small tile stretches when a cell would be left empty. On a wide screen the grid fits the
- * screen's height. On a phone the weather is the head of the page, as in a weather app (the place, the temperature large, the condition, high and low),
- * with the sunshine under it, then the devices and sites side by side, solar, load and grid, the battery, the charger and, last, the carbon dioxide. The
- * numbers are live (in place, no page refresh); the curves are today's 15-minute readings (one inverter).
+ * its figures, its last reading and a charger's last session; pressing one opens its page), the load, the grid, the battery (with today's charging and
+ * discharging), the charger with its car and its control (the limit and the slide), the site on a still 3D map, what the solar has saved on the bill, and the
+ * carbon dioxide saved so far by the solar and the car. A widget is there only when the site has what it shows.
+ *
+ * A tablet and wider: a four-column grid whose rows are at least a certain height and grow with what is in them (the charger's tile is taller while it charges),
+ * so the page scrolls when it must. Solar is two cells, the weather one, the devices one column over two rows, then the load, the grid and the battery fill the
+ * row under them (the last of them stretches when one is missing), then the charger and the map, then the savings and the carbon dioxide, two cells each.
+ *
+ * A phone: the weather is the head of the page, as in a weather app (the place, the temperature large, the condition, high and low), with the sunshine under it,
+ * then the devices as a list, solar, load and grid, the battery, the charger, the map, the savings and, last, the carbon dioxide. The numbers are live (in place,
+ * no page refresh); the curves are today's 15-minute readings (one inverter).
  */
 export function SiteOverviewBoard({
   siteId,
@@ -1042,7 +961,6 @@ export function SiteOverviewBoard({
   place,
   location,
   savings,
-  sites,
   devices,
   inverters,
   chargers,
@@ -1057,8 +975,6 @@ export function SiteOverviewBoard({
   location: { lat: number; lng: number } | null;
   /** What the solar and the car have saved since the start (null when it could not be worked out). */
   savings: SiteSavings | null;
-  /** Every site of the customer. */
-  sites: SiteBoardSite[];
   devices: SiteBoardDevice[];
   inverters: SiteBoardInverters | null;
   chargers: SiteBoardCharger[];
@@ -1071,34 +987,18 @@ export function SiteOverviewBoard({
   const charger = chargers.find((c) => c.open !== null) ?? chargers[0] ?? null;
   const inv = inverters;
 
-  // the small tiles in the order of a wide screen; `phone` is where each stands on a phone (see the order of the others below) and how wide it is there
-  const smalls: { key: string; phone: string; render: (className: string) => React.ReactNode }[] = [];
-  if (inv) {
-    smalls.push({ key: "load", phone: "order-[6] min-h-40", render: (c) => <LoadWidget inv={inv} className={c} /> });
-    if (inv.hasGrid) smalls.push({ key: "grid", phone: "order-[7] min-h-40", render: (c) => <GridWidget inv={inv} className={c} /> });
-    if (inv.hasBattery) smalls.push({ key: "battery", phone: "order-[8] max-md:col-span-2 min-h-48", render: (c) => <BatteryWidget inv={inv} className={c} /> });
-    smalls.push({ key: "co2", phone: "order-[12] max-md:col-span-2 min-h-52", render: (c) => <Co2Widget inv={inv} savings={savings} car={car} className={c} /> });
-  } else if (charger) {
-    smalls.push({ key: "month", phone: "order-[6] min-h-40", render: (c) => <EvMonthWidget charger={charger} className={c} /> });
-  }
-  smalls.push({ key: "sites", phone: "max-md:hidden min-h-44", render: (c) => <SitesWidget sites={sites} className={c} /> });
-
-  // The four-column grid (from a tablet up). Solar is two cells (four when there is no charger to fill the row under it), the charger two (four on its
-  // own), the devices list one column over two rows, everything else one cell. What would be left empty goes to the weather and the last small tile.
+  // Solar is two cells wide and, with no charger to fill the row under it, two rows tall. The load, grid and battery tiles are the row under the solar and the
+  // weather (the devices take the fourth column): with fewer than three of them the last one stretches.
   const solarTall = inv !== null && charger === null;
-  const evBig = charger !== null && inv === null;
-  const cells = (inv ? (solarTall ? 4 : 2) : 0) + 1 + 2 + (charger ? (evBig ? 4 : 2) : 0) + smalls.length;
-  const rows = Math.max(2, Math.ceil(cells / 4));
-  const spare = rows * 4 - cells;
-  const weatherWide = spare >= 1 && rows >= 3;
-  const lastExtra = Math.max(0, spare - (weatherWide ? 1 : 0));
-  const lastSpan = ["", "md:col-span-2", "md:col-span-3", "md:col-span-4"][Math.min(3, lastExtra)];
+  const flowTiles = inv ? 1 + (inv.hasGrid ? 1 : 0) + (inv.hasBattery ? 1 : 0) : 0;
+  const stretch = solarTall ? "" : flowTiles === 1 ? "md:col-span-3" : flowTiles === 2 ? "md:col-span-2" : "";
+  const lastOfFlow = inv?.hasBattery ? "battery" : inv?.hasGrid ? "grid" : "load";
+  const tile = (key: string, phone: string) => cn(phone, "md:order-none md:min-h-0", key === lastOfFlow && stretch);
 
   return (
     <div
-      style={{ "--rows": rows } as React.CSSProperties}
       className={cn(
-        "grid grid-flow-dense grid-cols-2 gap-3 md:auto-rows-[minmax(12.5rem,auto)] md:grid-cols-4 lg:h-[max(calc(100svh-9.5rem),34rem)] lg:auto-rows-auto lg:gap-4 lg:[grid-template-rows:repeat(var(--rows),minmax(0,1fr))]",
+        "grid grid-flow-dense grid-cols-2 gap-3 md:auto-rows-[minmax(16rem,auto)] md:grid-cols-4 lg:gap-4",
         background && "[&_[data-widget]]:border-white/15 [&_[data-widget]]:bg-card/60 [&_[data-widget]]:backdrop-blur-md"
       )}
     >
@@ -1108,15 +1008,19 @@ export function SiteOverviewBoard({
 
       {inv && <SolarWidget inv={inv} className={cn("order-[5] col-span-2 min-h-56 md:order-none md:min-h-0", solarTall && "md:row-span-2")} />}
       {/* a tablet and wider: the weather as a tile */}
-      <WeatherWidget state={weather} place={place} wide={weatherWide} className={cn("max-md:hidden md:min-h-0", weatherWide && "md:col-span-2")} />
-      <DevicesWidget devices={devices} chargers={chargers} className={cn("order-[3] max-md:col-span-2 md:order-none md:col-start-4 md:row-span-2 md:min-h-0", weatherWide ? "md:row-start-2" : "md:row-start-1")} />
-      {smalls.map((x, i) => (
-        <React.Fragment key={x.key}>{x.render(cn(x.phone, "md:order-none md:min-h-0", i === smalls.length - 1 && lastSpan))}</React.Fragment>
-      ))}
-      {/* a phone: the site on a 3D map, and the cost and savings, above the carbon dioxide */}
-      <SiteMapCard latitude={location?.lat ?? null} longitude={location?.lng ?? null} siteName={siteName} className="order-[10] col-span-2 h-72 md:hidden" />
-      {inv && <SavingsWidget savings={savings} className="order-[11] col-span-2 min-h-56 md:hidden" />}
-      {charger && <EvWidget charger={charger} car={car} className={cn("order-[9] col-span-2 min-h-52 md:order-none md:min-h-0", evBig && "md:row-span-2")} />}
+      <WeatherWidget state={weather} place={place} className="max-md:hidden md:min-h-0" />
+      <DevicesWidget devices={devices} chargers={chargers} className="order-[3] max-md:col-span-2 md:order-none md:col-start-4 md:row-start-1 md:row-span-2 md:min-h-0" />
+
+      {inv && <LoadWidget inv={inv} className={tile("load", "order-[6] min-h-40")} />}
+      {inv?.hasGrid && <GridWidget inv={inv} className={tile("grid", "order-[7] min-h-40")} />}
+      {inv?.hasBattery && <BatteryWidget inv={inv} className={tile("battery", "order-[8] max-md:col-span-2 min-h-48")} />}
+
+      {charger && <EvWidget charger={charger} car={car} className="order-[9] col-span-2 min-h-52 md:order-none md:min-h-0" />}
+      {!inv && charger && <EvMonthWidget charger={charger} className="order-[6] min-h-40 md:order-none md:min-h-0" />}
+      {/* the site on a 3D map, then the cost and savings, then the carbon dioxide */}
+      <SiteMapCard latitude={location?.lat ?? null} longitude={location?.lng ?? null} siteName={siteName} className="order-[10] col-span-2 h-72 md:order-none md:h-auto md:min-h-0" />
+      {inv && <SavingsWidget savings={savings} className="order-[11] col-span-2 min-h-56 md:order-none md:min-h-0" />}
+      {inv && <Co2Widget inv={inv} savings={savings} car={car} className="order-[12] col-span-2 min-h-52 md:order-none md:min-h-0" />}
     </div>
   );
 }

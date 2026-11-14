@@ -165,7 +165,8 @@ export function DevicesBoard({
 
           <TabsContent value={tab.id} className="mt-4 space-y-4 outline-none">
             {tab.description && <p className="text-sm text-theme-muted">{tab.description}</p>}
-            {tab.kind === "settings" && tab.fields.length > 0 ? <SettingsPane fields={tab.fields} /> : tab.node}
+            {/* (a keyed wrapper: what the page hands over is a ready-made element, and a list of children needs every one of them keyed) */}
+            <React.Fragment key={tab.id}>{tab.kind === "settings" && tab.fields.length > 0 ? <SettingsPane fields={tab.fields} /> : tab.node}</React.Fragment>
           </TabsContent>
         </Tabs>
       </div>

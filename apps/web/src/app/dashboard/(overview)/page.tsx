@@ -1,6 +1,6 @@
 import { Zap } from "lucide-react";
 import { createClient } from "@waytara/supabase/server";
-import { deviceDisplayId, getCustomerSites, getSelectedSite } from "@/lib/selected-site";
+import { deviceDisplayId, getSelectedSite } from "@/lib/selected-site";
 import { getRequestProfile } from "@/lib/request-profile";
 import { fetchSiteOverview } from "@/lib/device-overview";
 import { Empty, EmptyDescription, EmptyHeader, EmptyMedia, EmptyTitle } from "@/components/ui/empty";
@@ -18,7 +18,7 @@ import { getCustomerPlan } from "@/lib/customer-plan";
 import { parseCarProfile } from "@/lib/ev-car";
 import { OverviewBoard } from "@/components/dashboard/overview-board";
 import { OverviewTabs, SITE_TAB, type OverviewTab } from "@/components/dashboard/overview-tabs";
-import { SiteOverviewBoard, type SiteBoardCharger, type SiteBoardDevice, type SiteBoardInverters, type SiteBoardSite } from "@/components/dashboard/site-overview-board";
+import { SiteOverviewBoard, type SiteBoardCharger, type SiteBoardDevice, type SiteBoardInverters } from "@/components/dashboard/site-overview-board";
 import type { ConnectionStatus } from "@/lib/device-state";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { backgroundCss, parseOverviewPrefs } from "@/lib/overview-prefs";
@@ -44,7 +44,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
   // @/lib/request-profile), but running it alongside the site lookup
   // rather than after it still saves a round trip's worth of latency on
   // whichever one is slower.
-  const [profile, site, { device: deviceParam }, allSites] = await Promise.all([getRequestProfile(), getSelectedSite(), searchParams, getCustomerSites()]);
+  const [profile, site, { device: deviceParam }] = await Promise.all([getRequestProfile(), getSelectedSite(), searchParams]);
 
   if (!site) {
     return (
@@ -187,7 +187,6 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
     sessions30: d.history.sessions30,
     kwh30: d.history.kwh30,
   }));
-  const siteList: SiteBoardSite[] = allSites.map((x) => ({ id: x.id, name: x.name, place: x.address?.city ?? null, deviceCount: x.devices.length, selected: x.id === site.id }));
   const siteDevices: SiteBoardDevice[] = site.devices.map((device) => {
     const data = slideData.find((d) => d?.device.id === device.id);
     let status: ConnectionStatus | null = null;
@@ -215,7 +214,7 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
             id: SITE_TAB,
             name: "Overview",
             kind: "site",
-              content: <SiteOverviewBoard siteId={site.id} siteName={site.name} place={site.address?.city ?? site.name} location={site.latitude !== null && site.longitude !== null ? { lat: site.latitude, lng: site.longitude } : null} savings={savings} sites={siteList} devices={siteDevices} inverters={siteInverters} chargers={siteChargers} car={car} background={background} />,
+              content: <SiteOverviewBoard siteId={site.id} siteName={site.name} place={site.address?.city ?? site.name} location={site.latitude !== null && site.longitude !== null ? { lat: site.latitude, lng: site.longitude } : null} savings={savings} devices={siteDevices} inverters={siteInverters} chargers={siteChargers} car={car} background={background} />,
           },
           ...deviceTabs,
         ];
