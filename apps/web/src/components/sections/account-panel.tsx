@@ -75,8 +75,8 @@ export function AuthSlot({
     <span data-auth-slot="" data-state={state} className="inline-flex items-center">
       {state === "in" && account && (
         <Link
-          href="/dashboard"
-          aria-label="Go to your dashboard"
+          href={account?.role === "partner" ? "/partner/portal" : "/dashboard"}
+          aria-label={account?.role === "partner" ? "Go to your partner area" : "Go to your dashboard"}
           aria-haspopup={onAvatarEnter ? "true" : undefined}
           onMouseEnter={onAvatarEnter}
           onFocus={onAvatarEnter}

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LICENCE_REMINDER_DAYS, licenceStatus, passwordProblem, todayIst } from "./partner-account";
+import { LICENCE_REMINDER_DAYS, licenceReminderKey, licenceStatus, passwordProblem, reminderDue, todayIst } from "./partner-account";
 import { isAdminAppRole, isPartnerRole, isStaffRole } from "./roles";
 
 describe("passwordProblem", () => {
@@ -51,5 +51,16 @@ describe("roles", () => {
     expect(isStaffRole("partner")).toBe(false);
     expect(isPartnerRole("partner")).toBe(true);
     expect(isPartnerRole("employee")).toBe(false);
+  });
+});
+
+describe("reminderDue", () => {
+  it("gives the tightest reminder a licence has reached, and none beyond 60 days", () => {
+    expect([null, 90, 61, 60, 31, 30, 8, 7, 1, 0, -5].map(reminderDue)).toEqual([null, null, null, 60, 60, 30, 30, 7, 7, 0, 0]);
+  });
+  it("tells a renewed licence from the old one by its date", () => {
+    const a = { type: "contractor", number: "EA/1", validUntil: "2026-12-01" };
+    expect(licenceReminderKey(a)).toBe("contractor|ea/1|2026-12-01");
+    expect(licenceReminderKey({ ...a, validUntil: "2027-12-01" })).not.toBe(licenceReminderKey(a));
   });
 });

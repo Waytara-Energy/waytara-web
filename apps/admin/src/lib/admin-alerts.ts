@@ -1,4 +1,6 @@
 import type { createClient } from "@waytara/supabase/server";
+import { licenceStatus, todayIst } from "@waytara/supabase/partner-account";
+import { readOnboarding } from "@waytara/supabase/partner-onboarding";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -17,10 +19,15 @@ export interface AdminNotification {
 /** What needs the team's attention, for the badges in the sidebar and the notification center. */
 export interface AdminAlerts {
   counts: { leads: number; support: number; alerts: number; partners: number };
+  /** What sits inside the partners count, for the Overview: stalled onboardings and partners with a licence that has run out or is about to. */
+  partnerDue: { stalled: number; licences: number };
   items: AdminNotification[];
 }
 
-const EMPTY: AdminAlerts = { counts: { leads: 0, support: 0, alerts: 0, partners: 0 }, items: [] };
+const EMPTY: AdminAlerts = { counts: { leads: 0, support: 0, alerts: 0, partners: 0 }, partnerDue: { stalled: 0, licences: 0 }, items: [] };
+
+/** An onboarding with no activity for this long is "stalled" and worth a nudge. */
+const STALLED_DAYS = 3;
 
 /**
  * Reads what needs attention, as the signed-in person is allowed to see it (row-level security decides: an employee sees their own leads and
@@ -52,9 +59,30 @@ export async function loadAdminAlerts(supabase: Supabase, role: string | null | 
           .order("ts", { ascending: false })
           .limit(6),
     role === "admin"
-      ? supabase.from("partner_applications").select("id, company_name, status, created_at", { count: "exact" }).in("status", ["new", "verification"]).order("created_at", { ascending: false }).limit(5)
+      ? supabase.from("partner_applications").select("id, company_name, status, created_at, updated_at").in("status", ["new", "verification", "onboarding", "approved"]).order("created_at", { ascending: false }).limit(500)
       : null,
   ]);
+
+  // Partners that need the team: a new application, an onboarding sent for verification, an onboarding that has gone quiet, and an approved partner with a licence that
+  // has run out or runs out within 60 days (read from what the partner entered).
+  const partnerRows = partners?.data ?? [];
+  const now = Date.now();
+  const stalled = partnerRows.filter((p) => p.status === "onboarding" && now - Date.parse(p.updated_at) >= STALLED_DAYS * 86_400_000);
+  const approvedIds = partnerRows.filter((p) => p.status === "approved").map((p) => p.id);
+  const licenceDue: { id: string; company: string; text: string; expired: boolean }[] = [];
+  if (approvedIds.length > 0) {
+    const { data: onboardings } = await supabase.from("partner_onboarding").select("application_id, data").in("application_id", approvedIds);
+    const today = todayIst();
+    for (const o of onboardings ?? []) {
+      const due = readOnboarding(o.data).licences.map((l) => ({ l, s: licenceStatus(l.validUntil, today) })).filter((x) => x.s.state === "expired" || x.s.state === "soon").sort((a, b) => (a.s.days ?? 0) - (b.s.days ?? 0))[0];
+      if (!due) continue;
+      const days = due.s.days ?? 0;
+      licenceDue.push({ id: o.application_id, company: partnerRows.find((p) => p.id === o.application_id)?.company_name ?? "A partner", expired: due.s.state === "expired", text: due.s.state === "expired" ? `Licence ${due.l.number} expired ${Math.abs(days)} day${Math.abs(days) === 1 ? "" : "s"} ago` : `Licence ${due.l.number} runs out in ${days} day${days === 1 ? "" : "s"}` });
+    }
+  }
+  const partnerNew = partnerRows.filter((p) => p.status === "new");
+  const partnerVerify = partnerRows.filter((p) => p.status === "verification");
+  const partnerCount = partnerNew.length + partnerVerify.length + stalled.length + licenceDue.length;
 
   const items: AdminNotification[] = [
     ...(leads?.data ?? []).map((l): AdminNotification => ({ id: `lead-${l.id}`, kind: "lead", title: "New lead", detail: l.full_name, at: l.created_at, href: `/leads/${l.id}`, tone: "info" })),
@@ -76,16 +104,18 @@ export async function loadAdminAlerts(supabase: Supabase, role: string | null | 
       href: "/alerts",
       tone: a.severity === "critical" ? "critical" : "warning",
     })),
-    ...(partners?.data ?? []).map((p): AdminNotification => ({
+    ...[...partnerNew, ...partnerVerify].slice(0, 6).map((p): AdminNotification => ({
       id: `partner-${p.id}`,
       kind: "partner",
       title: p.status === "verification" ? "Partner ready to verify" : "New partner application",
       detail: p.company_name,
-      at: p.created_at,
-      href: `/partners/${p.id}`,
+      at: p.status === "verification" ? p.updated_at : p.created_at,
+      href: `/partners/${p.id}${p.status === "verification" ? "?tab=verification" : ""}`,
       tone: p.status === "verification" ? "warning" : "info",
     })),
+    ...stalled.slice(0, 4).map((p): AdminNotification => ({ id: `partner-stalled-${p.id}`, kind: "partner", title: "Onboarding has gone quiet", detail: `${p.company_name} · no activity for ${Math.floor((now - Date.parse(p.updated_at)) / 86_400_000)} days`, at: p.updated_at, href: `/partners/${p.id}`, tone: "warning" })),
+    ...licenceDue.slice(0, 4).map((x): AdminNotification => ({ id: `partner-licence-${x.id}`, kind: "partner", title: x.expired ? "Partner licence expired" : "Partner licence expiring", detail: `${x.company} · ${x.text}`, at: new Date().toISOString(), href: `/partners/${x.id}`, tone: x.expired ? "critical" : "warning" })),
   ].sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
 
-  return { counts: { leads: leads?.count ?? 0, support: tickets.count ?? 0, alerts: alerts?.count ?? 0, partners: partners?.count ?? 0 }, items: items.slice(0, 12) };
+  return { counts: { leads: leads?.count ?? 0, support: tickets.count ?? 0, alerts: alerts?.count ?? 0, partners: partnerCount }, partnerDue: { stalled: stalled.length, licences: licenceDue.length }, items: items.slice(0, 12) };
 }

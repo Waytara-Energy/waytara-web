@@ -5,6 +5,8 @@ import { NotYet } from "@/components/partner/not-yet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SubmitButton } from "@/components/ui/submit-button";
+import { Textarea } from "@/components/ui/textarea";
+import { DistrictsField } from "@/components/partner/districts-field";
 import { findSessionRecord } from "@/lib/partner-track-server";
 import { loadOnboarding } from "@/lib/partner-onboarding-server";
 import { savePartnerProfile } from "../actions";
@@ -29,7 +31,7 @@ export default async function PartnerProfilePage() {
   const b = data.business;
   const rows = Math.min(ONBOARDING_LIMITS.members, Math.max(3, data.team.members.length + 1));
   // keyed by what is saved, so the fields show the saved values after a save (a form action resets its fields to their first values)
-  const saved = `${app.contactName}|${app.phone}|${JSON.stringify(b)}|${JSON.stringify(data.team)}`;
+  const saved = `${app.contactName}|${app.phone}|${JSON.stringify(b)}|${JSON.stringify(data.team)}|${JSON.stringify(data.areas)}|${JSON.stringify(data.work)}`;
 
   return (
     <main className="fluid-container pb-20">
@@ -106,14 +108,52 @@ export default async function PartnerProfilePage() {
             <p className="text-xs text-theme-muted">After saving, an empty row appears for the next person (up to {ONBOARDING_LIMITS.members}).</p>
           </section>
 
+          <section className="space-y-4">
+            <h2 className="text-sm font-semibold">Where you work</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field id="districts" label="Districts and cities you can work in" className="sm:col-span-2">
+                <DistrictsField id="districts" initial={data.areas.districts} />
+              </Field>
+              <Field id="capacity" label="Jobs you can take on in a month">
+                <Input id="capacity" name="capacity" defaultValue={data.areas.capacity} inputMode="numeric" maxLength={6} />
+              </Field>
+            </div>
+          </section>
+
+          <section className="space-y-4">
+            <h2 className="text-sm font-semibold">Your past work</h2>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <Field id="installs" label="Installations completed so far">
+                <Input id="installs" name="installs" defaultValue={data.work.installs} inputMode="numeric" maxLength={6} />
+              </Field>
+              <Field id="largest" label="Largest system, in kW">
+                <Input id="largest" name="largest" defaultValue={data.work.largest} inputMode="decimal" maxLength={8} />
+              </Field>
+              <Field id="summary" label="About the work you do" className="sm:col-span-2">
+                <Textarea id="summary" name="summary" defaultValue={data.work.summary} rows={4} maxLength={1500} />
+              </Field>
+            </div>
+            <p className="pt-2 text-xs font-medium text-theme-muted">Projects we can ask you about (leave a row empty to remove it)</p>
+            <div className="space-y-3">
+              {Array.from({ length: Math.min(ONBOARDING_LIMITS.projects, data.work.projects.length + 1) }, (_, i) => {
+                const pr = data.work.projects[i];
+                return (
+                  <div key={i} className="grid gap-2 sm:grid-cols-[2fr_1.2fr_0.6fr_0.6fr]">
+                    <Input name={`project_title_${i}`} defaultValue={pr?.title ?? ""} placeholder="What it was" aria-label={`Project ${i + 1}: what it was`} maxLength={120} />
+                    <Input name={`project_place_${i}`} defaultValue={pr?.place ?? ""} placeholder="Where" aria-label={`Project ${i + 1}: where`} maxLength={120} />
+                    <Input name={`project_size_${i}`} defaultValue={pr?.size ?? ""} placeholder="kW" aria-label={`Project ${i + 1}: kW`} inputMode="decimal" maxLength={8} />
+                    <Input name={`project_year_${i}`} defaultValue={pr?.year ?? ""} placeholder="Year" aria-label={`Project ${i + 1}: year`} inputMode="numeric" maxLength={4} />
+                    <Input name={`project_note_${i}`} defaultValue={pr?.note ?? ""} placeholder="Anything to add" aria-label={`Project ${i + 1}: note`} maxLength={400} className="sm:col-span-4" />
+                  </div>
+                );
+              })}
+            </div>
+          </section>
+
           <SubmitButton pendingText="Saving…">Save</SubmitButton>
         </ActionForm>
 
-        <section className="space-y-2 border-t border-theme-border pt-6">
-          <h2 className="text-sm font-semibold">Where you work</h2>
-          <p className="text-sm text-theme-secondary">{data.areas.districts.length > 0 ? data.areas.districts.join(", ") : "Not listed."}</p>
-          <p className="text-xs text-theme-muted">To change the places you cover, write to us under Support.</p>
-        </section>
+
       </div>
     </main>
   );

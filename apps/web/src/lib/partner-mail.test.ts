@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPartnerAccountMail, buildPartnerAckMail, buildPartnerAdminMail, buildPartnerSubmittedAckMail, buildPartnerSubmittedAdminMail } from "./partner-mail";
+import { buildLicenceReminderMail, buildPartnerAccountMail, buildPartnerAckMail, buildPartnerAdminMail, buildPartnerSubmittedAckMail, buildPartnerSubmittedAdminMail } from "./partner-mail";
 
 const app = {
   id: "11111111-2222-3333-4444-555555555555",
@@ -70,6 +70,17 @@ describe("onboarding sent mails", () => {
     expect(mail.text).toContain("share them with no one outside WayTara");
     expect(mail.text).toContain("does not guarantee a partnership or any projects");
     expect(mail.text).not.toContain("/partner/track/");
+  });
+});
+
+describe("licence reminder mail", () => {
+  it("lists each licence with when it runs out, in plain words, with one button", () => {
+    const mail = buildLicenceReminderMail("Priya Raman", [{ label: "Electrical contractor licence", number: "EA/1", days: 7 }, { label: "Supervisor certificate", number: "S-9", days: -2 }], "https://www.example.com/partner/portal/licences");
+    expect(mail.text).toContain("EA/1");
+    expect(mail.text).toContain("runs out in 7 days");
+    expect(mail.text).toContain("expired 2 days ago");
+    expect(mail.subject).toContain("has run out");
+    expect(mail.html).toContain('href="https://www.example.com/partner/portal/licences"');
   });
 });
 

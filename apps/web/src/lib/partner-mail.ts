@@ -126,6 +126,26 @@ export function buildPartnerMessageMail(a: { name: string; email: string; compan
   return { subject: `Partner message: ${a.subject} (${a.company})`, text, html };
 }
 
+/** To an approved partner: one or more licences have run out or are about to. Short: which ones and when, and one button to renew. */
+export function buildLicenceReminderMail(contactName: string, licences: { label: string; number: string; days: number }[], portalUrl: string): Mail {
+  const first = contactName.trim().split(/\s+/)[0] || "there";
+  const expired = licences.some((l) => l.days <= 0);
+  const when = (d: number) => (d < 0 ? `expired ${Math.abs(d)} day${Math.abs(d) === 1 ? "" : "s"} ago` : d === 0 ? "runs out today" : `runs out in ${d} day${d === 1 ? "" : "s"}`);
+  const { html, text } = renderMail({
+    preheader: expired ? "A licence of yours has run out." : "A licence of yours is about to run out.",
+    title: expired ? "A licence needs renewing" : "A licence runs out soon",
+    greeting: `Hi ${first},`,
+    blocks: [
+      { type: "p", text: "Please renew it and send us the new document." },
+      { type: "facts", rows: licences.map((l): [string, string] => [`${l.label} ${l.number}`, when(l.days)]) },
+    ],
+    button: { label: "Update your licences", url: portalUrl },
+    why: "You get this e-mail because you are a WayTara partner and your licence date is on file.",
+    audience: "public",
+  });
+  return { subject: expired ? "A WayTara partner licence has run out" : "A WayTara partner licence runs out soon", text, html };
+}
+
 /** The 6-digit code that proves the address is theirs. Short on purpose: the code, how long it lasts, and what to do if it was not them. */
 export function buildPartnerCodeMail(contactName: string, code: string): Mail {
   const first = contactName.trim().split(/\s+/)[0] || "there";

@@ -43,3 +43,24 @@ export function licenceStatus(validUntil: string, today: string): LicenceStatus 
 export function todayIst(now: Date = new Date()): string {
   return new Date(now.getTime() + 5.5 * 3_600_000).toISOString().slice(0, 10);
 }
+
+/** The reminders a licence gets, as days left: at 60, at 30, at 7, and once it has run out (0). */
+export const REMINDER_THRESHOLDS = [60, 30, 7, 0] as const;
+export type ReminderThreshold = (typeof REMINDER_THRESHOLDS)[number];
+
+/**
+ * Which reminder a licence is due for today, or null when it is further than 60 days away (or has no date). It is the tightest one it has reached: 20 days left is the
+ * 30-day reminder, 5 days left the 7-day one, a licence that has run out the final one. The caller sends it once (it remembers what it sent), so a licence first seen
+ * late still gets one reminder, not three at once.
+ */
+export function reminderDue(days: number | null): ReminderThreshold | null {
+  if (days === null) return null;
+  if (days <= 0) return 0;
+  if (days <= 7) return 7;
+  if (days <= 30) return 30;
+  if (days <= 60) return 60;
+  return null;
+}
+
+/** What tells one licence from another for reminders: kind, number and valid-until date, so a renewal (new date) starts a fresh set. */
+export const licenceReminderKey = (l: { type: string; number: string; validUntil: string }): string => `${l.type}|${l.number.toLowerCase()}|${l.validUntil}`;

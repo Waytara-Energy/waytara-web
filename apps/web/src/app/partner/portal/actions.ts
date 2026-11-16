@@ -16,6 +16,7 @@ import {
 import type { Json } from "@waytara/supabase/types";
 import { findSessionRecord } from "@/lib/partner-track-server";
 import { loadOnboarding, PARTNER_BUCKET } from "@/lib/partner-onboarding-server";
+import { TN_DISTRICTS } from "@/lib/partner-network";
 import { sendMail } from "@/lib/send-mail";
 import { buildPartnerMessageMail } from "@/lib/partner-mail";
 
@@ -55,7 +56,16 @@ export async function savePartnerProfile(formData: FormData): Promise<void> {
       gstin: field(formData, "gstin").toUpperCase().replace(/[^A-Z0-9]/g, ""),
     },
     team: { size: field(formData, "teamSize").replace(/\D/g, ""), certified: field(formData, "teamCertified").replace(/\D/g, ""), members },
+    // only districts of the list count; anything else in the form is dropped
+    areas: { districts: formData.getAll("district").map(String).filter((d) => TN_DISTRICTS.includes(d)), capacity: field(formData, "capacity").replace(/\D/g, "") },
+    work: {
+      installs: field(formData, "installs").replace(/\D/g, ""),
+      largest: field(formData, "largest").replace(/[^0-9.]/g, ""),
+      summary: field(formData, "summary"),
+      projects: Array.from({ length: ONBOARDING_LIMITS.projects }, (_, i) => ({ title: field(formData, `project_title_${i}`), place: field(formData, `project_place_${i}`), size: field(formData, `project_size_${i}`).replace(/[^0-9.]/g, ""), year: field(formData, `project_year_${i}`).replace(/\D/g, ""), note: field(formData, `project_note_${i}`) })).filter((p) => p.title || p.place || p.size || p.year || p.note),
+    },
   });
+  if (next.areas.districts.length === 0) throw new Error("Choose at least one district you work in.");
   if (!next.business.name) throw new Error("Enter your business name.");
 
   const db = createServiceRoleClient();

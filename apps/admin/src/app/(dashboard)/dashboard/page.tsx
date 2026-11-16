@@ -5,6 +5,7 @@ import { createClient } from "@waytara/supabase/server";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { PageHeader, StatCard, StatGrid, ToneBadge } from "@/components/page-kit";
+import { PARTNER_STATUSES, PARTNER_STATUS_LABEL } from "@/lib/partners";
 import { loadAdminAlerts } from "@/lib/admin-alerts";
 import { summarizeUnits, stockLevel, type StockRow } from "../devices/stock-types";
 import { LEAD_STATUSES, STAGES } from "@/lib/pipeline";
@@ -124,7 +125,7 @@ export default async function OverviewPage() {
         <StatCard icon={LifeBuoy} title="Open tickets" value={tickets.length} detail={`${unassigned} unassigned · ${unread} with new messages`} tone={unassigned > 0 ? "warn" : undefined} />
         <StatCard icon={Bell} title="Active alerts" value={activeAlertCount} detail={criticalAlerts > 0 ? `${criticalAlerts} critical` : "None critical"} tone={criticalAlerts > 0 ? "bad" : activeAlertCount > 0 ? "warn" : "good"} />
         <StatCard icon={Wifi} title="Devices online" value={`${online} / ${devices.length}`} detail={offline > 0 ? `${offline} offline` : "All reporting"} tone={offline > 0 ? "warn" : "good"} />
-        {isAdmin ? <StatCard icon={Handshake} title="Partners" value={partnerCount("new") + partnerCount("verification")} detail={`${partnerCount("new")} new · ${partnerCount("verification")} to verify · ${partnerCount("approved")} approved`} tone={partnerCount("new") + partnerCount("verification") > 0 ? "warn" : undefined} /> : null}
+        {isAdmin ? <StatCard icon={Handshake} title="Partners" value={alerts.counts.partners} detail={[`${partnerCount("new")} new`, `${partnerCount("verification")} to verify`, `${partnerCount("onboarding")} onboarding`, `${partnerCount("approved")} approved`, alerts.partnerDue.stalled > 0 ? `${alerts.partnerDue.stalled} gone quiet` : null, alerts.partnerDue.licences > 0 ? `${alerts.partnerDue.licences} licence${alerts.partnerDue.licences === 1 ? "" : "s"} due` : null].filter(Boolean).join(" · ")} tone={alerts.counts.partners > 0 ? "warn" : undefined} /> : null}
         {isAdmin ? <StatCard icon={IndianRupee} title="Collected this month" value={inr(revenue)} detail={`${customers?.count ?? 0} customers · ${activeSubs?.count ?? 0} subscriptions running`} /> : <StatCard icon={CheckCircle2} title="Your tickets" value={mine} detail="Assigned to you, still open" />}
       </StatGrid>
 
@@ -221,6 +222,21 @@ export default async function OverviewPage() {
             <Bars empty="Nobody is in the pipeline." rows={STAGES.map((s) => ({ label: s.label, n: stageCount(s.value), tone: s.value === "install_completed" ? "bg-emerald-500" : "bg-primary" }))} />
           </CardContent>
         </Card>
+
+        {isAdmin && (
+          <Card className="gap-4">
+            <CardHeader className="flex flex-row items-start justify-between gap-3">
+              <div>
+                <CardTitle className="text-base">Partner pipeline</CardTitle>
+                <CardDescription>Applications at each stage, from new to approved.</CardDescription>
+              </div>
+              <CardLink href="/partners">Open partners</CardLink>
+            </CardHeader>
+            <CardContent>
+              <Bars empty="No partner applications yet." rows={PARTNER_STATUSES.map((s) => ({ label: PARTNER_STATUS_LABEL[s], n: partnerCount(s), tone: s === "approved" ? "bg-emerald-500" : s === "rejected" ? "bg-zinc-400" : s === "new" || s === "verification" ? "bg-amber-500" : "bg-primary" }))} />
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="gap-4">
           <CardHeader className="flex flex-row items-start justify-between gap-3">

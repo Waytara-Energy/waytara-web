@@ -3569,6 +3569,35 @@ export type Database = {
           },
         ]
       }
+      partner_licence_reminders: {
+        Row: {
+          application_id: string
+          licence_key: string
+          sent_at: string
+          threshold: number
+        }
+        Insert: {
+          application_id: string
+          licence_key: string
+          sent_at?: string
+          threshold: number
+        }
+        Update: {
+          application_id?: string
+          licence_key?: string
+          sent_at?: string
+          threshold?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_licence_reminders_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "partner_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_login_codes: {
         Row: {
           application_id: string

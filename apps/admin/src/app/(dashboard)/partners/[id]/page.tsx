@@ -1,11 +1,12 @@
 import Link from "next/link";
+import { cn } from "@waytara/ui/cn";
 import { createClient } from "@waytara/supabase/server";
 import { ActionForm } from "@waytara/ui/action-form";
 import { Button } from "@waytara/ui/button";
 import { ToneBadge, type Tone } from "@/components/page-kit";
 import { PARTNER_SERVICE_LABEL, PARTNER_STATUSES, PARTNER_STATUS_LABEL, PARTNER_TYPE_LABEL, readAnswers } from "@/lib/partners";
 import { BUSINESS_KINDS, DOCUMENT_KIND_LABEL, LICENCE_TYPES, readOnboarding } from "@waytara/supabase/partner-onboarding";
-import { CHECK_STATE_LABEL, DECLINE_LABEL, approvalGaps, checklistFor, isCheckKey, isCheckState, requiredChecks, type CheckKey, type CheckState } from "@waytara/supabase/partner-verification";
+import { CHECKS, CHECK_STATE_LABEL, DECLINE_LABEL, approvalGaps, checklistFor, isCheckKey, isCheckState, requiredChecks, type CheckKey, type CheckState } from "@waytara/supabase/partner-verification";
 import { PartnerDecision } from "./partner-decision";
 import { resendPartnerTrackingLink, reviewPartnerApplication, savePartnerChecks, setPartnerAccess } from "./actions";
 
@@ -20,8 +21,18 @@ function Item({ label, children }: { label: string; children: React.ReactNode })
   );
 }
 
-export default async function PartnerDetailPage({ params }: { params: Promise<{ id: string }> }) {
+const TABS = [
+  { id: "overview", label: "Overview" },
+  { id: "onboarding", label: "Onboarding" },
+  { id: "verification", label: "Verification" },
+  { id: "activity", label: "Activity" },
+] as const;
+type TabId = (typeof TABS)[number]["id"];
+
+export default async function PartnerDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const { id } = await params;
+  const sp = await searchParams;
+  const tab: TabId = TABS.some((t) => t.id === sp.tab) ? (sp.tab as TabId) : "overview";
   const supabase = await createClient();
   const { data: app, error } = await supabase
     .from("partner_applications")
@@ -58,10 +69,25 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
   const gaps = approvalGaps(app.partner_type, checkStates);
   const finished = app.status === "approved" || app.status === "rejected";
   const when = (iso: string) => new Date(iso).toLocaleString("en-IN");
+
+  // Everything that happened to this application, newest first: from what the applicant did to what the team did, so the Activity tab answers "what changed since I last looked".
+  const events: { at: string; text: string }[] = [{ at: app.created_at, text: "Applied" }];
+  if (app.account_created_at) events.push({ at: app.account_created_at, text: "The applicant confirmed their e-mail and created their account" });
+  for (const d of documents) events.push({ at: d.uploaded_at, text: `Document sent: ${DOCUMENT_KIND_LABEL[d.kind] ?? d.kind}, ${d.file_name}` });
+  if (onboardingRow?.submitted_at) events.push({ at: onboardingRow.submitted_at, text: "Onboarding sent for verification" });
+  for (const c of checkRows ?? []) {
+    const def = CHECKS.find((x) => x.key === c.key);
+    if (c.checked_at) events.push({ at: c.checked_at, text: `${c.checker?.full_name ?? "A former admin"} set ${def?.label ?? c.key} to ${CHECK_STATE_LABEL[c.state as CheckState] ?? c.state}${c.note ? `: ${c.note}` : ""}` });
+  }
+  for (const a of accessRows ?? []) events.push({ at: a.accessed_at, text: `${a.accessor?.full_name ?? "A former admin"} ${a.action === "download" ? "downloaded" : "viewed"} ${a.file_name}` });
+  if (app.reviewed_at) events.push({ at: app.reviewed_at, text: `${app.reviewer?.full_name ?? "An admin"} last updated the application (${PARTNER_STATUS_LABEL[app.status] ?? app.status})` });
+  if (app.declined_at) events.push({ at: app.declined_at, text: "Declined" });
+  events.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
+
   return (
-    <div className="max-w-7xl space-y-6">
+    <div className="space-y-5 pb-10">
       <div>
-        <Link href="/partners" className="text-xs text-muted-foreground hover:underline">
+        <Link href="/partners" className="text-xs text-muted-foreground hover:underline lg:hidden">
           ← Back to Partners
         </Link>
         <div className="mt-1 flex flex-wrap items-center gap-3">
@@ -74,8 +100,17 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
         </p>
       </div>
 
-      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
-      <div className="min-w-0 space-y-6">
+      <nav aria-label="Application sections" className="flex gap-1 overflow-x-auto border-b border-border">
+        {TABS.map((t) => (
+          <Link key={t.id} href={`/partners/${app.id}?tab=${t.id}`} aria-current={tab === t.id ? "page" : undefined} className={cn("-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors", tab === t.id ? "border-foreground font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
+            {t.label}
+            {t.id === "verification" && app.status === "verification" && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-primary align-middle" aria-label="Waiting for you" />}
+          </Link>
+        ))}
+      </nav>
+
+      <div className="grid items-start gap-6 xl:grid-cols-2">
+      <div className={tab === "overview" ? "min-w-0 space-y-6" : "hidden"}>
       <div className="rounded-lg border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Contact</h2>
         <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -130,6 +165,9 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
         </dl>
       </div>
 
+      </div>
+
+      <div className={tab === "onboarding" ? "min-w-0 space-y-6 xl:col-span-2" : "hidden"}>
       <div className="rounded-lg border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Onboarding</h2>
         <p className="mt-1 text-xs text-muted-foreground">
@@ -265,7 +303,7 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
 
       </div>
 
-      <div className="min-w-0 space-y-6">
+      <div className={tab === "verification" ? "min-w-0 space-y-6 xl:col-span-2" : "hidden"}>
       <div className="rounded-lg border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Verification</h2>
         {app.status === "rejected" ? (
@@ -334,6 +372,9 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
         {app.status === "rejected" && <p className="mt-5 border-t border-border pt-4 text-xs text-muted-foreground">To take a declined application further, move it to another status in the Review box below.</p>}
       </div>
 
+      </div>
+
+      <div className={tab === "overview" ? "min-w-0 space-y-6" : "hidden"}>
       {app.status === "approved" && (
         <div className="rounded-lg border border-border bg-card p-5">
           <h2 className="text-sm font-semibold">Partner account</h2>
@@ -455,6 +496,22 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
           </ActionForm>
         )}
       </div>
+      </div>
+
+      <div className={tab === "activity" ? "min-w-0 xl:col-span-2" : "hidden"}>
+        <div className="rounded-lg border border-border bg-card p-5">
+          <h2 className="text-sm font-semibold">Activity</h2>
+          <p className="mt-1 text-xs text-muted-foreground">Everything that happened to this application, newest first.</p>
+          <ol className="mt-4 space-y-3 border-l border-border pl-5">
+            {events.map((e, i) => (
+              <li key={i} className="relative text-sm">
+                <span aria-hidden="true" className="absolute -left-[1.55rem] top-1.5 size-2 rounded-full bg-primary/60" />
+                {e.text}
+                <span className="ml-2 text-xs text-muted-foreground">{when(e.at)}</span>
+              </li>
+            ))}
+          </ol>
+        </div>
       </div>
       </div>
     </div>
