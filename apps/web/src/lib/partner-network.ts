@@ -8,6 +8,7 @@ export const PARTNER_TYPES = [
   { id: "solar", label: "Solar installation partner", blurb: "A solar EPC company or an installation team" },
   { id: "ev", label: "EV charging partner", blurb: "Charger installers, commissioning and integration teams" },
   { id: "technician", label: "Field technician", blurb: "An electrician or technician working on projects" },
+  { id: "survey", label: "Survey associate", blurb: "Site surveys and field assessments" },
 ] as const;
 
 export type PartnerTypeId = (typeof PARTNER_TYPES)[number]["id"];
@@ -169,6 +170,34 @@ export const PARTNER_QUESTIONS: Record<PartnerTypeId, readonly Question[]> = {
       required: true,
     },
     { key: "available", label: "Are you available for project-based assignments?", kind: "single", options: YES_NO, required: true },
+  ],
+  survey: [
+    {
+      key: "services",
+      label: "What can you survey?",
+      kind: "multi",
+      options: [
+        { id: "rooftop_survey", label: "Rooftop solar sites" },
+        { id: "electrical_survey", label: "Electrical load and site data" },
+        { id: "ev_site_survey", label: "EV charger sites" },
+        { id: "site_measurement", label: "Measurements and layouts" },
+      ],
+      required: true,
+    },
+    { key: "experience", label: "Years of experience", kind: "single", options: EXPERIENCE, required: true },
+    { key: "survey_before", label: "Have you carried out site surveys before?", kind: "single", options: YES_NO, required: true },
+    { key: "tools", label: "Do you have a smartphone and basic measuring tools?", kind: "single", options: YES_NO, required: true },
+    {
+      key: "rooftop_safety",
+      label: "Can you work safely on a rooftop?",
+      kind: "single",
+      options: [
+        { id: "yes", label: "Yes" },
+        { id: "with_training", label: "With training" },
+        { id: "no", label: "No" },
+      ],
+      required: true,
+    },
   ],
 };
 

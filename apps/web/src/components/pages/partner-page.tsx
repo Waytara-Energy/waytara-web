@@ -1,4 +1,5 @@
-import { Check, ClipboardList, EvCharger, FileText, GraduationCap, Handshake, HardHat, Package, Ruler, Sun, Wrench, X } from "lucide-react";
+import Link from "next/link";
+import { ArrowRight, Check, ClipboardCheck, ClipboardList, EvCharger, FileText, GraduationCap, Handshake, HardHat, Package, Ruler, Sun, Wrench, X } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 import { FaqList, type Faq } from "@/components/segments/faq-list";
 import { FeatureColumns, SegmentSection, type Feature } from "@/components/segments/segment-parts";
@@ -13,6 +14,14 @@ import { PartnerMap } from "./partner-map";
 export const PARTNER_PATH = "/partner";
 export const PARTNER_DESCRIPTION =
   "Join the WayTara Partner Network in Tamil Nadu: electrical contractors, solar installation teams, EV charging teams and field technicians. Project-based work with clear terms, on modern energy systems.";
+
+// The longer answers, on the blog.
+const BLOG_LINKS = [
+  { label: "The licence grades, explained", href: "/blog/licence-grades" },
+  { label: "Wireman and Supervisor certificates", href: "/blog/competency-certificates" },
+  { label: "Working under a licensed contractor", href: "/blog/working-under-a-contractor" },
+  { label: "Documents we ask for, and how we protect them", href: "/blog/partner-documents-and-privacy" },
+];
 
 // Who can join, and what each kind needs to have. Each card's link opens the form on that kind (the form listens for #apply-<kind>).
 const WHO: Feature[] = [
@@ -44,6 +53,13 @@ const WHO: Feature[] = [
     includes: ["Electrical or electronics training or experience", "A Wireman or Supervisor certificate where the work needs one", "Reliable travel within your district"],
     link: { label: "Register as a technician", href: "#apply-technician" },
   },
+  {
+    icon: ClipboardCheck,
+    title: "Survey associates",
+    body: "People who survey sites and report what they find.",
+    includes: ["Site survey experience, or the will to learn it", "A smartphone and basic measuring tools", "Safe work on a rooftop, or willingness to be trained"],
+    link: { label: "Register as a survey associate", href: "#apply-survey" },
+  },
 ];
 
 const OFFER: Feature[] = [
@@ -69,7 +85,7 @@ const LICENCE_RULES = [
   { title: "We check, we do not assume", body: "Choosing a grade on a form proves nothing. We ask for the licence itself and check it with the Board before anything is approved." },
 ];
 
-const WE_WILL = ["Read every application ourselves", "Check licences and certificates before we approve", "Share a project only where your verified scope fits it", "Agree the terms with you in writing"];
+const WE_WILL = ["Charge nothing to apply or to join", "Read every application ourselves", "Check licences and certificates before we approve", "Share a project only where your verified scope fits it", "Agree the terms with you in writing"];
 const WE_WILL_NOT = ["Promise projects or income", "Promise that applying means a partnership", "Offer a job, a salary or benefits", "Make you an approved vendor of any government scheme"];
 
 const STEPS = [
@@ -81,7 +97,7 @@ const STEPS = [
 ];
 
 const FORM_PARTS = [
-  { title: "What you are applying as", body: "A contractor, a solar or EV charging partner, or a technician." },
+  { title: "What you are applying as", body: "A contractor, a solar or EV charging team, a technician or a survey associate." },
   { title: "Your details", body: "Your name, mobile number and e-mail." },
   { title: "Where you work", body: "Your district and the other places you can cover." },
   { title: "About your work", body: "A few short questions for your kind of work." },
@@ -100,9 +116,13 @@ export const PARTNER_FAQS: Faq[] = [
       "No. The Partner Network is a project-based commercial partnership, not employment and not a salaried vacancy. WayTara does not promise a minimum number of projects or a guaranteed income. Assignments depend on verified skills, capability and project availability.",
   },
   {
+    question: "Does it cost anything to apply or join?",
+    answer: "No. We do not charge to apply or to join the network.",
+  },
+  {
     question: "What do I need to become a partner?",
     answer:
-      "It depends on what you do. A contractor business needs a valid TNELB electrical contractor licence in its own name, with a supervisor and wiremen who hold their own competency certificates. Solar and EV charging teams need installations behind them and electrical work done by a licensed contractor. Technicians need relevant training or experience, and a competency certificate where the work needs one. We ask for copies at onboarding and check them.",
+      "It depends on what you do. A contractor business needs a valid TNELB electrical contractor licence in its own name, with a supervisor and wiremen who hold their own competency certificates. Solar and EV charging teams need installations behind them and electrical work done by a licensed contractor. Technicians need relevant training or experience, and a competency certificate where the work needs one. Survey associates need survey experience or the will to learn it, a smartphone and basic measuring tools, and safe work on a rooftop. We ask for copies at onboarding and check them.",
   },
   {
     question: "Do I need a licence to apply?",
@@ -129,6 +149,25 @@ export const PARTNER_FAQS: Faq[] = [
   },
 ];
 
+/** Quick links to the blog articles that go deeper. */
+function BlogLinks({ heading }: { heading: string }) {
+  return (
+    <div>
+      <p className="text-sm font-semibold text-theme-muted">{heading}</p>
+      <ul className="mt-4 flex flex-wrap gap-x-8 gap-y-3">
+        {BLOG_LINKS.map((l) => (
+          <li key={l.href}>
+            <Link href={l.href} className="group inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
+              {l.label}
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+            </Link>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 /** The WayTara Partner Network (Tamil Nadu): who can join, what WayTara offers, where, how it works, the licences, the promise, and a short application. */
 export function PartnerPage({ partners = [] }: { partners?: ListedPartner[] }) {
   return (
@@ -148,7 +187,7 @@ export function PartnerPage({ partners = [] }: { partners?: ListedPartner[] }) {
       }
     >
       <SegmentSection id="who" badge="Who we work with" title="Built for people" accent="who do the work." summary="Pick the one that fits you. What each one takes is listed under it.">
-        <FeatureColumns items={WHO} />
+        <FeatureColumns items={WHO} columns={3} />
       </SegmentSection>
 
       <SegmentSection id="offer" badge="What you get" title="What WayTara" accent="offers." summary="Work is project-based, and every project depends on verification, capability and availability.">
@@ -192,6 +231,9 @@ export function PartnerPage({ partners = [] }: { partners?: ListedPartner[] }) {
             </a>
             . Software, dashboards and gateway set-up are not electrical installation; wiring, panels, protection and earthing are.
           </p>
+          <div className="mt-8">
+            <BlogLinks heading="Read more on the blog" />
+          </div>
         </Reveal>
       </SegmentSection>
 
@@ -263,6 +305,9 @@ export function PartnerPage({ partners = [] }: { partners?: ListedPartner[] }) {
       <SegmentSection id="faq" badge="FAQ" title="Questions from" accent="partners.">
         <Reveal direction="up" duration={700} distance={16}>
           <FaqList faqs={PARTNER_FAQS} />
+          <div className="mt-12">
+            <BlogLinks heading="Longer answers on the blog" />
+          </div>
         </Reveal>
       </SegmentSection>
     </PageShell>

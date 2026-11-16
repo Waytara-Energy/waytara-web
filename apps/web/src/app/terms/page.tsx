@@ -201,7 +201,7 @@ const sections: LegalSection[] = [
       <LegalClauses
         section={n}
         items={[
-          "Filling in the partner form is an application. It does not make you a partner, agent, employee or representative of WayTara, and it does not promise any work, leads, payment or exclusivity.",
+          "Filling in the partner form is an application. It does not make you a partner, agent, employee or representative of WayTara, and it does not promise any work, leads, payment or exclusivity. The Partner Terms set out the rest of what applies to partners.",
           "We may accept, decline or hold an application, and we do not have to give a reason.",
           "A partnership exists only when we both sign a written agreement. That agreement sets the terms, and it applies in place of anything on this page that conflicts with it.",
           "Until then, do not describe yourself as a WayTara partner or use our name or logo as one.",

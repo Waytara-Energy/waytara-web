@@ -319,8 +319,8 @@ export function PartnerForm() {
             <Checkbox id="pf-agree" checked={agreed} onCheckedChange={(v) => setAgreed(v === true)} className="mt-0.5" />
             <Label htmlFor="pf-agree" className="block text-sm font-normal leading-relaxed text-theme-secondary">
               I agree to the{" "}
-              <Link href="/terms" target="_blank" className="font-semibold text-theme-highlight underline-offset-4 hover:underline">
-                Terms
+              <Link href="/partner-terms" target="_blank" className="font-semibold text-theme-highlight underline-offset-4 hover:underline">
+                Partner Terms
               </Link>{" "}
               and the{" "}
               <Link href="/privacy" target="_blank" className="font-semibold text-theme-highlight underline-offset-4 hover:underline">

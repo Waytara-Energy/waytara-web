@@ -3338,6 +3338,7 @@ export type Database = {
           states: string[]
           status: string
           team_size: string | null
+          terms_accepted_at: string | null
           updated_at: string
           website: string | null
           years_in_business: number | null
@@ -3364,6 +3365,7 @@ export type Database = {
           states?: string[]
           status?: string
           team_size?: string | null
+          terms_accepted_at?: string | null
           updated_at?: string
           website?: string | null
           years_in_business?: number | null
@@ -3390,6 +3392,7 @@ export type Database = {
           states?: string[]
           status?: string
           team_size?: string | null
+          terms_accepted_at?: string | null
           updated_at?: string
           website?: string | null
           years_in_business?: number | null

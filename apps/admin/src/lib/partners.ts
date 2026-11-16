@@ -15,12 +15,13 @@ export const PARTNER_STATUS_LABEL: Record<string, string> = {
   rejected: "Rejected",
 };
 
-/** The four kinds of partner of the public Partner Network page (an application made before it has none). */
+/** The five kinds of partner of the public Partner Network page (an application made before it has none). */
 export const PARTNER_TYPE_LABEL: Record<string, string> = {
   contractor: "Electrical contractor",
   solar: "Solar installation partner",
   ev: "EV charging partner",
   technician: "Field technician",
+  survey: "Survey associate",
 };
 
 export const PARTNER_SERVICE_LABEL: Record<string, string> = {
@@ -45,6 +46,10 @@ export const PARTNER_SERVICE_LABEL: Record<string, string> = {
   ev_technician: "EV charger technician",
   electronics_technician: "Electronics technician",
   other_trade: "Other trade",
+  rooftop_survey: "Rooftop solar sites",
+  electrical_survey: "Electrical load and site data",
+  ev_site_survey: "EV charger sites",
+  site_measurement: "Measurements and layouts",
   // the form that came before it
   solar: "Solar installation",
   battery: "Battery storage",

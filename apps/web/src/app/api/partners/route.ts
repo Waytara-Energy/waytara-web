@@ -88,6 +88,8 @@ export async function POST(req: NextRequest) {
       certifications,
       message: d.message ?? null,
       answers: qa,
+      // The form only sends when the terms box is ticked (the schema requires it): this records when.
+      terms_accepted_at: new Date().toISOString(),
     };
 
     const supabase = await createClient();

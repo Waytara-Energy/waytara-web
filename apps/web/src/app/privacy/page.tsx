@@ -58,7 +58,7 @@ const sections: LegalSection[] = [
               <Strong>Asking for support:</Strong> the ticket, your messages, any files or photos you attach, and any rating you give.
             </>,
             <>
-              <Strong>Applying as a partner:</Strong> the business and contact details you give and the areas and work you list.
+              <Strong>Applying as a partner:</Strong> the business and contact details you give and the areas and work you list. If you are shortlisted, we also ask for the documents described under “Partners and the documents we collect” below.
             </>,
             <>
               <Strong>Signing in:</Strong> we may e-mail you a notice of a new sign-in that includes the approximate place and the device it came from, so you can tell us if it was not you.
@@ -114,6 +114,36 @@ const sections: LegalSection[] = [
           "Readings sent while a system is being tested before handover are kept apart from your live history and are not part of your reports.",
         ]}
       />
+    ),
+  },
+  {
+    id: "partners",
+    heading: "Partners and the documents we collect",
+    body: (n) => (
+      <>
+        <LegalClauses
+          section={n}
+          items={[
+            "The first partner form asks for no documents: only your name, phone, e-mail, district and a few answers about your work.",
+            "If you are shortlisted, we invite you to a private onboarding page and ask for what verification needs: your business name, address, GST registration if you have one and the business PAN; the contractor licence, and the certificates of your supervisor and wiremen; the people who would do the work and the districts you cover; and photographs or references from past projects.",
+            "Where an identity proof is needed, usually for an individual, we ask for a masked Aadhaar copy with all but the last four digits hidden, or another proof of identity. We do not ask for a full Aadhaar number, an OTP or biometric details.",
+          ]}
+        />
+        <LegalCallout>
+          <p>
+            <Strong>Your documents are used only to verify you.</Strong> They are kept in private storage, only the authorised staff who verify partners can open them, and we do not show them to customers or other
+            partners, sell them, or use them for advertising. We share them with no one outside WayTara, except where a law, a court or a government authority requires it.
+          </p>
+        </LegalCallout>
+        <LegalClauses
+          section={n}
+          items={[
+            "Checking a licence or certificate number with the board that issued it is part of verification.",
+            "If you ask us to list you in the public partner directory, the page shows your business name, the kind of partner and your districts, and nothing else. You can ask us to remove the listing at any time.",
+            "You can ask to see the documents we hold about you, to correct them, or to have them deleted, as the section on your rights explains.",
+          ]}
+        />
+      </>
     ),
   },
   {
@@ -177,7 +207,7 @@ const sections: LegalSection[] = [
         section={n}
         items={[
           "We keep your data for as long as we need it for what it was collected for, and for as long as the law requires us to keep it, such as tax and accounts records.",
-          "Enquiries and partner applications that do not lead to anything are kept only for as long as we need them to reply and to deal with follow-up questions.",
+          "Enquiries and partner applications that do not lead to anything are kept only for as long as we need them to reply and to deal with follow-up questions. The documents of a partner who is not approved are kept only for as long as the review and any follow-up need them, and you can ask us to delete them sooner.",
           "Device readings and reports are kept for as long as your site is on the service, so that your history is there when you need it.",
           "When we no longer need data, we delete it or make it so that it can no longer identify you. If you want to know how long a particular kind of data is kept, ask us.",
         ]}
@@ -273,10 +303,11 @@ export default function PrivacyPage() {
       title="Privacy"
       accent="Policy."
       intro="What we collect, why, who else sees it, how long we keep it and what you can do about it."
-      lastUpdated="6 November 2026"
+      lastUpdated="16 November 2026"
       inShort={[
         "We collect only what you give us or what your devices send, and we use it for the reason you gave it.",
         "We do not sell your personal data, and we do not use it for advertising.",
+        "Partner documents are used only to verify the partner, kept private, and never shown to customers or other partners. We never ask for a full Aadhaar number.",
         "A few companies help us run the service, such as for database, e-mail, hosting and maps. Each gets only what it needs.",
         "You can ask to see, correct or erase your data, and withdraw consent, by writing to us.",
       ]}

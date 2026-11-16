@@ -40,6 +40,7 @@ const APPLY_LINKS = [
   { id: "solar", label: "Apply as a solar team" },
   { id: "ev", label: "Apply as an EV charging team" },
   { id: "technician", label: "Apply as a technician" },
+  { id: "survey", label: "Apply as a survey associate" },
 ];
 
 /** Who is listed in the chosen district or region: the partners, or an invitation to be the first, with a quick link to apply as each kind. */

@@ -26,6 +26,7 @@ interface LegalPageLayoutProps {
 
 const LEGAL_PAGES = [
   { label: "Terms of Service", href: "/terms" },
+  { label: "Partner Terms", href: "/partner-terms" },
   { label: "Privacy Policy", href: "/privacy" },
   { label: "Cookie Policy", href: "/cookies" },
   { label: "Warranty Policy", href: "/warranty" },
