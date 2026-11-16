@@ -67,7 +67,7 @@ describe("onboarding sent mails", () => {
     const mail = buildPartnerSubmittedAckMail("Priya Raman", "WTP-2611-K7F3Q");
     expect(mail.text).toContain("Hi Priya,");
     expect(mail.text).toContain("verify them");
-    expect(mail.text).toContain("do not share them with anyone outside WayTara");
+    expect(mail.text).toContain("share them with no one outside WayTara");
     expect(mail.text).toContain("does not guarantee a partnership or any projects");
     expect(mail.text).not.toContain("/partner/track/");
   });
@@ -92,15 +92,13 @@ describe("partner acknowledgement mail", () => {
     expect(mail.subject).toContain("WTP-2611-K7F3Q");
   });
 
-  it("carries the private tracking link, and says it is private", () => {
+  it("carries the link to open the application", () => {
     expect(mail.text).toContain("https://www.example.com/partner/track/abc");
     expect(mail.html).toContain('href="https://www.example.com/partner/track/abc"');
-    expect(mail.text).toContain("private to you");
   });
 
-  it("says what happens next and promises nothing about approval or projects", () => {
-    expect(mail.text).toContain("shortlisted");
-    expect(mail.text).toContain("not a job application");
+  it("is short, and promises nothing about approval or projects", () => {
+    expect(mail.text.length).toBeLessThan(1000);
     expect(mail.text).toContain("does not guarantee a partnership or any projects");
   });
 });

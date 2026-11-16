@@ -2,14 +2,14 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { AlertTriangle, Bell, LifeBuoy, UserPlus } from "lucide-react";
+import { AlertTriangle, Bell, Handshake, LifeBuoy, UserPlus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { useSidebar } from "@/components/ui/sidebar";
 import type { AdminAlerts, AdminNotification } from "@/lib/admin-alerts";
 import { cn } from "@/lib/utils";
 
-const ICONS = { lead: UserPlus, support: LifeBuoy, alert: AlertTriangle } as const;
+const ICONS = { lead: UserPlus, support: LifeBuoy, alert: AlertTriangle, partner: Handshake } as const;
 const TONES = {
   info: "bg-sky-500/15 text-sky-600 dark:text-sky-400",
   warning: "bg-amber-500/15 text-amber-600 dark:text-amber-400",

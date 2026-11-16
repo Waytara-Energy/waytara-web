@@ -5,7 +5,7 @@ type Supabase = Awaited<ReturnType<typeof createClient>>;
 /** One line of the notification center. */
 export interface AdminNotification {
   id: string;
-  kind: "lead" | "support" | "alert";
+  kind: "lead" | "support" | "alert" | "partner";
   title: string;
   detail: string;
   at: string;
@@ -16,11 +16,11 @@ export interface AdminNotification {
 
 /** What needs the team's attention, for the badges in the sidebar and the notification center. */
 export interface AdminAlerts {
-  counts: { leads: number; support: number; alerts: number };
+  counts: { leads: number; support: number; alerts: number; partners: number };
   items: AdminNotification[];
 }
 
-const EMPTY: AdminAlerts = { counts: { leads: 0, support: 0, alerts: 0 }, items: [] };
+const EMPTY: AdminAlerts = { counts: { leads: 0, support: 0, alerts: 0, partners: 0 }, items: [] };
 
 /**
  * Reads what needs attention, as the signed-in person is allowed to see it (row-level security decides: an employee sees their own leads and
@@ -30,7 +30,8 @@ export async function loadAdminAlerts(supabase: Supabase, role: string | null | 
   if (!role) return EMPTY;
   const supportOnly = role === "site_engineer";
 
-  const [leads, tickets, alerts] = await Promise.all([
+  // Partner applications are the admins' to handle: a new one to look at, or one whose onboarding was sent and is waiting to be verified.
+  const [leads, tickets, alerts, partners] = await Promise.all([
     supportOnly
       ? null
       : supabase.from("leads").select("id, full_name, created_at", { count: "exact" }).eq("status", "new").order("created_at", { ascending: false }).limit(5),
@@ -50,6 +51,9 @@ export async function loadAdminAlerts(supabase: Supabase, role: string | null | 
           .is("acknowledged_at", null)
           .order("ts", { ascending: false })
           .limit(6),
+    role === "admin"
+      ? supabase.from("partner_applications").select("id, company_name, status, created_at", { count: "exact" }).in("status", ["new", "verification"]).order("created_at", { ascending: false }).limit(5)
+      : null,
   ]);
 
   const items: AdminNotification[] = [
@@ -72,7 +76,16 @@ export async function loadAdminAlerts(supabase: Supabase, role: string | null | 
       href: "/alerts",
       tone: a.severity === "critical" ? "critical" : "warning",
     })),
+    ...(partners?.data ?? []).map((p): AdminNotification => ({
+      id: `partner-${p.id}`,
+      kind: "partner",
+      title: p.status === "verification" ? "Partner ready to verify" : "New partner application",
+      detail: p.company_name,
+      at: p.created_at,
+      href: `/partners/${p.id}`,
+      tone: p.status === "verification" ? "warning" : "info",
+    })),
   ].sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
 
-  return { counts: { leads: leads?.count ?? 0, support: tickets.count ?? 0, alerts: alerts?.count ?? 0 }, items: items.slice(0, 12) };
+  return { counts: { leads: leads?.count ?? 0, support: tickets.count ?? 0, alerts: alerts?.count ?? 0, partners: partners?.count ?? 0 }, items: items.slice(0, 12) };
 }

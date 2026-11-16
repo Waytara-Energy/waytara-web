@@ -36,7 +36,8 @@ export async function reviewPartnerApplication(id: string, formData: FormData): 
   // Opening onboarding is the moment the applicant is asked to act, so they get a fresh link in an e-mail that says so (a link cannot be read back, so this is
   // the only way to put one in front of them; the earlier link stops working).
   const opensOnboarding = status === "onboarding" && before?.status !== "onboarding";
-  const access = opensOnboarding ? newAccessToken() : null;
+  // With an account the partner just signs in, so there is no link to renew; without one (they never confirmed their e-mail) a fresh invite link goes out.
+  const access = opensOnboarding && !before?.profile_id ? newAccessToken() : null;
 
   const { error } = await supabase
     .from("partner_applications")
@@ -56,7 +57,7 @@ export async function reviewPartnerApplication(id: string, formData: FormData): 
 
   // An onboarding the applicant had already sent is opened again (their answers and files stay as they are).
   if (opensOnboarding) await supabase.from("partner_onboarding").update({ submitted_at: null }).eq("application_id", id);
-  if (access && before) await sendPartnerLinkEmail({ to: before.email, contactName: before.contact_name, reference: before.reference, token: access.token, purpose: "onboarding" });
+  if (opensOnboarding && before) await sendPartnerLinkEmail({ to: before.email, contactName: before.contact_name, reference: before.reference, token: access?.token, purpose: "onboarding" });
 
   revalidatePath(`/partners/${id}`);
   revalidatePath("/partners");
@@ -152,20 +153,20 @@ export async function requestMorePartnerInfo(id: string, formData: FormData): Pr
   if (note.length > 600) throw new Error("That is too long (600 characters at most).");
 
   const supabase = await createClient();
-  const { data: app } = await supabase.from("partner_applications").select("status, contact_name, email, reference").eq("id", id).single();
+  const { data: app } = await supabase.from("partner_applications").select("status, contact_name, email, reference, profile_id").eq("id", id).single();
   if (!app) throw new Error("Couldn't find this application.");
   if (app.status !== "verification" && app.status !== "onboarding") throw new Error("You can ask for more once they are in Onboarding or Verification.");
 
-  const access = newAccessToken();
+  const access = app.profile_id ? null : newAccessToken();
   const now = new Date().toISOString();
   const { error } = await supabase
     .from("partner_applications")
-    .update({ status: "onboarding", status_message: note, status_message_at: now, access_token_hash: access.hash, access_expires_at: accessExpiry(), reviewed_by: profile.id, reviewed_at: now })
+    .update({ status: "onboarding", status_message: note, status_message_at: now, ...(access ? { access_token_hash: access.hash, access_expires_at: accessExpiry() } : {}), reviewed_by: profile.id, reviewed_at: now })
     .eq("id", id);
   if (error) throw new Error(error.message);
   await supabase.from("partner_onboarding").update({ submitted_at: null }).eq("application_id", id);
 
-  await sendPartnerLinkEmail({ to: app.email, contactName: app.contact_name, reference: app.reference, token: access.token, purpose: "more_info", note });
+  await sendPartnerLinkEmail({ to: app.email, contactName: app.contact_name, reference: app.reference, token: access?.token, purpose: "more_info", note });
   revalidatePath(`/partners/${id}`);
   revalidatePath("/partners");
 }
@@ -174,7 +175,7 @@ export async function requestMorePartnerInfo(id: string, formData: FormData): Pr
 export async function approvePartnerApplication(id: string): Promise<void> {
   const profile = await requireAdminProfile();
   const supabase = await createClient();
-  const { data: app } = await supabase.from("partner_applications").select("status, partner_type, contact_name, email, reference").eq("id", id).single();
+  const { data: app } = await supabase.from("partner_applications").select("status, partner_type, contact_name, email, reference, profile_id").eq("id", id).single();
   if (!app) throw new Error("Couldn't find this application.");
   if (app.status === "approved") throw new Error("This application is already approved.");
   if (app.status === "rejected") throw new Error("This application was declined.");
@@ -187,13 +188,14 @@ export async function approvePartnerApplication(id: string): Promise<void> {
 
   // the team's earlier note (an ask for more, say) is done with once they are approved, so it does not sit beside "You are approved"
   // The applicant is sent a fresh private link (a link cannot be read back, so this is the only way to put one in front of them) that ends at choosing a password.
-  const access = newAccessToken();
+  // A partner who has an account just signs in (no link). One who never confirmed their e-mail gets a fresh invite link that starts at the e-mail code.
+  const access = app.profile_id ? null : newAccessToken();
   const { error } = await supabase
     .from("partner_applications")
-    .update({ status: "approved", status_message: null, status_message_at: null, access_token_hash: access.hash, access_expires_at: accessExpiry(), reviewed_by: profile.id, reviewed_at: new Date().toISOString() })
+    .update({ status: "approved", status_message: null, status_message_at: null, ...(access ? { access_token_hash: access.hash, access_expires_at: accessExpiry() } : {}), reviewed_by: profile.id, reviewed_at: new Date().toISOString() })
     .eq("id", id);
   if (error) throw new Error(error.message);
-  await sendPartnerLinkEmail({ to: app.email, contactName: app.contact_name, reference: app.reference, token: access.token, purpose: "approved" });
+  await sendPartnerLinkEmail({ to: app.email, contactName: app.contact_name, reference: app.reference, token: access?.token, purpose: "approved" });
   revalidatePath(`/partners/${id}`);
   revalidatePath("/partners");
 }
@@ -213,7 +215,7 @@ export async function declinePartnerApplication(id: string, formData: FormData):
   if (!isDeclineHandling(handling)) throw new Error("Choose what happens to their data.");
 
   const supabase = await createClient();
-  const { data: app } = await supabase.from("partner_applications").select("status, contact_name, email, reference").eq("id", id).single();
+  const { data: app } = await supabase.from("partner_applications").select("status, contact_name, email, reference, profile_id").eq("id", id).single();
   if (!app) throw new Error("Couldn't find this application.");
   if (app.status === "approved") throw new Error("An approved partner cannot be declined here.");
   // Deleting everything cannot be undone, so the reference is typed to confirm.
@@ -260,6 +262,19 @@ export async function declinePartnerApplication(id: string, formData: FormData):
     if (handling === "delete_all") {
       const { error: rowError } = await service.from("partner_applications").delete().eq("id", id);
       if (rowError) throw new Error(`Everything else is deleted, but the application itself could not be: ${rowError.message}. Run the decline again.`);
+    }
+  }
+
+  // The partner's sign-in account (if they made one): deleted with everything for the first choice, otherwise closed so they cannot sign in (the e-mail told them so).
+  if (app.profile_id) {
+    const service = createServiceRoleClient();
+    if (handling === "delete_all") {
+      await service.from("profiles").delete().eq("id", app.profile_id);
+      const { error: userError } = await service.auth.admin.deleteUser(app.profile_id);
+      if (userError) throw new Error(`Everything else is deleted, but their sign-in account could not be: ${userError.message}. Run the decline again.`);
+    } else {
+      await service.auth.admin.updateUserById(app.profile_id, { ban_duration: PERMANENT_BAN });
+      await service.from("profiles").update({ deactivated_at: now }).eq("id", app.profile_id);
     }
   }
 

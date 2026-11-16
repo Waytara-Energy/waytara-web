@@ -12,6 +12,8 @@ export const PARTNER_TYPES = [
 ] as const;
 
 export type PartnerTypeId = (typeof PARTNER_TYPES)[number]["id"];
+/** The two letters a kind of partner has in its reference (WTP-261116-EC0001): electrical contractor, solar installation, EV charging, field technician, survey associate. */
+export const PARTNER_REFERENCE_CODE: Record<(typeof PARTNER_TYPES)[number]["id"], "EC" | "SI" | "EV" | "FI" | "SA"> = { contractor: "EC", solar: "SI", ev: "EV", technician: "FI", survey: "SA" };
 export const PARTNER_TYPE_IDS = PARTNER_TYPES.map((t) => t.id) as [PartnerTypeId, ...PartnerTypeId[]];
 export const PARTNER_TYPE_LABEL: Record<string, string> = Object.fromEntries(PARTNER_TYPES.map((t) => [t.id, t.label]));
 export const isPartnerType = (v: unknown): v is PartnerTypeId => typeof v === "string" && PARTNER_TYPE_IDS.includes(v as PartnerTypeId);

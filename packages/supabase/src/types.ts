@@ -5202,6 +5202,7 @@ export type Database = {
       }
       ensure_rollup_1h_partition: { Args: { p_ts: string }; Returns: undefined }
       ensure_rollup_partitions: { Args: { p_now?: string }; Returns: undefined }
+      next_partner_reference: { Args: { p_kind: string; p_on?: string }; Returns: string }
       fleet_tick: { Args: { p_io?: boolean; p_now?: string }; Returns: Json }
       gw_active_keys: {
         Args: { p_equipment: string }

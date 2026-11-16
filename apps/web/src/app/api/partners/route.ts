@@ -6,7 +6,8 @@ import { allowRequest, clientIp } from "@/lib/rate-limit";
 import { SITE } from "@/lib/site";
 import { sendMail } from "@/lib/send-mail";
 import { buildPartnerAckMail, buildPartnerAdminMail } from "@/lib/partner-mail";
-import { PARTNER_TYPE_IDS, TN_DISTRICTS, checkPartnerAnswers, makePartnerReference } from "@/lib/partner-network";
+import { PARTNER_REFERENCE_CODE, PARTNER_TYPE_IDS, TN_DISTRICTS, checkPartnerAnswers, makePartnerReference } from "@/lib/partner-network";
+import { createServiceRoleClient } from "@waytara/supabase/service-role";
 
 const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
 const optionalText = (max: number) => z.preprocess(blank, z.string().trim().max(max).optional());
@@ -99,11 +100,13 @@ export async function POST(req: NextRequest) {
     };
 
     const supabase = await createClient();
-    // The reference is random; the chance of two the same is tiny, and a clash (unique index) is simply tried again with another.
+    // The reference counts up by kind of partner (WTP-261116-EC0001), numbered by the database so two applications at once never share a number. If that cannot be
+    // done just now the older random form is used, so an application is never lost over a reference; a clash (unique index) is tried again with another.
     let reference = "";
     let failed: { message: string } | null = null;
+    const numbered = await createServiceRoleClient().rpc("next_partner_reference", { p_kind: PARTNER_REFERENCE_CODE[d.type] });
     for (let attempt = 0; attempt < 3; attempt++) {
-      reference = makePartnerReference(new Date(), secureRandom);
+      reference = attempt === 0 && typeof numbered.data === "string" && numbered.data ? numbered.data : makePartnerReference(new Date(), secureRandom);
       const { error } = await supabase.from("partner_applications").insert({ ...row, reference });
       failed = error;
       if (!error || error.code !== "23505") break;

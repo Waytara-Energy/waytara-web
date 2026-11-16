@@ -59,7 +59,7 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
   const finished = app.status === "approved" || app.status === "rejected";
   const when = (iso: string) => new Date(iso).toLocaleString("en-IN");
   return (
-    <div className="max-w-3xl space-y-6">
+    <div className="max-w-7xl space-y-6">
       <div>
         <Link href="/partners" className="text-xs text-muted-foreground hover:underline">
           ← Back to Partners
@@ -74,6 +74,8 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
         </p>
       </div>
 
+      <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
+      <div className="min-w-0 space-y-6">
       <div className="rounded-lg border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Contact</h2>
         <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -261,6 +263,9 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
         )}
       </div>
 
+      </div>
+
+      <div className="min-w-0 space-y-6">
       <div className="rounded-lg border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Verification</h2>
         {app.status === "rejected" ? (
@@ -449,6 +454,8 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
             </Button>
           </ActionForm>
         )}
+      </div>
+      </div>
       </div>
     </div>
   );

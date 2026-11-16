@@ -5,18 +5,20 @@ export interface PartnerLinkEmailInput {
   to: string;
   contactName: string;
   reference: string | null;
-  /** The code of the tracking link (the page it opens is on the public site). */
-  token: string;
-  /** "resend": the first e-mail was lost, here is a new link. "onboarding": the forms have just opened. "more_info": the team needs something more. */
+  /**
+   * The code of the invite link (it leads to the start page, where the e-mail code and a password come first). Left out for a partner who already has an account: the
+   * button then simply opens their partner area, where they sign in.
+   */
+  token?: string;
+  /** "resend": the first e-mail was lost. "onboarding": the forms opened. "more_info": the team needs something. "approved": they are approved. */
   purpose?: "resend" | "onboarding" | "more_info" | "approved";
   /** For "more_info": what the team asked for, in the admin's words. */
   note?: string;
 }
 
 /**
- * Sends an applicant a new private link to their partner application page (the public site's /partner/track page). Either an admin sends it because the earlier
- * e-mail was lost, or it goes out when the team opens the onboarding forms or asks for more. It replaces the earlier link (only the new code is valid). Same
- * non-fatal-if-unconfigured pattern as every other Resend sender here: a failed send is logged, never thrown.
+ * A short e-mail with one button: the invite link for an applicant who has not made an account yet, or the partner area for one who has. Same non-fatal-if-unconfigured
+ * pattern as every other Resend sender here: a failed send is logged, never thrown.
  */
 export async function sendPartnerLinkEmail(input: PartnerLinkEmailInput): Promise<void> {
   const apiKey = process.env.RESEND_API_KEY;
@@ -26,52 +28,27 @@ export async function sendPartnerLinkEmail(input: PartnerLinkEmailInput): Promis
   }
   const from = process.env.RESEND_FROM_EMAIL || "WayTara Energy <onboarding@resend.dev>";
   const publicUrl = (process.env.CUSTOMER_APP_URL || "http://localhost:3000").replace(/\/+$/, "");
-  const url = `${publicUrl}/partner/track/${input.token}`;
+  const url = input.token ? `${publicUrl}/partner/start?t=${input.token}` : `${publicUrl}/partner/portal`;
   const first = input.contactName.trim().split(/\s+/)[0] || "there";
   const purpose = input.purpose ?? "resend";
+  const signIn = !input.token;
 
   const copy = {
-    resend: {
-      preheader: "A new link to follow your WayTara partner application.",
-      title: "Your link to follow your application",
-      lead: "Here is a new private link to follow your application to the WayTara Partner Network. It replaces any link we sent before.",
-      button: "Follow your application",
-      subject: "Your link to follow your WayTara partner application",
-    },
-    onboarding: {
-      preheader: "You are shortlisted. Your onboarding is open.",
-      title: "You are shortlisted: your onboarding is open",
-      lead: "Good news: you are shortlisted for the WayTara Partner Network. The next step is to tell us about your business, licences, team and the areas you cover, and to send us your documents. You can do it all on your private page, and it saves as you go, so you can stop and come back.",
-      button: "Start your onboarding",
-      subject: "You are shortlisted: start your WayTara partner onboarding",
-    },
-    approved: {
-      preheader: "You are approved. Choose a password to open your partner area.",
-      title: "You are approved: choose your password",
-      lead: "Good news: your application to the WayTara Partner Network is approved. The last step is to choose a password, which opens your partner area. Use the private button below; it works until you have set your password.",
-      button: "Choose your password",
-      subject: "You are approved: open your WayTara partner area",
-    },
-    more_info: {
-      preheader: "We need a little more from you to finish checking your application.",
-      title: "We need a little more from you",
-      lead: "Thank you for sending your details. To finish checking your application we need something more. Your page is open again, with everything you sent kept as it was.",
-      button: "Open your page",
-      subject: "We need a little more for your WayTara partner application",
-    },
+    resend: { title: "Your link to your application", lead: "Here is your link. It replaces any earlier one.", button: "Open your application", subject: "Your WayTara application link" },
+    onboarding: { title: "You are shortlisted", lead: "Next, tell us about your business and send your documents.", button: "Start onboarding", subject: "You are shortlisted: start your WayTara onboarding" },
+    more_info: { title: "We need a little more", lead: "To finish checking your application, we need something more.", button: "Open your application", subject: "We need a little more for your WayTara application" },
+    approved: { title: "You are approved", lead: signIn ? "Welcome to the WayTara Partner Network. Sign in to open your partner area." : "Welcome to the WayTara Partner Network. Confirm your e-mail and choose a password to open your partner area.", button: signIn ? "Open your partner area" : "Choose your password", subject: "You are approved: open your WayTara partner area" },
   }[purpose];
 
   try {
     const { html, text } = renderMail({
-      preheader: copy.preheader,
+      preheader: copy.lead,
       title: copy.title,
       greeting: `Hi ${first},`,
       blocks: [
         { type: "p", text: copy.lead },
         ...(purpose === "more_info" && input.note ? [{ type: "quote" as const, label: "What we need", text: input.note }] : []),
-        ...(input.reference ? [{ type: "facts" as const, rows: [["Application reference", input.reference] as [string, string]] }] : []),
-        ...(purpose !== "resend" ? [{ type: "p" as const, text: "This link replaces the one in our earlier e-mail. We use your documents only to verify your application, and we do not share them with anyone outside WayTara." }] : []),
-        { type: "p", text: "This link is private to you. Anyone who has it can see your application, so please do not share it." },
+        ...(input.reference ? [{ type: "facts" as const, rows: [["Reference", input.reference] as [string, string]] }] : []),
       ],
       button: { label: copy.button, url },
       why: "You get this e-mail because you applied to join the WayTara Partner Network.",

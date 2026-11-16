@@ -24,7 +24,7 @@ export default async function DashboardLayout({
   const [profile, cookieStore, supabase] = await Promise.all([getCurrentProfile(), cookies(), createClient()]);
   const defaultOpen = cookieStore.get("sidebar_state")?.value !== "false";
   const alerts = await loadAdminAlerts(supabase, profile?.role);
-  const total = alerts.counts.leads + alerts.counts.support + alerts.counts.alerts;
+  const total = alerts.counts.leads + alerts.counts.support + alerts.counts.alerts + alerts.counts.partners;
 
   return (
     <RealtimeProvider>
@@ -34,6 +34,8 @@ export default async function DashboardLayout({
       <RealtimeRefresh table="support_tickets" event="UPDATE" />
       <RealtimeRefresh table="alerts" event="INSERT" />
       <RealtimeRefresh table="alerts" event="UPDATE" />
+      <RealtimeRefresh table="partner_applications" event="INSERT" />
+      <RealtimeRefresh table="partner_applications" event="UPDATE" />
       <SidebarProvider defaultOpen={defaultOpen}>
         <AdminSidebar
           role={profile?.role}

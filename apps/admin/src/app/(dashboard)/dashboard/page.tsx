@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowRight, Bell, CheckCircle2, IndianRupee, Inbox, LifeBuoy, Users, Wifi } from "lucide-react";
+import { ArrowRight, Bell, CheckCircle2, Handshake, IndianRupee, Inbox, LifeBuoy, Users, Wifi } from "lucide-react";
 import { getCurrentProfile } from "@waytara/supabase/auth";
 import { createClient } from "@waytara/supabase/server";
 import { Button } from "@/components/ui/button";
@@ -63,7 +63,7 @@ export default async function OverviewPage() {
   const isAdmin = profile?.role === "admin";
   const monthStart = monthStartIst();
 
-  const [alerts, leadRows, onboardingRows, ticketRows, deviceRows, activeAlerts, customers, activeSubs, payments, modelRows, unitRows, audit, activity] = await Promise.all([
+  const [alerts, leadRows, onboardingRows, ticketRows, deviceRows, activeAlerts, customers, activeSubs, payments, modelRows, unitRows, audit, activity, partnerRows] = await Promise.all([
     loadAdminAlerts(supabase, profile?.role),
     supabase.from("leads").select("status"),
     supabase.from("customer_onboarding").select("current_stage"),
@@ -77,8 +77,11 @@ export default async function OverviewPage() {
     isAdmin ? supabase.from("stock_units").select("model_id, status, quantity, remaining") : null,
     isAdmin ? supabase.from("audit_log").select("id, action, entity, created_at, actor:profiles!audit_log_actor_id_fkey(full_name, email)").order("created_at", { ascending: false }).limit(7) : null,
     !isAdmin ? supabase.from("device_activity_log").select("id, at, summary, actor_name").order("at", { ascending: false }).limit(7) : null,
+    isAdmin ? supabase.from("partner_applications").select("status") : null,
   ]);
 
+  const partners = partnerRows?.data ?? [];
+  const partnerCount = (s: string) => partners.filter((p) => p.status === s).length;
   const leads = leadRows.data ?? [];
   const leadCount = (s: string) => leads.filter((l) => l.status === s).length;
   const stageCount = (s: string) => (onboardingRows.data ?? []).filter((o) => o.current_stage === s).length;
@@ -115,12 +118,13 @@ export default async function OverviewPage() {
     <div className="space-y-6">
       <PageHeader title={`Welcome back, ${name}`} description={`${today}. Here is what needs you, and how things stand.`} />
 
-      <StatGrid className="xl:grid-cols-3 2xl:grid-cols-6">
+      <StatGrid className={isAdmin ? "xl:grid-cols-4 2xl:grid-cols-7" : "xl:grid-cols-3 2xl:grid-cols-6"}>
         <StatCard icon={Inbox} title="New leads" value={leadCount("new")} detail={`${leads.length} leads in all`} tone={leadCount("new") > 0 ? "warn" : undefined} />
         <StatCard icon={Users} title="In onboarding" value={inPipeline} detail={`${stageCount("install_completed")} completed`} />
         <StatCard icon={LifeBuoy} title="Open tickets" value={tickets.length} detail={`${unassigned} unassigned · ${unread} with new messages`} tone={unassigned > 0 ? "warn" : undefined} />
         <StatCard icon={Bell} title="Active alerts" value={activeAlertCount} detail={criticalAlerts > 0 ? `${criticalAlerts} critical` : "None critical"} tone={criticalAlerts > 0 ? "bad" : activeAlertCount > 0 ? "warn" : "good"} />
         <StatCard icon={Wifi} title="Devices online" value={`${online} / ${devices.length}`} detail={offline > 0 ? `${offline} offline` : "All reporting"} tone={offline > 0 ? "warn" : "good"} />
+        {isAdmin ? <StatCard icon={Handshake} title="Partners" value={partnerCount("new") + partnerCount("verification")} detail={`${partnerCount("new")} new · ${partnerCount("verification")} to verify · ${partnerCount("approved")} approved`} tone={partnerCount("new") + partnerCount("verification") > 0 ? "warn" : undefined} /> : null}
         {isAdmin ? <StatCard icon={IndianRupee} title="Collected this month" value={inr(revenue)} detail={`${customers?.count ?? 0} customers · ${activeSubs?.count ?? 0} subscriptions running`} /> : <StatCard icon={CheckCircle2} title="Your tickets" value={mine} detail="Assigned to you, still open" />}
       </StatGrid>
 
@@ -129,7 +133,7 @@ export default async function OverviewPage() {
           <CardHeader className="flex flex-row items-start justify-between gap-3">
             <div>
               <CardTitle className="text-base">Needs your attention</CardTitle>
-              <CardDescription>New leads, tickets with unread messages and device alerts.</CardDescription>
+              <CardDescription>New leads, partner applications, tickets with unread messages and device alerts.</CardDescription>
             </div>
           </CardHeader>
           <CardContent>
@@ -145,7 +149,7 @@ export default async function OverviewPage() {
                   <li key={n.id}>
                     <Link href={n.href} className="flex items-center gap-3 px-4 py-2.5 transition-colors hover:bg-accent">
                       <ToneBadge tone={n.tone === "critical" ? "bad" : n.tone === "warning" ? "warn" : "info"} className="w-20 justify-center capitalize">
-                        {n.kind === "alert" ? "Alert" : n.kind === "lead" ? "Lead" : "Ticket"}
+                        {n.kind === "alert" ? "Alert" : n.kind === "lead" ? "Lead" : n.kind === "partner" ? "Partner" : "Ticket"}
                       </ToneBadge>
                       <span className="min-w-0 flex-1">
                         <span className="block truncate text-sm font-medium">{n.title}</span>
