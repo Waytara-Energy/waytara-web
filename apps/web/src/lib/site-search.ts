@@ -32,6 +32,8 @@ const EXTRA: SearchEntry[] = [
   { title: "The WayTara gateway", href: "/blog/waytara-gateway", group: "Blog", keywords: "gateway box rs485 modbus inverter battery meter connect integration" },
   { title: "Monitoring an existing solar system", href: "/blog/monitor-existing-solar", group: "Blog", keywords: "existing old system inverter integrate monitor deye replace" },
   { title: "Connecting an EV charger (OCPP)", href: "/blog/connect-ev-charger-ocpp", group: "Blog", keywords: "ev charger ocpp 1.6j cms charge point management" },
+  { title: "Modbus and RS-485 explained", href: "/blog/modbus-rs485-explained", group: "Blog", keywords: "modbus rs485 rs-485 register slave master inverter not answering a b wiring termination baud parity" },
+  { title: "Installing an EV charger at home", href: "/blog/home-ev-charger-installation", group: "Blog", keywords: "home ev charger install wiring earth rcd licensed contractor cea safety regulations checklist circuit socket" },
   { title: "OCPP 1.6J or 2.0.1", href: "/blog/ocpp-1-6-or-2-0-1", group: "Blog", keywords: "ocpp version 1.6 2.0.1 2.1 charger protocol compatible plug and charge iso 15118" },
   { title: "Why solar stops in a power cut", href: "/blog/why-solar-stops-in-a-power-cut", group: "Blog", keywords: "power cut outage blackout anti islanding on grid inverter shuts off backup battery hybrid cea" },
   { title: "Cleaning and caring for rooftop solar", href: "/blog/clean-and-maintain-rooftop-solar", group: "Blog", keywords: "clean panels wash dust bird droppings soiling maintenance inverter filter hot spot" },

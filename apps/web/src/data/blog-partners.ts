@@ -2,30 +2,65 @@ import type { Guide } from "./guides";
 import { PARTNER_CTA, UPDATED, UPDATED_LABEL } from "./blog-shared";
 
 // The four articles for partners: licences, certificates, working under a licensed contractor, and the documents we ask for. Every statement about the Tamil Nadu
-// Electrical Licensing Board comes from its own pages and application forms, or from the Electrical Inspectorate's page, as the sources at the foot of each article say.
+// Electrical Licensing Board comes from its own pages, application forms and fee notification, or from the Electrical Inspectorate's page; the legal rule is
+// regulation 31 of the CEA safety regulations, 2023. The EB, ESB, Wireman and Wireman Helper forms are printed in Tamil, so a Tamil reader should check what is
+// said of them (the verification sheet for reviewers lists each one).
 
 const BOARD = { label: "Tamil Nadu Electrical Licensing Board", url: "https://tnelb.gov.in", note: "The Board that issues contractor licences and competency certificates. Check its current rules." };
+const BOARD_SERVICES = {
+  label: "TNELB: Services and Standards",
+  url: "https://tnelb.gov.in/servAndStand.html",
+  note: "The services the Board renders, the licences and certificates issued as on 31 March 2025, and its service periods.",
+};
+const BOARD_FEES = {
+  label: "TNELB: notification of fees, effective 1 January 2024",
+  url: "https://tnelb.gov.in/Forms/FeeSch.pdf",
+  note: "The issue, renewal, surcharge, duplicate and damaged-certificate fees for each grade and certificate, and the renewal intervals. A PDF.",
+};
+const CEA_SAFETY = {
+  label: "CEA (Measures relating to Safety and Electric Supply) Regulations, 2023, Gazette notification of 8 June 2023",
+  url: "https://kseb.in/uploads/Downloadtemsuppy/Central%20Electricity%20Authority%20(Measures%20relating%20to%20Safety%20and%20Electric%20Supply)%20Regulations,%202023-1699594973944568556.pdf",
+  note: "Regulation 31 (who may carry out installation work). A copy hosted by KSEB; the official text is on the CEA website. A PDF.",
+};
 
 export const licenceGrades: Guide = {
   slug: "licence-grades",
   path: "/blog/licence-grades",
   metaTitle: "Electrical Contractor Licence Grades in Tamil Nadu: EB, ESB, EA, ESA",
   metaDescription:
-    "What the four Tamil Nadu electrical contractor licence grades cover, what the Board requires of an EA or ESA contractor, how to match a grade to the work, and how WayTara checks a partner's licence.",
+    "What the four Tamil Nadu electrical contractor licence grades cover, what the Board requires of each, what they cost, how the law ties work to a licence, and how WayTara checks a partner's licence.",
   name: "Contractor licence grades",
   eyebrow: "Partners and licences",
   title: "Electrical contractor licence grades",
   accent: "in Tamil Nadu.",
   answer:
-    "Electrical installation work in Tamil Nadu is licensed by the Tamil Nadu Electrical Licensing Board (TNELB). A contractor licence comes in four grades, EB, ESB, EA and ESA, and the grade sets the voltage of the work the business may take.",
+    "Electrical installation work in India must be done by a contractor licensed by the State Government, under the supervision of a certified person. In Tamil Nadu the licence comes from the Electrical Licensing Board in four grades, EB, ESB, EA and ESA, and the grade sets the size and voltage of the work.",
   inShort: [
-    "ESB covers installations up to 650 V, EA up to and including 33 kV, and ESA every voltage with no limit. These scopes are from the Electrical Inspectorate.",
-    "The Inspectorate's list gives no scope for EB, the smallest and most common grade, so we do not state one. Ask the Board for its limits.",
-    "A licence stands on named people and tested instruments: the Board's forms for EA and ESA require full-time supervisors and wiremen with its certificates, and a set of instruments tested in a government laboratory.",
-    "A 415 V three-phase supply is still below 650 V, however large the site.",
-    "We ask a partner for the licence itself and check it with the Board. A grade ticked on a form proves nothing.",
+    "The law (regulation 31 of the CEA safety regulations, 2023) says installation work must be done by a contractor licensed by the State Government, under the direct supervision of a competency-certificate holder.",
+    "The Board's own forms set the scope: EB works not exceeding 50 kW in low- and medium-voltage consumers' installations; ESB all low- and medium-voltage work (up to 650 V); EA high-voltage work up to and including 33 kV; ESA no limit.",
+    "Each grade stands on named full-time staff and tested instruments, and the Board can inquire into and act against a licence.",
+    "The Board publishes lists of approved EA and ESA contractors, so those licences can be checked.",
+    "We ask a partner for the licence itself and check it. A grade ticked on a form proves nothing.",
   ],
   sections: [
+    {
+      id: "law",
+      badge: "The rule",
+      title: "Why a licence",
+      accent: "is needed at all.",
+      summary: "Regulation 31 of the CEA safety regulations, 2023.",
+      blocks: [
+        {
+          type: "p",
+          text: "Regulation 31(1) says that no electrical installation work, including additions, alterations, repairs and adjustments to existing installations, may be carried out on a consumer's premises except by an electrical contractor licensed by the State Government, on its behalf under the direct supervision of a person holding a certificate of competency, and by a person holding a permit issued or recognised by the State Government.",
+        },
+        {
+          type: "p",
+          text: "There is one carve-out: replacing lamps, fans, fuses, switches, domestic appliances of not more than 250 V and fittings, where that in no way alters the capacity or character of the installation. Anything beyond that is installation work.",
+        },
+        { type: "p", text: "Regulation 31(2) adds the sanction: installation work done in contravention of the first sub-regulation shall not be energised or connected to the works of any supplier. The Board's own home page puts the same rule plainly: these licences are mandatory for anybody to carry out any electrical installation work." },
+      ],
+    },
     {
       id: "board",
       badge: "Who licenses",
@@ -35,13 +70,13 @@ export const licenceGrades: Guide = {
       blocks: [
         {
           type: "p",
-          text: "In Tamil Nadu, electrical contractors are licensed by the Electrical Licensing Board, based at Guindy in Chennai. Its own services page says it issues licences to electrical contractors, including renewals, and that it issues and renews the Wireman Helper, Wireman and Supervisor competency certificates under Rule 45(1) of the Indian Electricity Rules, 1956.",
+          text: "The Tamil Nadu Electrical Licensing Board is a body constituted by the Government of Tamil Nadu under Rule 45 of the Indian Electricity Rules, 1956. The Chief Electrical Inspector to Government is its President, its head office is at Guindy in Chennai, and it has no branches. It issues and renews contractor licences and the Wireman Helper, Wireman and Supervisor competency certificates.",
         },
         {
           type: "p",
-          text: "The same page says the Board inquires into allegations of incompetence, negligence, breach of the Indian Electricity Rules or malpractice against licence holders and certificate holders, and takes action where it considers it necessary. A licence is therefore not a one-time purchase: it can be questioned, and it can be cancelled.",
+          text: "Its services page also says the Board inquires into allegations of incompetence, negligence, breach of the Indian Electricity Rules or malpractice against licence holders and certificate holders, and takes action where it considers it necessary. A licence is not a one-time purchase: it can be questioned, and it can be cancelled.",
         },
-        { type: "p", text: "The Board also publishes how many licences it had issued as on 31 March 2025. The number of licences falls steeply as the grade rises:" },
+        { type: "p", text: "The Board publishes how many licences it had issued as on 31 March 2025. The number falls steeply as the grade rises:" },
         {
           type: "cols",
           items: [
@@ -58,23 +93,19 @@ export const licenceGrades: Guide = {
       id: "grades",
       badge: "The grades",
       title: "Four grades,",
-      accent: "by voltage.",
-      summary: "As the Tamil Nadu Electrical Inspectorate lists them.",
+      accent: "by size and voltage.",
+      summary: "What the Board's forms and the Electrical Inspectorate say each grade may do.",
       blocks: [
         {
           type: "cols",
           items: [
-            { title: "EB", body: "The smallest grade. The Inspectorate's list does not state a scope for it, and we have not found one in the Board's published forms, so ask the Board for its limits." },
-            { title: "ESB", body: "Electrical installations up to 650 V." },
-            { title: "EA", body: "Electrical installations up to and including 33 kV. The Board's form adds that an EA contractor can undertake high-voltage installation and all medium- and low-voltage electrical installation work." },
+            { title: "EB", body: "Electrical works not exceeding 50 kW, only in the electrical installations of low- and medium-voltage consumers. This is the note in the Board's EB application form, which is printed in Tamil." },
+            { title: "ESB", body: "All low- and medium-voltage electrical installation work, which the Electrical Inspectorate lists as installations up to 650 V." },
+            { title: "EA", body: "High-voltage installation and all medium- and low-voltage work. The Inspectorate lists electrical installations up to and including 33 kV." },
             { title: "ESA", body: "Electrical installations at every voltage, with no limitation in voltage or capacity." },
           ],
         },
-        {
-          type: "note",
-          title: "Why we do not give EB a number",
-          body: "Some websites quote a connected-load limit for the EB grade. We could not find it on the Inspectorate's or the Board's pages, so we do not repeat it. A wrong limit would send a project to the wrong contractor.",
-        },
+        { type: "note", title: "Tamil forms", body: "The Board's EB and ESB forms are printed in Tamil. The scopes above are our reading of them. If your decision rests on a scope, read the form or ask the Board." },
       ],
     },
     {
@@ -86,10 +117,10 @@ export const licenceGrades: Guide = {
       blocks: [
         {
           type: "compare",
-          columns: ["The voltage of the work", "Grades whose stated scope covers it"],
+          columns: ["The voltage and size of the work", "Grades whose stated scope covers it"],
           rows: [
-            { label: "A home or shop rooftop system on a single-phase or 415 V three-phase supply", cells: ["Up to 650 V", "ESB, EA and ESA. For EB, ask the Board about its limits."] },
-            { label: "A commercial or factory system connected at 415 V", cells: ["Up to 650 V", "ESB, EA and ESA. For EB, ask the Board."] },
+            { label: "A home rooftop system or a small shop installation, up to 50 kW", cells: ["Low or medium voltage, up to 50 kW", "EB, ESB, EA and ESA"] },
+            { label: "A commercial or factory system connected at 415 V, above 50 kW", cells: ["Up to 650 V, above 50 kW", "ESB, EA and ESA"] },
             { label: "Work on an 11 kV transformer or HT panel", cells: ["Above 650 V, up to 33 kV", "EA and ESA"] },
             { label: "A 33 kV installation", cells: ["Up to and including 33 kV", "EA and ESA"] },
             { label: "Anything above 33 kV", cells: ["Above 33 kV", "ESA"] },
@@ -97,7 +128,7 @@ export const licenceGrades: Guide = {
         },
         {
           type: "p",
-          text: "A three-phase supply does not make a site high voltage. A factory taking 415 V is still below 650 V, so the voltage test does not by itself rule out the lower grades. What the work actually is, what the connected load is and what the supply authority requires all count as well, which is why the grade is checked against each project and not once for all time.",
+          text: "A three-phase supply does not make a site high voltage: a factory taking 415 V is still below 650 V. The size of the work matters too, because the EB form caps its licence holder at 50 kW. What the work actually is and what the supply authority requires count as well, which is why the grade is checked against each project and not once for all time.",
         },
       ],
     },
@@ -106,52 +137,51 @@ export const licenceGrades: Guide = {
       badge: "Behind a grade",
       title: "What a licensed contractor",
       accent: "must have.",
-      summary: "From the Board's application forms for the EA and ESA grades, as printed.",
+      summary: "From the Board's application forms, as printed. The Board can change them.",
       blocks: [
-        { type: "p", text: "The Board's application forms show what stands behind the two highest grades. These are the requirements as the forms print them. The Board can change them, so read the current form before relying on this." },
+        { type: "p", text: "A licence rests on people and instruments. The forms for the four grades ask for the following:" },
         {
           type: "compare",
-          columns: ["EA (Grade A)", "ESA (Super A)"],
+          columns: ["EB", "ESB", "EA", "ESA"],
           rows: [
             {
               label: "Full-time staff",
               cells: [
-                "One supervisor holding the Board's Supervisor Competency Certificate, with a diploma in electrical engineering or the Board's certificate based on the Directorate of Technical Education route, and two wiremen with valid Wireman certificates",
-                "Two supervisors with the Board's certificate, one of them a graduate or diploma engineer, a qualified draughtsman, and two wiremen with valid Wireman certificates",
+                "A person holding a Wireman competency certificate. Not needed if the proprietor holds one",
+                "One person with a Supervisor certificate and one with a Wireman certificate. A certificate the proprietor holds counts",
+                "One supervisor and two wiremen",
+                "Two supervisors (one a graduate or diploma engineer), a draughtsman and two wiremen",
               ],
             },
             {
-              label: "Experience asked of the supervisor",
-              cells: [
-                "Installation experience of not less than two years and at least five high-voltage works involving transformer erection",
-                "For the engineer: five years (graduate) or ten years (diploma) in carrying out at least five high-voltage works and two extra-high-voltage works involving transformer erection",
-              ],
+              label: "What the supervisor must have done",
+              cells: ["Not stated", "Not stated", "At least two years of installation experience and five high-voltage works involving transformer erection", "The engineer: five years (graduate) or ten (diploma), with at least five high-voltage and two extra-high-voltage works"],
             },
             {
               label: "Instruments",
               cells: [
-                "Seven: an earth resistance tester, 500 V and 1000 V insulation testers, a phase sequence indicator, a tong-type ammeter, a live line tester and a portable voltmeter",
-                "Eight: the same kinds, with a 2500 V insulation tester added",
+                "Two: a 500 V insulation tester and a live line tester",
+                "Four: a 500 V insulation tester, a tong-type ammeter, an earth resistance tester and a live line tester",
+                "Seven: the ESB four's kinds plus a 1000 V insulation tester, a phase sequence indicator and a portable voltmeter",
+                "Eight: the same kinds with a 2500 V insulation tester added",
               ],
             },
+            { label: "Issue fee, from 1 January 2024", cells: ["₹5,000", "₹10,000", "₹30,000", "₹50,000"] },
+            { label: "Renewal fee, every three years", cells: ["₹3,000", "₹6,000", "₹20,000", "₹30,000"] },
           ],
         },
         {
           type: "list",
           items: [
             "The proprietor, managing partner or director must be at least 25 years old and have passed at least the VIII standard",
-            "The staff are full-time and employed solely for the contract works, and each gives the Board a signed consent letter",
-            "The original competency certificates of the staff are sent to the Board with the application",
+            "The staff are full-time, employed solely for the contract works, and each gives the Board a signed consent letter with the original certificate",
             "The instruments are tested in the Government Electrical Standards Laboratory or the TNEB laboratory within three months before applying, and the test reports go with the application",
+            "A bank solvency certificate valid for at least three years is part of the application for ESB and EA",
             "An applicant from outside Tamil Nadu must have a branch office in Tamil Nadu",
-            "The applicant declares having the latest Indian Electricity Rules and understanding that a breach makes the licence liable to cancellation",
+            "A late renewal carries a monthly surcharge, and the licence holder sends a copy of the licence with each renewal application",
           ],
         },
-        {
-          type: "note",
-          title: "What this tells you",
-          body: "A licence is not a logo on a vehicle. It rests on named people, calibrated instruments and a signed declaration. That is why we ask a partner for the licence itself and for the people behind it.",
-        },
+        { type: "note", title: "What this tells you", body: "A licence is not a logo on a vehicle. It rests on named people, calibrated instruments and a signed declaration. That is why we ask a partner for the licence itself and for the people behind it." },
       ],
     },
     {
@@ -163,10 +193,10 @@ export const licenceGrades: Guide = {
         {
           type: "steps",
           items: [
-            { title: "The licence", body: "The grade, the number and the validity, in a copy of the licence itself. Check it with the Board." },
+            { title: "The licence", body: "The grade, the number and the validity, in a copy of the licence itself. For EA and ESA, the Board publishes lists of approved contractors with licence number, holder, issue date and validity." },
             { title: "The people", body: "The named supervisor and wiremen for your project, with their certificate numbers and validity." },
             { title: "The instruments", body: "That the contractor owns the testing instruments the grade requires, with current test reports." },
-            { title: "The scope", body: "The voltage and work of your project, in writing, and the grade that covers it." },
+            { title: "The scope", body: "The voltage and size of your project, in writing, and the grade that covers it." },
             { title: "The sign-off", body: "Who signs the completion and test records for the electrical work." },
             { title: "The change rule", body: "That no inverter, cable or protection device changes without your written approval." },
           ],
@@ -187,47 +217,39 @@ export const licenceGrades: Guide = {
   faqs: [
     {
       question: "Is a contractor licence the same as a Wireman or Supervisor certificate?",
-      answer: "No. The licence belongs to a business. A Wireman or Supervisor competency certificate belongs to a person. Both are issued by TNELB, and the Board's forms for the higher grades require the business to employ people who hold the certificates.",
+      answer: "No. The licence belongs to a business. A Wireman or Supervisor competency certificate belongs to a person. Both are issued by TNELB, and the Board's forms for each grade require the business to employ people who hold the certificates, unless the proprietor holds one.",
     },
     {
       question: "What can an EB licence cover?",
-      answer: "The Inspectorate's list does not state a scope for EB, and we have not found one in the Board's published forms. Ask the Board. We do not publish a limit we could not confirm.",
+      answer: "According to the note in the Board's EB application form, which is printed in Tamil, an EB licence holder may undertake electrical works not exceeding 50 kW, only in the electrical installations of low- and medium-voltage consumers. Check the form if your decision rests on it.",
     },
     {
       question: "Does software or monitoring work need a contractor licence?",
-      answer: "Dashboards, data and configuring a gateway are not electrical installation work. Wiring, panels, protection devices and earthing are, and they must be done by appropriately licensed and qualified people.",
+      answer: "Dashboards, data and configuring a gateway are not electrical installation work. Wiring, panels, protection devices and earthing are, and under regulation 31 of the CEA safety regulations they must be done by a licensed contractor under supervision.",
     },
     {
       question: "How long does the Board take?",
       answer: "The Board lists the longest periods it works to: one month to issue a contractor licence and 20 days to renew one. Check its current service standards.",
     },
     {
-      question: "Where do I check the current rules?",
-      answer: "With the Tamil Nadu Electrical Licensing Board at tnelb.gov.in. The grades, their limits and the requirements are set by the Board and can change.",
+      question: "Are these fees current?",
+      answer: "They are the fees in the Board's notification effective 1 January 2024. The Board can revise them. Check the Board before you pay.",
     },
   ],
   sources: [
+    CEA_SAFETY,
     {
       label: "Tamil Nadu Electrical Inspectorate: Approved Contractors List",
       url: "https://tnei.tn.gov.in/pages/display/61-approved-contractors-list",
-      note: "States the scope of ESA (no limitation in voltage or capacity), EA (up to and inclusive of 33 kV) and ESB (up to 650 V). It does not state a scope for EB.",
+      note: "States the scope of ESA (no limitation in voltage or capacity), EA (up to and inclusive of 33 kV) and ESB (up to 650 V).",
     },
-    {
-      label: "TNELB: Services and Standards",
-      url: "https://tnelb.gov.in/servAndStand.html",
-      note: "The services the Board renders, the number of licences and certificates issued as on 31 March 2025, and its service standards.",
-    },
-    {
-      label: "TNELB Form A: application for an Electrical Contractor's Licence, Grade A (EA)",
-      url: "https://tnelb.gov.in/Forms/FrmEAen.pdf",
-      note: "The staff, instruments, age and education conditions, the branch-office rule, and the declaration. A PDF.",
-    },
-    {
-      label: "TNELB Form for the Super A grade (ESA)",
-      url: "https://tnelb.gov.in/Forms/FrmSAen.pdf",
-      note: "The staff and instruments required for the ESA grade. A PDF.",
-    },
-    BOARD,
+    { label: "TNELB home page", url: "https://tnelb.gov.in/", note: "The Board's description of itself, that the licences are mandatory, and the links to the lists of approved EA and ESA contractors." },
+    BOARD_SERVICES,
+    BOARD_FEES,
+    { label: "TNELB Form A: Electrical Contractor's Licence, Grade A (EA)", url: "https://tnelb.gov.in/Forms/FrmEAen.pdf", note: "Staff, instruments, age and education, scope (note 7). A PDF in English." },
+    { label: "TNELB Form for the Super A grade (ESA)", url: "https://tnelb.gov.in/Forms/FrmSAen.pdf", note: "Staff and instruments for ESA. A PDF in English." },
+    { label: "TNELB Form EB (printed in Tamil)", url: "https://tnelb.gov.in/Forms/FrmEBtm.pdf", note: "Notes on page 5: fee, age, staff, instruments, and the 50 kW limit for low- and medium-voltage consumers." },
+    { label: "TNELB Form ESB (printed in Tamil)", url: "https://tnelb.gov.in/Forms/FrmESBtm.pdf", note: "Notes on pages 5 and 6: staff, instruments, bank solvency, and the scope of all low- and medium-voltage work." },
   ],
   related: ["competency-certificates", "working-under-a-contractor", "partner-documents-and-privacy"],
   updated: UPDATED,
@@ -241,18 +263,18 @@ export const competencyCertificates: Guide = {
   path: "/blog/competency-certificates",
   metaTitle: "Wireman, Supervisor and Wireman Helper Certificates in Tamil Nadu",
   metaDescription:
-    "The difference between a contractor licence and a competency certificate, what the Board's Supervisor application asks for, how certificates tie a person to one contractor, and what WayTara asks to see.",
+    "The difference between a contractor licence and a competency certificate, what the Board asks of a Wireman, Wireman Helper or Supervisor applicant, what each costs, and how certificates tie a person to one contractor.",
   name: "Wireman and Supervisor certificates",
   eyebrow: "Partners and licences",
   title: "Wireman and Supervisor certificates:",
   accent: "who holds what.",
   answer:
-    "A contractor licence belongs to a business. A competency certificate belongs to a person. TNELB issues both, and a contractor's licence depends on the business employing people who hold the right certificates.",
+    "A contractor licence belongs to a business. A competency certificate belongs to a person. TNELB issues both, and the law requires installation work to be supervised by a certificate holder.",
   inShort: [
     "The Board issues three levels of competency certificate for people working on electrical installations: Wireman Helper, Wireman and Supervisor.",
-    "For the EA and Super A contractor grades, the Board's forms require full-time staff with its Supervisor and Wireman certificates.",
-    "The Board's consent form says the certificate holder is not working under any other contractor or organisation, so a named supervisor belongs to one licensed contractor at a time.",
-    "The Supervisor application, Form S, lists a diploma or degree in electrical engineering, or A.M.I.E. Part A and B, and two years' experience of high-voltage installations, as the route.",
+    "Regulation 31(1) of the CEA safety regulations requires installation work to be done under the direct supervision of a person holding a certificate of competency.",
+    "A Wireman applicant sends a pass certificate in the wireman or electrician test; a Supervisor applicant needs a diploma or degree in electrical engineering, or A.M.I.E. Parts A and B, and two years' experience of high-voltage installations.",
+    "The Board's consent form says the certificate holder works full time for one contractor and is not working under any other, so a named supervisor belongs to one licensed contractor at a time.",
     "Ask for the certificate number, who issued it, how long it is valid and what it covers. A job title proves none of those.",
   ],
   sections: [
@@ -272,39 +294,46 @@ export const competencyCertificates: Guide = {
         },
         {
           type: "p",
-          text: "The Board's services page says it issues and renews the Wireman Helper, Wireman and Supervisor competency certificates under Rule 45(1) of the Indian Electricity Rules, 1956, and a separate competency certificate for operation and maintenance personnel working in power stations and associated substations under Rule 3(2A). As on 31 March 2025 it had issued 154,601 Wireman certificates, 64,465 Supervisor certificates, 29,203 Wireman Helper certificates and 377 for power generating operators.",
+          text: "The Board's services page says it issues and renews these certificates under Rule 45(1) of the Indian Electricity Rules, 1956, and a separate competency certificate for operation and maintenance personnel working in power stations and associated substations under Rule 3(2A). As on 31 March 2025 it had issued 154,601 Wireman certificates, 64,465 Supervisor certificates, 29,203 Wireman Helper certificates and 377 for power generating operators.",
         },
+        { type: "p", text: "Under regulation 31(1) of the CEA safety regulations, installation work must be carried out under the direct supervision of a person holding a certificate of competency, by a person holding a permit issued or recognised by the State Government, and for a contractor the State has licensed. That is the reason the certificates matter." },
         { type: "p", text: "The Board works to stated maximum periods: 30 days to issue a certificate and 20 days to renew one. It says it strives to beat them." },
       ],
     },
     {
-      id: "supervisor",
-      badge: "The Supervisor route",
-      title: "What the Supervisor",
-      accent: "application asks.",
-      summary: "From TNELB Form S, as printed.",
+      id: "apply",
+      badge: "What each asks",
+      title: "What each application",
+      accent: "asks for.",
+      summary: "From the Board's Forms W, WH and S, as printed. Forms W and WH are in Tamil; the notes below are our reading of them.",
       blocks: [
-        { type: "p", text: "The Board's Form S is the application for a Supervisor Competency Certificate. Its instructions give the qualification and experience, and it lists what must go with it." },
         {
           type: "cols",
           items: [
-            { title: "Qualification", body: "A diploma in electrical engineering from the Department of Technical Education, or a degree in electrical engineering from an Indian university, or A.M.I.E. in electrical engineering with Parts A and B." },
-            { title: "Experience", body: "Two years' experience in erection, or operation and maintenance, of high-voltage installations. The form also names a route for applicants who hold an electrical supervisor competency certificate from the Department of Technical Education." },
-            { title: "Previous certificate", body: "The form asks whether you hold a Wireman or Wireman Helper certificate from the Board, and asks you to give its details and surrender it." },
+            { title: "Wireman Helper (Form WH)", body: "A pass certificate in the Wireman Helper competency test conducted by the Directorate of Employment and Training, in original with an attested copy." },
+            { title: "Wireman (Form W)", body: "A pass certificate in the wireman or electrician test conducted by the Directorate of Employment and Training or a Tamil Nadu industrial training institute, in original with an attested copy." },
+            { title: "Supervisor (Form S)", body: "A diploma in electrical engineering from the Department of Technical Education, a degree in electrical engineering, or A.M.I.E. Parts A and B, and two years' experience of erection or operation and maintenance of high-voltage installations. A route also exists for holders of a supervisor certificate from the Department of Technical Education." },
           ],
         },
         {
           type: "list",
           items: [
             "Proof of date of birth, in original with a photocopy",
-            "The technical qualification certificate, in original with a photocopy",
-            "Details of past and present experience, with evidence",
-            "Details of any earlier application",
-            "A demand draft for the fee, drawn in favour of the Secretary of the Board",
-            "Passport-size photographs, one attested by a Gazetted Officer, and the signature in triplicate",
+            "The details of your past and present experience, and of any earlier application",
+            "Three recent passport-size photographs, one attested by a Gazetted Officer, and a specimen signature three times on separate paper",
+            "For a Supervisor application, the details of any Wireman or Wireman Helper certificate you hold, which you surrender",
+            "The fee, paid as the form directs, by demand draft or, on some forms, postal order, in favour of the Secretary of the Board",
           ],
         },
-        { type: "p", text: "The Board can change the form, the qualification and the fee. Read the current Form S on tnelb.gov.in before you apply. We have not found the Board's published form for the Wireman certificate, so we do not state its eligibility rules here." },
+        {
+          type: "compare",
+          columns: ["Wireman Helper", "Wireman", "Supervisor"],
+          rows: [
+            { label: "Issue fee, from 1 January 2024", cells: ["₹1,000", "₹1,250", "₹2,500"] },
+            { label: "Renewal fee, every four years", cells: ["₹750", "₹1,000", "₹1,500"] },
+          ],
+        },
+        { type: "p", text: "The Board can change the forms, the qualifications and the fees. Read the current forms on tnelb.gov.in before you apply." },
       ],
     },
     {
@@ -312,9 +341,9 @@ export const competencyCertificates: Guide = {
       badge: "Tied to a contractor",
       title: "How a certificate",
       accent: "ties to a licence.",
-      summary: "From the Board's forms for the EA and Super A contractor grades.",
+      summary: "From the Board's forms for the contractor grades.",
       blocks: [
-        { type: "p", text: "A contractor cannot hold an EA or Super A licence on paper alone. The Board's forms require the business to employ named people full-time, solely for contract works: for EA, one supervisor and two wiremen, and for Super A, two supervisors, a draughtsman and two wiremen. Each one gives the Board a signed consent letter, and the Board asks for the original certificates." },
+        { type: "p", text: "A contractor cannot hold a licence on paper alone. The Board's forms require the business to employ named people full-time, solely for contract works: for EA, one supervisor and two wiremen; for ESA, two supervisors, a draughtsman and two wiremen; and for the smaller grades, a certificate holder as set out in the guide to licence grades. Each gives the Board a signed consent letter, and the Board asks for the original certificates." },
         { type: "p", text: "The consent letter has the certificate holder state that they are working for the contractor as a full-time employee, and that they have not obtained a contractor's licence on the strength of their certificate and are not working under any other contractor or organisation. They also promise to tell the Board at once when they leave the employer." },
         {
           type: "note",
@@ -344,7 +373,7 @@ export const competencyCertificates: Guide = {
   faqs: [
     {
       question: "Can one supervisor cover several contractors?",
-      answer: "Not as the staff of a licence. In the Board's consent form for the EA and Super A grades, the certificate holder declares that they are working for that contractor as a full-time employee and are not working under any other contractor or organisation.",
+      answer: "Not as the staff of a licence. In the Board's consent form for the contractor grades, the certificate holder declares that they are working for that contractor as a full-time employee and are not working under any other contractor or organisation.",
     },
     {
       question: "I hold a Wireman certificate. Can I apply for a Supervisor certificate?",
@@ -358,23 +387,19 @@ export const competencyCertificates: Guide = {
       question: "Does a technician need a certificate to work with WayTara?",
       answer: "Not always. Some assignments are supervised or do not need one. We ask what you hold, and where the work needs a certificate we check it.",
     },
+    {
+      question: "Why are some of these forms in Tamil?",
+      answer: "The Board prints its Wireman, Wireman Helper, EB and ESB forms in Tamil, and its Supervisor, EA and ESA forms in English. We read the Tamil ones carefully, and a Tamil reader should confirm anything your decision rests on.",
+    },
   ],
   sources: [
-    {
-      label: "TNELB Form S: application for a Supervisor Competency Certificate",
-      url: "https://tnelb.gov.in/Forms/FrmSen.pdf",
-      note: "The qualification, the experience, the documents, and the question about a Wireman or Wireman Helper certificate. A PDF.",
-    },
-    {
-      label: "TNELB: Services and Standards",
-      url: "https://tnelb.gov.in/servAndStand.html",
-      note: "Rule 45(1) and Rule 3(2A), the certificates issued as on 31 March 2025, and the service standards.",
-    },
-    {
-      label: "TNELB Form A for the EA contractor licence",
-      url: "https://tnelb.gov.in/Forms/FrmEAen.pdf",
-      note: "The full-time staff, the consent-cum-declaration letter from the supervisor or wireman. A PDF.",
-    },
+    CEA_SAFETY,
+    { label: "TNELB Form S: application for a Supervisor Competency Certificate", url: "https://tnelb.gov.in/Forms/FrmSen.pdf", note: "The qualification, the experience, the documents, and the question about a Wireman or Wireman Helper certificate. A PDF in English." },
+    { label: "TNELB Form W: application for a Wireman competency certificate (printed in Tamil)", url: "https://tnelb.gov.in/Forms/FrmWtm.pdf", note: "Notes 1 to 10: the fee and the pass certificate required." },
+    { label: "TNELB Form WH: application for a Wireman Helper competency certificate (printed in Tamil)", url: "https://tnelb.gov.in/Forms/FrmWHtm.pdf", note: "Notes 1 to 10: the fee and the pass certificate required." },
+    BOARD_FEES,
+    BOARD_SERVICES,
+    { label: "TNELB Form A for the EA contractor licence", url: "https://tnelb.gov.in/Forms/FrmEAen.pdf", note: "The full-time staff and the consent-cum-declaration letter from the supervisor or wireman. A PDF." },
     BOARD,
   ],
   related: ["licence-grades", "working-under-a-contractor", "partner-documents-and-privacy"],
@@ -389,14 +414,15 @@ export const workingUnderContractor: Guide = {
   path: "/blog/working-under-a-contractor",
   metaTitle: "Working Under a Licensed Contractor: Solar and EV Charging Teams",
   metaDescription:
-    "How a solar or EV charging team without its own contractor licence can work with WayTara through a licensed contractor, what the Board's forms imply, how to set it up in writing, and the warning signs.",
+    "How a solar or EV charging team without its own contractor licence can work with WayTara through a licensed contractor, what the law and the Board's forms imply, how to set it up in writing, and the warning signs.",
   name: "Working under a licensed contractor",
   eyebrow: "Partners and licences",
   title: "Working under a licensed contractor:",
   accent: "how it works.",
   answer:
-    "Many solar and EV charging teams do the installation but do not hold a contractor licence themselves. That can work when the electrical work is done, and signed for, by a licensed contractor you really work with, and you can show how.",
+    "Many solar and EV charging teams do the installation but do not hold a contractor licence themselves. The law lets installation work be done by a licensed contractor under a certified supervisor, so a team without a licence can work through one it really works with, and can show how.",
   inShort: [
+    "Regulation 31 of the CEA safety regulations requires installation work to be done by a contractor licensed by the State Government, under the direct supervision of a certificate holder. Work done otherwise may not be energised or connected.",
     "A team can be a WayTara partner without its own licence if a licensed contractor does and signs for the electrical work.",
     "The contractor must really work with you. The Board's forms tie a contractor's licence to named full-time staff, so a licence number alone is not enough.",
     "Put the arrangement in writing: who the contractor is, who supervises, who signs, and what may not change without approval.",
@@ -414,14 +440,26 @@ export const workingUnderContractor: Guide = {
       ],
     },
     {
+      id: "law",
+      badge: "The rule",
+      title: "What the law",
+      accent: "says.",
+      summary: "Regulation 31 of the CEA safety regulations, 2023.",
+      blocks: [
+        { type: "p", text: "Installation work, including additions and alterations, may be carried out only by an electrical contractor licensed by the State Government, on its behalf under the direct supervision of a person holding a certificate of competency, and by a person holding a permit issued or recognised by the State Government. Installation work done in contravention of that shall not be energised or connected to the works of any supplier." },
+        { type: "p", text: "So the question to settle is not whether you can do the physical work. It is whose licence the work is done under, and who is the supervisor who answers for it." },
+      ],
+    },
+    {
       id: "forms",
       badge: "What the forms show",
       title: "Why a licence number",
       accent: "is not enough.",
-      summary: "From the Board's forms for the EA and Super A grades.",
+      summary: "From the Board's forms for the contractor grades.",
       blocks: [
         { type: "p", text: "The Board's forms require a contractor to employ named supervisors and wiremen full-time, solely for contract works, and each of them signs a consent letter. The consent letter has the certificate holder declare that they work for the contractor as a full-time employee and are not working under any other contractor or organisation." },
         { type: "p", text: "That is why borrowing a licence, or borrowing a supervisor's name, does not work. A contractor's licence rests on people who really work for it, and the Board can inquire into breaches and act against licence and certificate holders. A team that leans on a licence it has no real connection with puts the contractor's licence at risk as well as its own work." },
+        { type: "note", title: "A route for a small team", body: "The Board's EB form lets a proprietor who holds a Wireman certificate count as the required staff. A person who holds both a certificate and the licence can therefore be a licensed contractor in their own right, within the EB limits." },
       ],
     },
     {
@@ -471,7 +509,7 @@ export const workingUnderContractor: Guide = {
           type: "list",
           items: [
             "The contractor will not give you the licence number or a copy of the licence",
-            "The licence has expired, or its grade does not cover the voltage of the work",
+            "The licence has expired, or its grade does not cover the size and voltage of the work",
             "The named supervisor is listed with several contractors at once",
             "Nobody can say who will sign the electrical test records",
             "The contractor has no testing instruments, or no current test reports for them",
@@ -505,17 +543,19 @@ export const workingUnderContractor: Guide = {
       answer: "Tell us. Approval covers the scope we verified, with the contractor you named. We verify a new contractor before they sign for a project.",
     },
     {
+      question: "What happens to work done without a licensed contractor?",
+      answer: "Under regulation 31(2) of the CEA safety regulations, installation work carried out in contravention of the licensing rule shall not be energised or connected to the works of any supplier.",
+    },
+    {
       question: "Is this legal advice?",
       answer: "No. It is general information. The Tamil Nadu Electrical Licensing Board and the electrical inspectorate decide what is allowed.",
     },
   ],
   sources: [
-    {
-      label: "TNELB Form A for the EA contractor licence",
-      url: "https://tnelb.gov.in/Forms/FrmEAen.pdf",
-      note: "The full-time staff, and the consent-cum-declaration letter from the supervisor or wireman. A PDF.",
-    },
-    { label: "TNELB: Services and Standards", url: "https://tnelb.gov.in/servAndStand.html", note: "The Board's power to inquire into breaches and act against licence and certificate holders." },
+    CEA_SAFETY,
+    { label: "TNELB Form A for the EA contractor licence", url: "https://tnelb.gov.in/Forms/FrmEAen.pdf", note: "The full-time staff, and the consent-cum-declaration letter from the supervisor or wireman. A PDF." },
+    { label: "TNELB Form EB (printed in Tamil)", url: "https://tnelb.gov.in/Forms/FrmEBtm.pdf", note: "The staff note: a proprietor who holds a Wireman certificate counts as the required staff." },
+    BOARD_SERVICES,
     BOARD,
   ],
   related: ["licence-grades", "competency-certificates", "partner-documents-and-privacy"],

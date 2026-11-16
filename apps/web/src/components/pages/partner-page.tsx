@@ -71,9 +71,9 @@ const OFFER: Feature[] = [
   { icon: FileText, title: "Terms in writing", body: "Commercial terms are agreed for each project in writing, before the work starts." },
 ];
 
-// The contractor grades as the Tamil Nadu Electrical Inspectorate lists them (ESB, EA, ESA). TNELB sets every limit, so EB carries no number and the page points to the Board.
+// The contractor grades: ESB, EA and ESA as the Tamil Nadu Electrical Inspectorate lists them, EB as the note in the Board's own EB form (printed in Tamil) states it.
 const GRADES = [
-  { grade: "EB", figure: "Small LT", text: "Smaller low-voltage installations. TNELB sets the limits of this grade." },
+  { grade: "EB", figure: "50 kW", text: "Works up to 50 kW, in low- and medium-voltage consumers' installations (the Board's EB form)." },
   { grade: "ESB", figure: "650 V", text: "Low-voltage installations up to 650 V." },
   { grade: "EA", figure: "33 kV", text: "Installations up to and including 33 kV." },
   { grade: "ESA", figure: "All", text: "Installations at every voltage, with no limit." },

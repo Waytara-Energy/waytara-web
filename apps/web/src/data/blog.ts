@@ -2,6 +2,7 @@ import { GUIDE_LIST, GUIDES, type Guide } from "./guides";
 import { competencyCertificates, licenceGrades, partnerDocuments, workingUnderContractor } from "./blog-partners";
 import { evOcpp, existingSolar, gateway, ocppVersions } from "./blog-platform";
 import { antiIslanding, solarCare, solarMonitoring } from "./blog-solar";
+import { homeEvCharger, modbusExplained } from "./blog-integration";
 
 /**
  * The blog: every article in one place, under a few topics. The older customer guides (solar, subsidy and bills) keep their own addresses and are listed here under
@@ -12,7 +13,21 @@ import { antiIslanding, solarCare, solarMonitoring } from "./blog-solar";
 export const BLOG_CATEGORIES = ["Partners and licences", "Gateway and integration", "EV charging", "Solar systems", "Solar and subsidy"] as const;
 export type BlogCategory = (typeof BLOG_CATEGORIES)[number];
 
-export const BLOG_POSTS: Guide[] = [licenceGrades, competencyCertificates, workingUnderContractor, partnerDocuments, gateway, existingSolar, evOcpp, ocppVersions, antiIslanding, solarCare, solarMonitoring];
+export const BLOG_POSTS: Guide[] = [
+  licenceGrades,
+  competencyCertificates,
+  workingUnderContractor,
+  partnerDocuments,
+  gateway,
+  existingSolar,
+  modbusExplained,
+  evOcpp,
+  ocppVersions,
+  homeEvCharger,
+  antiIslanding,
+  solarCare,
+  solarMonitoring,
+];
 export const BLOG_BY_SLUG: Record<string, Guide> = Object.fromEntries(BLOG_POSTS.map((p) => [p.slug, p]));
 
 /** An article by slug, from the blog or from the older guides. */
@@ -62,7 +77,7 @@ export const ARTICLES: ArticleCard[] = [...BLOG_POSTS, ...GUIDE_LIST].map(card).
 /** The groups at the top of the hub: a decision, and the articles that help with it. */
 export const BLOG_STARTS: { title: string; body: string; slugs: string[] }[] = [
   { title: "Partner with WayTara", body: "Licences, certificates, documents and how we work with partners.", slugs: ["licence-grades", "competency-certificates", "working-under-a-contractor", "partner-documents-and-privacy"] },
-  { title: "Connect your equipment", body: "The gateway, an existing solar system and EV chargers.", slugs: ["waytara-gateway", "monitor-existing-solar", "connect-ev-charger-ocpp", "ocpp-1-6-or-2-0-1"] },
+  { title: "Connect your equipment", body: "The gateway, an existing solar system and EV chargers.", slugs: ["waytara-gateway", "monitor-existing-solar", "modbus-rs485-explained", "connect-ev-charger-ocpp", "ocpp-1-6-or-2-0-1", "home-ev-charger-installation"] },
   { title: "Look after your system", body: "Power cuts, cleaning and what good monitoring shows.", slugs: ["why-solar-stops-in-a-power-cut", "clean-and-maintain-rooftop-solar", "good-solar-monitoring"] },
   { title: "Solar, subsidy and bills", body: "Sizing, system types, the PM Surya Ghar subsidy and your bill.", slugs: ["solar-for-home", "solar-subsidy", "reduce-electricity-bill-solar"] },
 ];
