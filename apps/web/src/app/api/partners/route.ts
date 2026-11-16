@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 import { createClient } from "@waytara/supabase/server";
+import { accessExpiry, newAccessToken } from "@waytara/supabase/partner-access";
 import { allowRequest, clientIp } from "@/lib/rate-limit";
+import { SITE } from "@/lib/site";
 import { sendMail } from "@/lib/send-mail";
 import { buildPartnerAckMail, buildPartnerAdminMail } from "@/lib/partner-mail";
 import { PARTNER_TYPE_IDS, TN_DISTRICTS, checkPartnerAnswers, makePartnerReference } from "@/lib/partner-network";
@@ -70,8 +72,12 @@ export async function POST(req: NextRequest) {
 
     // Generated here, not read back: the insert-only role cannot select the row (see the migration).
     const id = crypto.randomUUID();
+    // The tracking link: only the hash of its code is stored; the code goes to the applicant in the confirmation e-mail.
+    const access = newAccessToken();
     const row = {
       id,
+      access_token_hash: access.hash,
+      access_expires_at: accessExpiry(),
       partner_type: d.type,
       // a technician has no company: the person's own name stands in for it in the admin list
       company_name: byKey.business ?? d.contactName,
@@ -111,7 +117,8 @@ export async function POST(req: NextRequest) {
     // is sent and are registered with `after` so the host finishes them (started with `void` they could be cut off when the answer was returned).
     const adminUrl = process.env.ADMIN_APP_URL || "https://admin.waytaraenergy.com";
     const adminMail = buildPartnerAdminMail({ ...row, reference, district: d.district, otherDistricts: others }, adminUrl);
-    after(() => Promise.all([...adminRecipients().map((to) => sendMail(to, adminMail)), sendMail(d.email, buildPartnerAckMail(d.contactName, reference))]));
+    const trackUrl = `${(process.env.NEXT_PUBLIC_SITE_URL || SITE.url).replace(/\/+$/, "")}/partner/track/${access.token}`;
+    after(() => Promise.all([...adminRecipients().map((to) => sendMail(to, adminMail)), sendMail(d.email, buildPartnerAckMail(d.contactName, reference, trackUrl))]));
 
     return NextResponse.json({ success: true, data: { id, reference } });
   } catch (error) {

@@ -3317,6 +3317,8 @@ export type Database = {
       }
       partner_applications: {
         Row: {
+          access_expires_at: string | null
+          access_token_hash: string | null
           admin_notes: string | null
           answers: Json
           cities: string | null
@@ -3337,6 +3339,8 @@ export type Database = {
           services: string[]
           states: string[]
           status: string
+          status_message: string | null
+          status_message_at: string | null
           team_size: string | null
           terms_accepted_at: string | null
           updated_at: string
@@ -3344,6 +3348,8 @@ export type Database = {
           years_in_business: number | null
         }
         Insert: {
+          access_expires_at?: string | null
+          access_token_hash?: string | null
           admin_notes?: string | null
           answers?: Json
           cities?: string | null
@@ -3364,6 +3370,8 @@ export type Database = {
           services?: string[]
           states?: string[]
           status?: string
+          status_message?: string | null
+          status_message_at?: string | null
           team_size?: string | null
           terms_accepted_at?: string | null
           updated_at?: string
@@ -3371,6 +3379,8 @@ export type Database = {
           years_in_business?: number | null
         }
         Update: {
+          access_expires_at?: string | null
+          access_token_hash?: string | null
           admin_notes?: string | null
           answers?: Json
           cities?: string | null
@@ -3391,6 +3401,8 @@ export type Database = {
           services?: string[]
           states?: string[]
           status?: string
+          status_message?: string | null
+          status_message_at?: string | null
           team_size?: string | null
           terms_accepted_at?: string | null
           updated_at?: string

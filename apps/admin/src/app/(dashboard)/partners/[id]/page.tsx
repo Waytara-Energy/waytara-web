@@ -4,7 +4,7 @@ import { ActionForm } from "@waytara/ui/action-form";
 import { Button } from "@waytara/ui/button";
 import { ToneBadge, type Tone } from "@/components/page-kit";
 import { PARTNER_SERVICE_LABEL, PARTNER_STATUSES, PARTNER_STATUS_LABEL, PARTNER_TYPE_LABEL, readAnswers } from "@/lib/partners";
-import { reviewPartnerApplication } from "./actions";
+import { resendPartnerTrackingLink, reviewPartnerApplication } from "./actions";
 
 const TONES: Record<string, Tone> = { new: "info", in_review: "warn", shortlisted: "warn", onboarding: "warn", verification: "warn", approved: "good", rejected: "neutral" };
 
@@ -153,8 +153,40 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
               className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
             />
           </div>
+          <div className="space-y-1.5">
+            <label htmlFor="statusMessage" className="text-sm font-medium">
+              Note for the applicant <span className="font-normal text-muted-foreground">(they see this on their tracking page)</span>
+            </label>
+            <textarea
+              id="statusMessage"
+              name="statusMessage"
+              rows={3}
+              maxLength={600}
+              defaultValue={app.status_message ?? ""}
+              placeholder="For example: we will call you this week to talk about your licences."
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            />
+            <p className="text-xs text-muted-foreground">Up to 600 characters. Leave it empty to show no note. Do not put anything private here.</p>
+          </div>
           <Button type="submit" size="sm">
             Save
+          </Button>
+        </ActionForm>
+      </div>
+
+      <div className="rounded-lg border border-border bg-card p-5">
+        <h2 className="text-sm font-semibold">Tracking link</h2>
+        <p className="mt-1 text-xs text-muted-foreground">
+          {app.access_token_hash
+            ? app.access_expires_at && new Date(app.access_expires_at) > new Date()
+              ? `The applicant's private link is active until ${new Date(app.access_expires_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`
+              : "The applicant's private link has expired."
+            : "This application has no tracking link (it was received before links existed)."}{" "}
+          The link itself is never stored, so it cannot be shown again. Sending a new one e-mails it to {app.email} and closes the old one straight away, which is also what to do if a link has been shared by mistake.
+        </p>
+        <ActionForm action={resendPartnerTrackingLink.bind(null, app.id)} loading="Sending…" success="A new link was e-mailed and the old one is closed." className="mt-3">
+          <Button type="submit" size="sm" variant="outline">
+            Send a new tracking link
           </Button>
         </ActionForm>
       </div>

@@ -57,8 +57,8 @@ export function buildPartnerAdminMail(a: PartnerApplicationMail, adminAppUrl: st
   return { subject: `New partner application ${a.reference}: ${a.company_name} (${kind})`, text, html };
 }
 
-/** To the applicant: we have it, their reference, and what happens next. No promise about timing, projects or approval. */
-export function buildPartnerAckMail(contactName: string, reference: string): Mail {
+/** To the applicant: we have it, their reference, the private link to follow it, and what happens next. No promise about timing, projects or approval. */
+export function buildPartnerAckMail(contactName: string, reference: string, trackUrl: string): Mail {
   const first = contactName.trim().split(/\s+/)[0] || "there";
   const { html, text } = renderMail({
     preheader: `We have your application. Your reference is ${reference}.`,
@@ -67,9 +67,12 @@ export function buildPartnerAckMail(contactName: string, reference: string): Mai
     blocks: [
       { type: "p", text: "Thank you for registering your interest in joining the WayTara Partner Network. We have received your initial application." },
       { type: "facts", rows: [["Application reference", reference]] },
-      { type: "p", text: "Our partnerships team will review your details and contact you about the next steps. Applicants who are shortlisted receive a personal, secure link to submit their business information, technical capabilities and supporting credentials." },
+      { type: "p", text: "You can follow where your application is, at any time, with the button below. If you are shortlisted, the same page is where you will add your business information, technical capabilities and supporting credentials." },
+      { type: "p", text: "Our partnerships team will review your details and contact you about the next steps." },
+      { type: "p", text: "This link is private to you. Anyone who has it can see where your application is, so please do not share it." },
       { type: "p", text: "This is a partner registration, not a job application. Applying does not guarantee a partnership or any projects, and project allocation depends on verification, capability and availability." },
     ],
+    button: { label: "Follow your application", url: trackUrl },
     why: "You get this e-mail because you applied to join the WayTara Partner Network.",
     audience: "public",
   });

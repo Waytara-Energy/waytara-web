@@ -55,12 +55,18 @@ describe("partner admin mail", () => {
 });
 
 describe("partner acknowledgement mail", () => {
-  const mail = buildPartnerAckMail("Priya Raman", "WTP-2611-K7F3Q");
+  const mail = buildPartnerAckMail("Priya Raman", "WTP-2611-K7F3Q", "https://www.example.com/partner/track/abc");
 
   it("greets by first name and gives the reference", () => {
     expect(mail.text).toContain("Hi Priya,");
     expect(mail.text).toContain("WTP-2611-K7F3Q");
     expect(mail.subject).toContain("WTP-2611-K7F3Q");
+  });
+
+  it("carries the private tracking link, and says it is private", () => {
+    expect(mail.text).toContain("https://www.example.com/partner/track/abc");
+    expect(mail.html).toContain('href="https://www.example.com/partner/track/abc"');
+    expect(mail.text).toContain("private to you");
   });
 
   it("says what happens next and promises nothing about approval or projects", () => {
