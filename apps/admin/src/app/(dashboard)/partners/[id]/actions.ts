@@ -162,7 +162,8 @@ export async function approvePartnerApplication(id: string): Promise<void> {
   const gaps = approvalGaps(app.partner_type, states);
   if (gaps.length > 0) throw new Error(`Not ready to approve. ${gaps.join("; ")}.`);
 
-  const { error } = await supabase.from("partner_applications").update({ status: "approved", reviewed_by: profile.id, reviewed_at: new Date().toISOString() }).eq("id", id);
+  // the team's earlier note (an ask for more, say) is done with once they are approved, so it does not sit beside "You are approved"
+  const { error } = await supabase.from("partner_applications").update({ status: "approved", status_message: null, status_message_at: null, reviewed_by: profile.id, reviewed_at: new Date().toISOString() }).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath(`/partners/${id}`);
   revalidatePath("/partners");
@@ -234,6 +235,7 @@ export async function declinePartnerApplication(id: string, formData: FormData):
   }
 
   revalidatePath("/partners");
-  if (handling === "delete_all") redirect("/partners");
-  revalidatePath(`/partners/${id}`);
+  // After deleting everything there is no page for this application any more; the dialog sends the admin back to the list when this returns (a redirect from here would
+  // be shown as an error by the toast that wraps the action).
+  if (handling !== "delete_all") revalidatePath(`/partners/${id}`);
 }

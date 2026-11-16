@@ -45,7 +45,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
       .maybeSingle();
     if (!locked) return fail("You have already sent this.", 409);
 
-    const { error } = await db.from("partner_applications").update({ status: "verification" }).eq("id", app.id).eq("status", "onboarding");
+    // the team's note (a request for more, say) is answered by this, so it is cleared rather than left on the Verification page
+    const { error } = await db.from("partner_applications").update({ status: "verification", status_message: null, status_message_at: null }).eq("id", app.id).eq("status", "onboarding");
     if (error) {
       console.error("API /api/partner/track/submit status error:", error);
       // put it back so they can try again rather than being stuck with a locked page and an unmoved application

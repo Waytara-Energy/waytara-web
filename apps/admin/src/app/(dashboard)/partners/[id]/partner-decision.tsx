@@ -1,6 +1,7 @@
 "use client";
 
 import * as React from "react";
+import { useRouter } from "next/navigation";
 import { ActionForm } from "@waytara/ui/action-form";
 import { DECLINE_OPTIONS, type DeclineHandling } from "@waytara/supabase/partner-verification";
 import { FormSubmit } from "@/components/form-submit";
@@ -18,6 +19,8 @@ import { approvePartnerApplication, declinePartnerApplication, requestMorePartne
 export function PartnerDecision({ id, reference, status, gaps }: { id: string; reference: string | null; status: string; gaps: string[] }) {
   const [dialog, setDialog] = React.useState<"more" | "decline" | null>(null);
   const [handling, setHandling] = React.useState<DeclineHandling>("keep");
+  const [attempt, setAttempt] = React.useState(0);
+  const router = useRouter();
   const close = () => setDialog(null);
   const canAskMore = status === "verification" || status === "onboarding";
   const option = DECLINE_OPTIONS.find((o) => o.id === handling)!;
@@ -85,12 +88,25 @@ export function PartnerDecision({ id, reference, status, gaps }: { id: string; r
               Their private link stops working whichever you choose. They are sent a final e-mail first, saying what happens to their data; if that e-mail cannot be sent, nothing is changed or deleted.
             </DialogDescription>
           </DialogHeader>
-          <ActionForm action={declinePartnerApplication.bind(null, id)} loading="Declining…" success="Application declined." className="grid gap-4">
-            <fieldset className="grid gap-2.5">
+          <ActionForm
+            action={async (formData) => {
+              await declinePartnerApplication(id, formData);
+              // everything was deleted, so there is no page to stay on
+              if (formData.get("handling") === "delete_all") router.replace("/partners");
+            }}
+            onSubmit={() => setAttempt((n) => n + 1)}
+            loading="Declining…"
+            success="Application declined."
+            className="grid gap-4"
+          >
+            {/* What is submitted is this field, which always mirrors the choice on screen. (The radios below are only for choosing: a form action resets a form's radios to
+                the state they first had, which after a refused attempt would otherwise submit one choice while showing another.) */}
+            <input type="hidden" name="handling" value={handling} />
+            <fieldset key={attempt} className="grid gap-2.5">
               <legend className="mb-1 text-sm font-medium">What happens to their data?</legend>
               {DECLINE_OPTIONS.map((o) => (
                 <label key={o.id} className={`flex cursor-pointer items-start gap-3 rounded-md border p-3 text-sm ${handling === o.id ? "border-ring bg-accent/40" : "border-border"}`}>
-                  <input type="radio" name="handling" value={o.id} checked={handling === o.id} onChange={() => setHandling(o.id)} className="mt-1" />
+                  <input type="radio" name="handling-choice" value={o.id} checked={handling === o.id} onChange={() => setHandling(o.id)} className="mt-1" />
                   <span>
                     <span className="block font-medium">{o.label}</span>
                     <span className="mt-0.5 block text-xs text-muted-foreground">{o.admin}</span>

@@ -278,7 +278,8 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
             const row = checks.get(c.key);
             const required = requiredChecks(app.partner_type).includes(c.key);
             return (
-              <div key={c.key} className="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-[1fr_11rem]">
+              // keyed by what is saved: a form action resets its fields, and a select would otherwise fall back to the value it first showed, as if the save had failed
+              <div key={`${c.key}-${row?.state ?? "none"}-${row?.checked_at ?? ""}-${row?.note ?? ""}`} className="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-[1fr_11rem]">
                 <div>
                   <p className="text-sm font-medium">
                     {c.label} {required ? <span className="text-xs font-normal text-muted-foreground">(required)</span> : <span className="text-xs font-normal text-muted-foreground">(optional)</span>}
@@ -335,7 +336,8 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
             ? `Last updated by ${app.reviewer?.full_name ?? "an admin"} on ${new Date(app.reviewed_at).toLocaleString("en-IN")}.`
             : "Not reviewed yet."}
         </p>
-        <ActionForm action={reviewPartnerApplication.bind(null, app.id)} loading="Saving…" success="Application updated." className="mt-4 space-y-4">
+        {/* keyed by what is saved, so the status list shows the saved status after a save instead of falling back to the first one shown */}
+        <ActionForm key={`${app.status}-${app.reviewed_at ?? ""}-${app.status_message_at ?? ""}`} action={reviewPartnerApplication.bind(null, app.id)} loading="Saving…" success="Application updated." className="mt-4 space-y-4">
           <div className="space-y-1.5">
             <label htmlFor="status" className="text-sm font-medium">
               Status
@@ -404,18 +406,22 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
       <div className="rounded-lg border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Tracking link</h2>
         <p className="mt-1 text-xs text-muted-foreground">
-          {app.access_token_hash
-            ? app.access_expires_at && new Date(app.access_expires_at) > new Date()
-              ? `The applicant's private link is active until ${new Date(app.access_expires_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`
-              : "The applicant's private link has expired."
-            : "This application has no tracking link (it was received before links existed)."}{" "}
-          The link itself is never stored, so it cannot be shown again. Sending a new one e-mails it to {app.email} and closes the old one straight away, which is also what to do if a link has been shared by mistake.
+          {app.status === "rejected"
+            ? "The applicant's private link was closed when the application was declined, and cannot be sent again."
+            : app.access_token_hash
+              ? app.access_expires_at && new Date(app.access_expires_at) > new Date()
+                ? `The applicant's private link is active until ${new Date(app.access_expires_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.`
+                : "The applicant's private link has expired."
+              : "This application has no tracking link (it was received before links existed)."}{" "}
+          {app.status !== "rejected" && <>The link itself is never stored, so it cannot be shown again. Sending a new one e-mails it to {app.email} and closes the old one straight away, which is also what to do if a link has been shared by mistake.</>}
         </p>
-        <ActionForm action={resendPartnerTrackingLink.bind(null, app.id)} loading="Sending…" success="A new link was e-mailed and the old one is closed." className="mt-3">
-          <Button type="submit" size="sm" variant="outline">
-            Send a new tracking link
-          </Button>
-        </ActionForm>
+        {app.status !== "rejected" && (
+          <ActionForm action={resendPartnerTrackingLink.bind(null, app.id)} loading="Sending…" success="A new link was e-mailed and the old one is closed." className="mt-3">
+            <Button type="submit" size="sm" variant="outline">
+              Send a new tracking link
+            </Button>
+          </ActionForm>
+        )}
       </div>
     </div>
   );
