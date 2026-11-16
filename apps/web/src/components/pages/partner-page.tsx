@@ -154,7 +154,7 @@ export function PartnerPage() {
         <FeatureColumns items={OFFER} columns={3} />
       </SegmentSection>
 
-      <SegmentSection id="where" badge="Where we start" title="Our first places" accent="to land." summary="Tamil Nadu is where we begin to grow. We start with the main cities and work outwards, and partners from every district are welcome.">
+      <SegmentSection id="where" badge="Where we welcome partners" title="Every district," accent="welcome." summary="We work with partners from all of Tamil Nadu, from the coast to the hills. Pick a region, or tap the map, to see its districts.">
         <Reveal direction="up" duration={800} distance={24}>
           <PartnerMap />
         </Reveal>

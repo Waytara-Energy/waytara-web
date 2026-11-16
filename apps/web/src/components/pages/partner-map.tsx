@@ -1,107 +1,211 @@
 "use client";
 
-import { useState } from "react";
-import { PARTNER_REGIONS } from "@/lib/partner-network";
-import { TN_CITIES, TN_DISTRICTS, TN_MARKERS, TN_SIZE, TN_VIEWBOX, type TnRegion } from "@/lib/tn-map";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { TN_BOUNDS, TN_DISTRICTS, TN_MARKERS, TN_SIZE, type TnRegion } from "@/lib/tn-map";
 import { cn } from "@/lib/utils";
 
-// The three regions, in the order of PARTNER_REGIONS, each with its own tint (the same green family as the rest of the site).
-const REGION_IDS: TnRegion[] = ["north", "west", "south"];
-const TONE: Record<TnRegion, { fill: string; dot: string }> = {
-  north: { fill: "fill-emerald-200 dark:fill-emerald-800", dot: "bg-emerald-300 dark:bg-emerald-700" },
-  west: { fill: "fill-emerald-400 dark:fill-emerald-600", dot: "bg-emerald-500 dark:bg-emerald-500" },
-  south: { fill: "fill-lime-200 dark:fill-lime-800", dot: "bg-lime-300 dark:bg-lime-700" },
-};
+// The four regions Tamil Nadu is commonly divided into (plain names everyone knows), each with its own tint (the same green family as the rest of the site).
+const REGIONS: { id: TnRegion; name: string; short: string; fill: string; dot: string }[] = [
+  { id: "north", name: "North Tamil Nadu", short: "North", fill: "fill-emerald-200 dark:fill-emerald-800", dot: "bg-emerald-300 dark:bg-emerald-700" },
+  { id: "west", name: "West Tamil Nadu", short: "West", fill: "fill-emerald-500 dark:fill-emerald-600", dot: "bg-emerald-500 dark:bg-emerald-500" },
+  { id: "centre", name: "Central Tamil Nadu", short: "Central", fill: "fill-teal-300 dark:fill-teal-700", dot: "bg-teal-300 dark:bg-teal-700" },
+  { id: "south", name: "South Tamil Nadu", short: "South", fill: "fill-lime-300 dark:fill-lime-700", dot: "bg-lime-300 dark:bg-lime-700" },
+];
+const REGION = Object.fromEntries(REGIONS.map((r) => [r.id, r])) as Record<TnRegion, (typeof REGIONS)[number]>;
 
-// Where a city's name sits beside its dot (the default is to the right), so close cities do not print over each other.
-const LABEL: Record<string, { a: "start" | "end"; dy: number }> = {
-  Chennai: { a: "end", dy: 3.5 },
-  Tiruchirappalli: { a: "end", dy: 3.5 },
-  Tirunelveli: { a: "end", dy: 3.5 },
-  Thoothukudi: { a: "start", dy: 10 },
-  Madurai: { a: "end", dy: 3.5 },
-  Erode: { a: "end", dy: 3.5 },
-  Tiruppur: { a: "start", dy: -4 },
-};
-const CITY_NAMES = new Set(TN_CITIES.map((c) => c.name));
-// Every district of a region, by name (the marker-only district included).
-const DISTRICTS_OF = (id: TnRegion) => [...TN_DISTRICTS.filter((d) => d.region === id).map((d) => d.name), ...TN_MARKERS.filter((m) => m.region === id).map((m) => m.name)].sort();
+// Every district of a region by name (the marker-only district included), in alphabetical order.
+const NAMES_OF: Record<TnRegion, string[]> = Object.fromEntries(
+  REGIONS.map((r) => [r.id, [...TN_DISTRICTS.filter((d) => d.region === r.id).map((d) => d.name), ...TN_MARKERS.filter((m) => m.region === r.id).map((m) => m.name)].sort()]),
+) as Record<TnRegion, string[]>;
+
+type Box = { x: number; y: number; w: number; h: number };
+const ASPECT = TN_SIZE.width / TN_SIZE.height;
+const WHOLE: Box = { x: 0, y: 0, w: TN_SIZE.width, h: TN_SIZE.height };
+
+/** The part of the map to show: the whole state, or a region with a margin, widened to the map's own proportions so nothing jumps. */
+function boxFor(region: TnRegion | null): Box {
+  if (!region) return WHOLE;
+  const b = TN_BOUNDS[region];
+  let w = b.w + 28;
+  let h = b.h + 28;
+  if (w / h > ASPECT) h = w / ASPECT;
+  else w = h * ASPECT;
+  return { x: b.x + b.w / 2 - w / 2, y: b.y + b.h / 2 - h / 2, w, h };
+}
+
+const pill = (on: boolean) =>
+  cn(
+    "inline-flex min-h-10 items-center rounded-full border px-4 text-sm font-semibold transition-colors",
+    on ? "border-emerald-600 bg-emerald-600 text-white" : "border-theme-border text-theme-secondary hover:bg-theme-surface",
+  );
 
 /**
- * Tamil Nadu with every district outlined and named, tinted by the three regions of the Partner Network, the main cities marked, and each region's
- * districts listed beside it. Pointing at (or tabbing to) a region lights it on the map. A drawing for orientation; applications are open statewide.
+ * Tamil Nadu in its four regions, for phones first: pick a region (or tap it on the map) and the map zooms to it and names its districts, which are
+ * also listed as chips to tap. Every district is on the map and in the lists. A drawing for orientation; partners from every district are welcome.
  */
 export function PartnerMap() {
-  const [active, setActive] = useState<TnRegion | null>(null);
-  const dim = (r: TnRegion) => (active && active !== r ? "opacity-25" : "opacity-100");
+  const [region, setRegion] = useState<TnRegion | null>(null);
+  const [district, setDistrict] = useState<string | null>(null);
+  const [box, setBox] = useState<Box>(WHOLE);
+  const [px, setPx] = useState(360);
+  const boxRef = useRef(box);
+  const wrap = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    boxRef.current = box;
+  }, [box]);
+
+  // Glide the map to the chosen region (straight there for anyone who prefers less motion).
+  useEffect(() => {
+    const from = boxRef.current;
+    const to = boxFor(region);
+    const ms = window.matchMedia("(prefers-reduced-motion: reduce)").matches ? 0 : 550;
+    const t0 = performance.now();
+    let raf = 0;
+    const step = (t: number) => {
+      const k = ms ? Math.min(1, (t - t0) / ms) : 1;
+      const e = 1 - Math.pow(1 - k, 3);
+      setBox({ x: from.x + (to.x - from.x) * e, y: from.y + (to.y - from.y) * e, w: from.w + (to.w - from.w) * e, h: from.h + (to.h - from.h) * e });
+      if (k < 1) raf = requestAnimationFrame(step);
+    };
+    raf = requestAnimationFrame(step);
+    return () => cancelAnimationFrame(raf);
+  }, [region]);
+
+  useEffect(() => {
+    const el = wrap.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setPx(e.contentRect.width));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  const pick = (r: TnRegion | null, d: string | null = null) => {
+    setRegion(r);
+    setDistrict(d);
+  };
+  // Names are kept to a readable size on screen whatever the zoom; the whole state shows no names on a phone, where the lists carry them.
+  const fontUnits = (10.5 * box.w) / px;
+  const showNames = region !== null || px >= 520;
+  const shown = (r: TnRegion) => region === null || region === r;
+  const districts = useMemo(() => [...TN_DISTRICTS].sort((a, b) => Number(a.name === district) - Number(b.name === district)), [district]);
+
   return (
-    <div className="grid grid-cols-1 items-center gap-12 lg:grid-cols-2 lg:gap-20">
-      <div className="mx-auto w-full max-w-md lg:max-w-none">
-        <svg viewBox={TN_VIEWBOX} width={TN_SIZE.width} height={TN_SIZE.height} role="img" aria-label="Map of Tamil Nadu showing every district in three regions" className="mx-auto h-auto w-full max-w-xl">
-          {TN_DISTRICTS.map((d) => (
-            <path key={d.name} d={d.d} className={cn("stroke-white stroke-[0.8] transition-opacity duration-200 dark:stroke-neutral-950", TONE[d.region].fill, dim(d.region))} />
-          ))}
-          {/* district names: too small to read on a phone, where the lists beside the map carry them */}
-          <g className="max-md:hidden" aria-hidden="true">
-            {TN_DISTRICTS.filter((d) => !CITY_NAMES.has(d.name)).map((d) => (
-              <text key={d.name} x={d.lx} y={d.ly} textAnchor="middle" className={cn("fill-theme-secondary text-[7px] transition-opacity duration-200", dim(d.region))}>
-                {d.name}
-              </text>
-            ))}
-            {TN_MARKERS.map((m) => (
-              <g key={m.name} className={cn("transition-opacity duration-200", dim(m.region))}>
-                <circle cx={m.x} cy={m.y} r={1.6} className="fill-theme-secondary" />
-                <text x={m.x + 4} y={m.y + 7} className="fill-theme-secondary text-[7px]">
-                  {m.name}
-                </text>
-              </g>
-            ))}
-          </g>
-          {TN_CITIES.map((c) => {
-            const l = LABEL[c.name] ?? { a: "start", dy: 3.5 };
-            return (
-              <g key={c.name} className={cn("transition-opacity duration-200", dim(c.region))}>
-                <circle cx={c.x} cy={c.y} r={3} className="fill-theme-primary stroke-white stroke-[1.2] dark:stroke-neutral-950" />
-                <text
-                  x={c.x + (l.a === "end" ? -6 : 6)}
-                  y={c.y + l.dy}
-                  textAnchor={l.a}
-                  className="fill-theme-primary stroke-white stroke-[2.5] text-[9px] font-semibold [paint-order:stroke] dark:stroke-neutral-950"
-                >
-                  {c.name}
-                </text>
-              </g>
-            );
-          })}
-        </svg>
+    <div>
+      <div className="flex flex-wrap gap-2" role="group" aria-label="Choose a region">
+        <button type="button" aria-pressed={region === null} aria-label="All Tamil Nadu" onClick={() => pick(null)} className={pill(region === null)}>
+          All
+        </button>
+        {REGIONS.map((r) => (
+          <button key={r.id} type="button" aria-pressed={region === r.id} onClick={() => pick(region === r.id ? null : r.id)} aria-label={r.name} className={pill(region === r.id)}>
+            {r.short}
+          </button>
+        ))}
       </div>
 
-      <ul className="space-y-8" onMouseLeave={() => setActive(null)}>
-        {PARTNER_REGIONS.map((r, i) => {
-          const id = REGION_IDS[i];
-          const list = DISTRICTS_OF(id);
-          return (
-            <li
-              key={r.name}
-              tabIndex={0}
-              onMouseEnter={() => setActive(id)}
-              onFocus={() => setActive(id)}
-              onBlur={() => setActive(null)}
-              className={cn("border-t border-theme-border pt-6 outline-none transition-opacity duration-200 focus-visible:ring-2 focus-visible:ring-emerald-500", active && active !== id && "opacity-50")}
-            >
+      <div className="mt-8 grid grid-cols-1 items-start gap-10 lg:grid-cols-2 lg:gap-20">
+        <div ref={wrap} className="mx-auto w-full max-w-md lg:max-w-xl" style={{ aspectRatio: `${TN_SIZE.width} / ${TN_SIZE.height}` }}>
+          <svg viewBox={`${box.x} ${box.y} ${box.w} ${box.h}`} role="img" aria-label="Map of Tamil Nadu in four regions, with every district" className="h-full w-full overflow-hidden">
+            {districts.map((d) => (
+              <path
+                key={d.name}
+                d={d.d}
+                onClick={() => pick(d.region, district === d.name ? null : d.name)}
+                className={cn(
+                  "cursor-pointer stroke-white transition-opacity duration-300 dark:stroke-neutral-950",
+                  REGION[d.region].fill,
+                  d.name === district ? "stroke-emerald-900 stroke-[1.8] dark:stroke-emerald-100" : "stroke-[0.8]",
+                  shown(d.region) ? "opacity-100" : "opacity-20",
+                )}
+              />
+            ))}
+            {showNames && (
+              <g aria-hidden="true" className="pointer-events-none">
+                {TN_DISTRICTS.filter((d) => shown(d.region)).map((d) => (
+                  <text
+                    key={d.name}
+                    x={d.lx}
+                    y={d.ly}
+                    textAnchor="middle"
+                    fontSize={fontUnits}
+                    className={cn("fill-neutral-800 stroke-white/80 [paint-order:stroke] dark:fill-neutral-100 dark:stroke-neutral-950/80", d.name === district ? "font-bold" : "font-medium")}
+                    strokeWidth={fontUnits * 0.22}
+                  >
+                    {d.name}
+                  </text>
+                ))}
+                {TN_MARKERS.filter((m) => shown(m.region)).map((m) => (
+                  <g key={m.name}>
+                    <circle cx={m.x} cy={m.y} r={fontUnits * 0.18} className="fill-neutral-800 dark:fill-neutral-100" />
+                    <text x={m.x + fontUnits * 0.4} y={m.y + fontUnits * 0.9} fontSize={fontUnits} className="fill-neutral-800 font-medium dark:fill-neutral-100">
+                      {m.name}
+                    </text>
+                  </g>
+                ))}
+              </g>
+            )}
+          </svg>
+        </div>
+
+        <div>
+          {region === null ? (
+            <ul className="space-y-8">
+              {REGIONS.map((r) => (
+                <li key={r.id} className="border-t border-theme-border pt-5">
+                  <button type="button" onClick={() => pick(r.id)} className="flex w-full items-center gap-3 text-left">
+                    <span className={cn("size-3 shrink-0 rounded-full", r.dot)} aria-hidden="true" />
+                    <span className="text-lg font-bold tracking-tight text-theme-primary">{r.name}</span>
+                    <span className="text-sm text-theme-muted">{NAMES_OF[r.id].length} districts</span>
+                  </button>
+                  <ul className="mt-3 flex flex-wrap gap-2">
+                    {NAMES_OF[r.id].map((n) => (
+                      <li key={n}>
+                        <button type="button" onClick={() => pick(r.id, n)} className="inline-flex min-h-9 items-center rounded-full bg-theme-surface px-3.5 text-sm text-theme-secondary transition-colors hover:bg-emerald-100 dark:hover:bg-emerald-950">
+                          {n}
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <div className="border-t border-theme-border pt-5">
               <div className="flex items-center gap-3">
-                <span className={cn("size-3 rounded-full", TONE[id].dot)} aria-hidden="true" />
-                <h3 className="text-lg font-bold tracking-tight text-theme-primary sm:text-xl">{r.name}</h3>
-                <span className="text-sm text-theme-muted">{list.length} districts</span>
+                <span className={cn("size-3 shrink-0 rounded-full", REGION[region].dot)} aria-hidden="true" />
+                <h3 className="text-[clamp(1.4rem,2.2vw,1.9rem)] font-bold tracking-tight text-theme-primary">{REGION[region].name}</h3>
               </div>
-              <p className="mt-2 text-[15px] leading-relaxed text-theme-secondary">{list.join(", ")}.</p>
-            </li>
-          );
-        })}
-        <li className="border-t border-theme-border pt-6 text-sm leading-relaxed text-theme-muted">
-          We start with the main cities and grow outwards. You choose your own district when you apply.
-        </li>
-      </ul>
+              <p className="mt-1 text-sm text-theme-muted">{NAMES_OF[region].length} districts</p>
+              <ul className="mt-5 flex flex-wrap gap-2">
+                {NAMES_OF[region].map((n) => (
+                  <li key={n}>
+                    <button
+                      type="button"
+                      aria-pressed={district === n}
+                      onClick={() => setDistrict(district === n ? null : n)}
+                      className={cn(
+                        "inline-flex min-h-10 items-center rounded-full px-4 text-sm transition-colors",
+                        district === n ? "bg-emerald-600 font-semibold text-white" : "bg-theme-surface text-theme-secondary hover:bg-emerald-100 dark:hover:bg-emerald-950",
+                      )}
+                    >
+                      {n}
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <p aria-live="polite" className="mt-5 text-[15px] leading-relaxed text-theme-secondary">
+                {district ? `${district}: partners from here are welcome.` : "Tap a district to see it on the map."}
+              </p>
+              <button type="button" onClick={() => pick(null)} className="mt-4 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
+                Show all Tamil Nadu
+              </button>
+            </div>
+          )}
+          <p className="mt-8 border-t border-theme-border pt-5 text-sm leading-relaxed text-theme-muted">
+            Partners from every district are welcome. You choose your own district when you apply.
+          </p>
+        </div>
+      </div>
     </div>
   );
 }
