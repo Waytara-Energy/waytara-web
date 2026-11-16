@@ -14,20 +14,21 @@ export function BlogHub() {
       path="/blog"
       hero={
         <PageHero
-          eyebrow="Blog"
-          title="Straight answers for partners,"
-          accent="owners and installers."
-          body="Licences, connecting existing equipment, the WayTara gateway, EV chargers, subsidy and bills. Written plainly, checked against official sources, with no promises we cannot keep."
-          primary={{ label: "Browse the articles", href: "#all" }}
-          secondary={{ label: "Become a partner", href: "/partner" }}
+          eyebrow="Resources"
+          title="WayTara"
+          accent="Knowledge Hub."
+          body="Find solutions for contractor licences, connecting existing equipment, the WayTara gateway, EV chargers, solar care, subsidy and bills. Written plainly, and checked against official sources."
         />
       }
     >
-      <SegmentSection id="all" badge="All articles" title="Browse by" accent="topic." summary={`${ARTICLES.length} articles so far, and more added as we are asked.`}>
-        <Reveal direction="up" duration={700} distance={16}>
-          <BlogList articles={ARTICLES} categories={BLOG_CATEGORIES} />
-        </Reveal>
-      </SegmentSection>
+      {/* The topic tabs and the search sit straight under the heading, then every article. */}
+      <section id="all" className="scroll-mt-28 pb-16 sm:pb-20">
+        <div className="fluid-container">
+          <Reveal direction="up" duration={700} distance={16}>
+            <BlogList articles={ARTICLES} categories={BLOG_CATEGORIES} />
+          </Reveal>
+        </div>
+      </section>
 
       <SegmentSection id="start" badge="Start here" title="Start with" accent="your decision." summary="Pick the one you are facing, and read the articles that help.">
         <Reveal direction="up" duration={800} distance={24}>
