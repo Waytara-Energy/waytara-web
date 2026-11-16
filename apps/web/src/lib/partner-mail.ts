@@ -57,6 +57,51 @@ export function buildPartnerAdminMail(a: PartnerApplicationMail, adminAppUrl: st
   return { subject: `New partner application ${a.reference}: ${a.company_name} (${kind})`, text, html };
 }
 
+/** To the admins: an applicant has sent their onboarding (details and documents) and it is waiting to be verified. */
+export function buildPartnerSubmittedAdminMail(a: { id: string; reference: string; company_name: string; partner_type: string; documents: number }, adminAppUrl: string): Mail {
+  const url = `${trimSlash(adminAppUrl)}/partners/${a.id}`;
+  const kind = PARTNER_TYPE_LABEL[a.partner_type] ?? a.partner_type;
+  const { html, text } = renderMail({
+    preheader: `${a.company_name} sent their onboarding. It is ready to verify.`,
+    title: "Onboarding sent for verification",
+    blocks: [
+      { type: "p", text: `${a.company_name} has sent their business details and documents, and the application has moved to Verification.` },
+      {
+        type: "facts",
+        rows: [
+          ["Reference", a.reference],
+          ["Applying as", kind],
+          ["Documents sent", String(a.documents)],
+        ],
+      },
+    ],
+    button: { label: "Open the application", url },
+    why: "You get this e-mail because you are on the team that looks after partner applications.",
+    audience: "team",
+    adminUrl: adminAppUrl,
+  });
+  return { subject: `Onboarding sent: ${a.company_name} (${a.reference})`, text, html };
+}
+
+/** To the applicant, once they have sent their onboarding: it is with us, what happens next, and no promise about the outcome. No link: they already have theirs. */
+export function buildPartnerSubmittedAckMail(contactName: string, reference: string): Mail {
+  const first = contactName.trim().split(/\s+/)[0] || "there";
+  const { html, text } = renderMail({
+    preheader: `We have your onboarding details. Your reference is ${reference}.`,
+    title: "We have your onboarding details",
+    greeting: `Hi ${first},`,
+    blocks: [
+      { type: "p", text: "Thank you. We have received your business details and documents, and our team will now verify them, including with the authorities that issued your licences and certificates." },
+      { type: "facts", rows: [["Application reference", reference]] },
+      { type: "p", text: "You can follow progress on the private page from your earlier e-mail. We will write to you with the outcome, and we may ask you for something more first." },
+      { type: "p", text: "Sending your details does not guarantee a partnership or any projects. We use your documents only to verify your application, and we do not share them with anyone outside WayTara." },
+    ],
+    why: "You get this e-mail because you applied to join the WayTara Partner Network.",
+    audience: "public",
+  });
+  return { subject: `We received your onboarding details (${reference})`, text, html };
+}
+
 /** To the applicant: we have it, their reference, the private link to follow it, and what happens next. No promise about timing, projects or approval. */
 export function buildPartnerAckMail(contactName: string, reference: string, trackUrl: string): Mail {
   const first = contactName.trim().split(/\s+/)[0] || "there";

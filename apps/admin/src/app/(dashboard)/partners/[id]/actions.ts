@@ -23,12 +23,17 @@ export async function reviewPartnerApplication(id: string, formData: FormData): 
 
   const supabase = await createClient();
   // The note's date is when it was last changed, so an unchanged note keeps its date.
-  const { data: before } = await supabase.from("partner_applications").select("status_message, status_message_at").eq("id", id).single();
+  const { data: before } = await supabase.from("partner_applications").select("status, status_message, status_message_at, contact_name, email, reference").eq("id", id).single();
   const messageChanged = (before?.status_message ?? "") !== message;
+  // Opening onboarding is the moment the applicant is asked to act, so they get a fresh link in an e-mail that says so (a link cannot be read back, so this is
+  // the only way to put one in front of them; the earlier link stops working).
+  const opensOnboarding = status === "onboarding" && before?.status !== "onboarding";
+  const access = opensOnboarding ? newAccessToken() : null;
 
   const { error } = await supabase
     .from("partner_applications")
     .update({
+      ...(access ? { access_token_hash: access.hash, access_expires_at: accessExpiry() } : {}),
       status,
       admin_notes: notes === "" ? null : notes,
       reviewed_by: profile.id,
@@ -40,6 +45,10 @@ export async function reviewPartnerApplication(id: string, formData: FormData): 
     })
     .eq("id", id);
   if (error) throw new Error(error.message);
+
+  // An onboarding the applicant had already sent is opened again (their answers and files stay as they are).
+  if (opensOnboarding) await supabase.from("partner_onboarding").update({ submitted_at: null }).eq("application_id", id);
+  if (access && before) await sendPartnerLinkEmail({ to: before.email, contactName: before.contact_name, reference: before.reference, token: access.token, purpose: "onboarding" });
 
   revalidatePath(`/partners/${id}`);
   revalidatePath("/partners");

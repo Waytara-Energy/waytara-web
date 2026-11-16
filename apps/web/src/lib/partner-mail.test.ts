@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPartnerAckMail, buildPartnerAdminMail } from "./partner-mail";
+import { buildPartnerAckMail, buildPartnerAdminMail, buildPartnerSubmittedAckMail, buildPartnerSubmittedAdminMail } from "./partner-mail";
 
 const app = {
   id: "11111111-2222-3333-4444-555555555555",
@@ -51,6 +51,25 @@ describe("partner admin mail", () => {
     expect(mail.html).toContain("We work on &lt;rooftops&gt; &amp; carports.");
     expect(mail.html).not.toContain("<Electricals>");
     expect(mail.html).not.toContain("<rooftops>");
+  });
+});
+
+describe("onboarding sent mails", () => {
+  it("tells the team who sent it, how many files, and links to the application", () => {
+    const mail = buildPartnerSubmittedAdminMail({ id: "abc", reference: "WTP-2611-K7F3Q", company_name: "Sun & Co", partner_type: "contractor", documents: 4 }, "https://admin.example.com/");
+    expect(mail.subject).toBe("Onboarding sent: Sun & Co (WTP-2611-K7F3Q)");
+    expect(mail.text).toContain("https://admin.example.com/partners/abc");
+    expect(mail.text).toContain("Documents sent: 4");
+    expect(mail.html).toContain("Sun &amp; Co");
+  });
+
+  it("thanks the applicant, says documents are used only to verify and are not shared, and promises no outcome", () => {
+    const mail = buildPartnerSubmittedAckMail("Priya Raman", "WTP-2611-K7F3Q");
+    expect(mail.text).toContain("Hi Priya,");
+    expect(mail.text).toContain("verify them");
+    expect(mail.text).toContain("do not share them with anyone outside WayTara");
+    expect(mail.text).toContain("does not guarantee a partnership or any projects");
+    expect(mail.text).not.toContain("/partner/track/");
   });
 });
 

@@ -3419,6 +3419,79 @@ export type Database = {
           },
         ]
       }
+      partner_documents: {
+        Row: {
+          application_id: string
+          content_type: string
+          file_name: string
+          id: string
+          kind: string
+          size_bytes: number
+          storage_path: string
+          uploaded_at: string
+        }
+        Insert: {
+          application_id: string
+          content_type: string
+          file_name: string
+          id?: string
+          kind: string
+          size_bytes: number
+          storage_path: string
+          uploaded_at?: string
+        }
+        Update: {
+          application_id?: string
+          content_type?: string
+          file_name?: string
+          id?: string
+          kind?: string
+          size_bytes?: number
+          storage_path?: string
+          uploaded_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_documents_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "partner_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_onboarding: {
+        Row: {
+          application_id: string
+          created_at: string
+          data: Json
+          submitted_at: string | null
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          data?: Json
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          data?: Json
+          submitted_at?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_onboarding_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: true
+            referencedRelation: "partner_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       payments: {
         Row: {
           amount: number

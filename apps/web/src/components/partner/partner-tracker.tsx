@@ -44,7 +44,7 @@ function Steps({ steps }: { steps: TrackerStep[] }) {
  * are a column on the left and the current step is on the right; on a phone a slim progress bar sits on top, the current step follows, and the whole list opens
  * from one line.
  */
-export function PartnerTracker({ app }: { app: TrackedApplication }) {
+export function PartnerTracker({ app, children }: { app: TrackedApplication; children?: React.ReactNode }) {
   const view = trackerFor(app.status);
   const kind = app.partnerType ? PARTNER_TYPE_LABEL[app.partnerType] : null;
   const current = view.steps.find((s) => s.state === "current");
@@ -98,6 +98,8 @@ export function PartnerTracker({ app }: { app: TrackedApplication }) {
                 <p className="mt-1.5 whitespace-pre-line text-[15px] leading-relaxed text-theme-primary">{app.message}</p>
               </div>
             )}
+
+            {children}
 
             <dl className="mt-10 max-w-xl divide-y divide-theme-border border-y border-theme-border text-sm">
               {app.reference && (

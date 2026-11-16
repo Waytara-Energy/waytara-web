@@ -39,6 +39,12 @@ describe("trackerFor", () => {
     expect(trackerFor("something_new").stage).toBe("review");
   });
 
+  it("says the forms are coming while shortlisted, and asks for them once onboarding is open", () => {
+    expect(trackerFor("shortlisted").body).toContain("We will e-mail you when that opens");
+    expect(trackerFor("onboarding").headline).toBe("Tell us about your business");
+    expect(trackerFor("onboarding").body).not.toContain("when that opens");
+  });
+
   it("always has the same four steps, in order", () => {
     expect(trackerFor("new").steps.map((s) => s.id)).toEqual(["received", "review", "onboarding", "verification"]);
   });

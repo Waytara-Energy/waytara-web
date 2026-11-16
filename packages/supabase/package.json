@@ -9,6 +9,7 @@
     "./server": "./src/client-server.ts",
     "./anon": "./src/client-anon.ts",
     "./partner-access": "./src/partner-access.ts",
+    "./partner-onboarding": "./src/partner-onboarding.ts",
     "./middleware": "./src/middleware.ts",
     "./auth": "./src/auth.ts",
     "./roles": "./src/roles.ts",

@@ -62,6 +62,12 @@ const COPY: Record<TrackerStage, { headline: string; body: string }> = {
   },
 };
 
+/** The words once the onboarding forms are open. */
+const OPEN = {
+  headline: "Tell us about your business",
+  body: "Fill in the parts below and send us your documents. We save as you go, so you can close this page and come back to the same link whenever you like.",
+};
+
 export function trackerFor(status: string): TrackerView {
   if (status === "approved") {
     return { stage: "approved", steps: STEPS.map((s) => ({ ...s, state: "done" as const })), position: 4, ...COPY.approved };
@@ -76,6 +82,7 @@ export function trackerFor(status: string): TrackerView {
     stage,
     steps: STEPS.map((s, i) => ({ ...s, state: i < at ? ("done" as const) : i === at ? ("current" as const) : ("todo" as const) })),
     position: at + 1,
-    ...COPY[stage],
+    // Shortlisted waits for the team to open the forms; once they are open (status onboarding) the page is the forms.
+    ...(status === "onboarding" ? OPEN : COPY[stage]),
   };
 }
