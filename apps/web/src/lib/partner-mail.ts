@@ -102,6 +102,25 @@ export function buildPartnerSubmittedAckMail(contactName: string, reference: str
   return { subject: `We received your onboarding details (${reference})`, text, html };
 }
 
+/** To a partner who has just created their account: it exists, where to sign in. Never contains a password. A safety net too: if it was not them, they are told what to do. */
+export function buildPartnerAccountMail(contactName: string, signInUrl: string): Mail {
+  const first = contactName.trim().split(/\s+/)[0] || "there";
+  const { html, text } = renderMail({
+    preheader: "Your WayTara partner account is ready.",
+    title: "Your partner account is ready",
+    greeting: `Hi ${first},`,
+    blocks: [
+      { type: "p", text: "You have created your WayTara partner account. Sign in with this e-mail address and the password you chose." },
+      { type: "p", text: "In your partner area you can keep your business and team details up to date, renew your licences and documents, and write to our team." },
+      { type: "p", text: "If you did not create this account, reply to this e-mail straight away and we will close it." },
+    ],
+    button: { label: "Sign in", url: signInUrl },
+    why: "You get this e-mail because an account was created for this address in the WayTara Partner Network.",
+    audience: "public",
+  });
+  return { subject: "Your WayTara partner account is ready", text, html };
+}
+
 /** To the applicant: we have it, their reference, the private link to follow it, and what happens next. No promise about timing, projects or approval. */
 export function buildPartnerAckMail(contactName: string, reference: string, trackUrl: string): Mail {
   const first = contactName.trim().split(/\s+/)[0] || "there";

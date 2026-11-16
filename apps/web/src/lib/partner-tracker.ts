@@ -54,7 +54,7 @@ const COPY: Record<TrackerStage, { headline: string; body: string }> = {
   },
   approved: {
     headline: "You are approved",
-    body: "Welcome to the WayTara Partner Network. We will e-mail you how to open your partner area.",
+    body: "Welcome to the WayTara Partner Network. The last step is to choose a password, which opens your partner area.",
   },
   closed: {
     headline: "Your application was not taken forward",

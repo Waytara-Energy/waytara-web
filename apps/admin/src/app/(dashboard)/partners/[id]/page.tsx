@@ -7,7 +7,7 @@ import { PARTNER_SERVICE_LABEL, PARTNER_STATUSES, PARTNER_STATUS_LABEL, PARTNER_
 import { BUSINESS_KINDS, DOCUMENT_KIND_LABEL, LICENCE_TYPES, readOnboarding } from "@waytara/supabase/partner-onboarding";
 import { CHECK_STATE_LABEL, DECLINE_LABEL, approvalGaps, checklistFor, isCheckKey, isCheckState, requiredChecks, type CheckKey, type CheckState } from "@waytara/supabase/partner-verification";
 import { PartnerDecision } from "./partner-decision";
-import { resendPartnerTrackingLink, reviewPartnerApplication, savePartnerChecks } from "./actions";
+import { resendPartnerTrackingLink, reviewPartnerApplication, savePartnerChecks, setPartnerAccess } from "./actions";
 
 const TONES: Record<string, Tone> = { new: "info", in_review: "warn", shortlisted: "warn", onboarding: "warn", verification: "warn", approved: "good", rejected: "neutral" };
 
@@ -25,7 +25,7 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
   const supabase = await createClient();
   const { data: app, error } = await supabase
     .from("partner_applications")
-    .select("*, reviewer:profiles!partner_applications_reviewed_by_fkey(full_name)")
+    .select("*, reviewer:profiles!partner_applications_reviewed_by_fkey(full_name), account:profiles!partner_applications_profile_id_fkey(deactivated_at)")
     .eq("id", id)
     .single();
 
@@ -328,6 +328,34 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
         )}
         {app.status === "rejected" && <p className="mt-5 border-t border-border pt-4 text-xs text-muted-foreground">To take a declined application further, move it to another status in the Review box below.</p>}
       </div>
+
+      {app.status === "approved" && (
+        <div className="rounded-lg border border-border bg-card p-5">
+          <h2 className="text-sm font-semibold">Partner account</h2>
+          {app.profile_id ? (
+            <>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {app.account?.deactivated_at ? "Suspended: they cannot sign in." : "Active."} The partner created their account{app.account_created_at ? ` on ${when(app.account_created_at)}` : ""} and signs in to this app with {app.email}. They see
+                only their own pages (home, profile and team, licences and documents, support).
+              </p>
+              <ActionForm
+                action={setPartnerAccess.bind(null, app.id, Boolean(app.account?.deactivated_at))}
+                loading={app.account?.deactivated_at ? "Restoring…" : "Suspending…"}
+                success={app.account?.deactivated_at ? "Access restored." : "Access suspended."}
+                className="mt-3"
+              >
+                <Button type="submit" size="sm" variant="outline">
+                  {app.account?.deactivated_at ? "Restore access" : "Suspend access"}
+                </Button>
+              </ActionForm>
+            </>
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Approved, but the partner has not chosen a password yet. They were e-mailed a private link for it; if they lost it, send a new one from the Tracking link box below.
+            </p>
+          )}
+        </div>
+      )}
 
       <div className="rounded-lg border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Review</h2>

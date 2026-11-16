@@ -17,8 +17,11 @@ export interface TrackedApplication {
 export interface TrackedRecord extends TrackedApplication {
   id: string;
   email: string;
+  phone: string;
   contactName: string;
   companyName: string;
+  /** Set once the partner has created their sign-in account. */
+  profileId: string | null;
 }
 
 /**
@@ -31,7 +34,7 @@ export async function findTrackedRecord(token: string): Promise<TrackedRecord | 
   try {
     const { data, error } = await createServiceRoleClient()
       .from("partner_applications")
-      .select("id, reference, partner_type, contact_name, company_name, email, status, created_at, status_message, status_message_at")
+      .select("id, reference, partner_type, contact_name, company_name, email, phone, profile_id, status, created_at, status_message, status_message_at")
       .eq("access_token_hash", hashAccessToken(token))
       .gt("access_expires_at", new Date().toISOString())
       .maybeSingle();
@@ -39,6 +42,8 @@ export async function findTrackedRecord(token: string): Promise<TrackedRecord | 
     return {
       id: data.id,
       email: data.email,
+      phone: data.phone,
+      profileId: data.profile_id,
       contactName: data.contact_name,
       companyName: data.company_name,
       reference: data.reference,

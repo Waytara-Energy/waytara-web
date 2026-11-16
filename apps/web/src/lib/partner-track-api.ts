@@ -4,7 +4,10 @@ import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { allowRequest, clientIp } from "@/lib/rate-limit";
 import { findTrackedRecord, type TrackedRecord } from "@/lib/partner-track-server";
 
-export const fail = (error: string, status: number, extra?: Record<string, unknown>) => NextResponse.json({ success: false, error, ...extra }, { status });
+/** Where an approved partner signs in: the admin app's sign-in page (partners get their own few pages there). */
+export const adminSignInUrl = () => `${(process.env.ADMIN_APP_URL || "https://admin.waytaraenergy.com").replace(/\/+$/, "")}/login`;
+
+export const fail =(error: string, status: number, extra?: Record<string, unknown>) => NextResponse.json({ success: false, error, ...extra }, { status });
 
 /**
  * What every onboarding route does first: slow down anyone sending too many requests, open the application the link belongs to, and make sure it is the stage at

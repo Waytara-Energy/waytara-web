@@ -38,6 +38,14 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // A partner (an approved applicant) is let in for their own few pages under /partner and nothing else, whatever address they type.
+  if (profile.role === "partner" && !(pathname === "/partner" || pathname.startsWith("/partner/") || pathname === "/unauthorized")) {
+    const url = request.nextUrl.clone();
+    url.pathname = "/partner";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
   const isAdminOnlyRoute = ADMIN_ONLY_PREFIXES.some(
     (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`)
   );

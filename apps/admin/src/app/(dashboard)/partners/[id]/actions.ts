@@ -26,7 +26,9 @@ export async function reviewPartnerApplication(id: string, formData: FormData): 
 
   const supabase = await createClient();
   // The note's date is when it was last changed, so an unchanged note keeps its date.
-  const { data: before } = await supabase.from("partner_applications").select("status, status_message, status_message_at, contact_name, email, reference").eq("id", id).single();
+  const { data: before } = await supabase.from("partner_applications").select("status, status_message, status_message_at, contact_name, email, reference, profile_id").eq("id", id).single();
+  // A partner who has an account cannot be moved back a stage (they would still be able to sign in); to stop their access, suspend it.
+  if (before?.profile_id && before.status === "approved" && status !== "approved") throw new Error("This partner has an account. To stop their access, use Suspend access in the Partner account box.");
   const messageChanged = (before?.status_message ?? "") !== message;
   // Approving and declining have their own steps (the checklist must be done; a decline asks what happens to the data and sends a last e-mail), so they cannot be
   // reached by picking a status here. An application that already is approved or declined can still be saved as it is.
@@ -70,16 +72,37 @@ export async function resendPartnerTrackingLink(id: string): Promise<void> {
   if (profile?.role !== "admin") redirect("/unauthorized");
 
   const supabase = await createClient();
-  const { data: app, error: readError } = await supabase.from("partner_applications").select("contact_name, email, reference, status").eq("id", id).single();
+  const { data: app, error: readError } = await supabase.from("partner_applications").select("contact_name, email, reference, status, profile_id").eq("id", id).single();
   if (readError || !app) throw new Error("Couldn't find this application.");
   // A declined application's link was closed on purpose; it is not to be brought back.
   if (app.status === "rejected") throw new Error("This application was declined, so its link stays closed.");
+  // Once the partner has an account their link has done its job (they sign in instead).
+  if (app.profile_id) throw new Error("This partner already has an account, so there is no link to send. They sign in with their e-mail address and password.");
 
   const access = newAccessToken();
   const { error } = await supabase.from("partner_applications").update({ access_token_hash: access.hash, access_expires_at: accessExpiry() }).eq("id", id);
   if (error) throw new Error(error.message);
 
-  await sendPartnerLinkEmail({ to: app.email, contactName: app.contact_name, reference: app.reference, token: access.token });
+  await sendPartnerLinkEmail({ to: app.email, contactName: app.contact_name, reference: app.reference, token: access.token, purpose: app.status === "approved" ? "approved" : "resend" });
+  revalidatePath(`/partners/${id}`);
+}
+
+const PERMANENT_BAN = "876000h"; // ~100 years: the sign-in service has no literal "forever" (the same as for staff)
+
+/** Stops a partner signing in (the account and everything on it stay as they are), or lets them sign in again. Admin only; the same ban the staff accounts use. */
+export async function setPartnerAccess(id: string, allow: boolean): Promise<void> {
+  await requireAdminProfile();
+  const supabase = await createClient();
+  const { data: app } = await supabase.from("partner_applications").select("profile_id").eq("id", id).single();
+  if (!app?.profile_id) throw new Error("This partner has no account yet.");
+  const service = createServiceRoleClient();
+  // never on anything but a partner account: this must not be a way to lock out a member of staff
+  const { data: person } = await service.from("profiles").select("role").eq("id", app.profile_id).maybeSingle();
+  if (person?.role !== "partner") throw new Error("That account is not a partner account.");
+  const { error: banError } = await service.auth.admin.updateUserById(app.profile_id, { ban_duration: allow ? "none" : PERMANENT_BAN });
+  if (banError) throw new Error(banError.message);
+  const { error } = await service.from("profiles").update({ deactivated_at: allow ? null : new Date().toISOString() }).eq("id", app.profile_id);
+  if (error) throw new Error(error.message);
   revalidatePath(`/partners/${id}`);
 }
 
@@ -151,7 +174,7 @@ export async function requestMorePartnerInfo(id: string, formData: FormData): Pr
 export async function approvePartnerApplication(id: string): Promise<void> {
   const profile = await requireAdminProfile();
   const supabase = await createClient();
-  const { data: app } = await supabase.from("partner_applications").select("status, partner_type").eq("id", id).single();
+  const { data: app } = await supabase.from("partner_applications").select("status, partner_type, contact_name, email, reference").eq("id", id).single();
   if (!app) throw new Error("Couldn't find this application.");
   if (app.status === "approved") throw new Error("This application is already approved.");
   if (app.status === "rejected") throw new Error("This application was declined.");
@@ -163,8 +186,14 @@ export async function approvePartnerApplication(id: string): Promise<void> {
   if (gaps.length > 0) throw new Error(`Not ready to approve. ${gaps.join("; ")}.`);
 
   // the team's earlier note (an ask for more, say) is done with once they are approved, so it does not sit beside "You are approved"
-  const { error } = await supabase.from("partner_applications").update({ status: "approved", status_message: null, status_message_at: null, reviewed_by: profile.id, reviewed_at: new Date().toISOString() }).eq("id", id);
+  // The applicant is sent a fresh private link (a link cannot be read back, so this is the only way to put one in front of them) that ends at choosing a password.
+  const access = newAccessToken();
+  const { error } = await supabase
+    .from("partner_applications")
+    .update({ status: "approved", status_message: null, status_message_at: null, access_token_hash: access.hash, access_expires_at: accessExpiry(), reviewed_by: profile.id, reviewed_at: new Date().toISOString() })
+    .eq("id", id);
   if (error) throw new Error(error.message);
+  await sendPartnerLinkEmail({ to: app.email, contactName: app.contact_name, reference: app.reference, token: access.token, purpose: "approved" });
   revalidatePath(`/partners/${id}`);
   revalidatePath("/partners");
 }

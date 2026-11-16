@@ -8,7 +8,7 @@ export interface PartnerLinkEmailInput {
   /** The code of the tracking link (the page it opens is on the public site). */
   token: string;
   /** "resend": the first e-mail was lost, here is a new link. "onboarding": the forms have just opened. "more_info": the team needs something more. */
-  purpose?: "resend" | "onboarding" | "more_info";
+  purpose?: "resend" | "onboarding" | "more_info" | "approved";
   /** For "more_info": what the team asked for, in the admin's words. */
   note?: string;
 }
@@ -44,6 +44,13 @@ export async function sendPartnerLinkEmail(input: PartnerLinkEmailInput): Promis
       lead: "Good news: you are shortlisted for the WayTara Partner Network. The next step is to tell us about your business, licences, team and the areas you cover, and to send us your documents. You can do it all on your private page, and it saves as you go, so you can stop and come back.",
       button: "Start your onboarding",
       subject: "You are shortlisted: start your WayTara partner onboarding",
+    },
+    approved: {
+      preheader: "You are approved. Choose a password to open your partner area.",
+      title: "You are approved: choose your password",
+      lead: "Good news: your application to the WayTara Partner Network is approved. The last step is to choose a password, which opens your partner area. Use the private button below; it works until you have set your password.",
+      button: "Choose your password",
+      subject: "You are approved: open your WayTara partner area",
     },
     more_info: {
       preheader: "We need a little more from you to finish checking your application.",

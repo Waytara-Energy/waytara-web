@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { PartnerTracker, PartnerTrackerClosed } from "@/components/partner/partner-tracker";
 import { OnboardingForm } from "@/components/partner/onboarding-form";
+import { AccountForm } from "@/components/partner/account-form";
+import { adminSignInUrl } from "@/lib/partner-track-api";
 import { findTrackedRecord } from "@/lib/partner-track-server";
 import { loadOnboarding } from "@/lib/partner-onboarding-server";
 
@@ -23,6 +25,14 @@ export default async function PartnerTrackPage({ params }: { params: Promise<{ t
     return (
       <PartnerTracker app={app}>
         <OnboardingForm token={token} partnerType={partnerType} initial={state.data} initialDocuments={state.documents} submittedAt={state.submittedAt} />
+      </PartnerTracker>
+    );
+  }
+  // Approved: the last step is choosing a password for the partner account (the link closes once it exists).
+  if (status === "approved" && !record.profileId) {
+    return (
+      <PartnerTracker app={app}>
+        <AccountForm token={token} email={record.email} signInUrl={adminSignInUrl()} />
       </PartnerTracker>
     );
   }

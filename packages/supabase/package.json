@@ -11,6 +11,7 @@
     "./partner-access": "./src/partner-access.ts",
     "./partner-onboarding": "./src/partner-onboarding.ts",
     "./partner-verification": "./src/partner-verification.ts",
+    "./partner-account": "./src/partner-account.ts",
     "./middleware": "./src/middleware.ts",
     "./auth": "./src/auth.ts",
     "./roles": "./src/roles.ts",

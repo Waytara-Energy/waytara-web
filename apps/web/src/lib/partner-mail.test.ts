@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { buildPartnerAckMail, buildPartnerAdminMail, buildPartnerSubmittedAckMail, buildPartnerSubmittedAdminMail } from "./partner-mail";
+import { buildPartnerAccountMail, buildPartnerAckMail, buildPartnerAdminMail, buildPartnerSubmittedAckMail, buildPartnerSubmittedAdminMail } from "./partner-mail";
 
 const app = {
   id: "11111111-2222-3333-4444-555555555555",
@@ -70,6 +70,16 @@ describe("onboarding sent mails", () => {
     expect(mail.text).toContain("do not share them with anyone outside WayTara");
     expect(mail.text).toContain("does not guarantee a partnership or any projects");
     expect(mail.text).not.toContain("/partner/track/");
+  });
+});
+
+describe("partner account mail", () => {
+  it("says the account is ready, links to sign-in, never carries a password, and tells them what to do if it was not them", () => {
+    const mail = buildPartnerAccountMail("Priya Raman", "https://admin.example.com/login");
+    expect(mail.text).toContain("Hi Priya,");
+    expect(mail.html).toContain('href="https://admin.example.com/login"');
+    expect(mail.text).toContain("If you did not create this account");
+    expect(mail.text.toLowerCase()).not.toContain("your password is");
   });
 });
 

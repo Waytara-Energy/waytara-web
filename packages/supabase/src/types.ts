@@ -3319,6 +3319,7 @@ export type Database = {
         Row: {
           access_expires_at: string | null
           access_token_hash: string | null
+          account_created_at: string | null
           admin_notes: string | null
           answers: Json
           cities: string | null
@@ -3335,6 +3336,7 @@ export type Database = {
           message: string | null
           partner_type: string | null
           phone: string
+          profile_id: string | null
           reference: string | null
           reviewed_at: string | null
           reviewed_by: string | null
@@ -3352,6 +3354,7 @@ export type Database = {
         Insert: {
           access_expires_at?: string | null
           access_token_hash?: string | null
+          account_created_at?: string | null
           admin_notes?: string | null
           answers?: Json
           cities?: string | null
@@ -3368,6 +3371,7 @@ export type Database = {
           message?: string | null
           partner_type?: string | null
           phone: string
+          profile_id?: string | null
           reference?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -3385,6 +3389,7 @@ export type Database = {
         Update: {
           access_expires_at?: string | null
           access_token_hash?: string | null
+          account_created_at?: string | null
           admin_notes?: string | null
           answers?: Json
           cities?: string | null
@@ -3401,6 +3406,7 @@ export type Database = {
           message?: string | null
           partner_type?: string | null
           phone?: string
+          profile_id?: string | null
           reference?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
@@ -3416,6 +3422,13 @@ export type Database = {
           years_in_business?: number | null
         }
         Relationships: [
+          {
+            foreignKeyName: "partner_applications_profile_id_fkey"
+            columns: ["profile_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
           {
             foreignKeyName: "partner_applications_reviewed_by_fkey"
             columns: ["reviewed_by"]
@@ -5758,7 +5771,7 @@ export type Database = {
         | "returned"
       subscription_status: "trialing" | "active" | "past_due" | "cancelled"
       test_session_status: "running" | "verified" | "failed"
-      user_role: "admin" | "employee" | "customer" | "site_engineer"
+      user_role: "admin" | "employee" | "customer" | "site_engineer" | "partner"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -5938,7 +5951,7 @@ export const Constants = {
       ],
       subscription_status: ["trialing", "active", "past_due", "cancelled"],
       test_session_status: ["running", "verified", "failed"],
-      user_role: ["admin", "employee", "customer", "site_engineer"],
+      user_role: ["admin", "employee", "customer", "site_engineer", "partner"],
     },
   },
 } as const
