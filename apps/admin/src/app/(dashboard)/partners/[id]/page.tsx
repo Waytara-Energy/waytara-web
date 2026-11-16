@@ -8,6 +8,7 @@ import { PARTNER_SERVICE_LABEL, PARTNER_STATUSES, PARTNER_STATUS_LABEL, PARTNER_
 import { BUSINESS_KINDS, DOCUMENT_KIND_LABEL, LICENCE_TYPES, readOnboarding } from "@waytara/supabase/partner-onboarding";
 import { CHECKS, CHECK_STATE_LABEL, DECLINE_LABEL, approvalGaps, checklistFor, isCheckKey, isCheckState, requiredChecks, type CheckKey, type CheckState } from "@waytara/supabase/partner-verification";
 import { PartnerDecision } from "./partner-decision";
+import { PartnerComposer } from "./partner-composer";
 import { resendPartnerTrackingLink, reviewPartnerApplication, savePartnerChecks, setPartnerAccess } from "./actions";
 
 const TONES: Record<string, Tone> = { new: "info", in_review: "warn", shortlisted: "warn", onboarding: "warn", verification: "warn", approved: "good", rejected: "neutral" };
@@ -22,17 +23,16 @@ function Item({ label, children }: { label: string; children: React.ReactNode })
 }
 
 const TABS = [
-  { id: "overview", label: "Overview" },
-  { id: "onboarding", label: "Onboarding" },
-  { id: "verification", label: "Verification" },
   { id: "activity", label: "Activity" },
+  { id: "application", label: "Application" },
+  { id: "verification", label: "Verification" },
 ] as const;
 type TabId = (typeof TABS)[number]["id"];
 
 export default async function PartnerDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const { id } = await params;
   const sp = await searchParams;
-  const tab: TabId = TABS.some((t) => t.id === sp.tab) ? (sp.tab as TabId) : "overview";
+  const tab: TabId = TABS.some((t) => t.id === sp.tab) ? (sp.tab as TabId) : "activity";
   const supabase = await createClient();
   const { data: app, error } = await supabase
     .from("partner_applications")
@@ -82,55 +82,79 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
   for (const a of accessRows ?? []) events.push({ at: a.accessed_at, text: `${a.accessor?.full_name ?? "A former admin"} ${a.action === "download" ? "downloaded" : "viewed"} ${a.file_name}` });
   if (app.reviewed_at) events.push({ at: app.reviewed_at, text: `${app.reviewer?.full_name ?? "An admin"} last updated the application (${PARTNER_STATUS_LABEL[app.status] ?? app.status})` });
   if (app.declined_at) events.push({ at: app.declined_at, text: "Declined" });
+  if (app.status_message && app.status_message_at) events.push({ at: app.status_message_at, text: `Note shown to the applicant: ${app.status_message}` });
   events.sort((a, b) => Date.parse(b.at) - Date.parse(a.at));
 
+  const stepIndex = ({ new: 0, in_review: 1, shortlisted: 1, onboarding: 2, verification: 3, approved: 4, rejected: 4 } as Record<string, number>)[app.status] ?? 0;
+  const STEPS = ["Applied", "Screening", "Onboarding", "Verification", "Approved"];
+
   return (
-    <div className="space-y-5 pb-10">
-      <div>
-        <Link href="/partners" className="text-xs text-muted-foreground hover:underline lg:hidden">
-          ← Back to Partners
-        </Link>
-        <div className="mt-1 flex flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold tracking-tight">{app.company_name}</h1>
-          <ToneBadge tone={TONES[app.status] ?? "neutral"}>{PARTNER_STATUS_LABEL[app.status] ?? app.status}</ToneBadge>
-        </div>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {app.partner_type ? `${PARTNER_TYPE_LABEL[app.partner_type] ?? app.partner_type} · ` : ""}
-          {app.reference ? `${app.reference} · ` : ""}Received {new Date(app.created_at).toLocaleString("en-IN")}
-        </p>
-      </div>
-
-      <nav aria-label="Application sections" className="flex gap-1 overflow-x-auto border-b border-border">
-        {TABS.map((t) => (
-          <Link key={t.id} href={`/partners/${app.id}?tab=${t.id}`} aria-current={tab === t.id ? "page" : undefined} className={cn("-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors", tab === t.id ? "border-foreground font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
-            {t.label}
-            {t.id === "verification" && app.status === "verification" && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-primary align-middle" aria-label="Waiting for you" />}
+    <div className="grid items-start gap-5 pb-6 xl:grid-cols-[minmax(0,1fr)_21rem]">
+      <div className="min-w-0 space-y-4">
+        <div>
+          <Link href="/partners" className="text-xs text-muted-foreground hover:underline lg:hidden">
+            ← Back to Partners
           </Link>
-        ))}
-      </nav>
+          <div className="mt-1 flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-semibold tracking-tight">{app.company_name}</h1>
+            <ToneBadge tone={TONES[app.status] ?? "neutral"}>{PARTNER_STATUS_LABEL[app.status] ?? app.status}</ToneBadge>
+          </div>
+          <p className="mt-1 text-sm text-muted-foreground">
+            {app.partner_type ? `${PARTNER_TYPE_LABEL[app.partner_type] ?? app.partner_type} · ` : ""}
+            {app.reference ? `${app.reference} · ` : ""}Received {new Date(app.created_at).toLocaleString("en-IN")}
+          </p>
+          <ol aria-label="Progress" className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs">
+            {STEPS.map((s, i) => (
+              <li key={s} className="flex items-center gap-2">
+                <span className={cn("flex items-center gap-1.5", i <= stepIndex && app.status !== "rejected" ? "font-medium text-foreground" : "text-muted-foreground")}>
+                  <span className={cn("size-1.5 rounded-full", i <= stepIndex && app.status !== "rejected" ? "bg-primary" : "bg-muted-foreground/40")} />
+                  {s}
+                </span>
+                {i < STEPS.length - 1 && <span aria-hidden="true" className={cn("h-px w-6", i < stepIndex && app.status !== "rejected" ? "bg-primary" : "bg-border")} />}
+              </li>
+            ))}
+            {app.status === "rejected" && <li className="font-medium text-destructive">· Declined</li>}
+          </ol>
+        </div>
 
-      <div className="grid items-start gap-6 xl:grid-cols-2">
-      <div className={tab === "overview" ? "min-w-0 space-y-6" : "hidden"}>
-      <div className="rounded-lg border border-border bg-card p-5">
-        <h2 className="text-sm font-semibold">Contact</h2>
-        <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-          <Item label="Contact person">{app.contact_name}</Item>
-          <Item label="Phone">
-            <a href={`tel:${app.phone}`} className="hover:underline">
-              {app.phone}
-            </a>
-          </Item>
-          <Item label="E-mail">
-            <a href={`mailto:${app.email}`} className="hover:underline">
-              {app.email}
-            </a>
-          </Item>
-          <Item label="Website">{app.website}</Item>
-        </dl>
-      </div>
+        <nav aria-label="Application sections" className="flex gap-1 overflow-x-auto border-b border-border">
+          {TABS.map((t) => (
+            <Link key={t.id} href={`/partners/${app.id}?tab=${t.id}`} aria-current={tab === t.id ? "page" : undefined} className={cn("-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors", tab === t.id ? "border-foreground font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
+              {t.label}
+              {t.id === "verification" && app.status === "verification" && <span className="ml-1.5 inline-block size-1.5 rounded-full bg-primary align-middle" aria-label="Waiting for you" />}
+            </Link>
+          ))}
+        </nav>
 
-      {answers.length > 0 && (
-        <div className="rounded-lg border border-border bg-card p-5">
+        {tab === "activity" && (
+          <div className="space-y-4">
+            {app.admin_notes && (
+              <div className="rounded-lg border border-border bg-card p-4">
+                <h2 className="text-sm font-semibold">Internal notes</h2>
+                <p className="mt-2 whitespace-pre-wrap text-sm">{app.admin_notes}</p>
+              </div>
+            )}
+            <div className="rounded-lg border border-border bg-card p-5">
+              <h2 className="text-sm font-semibold">Activity</h2>
+              <p className="mt-1 text-xs text-muted-foreground">Everything that happened to this application, newest first.</p>
+              <ol className="mt-4 space-y-3 border-l border-border pl-5">
+                {events.map((e, i) => (
+                  <li key={i} className="relative text-sm">
+                    <span aria-hidden="true" className="absolute -left-[1.55rem] top-1.5 size-2 rounded-full bg-primary/60" />
+                    {e.text}
+                    <span className="ml-2 text-xs text-muted-foreground">{when(e.at)}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <PartnerComposer id={app.id} />
+          </div>
+        )}
+
+        {tab === "application" && (
+          <div className="space-y-6">
+            {answers.length > 0 && (
+<div className="rounded-lg border border-border bg-card p-5">
           <h2 className="text-sm font-semibold">Their answers</h2>
           <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {answers.map((x) => (
@@ -140,9 +164,8 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
             ))}
           </dl>
         </div>
-      )}
-
-      <div className="rounded-lg border border-border bg-card p-5">
+)}
+            <div className="rounded-lg border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Their work</h2>
         <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
           <div className="sm:col-span-2">
@@ -164,11 +187,7 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
           </div>
         </dl>
       </div>
-
-      </div>
-
-      <div className={tab === "onboarding" ? "min-w-0 space-y-6 xl:col-span-2" : "hidden"}>
-      <div className="rounded-lg border border-border bg-card p-5">
+            <div className="rounded-lg border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Onboarding</h2>
         <p className="mt-1 text-xs text-muted-foreground">
           {onboardingRow?.submitted_at
@@ -300,11 +319,10 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
           </div>
         )}
       </div>
+          </div>
+        )}
 
-      </div>
-
-      <div className={tab === "verification" ? "min-w-0 space-y-6 xl:col-span-2" : "hidden"}>
-      <div className="rounded-lg border border-border bg-card p-5">
+        {tab === "verification" && <div className="space-y-6"><div className="rounded-lg border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Verification</h2>
         {app.status === "rejected" ? (
           <p className="mt-1 text-xs text-muted-foreground">
@@ -362,48 +380,21 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
           </Button>
         </ActionForm>
 
+        
+        {app.status === "rejected" && <p className="mt-5 border-t border-border pt-4 text-xs text-muted-foreground">To take a declined application further, move it to another status in the Status box on the right.</p>}
+      </div></div>}
+      </div>
+
+      <aside className="min-w-0 space-y-4">
         {!finished && (
-          <div className="mt-6 border-t border-border pt-5">
-            <h3 className="text-sm font-semibold">Decision</h3>
+          <div className="rounded-lg border border-border bg-card p-5">
+            <h2 className="text-sm font-semibold">Decision</h2>
             <p className="mb-3 mt-1 text-xs text-muted-foreground">Save the checklist first: approving looks at what is saved.</p>
             <PartnerDecision id={app.id} reference={app.reference} status={app.status} gaps={gaps} />
           </div>
         )}
-        {app.status === "rejected" && <p className="mt-5 border-t border-border pt-4 text-xs text-muted-foreground">To take a declined application further, move it to another status in the Review box below.</p>}
-      </div>
-
-      </div>
-
-      <div className={tab === "overview" ? "min-w-0 space-y-6" : "hidden"}>
-      {app.status === "approved" && (
         <div className="rounded-lg border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold">Partner account</h2>
-          {app.profile_id ? (
-            <>
-              <p className="mt-1 text-xs text-muted-foreground">
-                {app.account?.deactivated_at ? "Suspended: they cannot sign in." : "Active."} The partner created their account{app.account_created_at ? ` on ${when(app.account_created_at)}` : ""} and signs in on the website with {app.email}. They see only their own partner area there (application, profile and team, licences and documents, support), never the customer dashboard or this app.
-              </p>
-              <ActionForm
-                action={setPartnerAccess.bind(null, app.id, Boolean(app.account?.deactivated_at))}
-                loading={app.account?.deactivated_at ? "Restoring…" : "Suspending…"}
-                success={app.account?.deactivated_at ? "Access restored." : "Access suspended."}
-                className="mt-3"
-              >
-                <Button type="submit" size="sm" variant="outline">
-                  {app.account?.deactivated_at ? "Restore access" : "Suspend access"}
-                </Button>
-              </ActionForm>
-            </>
-          ) : (
-            <p className="mt-1 text-xs text-muted-foreground">
-              Approved, but the partner has not chosen a password yet. They were e-mailed a private link for it; if they lost it, send a new one from the Tracking link box below.
-            </p>
-          )}
-        </div>
-      )}
-
-      <div className="rounded-lg border border-border bg-card p-5">
-        <h2 className="text-sm font-semibold">Review</h2>
+        <h2 className="text-sm font-semibold">Status</h2>
         <p className="mt-1 text-xs text-muted-foreground">
           {app.reviewed_at
             ? `Last updated by ${app.reviewer?.full_name ?? "an admin"} on ${new Date(app.reviewed_at).toLocaleString("en-IN")}.`
@@ -429,7 +420,7 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
               ))}
             </select>
             <p className="max-w-xl text-xs text-muted-foreground">
-              Moving an application to Onboarding opens the forms for the applicant and e-mails them a new private link (the earlier link stops working). Moving it to any other status hides the forms again; if the applicant had already sent them, they open again with their answers and files kept.
+              Onboarding opens their forms and e-mails them. Any other status hides the forms; ones already sent open again with everything kept.
             </p>
           </div>
           <label className="flex max-w-xl items-start gap-2.5 text-sm">
@@ -437,46 +428,64 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
             <span>
               <span className="font-medium">Show in the public partner directory</span>
               <span className="block text-xs text-muted-foreground">
-                Only for an approved partner who has agreed to be listed. The page shows the business name, the kind of partner and the districts, nothing else. Moving the application out of Approved
-                removes the listing.
+                Approved partners who agreed to be listed: business name, kind and districts only.
               </span>
             </span>
           </label>
-          <div className="space-y-1.5">
-            <label htmlFor="adminNotes" className="text-sm font-medium">
-              Notes <span className="font-normal text-muted-foreground">(only the admins see these)</span>
-            </label>
-            <textarea
-              id="adminNotes"
-              name="adminNotes"
-              rows={5}
-              maxLength={5000}
-              defaultValue={app.admin_notes ?? ""}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-          </div>
-          <div className="space-y-1.5">
-            <label htmlFor="statusMessage" className="text-sm font-medium">
-              Note for the applicant <span className="font-normal text-muted-foreground">(they see this on their tracking page)</span>
-            </label>
-            <textarea
-              id="statusMessage"
-              name="statusMessage"
-              rows={3}
-              maxLength={600}
-              defaultValue={app.status_message ?? ""}
-              placeholder="For example: we will call you this week to talk about your licences."
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            />
-            <p className="text-xs text-muted-foreground">Up to 600 characters. Leave it empty to show no note. Do not put anything private here.</p>
-          </div>
+          
           <Button type="submit" size="sm">
             Save
           </Button>
         </ActionForm>
       </div>
-
-      <div className="rounded-lg border border-border bg-card p-5">
+        <div className="rounded-lg border border-border bg-card p-5">
+          <h2 className="text-sm font-semibold">Details</h2>
+          <dl className="mt-3 grid grid-cols-1 gap-3">
+            <Item label="Contact person">{app.contact_name}</Item>
+            <Item label="Phone">
+              <a href={`tel:${app.phone}`} className="hover:underline">
+                {app.phone}
+              </a>
+            </Item>
+            <Item label="E-mail">
+              <a href={`mailto:${app.email}`} className="break-all hover:underline">
+                {app.email}
+              </a>
+            </Item>
+            <Item label="Website">{app.website}</Item>
+            <Item label="Reference">{app.reference}</Item>
+            <Item label="Applying as">{PARTNER_TYPE_LABEL[app.partner_type ?? ""] ?? ""}</Item>
+            <Item label="Received">{when(app.created_at)}</Item>
+            <Item label="Last updated by">{app.reviewed_at ? `${app.reviewer?.full_name ?? "An admin"}, ${when(app.reviewed_at)}` : ""}</Item>
+          </dl>
+        </div>
+        {app.status === "approved" && (
+          <div className="rounded-lg border border-border bg-card p-5">
+          <h2 className="text-sm font-semibold">Partner account</h2>
+          {app.profile_id ? (
+            <>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {app.account?.deactivated_at ? "Suspended: they cannot sign in." : "Active."} The partner created their account{app.account_created_at ? ` on ${when(app.account_created_at)}` : ""} and signs in on the website with {app.email}. They see only their own partner area there (application, profile and team, licences and documents, support), never the customer dashboard or this app.
+              </p>
+              <ActionForm
+                action={setPartnerAccess.bind(null, app.id, Boolean(app.account?.deactivated_at))}
+                loading={app.account?.deactivated_at ? "Restoring…" : "Suspending…"}
+                success={app.account?.deactivated_at ? "Access restored." : "Access suspended."}
+                className="mt-3"
+              >
+                <Button type="submit" size="sm" variant="outline">
+                  {app.account?.deactivated_at ? "Restore access" : "Suspend access"}
+                </Button>
+              </ActionForm>
+            </>
+          ) : (
+            <p className="mt-1 text-xs text-muted-foreground">
+              Approved, but the partner has not chosen a password yet. They were e-mailed a private link for it; if they lost it, send a new one from the Tracking link box below.
+            </p>
+          )}
+        </div>
+        )}
+        <div className="rounded-lg border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Tracking link</h2>
         <p className="mt-1 text-xs text-muted-foreground">
           {app.status === "rejected"
@@ -496,24 +505,7 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
           </ActionForm>
         )}
       </div>
-      </div>
-
-      <div className={tab === "activity" ? "min-w-0 xl:col-span-2" : "hidden"}>
-        <div className="rounded-lg border border-border bg-card p-5">
-          <h2 className="text-sm font-semibold">Activity</h2>
-          <p className="mt-1 text-xs text-muted-foreground">Everything that happened to this application, newest first.</p>
-          <ol className="mt-4 space-y-3 border-l border-border pl-5">
-            {events.map((e, i) => (
-              <li key={i} className="relative text-sm">
-                <span aria-hidden="true" className="absolute -left-[1.55rem] top-1.5 size-2 rounded-full bg-primary/60" />
-                {e.text}
-                <span className="ml-2 text-xs text-muted-foreground">{when(e.at)}</span>
-              </li>
-            ))}
-          </ol>
-        </div>
-      </div>
-      </div>
+      </aside>
     </div>
   );
 }

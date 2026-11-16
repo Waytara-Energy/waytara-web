@@ -44,13 +44,15 @@ export async function reviewPartnerApplication(id: string, formData: FormData): 
     .update({
       ...(access ? { access_token_hash: access.hash, access_expires_at: accessExpiry() } : {}),
       status,
-      admin_notes: notes === "" ? null : notes,
+      // the two notes are written from the box under the timeline now; this form only changes them if a form that still has those boxes sends them
+      ...(formData.has("adminNotes") ? { admin_notes: notes === "" ? null : notes } : {}),
       reviewed_by: profile.id,
       reviewed_at: new Date().toISOString(),
       // Shown in the public partner directory only while approved, and only when the box is ticked.
       listed_publicly: status === "approved" && formData.get("listedPublicly") === "on",
-      status_message: message === "" ? null : message,
-      status_message_at: message === "" ? null : messageChanged ? new Date().toISOString() : (before?.status_message_at ?? new Date().toISOString()),
+      ...(formData.has("statusMessage")
+        ? { status_message: message === "" ? null : message, status_message_at: message === "" ? null : messageChanged ? new Date().toISOString() : (before?.status_message_at ?? new Date().toISOString()) }
+        : {}),
     })
     .eq("id", id);
   if (error) throw new Error(error.message);
@@ -85,6 +87,33 @@ export async function resendPartnerTrackingLink(id: string): Promise<void> {
   if (error) throw new Error(error.message);
 
   await sendPartnerLinkEmail({ to: app.email, contactName: app.contact_name, reference: app.reference, token: access.token, purpose: app.status === "approved" ? "approved" : "resend" });
+  revalidatePath(`/partners/${id}`);
+}
+
+/**
+ * A note on an application from the box under the timeline. Internal: added to the admins' notes with the author and date (the notes only ever grow here). Otherwise: the
+ * note the applicant sees on their page, which replaces the last one (600 characters). Admin only.
+ */
+export async function postPartnerNote(id: string, formData: FormData): Promise<void> {
+  const profile = await requireAdminProfile();
+  const text = String(formData.get("text") ?? "").trim();
+  const internal = formData.get("internal") === "on";
+  if (text.length < 1) throw new Error("Write something first.");
+  const supabase = await createClient();
+  if (internal) {
+    const { data: app } = await supabase.from("partner_applications").select("admin_notes").eq("id", id).single();
+    if (!app) throw new Error("Couldn't find this application.");
+    const stamp = new Date().toLocaleString("en-IN", { timeZone: "Asia/Kolkata", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+    const next = `${app.admin_notes ? `${app.admin_notes}\n` : ""}[${stamp}, ${profile.full_name ?? "Admin"}] ${text}`;
+    if (next.length > 5000) throw new Error("The internal notes are full (5000 characters). Please tidy them first.");
+    const { error } = await supabase.from("partner_applications").update({ admin_notes: next }).eq("id", id);
+    if (error) throw new Error(error.message);
+  } else {
+    if (text.length > 600) throw new Error("A note for the applicant can be 600 characters at most.");
+    const now = new Date().toISOString();
+    const { error } = await supabase.from("partner_applications").update({ status_message: text, status_message_at: now }).eq("id", id);
+    if (error) throw new Error(error.message);
+  }
   revalidatePath(`/partners/${id}`);
 }
 
