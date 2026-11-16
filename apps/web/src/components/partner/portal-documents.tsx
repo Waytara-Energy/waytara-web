@@ -77,7 +77,8 @@ export function PortalDocuments({ partnerType, data, initialDocuments }: { partn
         <h3 id="pd-other" className="text-sm font-semibold text-theme-primary">
           Anything else
         </h3>
-        <ExtraDocuments store={store} kinds={["certificate", "trade_certificate", "training_certificate", "licence", "other"]} shownKinds={reqs.map((r) => r.kind)} />
+        {/* only the kinds that have no slot of their own above */}
+        <ExtraDocuments store={store} kinds={["certificate", "trade_certificate", "training_certificate", "licence", "other"].filter((k) => !reqs.some((r) => r.kind === k))} shownKinds={reqs.map((r) => r.kind)} />
       </section>
     </div>
   );

@@ -123,12 +123,14 @@ const NEED_STYLE: Record<Need, string> = { required: "border-foreground/30 text-
 
 /**
  * The documents asked of this partner on one tab, each as its own slot: what it is, whether it is required and why it is asked, and the files sent for it, or "Not
- * sent" in red when a required one is missing. `subject` says whose they are. Files of this subject that fit no slot are listed last.
+ * sent" in red when a required one is missing. `subject` says whose they are. `restKinds` names the other kinds that belong on this tab ("all" for a person): files of
+ * those kinds that fit no slot are listed last.
  */
-export function DocSlots({ appId, slots, docs, subject = "partner", canAsk = false, restKinds }: { appId: string; slots: DocSlot[]; docs: PartnerDoc[]; subject?: string; canAsk?: boolean; restKinds?: readonly string[] }) {
+export function DocSlots({ appId, slots, docs, subject = "partner", canAsk = false, restKinds }: { appId: string; slots: DocSlot[]; docs: PartnerDoc[]; subject?: string; canAsk?: boolean; restKinds?: readonly string[] | "all" }) {
   const mine = docs.filter((d) => d.subject === subject);
   const shown = new Set(slots.map((s) => s.kind));
-  const rest = mine.filter((d) => !shown.has(d.kind) && (!restKinds || restKinds.includes(d.kind)));
+  // only where the tab says which other kinds belong on it: without that, every tab would list every other file of the partner
+  const rest = restKinds ? mine.filter((d) => !shown.has(d.kind) && (restKinds === "all" || restKinds.includes(d.kind))) : [];
   return (
     <div className="space-y-3">
       {slots.map((s) => {

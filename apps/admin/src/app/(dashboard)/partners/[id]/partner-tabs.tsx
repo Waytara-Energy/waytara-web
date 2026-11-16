@@ -262,7 +262,7 @@ export function PersonalTab({ app, v, data, docs }: { app: AppView; v: Verificat
         </dl>
       </Section>
       <Section title="Identity documents">
-        <DocSlots appId={app.id} slots={slotsOf(app, data, "personal")} docs={docs} canAsk={canAsk(app)} />
+        <DocSlots appId={app.id} slots={slotsOf(app, data, "personal")} docs={docs} canAsk={canAsk(app)} restKinds={["identity", "photo"]} />
       </Section>
       <Section title="Verification">
         <Check app={app} v={v} k="identity" />
@@ -342,7 +342,7 @@ export function TeamTab({ app, v, data, docs }: { app: AppView; v: VerificationD
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <DocSlots appId={app.id} subject={memberSubject(key)} slots={memberRequirements(m.needsLicence).map((r) => ({ kind: r.kind, label: r.label, need: r.need, anyOf: r.anyOf }))} docs={docs} canAsk={canAsk(app)} />
+              <DocSlots appId={app.id} subject={memberSubject(key)} slots={memberRequirements(m.needsLicence).map((r) => ({ kind: r.kind, label: r.label, need: r.need, anyOf: r.anyOf }))} docs={docs} canAsk={canAsk(app)} restKinds="all" />
               {memberChecklist(m.needsLicence).map((c) => {
                 const def = MEMBER_CHECKS.find((x) => x.key === c.key)!;
                 return <VerifyRow key={c.key} appId={app.id} subject={memberSubject(key)} itemKey={c.key} label={def.label} hint={def.hint} state={v.memberStates[key]?.[c.key] ?? "pending"} note={v.memberRows[key]?.[c.key]?.note ?? null} checkedAt={v.memberRows[key]?.[c.key]?.checked_at ?? null} />;

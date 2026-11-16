@@ -132,7 +132,8 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
   const [step, setStep] = React.useState<StepId>("personal");
   const top = React.useRef<HTMLDivElement>(null);
   const go = (next: StepId) => {
-    setVisited((v) => (v.includes(step) ? v : [...v, step]));
+    // A part shows what it still needs once they have been past it, and at once when they come to it from the review ("Complete").
+    setVisited((v) => Array.from(new Set([...v, step, ...(step === "review" ? [next] : [])])));
     setStep(next);
     top.current?.scrollIntoView({ block: "start", behavior: "smooth" });
   };

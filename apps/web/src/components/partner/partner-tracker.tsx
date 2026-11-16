@@ -122,9 +122,12 @@ export function PartnerTracker({ app, children, embedded = false }: { app: Track
               </div>
             </dl>
 
-            <p className="mt-8 max-w-xl text-xs leading-relaxed text-theme-muted">
-              This page is private to you. Anyone with this link can see where your application is, so please keep it to yourself.
-            </p>
+            {/* only where the page was opened by a link: in the partner area it is behind their own sign-in */}
+            {!embedded && (
+              <p className="mt-8 max-w-xl text-xs leading-relaxed text-theme-muted">
+                This page is private to you. Anyone with this link can see where your application is, so please keep it to yourself.
+              </p>
+            )}
             <p className="mt-6 text-sm text-theme-muted lg:hidden">
               Need help?{" "}
               <Link href="/contact" className="text-theme-primary underline underline-offset-4">
