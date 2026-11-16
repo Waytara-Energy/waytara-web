@@ -53,3 +53,37 @@ export async function sendPartnerDeclineEmail(input: PartnerDeclineEmailInput): 
     return "failed";
   }
 }
+
+/** The last e-mail when an admin deletes a partner outright (at any stage): it is closed and everything is deleted. Sent before anything is deleted, and the deletion stops if it fails. */
+export async function sendPartnerClosedEmail(input: { to: string; contactName: string; reference: string | null }): Promise<MailOutcome> {
+  const apiKey = process.env.RESEND_API_KEY;
+  if (!apiKey) {
+    console.warn("[send-partner-decline-email] RESEND_API_KEY not set: skipping send.");
+    return "skipped";
+  }
+  const from = process.env.RESEND_FROM_EMAIL || "WayTara Energy <onboarding@resend.dev>";
+  const first = input.contactName.trim().split(/\s+/)[0] || "there";
+  try {
+    const { html, text } = renderMail({
+      preheader: "Your WayTara partner record has been closed.",
+      title: "Your partner record is closed",
+      greeting: `Hi ${first},`,
+      blocks: [
+        { type: "p", text: "Your WayTara partner record has been closed, and we have deleted everything we held about it, including your documents, your details and your sign-in. This is the last e-mail you will receive about it." },
+        ...(input.reference ? [{ type: "facts" as const, rows: [["Reference", input.reference] as [string, string]] }] : []),
+        { type: "p", text: "Reply to this e-mail with any question." },
+      ],
+      why: "You get this e-mail because you are, or were, part of the WayTara Partner Network.",
+      audience: "public",
+    });
+    const { error } = await new Resend(apiKey).emails.send({ from, to: input.to, replyTo: MAIL_REPLY_TO, subject: "Your WayTara partner record is closed", text, html });
+    if (error) {
+      console.error("[send-partner-decline-email] Resend rejected the send:", error);
+      return "failed";
+    }
+    return "sent";
+  } catch (error) {
+    console.error("[send-partner-decline-email] Resend send failed:", error);
+    return "failed";
+  }
+}

@@ -3,21 +3,22 @@ import { CheckCircle2, CircleAlert } from "lucide-react";
 import { cn } from "@waytara/ui/cn";
 import { ActionForm } from "@waytara/ui/action-form";
 import { DOCUMENT_KIND_LABEL } from "@waytara/supabase/partner-onboarding";
-import { CHECKS, CHECK_STATE_LABEL, DECLINE_LABEL, approvalGaps, memberStatus, type CheckState } from "@waytara/supabase/partner-verification";
+import { CHECKS, CHECK_STATE_LABEL, approvalGaps, memberStatus, type CheckState } from "@waytara/supabase/partner-verification";
 import { loadVerification } from "@/lib/partner-verification-data";
 import { createClient } from "@waytara/supabase/server";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PARTNER_STATUS_LABEL, PARTNER_TYPE_LABEL } from "@/lib/partners";
+import { DangerZone } from "./danger-zone";
+import { ListingToggle } from "./listing-toggle";
 import { PartnerComposer } from "./partner-composer";
 import { PartnerDecision } from "./partner-decision";
 import { BankTab, BusinessTab, KycTab, LeadTab, LegalTab, PersonalTab, ScreeningTab, TeamTab, WorkTab, type AppView, type CallRow } from "./partner-tabs";
-import { Fact, type PartnerDoc } from "./partner-ui";
+import { type PartnerDoc } from "./partner-ui";
 import { StatusMenu } from "./status-menu";
-import { resendPartnerTrackingLink, setPartnerAccess, setPartnerListing } from "./actions";
+import { resendPartnerTrackingLink } from "./actions";
 
 const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
 const STEPS = ["Applied", "Screening", "Onboarding", "Verification", "Approved"];
@@ -60,10 +61,11 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
 
   const docs: PartnerDoc[] = docRows ?? [];
   const calls: CallRow[] = (callRows ?? []).map((c) => ({ id: c.id, called_at: c.called_at, outcome: c.outcome, notes: c.notes, next_step: c.next_step, caller: c.caller?.full_name ?? null }));
-  const view: AppView = { id: app.id, status: app.status, partner_type: app.partner_type, company_name: app.company_name, contact_name: app.contact_name, phone: app.phone, email: app.email, website: app.website, reference: app.reference, created_at: app.created_at, answers: app.answers, message: app.message, services: app.services, cities: app.cities };
+  const view: AppView = { id: app.id, status: app.status, partner_type: app.partner_type, company_name: app.company_name, contact_name: app.contact_name, phone: app.phone, email: app.email, website: app.website, reference: app.reference, created_at: app.created_at, answers: app.answers, message: app.message, services: app.services, cities: app.cities, account_note: app.status !== "approved" ? "" : app.profile_id ? (app.account?.deactivated_at ? "Suspended" : `Active since ${app.account_created_at ? when(app.account_created_at) : "signing up"}`) : "Not created yet", last_updated: app.reviewed_at ? `${app.reviewer?.full_name ?? "An admin"}, ${when(app.reviewed_at)}` : "" };
   const gaps = approvalGaps(app.partner_type, v.states, v.members, v.memberStates);
   const finished = app.status === "approved" || app.status === "rejected";
   const stepIndex = STEP_OF[app.status] ?? 0;
+  const hasAside = !finished || (app.status !== "rejected" && !app.profile_id);
   const memberMarks = v.members.map((m) => memberStatus(m, v.memberStates));
 
   // Everything that happened, newest first, for the Activity tab.
@@ -98,9 +100,11 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
   ];
 
   return (
-    <div className="grid items-start gap-5 pb-6 xl:grid-cols-[minmax(0,1fr)_21rem]">
+    <div className="space-y-6 pb-6">
+    <div className={cn("grid items-start gap-5", hasAside && "xl:grid-cols-[minmax(0,1fr)_21rem]")}>
       <div className="min-w-0 space-y-4">
-        <div className="space-y-3">
+        <div className="flex flex-wrap items-start justify-between gap-4">
+          <div className="min-w-0 space-y-3">
           <Breadcrumb>
             <BreadcrumbList>
               <BreadcrumbItem>
@@ -114,10 +118,7 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
               </BreadcrumbItem>
             </BreadcrumbList>
           </Breadcrumb>
-          <div className="flex flex-wrap items-center gap-3">
-            <StatusMenu id={app.id} status={app.status} />
-            <h1 className="text-2xl font-semibold tracking-tight">{app.company_name}</h1>
-          </div>
+          <h1 className="text-2xl font-semibold tracking-tight">{app.company_name}</h1>
           <p className="text-sm text-muted-foreground">
             {app.partner_type ? `${PARTNER_TYPE_LABEL[app.partner_type] ?? app.partner_type} · ` : ""}
             {app.reference ? `${app.reference} · ` : ""}Received {when(app.created_at)}
@@ -134,10 +135,15 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
             ))}
             {app.status === "rejected" && <li className="font-medium text-destructive">· Declined</li>}
           </ol>
+          </div>
+          <div className="flex items-center gap-2">
+            {app.status === "approved" && <ListingToggle id={app.id} listed={app.listed_publicly} />}
+            <StatusMenu id={app.id} status={app.status} />
+          </div>
         </div>
 
         <Tabs key={app.id} defaultValue={tab} className="gap-4">
-          <TabsList className="h-auto w-full flex-wrap justify-start gap-1">
+          <TabsList variant="line" className="h-auto w-full flex-wrap justify-start gap-1 border-b border-border">
             {triggers.map((t) => (
               <TabsTrigger key={t.id} value={t.id} className="gap-1.5 px-3 py-1.5">
                 {t.label}
@@ -207,6 +213,7 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
         </Tabs>
       </div>
 
+      {hasAside && (
       <aside className="min-w-0 space-y-4">
         {!finished && (
           <Card className="gap-3 shadow-none">
@@ -215,67 +222,7 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
               <p className="text-xs text-muted-foreground">Approving needs the required items verified, and every person on the team.</p>
             </CardHeader>
             <CardContent>
-              <PartnerDecision id={app.id} reference={app.reference} status={app.status} gaps={gaps} />
-            </CardContent>
-          </Card>
-        )}
-
-        <Card className="gap-3 shadow-none">
-          <CardHeader>
-            <CardTitle className="text-sm">Details</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <dl className="grid grid-cols-1 gap-3">
-              <Fact label="Contact person">{app.contact_name}</Fact>
-              <Fact label="Phone">
-                <a href={`tel:${app.phone}`} className="hover:underline">
-                  {app.phone}
-                </a>
-              </Fact>
-              <Fact label="E-mail">
-                <a href={`mailto:${app.email}`} className="break-all hover:underline">
-                  {app.email}
-                </a>
-              </Fact>
-              <Fact label="Reference">{app.reference}</Fact>
-              <Fact label="Last updated by">{app.reviewed_at ? `${app.reviewer?.full_name ?? "An admin"}, ${when(app.reviewed_at)}` : ""}</Fact>
-              {app.status === "rejected" && <Fact label="Their data">{app.declined_handling ? (DECLINE_LABEL[app.declined_handling] ?? app.declined_handling) : "Their link is closed."}</Fact>}
-            </dl>
-          </CardContent>
-        </Card>
-
-        {app.status === "approved" && (
-          <Card className="gap-3 shadow-none">
-            <CardHeader>
-              <CardTitle className="text-sm">Partner account</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {app.profile_id ? (
-                <>
-                  <p className="text-xs text-muted-foreground">
-                    {app.account?.deactivated_at ? "Suspended: they cannot sign in." : "Active."} Created{app.account_created_at ? ` ${when(app.account_created_at)}` : ""}; they sign in on the website with {app.email} and see only their partner area.
-                  </p>
-                  <ActionForm action={setPartnerAccess.bind(null, app.id, Boolean(app.account?.deactivated_at))} loading={app.account?.deactivated_at ? "Restoring…" : "Suspending…"} success={app.account?.deactivated_at ? "Access restored." : "Access suspended."}>
-                    <Button type="submit" size="sm" variant="outline">
-                      {app.account?.deactivated_at ? "Restore access" : "Suspend access"}
-                    </Button>
-                  </ActionForm>
-                </>
-              ) : (
-                <p className="text-xs text-muted-foreground">Approved, but they have not created their account yet. They were e-mailed a link; if it was lost, send a new one below.</p>
-              )}
-              <ActionForm action={setPartnerListing.bind(null, app.id)} loading="Saving…" success="Saved." className="flex items-center justify-between gap-3 border-t border-border pt-3">
-                <label htmlFor="listed" className="text-xs">
-                  <span className="block font-medium">Show in the public partner directory</span>
-                  <span className="text-muted-foreground">Business name, kind and districts only.</span>
-                </label>
-                <div className="flex items-center gap-2">
-                  <Switch id="listed" name="listed" defaultChecked={app.listed_publicly} />
-                  <Button type="submit" size="sm" variant="outline">
-                    Save
-                  </Button>
-                </div>
-              </ActionForm>
+              <PartnerDecision id={app.id} reference={app.reference} status={app.status} gaps={gaps} parts={["approve", "ask"]} />
             </CardContent>
           </Card>
         )}
@@ -298,6 +245,9 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
           </Card>
         )}
       </aside>
+      )}
+    </div>
+    <DangerZone id={app.id} reference={app.reference} status={app.status} hasAccount={Boolean(app.profile_id)} suspended={Boolean(app.account?.deactivated_at)} />
     </div>
   );
 }

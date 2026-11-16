@@ -1,3 +1,4 @@
+import { Mail, Phone, UserRound } from "lucide-react";
 import { ActionForm } from "@waytara/ui/action-form";
 import { BUSINESS_KINDS, LICENCE_TYPES, memberKey, type OnboardingData } from "@waytara/supabase/partner-onboarding";
 import { licenceStatus, todayIst } from "@waytara/supabase/partner-account";
@@ -29,6 +30,9 @@ export interface AppView {
   message: string | null;
   services: string[];
   cities: string | null;
+  /** "Active", "Suspended", "Not created yet" or empty (not approved), and who last updated the application and when: for the Lead details tab. */
+  account_note: string;
+  last_updated: string;
 }
 
 export interface CallRow {
@@ -67,17 +71,62 @@ export function LeadTab({ app }: { app: AppView }) {
   const answers = readAnswers(app.answers);
   return (
     <div className="space-y-4">
-      <Section title="What they applied with" description="From the short application on the Partner page.">
+      <div className="grid gap-4 lg:grid-cols-2">
+        <Section title="Contact" description="Who to call and write to.">
+          <dl className="grid gap-4 sm:grid-cols-2">
+            <Fact label="Contact person">
+              <span className="inline-flex items-center gap-2">
+                <UserRound className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                {app.contact_name}
+              </span>
+            </Fact>
+            <Fact label="Phone">
+              <a href={`tel:${app.phone}`} className="inline-flex items-center gap-2 hover:underline">
+                <Phone className="size-3.5 text-muted-foreground" aria-hidden="true" />
+                {app.phone}
+              </a>
+            </Fact>
+            <Fact label="E-mail" wide>
+              <a href={`mailto:${app.email}`} className="inline-flex items-center gap-2 break-all hover:underline">
+                <Mail className="size-3.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                {app.email}
+              </a>
+            </Fact>
+            <Fact label="Website" wide>
+              {app.website}
+            </Fact>
+          </dl>
+        </Section>
+
+        <Section title="The application" description="From the short form on the Partner page.">
+          <dl className="grid gap-4 sm:grid-cols-2">
+            <Fact label="Applying as">{PARTNER_TYPE_LABEL[app.partner_type ?? ""] ?? ""}</Fact>
+            <Fact label="Reference">{app.reference}</Fact>
+            <Fact label="Applied">{when(app.created_at)}</Fact>
+            <Fact label="Where">{app.cities}</Fact>
+            <Fact label="Partner account">{app.account_note}</Fact>
+            <Fact label="Last updated by">{app.last_updated}</Fact>
+            <Fact label="Services" wide>
+              {app.services.length > 0 ? (
+                <span className="flex flex-wrap gap-1.5">
+                  {app.services.map((s) => (
+                    <Badge key={s} variant="secondary">
+                      {PARTNER_SERVICE_LABEL[s] ?? s}
+                    </Badge>
+                  ))}
+                </span>
+              ) : (
+                ""
+              )}
+            </Fact>
+          </dl>
+        </Section>
+      </div>
+
+      <Section title="Their answers" description="What they told us about their work when they applied.">
         <dl className="grid gap-4 sm:grid-cols-2">
-          <Fact label="Applying as">{PARTNER_TYPE_LABEL[app.partner_type ?? ""] ?? ""}</Fact>
-          <Fact label="Reference">{app.reference}</Fact>
-          <Fact label="Applied">{when(app.created_at)}</Fact>
-          <Fact label="Where">{app.cities}</Fact>
-          <Fact label="Services" wide>
-            {app.services.map((s) => PARTNER_SERVICE_LABEL[s] ?? s).join(", ")}
-          </Fact>
           {answers.map((x) => (
-            <Fact key={x.q} label={x.q} wide>
+            <Fact key={x.q} label={x.q}>
               {x.a}
             </Fact>
           ))}
@@ -89,7 +138,6 @@ export function LeadTab({ app }: { app: AppView }) {
     </div>
   );
 }
-
 export function ScreeningTab({ app, calls }: { app: AppView; calls: CallRow[] }) {
   return (
     <div className="space-y-4">

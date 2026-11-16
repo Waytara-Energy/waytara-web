@@ -8,7 +8,7 @@ import { getCurrentProfile, requireStaff } from "@waytara/supabase/auth";
 import { accessExpiry, newAccessToken } from "@waytara/supabase/partner-access";
 import { approvalGaps, isCheckKey, isCheckState, isDeclineHandling, isMemberCheckKey, isSubject } from "@waytara/supabase/partner-verification";
 import { loadVerification } from "@/lib/partner-verification-data";
-import { sendPartnerDeclineEmail } from "@/lib/send-partner-decline-email";
+import { sendPartnerClosedEmail, sendPartnerDeclineEmail } from "@/lib/send-partner-decline-email";
 import { sendPartnerLinkEmail } from "@/lib/send-partner-link-email";
 import { isPartnerStatus } from "@/lib/partners";
 
@@ -183,16 +183,47 @@ export async function logScreeningCall(id: string, formData: FormData): Promise<
 }
 
 /** Shows an approved partner in the public partner directory (business name, kind and districts only), or takes them out of it. Only for an approved partner. */
-export async function setPartnerListing(id: string, formData: FormData): Promise<void> {
+export async function setPartnerListed(id: string, listed: boolean): Promise<void> {
   await requireAdminProfile();
   const supabase = await createClient();
   const { data: app } = await supabase.from("partner_applications").select("status").eq("id", id).single();
   if (app?.status !== "approved") throw new Error("Only an approved partner can be listed.");
-  const { error } = await supabase.from("partner_applications").update({ listed_publicly: formData.get("listed") === "on" }).eq("id", id);
+  const { error } = await supabase.from("partner_applications").update({ listed_publicly: listed }).eq("id", id);
   if (error) throw new Error(error.message);
   revalidatePath(`/partners/${id}`);
 }
 
+/**
+ * Deletes a partner for good, whatever stage they are at: their files, everything they entered, the application and their sign-in account. The reference is typed to
+ * confirm. A last e-mail goes first (and if it cannot be sent, nothing is deleted), the same promise the decline makes. Admin only; it cannot be undone.
+ */
+export async function deletePartner(id: string, formData: FormData): Promise<void> {
+  await requireAdminProfile();
+  const supabase = await createClient();
+  const { data: app } = await supabase.from("partner_applications").select("contact_name, email, reference, profile_id").eq("id", id).single();
+  if (!app) throw new Error("Couldn't find this application.");
+  if (String(formData.get("confirm") ?? "").trim().toUpperCase() !== (app.reference ?? "").toUpperCase()) throw new Error("Type the application reference to confirm that everything is deleted.");
+
+  const sent = await sendPartnerClosedEmail({ to: app.email, contactName: app.contact_name, reference: app.reference });
+  if (sent === "failed") throw new Error("The final e-mail could not be sent, so nothing was deleted. Try again in a moment.");
+
+  const service = createServiceRoleClient();
+  const bucket = service.storage.from("partner-documents");
+  const { data: files, error: listError } = await bucket.list(id, { limit: 1000 });
+  if (listError) throw new Error(`Their files could not be listed to delete: ${listError.message}. Nothing else was deleted; try again.`);
+  if ((files ?? []).length > 0) {
+    const { error: removeError } = await bucket.remove((files ?? []).map((f) => `${id}/${f.name}`));
+    if (removeError) throw new Error(`Their files could not be deleted: ${removeError.message}. Try again.`);
+  }
+  const { error: rowError } = await service.from("partner_applications").delete().eq("id", id);
+  if (rowError) throw new Error(`The files are deleted, but the application could not be: ${rowError.message}. Try again.`);
+  if (app.profile_id) {
+    await service.from("profiles").delete().eq("id", app.profile_id);
+    const { error: userError } = await service.auth.admin.deleteUser(app.profile_id);
+    if (userError) throw new Error(`Everything else is deleted, but their sign-in account could not be: ${userError.message}.`);
+  }
+  revalidatePath("/partners");
+}
 /** Moves an application to another stage (the status menu at the top of the page). Approved and declined are not reachable from it: those are the Approve and Decline buttons. */
 export async function changePartnerStatus(id: string, status: string): Promise<void> {
   if (!isPartnerStatus(status)) throw new Error("Choose a status.");

@@ -16,33 +16,37 @@ import { approvePartnerApplication, declinePartnerApplication, requestMorePartne
  * happens to their data (the three choices, each saying what is deleted and what is kept) and, for the one that cannot be undone, the reference typed to confirm.
  * Nothing here runs until the dialog's own button is pressed; the final e-mail to the applicant goes out before anything is deleted (see the action).
  */
-export function PartnerDecision({ id, reference, status, gaps }: { id: string; reference: string | null; status: string; gaps: string[] }) {
+export function PartnerDecision({ id, reference, status, gaps, parts = ["approve", "ask", "decline"], declineLabel = "Decline…" }: { id: string; reference: string | null; status: string; gaps: string[]; parts?: ("approve" | "ask" | "decline")[]; declineLabel?: string }) {
   const [dialog, setDialog] = React.useState<"more" | "decline" | null>(null);
   const [handling, setHandling] = React.useState<DeclineHandling>("keep");
   const [attempt, setAttempt] = React.useState(0);
   const router = useRouter();
   const close = () => setDialog(null);
-  const canAskMore = status === "verification" || status === "onboarding";
+  const canAskMore = (status === "verification" || status === "onboarding") && parts.includes("ask");
   const option = DECLINE_OPTIONS.find((o) => o.id === handling)!;
 
   return (
     <div className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
-        <ActionForm action={approvePartnerApplication.bind(null, id)} loading="Approving…" success="Application approved.">
-          <FormSubmit size="sm" disabled={gaps.length > 0} pendingText="Approving…">
-            Approve
-          </FormSubmit>
-        </ActionForm>
+        {parts.includes("approve") && (
+          <ActionForm action={approvePartnerApplication.bind(null, id)} loading="Approving…" success="Application approved.">
+            <FormSubmit size="sm" disabled={gaps.length > 0} pendingText="Approving…">
+              Approve
+            </FormSubmit>
+          </ActionForm>
+        )}
         {canAskMore && (
           <Button type="button" size="sm" variant="outline" onClick={() => setDialog("more")}>
             Ask for more…
           </Button>
         )}
-        <Button type="button" size="sm" variant="outline" className="text-destructive" onClick={() => setDialog("decline")}>
-          Decline…
-        </Button>
+        {parts.includes("decline") && (
+          <Button type="button" size="sm" variant="outline" className="border-destructive/50 text-destructive hover:bg-destructive/10 hover:text-destructive" onClick={() => setDialog("decline")}>
+            {declineLabel}
+          </Button>
+        )}
       </div>
-      {gaps.length > 0 && (
+      {parts.includes("approve") && gaps.length > 0 && (
         <p className="max-w-xl text-xs text-muted-foreground">
           Not ready to approve: {gaps.join("; ")}.
         </p>
