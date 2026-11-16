@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
 import { cn } from "@waytara/ui/cn";
 import { createClient } from "@waytara/supabase/server";
 import { ActionForm } from "@waytara/ui/action-form";
@@ -92,9 +93,19 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
     <div className="grid items-start gap-5 pb-6 xl:grid-cols-[minmax(0,1fr)_21rem]">
       <div className="min-w-0 space-y-4">
         <div>
-          <Link href="/partners" className="text-xs text-muted-foreground hover:underline lg:hidden">
-            ← Back to Partners
-          </Link>
+          <Breadcrumb>
+            <BreadcrumbList>
+              <BreadcrumbItem>
+                <BreadcrumbLink asChild>
+                  <Link href="/partners">Partners</Link>
+                </BreadcrumbLink>
+              </BreadcrumbItem>
+              <BreadcrumbSeparator />
+              <BreadcrumbItem>
+                <BreadcrumbPage>{app.company_name}</BreadcrumbPage>
+              </BreadcrumbItem>
+            </BreadcrumbList>
+          </Breadcrumb>
           <div className="mt-1 flex flex-wrap items-center gap-3">
             <h1 className="text-2xl font-semibold tracking-tight">{app.company_name}</h1>
             <ToneBadge tone={TONES[app.status] ?? "neutral"}>{PARTNER_STATUS_LABEL[app.status] ?? app.status}</ToneBadge>
@@ -117,7 +128,7 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
           </ol>
         </div>
 
-        <nav aria-label="Application sections" className="flex gap-1 overflow-x-auto border-b border-border">
+        <nav aria-label="Application sections" className="flex gap-1 overflow-x-auto overflow-y-hidden border-b border-border">
           {TABS.map((t) => (
             <Link key={t.id} href={`/partners/${app.id}?tab=${t.id}`} aria-current={tab === t.id ? "page" : undefined} className={cn("-mb-px whitespace-nowrap border-b-2 px-3 py-2 text-sm transition-colors", tab === t.id ? "border-foreground font-medium text-foreground" : "border-transparent text-muted-foreground hover:text-foreground")}>
               {t.label}
@@ -404,7 +415,7 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
         <ActionForm key={`${app.status}-${app.reviewed_at ?? ""}-${app.status_message_at ?? ""}`} action={reviewPartnerApplication.bind(null, app.id)} loading="Saving…" success="Application updated." className="mt-4 space-y-4">
           <div className="space-y-1.5">
             <label htmlFor="status" className="text-sm font-medium">
-              Status
+              Move to
             </label>
             <select
               id="status"
