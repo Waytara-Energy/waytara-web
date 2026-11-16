@@ -3,8 +3,11 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { createClient } from "@waytara/supabase/server";
+import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { getCurrentProfile, requireStaff } from "@waytara/supabase/auth";
 import { accessExpiry, newAccessToken } from "@waytara/supabase/partner-access";
+import { approvalGaps, checklistFor, isCheckKey, isCheckState, isDeclineHandling, type CheckKey, type CheckState } from "@waytara/supabase/partner-verification";
+import { sendPartnerDeclineEmail } from "@/lib/send-partner-decline-email";
 import { sendPartnerLinkEmail } from "@/lib/send-partner-link-email";
 import { isPartnerStatus } from "@/lib/partners";
 
@@ -25,6 +28,9 @@ export async function reviewPartnerApplication(id: string, formData: FormData): 
   // The note's date is when it was last changed, so an unchanged note keeps its date.
   const { data: before } = await supabase.from("partner_applications").select("status, status_message, status_message_at, contact_name, email, reference").eq("id", id).single();
   const messageChanged = (before?.status_message ?? "") !== message;
+  // Approving and declining have their own steps (the checklist must be done; a decline asks what happens to the data and sends a last e-mail), so they cannot be
+  // reached by picking a status here. An application that already is approved or declined can still be saved as it is.
+  if ((status === "approved" || status === "rejected") && before?.status !== status) throw new Error("Use the Approve or Decline buttons for that.");
   // Opening onboarding is the moment the applicant is asked to act, so they get a fresh link in an e-mail that says so (a link cannot be read back, so this is
   // the only way to put one in front of them; the earlier link stops working).
   const opensOnboarding = status === "onboarding" && before?.status !== "onboarding";
@@ -64,13 +70,170 @@ export async function resendPartnerTrackingLink(id: string): Promise<void> {
   if (profile?.role !== "admin") redirect("/unauthorized");
 
   const supabase = await createClient();
-  const { data: app, error: readError } = await supabase.from("partner_applications").select("contact_name, email, reference").eq("id", id).single();
+  const { data: app, error: readError } = await supabase.from("partner_applications").select("contact_name, email, reference, status").eq("id", id).single();
   if (readError || !app) throw new Error("Couldn't find this application.");
+  // A declined application's link was closed on purpose; it is not to be brought back.
+  if (app.status === "rejected") throw new Error("This application was declined, so its link stays closed.");
 
   const access = newAccessToken();
   const { error } = await supabase.from("partner_applications").update({ access_token_hash: access.hash, access_expires_at: accessExpiry() }).eq("id", id);
   if (error) throw new Error(error.message);
 
   await sendPartnerLinkEmail({ to: app.email, contactName: app.contact_name, reference: app.reference, token: access.token });
+  revalidatePath(`/partners/${id}`);
+}
+
+async function requireAdminProfile() {
+  await requireStaff();
+  const profile = await getCurrentProfile();
+  if (profile?.role !== "admin") redirect("/unauthorized");
+  return profile;
+}
+
+/** Saves the verification checklist: for each check its state (not checked yet, verified, problem found) and a short note. Who changed a check and when is recorded on it. */
+export async function savePartnerChecks(id: string, formData: FormData): Promise<void> {
+  const profile = await requireAdminProfile();
+  const supabase = await createClient();
+  const { data: app } = await supabase.from("partner_applications").select("partner_type").eq("id", id).single();
+  if (!app) throw new Error("Couldn't find this application.");
+  const { data: existing } = await supabase.from("partner_checks").select("key, state, note").eq("application_id", id);
+  const had = new Map((existing ?? []).map((r) => [r.key, r]));
+
+  const rows: { application_id: string; key: CheckKey; state: CheckState; note: string | null; checked_by: string; checked_at: string }[] = [];
+  for (const c of checklistFor(app.partner_type)) {
+    const state = String(formData.get(`state_${c.key}`) ?? "pending");
+    if (!isCheckState(state)) throw new Error("Choose a state for each check.");
+    const note = String(formData.get(`note_${c.key}`) ?? "").trim();
+    if (note.length > 500) throw new Error(`The note for "${c.label}" is too long (500 characters at most).`);
+    const prev = had.get(c.key);
+    // nothing to record for a check nobody has touched; and a check that did not change keeps who checked it and when
+    if (!prev && state === "pending" && note === "") continue;
+    if (prev && prev.state === state && (prev.note ?? "") === note) continue;
+    rows.push({ application_id: id, key: c.key, state, note: note === "" ? null : note, checked_by: profile.id, checked_at: new Date().toISOString() });
+  }
+  if (rows.length > 0) {
+    const { error } = await supabase.from("partner_checks").upsert(rows, { onConflict: "application_id,key" });
+    if (error) throw new Error(error.message);
+  }
+  revalidatePath(`/partners/${id}`);
+}
+
+/**
+ * Asks the applicant for something more: the application goes back to Onboarding with their answers and files kept, they get a fresh private link in an e-mail that
+ * carries the admin's words, and the same words show on their page as the team's note.
+ */
+export async function requestMorePartnerInfo(id: string, formData: FormData): Promise<void> {
+  const profile = await requireAdminProfile();
+  const note = String(formData.get("note") ?? "").trim();
+  if (note.length < 3) throw new Error("Write what you need from them.");
+  if (note.length > 600) throw new Error("That is too long (600 characters at most).");
+
+  const supabase = await createClient();
+  const { data: app } = await supabase.from("partner_applications").select("status, contact_name, email, reference").eq("id", id).single();
+  if (!app) throw new Error("Couldn't find this application.");
+  if (app.status !== "verification" && app.status !== "onboarding") throw new Error("You can ask for more once they are in Onboarding or Verification.");
+
+  const access = newAccessToken();
+  const now = new Date().toISOString();
+  const { error } = await supabase
+    .from("partner_applications")
+    .update({ status: "onboarding", status_message: note, status_message_at: now, access_token_hash: access.hash, access_expires_at: accessExpiry(), reviewed_by: profile.id, reviewed_at: now })
+    .eq("id", id);
+  if (error) throw new Error(error.message);
+  await supabase.from("partner_onboarding").update({ submitted_at: null }).eq("application_id", id);
+
+  await sendPartnerLinkEmail({ to: app.email, contactName: app.contact_name, reference: app.reference, token: access.token, purpose: "more_info", note });
+  revalidatePath(`/partners/${id}`);
+  revalidatePath("/partners");
+}
+
+/** Approves an application, but only when every check that is required for their kind of partner is Verified. */
+export async function approvePartnerApplication(id: string): Promise<void> {
+  const profile = await requireAdminProfile();
+  const supabase = await createClient();
+  const { data: app } = await supabase.from("partner_applications").select("status, partner_type").eq("id", id).single();
+  if (!app) throw new Error("Couldn't find this application.");
+  if (app.status === "approved") throw new Error("This application is already approved.");
+  if (app.status === "rejected") throw new Error("This application was declined.");
+
+  const { data: checks } = await supabase.from("partner_checks").select("key, state").eq("application_id", id);
+  const states: Partial<Record<CheckKey, CheckState>> = {};
+  for (const c of checks ?? []) if (isCheckKey(c.key) && isCheckState(c.state)) states[c.key] = c.state;
+  const gaps = approvalGaps(app.partner_type, states);
+  if (gaps.length > 0) throw new Error(`Not ready to approve. ${gaps.join("; ")}.`);
+
+  const { error } = await supabase.from("partner_applications").update({ status: "approved", reviewed_by: profile.id, reviewed_at: new Date().toISOString() }).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/partners/${id}`);
+  revalidatePath("/partners");
+}
+
+/**
+ * Declines an application, and does what the admin chose with the applicant's data: delete everything, delete the documents and keep the contact details, or keep
+ * it all. In every case the applicant's private link is closed. The order is the point:
+ *   1. the final e-mail goes out FIRST, and if it fails nothing is changed or deleted (so nobody has data deleted without being told);
+ *   2. the application is marked declined and its link closed;
+ *   3. then the files in the private bucket, the document rows and the onboarding answers are deleted (the first option also deletes the application itself).
+ * The file deletions use the server's own key because no admin login has a delete right on them. If a deletion fails part way, the error is shown and the application
+ * stays declined with what is left; running the decline again finishes the job without sending the e-mail a second time.
+ */
+export async function declinePartnerApplication(id: string, formData: FormData): Promise<void> {
+  const profile = await requireAdminProfile();
+  const handling = String(formData.get("handling") ?? "");
+  if (!isDeclineHandling(handling)) throw new Error("Choose what happens to their data.");
+
+  const supabase = await createClient();
+  const { data: app } = await supabase.from("partner_applications").select("status, contact_name, email, reference").eq("id", id).single();
+  if (!app) throw new Error("Couldn't find this application.");
+  if (app.status === "approved") throw new Error("An approved partner cannot be declined here.");
+  // Deleting everything cannot be undone, so the reference is typed to confirm.
+  if (handling === "delete_all" && String(formData.get("confirm") ?? "").trim().toUpperCase() !== (app.reference ?? "").toUpperCase()) throw new Error("Type the application reference to confirm that everything is deleted.");
+
+  const alreadyDeclined = app.status === "rejected";
+  if (!alreadyDeclined) {
+    const sent = await sendPartnerDeclineEmail({ to: app.email, contactName: app.contact_name, reference: app.reference, handling });
+    if (sent === "failed") throw new Error("The final e-mail could not be sent, so nothing was changed or deleted. Try again in a moment.");
+  }
+
+  const now = new Date().toISOString();
+  const { error: closeError } = await supabase
+    .from("partner_applications")
+    .update({
+      status: "rejected",
+      access_token_hash: null,
+      access_expires_at: null,
+      status_message: null,
+      status_message_at: null,
+      listed_publicly: false,
+      declined_at: now,
+      declined_handling: handling === "delete_all" ? null : handling,
+      reviewed_by: profile.id,
+      reviewed_at: now,
+    })
+    .eq("id", id);
+  if (closeError) throw new Error(closeError.message);
+
+  if (handling !== "keep") {
+    const service = createServiceRoleClient();
+    // every file in the application's folder, including any that were uploaded but never recorded
+    const bucket = service.storage.from("partner-documents");
+    const { data: files, error: listError } = await bucket.list(id, { limit: 1000 });
+    if (listError) throw new Error(`The application is declined, but its files could not be listed to delete: ${listError.message}. Run the decline again.`);
+    if ((files ?? []).length > 0) {
+      const { error: removeError } = await bucket.remove((files ?? []).map((f) => `${id}/${f.name}`));
+      if (removeError) throw new Error(`The application is declined, but its files could not be deleted: ${removeError.message}. Run the decline again.`);
+    }
+    const { error: docsError } = await service.from("partner_documents").delete().eq("application_id", id);
+    if (docsError) throw new Error(`The files are deleted, but their records could not be: ${docsError.message}. Run the decline again.`);
+    const { error: onboardingError } = await service.from("partner_onboarding").delete().eq("application_id", id);
+    if (onboardingError) throw new Error(`The documents are deleted, but the onboarding answers could not be: ${onboardingError.message}. Run the decline again.`);
+    if (handling === "delete_all") {
+      const { error: rowError } = await service.from("partner_applications").delete().eq("id", id);
+      if (rowError) throw new Error(`Everything else is deleted, but the application itself could not be: ${rowError.message}. Run the decline again.`);
+    }
+  }
+
+  revalidatePath("/partners");
+  if (handling === "delete_all") redirect("/partners");
   revalidatePath(`/partners/${id}`);
 }

@@ -10,6 +10,7 @@
     "./anon": "./src/client-anon.ts",
     "./partner-access": "./src/partner-access.ts",
     "./partner-onboarding": "./src/partner-onboarding.ts",
+    "./partner-verification": "./src/partner-verification.ts",
     "./middleware": "./src/middleware.ts",
     "./auth": "./src/auth.ts",
     "./roles": "./src/roles.ts",

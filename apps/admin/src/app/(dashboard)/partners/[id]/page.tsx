@@ -5,7 +5,9 @@ import { Button } from "@waytara/ui/button";
 import { ToneBadge, type Tone } from "@/components/page-kit";
 import { PARTNER_SERVICE_LABEL, PARTNER_STATUSES, PARTNER_STATUS_LABEL, PARTNER_TYPE_LABEL, readAnswers } from "@/lib/partners";
 import { BUSINESS_KINDS, DOCUMENT_KIND_LABEL, LICENCE_TYPES, readOnboarding } from "@waytara/supabase/partner-onboarding";
-import { resendPartnerTrackingLink, reviewPartnerApplication } from "./actions";
+import { CHECK_STATE_LABEL, DECLINE_LABEL, approvalGaps, checklistFor, isCheckKey, isCheckState, requiredChecks, type CheckKey, type CheckState } from "@waytara/supabase/partner-verification";
+import { PartnerDecision } from "./partner-decision";
+import { resendPartnerTrackingLink, reviewPartnerApplication, savePartnerChecks } from "./actions";
 
 const TONES: Record<string, Tone> = { new: "info", in_review: "warn", shortlisted: "warn", onboarding: "warn", verification: "warn", approved: "good", rejected: "neutral" };
 
@@ -37,12 +39,24 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
 
   const answers = readAnswers(app.answers);
   // What the applicant filled in on their onboarding page, and the files they sent (names only here; the file viewer, with its access log, comes with verification).
-  const [{ data: onboardingRow }, { data: docRows }] = await Promise.all([
+  const [{ data: onboardingRow }, { data: docRows }, { data: checkRows }, { data: accessRows }] = await Promise.all([
     supabase.from("partner_onboarding").select("data, submitted_at, updated_at").eq("application_id", id).maybeSingle(),
     supabase.from("partner_documents").select("id, kind, file_name, size_bytes, uploaded_at").eq("application_id", id).order("uploaded_at", { ascending: true }),
+    supabase.from("partner_checks").select("key, state, note, checked_at, checker:profiles!partner_checks_checked_by_fkey(full_name)").eq("application_id", id),
+    supabase
+      .from("partner_document_access")
+      .select("id, file_name, action, accessed_at, accessor:profiles!partner_document_access_accessed_by_fkey(full_name)")
+      .eq("application_id", id)
+      .order("accessed_at", { ascending: false })
+      .limit(50),
   ]);
   const onboarding = onboardingRow ? readOnboarding(onboardingRow.data) : null;
   const documents = docRows ?? [];
+  const checks = new Map((checkRows ?? []).map((c) => [c.key, c]));
+  const checkStates: Partial<Record<CheckKey, CheckState>> = {};
+  for (const c of checkRows ?? []) if (isCheckKey(c.key) && isCheckState(c.state)) checkStates[c.key] = c.state;
+  const gaps = approvalGaps(app.partner_type, checkStates);
+  const finished = app.status === "approved" || app.status === "rejected";
   const when = (iso: string) => new Date(iso).toLocaleString("en-IN");
   return (
     <div className="max-w-3xl space-y-6">
@@ -211,14 +225,107 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
                   <span>
                     <span className="font-medium">{DOCUMENT_KIND_LABEL[d.kind] ?? d.kind}</span> · {d.file_name}
                   </span>
-                  <span className="text-muted-foreground">
-                    {d.size_bytes >= 1048576 ? `${(d.size_bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(d.size_bytes / 1024))} KB`} · {when(d.uploaded_at)}
+                  <span className="flex items-center gap-3 text-muted-foreground">
+                    <span>
+                      {d.size_bytes >= 1048576 ? `${(d.size_bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(d.size_bytes / 1024))} KB`} · {when(d.uploaded_at)}
+                    </span>
+                    {/* plain links, not the router: each one is a download-or-view that the server logs before it serves the file */}
+                    <a href={`/partners/${app.id}/files/${d.id}`} target="_blank" rel="noopener noreferrer" className="font-medium text-foreground underline-offset-4 hover:underline">
+                      View
+                    </a>
+                    <a href={`/partners/${app.id}/files/${d.id}?download=1`} className="font-medium text-foreground underline-offset-4 hover:underline">
+                      Download
+                    </a>
                   </span>
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-muted-foreground">Every time you open or download a file it is recorded below, with your name and the time. The applicant cannot open them.</p>
+          </div>
+        )}
+
+        {(accessRows ?? []).length > 0 && (
+          <div className="mt-5">
+            <h3 className="text-xs font-medium text-muted-foreground">Who opened these files</h3>
+            <ul className="mt-2 divide-y divide-border rounded-md border border-border text-sm">
+              {(accessRows ?? []).map((a) => (
+                <li key={a.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-3 py-2">
+                  <span>
+                    {a.accessor?.full_name ?? "A former admin"} {a.action === "download" ? "downloaded" : "viewed"} <span className="font-medium">{a.file_name}</span>
+                  </span>
+                  <span className="text-muted-foreground">{when(a.accessed_at)}</span>
                 </li>
               ))}
             </ul>
           </div>
         )}
+      </div>
+
+      <div className="rounded-lg border border-border bg-card p-5">
+        <h2 className="text-sm font-semibold">Verification</h2>
+        {app.status === "rejected" ? (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Declined{app.declined_at ? ` on ${when(app.declined_at)}` : ""}.{" "}
+            {app.declined_handling ? `Their data: ${DECLINE_LABEL[app.declined_handling] ?? app.declined_handling}.` : "Their private link is closed."}
+          </p>
+        ) : (
+          <p className="mt-1 text-xs text-muted-foreground">
+            Check each item against the documents and with the people and authorities concerned, then mark it. {requiredChecks(app.partner_type).length} of the checks must be Verified before you can approve.
+          </p>
+        )}
+        <ActionForm action={savePartnerChecks.bind(null, app.id)} loading="Saving…" success="Checklist saved." className="mt-4 space-y-3">
+          {checklistFor(app.partner_type).map((c) => {
+            const row = checks.get(c.key);
+            const required = requiredChecks(app.partner_type).includes(c.key);
+            return (
+              <div key={c.key} className="grid gap-2 rounded-md border border-border p-3 sm:grid-cols-[1fr_11rem]">
+                <div>
+                  <p className="text-sm font-medium">
+                    {c.label} {required ? <span className="text-xs font-normal text-muted-foreground">(required)</span> : <span className="text-xs font-normal text-muted-foreground">(optional)</span>}
+                  </p>
+                  <p className="text-xs text-muted-foreground">{c.hint}</p>
+                  {row?.checked_at && (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                      Last set by {row.checker?.full_name ?? "a former admin"} on {when(row.checked_at)}.
+                    </p>
+                  )}
+                </div>
+                <select
+                  name={`state_${c.key}`}
+                  defaultValue={row?.state ?? "pending"}
+                  aria-label={`${c.label}: state`}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                >
+                  {(Object.keys(CHECK_STATE_LABEL) as CheckState[]).map((s) => (
+                    <option key={s} value={s}>
+                      {CHECK_STATE_LABEL[s]}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  name={`note_${c.key}`}
+                  defaultValue={row?.note ?? ""}
+                  maxLength={500}
+                  placeholder="Note (what you checked, who you spoke to, reference number)"
+                  aria-label={`${c.label}: note`}
+                  className="h-9 w-full rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring sm:col-span-2"
+                />
+              </div>
+            );
+          })}
+          <Button type="submit" size="sm" variant="outline">
+            Save checklist
+          </Button>
+        </ActionForm>
+
+        {!finished && (
+          <div className="mt-6 border-t border-border pt-5">
+            <h3 className="text-sm font-semibold">Decision</h3>
+            <p className="mb-3 mt-1 text-xs text-muted-foreground">Save the checklist first: approving looks at what is saved.</p>
+            <PartnerDecision id={app.id} reference={app.reference} status={app.status} gaps={gaps} />
+          </div>
+        )}
+        {app.status === "rejected" && <p className="mt-5 border-t border-border pt-4 text-xs text-muted-foreground">To take a declined application further, move it to another status in the Review box below.</p>}
       </div>
 
       <div className="rounded-lg border border-border bg-card p-5">
@@ -239,7 +346,8 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
               defaultValue={app.status}
               className="h-9 w-full max-w-xs rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring"
             >
-              {PARTNER_STATUSES.map((s) => (
+              {/* Approved and Declined are reached only by the Approve and Decline buttons above; here they show only when that is where the application already is */}
+              {PARTNER_STATUSES.filter((s) => (s !== "approved" && s !== "rejected") || s === app.status).map((s) => (
                 <option key={s} value={s}>
                   {PARTNER_STATUS_LABEL[s]}
                 </option>

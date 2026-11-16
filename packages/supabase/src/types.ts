@@ -3326,6 +3326,8 @@ export type Database = {
           company_name: string
           contact_name: string
           created_at: string
+          declined_at: string | null
+          declined_handling: string | null
           email: string
           id: string
           listed_publicly: boolean
@@ -3357,6 +3359,8 @@ export type Database = {
           company_name: string
           contact_name: string
           created_at?: string
+          declined_at?: string | null
+          declined_handling?: string | null
           email: string
           id?: string
           listed_publicly?: boolean
@@ -3388,6 +3392,8 @@ export type Database = {
           company_name?: string
           contact_name?: string
           created_at?: string
+          declined_at?: string | null
+          declined_handling?: string | null
           email?: string
           id?: string
           listed_publicly?: boolean
@@ -3415,6 +3421,96 @@ export type Database = {
             columns: ["reviewed_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_checks: {
+        Row: {
+          application_id: string
+          checked_at: string | null
+          checked_by: string | null
+          key: string
+          note: string | null
+          state: string
+        }
+        Insert: {
+          application_id: string
+          checked_at?: string | null
+          checked_by?: string | null
+          key: string
+          note?: string | null
+          state?: string
+        }
+        Update: {
+          application_id?: string
+          checked_at?: string | null
+          checked_by?: string | null
+          key?: string
+          note?: string | null
+          state?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_checks_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "partner_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_checks_checked_by_fkey"
+            columns: ["checked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_document_access: {
+        Row: {
+          accessed_at: string
+          accessed_by: string | null
+          action: string
+          application_id: string
+          document_id: string | null
+          file_name: string
+          id: string
+          kind: string
+        }
+        Insert: {
+          accessed_at?: string
+          accessed_by?: string | null
+          action: string
+          application_id: string
+          document_id?: string | null
+          file_name: string
+          id?: string
+          kind: string
+        }
+        Update: {
+          accessed_at?: string
+          accessed_by?: string | null
+          action?: string
+          application_id?: string
+          document_id?: string | null
+          file_name?: string
+          id?: string
+          kind?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_document_access_accessed_by_fkey"
+            columns: ["accessed_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_document_access_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "partner_applications"
             referencedColumns: ["id"]
           },
         ]
