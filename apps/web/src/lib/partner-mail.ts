@@ -102,6 +102,31 @@ export function buildPartnerSubmittedAckMail(contactName: string, reference: str
   return { subject: `We received your onboarding details (${reference})`, text, html };
 }
 
+/** To the partnerships team: a message from a partner or an applicant. the caller sends it with the sender's address as Reply-To. */
+export function buildPartnerMessageMail(a: { name: string; email: string; company: string; reference: string | null; subject: string; message: string; adminUrl: string; applicationId: string }): Mail {
+  const { html, text } = renderMail({
+    preheader: `${a.company}: ${a.subject}`,
+    title: "Message from a partner",
+    blocks: [
+      {
+        type: "facts",
+        rows: [
+          ["From", `${a.name} (${a.company})`],
+          ["E-mail", a.email],
+          ...(a.reference ? ([["Reference", a.reference]] as [string, string][]) : []),
+          ["Subject", a.subject],
+        ],
+      },
+      { type: "quote", label: "Message", text: a.message },
+    ],
+    button: { label: "Open the partner", url: `${trimSlash(a.adminUrl)}/partners/${a.applicationId}` },
+    why: "You get this e-mail because you are on the team that looks after partners. Reply to answer them directly.",
+    audience: "team",
+    adminUrl: a.adminUrl,
+  });
+  return { subject: `Partner message: ${a.subject} (${a.company})`, text, html };
+}
+
 /** The 6-digit code that proves the address is theirs. Short on purpose: the code, how long it lasts, and what to do if it was not them. */
 export function buildPartnerCodeMail(contactName: string, code: string): Mail {
   const first = contactName.trim().split(/\s+/)[0] || "there";

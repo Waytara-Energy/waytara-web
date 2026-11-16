@@ -3,26 +3,18 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Upload } from "lucide-react";
-import { DOCUMENT_KINDS, documentProblem } from "@waytara/supabase/partner-onboarding";
+import { DOCUMENT_KINDS, documentProblem, type OnboardingDocument } from "@waytara/supabase/partner-onboarding";
 import { notify } from "@waytara/ui/notify";
 import { Button } from "@/components/ui/button";
-import { finishPartnerUpload, removePartnerDocument, startPartnerUpload } from "./actions";
+import { finishPartnerUpload, removePartnerDocument, startPartnerUpload } from "@/app/partner/portal/actions";
 
 const sizeLabel = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
-export interface DocItem {
-  id: string;
-  kind: string;
-  name: string;
-  size: number;
-  uploadedAt: string;
-}
-
 /**
  * The partner's documents: add one (it goes straight from the browser to the private storage through a one-time address, then is recorded after the server has checked
- * it), or take one back. A file cannot be opened again from here: the partner sends, the team verifies.
+ * it), or take one back. A sent file cannot be opened again from here: the partner sends, the team verifies.
  */
-export function DocumentUploader({ items }: { items: DocItem[] }) {
+export function DocumentUploader({ items }: { items: OnboardingDocument[] }) {
   const router = useRouter();
   const [kind, setKind] = React.useState<string>("licence");
   const [busy, setBusy] = React.useState(false);
@@ -65,7 +57,7 @@ export function DocumentUploader({ items }: { items: DocItem[] }) {
           <label htmlFor="doc-kind" className="text-sm font-medium">
             What is it?
           </label>
-          <select id="doc-kind" value={kind} onChange={(e) => setKind(e.target.value)} className="h-9 rounded-md border border-input bg-background px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring">
+          <select id="doc-kind" value={kind} onChange={(e) => setKind(e.target.value)} className="h-10 rounded-md border border-theme-border bg-transparent px-3 text-sm outline-none focus-visible:ring-2 focus-visible:ring-emerald-500">
             {DOCUMENT_KINDS.map((k) => (
               <option key={k.id} value={k.id}>
                 {k.label}
@@ -85,22 +77,22 @@ export function DocumentUploader({ items }: { items: DocItem[] }) {
               if (f) void add(f);
             }}
           />
-          <span className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border border-input px-3 text-sm font-medium transition-colors hover:bg-accent peer-focus-visible:ring-2 peer-focus-visible:ring-ring peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
+          <span className="inline-flex h-10 cursor-pointer items-center gap-2 rounded-md border border-theme-border px-3 text-sm font-medium transition-colors hover:bg-theme-surface peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-500 peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
             {busy ? <Loader2 className="size-4 animate-spin" /> : <Upload className="size-4" />}
             {busy ? "Sending…" : "Choose a file"}
           </span>
         </label>
-        <p className="text-xs text-muted-foreground">PDF, JPG, PNG or WebP, up to 10 MB.</p>
+        <p className="text-xs text-theme-muted">PDF, JPG, PNG or WebP, up to 10 MB.</p>
       </div>
 
       {items.length > 0 ? (
-        <ul className="divide-y divide-border rounded-md border border-border text-sm">
+        <ul className="divide-y divide-theme-border border-y border-theme-border text-sm">
           {items.map((d) => (
-            <li key={d.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-3 py-2">
+            <li key={d.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 py-2.5">
               <span className="min-w-0">
-                <span className="font-medium">{DOCUMENT_KINDS.find((k) => k.id === d.kind)?.label ?? d.kind}</span> · <span className="break-all">{d.name}</span>
+                <span className="font-medium">{DOCUMENT_KINDS.find((k) => k.id === d.kind)?.label ?? d.kind}</span> · <span className="break-all text-theme-secondary">{d.name}</span>
               </span>
-              <span className="flex items-center gap-3 text-muted-foreground">
+              <span className="flex items-center gap-3 text-theme-muted">
                 <span>
                   {sizeLabel(d.size)} · {new Date(d.uploadedAt).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}
                 </span>
@@ -112,7 +104,7 @@ export function DocumentUploader({ items }: { items: DocItem[] }) {
           ))}
         </ul>
       ) : (
-        <p className="text-sm text-muted-foreground">No documents yet.</p>
+        <p className="text-sm text-theme-muted">No documents yet.</p>
       )}
     </div>
   );

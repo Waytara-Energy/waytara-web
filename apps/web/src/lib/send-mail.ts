@@ -21,7 +21,7 @@ let warnedAboutSender = false;
  * The sender is RESEND_FROM_EMAIL. Without it the message goes out as Resend's test address, which only delivers to the Resend account's owner, so that is
  * logged once per server in production. Replies go to REPLY_TO_EMAIL, or hello@waytaraenergy.com.
  */
-export async function sendMail(to: string | string[], mail: Mail, attachments?: MailAttachment[]): Promise<MailResult> {
+export async function sendMail(to: string | string[], mail: Mail, attachments?: MailAttachment[], replyToOverride?: string): Promise<MailResult> {
   const apiKey = process.env.RESEND_API_KEY;
   if (!apiKey) {
     console.warn("[send-mail] RESEND_API_KEY not set - nothing sent.");
@@ -33,7 +33,8 @@ export async function sendMail(to: string | string[], mail: Mail, attachments?: 
     console.error("[send-mail] RESEND_FROM_EMAIL is not set: e-mail is going out from Resend's test address and will only reach the Resend account owner.");
   }
   const from = configured || TEST_SENDER;
-  const replyTo = process.env.REPLY_TO_EMAIL || MAIL_REPLY_TO;
+  // an e-mail that is a person's message to the team replies to that person, not to our own address
+  const replyTo = replyToOverride || process.env.REPLY_TO_EMAIL || MAIL_REPLY_TO;
   try {
     const { error } = await new Resend(apiKey).emails.send({ from, to, replyTo, subject: mail.subject, text: mail.text, html: mail.html, ...(attachments?.length ? { attachments } : {}) });
     if (error) {

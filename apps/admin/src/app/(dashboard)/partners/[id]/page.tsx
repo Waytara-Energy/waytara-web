@@ -335,8 +335,7 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
           {app.profile_id ? (
             <>
               <p className="mt-1 text-xs text-muted-foreground">
-                {app.account?.deactivated_at ? "Suspended: they cannot sign in." : "Active."} The partner created their account{app.account_created_at ? ` on ${when(app.account_created_at)}` : ""} and signs in to this app with {app.email}. They see
-                only their own pages (home, profile and team, licences and documents, support).
+                {app.account?.deactivated_at ? "Suspended: they cannot sign in." : "Active."} The partner created their account{app.account_created_at ? ` on ${when(app.account_created_at)}` : ""} and signs in on the website with {app.email}. They see only their own partner area there (application, profile and team, licences and documents, support), never the customer dashboard or this app.
               </p>
               <ActionForm
                 action={setPartnerAccess.bind(null, app.id, Boolean(app.account?.deactivated_at))}

@@ -46,8 +46,8 @@ describe("todayIst", () => {
 });
 
 describe("roles", () => {
-  it("lets a partner into the admin app's door but never counts them as staff", () => {
-    expect(isAdminAppRole("partner")).toBe(true);
+  it("keeps a partner out of the admin app and never counts them as staff", () => {
+    expect(isAdminAppRole("partner")).toBe(false);
     expect(isStaffRole("partner")).toBe(false);
     expect(isPartnerRole("partner")).toBe(true);
     expect(isPartnerRole("employee")).toBe(false);

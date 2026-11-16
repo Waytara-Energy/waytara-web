@@ -30,5 +30,5 @@ export async function login(formData: FormData) {
     );
   }
 
-  redirect(profile?.role === "site_engineer" ? "/support" : profile?.role === "partner" ? "/partner" : "/dashboard");
+  redirect(profile?.role === "site_engineer" ? "/support" : "/dashboard");
 }

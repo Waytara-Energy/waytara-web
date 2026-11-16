@@ -2,7 +2,7 @@ import "server-only";
 import { NextResponse } from "next/server";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { allowRequest, clientIp } from "@/lib/rate-limit";
-import { findSessionRecord, findTrackedRecord, type TrackedRecord } from "@/lib/partner-track-server";
+import { findSessionRecord, type TrackedRecord } from "@/lib/partner-track-server";
 
 /** Where an approved partner signs in: the admin app's sign-in page (partners get their own few pages there). */
 export const adminSignInUrl = () => `${(process.env.ADMIN_APP_URL || "https://admin.waytaraenergy.com").replace(/\/+$/, "")}/login`;
@@ -19,9 +19,9 @@ export const fail =(error: string, status: number, extra?: Record<string, unknow
  */
 export async function openOnboarding(headers: Headers, token: string, bucket: string, limit: number): Promise<{ app: TrackedRecord; submitted: boolean } | NextResponse> {
   if (!(await allowRequest(`partner-track:${bucket}`, clientIp(headers), limit, 60 * 60))) return fail("Too many requests. Please try again later.", 429);
-  // "me" is the signed-in partner (the portal); anything else is an e-mailed link's code
-  const app = token === "me" ? await findSessionRecord() : await findTrackedRecord(token);
-  if (!app) return fail(token === "me" ? "Please sign in again." : "This link is not active.", token === "me" ? 401 : 404);
+  // Only the signed-in partner (the portal, "me"). The e-mailed link no longer opens the forms: it only leads to the start page, where an e-mail code and a password come first.
+  const app = token === "me" ? await findSessionRecord() : null;
+  if (!app) return fail("Please sign in again.", 401);
   if (app.status !== "onboarding") return fail("Onboarding is not open for this application.", 409);
   const { data } = await createServiceRoleClient().from("partner_onboarding").select("submitted_at").eq("application_id", app.id).maybeSingle();
   return { app, submitted: Boolean(data?.submitted_at) };

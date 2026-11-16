@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { BookOpen, ChevronRight, ClipboardList, LogOut } from "lucide-react";
+import { BookOpen, ChevronRight, ClipboardList, FileCheck2, LifeBuoy, LogOut, UsersRound } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -312,6 +312,9 @@ function QuickLinks({ onNavigate }: { onNavigate: () => void }) {
 /** What a partner's avatar offers: their application (and, later, the rest of their area) and the Knowledge Hub. Never the customer dashboard. */
 const PARTNER_LINKS = [
   { href: "/partner/portal", label: "Application", icon: ClipboardList },
+  { href: "/partner/portal/profile", label: "Profile and team", icon: UsersRound },
+  { href: "/partner/portal/licences", label: "Licences and documents", icon: FileCheck2 },
+  { href: "/partner/portal/support", label: "Support", icon: LifeBuoy },
   { href: "/blog", label: "Knowledge Hub", icon: BookOpen },
 ] as const;
 
