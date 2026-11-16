@@ -2,27 +2,16 @@
 
 import { revalidatePath } from "next/cache";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
-import {
-  DOCUMENT_KIND_IDS,
-  DOCUMENT_MAX_FILES,
-  ONBOARDING_LIMITS,
-  documentMime,
-  documentProblem,
-  isDocumentPathOf,
-  ensureMemberIds,
-  isIsoDate,
-  newDocumentPath,
-  readOnboarding,
-} from "@waytara/supabase/partner-onboarding";
+import { ONBOARDING_LIMITS, ensureMemberIds, isIsoDate, readOnboarding } from "@waytara/supabase/partner-onboarding";
 import type { Json } from "@waytara/supabase/types";
 import { findSessionRecord } from "@/lib/partner-track-server";
-import { loadOnboarding, PARTNER_BUCKET } from "@/lib/partner-onboarding-server";
+import { loadOnboarding } from "@/lib/partner-onboarding-server";
 import { TN_DISTRICTS } from "@/lib/partner-network";
 import { sendMail } from "@/lib/send-mail";
 import { buildPartnerMessageMail } from "@/lib/partner-mail";
 
 // Every action here finds the partner from the signed-in session (findSessionRecord), never from anything in the request, and reads and writes only that partner's own
-// application. The profile and licence pages are for approved partners; Support is open to an applicant too.
+// application. The profile and licence pages are for approved partners; Support is open to an applicant too. Files go through the routes under /api/partner/track/me.
 async function partner(opts?: { approved?: boolean }) {
   const record = await findSessionRecord();
   if (!record || !record.profileId) throw new Error("Please sign in again.");
@@ -30,8 +19,6 @@ async function partner(opts?: { approved?: boolean }) {
   return record;
 }
 const field = (fd: FormData, name: string) => String(fd.get(name) ?? "").trim();
-const isKind = (v: unknown): v is (typeof DOCUMENT_KIND_IDS)[number] => typeof v === "string" && (DOCUMENT_KIND_IDS as readonly string[]).includes(v);
-const cleanName = (v: unknown) => (typeof v === "string" ? v.trim() : "");
 
 /** Saves what a partner may change about themselves: name, phone, business details and team. Where they work and their past work are left as they are. */
 export async function savePartnerProfile(formData: FormData): Promise<void> {
@@ -44,6 +31,8 @@ export async function savePartnerProfile(formData: FormData): Promise<void> {
   const { data: current } = await loadOnboarding(app.id);
   const members = Array.from({ length: ONBOARDING_LIMITS.members }, (_, i) => ({
     id: field(formData, `member_id_${i}`),
+    // not on this form: kept from what is saved for the same person
+    phone: current.team.members.find((m) => m.id && m.id === field(formData, `member_id_${i}`))?.phone ?? "",
     name: field(formData, `member_name_${i}`),
     role: field(formData, `member_role_${i}`),
     certificate: field(formData, `member_cert_${i}`),
@@ -107,61 +96,6 @@ export async function saveLicences(formData: FormData): Promise<void> {
   if (changedIdentity) {
     await db.from("partner_item_checks").upsert({ application_id: app.id, subject: "partner", key: "licence", state: "pending", note: `Changed by the partner on ${new Date().toISOString().slice(0, 10)}: needs checking again.`, checked_by: null, checked_at: null }, { onConflict: "application_id,subject,key" });
   }
-  revalidatePath("/partner/portal", "layout");
-}
-
-/** Step one of sending a file: if acceptable, a one-time upload address for a fresh path in the private bucket (the file then goes straight from the browser to storage). */
-export async function startPartnerUpload(input: { kind: string; name: string; size: number }): Promise<{ path: string; uploadUrl: string }> {
-  const app = await partner({ approved: true });
-  const name = cleanName(input?.name);
-  if (!isKind(input?.kind) || name.length < 1 || name.length > 200 || !Number.isInteger(input?.size)) throw new Error("Please choose the file again.");
-  const problem = documentProblem(name, input.size);
-  if (problem) throw new Error(problem);
-  const db = createServiceRoleClient();
-  const { count } = await db.from("partner_documents").select("id", { count: "exact", head: true }).eq("application_id", app.id);
-  if ((count ?? 0) >= DOCUMENT_MAX_FILES) throw new Error(`You can keep up to ${DOCUMENT_MAX_FILES} files. Remove one first.`);
-  const path = newDocumentPath(app.id, name);
-  const { data, error } = await db.storage.from(PARTNER_BUCKET).createSignedUploadUrl(path);
-  if (error || !data) throw new Error("Couldn't start the upload. Please try again.");
-  return { path, uploadUrl: data.signedUrl };
-}
-
-/** Step two: the browser says it is uploaded. The server finds the file in the bucket, takes its size from there, refuses and deletes anything unacceptable, and records it. */
-export async function finishPartnerUpload(input: { kind: string; name: string; path: string }): Promise<void> {
-  const app = await partner({ approved: true });
-  const name = cleanName(input?.name);
-  const path = typeof input?.path === "string" ? input.path : "";
-  if (!isKind(input?.kind) || name.length < 1 || name.length > 200 || path.length > 300) throw new Error("Please choose the file again.");
-  if (!isDocumentPathOf(app.id, path)) throw new Error("That file didn't upload properly. Please choose it again.");
-
-  const db = createServiceRoleClient();
-  const bucket = db.storage.from(PARTNER_BUCKET);
-  const slash = path.indexOf("/");
-  const { data: found } = await bucket.list(path.slice(0, slash), { limit: 5, search: path.slice(slash + 1) });
-  const file = (found ?? []).find((f) => f.name === path.slice(slash + 1));
-  const size = Number((file?.metadata as { size?: number } | null)?.size ?? 0);
-  if (!file || !size) throw new Error("That file didn't upload properly. Please choose it again.");
-  const problem = documentProblem(name, size);
-  if (problem) {
-    await bucket.remove([path]);
-    throw new Error(problem);
-  }
-  const { error } = await db.from("partner_documents").insert({ application_id: app.id, kind: input.kind, file_name: name, storage_path: path, content_type: documentMime(name) ?? "application/octet-stream", size_bytes: size });
-  if (error) {
-    await bucket.remove([path]);
-    throw new Error("Couldn't record that file. Please try again.");
-  }
-  revalidatePath("/partner/portal", "layout");
-}
-
-/** Takes back a file the partner sent: the record, then the file. Only a file of their own application can be reached. */
-export async function removePartnerDocument(documentId: string): Promise<void> {
-  const app = await partner({ approved: true });
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(documentId)) throw new Error("Not found.");
-  const db = createServiceRoleClient();
-  const { data: row } = await db.from("partner_documents").delete().eq("id", documentId).eq("application_id", app.id).select("storage_path").maybeSingle();
-  if (!row) throw new Error("Not found.");
-  await db.storage.from(PARTNER_BUCKET).remove([row.storage_path]);
   revalidatePath("/partner/portal", "layout");
 }
 

@@ -1,11 +1,12 @@
-import { CheckCircle2, CircleAlert, CircleDashed } from "lucide-react";
+import { CheckCircle2, CircleAlert, CircleDashed, FileText, ImageIcon } from "lucide-react";
 import { ActionForm } from "@waytara/ui/action-form";
 import { cn } from "@waytara/ui/cn";
-import { DOCUMENT_KIND_LABEL } from "@waytara/supabase/partner-onboarding";
+import { DOCUMENT_KIND_LABEL, NEED_LABEL, fileTypeLabel, type Need } from "@waytara/supabase/partner-onboarding";
 import { CHECK_STATE_LABEL, type CheckState } from "@waytara/supabase/partner-verification";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { DocActions } from "./doc-actions";
 import { setPartnerItemCheck } from "./actions";
 
 export interface PartnerDoc {
@@ -18,6 +19,7 @@ export interface PartnerDoc {
 }
 
 const when = (iso: string) => new Date(iso).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit" });
+const sizeLabel = (n: number) => (n >= 1048576 ? `${(n / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(n / 1024))} KB`);
 
 /** A small label for where an item stands: verified, problem found, or not checked yet. */
 export function StateBadge({ state }: { state: CheckState }) {
@@ -67,31 +69,100 @@ export function VerifyRow({ appId, subject, itemKey, label, hint, state, note, c
   );
 }
 
-/** The files of one group (a tab, or one person): name, kind, size and date, with View and Download (each opening is logged). */
-export function DocList({ appId, docs, empty = "Nothing sent yet." }: { appId: string; docs: PartnerDoc[]; empty?: string }) {
+/** One file: a tile that says PDF or image, the name, what it was sent as, its size and date, and View, Download and a menu (each opening is logged). */
+function FileRow({ appId, doc, canAsk, showKind }: { appId: string; doc: PartnerDoc; canAsk: boolean; showKind: boolean }) {
+  const t = fileTypeLabel(doc.file_name);
+  const Icon = t.type === "image" ? ImageIcon : FileText;
+  const kind = DOCUMENT_KIND_LABEL[doc.kind] ?? doc.kind;
+  return (
+    <li className="flex items-center gap-3 rounded-lg border border-border bg-background px-3 py-2">
+      <span aria-hidden="true" className={cn("flex size-9 shrink-0 items-center justify-center rounded-md", t.type === "pdf" ? "bg-red-500/10 text-red-600 dark:text-red-400" : t.type === "image" ? "bg-sky-500/10 text-sky-600 dark:text-sky-400" : "bg-muted text-muted-foreground")}>
+        <Icon className="size-4.5" />
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="truncate text-sm font-medium" title={doc.file_name}>
+          {doc.file_name}
+        </p>
+        <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground">
+          <span className={cn("rounded px-1.5 py-px font-medium", t.type === "pdf" ? "bg-red-500/10 text-red-700 dark:text-red-300" : t.type === "image" ? "bg-sky-500/10 text-sky-700 dark:text-sky-300" : "bg-muted")}>{t.label}</span>
+          {showKind && <span>{kind}</span>}
+          <span>{sizeLabel(doc.size_bytes)}</span>
+          <span>{when(doc.uploaded_at)}</span>
+        </p>
+      </div>
+      <div className="flex shrink-0 items-center">
+        <DocActions appId={appId} docId={doc.id} fileName={doc.file_name} kindLabel={kind} canAsk={canAsk} />
+      </div>
+    </li>
+  );
+}
+
+/** The files of one group (a person, a kind of past work, or what is left over), each as a row. */
+export function DocList({ appId, docs, canAsk = false, empty = "Nothing sent yet." }: { appId: string; docs: PartnerDoc[]; canAsk?: boolean; empty?: string }) {
   if (docs.length === 0) return <p className="text-sm text-muted-foreground">{empty}</p>;
   return (
-    <ul className="divide-y divide-border rounded-md border border-border text-sm">
+    <ul className="space-y-2">
       {docs.map((d) => (
-        <li key={d.id} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-3 py-2">
-          <span className="min-w-0">
-            <span className="font-medium">{DOCUMENT_KIND_LABEL[d.kind] ?? d.kind}</span> · <span className="break-all text-muted-foreground">{d.file_name}</span>
-          </span>
-          <span className="flex items-center gap-3 text-xs text-muted-foreground">
-            <span>
-              {d.size_bytes >= 1048576 ? `${(d.size_bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(d.size_bytes / 1024))} KB`} · {when(d.uploaded_at)}
-            </span>
-            {/* plain links, not the router: each one is a view or download that the server logs before it serves the file */}
-            <a href={`/partners/${appId}/files/${d.id}`} target="_blank" rel="noopener noreferrer" className="font-medium text-foreground underline-offset-4 hover:underline">
-              View
-            </a>
-            <a href={`/partners/${appId}/files/${d.id}?download=1`} className="font-medium text-foreground underline-offset-4 hover:underline">
-              Download
-            </a>
-          </span>
-        </li>
+        <FileRow key={d.id} appId={appId} doc={d} canAsk={canAsk} showKind />
       ))}
     </ul>
+  );
+}
+
+export interface DocSlot {
+  kind: string;
+  label: string;
+  need: Need;
+  /** Why it is asked: the rule behind it. */
+  basis?: string;
+  /** Other kinds that satisfy the same need (a tie-up in place of an own licence). */
+  anyOf?: readonly string[];
+}
+
+const NEED_STYLE: Record<Need, string> = { required: "border-foreground/30 text-foreground", conditional: "border-amber-500/40 text-amber-600 dark:text-amber-400", optional: "border-border text-muted-foreground" };
+
+/**
+ * The documents asked of this partner on one tab, each as its own slot: what it is, whether it is required and why it is asked, and the files sent for it, or "Not
+ * sent" in red when a required one is missing. `subject` says whose they are. Files of this subject that fit no slot are listed last.
+ */
+export function DocSlots({ appId, slots, docs, subject = "partner", canAsk = false, restKinds }: { appId: string; slots: DocSlot[]; docs: PartnerDoc[]; subject?: string; canAsk?: boolean; restKinds?: readonly string[] }) {
+  const mine = docs.filter((d) => d.subject === subject);
+  const shown = new Set(slots.map((s) => s.kind));
+  const rest = mine.filter((d) => !shown.has(d.kind) && (!restKinds || restKinds.includes(d.kind)));
+  return (
+    <div className="space-y-3">
+      {slots.map((s) => {
+        const files = mine.filter((d) => d.kind === s.kind);
+        const covered = files.length === 0 && (s.anyOf ?? []).some((k) => k !== s.kind && mine.some((d) => d.kind === k));
+        return (
+          <div key={s.kind} className="rounded-lg border border-border p-3">
+            <div className="flex flex-wrap items-start justify-between gap-2">
+              <div className="min-w-0">
+                <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                  {s.label}
+                  <span className={cn("rounded-full border px-2 py-px text-[11px] font-medium", NEED_STYLE[s.need])}>{NEED_LABEL[s.need]}</span>
+                </p>
+                {s.basis && <p className="mt-0.5 max-w-2xl text-xs text-muted-foreground">{s.basis}</p>}
+              </div>
+              {files.length === 0 && <span className={cn("text-xs font-medium", covered ? "text-muted-foreground" : s.need === "required" ? "text-destructive" : "text-muted-foreground")}>{covered ? "Covered by another document" : "Not sent"}</span>}
+            </div>
+            {files.length > 0 && (
+              <ul className="mt-2.5 space-y-2">
+                {files.map((d) => (
+                  <FileRow key={d.id} appId={appId} doc={d} canAsk={canAsk} showKind={false} />
+                ))}
+              </ul>
+            )}
+          </div>
+        );
+      })}
+      {rest.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs font-medium text-muted-foreground">Also sent</p>
+          <DocList appId={appId} docs={rest} canAsk={canAsk} />
+        </div>
+      )}
+    </div>
   );
 }
 

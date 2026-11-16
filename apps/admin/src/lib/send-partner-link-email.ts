@@ -35,7 +35,12 @@ export async function sendPartnerLinkEmail(input: PartnerLinkEmailInput): Promis
 
   const copy = {
     resend: { title: "Your link to your application", lead: "Here is your link. It replaces any earlier one.", button: "Open your application", subject: "Your WayTara application link" },
-    onboarding: { title: "You are shortlisted", lead: "Next, tell us about your business and send your documents.", button: "Start onboarding", subject: "You are shortlisted: start your WayTara onboarding" },
+    onboarding: {
+      title: "Your onboarding is open",
+      lead: signIn ? "Thank you for speaking with us. Next, sign in and send us your details and documents." : "Thank you for speaking with us. Next, open the link below: we will send a code to this address, you choose a password, and then you send us your details and documents.",
+      button: signIn ? "Open your onboarding" : "Start onboarding",
+      subject: "Start your WayTara partner onboarding",
+    },
     more_info: { title: "We need a little more", lead: "To finish checking your application, we need something more.", button: "Open your application", subject: "We need a little more for your WayTara application" },
     approved: { title: "You are approved", lead: signIn ? "Welcome to the WayTara Partner Network. Sign in to open your partner area." : "Welcome to the WayTara Partner Network. Confirm your e-mail and choose a password to open your partner area.", button: signIn ? "Open your partner area" : "Choose your password", subject: "You are approved: open your WayTara partner area" },
   }[purpose];
@@ -48,6 +53,7 @@ export async function sendPartnerLinkEmail(input: PartnerLinkEmailInput): Promis
       blocks: [
         { type: "p", text: copy.lead },
         ...(purpose === "more_info" && input.note ? [{ type: "quote" as const, label: "What we need", text: input.note }] : []),
+        ...(purpose === "onboarding" ? [{ type: "p" as const, text: "Keep these ready: a photo ID, your PAN, a cancelled cheque, your licences and certificates, and a photo ID (and certificate) for each person on your team." }] : []),
         ...(input.reference ? [{ type: "facts" as const, rows: [["Reference", input.reference] as [string, string]] }] : []),
       ],
       button: { label: copy.button, url },

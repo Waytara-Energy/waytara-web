@@ -22,8 +22,8 @@ async function post<T>(url: string, body: unknown): Promise<{ ok: true; data: T 
 }
 
 /**
- * Three small steps on the page an applicant opens from their e-mail: (1) confirm the address (it is shown, not typed, and the code goes only there), (2) type the 6-digit
- * code, (3) choose a password. Then they are signed in and taken into the partner area. The link says which application this is; only the code proves the address.
+ * The page an applicant opens from the onboarding e-mail. Opening it sends a 6-digit code to the address on their application (shown masked, never typed); they
+ * (1) type the code, (2) choose a password, and are then signed in and taken to their onboarding. The link says which application this is; only the code proves the address.
  */
 export function StartForm({ token, maskedEmail }: { token: string; maskedEmail: string }) {
   const router = useRouter();
@@ -36,15 +36,25 @@ export function StartForm({ token, maskedEmail }: { token: string; maskedEmail: 
   const [error, setError] = React.useState("");
   const [note, setNote] = React.useState("");
 
-  async function sendCode() {
+  async function sendCode(again = false) {
     setBusy(true);
     setError("");
     const r = await post(`/api/partner/start/code`, { token });
     setBusy(false);
     if (!r.ok) return setError(r.error);
-    setNote(`We sent a 6-digit code to ${maskedEmail}.`);
+    setNote(again ? `We sent a new 6-digit code to ${maskedEmail}. The earlier one no longer works.` : `We sent a 6-digit code to ${maskedEmail}. It works for 10 minutes.`);
     setStep("code");
   }
+
+  // Opening the link is the request: the code is sent to the address on the application straight away, once. (A ref, not state, so a second render of the same
+  // page does not send a second code.) If it cannot be sent, the button to ask for one is still there.
+  const asked = React.useRef(false);
+  React.useEffect(() => {
+    if (asked.current) return;
+    asked.current = true;
+    void sendCode();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   async function verify(e: React.FormEvent) {
     e.preventDefault();
@@ -79,12 +89,23 @@ export function StartForm({ token, maskedEmail }: { token: string; maskedEmail: 
     <div className="max-w-md space-y-6">
       {step === "send" && (
         <div className="space-y-5">
-          <p className="text-[15px] leading-relaxed text-theme-secondary">
-            Your application is saved. To open your partner area, confirm your e-mail address. We will send a 6-digit code to <span className="font-medium text-theme-primary">{maskedEmail}</span>.
+          <p className="text-[15px] leading-relaxed text-theme-secondary" role="status">
+            {busy || !error ? (
+              <>
+                <Loader2 className="mr-2 inline size-4 animate-spin align-[-2px]" aria-hidden="true" />
+                Sending a 6-digit code to <span className="font-medium text-theme-primary">{maskedEmail}</span>…
+              </>
+            ) : (
+              <>
+                To open your partner area, confirm your e-mail address with a 6-digit code sent to <span className="font-medium text-theme-primary">{maskedEmail}</span>.
+              </>
+            )}
           </p>
-          <Button type="button" onClick={() => void sendCode()} disabled={busy}>
-            {busy && <Loader2 className="size-4 animate-spin" />} Send me a code
-          </Button>
+          {!busy && error && (
+            <Button type="button" onClick={() => void sendCode()}>
+              Send me a code
+            </Button>
+          )}
         </div>
       )}
 
@@ -99,7 +120,7 @@ export function StartForm({ token, maskedEmail }: { token: string; maskedEmail: 
             <Button type="submit" disabled={busy || code.length !== 6}>
               {busy && <Loader2 className="size-4 animate-spin" />} Confirm
             </Button>
-            <button type="button" onClick={() => void sendCode()} disabled={busy} className="text-sm text-theme-secondary underline underline-offset-4 hover:text-theme-primary">
+            <button type="button" onClick={() => void sendCode(true)} disabled={busy} className="text-sm text-theme-secondary underline underline-offset-4 hover:text-theme-primary">
               Send a new code
             </button>
           </div>

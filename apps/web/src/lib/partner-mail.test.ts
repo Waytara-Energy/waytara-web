@@ -95,7 +95,7 @@ describe("partner account mail", () => {
 });
 
 describe("partner acknowledgement mail", () => {
-  const mail = buildPartnerAckMail("Priya Raman", "WTP-2611-K7F3Q", "https://www.example.com/partner/track/abc");
+  const mail = buildPartnerAckMail("Priya Raman", "WTP-2611-K7F3Q");
 
   it("greets by first name and gives the reference", () => {
     expect(mail.text).toContain("Hi Priya,");
@@ -103,9 +103,11 @@ describe("partner acknowledgement mail", () => {
     expect(mail.subject).toContain("WTP-2611-K7F3Q");
   });
 
-  it("carries the link to open the application", () => {
-    expect(mail.text).toContain("https://www.example.com/partner/track/abc");
-    expect(mail.html).toContain('href="https://www.example.com/partner/track/abc"');
+  it("says the team will call, and carries no button and no link to open anything", () => {
+    expect(mail.text).toContain("will call you on the number you gave us");
+    expect(mail.text).not.toContain("/partner/");
+    expect(mail.html).not.toContain("/partner/start");
+    expect(mail.html).not.toContain("/partner/track");
   });
 
   it("is short, and promises nothing about approval or projects", () => {

@@ -15,11 +15,11 @@ export async function loadOnboarding(applicationId: string): Promise<OnboardingS
   const db = createServiceRoleClient();
   const [row, docs] = await Promise.all([
     db.from("partner_onboarding").select("data, submitted_at").eq("application_id", applicationId).maybeSingle(),
-    db.from("partner_documents").select("id, kind, file_name, size_bytes, uploaded_at").eq("application_id", applicationId).order("uploaded_at", { ascending: true }),
+    db.from("partner_documents").select("id, kind, subject, file_name, size_bytes, uploaded_at").eq("application_id", applicationId).order("uploaded_at", { ascending: true }),
   ]);
   return {
     data: readOnboarding(row.data?.data),
     submittedAt: row.data?.submitted_at ?? null,
-    documents: (docs.data ?? []).map((d) => ({ id: d.id, kind: d.kind, name: d.file_name, size: d.size_bytes, uploadedAt: d.uploaded_at })),
+    documents: (docs.data ?? []).map((d) => ({ id: d.id, kind: d.kind, subject: d.subject, name: d.file_name, size: d.size_bytes, uploadedAt: d.uploaded_at })),
   };
 }

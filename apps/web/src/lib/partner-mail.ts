@@ -181,19 +181,21 @@ export function buildPartnerAccountMail(contactName: string, signInUrl: string):
   return { subject: "Your WayTara partner account is ready", text, html };
 }
 
-/** To the applicant: we have it, their reference, the private link to follow it, and what happens next. No promise about timing, projects or approval. */
-export function buildPartnerAckMail(contactName: string, reference: string, trackUrl: string): Mail {
+/**
+ * To the applicant: we have it, their reference, and that our team will call them. No button and no link: nothing is asked of them until the screening call is done,
+ * and the onboarding link is sent only then. No promise about timing, projects or approval.
+ */
+export function buildPartnerAckMail(contactName: string, reference: string): Mail {
   const first = contactName.trim().split(/\s+/)[0] || "there";
   const { html, text } = renderMail({
     preheader: `We have your application. Your reference is ${reference}.`,
     title: "We have your application",
     greeting: `Hi ${first},`,
     blocks: [
-      { type: "p", text: "We have your application. Open it to confirm your e-mail address and follow where it is." },
+      { type: "p", text: "Thank you for applying to the WayTara Partner Network. Our partnerships team will call you on the number you gave us. You do not need to do anything now." },
       { type: "facts", rows: [["Reference", reference]] },
-      { type: "p", text: "Applying does not guarantee a partnership or any projects." },
+      { type: "p", text: "Please keep the reference to hand for the call. Applying does not guarantee a partnership or any projects." },
     ],
-    button: { label: "Open your application", url: trackUrl },
     why: "You get this e-mail because you applied to join the WayTara Partner Network.",
     audience: "public",
   });

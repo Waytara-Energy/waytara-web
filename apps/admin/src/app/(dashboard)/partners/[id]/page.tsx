@@ -3,7 +3,7 @@ import { CheckCircle2, CircleAlert } from "lucide-react";
 import { cn } from "@waytara/ui/cn";
 import { ActionForm } from "@waytara/ui/action-form";
 import { DOCUMENT_KIND_LABEL } from "@waytara/supabase/partner-onboarding";
-import { CHECKS, CHECK_STATE_LABEL, approvalGaps, memberStatus, type CheckState } from "@waytara/supabase/partner-verification";
+import { CHECKS, CHECK_STATE_LABEL, SCREENING_SUBJECT, approvalGaps, checklistFor, memberStatus, screeningChecklist, type CheckState } from "@waytara/supabase/partner-verification";
 import { loadVerification } from "@/lib/partner-verification-data";
 import { createClient } from "@waytara/supabase/server";
 import { Breadcrumb, BreadcrumbItem, BreadcrumbLink, BreadcrumbList, BreadcrumbPage, BreadcrumbSeparator } from "@/components/ui/breadcrumb";
@@ -25,7 +25,7 @@ const STEPS = ["Applied", "Screening", "Onboarding", "Verification", "Approved"]
 const STEP_OF: Record<string, number> = { new: 0, in_review: 1, shortlisted: 1, onboarding: 2, verification: 3, approved: 4, rejected: 4 };
 const TAB_IDS = ["lead", "screening", "personal", "business", "team", "legal", "kyc", "bank", "work", "activity"] as const;
 type TabId = (typeof TAB_IDS)[number];
-const DEFAULT_TAB: Record<string, TabId> = { new: "lead", in_review: "screening", shortlisted: "screening", onboarding: "lead", verification: "personal", approved: "lead", rejected: "lead" };
+const DEFAULT_TAB: Record<string, TabId> = { new: "lead", in_review: "screening", shortlisted: "screening", onboarding: "screening", verification: "personal", approved: "lead", rejected: "lead" };
 
 /** The small mark on a tab: a tick when everything in it is verified, a warning when something has a problem, nothing while it is still open. */
 function TabMark({ states }: { states: (CheckState | undefined)[] }) {
@@ -61,11 +61,18 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
 
   const docs: PartnerDoc[] = docRows ?? [];
   const calls: CallRow[] = (callRows ?? []).map((c) => ({ id: c.id, called_at: c.called_at, outcome: c.outcome, notes: c.notes, next_step: c.next_step, caller: c.caller?.full_name ?? null }));
-  const view: AppView = { id: app.id, status: app.status, partner_type: app.partner_type, company_name: app.company_name, contact_name: app.contact_name, phone: app.phone, email: app.email, website: app.website, reference: app.reference, created_at: app.created_at, answers: app.answers, message: app.message, services: app.services, cities: app.cities, account_note: app.status !== "approved" ? "" : app.profile_id ? (app.account?.deactivated_at ? "Suspended" : `Active since ${app.account_created_at ? when(app.account_created_at) : "signing up"}`) : "Not created yet", last_updated: app.reviewed_at ? `${app.reviewer?.full_name ?? "An admin"}, ${when(app.reviewed_at)}` : "" };
-  const gaps = approvalGaps(app.partner_type, v.states, v.members, v.memberStates);
+  const view: AppView = { id: app.id, status: app.status, partner_type: app.partner_type, company_name: app.company_name, contact_name: app.contact_name, phone: app.phone, email: app.email, website: app.website, reference: app.reference, created_at: app.created_at, answers: app.answers, message: app.message, services: app.services, cities: app.cities, account_note: app.status !== "approved" ? "" : app.profile_id ? (app.account?.deactivated_at ? "Suspended" : `Active since ${app.account_created_at ? when(app.account_created_at) : "signing up"}`) : "Not created yet", last_updated: app.reviewed_at ? `${app.reviewer?.full_name ?? "An admin"}, ${when(app.reviewed_at)}` : "", email_confirmed: app.account_created_at ? when(app.account_created_at) : "" };
+  const gaps = approvalGaps(app.partner_type, v.states, v.members, v.memberStates, v.screening);
+  const screeningItems = screeningChecklist(app.partner_type);
+  const checked = checklistFor(app.partner_type).map((c) => c.key);
+  // who last set each screening item, for the checklist
+  const screeningBy: Record<string, string> = {};
+  for (const c of checkRows ?? []) if (c.subject === SCREENING_SUBJECT && c.checked_at) screeningBy[c.key] = `${c.checker?.full_name ?? "a former admin"}, ${when(c.checked_at)}`;
+  // the invite link exists only from Onboarding on: before that the applicant is called, not written to
+  const linkStage = app.status === "onboarding" || app.status === "verification" || app.status === "approved";
   const finished = app.status === "approved" || app.status === "rejected";
   const stepIndex = STEP_OF[app.status] ?? 0;
-  const hasAside = !finished || (app.status !== "rejected" && !app.profile_id);
+  const hasAside = !finished || (linkStage && !app.profile_id);
   const memberMarks = v.members.map((m) => memberStatus(m, v.memberStates));
 
   // Everything that happened, newest first, for the Activity tab.
@@ -76,6 +83,10 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
   if (onboardingRow?.submitted_at) events.push({ at: onboardingRow.submitted_at, text: "Onboarding sent for verification" });
   for (const c of checkRows ?? []) {
     if (!c.checked_at) continue;
+    if (c.subject === SCREENING_SUBJECT) {
+      events.push({ at: c.checked_at, text: `${c.checker?.full_name ?? "A former admin"} ${c.state === "verified" ? "ticked" : "unticked"} the screening item ${screeningItems.find((i) => i.key === c.key)?.label ?? c.key}${c.note ? `: ${c.note}` : ""}` });
+      continue;
+    }
     const label = CHECKS.find((x) => x.key === c.key)?.label ?? (c.key === "member_licence" ? "Licence or certificate" : "Identity");
     events.push({ at: c.checked_at, text: `${c.checker?.full_name ?? "A former admin"} set ${label}${c.subject !== "partner" ? ` of ${memberName(c.subject)}` : ""} to ${CHECK_STATE_LABEL[c.state as CheckState] ?? c.state}${c.note ? `: ${c.note}` : ""}` });
   }
@@ -88,12 +99,12 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
 
   const triggers: { id: TabId; label: string; mark?: (CheckState | undefined)[]; count?: number }[] = [
     { id: "lead", label: "Lead details" },
-    { id: "screening", label: "Screening", count: calls.length },
-    { id: "personal", label: "Personal", mark: [v.states.contact] },
-    { id: "business", label: "Business", mark: [v.states.registration] },
+    { id: "screening", label: "Screening", mark: screeningItems.filter((i) => i.required).map((i) => v.screening[i.key]), count: calls.length },
+    { id: "personal", label: "Personal", mark: [v.states.identity] },
+    { id: "business", label: "Business", mark: checked.includes("registration") ? [v.states.registration] : [] },
     { id: "team", label: "Team", mark: v.members.length > 0 ? memberMarks : [], count: v.members.length },
-    { id: "legal", label: "Legal certificates", mark: [v.states.licence] },
-    { id: "kyc", label: "KYC", mark: [v.states.identity, v.states.kyc] },
+    { id: "legal", label: "Legal certificates", mark: checked.includes("licence") ? [v.states.licence] : [] },
+    { id: "kyc", label: "KYC", mark: [v.states.kyc] },
     { id: "bank", label: "Bank", mark: [v.states.bank] },
     { id: "work", label: "Past work", mark: [v.states.work] },
     { id: "activity", label: "Activity" },
@@ -157,10 +168,10 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
             <LeadTab app={view} />
           </TabsContent>
           <TabsContent value="screening">
-            <ScreeningTab app={view} calls={calls} />
+            <ScreeningTab app={view} v={v} calls={calls} setBy={screeningBy} />
           </TabsContent>
           <TabsContent value="personal">
-            <PersonalTab app={view} v={v} />
+            <PersonalTab app={view} v={v} data={v.onboarding} docs={docs} />
           </TabsContent>
           <TabsContent value="business">
             <BusinessTab app={view} v={v} data={v.onboarding} docs={docs} />
@@ -172,10 +183,10 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
             <LegalTab app={view} v={v} data={v.onboarding} docs={docs} />
           </TabsContent>
           <TabsContent value="kyc">
-            <KycTab app={view} v={v} docs={docs} />
+            <KycTab app={view} v={v} data={v.onboarding} docs={docs} />
           </TabsContent>
           <TabsContent value="bank">
-            <BankTab app={view} v={v} docs={docs} />
+            <BankTab app={view} v={v} data={v.onboarding} docs={docs} />
           </TabsContent>
           <TabsContent value="work">
             <WorkTab app={view} v={v} data={v.onboarding} docs={docs} />
@@ -219,7 +230,7 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
           <Card className="gap-3 shadow-none">
             <CardHeader>
               <CardTitle className="text-sm">Decision</CardTitle>
-              <p className="text-xs text-muted-foreground">Approving needs the required items verified, and every person on the team.</p>
+              <p className="text-xs text-muted-foreground">Approving needs the screening call done, the required items verified, and every person on the team verified.</p>
             </CardHeader>
             <CardContent>
               <PartnerDecision id={app.id} reference={app.reference} status={app.status} gaps={gaps} parts={["approve", "ask"]} />
@@ -227,14 +238,14 @@ export default async function PartnerDetailPage({ params, searchParams }: { para
           </Card>
         )}
 
-        {app.status !== "rejected" && !app.profile_id && (
+        {linkStage && !app.profile_id && (
           <Card className="gap-3 shadow-none">
             <CardHeader>
-              <CardTitle className="text-sm">Invite link</CardTitle>
+              <CardTitle className="text-sm">Onboarding link</CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
               <p className="text-xs text-muted-foreground">
-                {app.access_token_hash ? (app.access_expires_at && new Date(app.access_expires_at) > new Date() ? `Active until ${new Date(app.access_expires_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.` : "The link has expired.") : "No invite link."} It is never stored, so it cannot be shown again; sending a new one e-mails it to {app.email} and closes the old one.
+                {app.access_token_hash ? (app.access_expires_at && new Date(app.access_expires_at) > new Date() ? `Active until ${new Date(app.access_expires_at).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" })}.` : "The link has expired.") : "No link is active."} It is never stored, so it cannot be shown again; sending a new one e-mails it to {app.email} and closes the old one.
               </p>
               <ActionForm action={resendPartnerTrackingLink.bind(null, app.id)} loading="Sending…" success="A new link was e-mailed and the old one is closed.">
                 <Button type="submit" size="sm" variant="outline">

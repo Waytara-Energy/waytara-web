@@ -188,8 +188,8 @@ export function PartnerForm() {
           </p>
         )}
         <p className="mt-4 max-w-md text-[15px] leading-relaxed text-theme-secondary">
-          We have e-mailed you a confirmation with a private link to follow your application. Our partnerships team will review your details and contact you on the phone number or e-mail
-          you gave us. If you are shortlisted, the same page is where you add your business details and credentials. Please keep your reference to hand when we speak.
+          We have e-mailed you a confirmation. Our partnerships team will review your details and call you on the phone number you gave us. After that call we will e-mail you what comes
+          next. Please keep your reference to hand when we speak.
         </p>
       </div>
     );

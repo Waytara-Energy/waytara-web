@@ -10,9 +10,8 @@ import { changePartnerStatus } from "./actions";
 
 const STAGES = [
   { id: "new", note: "Not looked at yet" },
-  { id: "in_review", note: "Screening: call them and note what you find" },
-  { id: "shortlisted", note: "Worth taking further" },
-  { id: "onboarding", note: "Opens their forms and e-mails them" },
+  { id: "in_review", note: "Call them and tick the screening checklist" },
+  { id: "onboarding", note: "Screening done: e-mails them the onboarding link" },
   { id: "verification", note: "Their details are in: check them" },
 ] as const;
 
@@ -44,7 +43,7 @@ export function StatusMenu({ id, status }: { id: string; status: string }) {
           <ChevronDown className="size-3.5 text-muted-foreground" aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent align="start" className="w-72">
+      <DropdownMenuContent align="end" className="w-72">
         <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">{finished ? "Move it back to a stage" : "Move to"}</DropdownMenuLabel>
         {STAGES.map((s) => (
           <DropdownMenuItem key={s.id} onSelect={() => choose(s.id)} className="items-start gap-2">
@@ -56,7 +55,7 @@ export function StatusMenu({ id, status }: { id: string; status: string }) {
           </DropdownMenuItem>
         ))}
         <DropdownMenuSeparator />
-        <p className="px-2 py-1.5 text-xs text-muted-foreground">To approve or decline, use the buttons on the right.</p>
+        <p className="px-2 py-1.5 text-xs text-muted-foreground">To approve, use the Decision box. To decline, use the danger zone at the bottom.</p>
       </DropdownMenuContent>
     </DropdownMenu>
   );

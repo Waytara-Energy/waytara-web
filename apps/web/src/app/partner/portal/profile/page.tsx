@@ -111,7 +111,7 @@ export default async function PartnerProfilePage() {
                 );
               })}
             </div>
-            <p className="text-xs text-theme-muted">After saving, an empty row appears for the next person (up to {ONBOARDING_LIMITS.members}).</p>
+            <p className="text-xs text-theme-muted">After saving, an empty row appears for the next person (up to {ONBOARDING_LIMITS.members}). For a new person, send their photo ID (and their certificate, if their work needs one) under Licences and documents: our team verifies them before they count as part of your team.</p>
           </section>
 
           <section className="space-y-4">

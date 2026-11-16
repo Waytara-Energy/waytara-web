@@ -6,7 +6,8 @@ import { createClient } from "@waytara/supabase/server";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { getCurrentProfile, requireStaff } from "@waytara/supabase/auth";
 import { accessExpiry, newAccessToken } from "@waytara/supabase/partner-access";
-import { approvalGaps, isCheckKey, isCheckState, isDeclineHandling, isMemberCheckKey, isSubject } from "@waytara/supabase/partner-verification";
+import { SCREENING_SUBJECT, approvalGaps, isCheckKey, isCheckState, isDeclineHandling, isMemberCheckKey, isSubject, screeningChecklist, screeningGaps } from "@waytara/supabase/partner-verification";
+import { readOnboarding } from "@waytara/supabase/partner-onboarding";
 import { loadVerification } from "@/lib/partner-verification-data";
 import { sendPartnerClosedEmail, sendPartnerDeclineEmail } from "@/lib/send-partner-decline-email";
 import { sendPartnerLinkEmail } from "@/lib/send-partner-link-email";
@@ -27,7 +28,7 @@ export async function reviewPartnerApplication(id: string, formData: FormData): 
 
   const supabase = await createClient();
   // The note's date is when it was last changed, so an unchanged note keeps its date.
-  const { data: before } = await supabase.from("partner_applications").select("status, status_message, status_message_at, contact_name, email, reference, profile_id").eq("id", id).single();
+  const { data: before } = await supabase.from("partner_applications").select("status, partner_type, status_message, status_message_at, contact_name, email, reference, profile_id").eq("id", id).single();
   // A partner who has an account cannot be moved back a stage (they would still be able to sign in); to stop their access, suspend it.
   if (before?.profile_id && before.status === "approved" && status !== "approved") throw new Error("This partner has an account. To stop their access, use Suspend access in the Partner account box.");
   const messageChanged = (before?.status_message ?? "") !== message;
@@ -37,6 +38,13 @@ export async function reviewPartnerApplication(id: string, formData: FormData): 
   // Opening onboarding is the moment the applicant is asked to act, so they get a fresh link in an e-mail that says so (a link cannot be read back, so this is
   // the only way to put one in front of them; the earlier link stops working).
   const opensOnboarding = status === "onboarding" && before?.status !== "onboarding";
+  // The onboarding link goes out only after the screening call: every required item of its checklist must be ticked first. (An application that had already reached
+  // Verification is only being sent back, so it is not asked again.)
+  if (opensOnboarding && before && before.status !== "verification") {
+    const v = await loadVerification(supabase, id);
+    const open = screeningGaps(before.partner_type, v.screening);
+    if (open.length > 0) throw new Error(`Finish the screening call first. Still to confirm: ${open.join(", ")}.`);
+  }
   // With an account the partner just signs in, so there is no link to renew; without one (they never confirmed their e-mail) a fresh invite link goes out.
   const access = opensOnboarding && !before?.profile_id ? newAccessToken() : null;
 
@@ -82,12 +90,14 @@ export async function resendPartnerTrackingLink(id: string): Promise<void> {
   if (app.status === "rejected") throw new Error("This application was declined, so its link stays closed.");
   // Once the partner has an account their link has done its job (they sign in instead).
   if (app.profile_id) throw new Error("This partner already has an account, so there is no link to send. They sign in with their e-mail address and password.");
+  // Before the screening call is done there is nothing for them to open: the link is first sent by moving the application to Onboarding.
+  if (app.status === "new" || app.status === "in_review" || app.status === "shortlisted") throw new Error("The onboarding link is sent when you finish the screening call and move the application to Onboarding.");
 
   const access = newAccessToken();
   const { error } = await supabase.from("partner_applications").update({ access_token_hash: access.hash, access_expires_at: accessExpiry() }).eq("id", id);
   if (error) throw new Error(error.message);
 
-  await sendPartnerLinkEmail({ to: app.email, contactName: app.contact_name, reference: app.reference, token: access.token, purpose: app.status === "approved" ? "approved" : "resend" });
+  await sendPartnerLinkEmail({ to: app.email, contactName: app.contact_name, reference: app.reference, token: access.token, purpose: app.status === "approved" ? "approved" : app.status === "onboarding" ? "onboarding" : "resend" });
   revalidatePath(`/partners/${id}`);
 }
 
@@ -150,7 +160,8 @@ async function requireAdminProfile() {
  */
 export async function setPartnerItemCheck(id: string, subject: string, key: string, formData: FormData): Promise<void> {
   const profile = await requireAdminProfile();
-  if (!isSubject(subject)) throw new Error("That is not something that can be checked.");
+  // the screening checklist has its own action (it is saved as a whole)
+  if (!isSubject(subject) || subject === SCREENING_SUBJECT) throw new Error("That is not something that can be checked.");
   const forMember = subject !== "partner";
   if (forMember ? !isMemberCheckKey(key) : !isCheckKey(key)) throw new Error("That is not something that can be checked.");
   const state = String(formData.get("state") ?? "pending");
@@ -164,6 +175,48 @@ export async function setPartnerItemCheck(id: string, subject: string, key: stri
     .upsert({ application_id: id, subject, key, state, note: note === "" ? null : note, checked_by: profile.id, checked_at: new Date().toISOString() }, { onConflict: "application_id,subject,key" });
   if (error) throw new Error(error.message);
   revalidatePath(`/partners/${id}`);
+}
+
+/**
+ * Saves the screening checklist as a whole: for each item of this kind of partner, whether it is ticked and the note beside it. Only the items that changed are
+ * written, so who ticked an item and when stays true. Admin only.
+ */
+export async function saveScreeningChecklist(id: string, formData: FormData): Promise<void> {
+  const profile = await requireAdminProfile();
+  const supabase = await createClient();
+  const { data: app } = await supabase.from("partner_applications").select("partner_type").eq("id", id).single();
+  if (!app) throw new Error("Couldn't find this application.");
+  const v = await loadVerification(supabase, id);
+  const now = new Date().toISOString();
+  const rows = [];
+  for (const item of screeningChecklist(app.partner_type)) {
+    const state = formData.get(`tick_${item.key}`) === "on" ? "verified" : "pending";
+    const note = String(formData.get(`note_${item.key}`) ?? "").trim();
+    if (note.length > 500) throw new Error(`${item.label}: the note is too long (500 characters at most).`);
+    if ((v.screening[item.key] ?? "pending") === state && (v.screeningRows[item.key]?.note ?? "") === note) continue;
+    rows.push({ application_id: id, subject: SCREENING_SUBJECT, key: item.key, state, note: note === "" ? null : note, checked_by: profile.id, checked_at: now });
+  }
+  if (rows.length > 0) {
+    const { error } = await supabase.from("partner_item_checks").upsert(rows, { onConflict: "application_id,subject,key" });
+    if (error) throw new Error(error.message);
+  }
+  revalidatePath(`/partners/${id}`);
+}
+
+/**
+ * The partner's full bank account number, for an admin who needs it (to set up a payment, or to compare it with the cheque). The page shows it with all but the last
+ * four digits hidden; this is the only way to see the rest, and each use is written to the access log FIRST: if that cannot be written, the number is not returned.
+ */
+export async function revealPartnerBankAccount(id: string): Promise<string> {
+  const profile = await requireAdminProfile();
+  const supabase = await createClient();
+  const { data: row } = await supabase.from("partner_onboarding").select("data").eq("application_id", id).maybeSingle();
+  const number = readOnboarding(row?.data).bank.accountNumber;
+  if (!number) throw new Error("No account number has been entered.");
+  const { error } = await supabase.from("partner_document_access").insert({ application_id: id, document_id: null, kind: "bank_account", file_name: "the bank account number", action: "view", accessed_by: profile.id });
+  if (error) throw new Error("The number was not shown because the access could not be recorded. Try again in a moment.");
+  revalidatePath(`/partners/${id}`);
+  return number;
 }
 
 /** Adds a screening call to the log: when, who made it, what came of it, notes and the next step. Entries are never changed; a mistake is corrected with another one. */
@@ -271,7 +324,7 @@ export async function approvePartnerApplication(id: string): Promise<void> {
 
   // what has been checked about the partner AND about every person on their team: a partner with no team owes nothing for one, each added person must be verified
   const v = await loadVerification(supabase, id);
-  const gaps = approvalGaps(app.partner_type, v.states, v.members, v.memberStates);
+  const gaps = approvalGaps(app.partner_type, v.states, v.members, v.memberStates, v.screening);
   if (gaps.length > 0) throw new Error(`Not ready to approve. ${gaps.join("; ")}.`);
 
   // the team's earlier note (an ask for more, say) is done with once they are approved, so it does not sit beside "You are approved"

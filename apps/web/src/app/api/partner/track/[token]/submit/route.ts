@@ -31,7 +31,7 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     if (!schema.safeParse(await req.json().catch(() => null)).success) return fail("Please tick the box to confirm that what you sent is true.", 400);
 
     const state = await loadOnboarding(app.id);
-    const gaps = onboardingGaps(app.partnerType, state.data, state.documents.map((d) => d.kind));
+    const gaps = onboardingGaps(app.partnerType, state.data, state.documents);
     if (gaps.length > 0) return fail("A few things are still missing.", 400, { gaps });
 
     const db = createServiceRoleClient();

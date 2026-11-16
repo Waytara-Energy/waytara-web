@@ -4,14 +4,17 @@ import { LICENCE_TYPES } from "@waytara/supabase/partner-onboarding";
 import { licenceStatus, todayIst } from "@waytara/supabase/partner-account";
 import { PartnerTracker } from "@/components/partner/partner-tracker";
 import { OnboardingForm } from "@/components/partner/onboarding-form";
+import { PARTNER_TYPE_LABEL } from "@/lib/partner-network";
 import { findSessionRecord } from "@/lib/partner-track-server";
 import { loadOnboarding } from "@/lib/partner-onboarding-server";
 
 export const dynamic = "force-dynamic";
 
+const dateLabel = (iso: string) => new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "long", year: "numeric", timeZone: "Asia/Kolkata" });
+
 /**
- * The partner's Application page: where they are in the four steps, the team's note, and (while onboarding is open) the forms. It is the old tracking page, reached by
- * signing in instead of by a link: the application comes from the session, and the forms talk to the same routes as before with "me" in place of a link code.
+ * The partner's Application page. While onboarding is open it is the onboarding itself: a short header (what this is, the team's note if they asked for something)
+ * over the parts to fill in. At every other stage it is the tracker: where they are in the four steps and what we say about it.
  */
 export default async function PartnerPortalPage() {
   const record = await findSessionRecord();
@@ -21,10 +24,45 @@ export default async function PartnerPortalPage() {
 
   if (status === "onboarding") {
     const state = await loadOnboarding(record.id);
+    // their name is offered as the name on the photo ID until they type it themselves
+    const initial = state.data.person.name ? state.data : { ...state.data, person: { ...state.data.person, name: record.contactName } };
+    if (state.submittedAt) {
+      return (
+        <PartnerTracker app={app} embedded>
+          <OnboardingForm token="me" partnerType={partnerType} contact={{ name: record.contactName, phone: record.phone, email: record.email }} initial={initial} initialDocuments={state.documents} submittedAt={state.submittedAt} />
+        </PartnerTracker>
+      );
+    }
     return (
-      <PartnerTracker app={app} embedded>
-        <OnboardingForm token="me" partnerType={partnerType} initial={state.data} initialDocuments={state.documents} submittedAt={state.submittedAt} />
-      </PartnerTracker>
+      <main className="fluid-container pb-20">
+        <div className="mx-auto max-w-5xl">
+          <p className="text-sm text-theme-muted">Hi {firstName}</p>
+          <h1 className="mt-2 text-[clamp(1.6rem,3vw,2.2rem)] font-semibold leading-tight tracking-tight text-theme-primary">Your onboarding</h1>
+          <p className="mt-3 max-w-2xl text-[15px] leading-relaxed text-theme-secondary">
+            Fill in each part and send us your documents. We save as you go, so you can sign out and come back whenever you like. When every part is complete, send it and our team will verify it.
+          </p>
+          <p className="mt-3 text-sm text-theme-muted">
+            {[reference, partnerType ? PARTNER_TYPE_LABEL[partnerType] : null].filter(Boolean).join(" · ")}
+          </p>
+
+          {message && (
+            <div className="mt-7 max-w-2xl rounded-2xl border border-amber-500/40 bg-amber-500/5 p-5">
+              <p className="text-sm font-medium text-theme-primary">Our team asked for something{messageAt ? `, ${dateLabel(messageAt)}` : ""}</p>
+              <p className="mt-1.5 whitespace-pre-line text-[15px] leading-relaxed text-theme-primary">{message}</p>
+              <p className="mt-2 text-xs text-theme-muted">Add or change what is asked for in the parts below, then send it again from Review and send.</p>
+            </div>
+          )}
+
+          <OnboardingForm token="me" partnerType={partnerType} contact={{ name: record.contactName, phone: record.phone, email: record.email }} initial={initial} initialDocuments={state.documents} submittedAt={state.submittedAt} />
+
+          <p className="mt-12 text-sm text-theme-muted">
+            Need help?{" "}
+            <Link href="/partner/portal/support" className="text-theme-primary underline underline-offset-4">
+              Write to our team
+            </Link>
+          </p>
+        </div>
+      </main>
     );
   }
   // An approved partner: any licence that has run out, or runs out within 60 days, is the one thing worth their attention here.

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { ActionForm } from "@waytara/ui/action-form";
 import { LICENCE_TYPES, ONBOARDING_LIMITS } from "@waytara/supabase/partner-onboarding";
 import { licenceStatus, todayIst } from "@waytara/supabase/partner-account";
-import { DocumentUploader } from "@/components/partner/document-uploader";
+import { PortalDocuments } from "@/components/partner/portal-documents";
 import { NotYet } from "@/components/partner/not-yet";
 import { Input } from "@/components/ui/input";
 import { SubmitButton } from "@/components/ui/submit-button";
@@ -66,9 +66,9 @@ export default async function PartnerLicencesPage() {
         <section className="space-y-5 border-t border-theme-border pt-9">
           <div>
             <h2 className="text-lg font-semibold tracking-tight text-theme-primary">Documents</h2>
-            <p className="mt-1 text-sm text-theme-secondary">Our team uses these only to verify you, and shares them with no one outside WayTara. You can send a new one or take one back; you cannot open a sent file again from here.</p>
+            <p className="mt-1 text-sm text-theme-secondary">Our team uses these only to verify you, and shares them with no one outside WayTara. Send a new one when something is renewed or a person joins your team; our team checks it before it counts.</p>
           </div>
-          <DocumentUploader items={documents} />
+          <PortalDocuments partnerType={app.partnerType} data={data} initialDocuments={documents} />
         </section>
       </div>
     </main>

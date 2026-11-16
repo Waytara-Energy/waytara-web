@@ -1,8 +1,21 @@
 import { Mail, Phone, UserRound } from "lucide-react";
 import { ActionForm } from "@waytara/ui/action-form";
-import { BUSINESS_KINDS, LICENCE_TYPES, memberKey, type OnboardingData } from "@waytara/supabase/partner-onboarding";
+import {
+  ACCOUNT_TYPES,
+  BUSINESS_KINDS,
+  LICENCE_TYPES,
+  categorySubject,
+  documentRequirements,
+  emptyOnboarding,
+  maskAccount,
+  memberKey,
+  memberRequirements,
+  workCategories,
+  type OnboardingData,
+  type SectionId,
+} from "@waytara/supabase/partner-onboarding";
 import { licenceStatus, todayIst } from "@waytara/supabase/partner-account";
-import { CHECKS, MEMBER_CHECKS, memberChecklist, memberStatus, memberSubject, type CheckKey } from "@waytara/supabase/partner-verification";
+import { CHECKS, MEMBER_CHECKS, checklistFor, memberChecklist, memberStatus, memberSubject, screeningChecklist, type CheckKey } from "@waytara/supabase/partner-verification";
 import type { VerificationData } from "@/lib/partner-verification-data";
 import { PARTNER_SERVICE_LABEL, PARTNER_TYPE_LABEL, readAnswers } from "@/lib/partners";
 import { Badge } from "@/components/ui/badge";
@@ -13,7 +26,9 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { logScreeningCall } from "./actions";
-import { DocList, Fact, StateBadge, VerifyRow, type PartnerDoc } from "./partner-ui";
+import { BankReveal } from "./bank-reveal";
+import { DocList, DocSlots, Fact, StateBadge, VerifyRow, type DocSlot, type PartnerDoc } from "./partner-ui";
+import { ScreeningChecklist, type ScreeningSaved } from "./screening-checklist";
 
 export interface AppView {
   id: string;
@@ -33,6 +48,8 @@ export interface AppView {
   /** "Active", "Suspended", "Not created yet" or empty (not approved), and who last updated the application and when: for the Lead details tab. */
   account_note: string;
   last_updated: string;
+  /** When they proved the e-mail address with the code and made their account, or empty. */
+  email_confirmed: string;
 }
 
 export interface CallRow {
@@ -59,13 +76,22 @@ function Section({ title, description, children }: { title: string; description?
   );
 }
 
-/** The partner's own check of this kind, as a row to set. */
+/** The partner's own check of this kind, as a row to set (nothing for a kind of partner that is not checked on it). */
 function Check({ app, v, k }: { app: AppView; v: VerificationData; k: CheckKey }) {
+  if (!checklistFor(app.partner_type).some((c) => c.key === k)) return null;
   const def = CHECKS.find((c) => c.key === k)!;
   return <VerifyRow appId={app.id} subject="partner" itemKey={k} label={def.label} hint={def.hint} state={v.states[k] ?? "pending"} note={v.rows[k]?.note ?? null} checkedAt={v.rows[k]?.checked_at ?? null} />;
 }
 
-const docsOf = (docs: PartnerDoc[], kinds: string[]) => docs.filter((d) => d.subject === "partner" && kinds.includes(d.kind));
+/** The documents asked of this partner in one part of the onboarding, as slots for the admin's page. */
+function slotsOf(app: AppView, data: OnboardingData | null, section: SectionId, only?: readonly string[]): DocSlot[] {
+  return documentRequirements(app.partner_type, data ?? emptyOnboarding())
+    .filter((r) => r.section === section && (!only || only.includes(r.kind)))
+    .map((r) => ({ kind: r.kind, label: r.label, need: r.need, basis: r.basis, anyOf: r.anyOf }));
+}
+/** A better copy can be asked for only while the partner can still act on it. */
+const canAsk = (app: AppView) => app.status === "verification" || app.status === "onboarding";
+const notYet = (data: OnboardingData | null) => (data ? undefined : "They have not started their onboarding yet. This is what they will be asked for.");
 
 export function LeadTab({ app }: { app: AppView }) {
   const answers = readAnswers(app.answers);
@@ -138,10 +164,22 @@ export function LeadTab({ app }: { app: AppView }) {
     </div>
   );
 }
-export function ScreeningTab({ app, calls }: { app: AppView; calls: CallRow[] }) {
+
+export function ScreeningTab({ app, v, calls, setBy }: { app: AppView; v: VerificationData; calls: CallRow[]; setBy: Record<string, string> }) {
+  const items = screeningChecklist(app.partner_type);
+  const saved: Record<string, ScreeningSaved> = Object.fromEntries(items.map((i) => [i.key, { ticked: v.screening[i.key] === "verified", note: v.screeningRows[i.key]?.note ?? "", by: setBy[i.key] ?? "" }]));
+  const before = app.status === "new" || app.status === "in_review" || app.status === "shortlisted";
   return (
     <div className="space-y-4">
-      <Section title="Log a call" description="Call them on the number they gave, then note what you found out. Entries are kept as they are: correct a mistake with another entry.">
+      <Section
+        title="Screening checklist"
+        description={`Call ${app.contact_name} on ${app.phone} and confirm each of these. When the required ones are ticked and saved, send the onboarding link: it goes to ${app.email}, and a code sent to that address opens it.`}
+      >
+        <ScreeningChecklist appId={app.id} items={items} saved={saved} canSend={before} sendHint={`Moves the application to Onboarding and e-mails the link to ${app.email}.`} />
+        {!before && <p className="text-xs text-muted-foreground">The onboarding link has been sent. The checklist can still be corrected.</p>}
+      </Section>
+
+      <Section title="Log a call" description="Note what you found out on each call. Entries are kept as they are: correct a mistake with another entry.">
         <ActionForm key={calls.length} action={logScreeningCall.bind(null, app.id)} loading="Saving…" success="Call logged." className="space-y-3">
           <div className="grid gap-3 sm:grid-cols-[12rem_minmax(0,1fr)]">
             <div className="grid gap-1.5">
@@ -202,27 +240,32 @@ export function ScreeningTab({ app, calls }: { app: AppView; calls: CallRow[] })
   );
 }
 
-export function PersonalTab({ app, v }: { app: AppView; v: VerificationData }) {
+export function PersonalTab({ app, v, data, docs }: { app: AppView; v: VerificationData; data: OnboardingData | null; docs: PartnerDoc[] }) {
   return (
     <div className="space-y-4">
-      <Section title="Personal details">
+      <Section title="Personal details" description={notYet(data)}>
         <dl className="grid gap-4 sm:grid-cols-2">
-          <Fact label="Name">{app.contact_name}</Fact>
+          <Fact label="Name on the photo ID">{data?.person.name || app.contact_name}</Fact>
+          <Fact label="Role in the business">{data?.person.designation}</Fact>
           <Fact label="Phone">
             <a href={`tel:${app.phone}`} className="hover:underline">
               {app.phone}
             </a>
           </Fact>
+          <Fact label="Another phone">{data?.person.altPhone}</Fact>
           <Fact label="E-mail">
             <a href={`mailto:${app.email}`} className="break-all hover:underline">
               {app.email}
             </a>
           </Fact>
-          <Fact label="Website">{app.website}</Fact>
+          <Fact label="E-mail confirmed by code">{app.email_confirmed}</Fact>
         </dl>
       </Section>
-      <Section title="Verification" description="Confirm you reached the person on the number they gave and that the e-mail address is theirs.">
-        <Check app={app} v={v} k="contact" />
+      <Section title="Identity documents">
+        <DocSlots appId={app.id} slots={slotsOf(app, data, "personal")} docs={docs} canAsk={canAsk(app)} />
+      </Section>
+      <Section title="Verification">
+        <Check app={app} v={v} k="identity" />
       </Section>
     </div>
   );
@@ -232,27 +275,29 @@ export function BusinessTab({ app, v, data, docs }: { app: AppView; v: Verificat
   const b = data?.business;
   return (
     <div className="space-y-4">
-      <Section title="Business details" description={data ? undefined : "They have not sent their business details yet."}>
+      <Section title="Business details" description={notYet(data)}>
         <dl className="grid gap-4 sm:grid-cols-2">
           <Fact label="Business name">{b?.name || app.company_name}</Fact>
           <Fact label="Kind of business">{BUSINESS_KINDS.find((k) => k.id === b?.kind)?.label ?? b?.kind}</Fact>
           <Fact label="Started">{b?.started}</Fact>
-          <Fact label="GSTIN">{b?.gstin}</Fact>
+          <Fact label="GST number">{b?.gstin ? <span className="font-mono">{b.gstin}</span> : data ? "Not registered (none given)" : ""}</Fact>
+          <Fact label="Udyam number">{b?.udyam}</Fact>
+          <Fact label="Website">{b?.website}</Fact>
           <Fact label="Address" wide>
             {[b?.address, b?.city, b?.pin].filter(Boolean).join(", ")}
           </Fact>
-          <Fact label="Website">{b?.website}</Fact>
           <Fact label="Districts">{data?.areas.districts.join(", ")}</Fact>
           <Fact label="Jobs a month">{data?.areas.capacity}</Fact>
-          <Fact label="Team">{[data?.team.size && `${data.team.size} people`, data?.team.certified && `${data.team.certified} certified`].filter(Boolean).join(", ")}</Fact>
         </dl>
       </Section>
-      <Section title="Registration documents" description="Business registration (GST, company or firm, Udyam) and insurance.">
-        <DocList appId={app.id} docs={docsOf(docs, ["registration", "insurance"])} />
+      <Section title="Business documents" description="What a business of this kind is asked for, and why.">
+        <DocSlots appId={app.id} slots={slotsOf(app, data, "business")} docs={docs} canAsk={canAsk(app)} restKinds={["other"]} />
       </Section>
-      <Section title="Verification">
-        <Check app={app} v={v} k="registration" />
-      </Section>
+      {checklistFor(app.partner_type).some((c) => c.key === "registration") && (
+        <Section title="Verification">
+          <Check app={app} v={v} k="registration" />
+        </Section>
+      )}
     </div>
   );
 }
@@ -279,7 +324,6 @@ export function TeamTab({ app, v, data, docs }: { app: AppView; v: VerificationD
         const key = memberKey(m, i);
         const ref = { key, name: m.name, needsLicence: m.needsLicence };
         const status = memberStatus(ref, v.memberStates);
-        const mine = docs.filter((d) => d.subject === memberSubject(key));
         return (
           <Card key={key} className="gap-4 shadow-none">
             <CardHeader>
@@ -298,7 +342,7 @@ export function TeamTab({ app, v, data, docs }: { app: AppView; v: VerificationD
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <DocList appId={app.id} docs={mine} empty="No documents sent for this person yet." />
+              <DocSlots appId={app.id} subject={memberSubject(key)} slots={memberRequirements(m.needsLicence).map((r) => ({ kind: r.kind, label: r.label, need: r.need, anyOf: r.anyOf }))} docs={docs} canAsk={canAsk(app)} />
               {memberChecklist(m.needsLicence).map((c) => {
                 const def = MEMBER_CHECKS.find((x) => x.key === c.key)!;
                 return <VerifyRow key={c.key} appId={app.id} subject={memberSubject(key)} itemKey={c.key} label={def.label} hint={def.hint} state={v.memberStates[key]?.[c.key] ?? "pending"} note={v.memberRows[key]?.[c.key]?.note ?? null} checkedAt={v.memberRows[key]?.[c.key]?.checked_at ?? null} />;
@@ -316,7 +360,7 @@ export function LegalTab({ app, v, data, docs }: { app: AppView; v: Verification
   const licences = data?.licences ?? [];
   return (
     <div className="space-y-4">
-      <Section title="Licences and certificates" description={licences.length === 0 ? "No licence has been entered." : undefined}>
+      <Section title="Licences and certificates" description={licences.length === 0 ? (data ? "No licence has been entered." : notYet(data)) : undefined}>
         {licences.length > 0 && (
           <ul className="divide-y divide-border rounded-md border border-border text-sm">
             {licences.map((l, i) => {
@@ -324,7 +368,7 @@ export function LegalTab({ app, v, data, docs }: { app: AppView; v: Verification
               return (
                 <li key={i} className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1 px-3 py-2">
                   <span>
-                    {LICENCE_TYPES.find((t) => t.id === l.type)?.label.split(" (")[0] ?? "Licence"} · {l.number || "no number"}
+                    {LICENCE_TYPES.find((t) => t.id === l.type)?.label.split(" (")[0] ?? "Licence"} · <span className="font-mono">{l.number || "no number"}</span>
                     {l.grade ? ` · class ${l.grade}` : ""}
                   </span>
                   <span className={s.state === "expired" ? "font-medium text-destructive" : s.state === "soon" ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}>
@@ -335,34 +379,53 @@ export function LegalTab({ app, v, data, docs }: { app: AppView; v: Verification
             })}
           </ul>
         )}
-        <DocList appId={app.id} docs={docsOf(docs, ["licence", "certificate"])} />
       </Section>
-      <Section title="Verification" description="Check the licence with the authority that issued it.">
-        <Check app={app} v={v} k="licence" />
+      <Section title="Copies" description="What this kind of partner is asked for, and why.">
+        <DocSlots appId={app.id} slots={slotsOf(app, data, "licences")} docs={docs} canAsk={canAsk(app)} restKinds={["licence", "contractor_tieup", "certificate", "trade_certificate", "discom_registration", "training_certificate", "drone_certificate"]} />
       </Section>
+      {checklistFor(app.partner_type).some((c) => c.key === "licence") && (
+        <Section title="Verification" description="Check the licence with the authority that issued it.">
+          <Check app={app} v={v} k="licence" />
+        </Section>
+      )}
     </div>
   );
 }
 
-export function KycTab({ app, v, docs }: { app: AppView; v: VerificationData; docs: PartnerDoc[] }) {
+export function KycTab({ app, v, data, docs }: { app: AppView; v: VerificationData; data: OnboardingData | null; docs: PartnerDoc[] }) {
   return (
     <div className="space-y-4">
-      <Section title="KYC documents" description="Identity of the person we deal with, and the business's KYC proofs. They may hide all but the last four digits of any number.">
-        <DocList appId={app.id} docs={docsOf(docs, ["identity", "kyc"])} />
+      <Section title="KYC" description={notYet(data) ?? "We never ask for an Aadhaar number. An Aadhaar copy, if they sent one, must show only the last four digits."}>
+        <dl className="grid gap-4 sm:grid-cols-2">
+          <Fact label="PAN">{data?.business.pan ? <span className="font-mono">{data.business.pan}</span> : ""}</Fact>
+          <Fact label="GST number">{data?.business.gstin ? <span className="font-mono">{data.business.gstin}</span> : ""}</Fact>
+        </dl>
+      </Section>
+      <Section title="KYC documents">
+        <DocSlots appId={app.id} slots={slotsOf(app, data, "bank", ["pan", "kyc"])} docs={docs} canAsk={canAsk(app)} />
       </Section>
       <Section title="Verification">
-        <Check app={app} v={v} k="identity" />
         <Check app={app} v={v} k="kyc" />
       </Section>
     </div>
   );
 }
 
-export function BankTab({ app, v, docs }: { app: AppView; v: VerificationData; docs: PartnerDoc[] }) {
+export function BankTab({ app, v, data, docs }: { app: AppView; v: VerificationData; data: OnboardingData | null; docs: PartnerDoc[] }) {
+  const k = data?.bank;
   return (
     <div className="space-y-4">
-      <Section title="Bank details" description="Account holder, bank and IFSC are collected on the partner's page soon; for now, the cancelled cheque or passbook page they send.">
-        <DocList appId={app.id} docs={docsOf(docs, ["bank_proof"])} empty="No bank proof sent yet." />
+      <Section title="Bank account" description={notYet(data) ?? "The account number is hidden but for its last four digits. Showing it is recorded in the Activity tab."}>
+        <dl className="grid gap-4 sm:grid-cols-2">
+          <Fact label="Name on the account">{k?.holder}</Fact>
+          <Fact label="Bank">{[k?.bankName, k?.branch].filter(Boolean).join(", ")}</Fact>
+          <Fact label="Account number">{k?.accountNumber ? <BankReveal appId={app.id} masked={maskAccount(k.accountNumber)} /> : ""}</Fact>
+          <Fact label="IFSC">{k?.ifsc ? <span className="font-mono">{k.ifsc}</span> : ""}</Fact>
+          <Fact label="Kind of account">{ACCOUNT_TYPES.find((t) => t.id === k?.accountType)?.label}</Fact>
+        </dl>
+      </Section>
+      <Section title="Bank proof">
+        <DocSlots appId={app.id} slots={slotsOf(app, data, "bank", ["bank_proof"])} docs={docs} canAsk={canAsk(app)} />
       </Section>
       <Section title="Verification">
         <Check app={app} v={v} k="bank" />
@@ -373,11 +436,14 @@ export function BankTab({ app, v, docs }: { app: AppView; v: VerificationData; d
 
 export function WorkTab({ app, v, data, docs }: { app: AppView; v: VerificationData; data: OnboardingData | null; docs: PartnerDoc[] }) {
   const w = data?.work;
+  const categories = workCategories(app.partner_type);
+  const known = new Set(categories.map((c) => categorySubject(c.id)));
+  const loose = docs.filter((d) => (d.subject.startsWith("category:") && !known.has(d.subject)) || (d.subject === "partner" && (d.kind === "work_photo" || d.kind === "survey_record")));
   return (
     <div className="space-y-4">
-      <Section title="Past work" description={data ? undefined : "They have not sent their past work yet."}>
+      <Section title="Past work" description={notYet(data)}>
         <dl className="grid gap-4 sm:grid-cols-2">
-          <Fact label="Installations so far">{w?.installs}</Fact>
+          <Fact label="Completed so far">{w?.installs}</Fact>
           <Fact label="Largest system">{w?.largest ? `${w.largest} kW` : ""}</Fact>
           <Fact label="About their work" wide>
             {w?.summary}
@@ -395,9 +461,22 @@ export function WorkTab({ app, v, data, docs }: { app: AppView; v: VerificationD
           </ul>
         )}
       </Section>
-      <Section title="Photos and survey records">
-        <DocList appId={app.id} docs={docsOf(docs, ["work_photo", "survey_record"])} />
+      {categories.map((c) => {
+        const files = docs.filter((d) => d.subject === categorySubject(c.id));
+        return (
+          <Section key={c.id} title={`${c.label} (${files.length})`}>
+            <DocList appId={app.id} docs={files} canAsk={canAsk(app)} empty="Nothing sent for this yet." />
+          </Section>
+        );
+      })}
+      <Section title="Completion certificates and references">
+        <DocList appId={app.id} docs={docs.filter((d) => d.subject === "partner" && d.kind === "completion_certificate")} canAsk={canAsk(app)} />
       </Section>
+      {loose.length > 0 && (
+        <Section title="Other photos and records" description="Sent before photos were grouped by kind of work.">
+          <DocList appId={app.id} docs={loose} canAsk={canAsk(app)} />
+        </Section>
+      )}
       <Section title="Verification" description="Check that their past work or references are real.">
         <Check app={app} v={v} k="work" />
       </Section>

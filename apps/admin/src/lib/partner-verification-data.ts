@@ -1,6 +1,6 @@
 import type { createClient } from "@waytara/supabase/server";
 import { memberKey, readOnboarding, type OnboardingData } from "@waytara/supabase/partner-onboarding";
-import { isCheckKey, isCheckState, isMemberCheckKey, type CheckKey, type CheckState, type MemberCheckKey, type MemberRef, type MemberStates } from "@waytara/supabase/partner-verification";
+import { SCREENING_SUBJECT, isCheckKey, isCheckState, isMemberCheckKey, type CheckKey, type CheckState, type MemberCheckKey, type MemberRef, type MemberStates } from "@waytara/supabase/partner-verification";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
 
@@ -18,6 +18,9 @@ export interface VerificationData {
   members: MemberRef[];
   memberStates: MemberStates;
   memberRows: Record<string, Partial<Record<MemberCheckKey, CheckRow>>>;
+  /** The screening call's checklist: what is ticked, and the note on each. */
+  screening: Partial<Record<string, CheckState>>;
+  screeningRows: Partial<Record<string, CheckRow>>;
 }
 
 /**
@@ -36,17 +39,22 @@ export async function loadVerification(supabase: Supabase, applicationId: string
   const rows: VerificationData["rows"] = {};
   const memberStates: MemberStates = {};
   const memberRows: VerificationData["memberRows"] = {};
+  const screening: VerificationData["screening"] = {};
+  const screeningRows: VerificationData["screeningRows"] = {};
   for (const c of checks ?? []) {
     if (!isCheckState(c.state)) continue;
     const row = { note: c.note, checked_at: c.checked_at };
     if (c.subject === "partner" && isCheckKey(c.key)) {
       states[c.key] = c.state;
       rows[c.key] = row;
+    } else if (c.subject === SCREENING_SUBJECT) {
+      screening[c.key] = c.state;
+      screeningRows[c.key] = row;
     } else if (c.subject.startsWith("member:") && isMemberCheckKey(c.key)) {
       const k = c.subject.slice("member:".length);
       (memberStates[k] ??= {})[c.key] = c.state;
       (memberRows[k] ??= {})[c.key] = row;
     }
   }
-  return { onboarding, states, rows, members, memberStates, memberRows };
+  return { onboarding, states, rows, members, memberStates, memberRows, screening, screeningRows };
 }
