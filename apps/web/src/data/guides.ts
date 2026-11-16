@@ -48,6 +48,19 @@ export interface Guide {
   /** ISO date of the last check, and how it reads on the page. */
   updated: string;
   updatedLabel: string;
+  /** The blog topic the article is listed under (the older guides default to "Solar and subsidy"). */
+  category?: string;
+  /** Where the page's buttons lead; the customer guides default to the planner and the contact page. */
+  cta?: GuideCta;
+  /** The documents the article rests on, linked so a reader can check them. Shown at the end of the article. */
+  sources?: { label: string; url: string; note?: string }[];
+}
+
+export interface GuideCta {
+  primary: { label: string; href: string };
+  secondary: { label: string; href: string };
+  /** The closing block: a headline and two routes. */
+  closing: { heading: string; accent: string; a: { label: string; href: string; hint: string }; b: { label: string; href: string; hint: string } };
 }
 
 const UPDATED = "2026-11-06";

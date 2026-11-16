@@ -22,7 +22,20 @@ const EXTRA: SearchEntry[] = [
   { title: "Privacy Policy", href: "/privacy", group: "Legal", keywords: "privacy data personal information" },
   { title: "Warranty Policy", href: "/warranty", group: "Legal", keywords: "warranty guarantee" },
   { title: "Cookie Policy", href: "/cookies", group: "Legal", keywords: "cookies tracking" },
-  { title: "Guides: straight answers about solar", href: "/guides", group: "Guides", keywords: "guide guides help how to learn knowledge articles faq" },
+  { title: "Blog: straight answers", href: "/blog", group: "Blog", keywords: "blog guide guides help how to learn knowledge articles faq" },
+  { title: "Solar guides", href: "/guides", group: "Guides", keywords: "guide guides solar home subsidy bill" },
+  { title: "Partner terms", href: "/partner-terms", group: "Legal", keywords: "partner terms conditions agreement installer contractor policy" },
+  { title: "Electrical contractor licence grades (EB, ESB, EA, ESA)", href: "/blog/licence-grades", group: "Blog", keywords: "tnelb licence license contractor eb esb ea esa electrical grade tamil nadu partner" },
+  { title: "Wireman and Supervisor certificates", href: "/blog/competency-certificates", group: "Blog", keywords: "wireman supervisor certificate competency tnelb electrician" },
+  { title: "Working under a licensed contractor", href: "/blog/working-under-a-contractor", group: "Blog", keywords: "licence contractor borrow installer partner solar ev team" },
+  { title: "Partner documents and privacy", href: "/blog/partner-documents-and-privacy", group: "Blog", keywords: "documents aadhaar aadhar pan gst privacy partner onboarding verification" },
+  { title: "The WayTara gateway", href: "/blog/waytara-gateway", group: "Blog", keywords: "gateway box rs485 modbus inverter battery meter connect integration" },
+  { title: "Monitoring an existing solar system", href: "/blog/monitor-existing-solar", group: "Blog", keywords: "existing old system inverter integrate monitor deye replace" },
+  { title: "Connecting an EV charger (OCPP)", href: "/blog/connect-ev-charger-ocpp", group: "Blog", keywords: "ev charger ocpp 1.6j cms charge point management" },
+  { title: "OCPP 1.6J or 2.0.1", href: "/blog/ocpp-1-6-or-2-0-1", group: "Blog", keywords: "ocpp version 1.6 2.0.1 2.1 charger protocol compatible plug and charge iso 15118" },
+  { title: "Why solar stops in a power cut", href: "/blog/why-solar-stops-in-a-power-cut", group: "Blog", keywords: "power cut outage blackout anti islanding on grid inverter shuts off backup battery hybrid cea" },
+  { title: "Cleaning and caring for rooftop solar", href: "/blog/clean-and-maintain-rooftop-solar", group: "Blog", keywords: "clean panels wash dust bird droppings soiling maintenance inverter filter hot spot" },
+  { title: "What good solar monitoring shows", href: "/blog/good-solar-monitoring", group: "Blog", keywords: "monitoring dashboard performance ratio availability alerts production expected output" },
   { title: "Solar for your home", href: "/solar-for-home", group: "Guides", keywords: "home villa house roof size how much roof space solar panel price cost rooftop" },
   { title: "On-grid, hybrid or off-grid solar", href: "/on-grid-hybrid-off-grid-solar", group: "Guides", keywords: "on grid hybrid off grid inverter battery power cut backup which to choose" },
   { title: "Solar subsidy and net metering", href: "/solar-subsidy", group: "Guides", keywords: "subsidy pm surya ghar muft bijli net metering apply discom state scheme" },
@@ -46,7 +59,7 @@ export const SEARCH_INDEX: SearchEntry[] = (() => {
   for (const seg of SOLUTION_SEGMENTS) add({ title: seg.label, href: seg.href, group: "Solutions", keywords: seg.blurb ?? "" });
   for (const menu of HEADER_MENUS) {
     add({ title: menu.label, href: menu.href, group: menu.label === "Solutions" ? "Solutions" : "Pages", keywords: menu.big.map((b) => b.label).join(" ") });
-    if (menu.label === "Solutions" || menu.label === "Guides") continue; // their pages have their own entries, with search words
+    if (menu.label === "Solutions" || menu.label === "Blog") continue; // their pages have their own entries, with search words
     for (const item of menu.big) add({ title: item.label, href: item.href, group: menu.label, keywords: item.blurb ?? "" });
   }
   for (const e of EXTRA) add(e);

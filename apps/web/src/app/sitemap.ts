@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
 import { SEGMENT_PAGES } from "@/components/segments/registry";
+import { BLOG_POSTS } from "@/data/blog";
 import { GUIDE_LIST } from "@/data/guides";
 import { SITE } from "@/lib/site";
 
@@ -14,6 +15,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/technology", priority: 0.9, changeFrequency: "monthly" },
     { path: "/planner", priority: 0.9, changeFrequency: "monthly" },
     { path: "/guides", priority: 0.8, changeFrequency: "monthly" },
+    { path: "/blog", priority: 0.8, changeFrequency: "weekly" },
     { path: "/why-waytara", priority: 0.7, changeFrequency: "monthly" },
     { path: "/partner", priority: 0.7, changeFrequency: "monthly" },
     { path: "/support", priority: 0.6, changeFrequency: "monthly" },
@@ -22,6 +24,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     { path: "/warranty", priority: 0.4, changeFrequency: "yearly" },
     { path: "/privacy", priority: 0.2, changeFrequency: "yearly" },
     { path: "/terms", priority: 0.2, changeFrequency: "yearly" },
+    { path: "/partner-terms", priority: 0.2, changeFrequency: "yearly" },
     { path: "/cookies", priority: 0.2, changeFrequency: "yearly" },
   ];
 
@@ -35,7 +38,9 @@ export default function sitemap(): MetadataRoute.Sitemap {
   // The guides: answers to what people search for.
   const guidePages = GUIDE_LIST.map((g) => ({ path: g.path, priority: 0.8, changeFrequency: "monthly" as const }));
 
-  return [...staticPages, ...segmentPages, ...guidePages].map((p) => ({
+  const blogPages = BLOG_POSTS.map((g) => ({ path: g.path, priority: 0.7, changeFrequency: "monthly" as const }));
+
+  return [...staticPages, ...segmentPages, ...guidePages, ...blogPages].map((p) => ({
     url: `${SITE.url}${p.path}`,
     lastModified: LAST_UPDATED,
     changeFrequency: p.changeFrequency,

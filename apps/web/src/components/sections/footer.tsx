@@ -43,7 +43,7 @@ export function Footer() {
 
           <div className="lg:col-span-8 grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-[1fr_1.1fr_1fr_0.9fr_1.6fr] gap-6 sm:gap-8 xl:gap-6">
             <LinkColumn title="Solutions" links={SOLUTION_SEGMENTS} />
-            <LinkColumn title="Guides" links={GUIDE_LINKS} />
+            <LinkColumn title="Blog" links={GUIDE_LINKS} />
             <LinkColumn title="Company" links={COMPANY_LINKS} />
             <LinkColumn title="Legal" links={LEGAL_LINKS} />
 

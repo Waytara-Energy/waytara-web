@@ -4,7 +4,7 @@ import * as React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTheme } from "next-themes";
-import { Menu, Search } from "lucide-react";
+import { BookOpen, Menu, Search } from "lucide-react";
 import { Logo } from "@/components/shared/logo";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -208,7 +208,8 @@ export function Navigation() {
 
         {/* 2. Center: Clean Direct Navigation Links (Fluid Sizing with Smooth In-Page Anchor Scrolling) */}
         <nav aria-label="Main" className="hidden lg:flex items-center space-x-[clamp(0.25rem,0.6vw,0.75rem)]">
-          {HEADER_MENUS.map((menu) => (
+          {/* The Blog's menu is opened from the book icon beside the search icon, not from a word in this row. */}
+          {HEADER_MENUS.filter((menu) => menu.label !== "Blog").map((menu) => (
             <Link
               key={menu.label}
               href={menu.href}
@@ -226,12 +227,28 @@ export function Navigation() {
 
         {/* 3. Right (wide screens): search, theme toggle and the account slot. Contact is reached from the menus, the planner and the footer. */}
         <div className="hidden lg:flex items-center space-x-[clamp(0.2rem,0.5vw,0.6rem)]">
-          {/* Search: opens the same panel as the menus */}
+          {/* Blog: hover or focus shows its menu, a click goes to the blog */}
+          <Link
+            href="/blog"
+            aria-label="Blog"
+            aria-expanded={activeMenu === "Blog"}
+            aria-haspopup="true"
+            onMouseEnter={() => openMenu("Blog")}
+            onFocus={() => openMenu("Blog")}
+            onClick={() => setActiveMenu(null)}
+            className={cn(iconLinkClass, activeMenu === "Blog" && "text-theme-highlight")}
+          >
+            <BookOpen className="size-[20px]" />
+          </Link>
+
+          {/* Search: hover or focus opens the same panel as the menus (a click keeps it open) */}
           <button
             type="button"
             aria-label="Search"
             aria-expanded={activeMenu === "search"}
-            onClick={() => (activeMenu === "search" ? setActiveMenu(null) : openMenu("search"))}
+            onMouseEnter={() => openMenu("search")}
+            onFocus={() => openMenu("search")}
+            onClick={() => openMenu("search")}
             className={cn(iconLinkClass, activeMenu === "search" && "text-theme-highlight")}
           >
             <Search className="size-[20px]" />

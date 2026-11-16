@@ -29,6 +29,10 @@ export const SOLUTION_NEEDS: NavDestination[] = [
 
 /** The guides (answers to what people search for), shown in the footer: short labels, one page each. */
 export const GUIDE_LINKS: NavDestination[] = [
+  { label: "All articles", href: "/blog", blurb: "Partners, gateway, EV charging, solar" },
+  { label: "Partner licences explained", href: "/blog/licence-grades" },
+  { label: "The WayTara gateway", href: "/blog/waytara-gateway" },
+  { label: "Connect an EV charger", href: "/blog/connect-ev-charger-ocpp" },
   { label: "Solar for your home", href: "/solar-for-home" },
   { label: "On-grid, hybrid or off-grid", href: "/on-grid-hybrid-off-grid-solar" },
   { label: "Solar subsidy and net metering", href: "/solar-subsidy" },
@@ -38,8 +42,8 @@ export const GUIDE_LINKS: NavDestination[] = [
 
 export const SOLUTIONS_HUB: NavDestination = { label: "Solutions", href: "/solutions" };
 
-/** The page that lists the guides. */
-export const GUIDES_HUB: NavDestination = { label: "Guides", href: "/guides" };
+/** The page that lists the articles: the blog, which holds the solar guides too. */
+export const GUIDES_HUB: NavDestination = { label: "Blog", href: "/blog" };
 
 /** Plain links that sit next to the Solutions menu. */
 export const PRIMARY_LINKS: NavDestination[] = [
@@ -57,6 +61,7 @@ export const LOGIN_LINK: NavDestination = { label: "Login", href: "/login" };
 
 export const LEGAL_LINKS: NavDestination[] = [
   { label: "Terms of Service", href: "/terms" },
+  { label: "Partner Terms", href: "/partner-terms" },
   { label: "Privacy Policy", href: "/privacy" },
   { label: "Cookie Policy", href: "/cookies" },
   { label: "Warranty Policy", href: "/warranty" },
@@ -153,7 +158,7 @@ export interface HeaderMenu {
 const ASIDE: Record<string, { title: string; links: NavDestination[] }> = {
   Platform: { title: "Next", links: [PLANNER_LINK, { label: "Solutions", href: "/solutions" }] },
   "Why WayTara": { title: "Next", links: [PLANNER_LINK, { label: "Platform", href: "/technology" }] },
-  Guides: { title: "Next", links: [PLANNER_LINK, { label: "Solutions", href: "/solutions" }, CONTACT_LINK] },
+  Blog: { title: "Next", links: [PLANNER_LINK, { label: "Solutions", href: "/solutions" }, CONTACT_LINK] },
   "About Us": { title: "More", links: [CONTACT_LINK, { label: "Partner with us", href: "/partner" }] },
   Partner: { title: "More", links: [CONTACT_LINK, { label: "About Us", href: "/about" }] },
   Support: { title: "Quick links", links: [{ label: "Forgot password", href: "/forgot-password" }, { label: "Sign in", href: "/login" }, GUIDES_HUB, CONTACT_LINK] },
@@ -167,7 +172,7 @@ export const HEADER_MENUS: HeaderMenu[] = [
     bigLabel: "Explore Solutions",
     big: [{ label: "All solutions", href: SOLUTIONS_HUB.href }, ...SOLUTION_SEGMENTS],
     asideTitle: "By need",
-    aside: [...SOLUTION_NEEDS, { label: "Not sure? Use the Energy Planner", href: PLANNER_LINK.href }, { label: "Read the guides", href: GUIDES_HUB.href }],
+    aside: [...SOLUTION_NEEDS, { label: "Not sure? Use the Energy Planner", href: PLANNER_LINK.href }, { label: "Read the blog", href: GUIDES_HUB.href }],
   },
   ...PAGE_MENUS.map((m) => ({
     label: m.label,

@@ -5,7 +5,8 @@ import { FaqList } from "@/components/segments/faq-list";
 import { EnquiryRoutes, SegmentSection } from "@/components/segments/segment-parts";
 import { JsonLd } from "@/components/seo/json-ld";
 import { cn } from "@/lib/utils";
-import { GUIDES, type Guide, type GuideBlock } from "@/data/guides";
+import { type Guide, type GuideBlock, type GuideCta } from "@/data/guides";
+import { findArticle } from "@/data/blog";
 import { articleJsonLd } from "@/lib/seo";
 import { PageHero, PageShell } from "./page-shell";
 
@@ -19,6 +20,8 @@ const LINKED_PHRASES: { phrase: string; href: string }[] = [
   { phrase: "energy planner", href: "/planner" },
   { phrase: "Warranty Policy", href: "/warranty" },
   { phrase: "Terms of Service", href: "/terms" },
+  { phrase: "Privacy Policy", href: "/privacy" },
+  { phrase: "Partner Terms", href: "/partner-terms" },
   { phrase: "how the platform connects your equipment", href: "/technology" },
 ];
 
@@ -191,11 +194,23 @@ function Blocks({ blocks }: { blocks: GuideBlock[] }) {
   );
 }
 
+const CUSTOMER_CTA: GuideCta = {
+  primary: { label: "Plan my system", href: "/planner" },
+  secondary: { label: "Talk to us", href: "/contact" },
+  closing: {
+    heading: "Ready to look at",
+    accent: "your own roof?",
+    a: { label: "Plan my system", href: "/planner", hint: "Tell us about your property and get a first blueprint in a few minutes." },
+    b: { label: "Talk to an engineer", href: "/contact", hint: "Ask about your own roof, bills or equipment. There is no commitment either way." },
+  },
+};
+
 /**
  * A guide page, built from the same parts as the other pages: the hero, "In short" as ticked columns, each section opening with the shared header (headline on the
  * left, one line on the right), the FAQ accordion, and the same closing as the solution pages, with the other guides to read next. One template for every guide.
  */
 export function GuidePage({ guide }: { guide: Guide }) {
+  const cta = guide.cta ?? CUSTOMER_CTA;
   return (
     <PageShell
       name={guide.name}
@@ -207,8 +222,8 @@ export function GuidePage({ guide }: { guide: Guide }) {
           title={guide.title}
           accent={guide.accent}
           body={guide.answer}
-          primary={{ label: "Plan my system", href: "/planner" }}
-          secondary={{ label: "Talk to us", href: "/contact" }}
+          primary={cta.primary}
+          secondary={cta.secondary}
         />
       }
     >
@@ -247,13 +262,31 @@ export function GuidePage({ guide }: { guide: Guide }) {
         </Reveal>
       </SegmentSection>
 
+      {guide.sources && guide.sources.length > 0 && (
+        <SegmentSection id="sources" badge="Sources" title="Where this" accent="comes from." summary={`We link the documents themselves so you can check us. Last checked ${guide.updatedLabel}.`}>
+          <Reveal direction="up" duration={700} distance={16}>
+            <ol className="max-w-3xl space-y-4 border-t border-theme-border pt-6">
+              {guide.sources.map((s) => (
+                <li key={s.url} className="text-[15px] leading-relaxed text-theme-secondary">
+                  <a href={s.url} target="_blank" rel="noopener noreferrer" className={LINK}>
+                    {s.label}
+                  </a>
+                  {s.note && <span className="mt-0.5 block text-sm text-theme-muted">{s.note}</span>}
+                </li>
+              ))}
+            </ol>
+          </Reveal>
+        </SegmentSection>
+      )}
+
       <section id="next" className="scroll-mt-28 pb-4">
         <div className="fluid-container">
           <Reveal direction="up" duration={700} distance={16}>
             <p className="text-sm font-semibold text-theme-muted">Read next</p>
             <ul className="mt-4 grid grid-cols-1 gap-x-12 gap-y-3 sm:grid-cols-3">
               {guide.related.map((slug) => {
-                const g = GUIDES[slug];
+                const g = findArticle(slug);
+                if (!g) return null;
                 return (
                   <li key={slug}>
                     <Link href={g.path} className="group inline-flex items-center gap-1.5 font-semibold text-theme-highlight underline-offset-4 hover:underline">
@@ -269,10 +302,10 @@ export function GuidePage({ guide }: { guide: Guide }) {
       </section>
 
       <EnquiryRoutes
-        heading="Ready to look at"
-        accent="your own roof?"
-        newRoute={{ label: "Plan my system", href: "/planner", hint: "Tell us about your property and get a first blueprint in a few minutes." }}
-        existingRoute={{ label: "Talk to an engineer", href: "/contact", hint: "Ask about your own roof, bills or equipment. There is no commitment either way." }}
+        heading={cta.closing.heading}
+        accent={cta.closing.accent}
+        newRoute={cta.closing.a}
+        existingRoute={cta.closing.b}
       />
     </PageShell>
   );
