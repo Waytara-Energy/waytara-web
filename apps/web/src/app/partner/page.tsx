@@ -2,7 +2,7 @@ import { PARTNER_DESCRIPTION, PartnerPage } from "@/components/pages/partner-pag
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata = pageMetadata({
-  title: "Solar Installer, EPC & Channel Partner Programme",
+  title: "Partner Network: Electrical, Solar & EV Charging Partners in Tamil Nadu",
   description: PARTNER_DESCRIPTION,
   path: "/partner",
 });

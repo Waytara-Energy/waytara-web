@@ -5,7 +5,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public, waytara;
 
-select plan(11);
+select plan(16);
 
 \set adm '''aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'''
 \set emp '''eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee'''
@@ -27,6 +27,22 @@ select lives_ok(
   $$ insert into waytara.partner_applications (company_name, contact_name, phone, email, states, services)
      values ('Test Solar', 'A Person', '9876543210', 'p@test.local', array['Tamil Nadu'], array['solar']) $$,
   'anon CAN submit a partner application');
+select lives_ok(
+  $$ insert into waytara.partner_applications (company_name, contact_name, phone, email, states, services, partner_type, reference, answers)
+     values ('Test EV', 'A Person', '9876543211', 'e@test.local', array['Tamil Nadu'], array['ac_charger'], 'ev', 'WTP-2611-ABCDE', '[{"q":"Years of experience","a":"2 to 5 years"}]'::jsonb) $$,
+  'anon CAN submit a Partner Network application with its kind, reference and answers');
+select throws_ok(
+  $$ insert into waytara.partner_applications (company_name, contact_name, phone, email, partner_type)
+     values ('Bad', 'A Person', '9876543210', 'b@test.local', 'plumber') $$,
+  '23514', null, 'an unknown kind of partner is rejected');
+select throws_ok(
+  $$ insert into waytara.partner_applications (company_name, contact_name, phone, email, reference)
+     values ('Bad', 'A Person', '9876543210', 'b@test.local', 'nonsense') $$,
+  '23514', null, 'a malformed reference is rejected');
+select throws_ok(
+  $$ insert into waytara.partner_applications (company_name, contact_name, phone, email, answers)
+     values ('Bad', 'A Person', '9876543210', 'b@test.local', '{"q":"x"}'::jsonb) $$,
+  '23514', null, 'the answers must be a list');
 select throws_ok($$ select count(*) from waytara.partner_applications $$, '42501', null, 'anon cannot read applications');
 select throws_ok(
   $$ insert into waytara.partner_applications (company_name, contact_name, phone, email, status)
@@ -60,11 +76,12 @@ reset role;
 select set_config('request.jwt.claims', json_build_object('sub', 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'role', 'authenticated')::text, true);
 set local role authenticated;
 
-select is((select count(*)::int from waytara.partner_applications), 1, 'an admin sees the application');
+select is((select count(*)::int from waytara.partner_applications), 2, 'an admin sees both applications');
 select lives_ok(
   $$ update waytara.partner_applications set status = 'in_review', admin_notes = 'Called back', reviewed_by = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', reviewed_at = now() $$,
   'an admin can review it');
-select throws_ok($$ update waytara.partner_applications set status = 'unknown' $$, '23514', null, 'only the four statuses are allowed');
+select lives_ok($$ update waytara.partner_applications set status = 'shortlisted' $$, 'an admin can shortlist an application (the stages of the Partner Network are allowed)');
+select throws_ok($$ update waytara.partner_applications set status = 'unknown' $$, '23514', null, 'only the known stages are allowed');
 select throws_ok($$ delete from waytara.partner_applications $$, '42501', null, 'nobody deletes through the app');
 
 reset role;

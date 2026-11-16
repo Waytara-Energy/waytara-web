@@ -4,25 +4,23 @@ import { createClient } from "@waytara/supabase/server";
 import { allowRequest, clientIp } from "@/lib/rate-limit";
 import { sendMail } from "@/lib/send-mail";
 import { buildPartnerAckMail, buildPartnerAdminMail } from "@/lib/partner-mail";
-import { PARTNER_INSTALL_RANGES, PARTNER_SERVICES, PARTNER_STATES, PARTNER_TEAM_SIZES } from "@/lib/partner-options";
+import { PARTNER_TYPE_IDS, TN_DISTRICTS, checkPartnerAnswers, makePartnerReference } from "@/lib/partner-network";
 
 const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
 const optionalText = (max: number) => z.preprocess(blank, z.string().trim().max(max).optional());
+const district = z.enum(TN_DISTRICTS as [string, ...string[]]);
 
+// The short first-stage application of the Partner Network: who they are, where they work, and the few questions of their kind (checked by
+// checkPartnerAnswers). No documents, licences or team details at this stage.
 const partnerSchema = z.object({
-  companyName: z.string().trim().min(2, "Company name is required").max(200),
-  contactName: z.string().trim().min(2, "Contact name is required").max(200),
-  phone: z.string().trim().min(6, "Phone is required").max(32),
+  type: z.enum(PARTNER_TYPE_IDS),
+  contactName: z.string().trim().min(2, "Your name is required").max(200),
+  phone: z.string().trim().min(6, "A mobile number is required").max(32),
   email: z.string().trim().email("A valid e-mail is required").max(320),
-  website: optionalText(300),
-  states: z.array(z.enum(PARTNER_STATES)).min(1, "Choose at least one state").max(40),
-  cities: optionalText(1000),
-  services: z.array(z.enum(PARTNER_SERVICES.map((s) => s.id) as [string, ...string[]])).min(1, "Choose at least one service").max(10),
-  yearsInBusiness: z.preprocess(blank, z.coerce.number().int().min(0).max(100).optional()),
-  installsCompleted: z.preprocess(blank, z.enum(PARTNER_INSTALL_RANGES).optional()),
-  teamSize: z.preprocess(blank, z.enum(PARTNER_TEAM_SIZES).optional()),
-  certifications: optionalText(1000),
-  message: optionalText(5000),
+  district,
+  otherDistricts: z.array(district).max(40).default([]),
+  answers: z.record(z.string(), z.unknown()),
+  message: optionalText(2000),
   // Honeypot: real visitors never see or fill this field.
   website_url: z.string().optional(),
 });
@@ -41,6 +39,8 @@ function adminRecipients(): string[] {
     .filter(Boolean);
 }
 
+const secureRandom = () => crypto.getRandomValues(new Uint32Array(1))[0] / 2 ** 32;
+
 export async function POST(req: NextRequest) {
   try {
     const ip = clientIp(req.headers);
@@ -56,41 +56,60 @@ export async function POST(req: NextRequest) {
     const d = parsed.data;
 
     // Honeypot tripped: pretend it worked so the bot learns nothing, but store and send nothing.
-    if (d.website_url) return NextResponse.json({ success: true, data: { id: "ok" } });
+    if (d.website_url) return NextResponse.json({ success: true, data: { id: "ok", reference: "WTP-0000-00000" } });
+
+    const checked = checkPartnerAnswers(d.type, d.answers);
+    if (!checked.ok) return NextResponse.json({ success: false, error: checked.error }, { status: 400 });
+    const { qa, services, byKey } = checked.value;
+
+    const others = d.otherDistricts.filter((x, i, all) => x !== d.district && all.indexOf(x) === i);
+    // What the old list view shows at a glance: a contractor's licence, or a technician's competency certificate.
+    const certifications = d.type === "contractor" ? `TNELB licence: ${byKey.tnelb}${byKey.tnelb_grade ? ` (grade ${byKey.tnelb_grade})` : ""}` : d.type === "technician" ? `Wireman or Supervisor certificate: ${byKey.certificate}` : null;
 
     // Generated here, not read back: the insert-only role cannot select the row (see the migration).
     const id = crypto.randomUUID();
     const row = {
       id,
-      company_name: d.companyName,
+      partner_type: d.type,
+      // a technician has no company: the person's own name stands in for it in the admin list
+      company_name: byKey.business ?? d.contactName,
       contact_name: d.contactName,
       phone: d.phone,
       email: d.email,
-      website: d.website ?? null,
-      states: d.states,
-      cities: d.cities ?? null,
-      services: d.services,
-      years_in_business: d.yearsInBusiness ?? null,
-      installs_completed: d.installsCompleted ?? null,
-      team_size: d.teamSize ?? null,
-      certifications: d.certifications ?? null,
+      website: null,
+      states: ["Tamil Nadu"],
+      cities: others.length > 0 ? `${d.district}; also ${others.join(", ")}` : d.district,
+      services,
+      years_in_business: null,
+      installs_completed: null,
+      team_size: null,
+      certifications,
       message: d.message ?? null,
+      answers: qa,
     };
 
     const supabase = await createClient();
-    const { error } = await supabase.from("partner_applications").insert(row);
-    if (error) {
-      console.error("API /api/partners insert error:", error);
+    // The reference is random; the chance of two the same is tiny, and a clash (unique index) is simply tried again with another.
+    let reference = "";
+    let failed: { message: string } | null = null;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      reference = makePartnerReference(new Date(), secureRandom);
+      const { error } = await supabase.from("partner_applications").insert({ ...row, reference });
+      failed = error;
+      if (!error || error.code !== "23505") break;
+    }
+    if (failed) {
+      console.error("API /api/partners insert error:", failed);
       return NextResponse.json({ success: false, error: "Couldn't save your application. Please try again." }, { status: 500 });
     }
 
     // Saved is what matters: the e-mails are best effort and never block or fail the response (sendMail never throws). They go out after the response
     // is sent and are registered with `after` so the host finishes them (started with `void` they could be cut off when the answer was returned).
     const adminUrl = process.env.ADMIN_APP_URL || "https://admin.waytaraenergy.com";
-    const adminMail = buildPartnerAdminMail({ ...row }, adminUrl);
-    after(() => Promise.all([...adminRecipients().map((to) => sendMail(to, adminMail)), sendMail(d.email, buildPartnerAckMail(d.contactName, d.companyName))]));
+    const adminMail = buildPartnerAdminMail({ ...row, reference, district: d.district, otherDistricts: others }, adminUrl);
+    after(() => Promise.all([...adminRecipients().map((to) => sendMail(to, adminMail)), sendMail(d.email, buildPartnerAckMail(d.contactName, reference))]));
 
-    return NextResponse.json({ success: true, data: { id } });
+    return NextResponse.json({ success: true, data: { id, reference } });
   } catch (error) {
     console.error("API /api/partners error:", error);
     return NextResponse.json({ success: false, error: "Something went wrong. Please try again." }, { status: 500 });

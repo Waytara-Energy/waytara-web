@@ -3,10 +3,10 @@ import { createClient } from "@waytara/supabase/server";
 import { ActionForm } from "@waytara/ui/action-form";
 import { Button } from "@waytara/ui/button";
 import { ToneBadge, type Tone } from "@/components/page-kit";
-import { PARTNER_SERVICE_LABEL, PARTNER_STATUSES, PARTNER_STATUS_LABEL } from "@/lib/partners";
+import { PARTNER_SERVICE_LABEL, PARTNER_STATUSES, PARTNER_STATUS_LABEL, PARTNER_TYPE_LABEL, readAnswers } from "@/lib/partners";
 import { reviewPartnerApplication } from "./actions";
 
-const TONES: Record<string, Tone> = { new: "info", in_review: "warn", approved: "good", rejected: "neutral" };
+const TONES: Record<string, Tone> = { new: "info", in_review: "warn", shortlisted: "warn", onboarding: "warn", verification: "warn", approved: "good", rejected: "neutral" };
 
 function Item({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -34,6 +34,7 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
     );
   }
 
+  const answers = readAnswers(app.answers);
   return (
     <div className="max-w-3xl space-y-6">
       <div>
@@ -44,7 +45,10 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
           <h1 className="text-2xl font-semibold tracking-tight">{app.company_name}</h1>
           <ToneBadge tone={TONES[app.status] ?? "neutral"}>{PARTNER_STATUS_LABEL[app.status] ?? app.status}</ToneBadge>
         </div>
-        <p className="mt-1 text-sm text-muted-foreground">Received {new Date(app.created_at).toLocaleString("en-IN")}</p>
+        <p className="mt-1 text-sm text-muted-foreground">
+          {app.partner_type ? `${PARTNER_TYPE_LABEL[app.partner_type] ?? app.partner_type} · ` : ""}
+          {app.reference ? `${app.reference} · ` : ""}Received {new Date(app.created_at).toLocaleString("en-IN")}
+        </p>
       </div>
 
       <div className="rounded-lg border border-border bg-card p-5">
@@ -64,6 +68,19 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
           <Item label="Website">{app.website}</Item>
         </dl>
       </div>
+
+      {answers.length > 0 && (
+        <div className="rounded-lg border border-border bg-card p-5">
+          <h2 className="text-sm font-semibold">Their answers</h2>
+          <dl className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
+            {answers.map((x) => (
+              <Item key={x.q} label={x.q}>
+                {x.a}
+              </Item>
+            ))}
+          </dl>
+        </div>
+      )}
 
       <div className="rounded-lg border border-border bg-card p-5">
         <h2 className="text-sm font-semibold">Their work</h2>

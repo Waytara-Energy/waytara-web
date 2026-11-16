@@ -8,7 +8,7 @@ import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { EmptyState, ToneBadge, type Tone } from "@/components/page-kit";
-import { PARTNER_SERVICE_LABEL, PARTNER_STATUSES, PARTNER_STATUS_LABEL } from "@/lib/partners";
+import { PARTNER_SERVICE_LABEL, PARTNER_STATUSES, PARTNER_STATUS_LABEL, PARTNER_TYPE_LABEL } from "@/lib/partners";
 import { cn } from "@/lib/utils";
 
 export interface PartnerRow {
@@ -21,9 +21,12 @@ export interface PartnerRow {
   services: string[];
   status: string;
   created_at: string;
+  /** contractor, solar, ev or technician (none for an application made before the Partner Network page) */
+  partner_type: string | null;
+  reference: string | null;
 }
 
-const TONES: Record<string, Tone> = { new: "info", in_review: "warn", approved: "good", rejected: "neutral" };
+const TONES: Record<string, Tone> = { new: "info", in_review: "warn", shortlisted: "warn", onboarding: "warn", verification: "warn", approved: "good", rejected: "neutral" };
 
 /** Where an installer works, kept short for a table cell: the first two states, then how many more. */
 function statesLabel(states: string[]): string {
@@ -46,7 +49,7 @@ export function PartnersTable({ partners }: { partners: PartnerRow[] }) {
 
   const q = search.trim().toLowerCase();
   const shown = partners.filter(
-    (p) => (status === "all" || p.status === status) && (!q || [p.company_name, p.contact_name, p.email, p.phone, ...p.states].some((f) => f.toLowerCase().includes(q)))
+    (p) => (status === "all" || p.status === status) && (!q || [p.company_name, p.contact_name, p.email, p.phone, p.reference ?? "", ...p.states].some((f) => f.toLowerCase().includes(q)))
   );
 
   return (
@@ -54,7 +57,7 @@ export function PartnersTable({ partners }: { partners: PartnerRow[] }) {
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative">
           <Search className="pointer-events-none absolute left-2.5 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-          <Input placeholder="Search company, contact, state…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-72 pl-8" />
+          <Input placeholder="Search name, contact, reference…" value={search} onChange={(e) => setSearch(e.target.value)} className="w-72 pl-8" />
         </div>
         <div className="flex flex-wrap gap-1.5">
           {(["all", ...PARTNER_STATUSES] as const).map((s) => (
@@ -85,7 +88,8 @@ export function PartnersTable({ partners }: { partners: PartnerRow[] }) {
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Company</TableHead>
+                <TableHead>Applicant</TableHead>
+                <TableHead>Kind</TableHead>
                 <TableHead>Contact</TableHead>
                 <TableHead>Works in</TableHead>
                 <TableHead>Does</TableHead>
@@ -100,7 +104,9 @@ export function PartnersTable({ partners }: { partners: PartnerRow[] }) {
                     <Link href={`/partners/${p.id}`} className="font-medium hover:underline" onClick={(e) => e.stopPropagation()}>
                       {p.company_name}
                     </Link>
+                    {p.reference && <div className="text-xs tabular-nums text-muted-foreground">{p.reference}</div>}
                   </TableCell>
+                  <TableCell className="text-muted-foreground">{p.partner_type ? (PARTNER_TYPE_LABEL[p.partner_type] ?? p.partner_type) : "—"}</TableCell>
                   <TableCell className="text-muted-foreground">
                     <div>{p.contact_name}</div>
                     <div className="text-xs">{p.phone}</div>

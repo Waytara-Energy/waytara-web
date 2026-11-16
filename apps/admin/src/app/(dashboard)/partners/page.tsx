@@ -9,7 +9,7 @@ export default async function PartnersPage() {
   const supabase = await createClient();
   const { data, error } = await supabase
     .from("partner_applications")
-    .select("id, company_name, contact_name, phone, email, states, services, status, created_at")
+    .select("id, company_name, contact_name, phone, email, states, services, status, created_at, partner_type, reference")
     .order("created_at", { ascending: false });
 
   const rows: PartnerRow[] = (data ?? []).map((p) => ({
@@ -22,13 +22,15 @@ export default async function PartnersPage() {
     services: p.services,
     status: p.status,
     created_at: p.created_at,
+    partner_type: p.partner_type,
+    reference: p.reference,
   }));
   const count = (s: string) => rows.filter((r) => r.status === s).length;
 
   return (
     <div className="space-y-6">
       <RealtimeRefresh table="partner_applications" event="INSERT" />
-      <PageHeader title="Partners" description="Installers who applied from the Partner page. Review each one, add notes, and set its status." />
+      <PageHeader title="Partners" description="Contractors, solar and EV charging partners and technicians who applied from the Partner page. Review each one, add notes, and move it through the stages." />
 
       {error ? (
         <LoadError message={`Couldn't load applications: ${error.message}`} />

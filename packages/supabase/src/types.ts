@@ -3318,6 +3318,7 @@ export type Database = {
       partner_applications: {
         Row: {
           admin_notes: string | null
+          answers: Json
           cities: string | null
           certifications: string | null
           company_name: string
@@ -3327,7 +3328,9 @@ export type Database = {
           id: string
           installs_completed: string | null
           message: string | null
+          partner_type: string | null
           phone: string
+          reference: string | null
           reviewed_at: string | null
           reviewed_by: string | null
           services: string[]
@@ -3340,6 +3343,7 @@ export type Database = {
         }
         Insert: {
           admin_notes?: string | null
+          answers?: Json
           cities?: string | null
           certifications?: string | null
           company_name: string
@@ -3349,7 +3353,9 @@ export type Database = {
           id?: string
           installs_completed?: string | null
           message?: string | null
+          partner_type?: string | null
           phone: string
+          reference?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           services?: string[]
@@ -3362,6 +3368,7 @@ export type Database = {
         }
         Update: {
           admin_notes?: string | null
+          answers?: Json
           cities?: string | null
           certifications?: string | null
           company_name?: string
@@ -3371,7 +3378,9 @@ export type Database = {
           id?: string
           installs_completed?: string | null
           message?: string | null
+          partner_type?: string | null
           phone?: string
+          reference?: string | null
           reviewed_at?: string | null
           reviewed_by?: string | null
           services?: string[]
