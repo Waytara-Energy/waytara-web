@@ -5,6 +5,7 @@ import { FeatureColumns, SegmentSection, type Feature } from "@/components/segme
 import { ProjectSteps } from "@/components/sections/project-steps";
 import { PARTNER_TYPES } from "@/lib/partner-network";
 import { SITE } from "@/lib/site";
+import type { ListedPartner } from "@/lib/partner-directory";
 import { PageHero, PageShell } from "./page-shell";
 import { PartnerForm } from "./partner-form";
 import { PartnerMap } from "./partner-map";
@@ -129,7 +130,7 @@ export const PARTNER_FAQS: Faq[] = [
 ];
 
 /** The WayTara Partner Network (Tamil Nadu): who can join, what WayTara offers, where, how it works, the licences, the promise, and a short application. */
-export function PartnerPage() {
+export function PartnerPage({ partners = [] }: { partners?: ListedPartner[] }) {
   return (
     <PageShell
       name="Partner with WayTara"
@@ -156,7 +157,7 @@ export function PartnerPage() {
 
       <SegmentSection id="where" badge="Where we welcome partners" title="Every district," accent="welcome." summary="We work with partners from all of Tamil Nadu, from the coast to the hills. Pick a region, or tap the map, to see its districts.">
         <Reveal direction="up" duration={800} distance={24}>
-          <PartnerMap />
+          <PartnerMap partners={partners} />
         </Reveal>
       </SegmentSection>
 

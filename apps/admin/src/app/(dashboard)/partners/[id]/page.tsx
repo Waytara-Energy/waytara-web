@@ -130,6 +130,16 @@ export default async function PartnerDetailPage({ params }: { params: Promise<{ 
               ))}
             </select>
           </div>
+          <label className="flex max-w-xl items-start gap-2.5 text-sm">
+            <input type="checkbox" name="listedPublicly" defaultChecked={app.listed_publicly} className="mt-0.5 size-4" />
+            <span>
+              <span className="font-medium">Show in the public partner directory</span>
+              <span className="block text-xs text-muted-foreground">
+                Only for an approved partner who has agreed to be listed. The page shows the business name, the kind of partner and the districts, nothing else. Moving the application out of Approved
+                removes the listing.
+              </span>
+            </span>
+          </label>
           <div className="space-y-1.5">
             <label htmlFor="adminNotes" className="text-sm font-medium">
               Notes <span className="font-normal text-muted-foreground">(only the admins see these)</span>

@@ -20,7 +20,14 @@ export async function reviewPartnerApplication(id: string, formData: FormData): 
   const supabase = await createClient();
   const { error } = await supabase
     .from("partner_applications")
-    .update({ status, admin_notes: notes === "" ? null : notes, reviewed_by: profile.id, reviewed_at: new Date().toISOString() })
+    .update({
+      status,
+      admin_notes: notes === "" ? null : notes,
+      reviewed_by: profile.id,
+      reviewed_at: new Date().toISOString(),
+      // Shown in the public directory only while approved, and only when the box is ticked.
+      listed_publicly: status === "approved" && formData.get("listedPublicly") === "on",
+    })
     .eq("id", id);
   if (error) throw new Error(error.message);
 

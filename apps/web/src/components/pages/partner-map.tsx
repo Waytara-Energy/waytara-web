@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
+import { PARTNER_TYPE_LABEL } from "@/lib/partner-network";
+import { partnersCovering, type ListedPartner } from "@/lib/partner-directory";
 import { TN_BOUNDS, TN_DISTRICTS, TN_MARKERS, TN_SIZE, type TnRegion } from "@/lib/tn-map";
 import { cn } from "@/lib/utils";
 
@@ -33,6 +35,50 @@ function boxFor(region: TnRegion | null): Box {
   return { x: b.x + b.w / 2 - w / 2, y: b.y + b.h / 2 - h / 2, w, h };
 }
 
+const APPLY_LINKS = [
+  { id: "contractor", label: "Apply as a contractor" },
+  { id: "solar", label: "Apply as a solar team" },
+  { id: "ev", label: "Apply as an EV charging team" },
+  { id: "technician", label: "Apply as a technician" },
+];
+
+/** Who is listed in the chosen district or region: the partners, or an invitation to be the first, with a quick link to apply as each kind. */
+function Presence({ partners, scope, label }: { partners: ListedPartner[]; scope: readonly string[]; label: string }) {
+  const found = partnersCovering(partners, scope);
+  return (
+    <div className="mt-6 rounded-2xl bg-theme-surface p-5">
+      {found.length === 0 ? (
+        <>
+          <p className="text-base font-bold text-theme-primary">Be WayTara&apos;s first partner in {label}</p>
+          <p className="mt-1.5 text-sm leading-relaxed text-theme-secondary">No partner is listed here yet. Join early and grow your energy business with us.</p>
+        </>
+      ) : (
+        <>
+          <p className="text-base font-bold text-theme-primary">Our authorised partners in {label}</p>
+          <ul className="mt-3 divide-y divide-theme-border">
+            {found.map((p) => (
+              <li key={`${p.name}-${p.type}`} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 py-2.5">
+                <span className="font-semibold text-theme-primary">{p.name}</span>
+                <span className="text-sm text-theme-muted">{PARTNER_TYPE_LABEL[p.type]}</span>
+              </li>
+            ))}
+          </ul>
+          <p className="mt-3 text-sm text-theme-secondary">Become one of them.</p>
+        </>
+      )}
+      <ul className="mt-4 flex flex-wrap gap-x-5 gap-y-2">
+        {APPLY_LINKS.map((l) => (
+          <li key={l.id}>
+            <a href={`#apply-${l.id}`} className="inline-flex min-h-8 items-center text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
+              {l.label} →
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 const pill = (on: boolean) =>
   cn(
     "inline-flex min-h-10 items-center rounded-full border px-4 text-sm font-semibold transition-colors",
@@ -43,7 +89,7 @@ const pill = (on: boolean) =>
  * Tamil Nadu in its four regions, for phones first: pick a region (or tap it on the map) and the map zooms to it and names its districts, which are
  * also listed as chips to tap. Every district is on the map and in the lists. A drawing for orientation; partners from every district are welcome.
  */
-export function PartnerMap() {
+export function PartnerMap({ partners = [] }: { partners?: ListedPartner[] }) {
   const [region, setRegion] = useState<TnRegion | null>(null);
   const [district, setDistrict] = useState<string | null>(null);
   const [box, setBox] = useState<Box>(WHOLE);
@@ -196,7 +242,8 @@ export function PartnerMap() {
               <p aria-live="polite" className="mt-5 text-[15px] leading-relaxed text-theme-secondary">
                 {district ? `${district}: partners from here are welcome.` : "Tap a district to see it on the map."}
               </p>
-              <button type="button" onClick={() => pick(null)} className="mt-4 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
+              <Presence partners={partners} scope={district ? [district] : NAMES_OF[region]} label={district ?? REGION[region].name} />
+              <button type="button" onClick={() => pick(null)} className="mt-5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
                 Show all Tamil Nadu
               </button>
             </div>

@@ -3326,6 +3326,7 @@ export type Database = {
           created_at: string
           email: string
           id: string
+          listed_publicly: boolean
           installs_completed: string | null
           message: string | null
           partner_type: string | null
@@ -3351,6 +3352,7 @@ export type Database = {
           created_at?: string
           email: string
           id?: string
+          listed_publicly?: boolean
           installs_completed?: string | null
           message?: string | null
           partner_type?: string | null
@@ -3376,6 +3378,7 @@ export type Database = {
           created_at?: string
           email?: string
           id?: string
+          listed_publicly?: boolean
           installs_completed?: string | null
           message?: string | null
           partner_type?: string | null
@@ -4786,6 +4789,10 @@ export type Database = {
       }
     }
     Functions: {
+      list_authorized_partners: {
+        Args: Record<PropertyKey, never>
+        Returns: { name: string; partner_type: string; districts: string[] }[]
+      }
       _cancel_rotation: {
         Args: { p_reason: string; p_rotation: string }
         Returns: boolean
