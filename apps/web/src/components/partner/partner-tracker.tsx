@@ -44,17 +44,19 @@ function Steps({ steps }: { steps: TrackerStep[] }) {
  * are a column on the left and the current step is on the right; on a phone a slim progress bar sits on top, the current step follows, and the whole list opens
  * from one line.
  */
-export function PartnerTracker({ app, children }: { app: TrackedApplication; children?: React.ReactNode }) {
+export function PartnerTracker({ app, children, embedded = false }: { app: TrackedApplication; children?: React.ReactNode; embedded?: boolean }) {
   const view = trackerFor(app.status);
   const kind = app.partnerType ? PARTNER_TYPE_LABEL[app.partnerType] : null;
   const current = view.steps.find((s) => s.state === "current");
   return (
-    <div className="min-h-dvh bg-theme-bg">
-      <div className="fluid-container py-6 sm:py-8">
-        <Logo />
-      </div>
+    <div className={embedded ? undefined : "min-h-dvh bg-theme-bg"}>
+      {!embedded && (
+        <div className="fluid-container py-6 sm:py-8">
+          <Logo />
+        </div>
+      )}
 
-      <main className="fluid-container pb-20 pt-6 sm:pt-12">
+      <main className={embedded ? "fluid-container pb-20" : "fluid-container pb-20 pt-6 sm:pt-12"}>
         <div className="mx-auto grid max-w-5xl grid-cols-1 gap-10 lg:grid-cols-[18rem_1fr] lg:gap-20">
           {/* a phone: a slim bar, then the full list on request */}
           <div className="lg:hidden">

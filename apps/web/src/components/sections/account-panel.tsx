@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import Link from "next/link";
-import { ChevronRight, LogOut } from "lucide-react";
+import { BookOpen, ChevronRight, ClipboardList, LogOut } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -22,6 +22,8 @@ export interface Account {
   email: string | null;
   avatarUrl: string | null;
   planName: string | null;
+  /** The account's role: a partner sees the partner menu in place of the dashboard's. */
+  role?: string | null;
 }
 
 /** "pending": not known yet (the account slot then shows Login or a loader, decided by the first-paint script); "anon": checked, not signed in; "in": signed in. */
@@ -307,6 +309,27 @@ function QuickLinks({ onNavigate }: { onNavigate: () => void }) {
   );
 }
 
+/** What a partner's avatar offers: their application (and, later, the rest of their area) and the Knowledge Hub. Never the customer dashboard. */
+const PARTNER_LINKS = [
+  { href: "/partner/portal", label: "Application", icon: ClipboardList },
+  { href: "/blog", label: "Knowledge Hub", icon: BookOpen },
+] as const;
+
+function PartnerLinks({ onNavigate }: { onNavigate: () => void }) {
+  return (
+    <ul className="grid grid-cols-2 gap-x-6 gap-y-1.5">
+      {PARTNER_LINKS.map(({ href, label, icon: Icon }) => (
+        <li key={href}>
+          <Link href={href} onClick={onNavigate} className="flex items-center gap-2.5 rounded-lg px-1 py-1.5 text-[13px] font-semibold text-theme-primary outline-none transition-colors hover:text-theme-highlight focus-visible:text-theme-highlight">
+            <Icon aria-hidden="true" className="size-4 shrink-0 text-theme-secondary" />
+            {label}
+          </Link>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 function SignOutButton({ className }: { className?: string }) {
   // logout() ends the session and redirects to the sign-in page, so this only shows "busy" until the page leaves. The action is loaded when it is
   // clicked, not with the page: nobody who is not signing out needs it, and it keeps server-only code out of everything that imports the header.
@@ -330,7 +353,20 @@ function SignOutButton({ className }: { className?: string }) {
 }
 
 /** The desktop panel under the header when the avatar is hovered: the devices with their status at the left, the account, the dashboard's pages and Sign out at the right. */
-export function AccountPanel({ fleet, onNavigate }: { account: Account; fleet: Fleet; onNavigate: () => void }) {
+export function AccountPanel({ account, fleet, onNavigate }: { account: Account; fleet: Fleet; onNavigate: () => void }) {
+  if (account.role === "partner") {
+    return (
+      <div className="mx-auto w-full max-w-5xl px-6 pb-10 pt-8 sm:px-10">
+        <p className="mega-item text-xs text-theme-muted">Your partner area</p>
+        <div className="mega-item mt-3 max-w-md">
+          <PartnerLinks onNavigate={onNavigate} />
+        </div>
+        <div className="mega-item mt-4 max-w-md border-t border-theme-border pt-3">
+          <SignOutButton />
+        </div>
+      </div>
+    );
+  }
   return (
     <div className="mx-auto w-full max-w-5xl px-6 pb-10 pt-8 sm:px-10">
       <div className="grid grid-cols-1 gap-x-16 gap-y-8 md:grid-cols-[minmax(0,1.5fr)_minmax(0,1fr)]">
@@ -355,7 +391,24 @@ export function AccountPanel({ fleet, onNavigate }: { account: Account; fleet: F
 }
 
 /** The foot of the phone's menu, kept to two quiet rows: Dashboard (with a line saying how many devices are online) and Sign out. */
-export function AccountSection({ fleet, onNavigate }: { fleet: Fleet; onNavigate: () => void }) {
+export function AccountSection({ fleet, onNavigate, role }: { fleet: Fleet; onNavigate: () => void; role?: string | null }) {
+  if (role === "partner") {
+    return (
+      <ul>
+        {PARTNER_LINKS.map(({ href, label }) => (
+          <li key={href} className="border-b border-theme-border/60">
+            <Link href={href} onClick={onNavigate} className="flex items-center justify-between py-4 outline-none focus-visible:text-theme-highlight">
+              <span className="block text-[17px] font-semibold leading-tight text-theme-primary">{label}</span>
+              <ChevronRight aria-hidden="true" className="size-5 text-theme-muted" />
+            </Link>
+          </li>
+        ))}
+        <li>
+          <SignOutButton className="py-4 text-[17px]" />
+        </li>
+      </ul>
+    );
+  }
   let summary: string | null = null;
   if (fleet.state === "ready") {
     const devices = fleet.sites.flatMap((s) => s.devices);

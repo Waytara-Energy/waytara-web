@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
     // is sent and are registered with `after` so the host finishes them (started with `void` they could be cut off when the answer was returned).
     const adminUrl = process.env.ADMIN_APP_URL || "https://admin.waytaraenergy.com";
     const adminMail = buildPartnerAdminMail({ ...row, reference, district: d.district, otherDistricts: others }, adminUrl);
-    const trackUrl = `${(process.env.NEXT_PUBLIC_SITE_URL || SITE.url).replace(/\/+$/, "")}/partner/track/${access.token}`;
+    const trackUrl = `${(process.env.NEXT_PUBLIC_SITE_URL || SITE.url).replace(/\/+$/, "")}/partner/start?t=${access.token}`;
     after(() => Promise.all([...adminRecipients().map((to) => sendMail(to, adminMail)), sendMail(d.email, buildPartnerAckMail(d.contactName, reference, trackUrl))]));
 
     return NextResponse.json({ success: true, data: { id, reference } });

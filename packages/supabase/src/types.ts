@@ -3569,6 +3569,47 @@ export type Database = {
           },
         ]
       }
+      partner_login_codes: {
+        Row: {
+          application_id: string
+          attempts: number
+          code_hash: string
+          created_at: string
+          expires_at: string
+          last_sent_at: string
+          proof_expires_at: string | null
+          proof_hash: string | null
+        }
+        Insert: {
+          application_id: string
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          last_sent_at?: string
+          proof_expires_at?: string | null
+          proof_hash?: string | null
+        }
+        Update: {
+          application_id?: string
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          last_sent_at?: string
+          proof_expires_at?: string | null
+          proof_hash?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_login_codes_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: true
+            referencedRelation: "partner_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_onboarding: {
         Row: {
           application_id: string

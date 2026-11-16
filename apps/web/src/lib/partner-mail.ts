@@ -102,6 +102,23 @@ export function buildPartnerSubmittedAckMail(contactName: string, reference: str
   return { subject: `We received your onboarding details (${reference})`, text, html };
 }
 
+/** The 6-digit code that proves the address is theirs. Short on purpose: the code, how long it lasts, and what to do if it was not them. */
+export function buildPartnerCodeMail(contactName: string, code: string): Mail {
+  const first = contactName.trim().split(/\s+/)[0] || "there";
+  const { html, text } = renderMail({
+    preheader: `Your WayTara code is ${code}.`,
+    title: `Your code is ${code}`,
+    greeting: `Hi ${first},`,
+    blocks: [
+      { type: "p", text: "Type this code on the WayTara page to confirm your e-mail address. It works for 10 minutes." },
+      { type: "p", text: "If you did not ask for it, ignore this e-mail. No one can use it without your address." },
+    ],
+    why: "You get this e-mail because you applied to join the WayTara Partner Network.",
+    audience: "public",
+  });
+  return { subject: `${code} is your WayTara code`, text, html };
+}
+
 /** To a partner who has just created their account: it exists, where to sign in. Never contains a password. A safety net too: if it was not them, they are told what to do. */
 export function buildPartnerAccountMail(contactName: string, signInUrl: string): Mail {
   const first = contactName.trim().split(/\s+/)[0] || "there";

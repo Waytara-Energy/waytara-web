@@ -96,6 +96,7 @@ export function Navigation() {
           email: profile.email,
           avatarUrl: profile.avatar_url,
           planName: customer?.plan?.name ?? null,
+          role: profile.role,
         });
         setAuthState("in");
       } else {
@@ -108,7 +109,7 @@ export function Navigation() {
   }, []);
 
   // The customer's devices and their status are read the first time the avatar's panel (or the phone's menu) is opened.
-  const fleet = useFleet(authState === "in" && (activeMenu === "account" || mobileMenuOpen));
+  const fleet = useFleet(authState === "in" && account?.role !== "partner" && (activeMenu === "account" || mobileMenuOpen));
 
   React.useEffect(() => {
     let lastY = window.scrollY;

@@ -1,5 +1,6 @@
 import "server-only";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
+import { getCurrentProfile } from "@waytara/supabase/auth";
 import { hashAccessToken, isPlausibleAccessToken } from "@waytara/supabase/partner-access";
 
 /** What the tracking page may know about an application: their first name, the reference, the kind, the date, the stage and the team's note. Nothing else is read. */
@@ -39,6 +40,40 @@ export async function findTrackedRecord(token: string): Promise<TrackedRecord | 
       .gt("access_expires_at", new Date().toISOString())
       .maybeSingle();
     if (error || !data) return null;
+    return {
+      id: data.id,
+      email: data.email,
+      phone: data.phone,
+      profileId: data.profile_id,
+      contactName: data.contact_name,
+      companyName: data.company_name,
+      reference: data.reference,
+      partnerType: data.partner_type,
+      firstName: data.contact_name.trim().split(/\s+/)[0] || "there",
+      status: data.status,
+      appliedOn: data.created_at,
+      message: data.status_message,
+      messageAt: data.status_message_at,
+    };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * The application of the signed-in PARTNER account (the session decides, never anything in the request): the account must have the role partner and be the one tied to
+ * the application. Anyone else, or no session, gets null. This is how the portal reaches the same record the e-mailed link used to.
+ */
+export async function findSessionRecord(): Promise<TrackedRecord | null> {
+  try {
+    const profile = await getCurrentProfile();
+    if (!profile || profile.role !== "partner") return null;
+    const { data } = await createServiceRoleClient()
+      .from("partner_applications")
+      .select("id, reference, partner_type, contact_name, company_name, email, phone, profile_id, status, created_at, status_message, status_message_at")
+      .eq("profile_id", profile.id)
+      .maybeSingle();
+    if (!data) return null;
     return {
       id: data.id,
       email: data.email,

@@ -127,7 +127,7 @@ export function MobileMenu({
           {/* Signed in: two quiet rows. Signed out: nothing more (the bar above already has Login). */}
           {authState === "in" && account && (
             <div className="mt-2">
-              <AccountSection fleet={fleet} onNavigate={onClose} />
+              <AccountSection fleet={fleet} onNavigate={onClose} role={account?.role} />
             </div>
           )}
         </div>

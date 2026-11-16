@@ -40,6 +40,9 @@ export async function login(formData: FormData) {
   }
   const profile = lookup.status === "ok" ? lookup.profile : null;
 
+  // A partner (an applicant or an approved partner) signs in here too, and goes to their own area: never to the customer dashboard.
+  if (profile?.role === "partner") redirect("/partner/portal");
+
   if (!isCustomerRole(profile?.role)) {
     // this device only: signOut() alone defaults to the "global" scope and would end every other device's session too
     await supabase.auth.signOut({ scope: "local" });

@@ -36,6 +36,14 @@ export async function proxy(request: NextRequest) {
   watch.mark("profile+onboarding");
   const profile = lookup?.status === "ok" ? lookup.profile : null;
 
+  // A partner has no customer dashboard: they are sent to their own area.
+  if (profile?.role === "partner") {
+    const url = request.nextUrl.clone();
+    url.pathname = "/partner/portal";
+    url.search = "";
+    return NextResponse.redirect(url);
+  }
+
   if (!profile || !isCustomerRole(profile.role)) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
