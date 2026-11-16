@@ -23,6 +23,8 @@ const partnerSchema = z.object({
   message: optionalText(2000),
   // Honeypot: real visitors never see or fill this field.
   website_url: z.string().optional(),
+  // The applicant ticked the terms, privacy and partner-agreement box.
+  consent: z.literal(true, { message: "Please agree to the terms to send your application" }),
 });
 
 // Per client IP, plus a global ceiling, the same way as the enquiry form (Postgres-backed limiter).

@@ -2,7 +2,9 @@
 
 import * as React from "react";
 import { CheckCircle2, Loader2 } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { MultiSelect, type MultiSelectOption } from "@/components/ui/multi-select";
@@ -76,6 +78,7 @@ export function PartnerForm() {
   const [status, setStatus] = React.useState<"idle" | "sending" | "sent" | "error">("idle");
   const [error, setError] = React.useState("");
   const [reference, setReference] = React.useState("");
+  const [agreed, setAgreed] = React.useState(false);
 
   const typeRef = React.useRef<PartnerTypeId | null>(null);
   const choose = React.useCallback((next: PartnerTypeId) => {
@@ -127,6 +130,11 @@ export function PartnerForm() {
       setError("Choose the district you mainly work in.");
       return;
     }
+    if (!agreed) {
+      setStatus("error");
+      setError("Please tick the box to agree before you send your application.");
+      return;
+    }
     const checked = checkPartnerAnswers(type, answers);
     if (!checked.ok) {
       setStatus("error");
@@ -151,6 +159,7 @@ export function PartnerForm() {
           answers,
           message: get("message"),
           website_url: get("website_url"),
+          consent: true,
         }),
       });
       const json = (await res.json().catch(() => null)) as { success?: boolean; error?: string; data?: { reference?: string } } | null;
@@ -305,14 +314,25 @@ export function PartnerForm() {
       )}
 
       {type && (
-        <div className="mt-2 flex flex-wrap items-center gap-4 border-t border-theme-border pt-8">
+        <div className="mt-2 space-y-6 border-t border-theme-border pt-8">
+          <div className="flex items-start gap-3">
+            <Checkbox id="pf-agree" checked={agreed} onCheckedChange={(v) => setAgreed(v === true)} className="mt-0.5" />
+            <Label htmlFor="pf-agree" className="block text-sm font-normal leading-relaxed text-theme-secondary">
+              I agree to the{" "}
+              <Link href="/terms" target="_blank" className="font-semibold text-theme-highlight underline-offset-4 hover:underline">
+                Terms
+              </Link>{" "}
+              and the{" "}
+              <Link href="/privacy" target="_blank" className="font-semibold text-theme-highlight underline-offset-4 hover:underline">
+                Privacy Policy
+              </Link>
+              , and I understand that I will sign a WayTara Partner Agreement before any work if I am approved.
+            </Label>
+          </div>
           <Button type="submit" variant="gradient" disabled={status === "sending"} className="h-11 rounded-full px-7">
             {status === "sending" && <Loader2 className="size-4 animate-spin" aria-hidden="true" />}
-            Send my application
+            Submit application
           </Button>
-          <p className="max-w-sm text-xs leading-relaxed text-theme-muted">
-            No licences or documents are needed now. This is a partner registration, not a job application, and it does not guarantee a partnership or projects.
-          </p>
         </div>
       )}
     </form>

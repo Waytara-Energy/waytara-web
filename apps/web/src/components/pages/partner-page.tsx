@@ -1,5 +1,4 @@
-import Link from "next/link";
-import { ArrowRight, Check, ClipboardList, FileText, GraduationCap, Handshake, PlugZap, Ruler, Package, Sun, Wrench, X, Zap } from "lucide-react";
+import { Check, ClipboardList, EvCharger, FileText, GraduationCap, Handshake, HardHat, Package, Ruler, Sun, Wrench, X } from "lucide-react";
 import { Reveal } from "@/components/shared/reveal";
 import { FaqList, type Faq } from "@/components/segments/faq-list";
 import { FeatureColumns, SegmentSection, type Feature } from "@/components/segments/segment-parts";
@@ -14,22 +13,10 @@ export const PARTNER_PATH = "/partner";
 export const PARTNER_DESCRIPTION =
   "Join the WayTara Partner Network in Tamil Nadu: electrical contractors, solar installation teams, EV charging teams and field technicians. Project-based work with clear terms, on modern energy systems.";
 
-/**
- * The partner guides (a blog of the longer answers: licences, documents, working under a licensed contractor) are not built yet. While this is false the
- * quick links below show as "Soon" and go nowhere; when the guides exist, set it to true and give each link its page.
- */
-const PARTNER_GUIDES_LIVE = false;
-const GUIDE_LINKS = [
-  { label: "The licence grades, explained", href: "/partner/guides/licence-grades" },
-  { label: "Wireman and Supervisor certificates", href: "/partner/guides/competency-certificates" },
-  { label: "Working under a licensed contractor", href: "/partner/guides/working-under-a-contractor" },
-  { label: "Documents you will be asked for", href: "/partner/guides/documents" },
-];
-
 // Who can join, and what each kind needs to have. Each card's link opens the form on that kind (the form listens for #apply-<kind>).
 const WHO: Feature[] = [
   {
-    icon: Zap,
+    icon: HardHat,
     title: "Electrical contractors",
     body: "Licensed businesses that carry out electrical work.",
     includes: ["A TNELB contractor licence in the business's own name", "A supervisor and wiremen with their own certificates", "Installation work you can show us"],
@@ -43,7 +30,7 @@ const WHO: Feature[] = [
     link: { label: "Apply as a solar partner", href: "#apply-solar" },
   },
   {
-    icon: PlugZap,
+    icon: EvCharger,
     title: "EV charging teams",
     body: "Teams that install and commission EV chargers.",
     includes: ["AC or DC chargers you have already installed", "Electrical work done through a licensed contractor", "Test records kept for every installation"],
@@ -139,37 +126,7 @@ export const PARTNER_FAQS: Faq[] = [
     question: "Which areas do you cover?",
     answer: "All of Tamil Nadu. Choose the district you mainly work in and, if you like, the other places you can cover. We are building the network across the state, so every district is welcome.",
   },
-  {
-    question: "Can we talk in Tamil?",
-    answer: "Yes. Our team speaks with applicants in Tamil or English, whichever you are more comfortable with.",
-  },
 ];
-
-/** The quick links to the partner guides: live links once the guides exist, plain "Soon" labels until then. */
-function GuideLinks({ heading }: { heading: string }) {
-  return (
-    <div>
-      <p className="text-sm font-semibold text-theme-muted">{heading}</p>
-      <ul className="mt-4 flex flex-wrap gap-x-8 gap-y-3">
-        {GUIDE_LINKS.map((g) => (
-          <li key={g.href}>
-            {PARTNER_GUIDES_LIVE ? (
-              <Link href={g.href} className="group inline-flex items-center gap-1.5 text-sm font-semibold text-theme-highlight underline-offset-4 hover:underline">
-                {g.label}
-                <ArrowRight className="size-4 transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-              </Link>
-            ) : (
-              <span className="inline-flex items-center gap-2 text-sm text-theme-muted">
-                {g.label}
-                <span className="rounded-full bg-theme-surface px-2 py-0.5 text-[11px] font-semibold uppercase tracking-wide">Soon</span>
-              </span>
-            )}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
 
 /** The WayTara Partner Network (Tamil Nadu): who can join, what WayTara offers, where, how it works, the licences, the promise, and a short application. */
 export function PartnerPage() {
@@ -181,15 +138,15 @@ export function PartnerPage() {
       hero={
         <PageHero
           eyebrow="WayTara Partner Network · Tamil Nadu"
-          title="Powering the energy transition,"
-          accent="together."
-          body="Join our network of electrical contractors, solar and EV charging teams and field technicians across Tamil Nadu. Project-based work, with clear terms, on modern energy systems."
+          title="Grow your energy business"
+          accent="with WayTara."
+          body="Work on solar, EV charging and battery projects with an engineering-led team. Join our network of contractors, installers and technicians across Tamil Nadu: project-based work, clear terms, modern energy systems."
           primary={{ label: "Apply to partner", href: "#apply" }}
           secondary={{ label: "How it works", href: "#how" }}
         />
       }
     >
-      <SegmentSection id="who" badge="Who can join" title="Four kinds of" accent="partner." summary="Pick the one that fits you. What each one takes is listed under it, and each has its own few questions when you apply.">
+      <SegmentSection id="who" badge="Who we work with" title="Built for people" accent="who do the work." summary="Pick the one that fits you. What each one takes is listed under it.">
         <FeatureColumns items={WHO} />
       </SegmentSection>
 
@@ -197,7 +154,7 @@ export function PartnerPage() {
         <FeatureColumns items={OFFER} columns={3} />
       </SegmentSection>
 
-      <SegmentSection id="where" badge="Where we recruit" title="Across" accent="Tamil Nadu." summary="Three regions to start, every district welcome.">
+      <SegmentSection id="where" badge="Where we start" title="Our first places" accent="to land." summary="Tamil Nadu is where we begin to grow. We start with the main cities and work outwards, and partners from every district are welcome.">
         <Reveal direction="up" duration={800} distance={24}>
           <PartnerMap />
         </Reveal>
@@ -227,16 +184,13 @@ export function PartnerPage() {
               </li>
             ))}
           </ol>
-          <p className="mt-14 max-w-3xl border-t border-theme-border pt-6 text-sm leading-relaxed text-theme-muted">
+          <p className="mt-14 border-t border-theme-border pt-6 text-sm leading-relaxed text-theme-muted">
             The grades, their limits and the rules for Wireman and Supervisor certificates are set by the Tamil Nadu Electrical Licensing Board and can change. Check them with the Board at{" "}
             <a href="https://tnelb.gov.in" target="_blank" rel="noopener noreferrer" className="text-theme-highlight underline-offset-4 hover:underline">
               tnelb.gov.in
             </a>
             . Software, dashboards and gateway set-up are not electrical installation; wiring, panels, protection and earthing are.
           </p>
-          <div className="mt-8">
-            <GuideLinks heading="More on licences" />
-          </div>
         </Reveal>
       </SegmentSection>
 
@@ -262,13 +216,13 @@ export function PartnerPage() {
               </div>
             ))}
           </div>
-          <p className="mt-10 max-w-3xl text-sm leading-relaxed text-theme-muted">
+          <p className="mt-10 border-t border-theme-border pt-6 text-sm leading-relaxed text-theme-muted">
             The network is for people who do the work, not for referral agents, and never for anyone using another business&apos;s licence or certificate. Terms, rates and territory are not set on this page; they go in your written partner agreement, so ask for what you rely on in writing.
           </p>
         </Reveal>
       </SegmentSection>
 
-      <SegmentSection id="apply" badge="Apply" title="Tell us about" accent="your work." summary="It takes a few minutes. தமிழிலும் ஆங்கிலத்திலும் பேசலாம்: we can talk in Tamil or English.">
+      <SegmentSection id="apply" badge="Apply" title="Tell us about" accent="your work." summary="It takes a few minutes, and no documents are needed yet.">
         {/* Where a link such as /partner#apply-solar lands: the form (below) chooses that kind when it sees the link. */}
         {PARTNER_TYPES.map((t) => (
           <span key={t.id} id={`apply-${t.id}`} className="block scroll-mt-28" aria-hidden="true" />
@@ -290,10 +244,6 @@ export function PartnerPage() {
                   ))}
                 </ol>
                 <p className="mt-8 max-w-sm border-t border-theme-border pt-6 text-sm leading-relaxed text-theme-muted">
-                  No licences or documents are needed now. This is a partner registration, not a job application, and it does not guarantee a partnership or projects. We use these details only
-                  to review your application and get in touch.
-                </p>
-                <p className="mt-4 max-w-sm text-sm leading-relaxed text-theme-muted">
                   A question before you apply?{" "}
                   <a href={SITE.whatsapp} target="_blank" rel="noopener noreferrer" className="font-semibold text-theme-highlight underline-offset-4 hover:underline">
                     Message us on WhatsApp
@@ -312,9 +262,6 @@ export function PartnerPage() {
       <SegmentSection id="faq" badge="FAQ" title="Questions from" accent="partners.">
         <Reveal direction="up" duration={700} distance={16}>
           <FaqList faqs={PARTNER_FAQS} />
-          <div className="mt-12">
-            <GuideLinks heading="Longer answers" />
-          </div>
         </Reveal>
       </SegmentSection>
     </PageShell>
