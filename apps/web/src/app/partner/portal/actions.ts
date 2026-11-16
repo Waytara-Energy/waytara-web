@@ -9,6 +9,7 @@ import {
   documentMime,
   documentProblem,
   isDocumentPathOf,
+  ensureMemberIds,
   isIsoDate,
   newDocumentPath,
   readOnboarding,
@@ -41,10 +42,15 @@ export async function savePartnerProfile(formData: FormData): Promise<void> {
   if (phone.length < 6 || phone.length > 32) throw new Error("Enter a phone number we can call you on.");
 
   const { data: current } = await loadOnboarding(app.id);
-  const members = Array.from({ length: ONBOARDING_LIMITS.members }, (_, i) => ({ name: field(formData, `member_name_${i}`), role: field(formData, `member_role_${i}`), certificate: field(formData, `member_cert_${i}`) })).filter(
-    (m) => m.name || m.role || m.certificate,
-  );
-  const next = readOnboarding({
+  const members = Array.from({ length: ONBOARDING_LIMITS.members }, (_, i) => ({
+    id: field(formData, `member_id_${i}`),
+    name: field(formData, `member_name_${i}`),
+    role: field(formData, `member_role_${i}`),
+    certificate: field(formData, `member_cert_${i}`),
+    needsLicence: formData.get(`member_needs_${i}`) === "yes",
+    addedAt: field(formData, `member_added_${i}`),
+  })).filter((m) => m.name || m.role || m.certificate);
+  const next = ensureMemberIds(readOnboarding({
     ...current,
     business: {
       ...current.business,
@@ -64,7 +70,7 @@ export async function savePartnerProfile(formData: FormData): Promise<void> {
       summary: field(formData, "summary"),
       projects: Array.from({ length: ONBOARDING_LIMITS.projects }, (_, i) => ({ title: field(formData, `project_title_${i}`), place: field(formData, `project_place_${i}`), size: field(formData, `project_size_${i}`).replace(/[^0-9.]/g, ""), year: field(formData, `project_year_${i}`).replace(/\D/g, ""), note: field(formData, `project_note_${i}`) })).filter((p) => p.title || p.place || p.size || p.year || p.note),
     },
-  });
+  }));
   if (next.areas.districts.length === 0) throw new Error("Choose at least one district you work in.");
   if (!next.business.name) throw new Error("Enter your business name.");
 
@@ -99,7 +105,7 @@ export async function saveLicences(formData: FormData): Promise<void> {
   const { error } = await db.from("partner_onboarding").upsert({ application_id: app.id, data: next as unknown as Json }, { onConflict: "application_id" });
   if (error) throw new Error("Couldn't save just now. Please try again.");
   if (changedIdentity) {
-    await db.from("partner_checks").upsert({ application_id: app.id, key: "licence", state: "pending", note: `Changed by the partner on ${new Date().toISOString().slice(0, 10)}: needs checking again.`, checked_by: null, checked_at: null }, { onConflict: "application_id,key" });
+    await db.from("partner_item_checks").upsert({ application_id: app.id, subject: "partner", key: "licence", state: "pending", note: `Changed by the partner on ${new Date().toISOString().slice(0, 10)}: needs checking again.`, checked_by: null, checked_at: null }, { onConflict: "application_id,subject,key" });
   }
   revalidatePath("/partner/portal", "layout");
 }

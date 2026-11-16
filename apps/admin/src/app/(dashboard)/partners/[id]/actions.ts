@@ -6,7 +6,8 @@ import { createClient } from "@waytara/supabase/server";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { getCurrentProfile, requireStaff } from "@waytara/supabase/auth";
 import { accessExpiry, newAccessToken } from "@waytara/supabase/partner-access";
-import { approvalGaps, checklistFor, isCheckKey, isCheckState, isDeclineHandling, type CheckKey, type CheckState } from "@waytara/supabase/partner-verification";
+import { approvalGaps, isCheckKey, isCheckState, isDeclineHandling, isMemberCheckKey, isSubject } from "@waytara/supabase/partner-verification";
+import { loadVerification } from "@/lib/partner-verification-data";
 import { sendPartnerDeclineEmail } from "@/lib/send-partner-decline-email";
 import { sendPartnerLinkEmail } from "@/lib/send-partner-link-email";
 import { isPartnerStatus } from "@/lib/partners";
@@ -143,34 +144,62 @@ async function requireAdminProfile() {
   return profile;
 }
 
-/** Saves the verification checklist: for each check its state (not checked yet, verified, problem found) and a short note. Who changed a check and when is recorded on it. */
-export async function savePartnerChecks(id: string, formData: FormData): Promise<void> {
+/**
+ * Sets one item's verification (not checked yet, verified, problem found) with a short note, for the partner or for one of their team members. Who set it and when is
+ * recorded on it. The keys and the subject are checked here, so only items that exist can be written.
+ */
+export async function setPartnerItemCheck(id: string, subject: string, key: string, formData: FormData): Promise<void> {
   const profile = await requireAdminProfile();
-  const supabase = await createClient();
-  const { data: app } = await supabase.from("partner_applications").select("partner_type").eq("id", id).single();
-  if (!app) throw new Error("Couldn't find this application.");
-  const { data: existing } = await supabase.from("partner_checks").select("key, state, note").eq("application_id", id);
-  const had = new Map((existing ?? []).map((r) => [r.key, r]));
+  if (!isSubject(subject)) throw new Error("That is not something that can be checked.");
+  const forMember = subject !== "partner";
+  if (forMember ? !isMemberCheckKey(key) : !isCheckKey(key)) throw new Error("That is not something that can be checked.");
+  const state = String(formData.get("state") ?? "pending");
+  if (!isCheckState(state)) throw new Error("Choose a state.");
+  const note = String(formData.get("note") ?? "").trim();
+  if (note.length > 500) throw new Error("The note is too long (500 characters at most).");
 
-  const rows: { application_id: string; key: CheckKey; state: CheckState; note: string | null; checked_by: string; checked_at: string }[] = [];
-  for (const c of checklistFor(app.partner_type)) {
-    const state = String(formData.get(`state_${c.key}`) ?? "pending");
-    if (!isCheckState(state)) throw new Error("Choose a state for each check.");
-    const note = String(formData.get(`note_${c.key}`) ?? "").trim();
-    if (note.length > 500) throw new Error(`The note for "${c.label}" is too long (500 characters at most).`);
-    const prev = had.get(c.key);
-    // nothing to record for a check nobody has touched; and a check that did not change keeps who checked it and when
-    if (!prev && state === "pending" && note === "") continue;
-    if (prev && prev.state === state && (prev.note ?? "") === note) continue;
-    rows.push({ application_id: id, key: c.key, state, note: note === "" ? null : note, checked_by: profile.id, checked_at: new Date().toISOString() });
-  }
-  if (rows.length > 0) {
-    const { error } = await supabase.from("partner_checks").upsert(rows, { onConflict: "application_id,key" });
-    if (error) throw new Error(error.message);
-  }
+  const supabase = await createClient();
+  const { error } = await supabase
+    .from("partner_item_checks")
+    .upsert({ application_id: id, subject, key, state, note: note === "" ? null : note, checked_by: profile.id, checked_at: new Date().toISOString() }, { onConflict: "application_id,subject,key" });
+  if (error) throw new Error(error.message);
   revalidatePath(`/partners/${id}`);
 }
 
+/** Adds a screening call to the log: when, who made it, what came of it, notes and the next step. Entries are never changed; a mistake is corrected with another one. */
+export async function logScreeningCall(id: string, formData: FormData): Promise<void> {
+  const profile = await requireAdminProfile();
+  const outcome = String(formData.get("outcome") ?? "");
+  if (!["reached", "no_answer", "call_back", "wrong_number"].includes(outcome)) throw new Error("Choose what came of the call.");
+  const notes = String(formData.get("notes") ?? "").trim();
+  const next = String(formData.get("next_step") ?? "").trim();
+  if (notes.length > 2000) throw new Error("The notes are too long (2000 characters at most).");
+  if (next.length > 300) throw new Error("The next step is too long (300 characters at most).");
+  if (outcome === "reached" && notes.length < 3) throw new Error("Write what you found out on the call.");
+  const supabase = await createClient();
+  const { error } = await supabase.from("partner_screening_calls").insert({ application_id: id, called_by: profile.id, outcome, notes: notes || null, next_step: next || null });
+  if (error) throw new Error(error.message);
+  revalidatePath(`/partners/${id}`);
+}
+
+/** Shows an approved partner in the public partner directory (business name, kind and districts only), or takes them out of it. Only for an approved partner. */
+export async function setPartnerListing(id: string, formData: FormData): Promise<void> {
+  await requireAdminProfile();
+  const supabase = await createClient();
+  const { data: app } = await supabase.from("partner_applications").select("status").eq("id", id).single();
+  if (app?.status !== "approved") throw new Error("Only an approved partner can be listed.");
+  const { error } = await supabase.from("partner_applications").update({ listed_publicly: formData.get("listed") === "on" }).eq("id", id);
+  if (error) throw new Error(error.message);
+  revalidatePath(`/partners/${id}`);
+}
+
+/** Moves an application to another stage (the status menu at the top of the page). Approved and declined are not reachable from it: those are the Approve and Decline buttons. */
+export async function changePartnerStatus(id: string, status: string): Promise<void> {
+  if (!isPartnerStatus(status)) throw new Error("Choose a status.");
+  const fd = new FormData();
+  fd.set("status", status);
+  await reviewPartnerApplication(id, fd);
+}
 /**
  * Asks the applicant for something more: the application goes back to Onboarding with their answers and files kept, they get a fresh private link in an e-mail that
  * carries the admin's words, and the same words show on their page as the team's note.
@@ -209,10 +238,9 @@ export async function approvePartnerApplication(id: string): Promise<void> {
   if (app.status === "approved") throw new Error("This application is already approved.");
   if (app.status === "rejected") throw new Error("This application was declined.");
 
-  const { data: checks } = await supabase.from("partner_checks").select("key, state").eq("application_id", id);
-  const states: Partial<Record<CheckKey, CheckState>> = {};
-  for (const c of checks ?? []) if (isCheckKey(c.key) && isCheckState(c.state)) states[c.key] = c.state;
-  const gaps = approvalGaps(app.partner_type, states);
+  // what has been checked about the partner AND about every person on their team: a partner with no team owes nothing for one, each added person must be verified
+  const v = await loadVerification(supabase, id);
+  const gaps = approvalGaps(app.partner_type, v.states, v.members, v.memberStates);
   if (gaps.length > 0) throw new Error(`Not ready to approve. ${gaps.join("; ")}.`);
 
   // the team's earlier note (an ask for more, say) is done with once they are approved, so it does not sit beside "You are approved"

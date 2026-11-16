@@ -98,9 +98,15 @@ export default async function PartnerProfilePage() {
                 const m = data.team.members[i];
                 return (
                   <div key={i} className="grid gap-2 sm:grid-cols-3">
+                    {/* who this person is to the team that verifies them: kept across saves */}
+                    <input type="hidden" name={`member_id_${i}`} value={m?.id ?? ""} />
+                    <input type="hidden" name={`member_added_${i}`} value={m?.addedAt ?? ""} />
                     <Input name={`member_name_${i}`} defaultValue={m?.name ?? ""} placeholder="Name" aria-label={`Person ${i + 1}: name`} maxLength={120} />
                     <Input name={`member_role_${i}`} defaultValue={m?.role ?? ""} placeholder="Role" aria-label={`Person ${i + 1}: role`} maxLength={80} />
                     <Input name={`member_cert_${i}`} defaultValue={m?.certificate ?? ""} placeholder="Licence or certificate number" aria-label={`Person ${i + 1}: certificate`} maxLength={120} />
+                    <label className="flex items-center gap-2 text-xs text-theme-muted sm:col-span-3">
+                      <input type="checkbox" name={`member_needs_${i}`} value="yes" defaultChecked={m ? m.needsLicence : true} className="size-3.5" /> Needs a licence or certificate. Our team verifies a new person before they count as part of your team.
+                    </label>
                   </div>
                 );
               })}

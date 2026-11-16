@@ -367,7 +367,7 @@ export function OnboardingForm({ token, partnerType, initial, initialDocuments, 
           items={data.team.members}
           max={ONBOARDING_LIMITS.members}
           addLabel="Add a person"
-          onAdd={() => set("team", { ...data.team, members: [...data.team.members, { name: "", role: "", certificate: "" }] })}
+          onAdd={() => set("team", { ...data.team, members: [...data.team.members, { id: crypto.randomUUID(), name: "", role: "", certificate: "", needsLicence: true, addedAt: new Date().toISOString() }] })}
           onRemove={(i) => set("team", { ...data.team, members: data.team.members.filter((_, j) => j !== i) })}
         >
           {(m, i) => {
@@ -382,13 +382,18 @@ export function OnboardingForm({ token, partnerType, initial, initialDocuments, 
                   <Label htmlFor={`ob-m-role-${i}`}>Role</Label>
                   <Input id={`ob-m-role-${i}`} value={m.role} onChange={(e) => up({ role: e.target.value })} maxLength={80} placeholder="Supervisor, electrician…" />
                 </div>
-                <div className={`${field} sm:col-span-2`}>
-                  <Label htmlFor={`ob-m-cert-${i}`}>
-                    Licence or certificate number
-                    <Optional />
+                <div className="flex items-start gap-3 sm:col-span-2">
+                  <Checkbox id={`ob-m-needs-${i}`} checked={m.needsLicence} onCheckedChange={(v) => up({ needsLicence: v === true })} className="mt-0.5" />
+                  <Label htmlFor={`ob-m-needs-${i}`} className="block text-sm font-normal leading-relaxed text-theme-secondary">
+                    This person needs a licence or certificate to do the work. We verify it before they count as part of your team.
                   </Label>
-                  <Input id={`ob-m-cert-${i}`} value={m.certificate} onChange={(e) => up({ certificate: e.target.value })} maxLength={120} />
                 </div>
+                {m.needsLicence && (
+                  <div className={`${field} sm:col-span-2`}>
+                    <Label htmlFor={`ob-m-cert-${i}`}>Licence or certificate number</Label>
+                    <Input id={`ob-m-cert-${i}`} value={m.certificate} onChange={(e) => up({ certificate: e.target.value })} maxLength={120} />
+                  </div>
+                )}
               </div>
             );
           }}

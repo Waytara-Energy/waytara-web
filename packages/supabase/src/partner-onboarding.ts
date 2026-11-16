@@ -8,6 +8,9 @@ export const DOCUMENT_KINDS = [
   { id: "identity", label: "Identity of the person we deal with", hint: "A government photo ID. You may hide all but the last four digits of any number." },
   { id: "insurance", label: "Insurance", hint: "Workers' or liability cover, if you have it" },
   { id: "work_photo", label: "Photos of your work", hint: "Finished installations" },
+  { id: "survey_record", label: "Survey records", hint: "Site survey reports or measurements you have done" },
+  { id: "kyc", label: "KYC proof", hint: "PAN or another government ID. A masked Aadhaar copy is fine: hide all but the last four digits." },
+  { id: "bank_proof", label: "Bank proof", hint: "A cancelled cheque or the first page of a passbook" },
   { id: "other", label: "Anything else", hint: "Another document you want us to see" },
 ] as const;
 
@@ -93,9 +96,15 @@ export interface LicenceEntry {
 }
 
 export interface TeamMember {
+  /** A stable id, given when the person is first saved; their documents and verification hang on it. Empty only for people saved before ids existed. */
+  id: string;
   name: string;
   role: string;
   certificate: string;
+  /** Whether this person needs a licence or certificate to do the work (default yes). Those who do must provide it and be verified. */
+  needsLicence: boolean;
+  /** When they were added (ISO). A person added after the partner was approved is verified before they count. */
+  addedAt: string;
 }
 
 export interface TeamSection {
@@ -190,7 +199,7 @@ export function readOnboarding(raw: unknown): OnboardingData {
       certified: str(t.certified, 6),
       members: arr(t.members, ONBOARDING_LIMITS.members).map((x) => {
         const o = obj(x);
-        return { name: str(o.name, 120), role: str(o.role, 80), certificate: str(o.certificate, 120) };
+        return { id: str(o.id, 40).replace(/[^A-Za-z0-9_-]/g, ""), name: str(o.name, 120), role: str(o.role, 80), certificate: str(o.certificate, 120), needsLicence: o.needsLicence !== false, addedAt: str(o.addedAt, 30) };
       }),
     },
     areas: {
@@ -218,7 +227,7 @@ export function isIsoDate(s: string): boolean {
 
 export interface Gap {
   /** The section it belongs to, so the page can point at it. */
-  section: "business" | "licences" | "areas" | "documents";
+  section: "business" | "licences" | "areas" | "documents" | "team";
   text: string;
 }
 
@@ -227,8 +236,18 @@ export interface Gap {
  * it covers, and (for the kinds that hold a licence) a licence entry and a document for it, plus an identity document. The rest is welcome but optional.
  * `docKinds` is the kinds of the documents uploaded so far.
  */
-export function onboardingGaps(partnerType: string | null, data: OnboardingData, docKinds: readonly string[]): Gap[] {
+export function onboardingGaps(partnerType: string | null, data: OnboardingData, docKinds: readonly string[], memberDocs?: readonly { kind: string; subject: string }[]): Gap[] {
   const gaps: Gap[] = [];
+  // Team members added during the first onboarding who need a licence must give its number and a copy (a partner with no team owes nothing here). Only checked when the
+  // caller says which documents belong to which person (`memberDocs`).
+  if (memberDocs) {
+    for (const [i, m] of data.team.members.entries()) {
+      if (!m.needsLicence) continue;
+      const who = m.name || `Team member ${i + 1}`;
+      if (!m.certificate) gaps.push({ section: "team", text: `${who}: the licence or certificate number` });
+      if (!memberDocs.some((d) => d.subject === `member:${memberKey(m, i)}` && (d.kind === "licence" || d.kind === "certificate"))) gaps.push({ section: "team", text: `${who}: a copy of the licence or certificate` });
+    }
+  }
   const person = partnerType === "technician";
   if (!data.business.name) gaps.push({ section: "business", text: person ? "Your name as on your certificate" : "Your business name" });
   if (!data.business.city) gaps.push({ section: "business", text: "The town or city you work from" });
@@ -244,4 +263,15 @@ export function onboardingGaps(partnerType: string | null, data: OnboardingData,
   if (data.areas.districts.length === 0) gaps.push({ section: "areas", text: "At least one district you work in" });
   if (!docKinds.includes("identity")) gaps.push({ section: "documents", text: "An identity document for the person we deal with" });
   return gaps;
+}
+
+/** The key a team member's documents and checks are filed under: their id, or (for people saved before ids existed) their place in the list. */
+export const memberKey = (m: { id: string }, index: number): string => m.id || `m${index}`;
+
+/**
+ * Gives every team member an id and a date added, if they have none. Called where a partner's answers are SAVED (never when they are read), so an id never changes once
+ * it exists and the documents and checks filed under it stay theirs.
+ */
+export function ensureMemberIds(data: OnboardingData, now: Date = new Date()): OnboardingData {
+  return { ...data, team: { ...data.team, members: data.team.members.map((m) => ({ ...m, id: m.id || crypto.randomUUID(), addedAt: m.addedAt || now.toISOString() })) } };
 }

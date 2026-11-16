@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
-import { readOnboarding } from "@waytara/supabase/partner-onboarding";
+import { ensureMemberIds, readOnboarding } from "@waytara/supabase/partner-onboarding";
 import type { Json } from "@waytara/supabase/types";
 import { fail, openEditable } from "@/lib/partner-track-api";
 
@@ -17,7 +17,7 @@ export async function PUT(req: NextRequest, { params }: { params: Promise<{ toke
     } catch {
       return fail("Please try again.", 400);
     }
-    const data = readOnboarding((body as { data?: unknown } | null)?.data);
+    const data = ensureMemberIds(readOnboarding((body as { data?: unknown } | null)?.data));
 
     const { error } = await createServiceRoleClient().from("partner_onboarding").upsert({ application_id: opened.app.id, data: data as unknown as Json },{ onConflict: "application_id" });
     if (error) {

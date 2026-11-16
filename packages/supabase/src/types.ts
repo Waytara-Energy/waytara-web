@@ -3537,6 +3537,7 @@ export type Database = {
           kind: string
           size_bytes: number
           storage_path: string
+          subject: string
           uploaded_at: string
         }
         Insert: {
@@ -3547,6 +3548,7 @@ export type Database = {
           kind: string
           size_bytes: number
           storage_path: string
+          subject?: string
           uploaded_at?: string
         }
         Update: {
@@ -3557,6 +3559,7 @@ export type Database = {
           kind?: string
           size_bytes?: number
           storage_path?: string
+          subject?: string
           uploaded_at?: string
         }
         Relationships: [
@@ -3565,6 +3568,51 @@ export type Database = {
             columns: ["application_id"]
             isOneToOne: false
             referencedRelation: "partner_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_item_checks: {
+        Row: {
+          application_id: string
+          checked_at: string | null
+          checked_by: string | null
+          key: string
+          note: string | null
+          state: string
+          subject: string
+        }
+        Insert: {
+          application_id: string
+          checked_at?: string | null
+          checked_by?: string | null
+          key: string
+          note?: string | null
+          state?: string
+          subject?: string
+        }
+        Update: {
+          application_id?: string
+          checked_at?: string | null
+          checked_by?: string | null
+          key?: string
+          note?: string | null
+          state?: string
+          subject?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_item_checks_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "partner_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_item_checks_checked_by_fkey"
+            columns: ["checked_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -3667,6 +3715,51 @@ export type Database = {
             columns: ["application_id"]
             isOneToOne: true
             referencedRelation: "partner_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_screening_calls: {
+        Row: {
+          application_id: string
+          called_at: string
+          called_by: string | null
+          id: string
+          next_step: string | null
+          notes: string | null
+          outcome: string
+        }
+        Insert: {
+          application_id: string
+          called_at?: string
+          called_by?: string | null
+          id?: string
+          next_step?: string | null
+          notes?: string | null
+          outcome: string
+        }
+        Update: {
+          application_id?: string
+          called_at?: string
+          called_by?: string | null
+          id?: string
+          next_step?: string | null
+          notes?: string | null
+          outcome?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_screening_calls_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "partner_applications"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "partner_screening_calls_called_by_fkey"
+            columns: ["called_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
