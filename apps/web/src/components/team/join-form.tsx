@@ -4,13 +4,19 @@ import * as React from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Loader2 } from "lucide-react";
+import { notify } from "@waytara/ui/notify";
 import { createClient } from "@waytara/supabase/client";
-import { PASSWORD_MIN, passwordProblem } from "@waytara/supabase/partner-account";
+import { PASSWORD_MAX, PASSWORD_MIN, passwordProblem } from "@waytara/supabase/partner-account";
+import { CodeStep } from "@/components/auth/code-step";
+import { PasswordGuide, passwordRules } from "@/components/auth/password-guide";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PasswordInput } from "@/components/ui/password-input";
 
 type Step = "send" | "code" | "password" | "existing";
+
+/** How long before another code may be asked for: the server's own gap (RESEND_GAP_MS in partner-otp.ts is 45 s, and the server refuses sooner). */
+const RESEND_GAP_SECONDS = 45;
 
 async function post<T>(url: string, body: unknown): Promise<{ ok: true; data: T } | { ok: false; error: string }> {
   try {
@@ -24,28 +30,37 @@ async function post<T>(url: string, body: unknown): Promise<{ ok: true; data: T 
 
 /**
  * The page a team member opens from the invitation e-mail. Opening it sends a 6-digit code to the address the invitation was made for (shown masked, never typed); they
- * (1) type the code, (2) choose a password, and are then signed in and taken to the dashboard with the access they were given. The link says which invitation this is; only
- * the code proves the address. (Same steps as a partner's first sign-in.)
+ * (1) enter the code (six boxes, with Paste and Clear), (2) choose a password (with a list that ticks itself off), and are then signed in and taken to the dashboard with
+ * the access they were given. The link says which invitation this is; only the code proves the address. Messages come as toasts.
  */
 export function JoinForm({ token, maskedEmail }: { token: string; maskedEmail: string }) {
   const router = useRouter();
   const [step, setStep] = React.useState<Step>("send");
   const [code, setCode] = React.useState("");
+  const [invalid, setInvalid] = React.useState(false);
   const [proof, setProof] = React.useState("");
   const [password, setPassword] = React.useState("");
   const [confirm, setConfirm] = React.useState("");
   const [busy, setBusy] = React.useState(false);
-  const [error, setError] = React.useState("");
-  const [note, setNote] = React.useState("");
+  const [failed, setFailed] = React.useState(false);
+  /** a timestamp, new every time a code was sent: it restarts the "send again" countdown */
+  const [sentAt, setSentAt] = React.useState(0);
+  const checking = React.useRef(false);
 
   async function sendCode(again = false) {
     setBusy(true);
-    setError("");
+    setFailed(false);
     const r = await post(`/api/team/join/code`, { token });
     setBusy(false);
-    if (!r.ok) return setError(r.error);
-    setNote(again ? `We sent a new 6-digit code to ${maskedEmail}. The earlier one no longer works.` : `We sent a 6-digit code to ${maskedEmail}. It works for 10 minutes.`);
+    if (!r.ok) {
+      setFailed(true);
+      return notify.error(r.error);
+    }
+    setCode("");
+    setInvalid(false);
+    setSentAt(Date.now());
     setStep("code");
+    notify.success(again ? `A new code is on its way to ${maskedEmail}. The earlier one no longer works.` : `We sent a 6-digit code to ${maskedEmail}. It works for 10 minutes.`);
   }
 
   // Opening the invitation is the request: the code is sent to the address it was made for straight away, once. (A ref, not state, so a second render of the same page does
@@ -58,27 +73,37 @@ export function JoinForm({ token, maskedEmail }: { token: string; maskedEmail: s
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function verify(e: React.FormEvent) {
-    e.preventDefault();
-    setBusy(true);
-    setError("");
-    const r = await post<{ proof: string }>(`/api/team/join/verify`, { token, code: code.trim() });
-    setBusy(false);
-    if (!r.ok) return setError(r.error);
-    setProof(r.data.proof);
-    setStep("password");
-  }
+  const verify = React.useCallback(
+    async (digits: string) => {
+      if (digits.length !== 6 || checking.current) return;
+      checking.current = true;
+      setBusy(true);
+      const r = await post<{ proof: string }>(`/api/team/join/verify`, { token, code: digits });
+      checking.current = false;
+      setBusy(false);
+      if (!r.ok) {
+        setInvalid(true);
+        setCode("");
+        return notify.error(r.error);
+      }
+      setProof(r.data.proof);
+      setStep("password");
+      notify.success("Your e-mail address is confirmed.");
+    },
+    [token]
+  );
+
+  const rulesOk = passwordRules(password, confirm, PASSWORD_MIN).every((r) => r.ok);
 
   async function create(e: React.FormEvent) {
     e.preventDefault();
-    setError("");
     const problem = passwordProblem(password, confirm, "");
-    if (problem) return setError(problem);
+    if (problem) return notify.error(problem);
     setBusy(true);
     const r = await post<{ email: string; existing: boolean }>(`/api/team/join/account`, { token, proof, password, confirm });
     if (!r.ok) {
       setBusy(false);
-      return setError(r.error);
+      return notify.error(r.error);
     }
     // an account with this address already existed: the access is added to it, and they sign in as usual
     if (r.data.existing) {
@@ -87,8 +112,11 @@ export function JoinForm({ token, maskedEmail }: { token: string; maskedEmail: s
     }
     // the account exists: sign in with the password just chosen, then into the dashboard
     const { error: signInError } = await createClient().auth.signInWithPassword({ email: r.data.email, password });
-    setBusy(false);
-    if (signInError) return setError("Your account is ready. Please sign in with your e-mail address and password.");
+    if (signInError) {
+      setBusy(false);
+      return notify.error("Your account is ready. Please sign in with your e-mail address and password.");
+    }
+    notify.success("Welcome to WayTara.");
     router.replace("/dashboard");
   }
 
@@ -97,7 +125,7 @@ export function JoinForm({ token, maskedEmail }: { token: string; maskedEmail: s
       {step === "send" && (
         <div className="space-y-5">
           <p className="text-[15px] leading-relaxed text-theme-secondary" role="status">
-            {busy || !error ? (
+            {busy || !failed ? (
               <>
                 <Loader2 className="mr-2 inline size-4 animate-spin align-[-2px]" aria-hidden="true" />
                 Sending a 6-digit code to <span className="font-medium text-theme-primary">{maskedEmail}</span>…
@@ -108,7 +136,7 @@ export function JoinForm({ token, maskedEmail }: { token: string; maskedEmail: s
               </>
             )}
           </p>
-          {!busy && error && (
+          {!busy && failed && (
             <Button type="button" onClick={() => void sendCode()}>
               Send me a code
             </Button>
@@ -117,35 +145,39 @@ export function JoinForm({ token, maskedEmail }: { token: string; maskedEmail: s
       )}
 
       {step === "code" && (
-        <form onSubmit={verify} className="space-y-5">
-          <p className="text-sm text-theme-secondary">{note}</p>
-          <div className="space-y-2">
-            <Label htmlFor="join-code">6-digit code</Label>
-            <Input id="join-code" value={code} onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" autoComplete="one-time-code" maxLength={6} className="max-w-[10rem] text-lg tracking-[0.3em]" required />
-          </div>
-          <div className="flex flex-wrap items-center gap-4">
-            <Button type="submit" disabled={busy || code.length !== 6}>
-              {busy && <Loader2 className="size-4 animate-spin" />} Confirm
-            </Button>
-            <button type="button" onClick={() => void sendCode(true)} disabled={busy} className="text-sm text-theme-secondary underline underline-offset-4 hover:text-theme-primary">
-              Send a new code
-            </button>
-          </div>
-        </form>
+        <div className="space-y-4">
+          <p className="text-sm text-theme-secondary">
+            Enter the 6-digit code sent to <span className="font-medium text-theme-primary">{maskedEmail}</span>.
+          </p>
+          <CodeStep
+            code={code}
+            onCode={(d) => {
+              setCode(d);
+              setInvalid(false);
+            }}
+            onVerify={(d) => void verify(d)}
+            busy={busy}
+            invalid={invalid}
+            onResend={() => void sendCode(true)}
+            resendGapSeconds={RESEND_GAP_SECONDS}
+            sentAt={sentAt}
+          />
+        </div>
       )}
 
       {step === "password" && (
         <form onSubmit={create} className="space-y-5">
-          <p className="text-sm text-theme-secondary">Thank you, your address is confirmed. Choose a password: at least {PASSWORD_MIN} characters, with letters and numbers.</p>
+          <p className="text-sm text-theme-secondary">Your address is confirmed. Now choose a password.</p>
           <div className="space-y-2">
             <Label htmlFor="join-password">New password</Label>
-            <Input id="join-password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" maxLength={72} required />
+            <PasswordInput id="join-password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" maxLength={PASSWORD_MAX} autoFocus required />
           </div>
           <div className="space-y-2">
             <Label htmlFor="join-confirm">Type it again</Label>
-            <Input id="join-confirm" type="password" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" maxLength={72} required />
+            <PasswordInput id="join-confirm" value={confirm} onChange={(e) => setConfirm(e.target.value)} autoComplete="new-password" maxLength={PASSWORD_MAX} required />
           </div>
-          <Button type="submit" disabled={busy}>
+          <PasswordGuide password={password} confirm={confirm} min={PASSWORD_MIN} />
+          <Button type="submit" disabled={busy || !rulesOk}>
             {busy && <Loader2 className="size-4 animate-spin" />} Create my account
           </Button>
         </form>
@@ -158,12 +190,6 @@ export function JoinForm({ token, maskedEmail }: { token: string; maskedEmail: s
             Sign in
           </Link>{" "}
           with your usual password to see it.
-        </p>
-      )}
-
-      {error && (
-        <p role="alert" className="text-sm text-red-600 dark:text-red-400">
-          {error}
         </p>
       )}
     </div>

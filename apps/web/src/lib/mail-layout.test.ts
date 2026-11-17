@@ -110,3 +110,41 @@ describe("the look of the e-mail", () => {
     expect(html).toContain("google.com/maps/search");
   });
 });
+
+describe("the compact e-mail look", () => {
+  const compact = renderMail({
+    variant: "compact",
+    title: "Your WayTara code",
+    greeting: "Hi Asha,",
+    blocks: [
+      { type: "p", text: "Enter this code." },
+      { type: "code", code: "482915" },
+      { type: "note", text: "Did not ask for it? Ignore this." },
+    ],
+    button: { label: "Open", url: "https://www.example.com/x" },
+    why: "You asked for it.",
+  });
+
+  it("shows a code as one box per digit", () => {
+    for (const d of ["4", "8", "2", "9", "1", "5"]) expect(compact.html).toContain(`>${d}</td>`);
+    expect(compact.html).not.toContain("letter-spacing:12px");
+  });
+
+  it("is smaller and quieter: no sign-off, no quick-link row, a one-line footer with the help address and why", () => {
+    expect(compact.html).not.toContain("The WayTara Team");
+    expect(compact.html).not.toContain("Instagram");
+    expect(compact.html).toContain("hello@waytaraenergy.com");
+    expect(compact.html).toContain("You asked for it.");
+    expect(compact.html).toContain('width="520"');
+    expect(compact.text).not.toContain("Instagram");
+    expect(compact.text).toContain("Open: https://www.example.com/x");
+  });
+
+  it("leaves the standard look exactly as it was: every block, the sign-off and the quick links", () => {
+    const standard = renderMail({ title: "T", blocks: [{ type: "p", text: "One" }, { type: "p", text: "Two" }, { type: "p", text: "Three" }], audience: "customer" });
+    expect(standard.html).toContain("The WayTara Team");
+    expect(standard.html).toContain("Instagram");
+    // every paragraph keeps the standard spacing (the list index must never be taken for the compact switch)
+    expect(standard.html.match(/margin:0 0 16px;font-size:15px;line-height:1.7/g)?.length).toBeGreaterThanOrEqual(3);
+  });
+});

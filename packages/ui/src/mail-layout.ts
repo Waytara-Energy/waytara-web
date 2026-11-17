@@ -39,6 +39,11 @@ export interface MailLayoutInput {
   siteUrl?: string;
   /** The admin app, for the team's quick link. */
   adminUrl?: string;
+  /**
+   * "compact" is the quiet, minimal look for short messages (an invitation, a one-time code, a welcome): a smaller card with the logo at the left, little text, the code
+   * as separate boxes, no sign-off and a one-line footer. Everything else keeps the standard layout.
+   */
+  variant?: "standard" | "compact";
 }
 
 export interface RenderedMail {
@@ -95,13 +100,18 @@ function quickLinks(audience: NonNullable<MailLayoutInput["audience"]>, site: st
   ];
 }
 
-function blockHtml(b: MailBlock): string {
+function blockHtml(b: MailBlock, compact = false): string {
   switch (b.type) {
     case "p":
-      return `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:${BODY}">${escapeHtml(b.text)}</p>`;
+      return `<p style="margin:0 0 ${compact ? 14 : 16}px;font-size:15px;line-height:${compact ? 1.6 : 1.7};color:${BODY}">${escapeHtml(b.text)}</p>`;
     case "h":
       return `<p style="margin:8px 0 8px;font-size:16px;font-weight:700;color:${INK}">${escapeHtml(b.text)}</p>`;
     case "code":
+      if (compact) {
+        // one box per digit, like the boxes on the page where it is typed
+        const cell = (d: string) => `<td align="center" width="44" height="54" style="width:44px;height:54px;background:#f3faf6;border:1px solid #cfe8dc;border-radius:10px;font-family:'Courier New',Courier,monospace;font-size:26px;font-weight:700;color:${INK}">${escapeHtml(d)}</td>`;
+        return `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 20px"><tr>${[...b.code].map(cell).join('<td width="8" style="width:8px;font-size:0;line-height:0">&nbsp;</td>')}</tr></table>`;
+      }
       return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:10px 0 24px"><tr><td align="center"><table role="presentation" cellpadding="0" cellspacing="0"><tr><td align="center" style="background:#ecfdf5;border:1px solid #a7f3d0;border-radius:16px;padding:20px 34px;font-family:'Courier New',Courier,monospace;font-size:36px;font-weight:700;letter-spacing:12px;color:${INK}"><span style="padding-left:12px">${escapeHtml(b.code)}</span></td></tr></table></td></tr></table>`;
     case "facts":
       return `<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:4px 0 20px;border-top:1px solid ${HAIRLINE}">${b.rows
@@ -137,9 +147,49 @@ function blockText(b: MailBlock): string {
   }
 }
 
+/** The compact look: a small card, the logo at the left, a headline, a few short lines, one button, and a one-line footer. */
+function renderCompact(input: MailLayoutInput, site: string): RenderedMail {
+  const year = new Date().getFullYear();
+  const preheader = input.preheader ? `<div style="display:none;max-height:0;overflow:hidden;opacity:0;color:transparent;font-size:1px;line-height:1px">${escapeHtml(input.preheader)}${"&nbsp;&zwnj;".repeat(30)}</div>` : "";
+  const button = input.button
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:6px 0 22px"><tr><td align="center" bgcolor="${EMERALD}" style="border-radius:999px;background:${EMERALD}"><a href="${escapeHtml(input.button.url)}" style="display:inline-block;padding:13px 28px;font-family:${FONT};font-size:15px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:999px">${escapeHtml(input.button.label)}</a></td></tr></table>`
+    : "";
+  const foot = (l: { label: string; href: string }) => `<a href="${escapeHtml(l.href)}" style="color:#94a3b8;text-decoration:underline">${escapeHtml(l.label)}</a>`;
+  const html = `<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="light"><meta name="supported-color-schemes" content="light"><style>@media only screen and (max-width:480px){.px{padding-left:22px!important;padding-right:22px!important}.wrap{padding:12px 6px!important}}</style><title>${escapeHtml(input.title)}</title></head>
+<body style="margin:0;padding:0;background:#f4f6f5;font-family:${FONT}">
+${preheader}
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" bgcolor="#f4f6f5" style="background:#f4f6f5"><tr><td align="center" class="wrap" style="padding:28px 12px">
+<table role="presentation" width="520" cellpadding="0" cellspacing="0" style="width:100%;max-width:520px;background:#ffffff;border:1px solid #e5e9e7;border-radius:18px">
+<tr><td class="px" style="padding:30px 36px 0"><a href="${escapeHtml(site)}" style="text-decoration:none"><img src="${escapeHtml(site)}/images/logo.png" width="112" alt="WayTara Energy" style="display:block;border:0;outline:none;height:auto;width:112px"></a></td></tr>
+<tr><td class="px" style="padding:26px 36px 0"><h1 style="margin:0;font-family:${FONT};font-size:22px;line-height:1.3;font-weight:700;letter-spacing:-.01em;color:${INK}">${escapeHtml(input.title)}</h1></td></tr>
+<tr><td class="px" style="padding:14px 36px 0;font-family:${FONT}">${input.greeting ? `<p style="margin:0 0 10px;font-size:15px;line-height:1.6;color:${INK}">${escapeHtml(input.greeting)}</p>` : ""}${input.blocks.map((b) => blockHtml(b, true)).join("")}${button}</td></tr>
+<tr><td class="px" style="padding:6px 36px 30px;font-family:${FONT};font-size:12px;line-height:1.7;color:#94a3b8"><div style="border-top:1px solid ${HAIRLINE};padding-top:16px">${input.why ? `${escapeHtml(input.why)}<br>` : ""}Need help? <a href="mailto:${SUPPORT_EMAIL}" style="color:#94a3b8;text-decoration:underline">${SUPPORT_EMAIL}</a><br>WayTara Energy LLP, Chennai &middot; ${foot({ label: "Privacy", href: `${site}/privacy` })} &middot; ${foot({ label: "Terms", href: `${site}/terms` })} &middot; &copy; ${year}</div></td></tr>
+</table>
+</td></tr></table>
+</body></html>`;
+
+  const text = [
+    input.title,
+    "",
+    input.greeting,
+    input.greeting ? "" : undefined,
+    ...input.blocks.flatMap((b) => [blockText(b), ""]),
+    input.button ? `${input.button.label}: ${input.button.url}` : undefined,
+    input.button ? "" : undefined,
+    `Need help? ${SUPPORT_EMAIL}`,
+    input.why,
+    `WayTara Energy LLP, Chennai · © ${year}`,
+  ]
+    .filter((l) => l !== undefined)
+    .join("\n");
+  return { html, text };
+}
+
 /** Builds the HTML and the plain-text version of one e-mail from its pieces. */
 export function renderMail(input: MailLayoutInput): RenderedMail {
   const site = trim(input.siteUrl || DEFAULT_SITE);
+  if (input.variant === "compact") return renderCompact(input, site);
   const audience = input.audience ?? "customer";
   const links = quickLinks(audience, site, input.adminUrl ? trim(input.adminUrl) : undefined);
   const year = new Date().getFullYear();
@@ -164,7 +214,7 @@ ${preheader}
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="width:100%;max-width:600px;background:#ffffff;border:1px solid ${HAIRLINE};border-radius:20px">
 <tr><td align="center" style="padding:40px 40px 0"><a href="${escapeHtml(site)}" style="text-decoration:none"><img src="${escapeHtml(site)}/images/logo.png" width="150" alt="WayTara Energy" style="display:block;border:0;outline:none;height:auto;width:150px"></a></td></tr>
 <tr><td class="px" style="padding:28px 48px 0"><h1 style="margin:0;font-family:${FONT};font-size:26px;line-height:1.25;font-weight:700;letter-spacing:-.01em;color:${INK}">${escapeHtml(input.title)}</h1></td></tr>
-<tr><td class="px" style="padding:20px 48px 0;font-family:${FONT}">${input.greeting ? `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:${INK}">${escapeHtml(input.greeting)}</p>` : ""}${input.blocks.map(blockHtml).join("")}${button}<p style="margin:22px 0 0;font-size:15px;color:${BODY}">- The WayTara Team</p></td></tr>
+<tr><td class="px" style="padding:20px 48px 0;font-family:${FONT}">${input.greeting ? `<p style="margin:0 0 16px;font-size:15px;line-height:1.7;color:${INK}">${escapeHtml(input.greeting)}</p>` : ""}${input.blocks.map((b) => blockHtml(b)).join("")}${button}<p style="margin:22px 0 0;font-size:15px;color:${BODY}">- The WayTara Team</p></td></tr>
 <tr><td class="px" style="padding:36px 48px 0"><table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr><td style="border-top:1px solid ${HAIRLINE};padding-top:24px;font-family:${FONT};font-size:13px;line-height:1.7;color:${MUTED}">Questions? Visit <a href="${escapeHtml(site)}/support" style="color:${EMERALD};font-weight:600;text-decoration:none">Support</a> or e-mail <a href="mailto:${SUPPORT_EMAIL}" style="color:${EMERALD};font-weight:600;text-decoration:none">${SUPPORT_EMAIL}</a>.</td></tr></table></td></tr>
 <tr><td align="center" class="px" style="padding:22px 48px 0;font-family:${FONT};font-size:13px;line-height:2;color:${MUTED}">${links.map(a).join(sep)}</td></tr>
 <tr><td align="center" class="px" style="padding:20px 48px 40px;font-family:${FONT};font-size:12px;line-height:1.75;color:#94a3b8">${input.why ? `${escapeHtml(input.why)}<br>` : ""}${legal.map(a).join(sep)}<br><a href="${MAP_URL}" style="color:#94a3b8;text-decoration:none">${escapeHtml(ADDRESS)}</a><br>&copy; ${year} WayTara Energy LLP. All rights reserved.</td></tr>

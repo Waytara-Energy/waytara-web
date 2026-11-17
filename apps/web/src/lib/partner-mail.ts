@@ -150,15 +150,16 @@ export function buildLicenceReminderMail(contactName: string, licences: { label:
 export function buildPartnerCodeMail(contactName: string, code: string): Mail {
   const first = contactName.trim().split(/\s+/)[0] || "there";
   const { html, text } = renderMail({
+    variant: "compact",
     preheader: `Your WayTara code is ${code}.`,
-    title: `Your code is ${code}`,
+    title: "Your WayTara code",
     greeting: `Hi ${first},`,
     blocks: [
-      { type: "p", text: "Type this code on the WayTara page to confirm your e-mail address. It works for 10 minutes." },
-      { type: "p", text: "If you did not ask for it, ignore this e-mail. No one can use it without your address." },
+      { type: "p", text: "Enter this code on the WayTara page to confirm your e-mail address. It works for 10 minutes." },
+      { type: "code", code },
+      { type: "note", text: "Did not ask for it? Ignore this e-mail. No one can use it without your address." },
     ],
-    why: "You get this e-mail because you applied to join the WayTara Partner Network.",
-    audience: "public",
+    why: "You applied to join the WayTara Partner Network.",
   });
   return { subject: `${code} is your WayTara code`, text, html };
 }
@@ -167,6 +168,7 @@ export function buildPartnerCodeMail(contactName: string, code: string): Mail {
 export function buildPartnerAccountMail(contactName: string, signInUrl: string): Mail {
   const first = contactName.trim().split(/\s+/)[0] || "there";
   const { html, text } = renderMail({
+    variant: "compact",
     preheader: "Your WayTara partner account is ready.",
     title: "Your partner account is ready",
     greeting: `Hi ${first},`,
