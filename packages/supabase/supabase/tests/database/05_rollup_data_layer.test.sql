@@ -188,7 +188,8 @@ select set_config('request.jwt.claims', json_build_object('sub', '11111111-1111-
 set local role authenticated;
 select ok((select count(*) from waytara.equipment_rollup_15m where equipment_id = 'e1000000-0000-0000-0000-000000000001') > 0, 'a customer reads their own device''s rollups');
 select is((select count(*)::int from waytara.equipment_rollup_15m where equipment_id = 'e2000000-0000-0000-0000-000000000002'), 0, 'but not another customer''s');
-select is((select count(*)::int from waytara.telemetry_series('e2000000-0000-0000-0000-000000000002', array['p'], (select h0 from ctx), (select h0 from ctx) + interval '1 hour', 15)), 0, 'telemetry_series respects RLS');
+-- Since 20261025050000 telemetry_series checks access once up front and refuses (42501) a device the caller cannot view, instead of returning no rows.
+select throws_ok($$ select count(*) from waytara.telemetry_series('e2000000-0000-0000-0000-000000000002', array['p'], now() - interval '1 hour', now(), 15) $$, '42501', null, 'telemetry_series refuses another customer''s device');
 select ok(waytara.can_view_equipment('e1000000-0000-0000-0000-000000000001') and not waytara.can_view_equipment('e2000000-0000-0000-0000-000000000002'), 'can_view_equipment: own device yes, other no');
 select throws_ok($$ select waytara.ingest_tick('e1000000-0000-0000-0000-000000000001', now()) $$, '42501', null, 'a customer cannot call ingest_tick');
 select throws_ok($$ insert into waytara.equipment_rollup_15m (equipment_id, key_name, bucket, wsum, covered_s) values ('e1000000-0000-0000-0000-000000000001', 'x', now(), 1, 1) $$, '42501', null, 'a customer cannot write rollups');

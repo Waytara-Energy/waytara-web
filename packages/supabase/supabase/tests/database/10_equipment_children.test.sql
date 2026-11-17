@@ -4,7 +4,7 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public, waytara;
 
-select plan(16);
+select plan(17);
 
 \set c1 '''11111111-1111-1111-1111-111111111111'''
 \set adm '''aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'''
@@ -20,10 +20,14 @@ insert into waytara.profiles (id, email, role, full_name) values (:c1, 'c1@test.
 insert into waytara.customers (id) values (:c1);
 insert into waytara.sites (id, customer_id, name, property_type, power_source_category) values
   (:s1, :c1, 'S1', 'residential_independent_villas', 'hybrid'), (:s2, :c1, 'S2', 'residential_independent_villas', 'hybrid');
-insert into waytara.equipment_inventory (id, name, category, quantity) values
-  ('99000000-0000-0000-0000-000000000001', 'Inverter', 'solar_inverter', 5),
-  ('99000000-0000-0000-0000-000000000002', 'Panel 550W', 'Solar Panels', 24),
-  ('99000000-0000-0000-0000-000000000003', 'Battery', 'Batteries', 1);
+insert into waytara.equipment_inventory (id, name, category, quantity, tracking) values
+  ('99000000-0000-0000-0000-000000000001', 'Inverter', 'solar_inverter', 5, 'serial'),
+  ('99000000-0000-0000-0000-000000000002', 'Panel 550W', 'Solar Panels', 24, 'lot'),
+  ('99000000-0000-0000-0000-000000000003', 'Battery', 'Batteries', 1, 'serial');
+-- Stock is held as units: a lot of 24 panels, and one serial-numbered battery. (The model's quantity follows its units.)
+insert into waytara.stock_units (id, model_id, serial_number, quantity, remaining) values
+  ('98000000-0000-0000-0000-000000000002', '99000000-0000-0000-0000-000000000002', 'TEST-PANELS-LOT', 24, 24),
+  ('98000000-0000-0000-0000-000000000003', '99000000-0000-0000-0000-000000000003', 'TEST-BATTERY-1', 1, 1);
 insert into waytara.equipment (id, site_id, stock_id) values
   (:inv1, :s1, '99000000-0000-0000-0000-000000000001'),
   (:inv2, :s2, '99000000-0000-0000-0000-000000000001');
@@ -50,8 +54,9 @@ select is((select quantity from waytara.equipment_inventory where id = '99000000
 select is((select parent_id::text from waytara.equipment where label = 'Roof panels'), 'e1000000-0000-0000-0000-000000000001', 'under that inverter');
 select throws_ok($$ select waytara.assign_child_equipment('e1000000-0000-0000-0000-000000000001', '99000000-0000-0000-0000-000000000002', 15) $$, '22023', null, 'more than is in stock is refused');
 select throws_ok($$ select waytara.assign_child_equipment('e1000000-0000-0000-0000-000000000001', '99000000-0000-0000-0000-000000000001', 1) $$, '22023', null, 'an inverter is added as a device, not as child equipment');
-select lives_ok($$ select waytara.assign_child_equipment('e1000000-0000-0000-0000-000000000001', '99000000-0000-0000-0000-000000000003', 1) $$, 'the last battery can be allocated');
-select is((select status::text from waytara.equipment_inventory where id = '99000000-0000-0000-0000-000000000003'), 'allocated', 'and the stock item then shows as allocated');
+select throws_ok($$ select waytara.assign_child_equipment('e1000000-0000-0000-0000-000000000001', '99000000-0000-0000-0000-000000000003', 1) $$, '22023', null, 'a serial-numbered battery needs its serial number picked');
+select lives_ok($$ select waytara.assign_child_equipment('e1000000-0000-0000-0000-000000000001', '99000000-0000-0000-0000-000000000003', 1, null, '98000000-0000-0000-0000-000000000003') $$, 'the last battery can be allocated');
+select is((select status from waytara.stock_units where id = '98000000-0000-0000-0000-000000000003'), 'installed', 'and its stock unit then shows as installed');
 select is((select discharged_baseline_kwh from waytara.equipment where stock_id = '99000000-0000-0000-0000-000000000003'), 40::numeric, 'a battery remembers the inverter''s discharge counter from the day it was allocated');
 select is((select discharged_baseline_kwh from waytara.equipment where label = 'Roof panels'), null, 'panels have no baseline');
 

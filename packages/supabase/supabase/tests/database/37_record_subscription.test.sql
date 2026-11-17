@@ -17,6 +17,9 @@ insert into waytara.profiles (id, email, role, full_name) values
   ('e1000000-0000-0000-0000-0000000000e1', 'emp@sub.local', 'employee', 'Emil Employee');
 insert into waytara.customers (id) values ('c1000000-0000-0000-0000-0000000000e1');
 
+-- The plans were seeded by a migration older than the CI baseline, so a database built from the baseline has none: make one for the test (rolled back with the rest).
+insert into waytara.plans (code, name, max_devices, price_monthly, price_yearly)
+select 'basic', 'Basic (test)', 3, 499, 4990 where not exists (select 1 from waytara.plans);
 select set_config('test.plan', (select id::text from waytara.plans order by price_monthly limit 1), true);
 
 create or replace function pg_temp.as_user(p_id uuid) returns void language plpgsql as $$
