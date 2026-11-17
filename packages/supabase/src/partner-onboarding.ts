@@ -530,13 +530,15 @@ const PAYMENTS = "Needed to pay them and to deduct tax correctly: without a PAN,
  * The documents a partner of this kind is asked for, in the order the pages show them, with why each is asked. What they entered decides a few: a GST number makes
  * the GST certificate required, and a partnership, LLP or company must send its registration.
  */
-export function documentRequirements(partnerType: string | null, data: OnboardingData): DocRequirement[] {
+export function documentRequirements(partnerType: string | null, data: OnboardingData, opts: { idByDigilocker?: boolean } = {}): DocRequirement[] {
   const individual = partnerType === "technician" || partnerType === "survey";
   const firm = REGISTERED_BUSINESS_KINDS.includes(data.business.kind);
   // a business with an office to prove: not someone working on their own, and not an individual who said so
   const hasOffice = !individual && data.business.kind !== "individual";
   const list: DocRequirement[] = [
-    req("identity", "personal", "required", "To know who we are dealing with. Aadhaar is never demanded: any government photo ID is accepted, and an Aadhaar copy must be masked.", { label: individual ? "Your photo ID" : "Photo ID of the person we deal with" }),
+    opts.idByDigilocker
+      ? req("identity", "personal", "optional", "Not needed: they were verified through DigiLocker, which is the government's own record. A photo ID may still be added.", { label: individual ? "Your photo ID" : "Photo ID of the person we deal with", hint: "Not needed, because you verified with DigiLocker. Add one only if you want to." })
+      : req("identity", "personal", "required", "To know who we are dealing with. Aadhaar is never demanded: any government photo ID is accepted, and an Aadhaar copy must be masked.", { label: individual ? "Your photo ID" : "Photo ID of the person we deal with" }),
     req("selfie", "personal", "required", "A photo taken now lets the team compare the face with the photo ID, and is used for the partner's badge and site pass."),
     req("photo", "personal", "optional", "For the partner's profile and site passes."),
   ];
@@ -599,8 +601,9 @@ export function documentRequirements(partnerType: string | null, data: Onboardin
  * The documents asked for each person on the team: a photo ID always, then what their work on site needs (see SITE_ROLES): a supervisor's or wireman's permit, a solar
  * installer's training, an EV engineer's diploma or permit, a surveyor's qualification. A person saved before roles existed is asked as before: any licence or certificate.
  */
-export function memberRequirements(needsLicence: boolean, siteRole = ""): { kind: DocumentKind; need: Need; label: string; hint: string; anyOf?: readonly DocumentKind[] }[] {
-  const list = memberRequirementsFor(needsLicence, siteRole);
+export function memberRequirements(needsLicence: boolean, siteRole = "", idByDigilocker = false): { kind: DocumentKind; need: Need; label: string; hint: string; anyOf?: readonly DocumentKind[] }[] {
+  // a person verified through DigiLocker (the government's own record) need not send a photo ID; a copy may still be added
+  const list = memberRequirementsFor(needsLicence, siteRole).map((r) => (idByDigilocker && r.kind === "identity" ? { ...r, need: "optional" as Need, hint: "Not needed, because you verified with DigiLocker. Add one only if you want to." } : r));
   // a live selfie is welcome for everyone (the person usually takes it on their own phone from the link their employer sends); the ID is what is required
   return [...list.slice(0, 1), { kind: "selfie" as DocumentKind, need: "optional" as Need, label: "Live selfie", hint: DOCUMENT_KIND_HINT.selfie }, ...list.slice(1)];
 }
@@ -648,7 +651,7 @@ export interface Gap {
  * business is, its registration where it has one, the licence or certificate of their kind of work, each team member's ID (and certificate where their work needs
  * one), the districts they cover, and the PAN and bank account with a proof of each. The rest is welcome but optional.
  */
-export function onboardingGaps(partnerType: string | null, data: OnboardingData, docs: readonly DocRef[], now: Date = new Date()): Gap[] {
+export function onboardingGaps(partnerType: string | null, data: OnboardingData, docs: readonly DocRef[], now: Date = new Date(), digilockerCovers: ReadonlySet<string> = new Set()): Gap[] {
   const gaps: Gap[] = [];
   // today in India (yyyy-mm-dd): a licence is run out from the day after the date on it
   const today = new Date(now.getTime() + 5.5 * 3600_000).toISOString().slice(0, 10);
@@ -695,7 +698,7 @@ export function onboardingGaps(partnerType: string | null, data: OnboardingData,
     if ((m.siteRole === "supervisor" || m.siteRole === "wireman") && !m.validUntil) add("team", `${who}: the date their permit is valid until`);
     if (m.needsLicence && m.validUntil && !isIsoDate(m.validUntil)) add("team", `${who}: a valid date for when it runs out`);
     else if (m.needsLicence && m.validUntil && m.validUntil < today) add("team", `${who}: the licence or certificate ran out on ${m.validUntil}. Send the renewed one`);
-    for (const r of memberRequirements(m.needsLicence, m.siteRole)) {
+    for (const r of memberRequirements(m.needsLicence, m.siteRole, digilockerCovers.has(memberSubject(memberKey(m, i))))) {
       if (r.need === "required" && !(r.anyOf ?? [r.kind]).some((k) => theirs.includes(k))) add("team", `${who}: ${r.kind === "identity" ? "a photo ID" : "a copy of the licence or certificate"}`);
     }
   }
@@ -714,7 +717,7 @@ export function onboardingGaps(partnerType: string | null, data: OnboardingData,
   if (!isIfsc(data.bank.ifsc)) add("bank", data.bank.ifsc ? "The IFSC does not look right (11 characters, like SBIN0001234)" : "The IFSC of the branch");
   if (!isAccountNumber(data.bank.accountNumber)) add("bank", "The account number (9 to 18 digits)");
 
-  for (const r of documentRequirements(partnerType, data)) {
+  for (const r of documentRequirements(partnerType, data, { idByDigilocker: digilockerCovers.has("partner") })) {
     if (r.need === "required" && !(r.anyOf ?? [r.kind]).some((k) => mine.includes(k))) add(r.section, `A copy of: ${r.label.toLowerCase().startsWith("your ") ? r.label.slice(5) : r.label}`);
   }
   // in the order of the pages

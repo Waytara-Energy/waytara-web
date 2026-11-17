@@ -365,6 +365,18 @@ export function digilockerIdentity(a: AadhaarDocAnswer): DigilockerIdentity | nu
   return { name, dob: normaliseDob(a.dob), gender, address: address.slice(0, 400), pin: /^\d{6}$/.test(sa.pincode ?? "") ? (sa.pincode as string) : "", uid_last4: digits.length >= 4 ? digits.slice(-4) : "" };
 }
 
+// (see digilockerCoveredSubjects in partner-digilocker.ts for who is covered right now)
+/**
+ * Whether a person's DigiLocker verification stands in for a photo ID: it passed (an adult, and the name they gave matched DigiLocker's), AND the name on their form is still
+ * the one that was compared or the one DigiLocker itself states. Without the second part someone could verify as one person and then change the name on the form.
+ */
+export function digilockerCoversId(v: { status?: string | null; typedAtVerification?: string | null; stated?: string | null; currentTyped?: string | null }): boolean {
+  if (v.status !== "passed") return false;
+  const now = normaliseName(v.currentTyped ?? "");
+  if (!now) return false;
+  return now === normaliseName(v.typedAtVerification ?? "") || now === normaliseName(v.stated ?? "");
+}
+
 /**
  * The verdict on a DigiLocker identity: passed when the person is an adult and the name they typed matches the name DigiLocker states (as judged by Cashfree's Name Match,
  * passed in as `nameMatch`); needs a look when it differs or could not be compared; failed when the date of birth makes them under 18.
@@ -372,7 +384,8 @@ export function digilockerIdentity(a: AadhaarDocAnswer): DigilockerIdentity | nu
 export function digilockerVerdict(id: DigilockerIdentity, ctx: { typedName?: string; nameMatch?: { result?: MatchResult | null; score?: string | number | null } | null; now?: Date }): Verdict {
   const age = ageOn(id.dob, ctx.now ?? new Date());
   const r = ctx.nameMatch?.result ?? null;
-  const detail = { uid_last4: id.uid_last4 || null, name_match_result: r, name_match_score: ctx.nameMatch?.score ?? null, adult: age === null ? null : age >= 18 };
+  // `typed_name` (the name that was compared, as the person gave it) lets a later change of the name be noticed: see digilockerCoversId
+  const detail = { uid_last4: id.uid_last4 || null, name_match_result: r, name_match_score: ctx.nameMatch?.score ?? null, adult: age === null ? null : age >= 18, typed_name: ctx.typedName ? normaliseName(ctx.typedName) : "" };
   const who = `${id.name}${id.dob ? `, born ${id.dob}` : ""}${id.uid_last4 ? `, Aadhaar ending ${id.uid_last4}` : ""}`;
   if (age !== null && age < 18) return { status: "failed", code: "under_age", summary: `Verified through DigiLocker as ${who}, but the date of birth makes them under 18.`, detail };
   if (!ctx.typedName?.trim()) return { status: "passed", code: "ok", summary: `Verified through DigiLocker as ${who}. No name had been typed to compare.`, detail };
@@ -442,8 +455,8 @@ export function partnerMessage(kind: VerificationKind, v: Pick<Verdict, "status"
       if (v.code === "inactive") return "That GST registration is not active. Please check it, or contact us.";
       return "No GST registration was found for that number. Please check it, or leave it empty if you are not registered.";
     case "digilocker":
-      if (v.status === "passed") return "You are verified with DigiLocker. Your date of birth and address are filled in from it.";
-      if (v.code === "name_differs" || v.code === "name_missing") return "You are verified with DigiLocker, but the name on it is not a close match to the name you typed. Please check the name. Our team will also look at it.";
+      if (v.status === "passed") return "You are verified with DigiLocker. Your date of birth and address are filled in from it, and you do not need to send a photo ID.";
+      if (v.code === "name_differs" || v.code === "name_missing") return "You are verified with DigiLocker, but the name on it is not a close match to the name you typed. Please check the name, and send a photo ID as well. Our team will also look at it.";
       if (v.code === "under_age") return "DigiLocker shows a date of birth that makes you under 18. Please contact us.";
       return "We could not verify you with DigiLocker. Please try again, or contact us.";
     case "udyam": {

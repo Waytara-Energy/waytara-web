@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { Logo } from "@/components/shared/logo";
 import { PartnerTrackerClosed } from "@/components/partner/partner-tracker";
 import { CrewDocuments } from "@/components/partner/crew-documents";
-import { DigilockerCard } from "@/components/partner/digilocker-card";
+import { digilockerCoveredSubjects } from "@waytara/supabase/partner-digilocker";
 import { loadCrewSession } from "@/lib/partner-crew-server";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { memberSubject, siteRoleOf, type OnboardingDocument } from "@waytara/supabase/partner-onboarding";
@@ -27,6 +27,7 @@ export default async function CrewPage({ params }: { params: Promise<{ token: st
     .eq("subject", memberSubject(s.key))
     .order("uploaded_at", { ascending: true });
   const docs: OnboardingDocument[] = (rows ?? []).map((d) => ({ id: d.id, kind: d.kind, subject: d.subject, name: d.file_name, size: d.size_bytes, uploadedAt: d.uploaded_at }));
+  const covered = await digilockerCoveredSubjects(createServiceRoleClient(), s.app.id, s.data);
   const business = s.data.business.name || s.app.companyName;
   const first = s.member.name.trim().split(/\s+/)[0] || "there";
 
@@ -43,9 +44,8 @@ export default async function CrewPage({ params }: { params: Promise<{ token: st
             {s.app.contactName} of {business} has listed you{siteRoleOf(s.member.siteRole) ? ` as a ${siteRoleOf(s.member.siteRole)!.label.toLowerCase()}` : ""} on their team for WayTara projects. To count as part of the team you are verified on your own, so please add your own documents. Only the WayTara team sees them, and only to verify you. PDF, JPG, PNG or WebP, up to 10 MB each.
           </p>
           <p className="mt-3 max-w-xl text-sm leading-relaxed text-theme-muted">We never ask for your Aadhaar number. If you send an Aadhaar copy as your ID, hide all but its last four digits.</p>
-          <DigilockerCard base={`/api/partner/crew/${token}`} fills={false} className="mt-6" />
           <div className="mt-8">
-            <CrewDocuments token={token} memberKey={s.key} needsLicence={s.member.needsLicence} siteRole={s.member.siteRole} initialDocuments={docs} alreadyDone={s.invite.status === "completed"} />
+            <CrewDocuments token={token} memberKey={s.key} needsLicence={s.member.needsLicence} siteRole={s.member.siteRole} initialDocuments={docs} alreadyDone={s.invite.status === "completed"} initialByDigilocker={covered.has(memberSubject(s.key))} />
           </div>
           <p className="mt-10 text-xs leading-relaxed text-theme-muted">This page is private to you. Anyone with this link can add files under your name, so please keep it to yourself.</p>
         </div>

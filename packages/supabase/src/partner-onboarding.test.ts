@@ -212,6 +212,35 @@ describe("onboardingGaps", () => {
     expect(onboardingGaps("contractor", d, all, NOW)).toEqual([]);
   });
 
+  it("does not ask for the photo ID of someone verified through DigiLocker, and still asks for everything else", () => {
+    const d = filled();
+    d.team.members = [
+      { ...member, id: "r1", name: "Ravi", role: "Supervisor", needsLicence: true, certificate: "C-1" },
+      { ...member, id: "k1", name: "Kumar", role: "Helper", needsLicence: false },
+    ];
+    // nothing uploaded but the other documents: without DigiLocker the three photo IDs are missing
+    const others = docs("selfie", "licence", "supervisor_permit", "address_proof", "pan", "bank_proof");
+    const withR1 = [...others, { kind: "certificate", subject: "member:r1" }];
+    expect(onboardingGaps("contractor", d, withR1, NOW).map((g) => g.text)).toEqual(["A copy of: Photo ID of the person we deal with", "Ravi: a photo ID", "Kumar: a photo ID"]);
+    // the partner and Ravi are covered: only Kumar is still asked
+    expect(onboardingGaps("contractor", d, withR1, NOW, new Set(["partner", "member:r1"])).map((g) => g.text)).toEqual(["Kumar: a photo ID"]);
+    // everyone covered: nothing is missing
+    expect(onboardingGaps("contractor", d, withR1, NOW, new Set(["partner", "member:r1", "member:k1"]))).toEqual([]);
+    // being covered does not excuse anything else: Ravi's certificate is still required
+    expect(onboardingGaps("contractor", d, others, NOW, new Set(["partner", "member:r1", "member:k1"])).map((g) => g.text)).toEqual(["Ravi: a copy of the licence or certificate"]);
+  });
+
+  it("shows the photo ID as not needed (but welcome) once verified through DigiLocker, for the partner and for a team member", () => {
+    const id = (opts: { idByDigilocker?: boolean }) => documentRequirements("contractor", filled(), opts).find((r) => r.kind === "identity")!;
+    expect(id({}).need).toBe("required");
+    expect(id({ idByDigilocker: true }).need).toBe("optional");
+    expect(id({ idByDigilocker: true }).hint).toContain("DigiLocker");
+    const member = (covered: boolean) => memberRequirements(true, "wireman", covered).find((r) => r.kind === "identity")!;
+    expect(member(false).need).toBe("required");
+    expect(member(true).need).toBe("optional");
+    expect(memberRequirements(true, "wireman", true).find((r) => r.kind === "certificate")?.need).toBe("required");
+  });
+
   it("asks what each role on site needs: a supervisor's permit and its date, an installer's training, nothing but an ID of a helper", () => {
     const d = filled();
     d.team.members = [

@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { refreshDigilocker, startDigilocker } from "./partner-digilocker";
+import { digilockerCoveredSubjects, refreshDigilocker, startDigilocker } from "./partner-digilocker";
+import { emptyOnboarding, type OnboardingData } from "./partner-onboarding";
 import type { DocRow } from "./partner-verification-run";
 
 // ---- a pretend Cashfree: answers by method and path, counts the calls ----
@@ -145,7 +146,8 @@ describe("waiting, agreeing, declining", () => {
     const dl = f.tables.partner_verifications.find((r) => r.kind === "digilocker")!;
     expect(dl).toMatchObject({ status: "passed", subject: "partner" });
     expect(String(dl.summary)).toContain("Aadhaar ending 5647");
-    expect(JSON.stringify(dl.detail)).not.toMatch(/Priya|1988|Plot/);
+    expect(JSON.stringify(dl.detail)).not.toMatch(/1988|Plot/);
+    expect((dl.detail as { typed_name: string }).typed_name).toBe("PRIYA RAMAN");
     const face = f.tables.partner_verifications.find((r) => r.kind === "face_match")!;
     expect(face).toMatchObject({ status: "passed" });
     expect(face.detail).toMatchObject({ source: "digilocker", selfie_id: "s1" });
@@ -254,7 +256,7 @@ describe("a team member", () => {
   it("is told in their own words, not the partner's (they typed nothing and filled in no form)", async () => {
     const f = await memberStarted();
     const ok = await refreshDigilocker(input(f, { subject: "member:r1", docs: [memberSelfie] }));
-    expect(ok.message).toBe("You are verified with DigiLocker. Thank you.");
+    expect(ok.message).toBe("You are verified with DigiLocker, so you do not need to send a photo ID. Thank you.");
     expect(ok.message).not.toMatch(/filled in|you typed/i);
 
     const g = await memberStarted();
@@ -270,5 +272,59 @@ describe("a team member", () => {
     // only the partner has a selfie: nothing to compare the member's DigiLocker photo with
     await refreshDigilocker(input(f, { subject: "member:r1", docs: [selfieDoc] }));
     expect(calls.some((c) => c.path === "/face-match")).toBe(false);
+  });
+});
+
+describe("who no longer needs to send a photo ID", () => {
+  const form = (partnerName: string, memberName = "Priya Raman"): OnboardingData => {
+    const d = emptyOnboarding();
+    d.person.name = partnerName;
+    d.team.members = [{ id: "r1", name: memberName, role: "", siteRole: "", phone: "", email: "", certificate: "", validUntil: "", needsLicence: false, addedAt: "" } as never];
+    return d;
+  };
+  const memberSelfie: DocRow = { ...selfieDoc, id: "ms1", subject: "member:r1", storage_path: "app/ms1-r.jpg" };
+  async function verified() {
+    const f = fakeDb();
+    for (const subject of ["partner", "member:r1"]) {
+      await startDigilocker({ db: f.db, applicationId: "app", subject, redirectUrl: "https://x.example/done" });
+      await refreshDigilocker(input(f, { subject, typedName: "Priya Raman", docs: [subject === "partner" ? selfieDoc : memberSelfie] }));
+    }
+    return f;
+  }
+
+  it("covers the partner and a member whose DigiLocker check passed and whose name on the form is unchanged", async () => {
+    const f = await verified();
+    expect([...(await digilockerCoveredSubjects(f.db, "app", form("Priya Raman")))].sort()).toEqual(["member:r1", "partner"]);
+  });
+
+  it("stops covering someone once the name on the form is changed to another (verify as one person, then rename)", async () => {
+    const f = await verified();
+    expect([...(await digilockerCoveredSubjects(f.db, "app", form("Raja Kumar", "Priya Raman")))]).toEqual(["member:r1"]);
+    expect([...(await digilockerCoveredSubjects(f.db, "app", form("Priya Raman", "Raja Kumar")))]).toEqual(["partner"]);
+    // the same name in another order is still the same name
+    expect((await digilockerCoveredSubjects(f.db, "app", form("RAMAN PRIYA"))).has("partner")).toBe(false);
+  });
+
+  it("covers nobody whose check needed a look (the name differed), nobody who declined, and nobody who never started", async () => {
+    const f = fakeDb();
+    await startDigilocker({ db: f.db, applicationId: "app", subject: "partner", redirectUrl: "https://x.example/done" });
+    answers["POST /name-match"] = { body: { score: 0.1, reason: "NO_MATCH" } };
+    await refreshDigilocker(input(f, { typedName: "Raja Kumar" }));
+    expect((await digilockerCoveredSubjects(f.db, "app", form("Raja Kumar"))).size).toBe(0);
+
+    const g = fakeDb();
+    await startDigilocker({ db: g.db, applicationId: "app", subject: "partner", redirectUrl: "https://x.example/done" });
+    answers["GET /digilocker"] = { body: { status: "CONSENT_DENIED" } };
+    await refreshDigilocker(input(g));
+    expect((await digilockerCoveredSubjects(g.db, "app", form("Priya Raman"))).size).toBe(0);
+    expect((await digilockerCoveredSubjects(fakeDb().db, "app", form("Priya Raman"))).size).toBe(0);
+  });
+
+  it("covers someone who typed no name before verifying, once the form carries DigiLocker's own name", async () => {
+    const f = fakeDb();
+    await startDigilocker({ db: f.db, applicationId: "app", subject: "partner", redirectUrl: "https://x.example/done" });
+    await refreshDigilocker(input(f, { typedName: "" }));
+    expect((await digilockerCoveredSubjects(f.db, "app", form("Priya Raman"))).has("partner")).toBe(true);
+    expect((await digilockerCoveredSubjects(f.db, "app", form(""))).has("partner")).toBe(false);
   });
 });

@@ -1,5 +1,6 @@
 import "server-only";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
+import { digilockerCoveredSubjects } from "@waytara/supabase/partner-digilocker";
 import { cashfreeConfigured } from "@waytara/supabase/partner-cashfree";
 import { checkInputHash, runChecks, loadResults, type Actor, type CheckResult } from "@waytara/supabase/partner-verification-run";
 import { PARTNER_CHECK_LIMIT, PARTNER_KINDS, gstinFill, partnerMessage, type VerificationKind, type VerificationStatus } from "@waytara/supabase/partner-verify-rules";
@@ -33,15 +34,17 @@ const view = (kind: VerificationKind, r: { status: VerificationStatus; code: str
 };
 
 /** Whether automatic checks are set up, and the partner's stored results (as they may see them). */
-export async function partnerCheckViews(applicationId: string, partnerType: string | null): Promise<{ configured: boolean; checks: PartnerCheckView[] }> {
+export async function partnerCheckViews(applicationId: string, partnerType: string | null): Promise<{ configured: boolean; checks: PartnerCheckView[]; digilockerCovers: string[] }> {
   const configured = cashfreeConfigured();
-  const stored = await loadResults(createServiceRoleClient(), applicationId);
+  const db = createServiceRoleClient();
+  const stored = await loadResults(db, applicationId);
   const { data } = await loadOnboarding(applicationId);
   const checks = PARTNER_KINDS.flatMap((k) => {
     const r = stored[`partner|${k}`];
     return r ? [view(k, r, r.partner_attempts, checkInputHash(k as HashKind, partnerType, data))] : [];
   });
-  return { configured, checks };
+  // who has been verified through DigiLocker, so the page can stop asking them for a photo ID
+  return { configured, checks, digilockerCovers: [...(await digilockerCoveredSubjects(db, applicationId, data))] };
 }
 
 /** Runs the checks the partner asked for (only PAN, GST and bank: the others are not theirs to ask for) and returns what they may be told. */

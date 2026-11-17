@@ -1,6 +1,8 @@
 import { redirect } from "next/navigation";
 import { ActionForm } from "@waytara/ui/action-form";
 import { LICENCE_TYPES, ONBOARDING_LIMITS } from "@waytara/supabase/partner-onboarding";
+import { digilockerCoveredSubjects } from "@waytara/supabase/partner-digilocker";
+import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { licenceStatus, todayIst } from "@waytara/supabase/partner-account";
 import { PortalDocuments } from "@/components/partner/portal-documents";
 import { NotYet } from "@/components/partner/not-yet";
@@ -68,7 +70,7 @@ export default async function PartnerLicencesPage() {
             <h2 className="text-lg font-semibold tracking-tight text-theme-primary">Documents</h2>
             <p className="mt-1 text-sm text-theme-secondary">Our team uses these only to verify you, and shares them with no one outside WayTara. Send a new one when something is renewed or a person joins your team; our team checks it before it counts.</p>
           </div>
-          <PortalDocuments partnerType={app.partnerType} data={data} initialDocuments={documents} />
+          <PortalDocuments partnerType={app.partnerType} data={data} initialDocuments={documents} covered={[...(await digilockerCoveredSubjects(createServiceRoleClient(), app.id, data))]} />
         </section>
       </div>
     </main>

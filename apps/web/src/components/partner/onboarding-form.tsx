@@ -240,6 +240,16 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
   // What each answer was about (the numbers and names at the time), so an answer is hidden as soon as any of them is changed: it would be for the old number.
   const fingerprint = (kind: string) => fpOf(kind, data);
   const [answeredFor, setAnsweredFor] = React.useState<Record<string, string>>({});
+  // Who has been verified through DigiLocker ("partner", "member:<key>"): they are not asked for a photo ID. Asked again whenever the page changes part (a team member may
+  // have verified on their own phone meanwhile) and when the partner's own verification completes.
+  const [covered, setCovered] = React.useState<string[]>([]);
+  const refreshCovered = React.useCallback(async () => {
+    const r = await call<{ digilockerCovers?: string[] }>(`${base}/verify`, "GET");
+    if (r.ok) setCovered(r.data.digilockerCovers ?? []);
+  }, [base]);
+  React.useEffect(() => {
+    void refreshCovered();
+  }, [step, refreshCovered]);
   React.useEffect(() => {
     let live = true;
     void call<{ configured: boolean; checks: CheckView[] }>(`${base}/verify`, "GET").then((r) => {
@@ -284,6 +294,8 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
       ...(!p.gender && i.gender ? { gender: i.gender } : {}),
       ...(!p.permanentAddress.trim() && i.address ? { permanentAddress: i.address.slice(0, 400) } : {}),
     });
+    // the photo ID is not needed from here on: ask the server who is covered now (the name above is part of that)
+    void saveNow().then(() => refreshCovered());
   };
   // What the GST register says about the business, offered for the blank fields only (never over what the partner has typed).
   const gstView = checkOf("gstin");
@@ -340,9 +352,10 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
   }, [ifsc]);
 
   // ---- what is still missing ----
-  const gaps = onboardingGaps(partnerType, data, store.docs);
+  const coveredSet = new Set(covered);
+  const gaps = onboardingGaps(partnerType, data, store.docs, new Date(), coveredSet);
   const gapsOf = (s: StepId) => gaps.filter((g) => g.section === s);
-  const reqs = documentRequirements(partnerType, data);
+  const reqs = documentRequirements(partnerType, data, { idByDigilocker: coveredSet.has("partner") });
   const reqsOf = (s: SectionId) => reqs.filter((r) => r.section === s);
 
   async function send() {
@@ -812,7 +825,7 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
                     {m.name && <CrewLink base={base} memberId={memberKey(m, i)} name={m.name} email={m.email} phone={m.phone} invite={invites.find((x) => x.memberId === memberKey(m, i))} onSent={() => void loadInvites()} beforeSend={saveNow} />}
                     <div className="space-y-3 sm:col-span-2">
                       {m.name ? (
-                        memberRequirements(m.needsLicence, m.siteRole).map((r) => (
+                        memberRequirements(m.needsLicence, m.siteRole, coveredSet.has(subject)).map((r) => (
                           <DocumentSlot key={r.kind} store={store} kind={r.kind} subject={subject} label={r.label} hint={r.hint} need={r.need} satisfied={r.anyOf ? r.anyOf.some((k) => theirs.includes(k)) : undefined} />
                         ))
                       ) : (

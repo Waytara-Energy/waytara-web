@@ -1,8 +1,9 @@
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { CashfreeError, cashfreeConfigured, compareFaces, compareNames, createDigilockerUrl, digilockerAadhaar, digilockerStatus, newVerificationId } from "./partner-cashfree";
+import { memberKey, memberSubject, type OnboardingData } from "./partner-onboarding";
 import { imageType, newest, type DocRow } from "./partner-verification-run";
-import { digilockerIdentity, digilockerVerdict, errorVerdict, faceMatchVerdict, partnerMessage, type DigilockerIdentity, type Verdict, type VerificationKind, type VerificationStatus } from "./partner-verify-rules";
+import { digilockerCoversId, digilockerIdentity, digilockerVerdict, errorVerdict, faceMatchVerdict, partnerMessage, type DigilockerIdentity, type Verdict, type VerificationKind, type VerificationStatus } from "./partner-verify-rules";
 
 // Identity through DigiLocker (Cashfree Secure ID): the person opens a link, agrees on DigiLocker's own page, and we receive what DigiLocker states about them. Used by both
 // apps. What is kept is deliberately small: the stated name, date of birth, gender and address, the last four digits of the Aadhaar number, and the verdicts. The full number
@@ -34,8 +35,8 @@ const WORDS: Record<Exclude<DigilockerState, "none" | "authenticated">, string> 
 
 /** What a team member is told: they did not type the name or fill in a form, and they are not the one who applied. */
 function memberMessage(verdict: VerificationStatus, code: string): string {
-  if (verdict === "passed") return "You are verified with DigiLocker. Thank you.";
-  if (code === "name_differs" || code === "name_missing") return "You are verified with DigiLocker, but the name on it is not a close match to the name given for you. Our team will look at it.";
+  if (verdict === "passed") return "You are verified with DigiLocker, so you do not need to send a photo ID. Thank you.";
+  if (code === "name_differs" || code === "name_missing") return "You are verified with DigiLocker, but the name on it is not a close match to the name given for you, so please send a photo ID as well. Our team will look at it.";
   if (code === "under_age") return "DigiLocker shows a date of birth that makes you under 18. Please contact the person who listed you, or us.";
   return "We could not verify you with DigiLocker. Please try again, or add your documents below instead.";
 }
@@ -229,6 +230,26 @@ export async function refreshDigilocker(input: {
   portrait = null;
 
   return viewOf(db, applicationId, subject);
+}
+
+/**
+ * The people whose DigiLocker verification stands in for a photo ID right now: "partner" and "member:<key>". A person counts when it passed and the name on the form is still
+ * the one that was compared or DigiLocker's own (see digilockerCoversId). Used to relax the photo ID requirement for exactly those people.
+ */
+export async function digilockerCoveredSubjects(db: Db, applicationId: string, data: OnboardingData): Promise<Set<string>> {
+  const [{ data: checks }, { data: sessions }] = await Promise.all([
+    db.from("partner_verifications").select("subject, status, detail").eq("application_id", applicationId).eq("kind", "digilocker"),
+    db.from("partner_digilocker").select("subject, identity").eq("application_id", applicationId).eq("status", "authenticated"),
+  ]);
+  const stated = new Map(((sessions ?? []) as { subject: string; identity: { name?: string } | null }[]).map((s) => [s.subject, s.identity?.name ?? ""]));
+  const current = new Map<string, string>([["partner", data.person.name]]);
+  data.team.members.forEach((m, i) => current.set(memberSubject(memberKey(m, i)), m.name));
+  const covered = new Set<string>();
+  for (const c of (checks ?? []) as { subject: string; status: string; detail: { typed_name?: string } | null }[]) {
+    if (!stated.has(c.subject)) continue;
+    if (digilockerCoversId({ status: c.status, typedAtVerification: c.detail?.typed_name ?? "", stated: stated.get(c.subject), currentTyped: current.get(c.subject) })) covered.add(c.subject);
+  }
+  return covered;
 }
 
 /** Reads the stored view without asking anyone (for showing the page). */

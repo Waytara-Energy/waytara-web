@@ -17,9 +17,9 @@ import { DocumentError, DocumentSlot, ExtraDocuments, useDocumentStore } from ".
  * An approved partner's documents, in the same groups as their onboarding: add a renewed licence, a new team member's ID and certificate, more photos of work; open
  * or download what was sent; take a file back. A newly added file or person is checked by the team before it counts.
  */
-export function PortalDocuments({ partnerType, data, initialDocuments }: { partnerType: string | null; data: OnboardingData; initialDocuments: OnboardingDocument[] }) {
+export function PortalDocuments({ partnerType, data, initialDocuments, covered = [] }: { partnerType: string | null; data: OnboardingData; initialDocuments: OnboardingDocument[]; /** Who was verified through DigiLocker ("partner", "member:<key>"): they are not asked for a photo ID. */ covered?: string[] }) {
   const store = useDocumentStore("/api/partner/track/me", initialDocuments);
-  const reqs = documentRequirements(partnerType, data);
+  const reqs = documentRequirements(partnerType, data, { idByDigilocker: covered.includes("partner") });
   const mine = store.docs.filter((d) => d.subject === "partner").map((d) => d.kind);
   const groups = SECTIONS.map((s) => ({ ...s, reqs: reqs.filter((r) => r.section === s.id) })).filter((g) => g.reqs.length > 0);
 
@@ -54,7 +54,7 @@ export function PortalDocuments({ partnerType, data, initialDocuments }: { partn
                   <span className="font-medium text-theme-primary">{m.name || `Person ${i + 1}`}</span>
                   {m.role ? ` · ${m.role}` : ""}
                 </p>
-                {memberRequirements(m.needsLicence, m.siteRole).map((r) => (
+                {memberRequirements(m.needsLicence, m.siteRole, covered.includes(subject)).map((r) => (
                   <DocumentSlot key={r.kind} store={store} kind={r.kind} subject={subject} label={r.label} hint={r.hint} need={r.need} satisfied={r.anyOf ? r.anyOf.some((k) => theirs.includes(k)) : undefined} />
                 ))}
               </div>

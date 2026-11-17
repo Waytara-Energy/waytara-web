@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { bankVerdict, digilockerIdentity, digilockerVerdict, errorVerdict, faceMatchVerdict, gstinFill, gstinVerdict, livenessVerdict, nameMatchVerdict, nameSimilarity, normaliseDob, normaliseName, panInGstin, panVerdict, partnerMessage, udyamVerdict } from "./partner-verify-rules";
+import { bankVerdict, digilockerCoversId, digilockerIdentity, digilockerVerdict, errorVerdict, faceMatchVerdict, gstinFill, gstinVerdict, livenessVerdict, nameMatchVerdict, nameSimilarity, normaliseDob, normaliseName, panInGstin, panVerdict, partnerMessage, udyamVerdict } from "./partner-verify-rules";
 
 describe("DigiLocker identity", () => {
   const doc = { status: "SUCCESS", uid: "xxxxxxxx5647", name: "John Doe", dob: "14-06-1988", gender: "M", photo_link: "BASE64PHOTO", split_address: { house: "Plot 42", street: "3rd Main Road", vtc: "Anna Nagar", dist: "Chennai", state: "Tamil Nadu", pincode: "600040", landmark: "", po: "Anna Nagar", subdist: "Chennai" } };
@@ -25,8 +25,23 @@ describe("DigiLocker identity", () => {
     expect(digilockerVerdict(id, { typedName: "John Doe", nameMatch: null, now })).toMatchObject({ status: "review", code: "name_missing" });
     expect(digilockerVerdict(id, { now })).toMatchObject({ status: "passed", code: "ok" });
     expect(digilockerVerdict({ ...id, dob: "2010-01-01" }, { typedName: "John Doe", nameMatch: { result: "DIRECT_MATCH" }, now })).toMatchObject({ status: "failed", code: "under_age" });
-    // the stored detail never carries the name, date of birth or address
-    expect(JSON.stringify(digilockerVerdict(id, { typedName: "John Doe", nameMatch: { result: "DIRECT_MATCH" }, now }).detail)).not.toMatch(/John|1988|Plot/);
+    // the stored detail never carries DigiLocker's date of birth or address, only the name that was typed (kept to notice a later change)
+    const detail = digilockerVerdict(id, { typedName: "John Doe", nameMatch: { result: "DIRECT_MATCH" }, now }).detail;
+    expect(JSON.stringify(detail)).not.toMatch(/1988|Plot|Anna/);
+    expect(detail.typed_name).toBe("JOHN DOE");
+  });
+  it("lets DigiLocker stand in for a photo ID only while it passed and the name on the form is still the one verified (or DigiLocker's own)", () => {
+    const ok = { status: "passed", typedAtVerification: "JOHN DOE", stated: "John Doe", currentTyped: "John Doe" };
+    expect(digilockerCoversId(ok)).toBe(true);
+    // the typed name was blank when verifying, and the form was filled with DigiLocker's own name
+    expect(digilockerCoversId({ ...ok, typedAtVerification: "", currentTyped: "JOHN DOE" })).toBe(true);
+    // needs a look or failed: the photo ID is still asked for
+    expect(digilockerCoversId({ ...ok, status: "review" })).toBe(false);
+    expect(digilockerCoversId({ ...ok, status: "failed" })).toBe(false);
+    expect(digilockerCoversId({ ...ok, status: undefined })).toBe(false);
+    // verified as one person, then the name on the form changed to another: not covered
+    expect(digilockerCoversId({ ...ok, currentTyped: "Raja Kumar" })).toBe(false);
+    expect(digilockerCoversId({ ...ok, currentTyped: "" })).toBe(false);
   });
   it("says in plain words what happened, and compares the selfie with DigiLocker's photo in its own words", () => {
     expect(partnerMessage("digilocker", { status: "passed", code: "ok" })).toContain("verified with DigiLocker");

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse, after } from "next/server";
 import { z } from "zod";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { onboardingGaps } from "@waytara/supabase/partner-onboarding";
+import { digilockerCoveredSubjects } from "@waytara/supabase/partner-digilocker";
 import { fail, openEditable } from "@/lib/partner-track-api";
 import { loadOnboarding } from "@/lib/partner-onboarding-server";
 import { signedAgreement } from "@/lib/partner-agreement-server";
@@ -33,7 +34,9 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     if (!schema.safeParse(await req.json().catch(() => null)).success) return fail("Please tick both boxes: that what you sent is true, and that you will follow the safety rules.", 400);
 
     const state = await loadOnboarding(app.id);
-    const gaps = onboardingGaps(app.partnerType, state.data, state.documents);
+    // a person verified through DigiLocker (and whose name on the form is still the one that was verified) need not send a photo ID
+    const covered = await digilockerCoveredSubjects(createServiceRoleClient(), app.id, state.data);
+    const gaps = onboardingGaps(app.partnerType, state.data, state.documents, new Date(), covered);
     if (gaps.length > 0) return fail("A few things are still missing.", 400, { gaps });
     // the partner agreement of the current version must have been accepted with the e-mail code before it can be sent
     if (!(await signedAgreement(app.id))) return fail("Please read and sign the partner agreement first.", 400);

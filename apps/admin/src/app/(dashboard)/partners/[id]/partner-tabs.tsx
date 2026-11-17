@@ -19,6 +19,7 @@ import {
 } from "@waytara/supabase/partner-onboarding";
 import { licenceStatus, todayIst } from "@waytara/supabase/partner-account";
 import { CHECKS, MEMBER_CHECKS, checklistFor, memberChecklist, memberStatus, memberSubject, screeningChecklist, type CheckKey } from "@waytara/supabase/partner-verification";
+import { digilockerCoversId } from "@waytara/supabase/partner-verify-rules";
 import type { VerificationData } from "@/lib/partner-verification-data";
 import { PARTNER_SERVICE_LABEL, PARTNER_TYPE_LABEL, readAnswers } from "@/lib/partners";
 import { Badge } from "@/components/ui/badge";
@@ -87,11 +88,19 @@ function Check({ app, v, k }: { app: AppView; v: VerificationData; k: CheckKey }
 }
 
 /** The documents asked of this partner in one part of the onboarding, as slots for the admin's page. */
-function slotsOf(app: AppView, data: OnboardingData | null, section: SectionId, only?: readonly string[]): DocSlot[] {
-  return documentRequirements(app.partner_type, data ?? emptyOnboarding())
+function slotsOf(app: AppView, data: OnboardingData | null, section: SectionId, only?: readonly string[], idByDigilocker = false): DocSlot[] {
+  return documentRequirements(app.partner_type, data ?? emptyOnboarding(), { idByDigilocker })
     .filter((r) => r.section === section && (!only || only.includes(r.kind)))
     .map((r) => ({ kind: r.kind, label: r.label, need: r.need, basis: r.basis, anyOf: r.anyOf }));
 }
+/** Whether a person's DigiLocker verification stands in for a photo ID (it passed, and the name on their form is still the one verified): their photo ID is then not required. */
+const coversId = (v: VerificationData, subject: string, typedName: string | undefined): boolean =>
+  digilockerCoversId({
+    status: v.checks[`${subject}|digilocker`]?.status,
+    typedAtVerification: String((v.checks[`${subject}|digilocker`]?.detail as { typed_name?: unknown } | undefined)?.typed_name ?? ""),
+    stated: v.digilocker[subject]?.identity?.name,
+    currentTyped: typedName,
+  });
 /** A better copy can be asked for only while the partner can still act on it. */
 const canAsk = (app: AppView) => app.status === "verification" || app.status === "onboarding";
 const notYet = (data: OnboardingData | null) => (data ? undefined : "They have not started their onboarding yet. This is what they will be asked for.");
@@ -270,7 +279,7 @@ export function PersonalTab({ app, v, data, docs }: { app: AppView; v: Verificat
         </dl>
       </Section>
       <Section title="Identity documents">
-        <DocSlots appId={app.id} slots={slotsOf(app, data, "personal")} docs={docs} canAsk={canAsk(app)} restKinds={["identity", "selfie", "photo", "police_verification", "driving_licence"]} />
+        <DocSlots appId={app.id} slots={slotsOf(app, data, "personal", undefined, coversId(v, "partner", data?.person.name))} docs={docs} canAsk={canAsk(app)} restKinds={["identity", "selfie", "photo", "police_verification", "driving_licence"]} />
       </Section>
       <Section title="Partner agreement" description={v.agreements.length === 0 ? "Not signed yet. The partner signs it with an e-mail code on the last page of their onboarding, and cannot send the application before." : "Accepted with a code e-mailed to the address we confirmed. The fingerprint is of the exact text that was shown."}>
         {v.agreements.length > 0 && (
@@ -407,7 +416,7 @@ export function TeamTab({ app, v, data, docs }: { app: AppView; v: VerificationD
                 </dl>
               )}
               <AutoChecks appId={app.id} subject={memberSubject(key)} kinds={["digilocker", "face_match", "face_liveness"]} results={v.checks} on={v.autoOn} env={v.autoEnv} accept={{ digilocker: { label: "Identity", state: v.memberStates[key]?.member_identity ?? "pending" }, face_match: { label: "Identity", state: v.memberStates[key]?.member_identity ?? "pending" } }} />
-              <DocSlots appId={app.id} subject={memberSubject(key)} slots={memberRequirements(m.needsLicence, m.siteRole).map((r) => ({ kind: r.kind, label: r.label, need: r.need, anyOf: r.anyOf }))} docs={docs} canAsk={canAsk(app)} restKinds="all" />
+              <DocSlots appId={app.id} subject={memberSubject(key)} slots={memberRequirements(m.needsLicence, m.siteRole, coversId(v, memberSubject(key), m.name)).map((r) => ({ kind: r.kind, label: r.label, need: r.need, anyOf: r.anyOf }))} docs={docs} canAsk={canAsk(app)} restKinds="all" />
               {memberChecklist(m.needsLicence).map((c) => {
                 const def = MEMBER_CHECKS.find((x) => x.key === c.key)!;
                 return <VerifyRow key={c.key} appId={app.id} subject={memberSubject(key)} itemKey={c.key} label={def.label} hint={def.hint} state={v.memberStates[key]?.[c.key] ?? "pending"} note={v.memberRows[key]?.[c.key]?.note ?? null} checkedAt={v.memberRows[key]?.[c.key]?.checked_at ?? null} />;
