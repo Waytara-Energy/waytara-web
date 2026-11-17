@@ -14,21 +14,23 @@ export function digilockerRedirectUrl(): string {
   return `${/^https:\/\//i.test(base) ? base : "https://www.waytaraenergy.com"}/partner/digilocker-done`;
 }
 
-/** Starts the partner's own DigiLocker session and returns the link to open. */
-export async function startForPartner(applicationId: string): Promise<{ url: string }> {
-  return startDigilocker({ db: createServiceRoleClient(), applicationId, subject: "partner", redirectUrl: digilockerRedirectUrl() });
+/** Starts a DigiLocker session for the partner ("partner") or for one person on their team ("member:<key>") and returns the link to open. */
+export async function startFor(applicationId: string, subject: string): Promise<{ url: string }> {
+  return startDigilocker({ db: createServiceRoleClient(), applicationId, subject, redirectUrl: digilockerRedirectUrl() });
 }
 
-/** Where the partner's session stands; completes it (and records the verdicts) when they have agreed. */
-export async function refreshForPartner(applicationId: string): Promise<DigilockerView> {
+/**
+ * Where a session stands; completes it (and records the verdicts) when the person has agreed. `typedName` is the name to compare with DigiLocker's: the one the partner typed
+ * for themselves, or the one the partner gave for the team member. The selfie compared is the one filed under the same subject.
+ */
+export async function refreshFor(applicationId: string, subject: string, typedName: string): Promise<DigilockerView> {
   const db = createServiceRoleClient();
-  const state = await loadOnboarding(applicationId);
-  const { data: docs } = await db.from("partner_documents").select("id, kind, subject, file_name, storage_path, uploaded_at").eq("application_id", applicationId);
+  const { data: docs } = await db.from("partner_documents").select("id, kind, subject, file_name, storage_path, uploaded_at").eq("application_id", applicationId).eq("subject", subject);
   return refreshDigilocker({
     db,
     applicationId,
-    subject: "partner",
-    typedName: state.data.person.name,
+    subject,
+    typedName,
     docs: docs ?? [],
     download: async (path) => {
       const { data } = await db.storage.from(PARTNER_BUCKET).download(path);
@@ -37,5 +39,14 @@ export async function refreshForPartner(applicationId: string): Promise<Digilock
   });
 }
 
+export const startForPartner = (applicationId: string) => startFor(applicationId, "partner");
+
+/** The partner's own session: compared with the name they typed for themselves. */
+export async function refreshForPartner(applicationId: string): Promise<DigilockerView> {
+  const state = await loadOnboarding(applicationId);
+  return refreshFor(applicationId, "partner", state.data.person.name);
+}
+
 /** The stored state, without asking anyone. */
-export const viewForPartner = (applicationId: string): Promise<DigilockerView> => digilockerView(createServiceRoleClient(), applicationId, "partner");
+export const viewFor = (applicationId: string, subject: string): Promise<DigilockerView> => digilockerView(createServiceRoleClient(), applicationId, subject);
+export const viewForPartner = (applicationId: string) => viewFor(applicationId, "partner");

@@ -32,6 +32,14 @@ const WORDS: Record<Exclude<DigilockerState, "none" | "authenticated">, string> 
   failed: "DigiLocker could not give us your details. Please try again, or fill the details in yourself and send your documents instead.",
 };
 
+/** What a team member is told: they did not type the name or fill in a form, and they are not the one who applied. */
+function memberMessage(verdict: VerificationStatus, code: string): string {
+  if (verdict === "passed") return "You are verified with DigiLocker. Thank you.";
+  if (code === "name_differs" || code === "name_missing") return "You are verified with DigiLocker, but the name on it is not a close match to the name given for you. Our team will look at it.";
+  if (code === "under_age") return "DigiLocker shows a date of birth that makes you under 18. Please contact the person who listed you, or us.";
+  return "We could not verify you with DigiLocker. Please try again, or add your documents below instead.";
+}
+
 interface Session {
   id: string;
   verification_id: string;
@@ -122,7 +130,7 @@ async function viewOf(db: Db, applicationId: string, subject: string): Promise<D
   const i = (row.identity ?? {}) as Partial<DigilockerIdentity>;
   return {
     state: "authenticated",
-    message: partnerMessage("digilocker", { status: verdict, code }),
+    message: subject === "partner" ? partnerMessage("digilocker", { status: verdict, code }) : memberMessage(verdict, code),
     verdict,
     identity: { name: i.name ?? "", dob: i.dob ?? "", gender: i.gender ?? "", address: i.address ?? "", pin: i.pin ?? "", uid_last4: row.uid_last4 ?? "" },
   };

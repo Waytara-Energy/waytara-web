@@ -396,7 +396,17 @@ export function TeamTab({ app, v, data, docs }: { app: AppView; v: VerificationD
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <AutoChecks appId={app.id} subject={memberSubject(key)} kinds={["face_match", "face_liveness"]} results={v.checks} on={v.autoOn} env={v.autoEnv} accept={{ face_match: { label: "Identity", state: v.memberStates[key]?.member_identity ?? "pending" } }} />
+              {v.digilocker[memberSubject(key)]?.status === "authenticated" && (
+                <dl className="grid gap-3 rounded-lg border border-border p-3 text-sm sm:grid-cols-2">
+                  <p className="text-xs text-muted-foreground sm:col-span-2">Verified through DigiLocker: what DigiLocker itself states about them (only the last four digits of the Aadhaar number are kept, and no photo). Compare it with the name listed above.</p>
+                  <Fact label="Name on DigiLocker">{v.digilocker[memberSubject(key)].identity.name}</Fact>
+                  <Fact label="Aadhaar ending">{v.digilocker[memberSubject(key)].uid_last4}</Fact>
+                  <Fact label="Date of birth">{v.digilocker[memberSubject(key)].identity.dob}</Fact>
+                  <Fact label="Gender">{v.digilocker[memberSubject(key)].identity.gender}</Fact>
+                  <Fact label="Address on DigiLocker">{v.digilocker[memberSubject(key)].identity.address}</Fact>
+                </dl>
+              )}
+              <AutoChecks appId={app.id} subject={memberSubject(key)} kinds={["digilocker", "face_match", "face_liveness"]} results={v.checks} on={v.autoOn} env={v.autoEnv} accept={{ digilocker: { label: "Identity", state: v.memberStates[key]?.member_identity ?? "pending" }, face_match: { label: "Identity", state: v.memberStates[key]?.member_identity ?? "pending" } }} />
               <DocSlots appId={app.id} subject={memberSubject(key)} slots={memberRequirements(m.needsLicence, m.siteRole).map((r) => ({ kind: r.kind, label: r.label, need: r.need, anyOf: r.anyOf }))} docs={docs} canAsk={canAsk(app)} restKinds="all" />
               {memberChecklist(m.needsLicence).map((c) => {
                 const def = MEMBER_CHECKS.find((x) => x.key === c.key)!;

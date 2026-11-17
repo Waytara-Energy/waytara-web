@@ -228,3 +228,47 @@ describe("waiting, agreeing, declining", () => {
     expect(calls).toHaveLength(0);
   });
 });
+
+describe("a team member", () => {
+  const memberSelfie: DocRow = { ...selfieDoc, id: "ms1", subject: "member:r1", storage_path: "app/ms1-r.jpg" };
+  async function memberStarted() {
+    const f = fakeDb();
+    await startDigilocker({ db: f.db, applicationId: "app", subject: "member:r1", redirectUrl: "https://x.example/done" });
+    calls = [];
+    return f;
+  }
+
+  it("has their own session, kept apart from the partner's, with the verdicts filed under their own subject", async () => {
+    const f = await memberStarted();
+    await startDigilocker({ db: f.db, applicationId: "app", subject: "partner", redirectUrl: "https://x.example/done" });
+    expect(f.tables.partner_digilocker.map((r) => r.subject).sort()).toEqual(["member:r1", "partner"]);
+    calls = [];
+    const v = await refreshDigilocker({ ...input(f, { subject: "member:r1", typedName: "Priya Raman", docs: [memberSelfie] }) });
+    expect(v.state).toBe("authenticated");
+    expect(f.tables.partner_digilocker.find((r) => r.subject === "member:r1")).toMatchObject({ status: "authenticated", uid_last4: "5647" });
+    expect(f.tables.partner_digilocker.find((r) => r.subject === "partner")).toMatchObject({ status: "pending" });
+    expect(f.tables.partner_verifications.filter((r) => r.subject === "member:r1").map((r) => r.kind).sort()).toEqual(["digilocker", "face_match"]);
+    expect(f.tables.partner_verifications.filter((r) => r.subject === "partner")).toHaveLength(0);
+  });
+
+  it("is told in their own words, not the partner's (they typed nothing and filled in no form)", async () => {
+    const f = await memberStarted();
+    const ok = await refreshDigilocker(input(f, { subject: "member:r1", docs: [memberSelfie] }));
+    expect(ok.message).toBe("You are verified with DigiLocker. Thank you.");
+    expect(ok.message).not.toMatch(/filled in|you typed/i);
+
+    const g = await memberStarted();
+    answers["POST /name-match"] = { body: { score: 0.1, reason: "NO_MATCH" } };
+    const diff = await refreshDigilocker(input(g, { subject: "member:r1", typedName: "Raja Kumar", docs: [memberSelfie] }));
+    expect(diff.verdict).toBe("review");
+    expect(diff.message).toContain("name given for you");
+    expect(diff.message).not.toContain("you typed");
+  });
+
+  it("compares only their own selfie, never the partner's", async () => {
+    const f = await memberStarted();
+    // only the partner has a selfie: nothing to compare the member's DigiLocker photo with
+    await refreshDigilocker(input(f, { subject: "member:r1", docs: [selfieDoc] }));
+    expect(calls.some((c) => c.path === "/face-match")).toBe(false);
+  });
+});

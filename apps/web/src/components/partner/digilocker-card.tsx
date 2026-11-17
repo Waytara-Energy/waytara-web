@@ -29,7 +29,7 @@ async function call<T>(url: string, method: "GET" | "POST"): Promise<{ ok: true;
  * gender and address it states. While the partner is on that page this page asks for the result every few seconds. When they have agreed, `onVerified` hands the details to
  * the form, which fills only what is still blank.
  */
-export function DigilockerCard({ base, onVerified, className }: { base: string; onVerified: (identity: NonNullable<DigilockerPageView["identity"]>) => void; className?: string }) {
+export function DigilockerCard({ base, onVerified, fills = true, className }: { base: string; onVerified?: (identity: NonNullable<DigilockerPageView["identity"]>) => void; /** Whether verifying fills in form fields (the partner's own page does; a team member's link has none). */ fills?: boolean; className?: string }) {
   const [on, setOn] = React.useState<boolean | null>(null);
   const [view, setView] = React.useState<DigilockerPageView>({ state: "none", message: "" });
   const [starting, setStarting] = React.useState(false);
@@ -42,7 +42,7 @@ export function DigilockerCard({ base, onVerified, className }: { base: string; 
   const hand = React.useCallback((v: DigilockerPageView) => {
     if (v.state === "authenticated" && v.identity && delivered.current !== v.identity.name + v.identity.dob) {
       delivered.current = v.identity.name + v.identity.dob;
-      handler.current(v.identity);
+      handler.current?.(v.identity);
     }
   }, []);
 
@@ -104,7 +104,10 @@ export function DigilockerCard({ base, onVerified, className }: { base: string; 
             <ShieldCheck className="size-4 text-theme-accent" aria-hidden="true" />
             Verify with DigiLocker
           </p>
-          <p className="mt-1 text-sm leading-relaxed text-theme-muted">One tap, on DigiLocker&apos;s own page. It fills in your date of birth and address. We never see or keep your Aadhaar number, password or OTP, only the last four digits.</p>
+          <p className="mt-1 text-sm leading-relaxed text-theme-muted">
+            One tap, on DigiLocker&apos;s own page. {fills ? "It fills in your date of birth and address. " : "It confirms who you are. "}We never see or keep your Aadhaar number, password or OTP, only the last four digits.
+          </p>
+          {view.state !== "authenticated" && <p className="mt-1 text-xs leading-relaxed text-theme-muted">Tip: add your live selfie first (below), so we can compare your face with the photo DigiLocker holds.</p>}
         </div>
         {view.state !== "authenticated" && (
           <Button type="button" size="sm" onClick={() => void start()} disabled={starting || view.state === "pending"}>
