@@ -4,7 +4,7 @@
 // The checks are an aid to the admin, never the decision: a passed check is evidence the admin accepts with one click, a "review" is a question for a person, and
 // nothing here approves anyone.
 
-export const VERIFICATION_KINDS = ["pan", "gstin", "bank", "name_match", "face_match", "face_liveness"] as const;
+export const VERIFICATION_KINDS = ["pan", "gstin", "udyam", "bank", "name_match", "face_match", "face_liveness"] as const;
 export type VerificationKind = (typeof VERIFICATION_KINDS)[number];
 export type VerificationStatus = "passed" | "review" | "failed" | "error";
 
@@ -13,6 +13,7 @@ export const isVerificationKind = (v: unknown): v is VerificationKind => (VERIFI
 export const KIND_LABEL: Record<VerificationKind, string> = {
   pan: "PAN",
   gstin: "GST registration",
+  udyam: "Udyam (MSME) registration",
   bank: "Bank account",
   name_match: "PAN name against the bank account name",
   face_match: "Selfie against the photo ID",
@@ -24,7 +25,7 @@ export const STATUS_LABEL: Record<VerificationStatus, string> = { passed: "Passe
 /** The partner's own check (PAN, GST, bank) may be asked for this many times by the partner: it cannot be used to look up other people's numbers. */
 export const PARTNER_CHECK_LIMIT = 3;
 /** The checks a partner can ask for themselves, before they send. The others (faces, the cross-check) the team and the system run. */
-export const PARTNER_KINDS: readonly VerificationKind[] = ["pan", "gstin", "bank"];
+export const PARTNER_KINDS: readonly VerificationKind[] = ["pan", "gstin", "udyam", "bank"];
 
 /** What a check found. `code` is a short reason for the page's own wording; `summary` is the admin's line; `detail` is the service's answer with the sensitive parts left out. */
 export interface Verdict {
@@ -166,6 +167,63 @@ export function gstinVerdict(a: GstinAnswer, ctx: { gstin: string; pan?: string;
   return { status: "passed", code: "ok", summary: `Active GST registration: ${legal || trade || "name not shown"}${trade && trade !== legal ? `, trading as ${trade}` : ""}.`, detail };
 }
 
+/**
+ * What a GST registration says about the business, for the partner to copy into their own details with one click: the registered name, the address and the year it was
+ * registered. Taken from the stored GST detail; null when there is nothing useful. The GST register is public, so showing it to the partner gives nothing away.
+ */
+export function gstinFill(detail: Record<string, unknown> | undefined): { name: string; address: string; started: string; pin: string } | null {
+  if (!detail) return null;
+  const s = (k: string) => (typeof detail[k] === "string" ? (detail[k] as string).trim() : "");
+  const name = s("legal_name") || s("trade_name");
+  const address = s("address");
+  const started = s("registered_on").match(/(\d{4})/)?.[1] ?? "";
+  const pin = address.match(/\b(\d{6})\b/)?.[1] ?? "";
+  return name || address || started ? { name, address, started, pin } : null;
+}
+
+// ---- Udyam (MSME) ----
+
+export interface UdyamAnswer {
+  /** Cashfree's reference for the call (kept so a question to Cashfree can quote it). */
+  reference_id?: number | string;
+  status?: string | null;
+  udyam_number?: string | null;
+  enterprise_name?: string | null;
+  organization_type?: string | null;
+  major_activity?: string | null;
+  enterprise_type?: string | null;
+  classification_year?: string | null;
+  date_of_incorporation?: string | null;
+  date_of_udyam_registration?: string | null;
+  split_address?: { city?: string | null; district?: string | null; state?: string | null; pincode?: string | null } | null;
+}
+
+export function udyamVerdict(a: UdyamAnswer, ctx: { businessName?: string }): Verdict {
+  const addr = a.split_address ?? {};
+  const detail = {
+    status: a.status ?? null,
+    enterprise_name: a.enterprise_name ?? null,
+    organization_type: a.organization_type ?? null,
+    major_activity: a.major_activity ?? null,
+    enterprise_type: a.enterprise_type ?? null,
+    classification_year: a.classification_year ?? null,
+    registered_on: a.date_of_udyam_registration ?? null,
+    incorporated_on: a.date_of_incorporation ?? null,
+    district: addr.district ?? null,
+    state: addr.state ?? null,
+    pincode: addr.pincode ?? null,
+  };
+  if (a.status === "UDYAM_NOT_FOUND") return { status: "failed", code: "not_found", summary: "No Udyam registration was found for this number.", detail };
+  if (a.status === "UDYAM_IS_CANCELLED") return { status: "failed", code: "cancelled", summary: "This Udyam registration has been cancelled.", detail };
+  if (a.status !== "SUCCESS") return { status: "failed", code: "not_found", summary: "The Udyam number could not be confirmed.", detail };
+  const name = a.enterprise_name ?? "";
+  const kind = [a.enterprise_type, a.classification_year ? `classified ${a.classification_year}` : ""].filter(Boolean).join(", ");
+  if (ctx.businessName && name && nameSimilarity(ctx.businessName, name) < 0.5) {
+    return { status: "review", code: "name_differs", summary: `Udyam registration found, but the business name given (${ctx.businessName}) differs from the enterprise name: ${name}${kind ? ` (${kind})` : ""}.`, detail };
+  }
+  return { status: "passed", code: "ok", summary: `Udyam registration found: ${name || "name not shown"}${kind ? ` (${kind})` : ""}.`, detail };
+}
+
 // ---- bank account ----
 
 export interface BankAnswer {
@@ -298,6 +356,13 @@ export function partnerMessage(kind: VerificationKind, v: Pick<Verdict, "status"
       if (v.code === "pan_mismatch") return "This GST number belongs to a different PAN from the one you gave. Please check both.";
       if (v.code === "inactive") return "That GST registration is not active. Please check it, or contact us.";
       return "No GST registration was found for that number. Please check it, or leave it empty if you are not registered.";
+    case "udyam": {
+      const enterprise = typeof v.detail?.enterprise_name === "string" ? v.detail.enterprise_name : "";
+      if (v.status === "passed") return `Udyam registration found${enterprise ? `: ${enterprise}` : ""}.`;
+      if (v.code === "name_differs") return `Udyam registration found${enterprise ? ` for ${enterprise}` : ""}, but it does not look like your business name. Please check. Our team will also look at it.`;
+      if (v.code === "cancelled") return "That Udyam registration has been cancelled. Please check it, or contact us.";
+      return "No Udyam registration was found for that number. Please check it, or leave it empty if you do not have one.";
+    }
     case "bank":
       if (v.status === "passed") return "Your bank account was found and the name matches.";
       if (v.code === "name_partial" || v.code === "name_missing") return "Your bank account was found, but the name on it is not a close match to the name you gave. Please check the name. Our team will also look at it.";

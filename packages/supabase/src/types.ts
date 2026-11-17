@@ -3627,6 +3627,56 @@ export type Database = {
           },
         ]
       }
+      partner_digilocker: {
+        Row: {
+          application_id: string
+          completed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          identity: Json
+          reference_id: string | null
+          status: string
+          subject: string
+          uid_last4: string | null
+          verification_id: string
+        }
+        Insert: {
+          application_id: string
+          completed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          identity?: Json
+          reference_id?: string | null
+          status?: string
+          subject: string
+          uid_last4?: string | null
+          verification_id: string
+        }
+        Update: {
+          application_id?: string
+          completed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          identity?: Json
+          reference_id?: string | null
+          status?: string
+          subject?: string
+          uid_last4?: string | null
+          verification_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_digilocker_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "partner_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       partner_document_access: {
         Row: {
           accessed_at: string

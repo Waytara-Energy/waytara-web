@@ -1,7 +1,7 @@
 import { createHash } from "node:crypto";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { isAccountNumber, isGstin, isIfsc, isPan, memberKey, type OnboardingData } from "./partner-onboarding";
-import { CashfreeError, cashfreeConfigured, checkLiveness, compareFaces, compareNames, verifyBank, verifyGstin, verifyPan } from "./partner-cashfree";
+import { isAccountNumber, isGstin, isIfsc, isPan, isUdyam, memberKey, type OnboardingData } from "./partner-onboarding";
+import { CashfreeError, cashfreeConfigured, checkLiveness, compareFaces, compareNames, verifyBank, verifyGstin, verifyPan, verifyUdyam } from "./partner-cashfree";
 import {
   PARTNER_CHECK_LIMIT,
   PARTNER_KINDS,
@@ -13,6 +13,7 @@ import {
   livenessVerdict,
   nameMatchVerdict,
   panVerdict,
+  udyamVerdict,
   type Verdict,
   type VerificationKind,
   type VerificationStatus,
@@ -107,7 +108,8 @@ export function panNameFor(partnerType: string | null, data: OnboardingData): st
  * What a PAN, GST or bank check was (or would be) asked about, as a fingerprint: the same number means the same question, so the stored answer still stands. Null when the
  * details are not all there yet. The page uses it to tell a partner whether the result they see is for what is saved now.
  */
-export function checkInputHash(kind: "pan" | "gstin" | "bank", partnerType: string | null, data: OnboardingData): string | null {
+export function checkInputHash(kind: "pan" | "gstin" | "udyam" | "bank", partnerType: string | null, data: OnboardingData): string | null {
+  if (kind === "udyam") return isUdyam(data.business.udyam) ? sha({ udyam: data.business.udyam, name: data.business.name }) : null;
   if (kind === "pan") return isPan(data.business.pan) ? sha({ pan: data.business.pan, name: panNameFor(partnerType, data) }) : null;
   if (kind === "gstin") return isGstin(data.business.gstin) ? sha({ gstin: data.business.gstin, pan: data.business.pan, name: data.business.name }) : null;
   const b = data.bank;
@@ -221,6 +223,17 @@ export async function runChecks(input: RunInput): Promise<CheckResult[]> {
           ask: async () => {
             const a = await verifyGstin({ gstin });
             return { ...gstinVerdict(a, { gstin, pan: isPan(data.business.pan) ? data.business.pan : undefined, businessName: data.business.name || undefined }), ref: ref(a) };
+          },
+        });
+    } else if (kind === "udyam") {
+      const udyam = data.business.udyam;
+      if (!isUdyam(udyam)) await one("udyam", "partner", { why: "Enter your Udyam number first, like UDYAM-TN-02-0048192." });
+      else
+        await one("udyam", "partner", {
+          hash: checkInputHash("udyam", input.partnerType, data)!,
+          ask: async () => {
+            const a = await verifyUdyam({ udyam });
+            return { ...udyamVerdict(a, { businessName: data.business.name || undefined }), ref: ref(a) };
           },
         });
     } else if (kind === "bank") {

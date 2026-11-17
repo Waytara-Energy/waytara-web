@@ -1,5 +1,5 @@
 import { constants, publicEncrypt, randomUUID } from "node:crypto";
-import type { FaceMatchAnswer, GstinAnswer, LivenessAnswer, NameMatchAnswer, PanAnswer, BankAnswer } from "./partner-verify-rules";
+import type { FaceMatchAnswer, GstinAnswer, LivenessAnswer, NameMatchAnswer, PanAnswer, BankAnswer, UdyamAnswer } from "./partner-verify-rules";
 
 // The one place that talks to Cashfree Secure ID (its Verification Suite). Server only: the keys are read from the environment and never leave it. Every call sends the
 // keys as x-client-id and x-client-secret; and, when a Cashfree "public key" is set up for two-factor authentication, a signature that proves the request is ours (the
@@ -79,7 +79,7 @@ function classify(status: number, body: ApiError | null): CashfreeError {
   return new CashfreeError("other", message, code, status);
 }
 
-async function call<T>(path: string, init: { json?: unknown; form?: FormData; version?: string }): Promise<T> {
+async function call<T>(path: string, init: { json?: unknown; form?: FormData; version?: string; get?: Record<string, string> }): Promise<T> {
   const cfg = config();
   if (!cfg) throw new CashfreeError("config", "Automatic checks are not set up on this server.");
   const headers: Record<string, string> = { "x-client-id": cfg.id, "x-client-secret": cfg.secret };
@@ -88,7 +88,8 @@ async function call<T>(path: string, init: { json?: unknown; form?: FormData; ve
   if (init.json !== undefined) headers["Content-Type"] = "application/json";
   let res: Response;
   try {
-    res = await fetch(`${cfg.base}${path}`, { method: "POST", headers, body: init.form ?? (init.json !== undefined ? JSON.stringify(init.json) : undefined), signal: AbortSignal.timeout(30_000) });
+    const url = `${cfg.base}${path}${init.get ? `?${new URLSearchParams(init.get).toString()}` : ""}`;
+    res = await fetch(url, { method: init.get ? "GET" : "POST", headers, body: init.get ? undefined : (init.form ?? (init.json !== undefined ? JSON.stringify(init.json) : undefined)), signal: AbortSignal.timeout(30_000) });
   } catch {
     throw new CashfreeError("upstream", "The verification service could not be reached.");
   }
@@ -101,6 +102,9 @@ async function call<T>(path: string, init: { json?: unknown; form?: FormData; ve
 export const verifyPan = (input: { pan: string; name?: string }): Promise<PanAnswer> => call<PanAnswer>("/pan", { json: { pan: input.pan, ...(input.name ? { name: cleanName(input.name) } : {}) }, version: "2022-10-26" });
 
 export const verifyGstin = (input: { gstin: string }): Promise<GstinAnswer> => call<GstinAnswer>("/gstin", { json: { GSTIN: input.gstin } });
+
+/** Whether a Udyam (MSME) registration number exists and is not cancelled, and the enterprise it belongs to. */
+export const verifyUdyam = (input: { udyam: string }): Promise<UdyamAnswer> => call<UdyamAnswer>("/udyam", { json: { verification_id: newId(), udyam: input.udyam } });
 
 /**
  * Asks the bank whether the account exists and in whose name (Cashfree sends a small test credit). A bank that has flagged the account as fraud answers with an error that

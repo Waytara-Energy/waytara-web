@@ -11,6 +11,8 @@ export interface CheckView {
   message: string;
   asksLeft: number;
   current: boolean;
+  /** A found GST registration's own details, which the partner may copy into their blank fields. */
+  fill?: { name: string; address: string; started: string; pin: string };
 }
 
 const STYLE = {

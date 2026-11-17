@@ -324,9 +324,9 @@ export function BusinessTab({ app, v, data, docs }: { app: AppView; v: Verificat
       <Section title="Business documents" description="What a business of this kind is asked for, and why.">
         <DocSlots appId={app.id} slots={slotsOf(app, data, "business")} docs={docs} canAsk={canAsk(app)} restKinds={["other"]} />
       </Section>
-      {data?.business.gstin && (
-        <Section title="Automatic check" description="Whether the GST number is active, whose it is, and that it is built on the PAN they gave. The registration document itself is still yours to look at.">
-          <AutoChecks appId={app.id} subject="partner" kinds={["gstin"]} results={v.checks} on={v.autoOn} env={v.autoEnv} />
+      {(data?.business.gstin || data?.business.udyam) && (
+        <Section title="Automatic checks" description="Whether the GST number is active, whose it is, and that it is built on the PAN they gave; and whether the Udyam registration exists and is not cancelled. The registration documents themselves are still yours to look at.">
+          <AutoChecks appId={app.id} subject="partner" kinds={[...(data.business.gstin ? (["gstin"] as const) : []), ...(data.business.udyam ? (["udyam"] as const) : [])]} results={v.checks} on={v.autoOn} env={v.autoEnv} />
         </Section>
       )}
       {checklistFor(app.partner_type).some((c) => c.key === "registration") && (

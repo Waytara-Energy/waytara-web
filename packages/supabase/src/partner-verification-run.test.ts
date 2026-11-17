@@ -16,6 +16,7 @@ beforeEach(() => {
     "/pan": { body: { valid: true, pan: "ABCPV1234D", type: "Individual", registered_name: "PRIYA RAMAN", name_provided: "Priya Raman", name_match_result: "DIRECT_MATCH", name_match_score: "100.00", pan_status: "VALID", aadhaar_seeding_status: "Y", reference_id: 161 } },
     "/gstin": { body: { valid: true, legal_name_of_business: "SUN ELECTRICALS PRIVATE LIMITED", trade_name_of_business: "SUN ELECTRICALS", gst_in_status: "Active", reference_id: 19 } },
     "/bank-account/sync": { body: { account_status: "VALID", account_status_code: "ACCOUNT_IS_VALID", name_at_bank: "PRIYA RAMAN", bank_name: "YES BANK", name_match_result: "DIRECT_MATCH", name_match_score: "100.00", reference_id: 34 } },
+    "/udyam": { body: { status: "SUCCESS", enterprise_name: "SUN ELECTRICALS", enterprise_type: "Micro", classification_year: "2024-25", reference_id: 8 } },
     "/name-match": { body: { score: 1, reason: "DIRECT_MATCH", reference_id: 5 } },
     "/face-match": { body: { status: "SUCCESS", face_match_result: "YES", face_match_score: 0.95, ref_id: 9 } },
     "/face-liveness": { body: { status: "SUCCESS", liveness: true, liveness_score: 0.98, quality: { blur: false, exposure: "NEUTRAL" }, reference_id: 7 } },
@@ -198,6 +199,27 @@ describe("PAN, GST and bank", () => {
     expect((await run(answers["/pan"], "pan")).code).toBe("rate");
     answers["/bank-account/sync"] = { status: 422, body: { type: "validation_error", code: "fraud_account", message: "fraud" } };
     expect(await run(answers["/bank-account/sync"], "bank")).toMatchObject({ status: "failed", summary: expect.stringContaining("fraud") });
+  });
+
+  it("checks a Udyam number, only when it is a Udyam number, and does not ask again for the same one", async () => {
+    const none = base();
+    expect((await runChecks({ ...none.input, kinds: ["udyam"] }))[0]).toMatchObject({ status: "error", skipped: "missing" });
+    expect(calls).toHaveLength(0);
+
+    const data = filled();
+    data.business.udyam = "UDYAM-UP-43-1234567";
+    const first = base({ data });
+    const a = await runChecks({ ...first.input, kinds: ["udyam"] });
+    expect(a[0]).toMatchObject({ status: "passed", ran: true });
+    expect(calls.map((c) => c.path)).toEqual(["/udyam"]);
+    expect(calls[0].body).toMatchObject({ udyam: "UDYAM-UP-43-1234567" });
+    expect(first.f.table.get("partner|udyam")).toMatchObject({ status: "passed" });
+    // the same number again costs nothing
+    const again = await runChecks({ ...first.input, kinds: ["udyam"] });
+    expect(again[0].skipped).toBe("unchanged");
+    expect(calls).toHaveLength(1);
+    // a partner may ask for it too
+    expect((await runChecks({ ...base({ data }).input, kinds: ["udyam"], actor: { by: "partner" } }))[0].kind).toBe("udyam");
   });
 
   it("asks Cashfree's Name Match when a PAN or bank answer carries no match of its own (the sandbox), and does nothing of the kind when it does", async () => {

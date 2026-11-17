@@ -413,6 +413,8 @@ export function isIsoDate(s: string): boolean {
 // The shapes the government numbers have. Checked so a typing slip is caught on the page; whether the number is real is what the team verifies.
 export const isPan = (s: string): boolean => /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(s);
 export const isGstin = (s: string): boolean => /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(s);
+/** A Udyam registration number: UDYAM, the state letters, two digits for the district and seven for the enterprise (UDYAM-TN-02-0048192). */
+export const isUdyam = (s: string): boolean => /^UDYAM-[A-Z]{2}-[0-9]{2}-[0-9]{7}$/.test(s);
 export const isIfsc = (s: string): boolean => /^[A-Z]{4}0[A-Z0-9]{6}$/.test(s);
 export const isAccountNumber = (s: string): boolean => /^[0-9]{9,18}$/.test(s);
 /** An account number with all but its last four digits hidden. */

@@ -44,6 +44,7 @@ const AUTO_TONE: Record<VerificationStatus, string> = {
 const NOT_RUN_WHY: Record<VerificationKind, string> = {
   pan: "Runs when the partner has entered a PAN.",
   gstin: "Runs when the partner has entered a GST number.",
+  udyam: "Runs when the partner has entered a Udyam number, like UDYAM-TN-02-0048192.",
   bank: "Runs when the partner has entered the account number, the IFSC and the name on the account.",
   name_match: "Runs once the PAN and the bank account have both been found, to compare the two names.",
   face_match: "Runs when there is a selfie and a photo ID that is a JPEG or PNG picture (not a PDF).",
@@ -54,6 +55,8 @@ export interface AutoResult {
   status: VerificationStatus;
   summary: string;
   updated_at: string;
+  /** What Cashfree answered, with the sensitive parts already left out when it was stored. Shown on request. */
+  detail?: Record<string, unknown>;
 }
 
 /**
@@ -101,6 +104,12 @@ export function AutoChecks({
                 {!r && <p className="mt-1 text-xs text-muted-foreground">{NOT_RUN_WHY[kind]}</p>}
                 {r && <p className="mt-1 text-sm text-muted-foreground">{r.summary}</p>}
                 {r && <p className="mt-1 text-xs text-muted-foreground">Checked {when(r.updated_at)}.</p>}
+                {r?.detail && Object.keys(r.detail).length > 0 && (
+                  <details className="mt-2 text-xs">
+                    <summary className="cursor-pointer text-muted-foreground hover:text-foreground">Show what Cashfree answered</summary>
+                    <pre className="mt-2 max-h-64 overflow-auto rounded-md bg-muted p-2 font-mono text-[11px] leading-relaxed">{JSON.stringify(r.detail, null, 2)}</pre>
+                  </details>
+                )}
               </div>
               <div className="flex flex-wrap items-center gap-2">
                 {r?.status === "passed" && acc && acc.state !== "verified" && (

@@ -1,5 +1,37 @@
 import { describe, expect, it } from "vitest";
-import { bankVerdict, errorVerdict, faceMatchVerdict, gstinVerdict, livenessVerdict, nameMatchVerdict, nameSimilarity, normaliseName, panInGstin, panVerdict, partnerMessage } from "./partner-verify-rules";
+import { bankVerdict, errorVerdict, faceMatchVerdict, gstinFill, gstinVerdict, livenessVerdict, nameMatchVerdict, nameSimilarity, normaliseName, panInGstin, panVerdict, partnerMessage, udyamVerdict } from "./partner-verify-rules";
+
+describe("Udyam", () => {
+  const ok = { status: "SUCCESS", enterprise_name: "SUN ELECTRICALS", enterprise_type: "Micro", classification_year: "2024-25", date_of_udyam_registration: "2021-03-04", split_address: { district: "KANPUR NAGAR", state: "UTTAR PRADESH", pincode: "208001" } };
+  it("passes a registration found, in the business's name, and keeps only the useful parts", () => {
+    const v = udyamVerdict(ok, { businessName: "Sun Electricals" });
+    expect(v).toMatchObject({ status: "passed", code: "ok" });
+    expect(v.summary).toContain("Micro");
+    expect(v.detail).toMatchObject({ enterprise_name: "SUN ELECTRICALS", district: "KANPUR NAGAR", registered_on: "2021-03-04" });
+    expect(JSON.stringify(v.detail)).not.toMatch(/mobile|email/i);
+  });
+  it("asks for a look when the enterprise name is not the business name, fails one that is not found or cancelled", () => {
+    expect(udyamVerdict(ok, { businessName: "Green Roofs" })).toMatchObject({ status: "review", code: "name_differs" });
+    expect(udyamVerdict(ok, {}).status).toBe("passed");
+    expect(udyamVerdict({ status: "UDYAM_NOT_FOUND" }, {})).toMatchObject({ status: "failed", code: "not_found" });
+    expect(udyamVerdict({ status: "UDYAM_IS_CANCELLED" }, {})).toMatchObject({ status: "failed", code: "cancelled" });
+    expect(udyamVerdict({}, {}).status).toBe("failed");
+  });
+  it("tells the partner in plain words, showing the enterprise name (the register is public)", () => {
+    expect(partnerMessage("udyam", { status: "passed", code: "ok", detail: { enterprise_name: "SUN ELECTRICALS" } })).toContain("SUN ELECTRICALS");
+    expect(partnerMessage("udyam", { status: "failed", code: "cancelled" })).toContain("cancelled");
+    expect(partnerMessage("udyam", { status: "failed", code: "not_found" })).toContain("No Udyam registration");
+  });
+});
+
+describe("gstinFill", () => {
+  it("takes the registered name, address, PIN code and year from a found GST registration, and nothing from a poor one", () => {
+    expect(gstinFill({ legal_name: "SUN ELECTRICALS PRIVATE LIMITED", trade_name: "SUN ELECTRICALS", address: "12 Test Street, Ambattur, Chennai, Tamil Nadu, 600058", registered_on: "2017-09-30" })).toEqual({ name: "SUN ELECTRICALS PRIVATE LIMITED", address: "12 Test Street, Ambattur, Chennai, Tamil Nadu, 600058", started: "2017", pin: "600058" });
+    expect(gstinFill({ trade_name: "SUN", registered_on: "30/09/2019" })).toEqual({ name: "SUN", address: "", started: "2019", pin: "" });
+    expect(gstinFill({})).toBeNull();
+    expect(gstinFill(undefined)).toBeNull();
+  });
+});
 
 describe("names", () => {
   it("normalises case, punctuation and spacing", () => {

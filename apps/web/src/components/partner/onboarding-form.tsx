@@ -2,7 +2,7 @@
 
 import * as React from "react";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Loader2, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, CheckCircle2, Loader2, Plus, Sparkles, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
@@ -30,6 +30,7 @@ import {
   isGstin,
   isIfsc,
   isPan,
+  isUdyam,
   memberKey,
   memberRequirements,
   memberSubject,
@@ -67,7 +68,7 @@ async function call<T>(url: string, method: string, body?: unknown): Promise<Rep
 
 /** The same fingerprint as the one inside the form, for the data as first loaded. */
 function fpOf(kind: string, d: OnboardingData): string {
-  return kind === "pan" ? `${d.business.pan}|${d.business.kind}|${d.person.name}|${d.business.name}` : kind === "gstin" ? `${d.business.gstin}|${d.business.pan}|${d.business.name}` : `${d.bank.accountNumber}|${d.bank.ifsc}|${d.bank.holder}`;
+  return kind === "pan" ? `${d.business.pan}|${d.business.kind}|${d.person.name}|${d.business.name}` : kind === "gstin" ? `${d.business.gstin}|${d.business.pan}|${d.business.name}` : kind === "udyam" ? `${d.business.udyam}|${d.business.name}` : `${d.bank.accountNumber}|${d.bank.ifsc}|${d.bank.holder}`;
 }
 
 /** A list of rows the applicant can add to and take from (licences, people, projects). */
@@ -252,7 +253,7 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
       live = false;
     };
   }, [base]);
-  async function askCheck(kind: "pan" | "gstin" | "bank") {
+  async function askCheck(kind: "pan" | "gstin" | "udyam" | "bank") {
     setChecking(kind);
     setCheckError("");
     // what is on the page is what is checked: the latest typing is saved first
@@ -273,6 +274,30 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
     const c = checks.find((x) => x.kind === kind);
     return c ? { ...c, current: c.current && answeredFor[kind] === fingerprint(kind) } : undefined;
   };
+  // What the GST register says about the business, offered for the blank fields only (never over what the partner has typed).
+  const gstView = checkOf("gstin");
+  const gstFill = (() => {
+    const f = gstView && gstView.current ? gstView.fill : undefined;
+    if (!f) return null;
+    const b = data.business;
+    const parts: string[] = [];
+    if (f.name && !b.name.trim()) parts.push("the business name");
+    if (f.address && !b.address.trim()) parts.push("the address");
+    if (f.pin && b.pin.length !== 6) parts.push("the PIN code");
+    if (f.started && !b.started) parts.push("the year started");
+    return parts.length ? { ...f, parts } : null;
+  })();
+  function fillFromGst(f: NonNullable<typeof gstFill>) {
+    const b = data.business;
+    // one update for all the blank fields (calling biz() once per field would each start from the same old state and only the last would stick)
+    set("business", {
+      ...b,
+      ...(f.name && !b.name.trim() ? { name: f.name.slice(0, 200) } : {}),
+      ...(f.address && !b.address.trim() ? { address: f.address.slice(0, 400) } : {}),
+      ...(f.pin && b.pin.length !== 6 ? { pin: f.pin } : {}),
+      ...(f.started && !b.started ? { started: f.started } : {}),
+    });
+  }
 
   // where each team member's own link stands, whenever the team is on screen
   const loadInvites = React.useCallback(async () => {
@@ -536,6 +561,15 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
                 <Input id="ob-gstin" value={data.business.gstin} onChange={(e) => biz("gstin", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 15))} maxLength={15} placeholder="33ABCDE1234F1Z5" />
                 <p className="text-xs text-theme-muted">Leave it empty if you are not registered for GST.</p>
                 {checksOn && isGstin(data.business.gstin) && <VerifyCheck label="Check this GST number" view={checkOf("gstin")} ready={isGstin(data.business.gstin)} running={checking === "gstin"} onAsk={() => void askCheck("gstin")} className="pt-1" />}
+                {gstFill && (
+                  <div className="space-y-1">
+                    <Button type="button" size="sm" variant="secondary" onClick={() => fillFromGst(gstFill)}>
+                      <Sparkles className="size-4" />
+                      Fill my blank details from this registration
+                    </Button>
+                    <p className="text-xs text-theme-muted">Fills only what is empty: {gstFill.parts.join(", ")}. You can change anything.</p>
+                  </div>
+                )}
               </div>
               {!individual && (
                 <>
@@ -545,6 +579,7 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
                       <Optional />
                     </Label>
                     <Input id="ob-udyam" value={data.business.udyam} onChange={(e) => biz("udyam", e.target.value.toUpperCase().slice(0, 30))} maxLength={30} placeholder="UDYAM-TN-00-0000000" />
+                    {checksOn && isUdyam(data.business.udyam) && <VerifyCheck label="Check this Udyam number" view={checkOf("udyam")} ready={isUdyam(data.business.udyam)} running={checking === "udyam"} onAsk={() => void askCheck("udyam")} className="pt-1" />}
                   </div>
                   <div className={`${field} sm:col-span-2`}>
                     <Label htmlFor="ob-web">

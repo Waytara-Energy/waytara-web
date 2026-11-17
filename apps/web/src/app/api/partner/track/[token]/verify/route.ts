@@ -4,7 +4,7 @@ import { PARTNER_KINDS } from "@waytara/supabase/partner-verify-rules";
 import { fail, openEditable } from "@/lib/partner-track-api";
 import { partnerCheckViews, runForPartner } from "@/lib/partner-verify-server";
 
-const schema = z.object({ kinds: z.array(z.enum(["pan", "gstin", "bank"])).min(1).max(3) });
+const schema = z.object({ kinds: z.array(z.enum(["pan", "gstin", "udyam", "bank"])).min(1).max(4) });
 
 /** Whether automatic checks are set up, and what the partner has already found out about their PAN, GST number and bank account. */
 export async function GET(req: NextRequest, { params }: { params: Promise<{ token: string }> }) {

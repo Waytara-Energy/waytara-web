@@ -2,7 +2,7 @@ import "server-only";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { cashfreeConfigured } from "@waytara/supabase/partner-cashfree";
 import { checkInputHash, runChecks, loadResults, type Actor, type CheckResult } from "@waytara/supabase/partner-verification-run";
-import { PARTNER_CHECK_LIMIT, PARTNER_KINDS, partnerMessage, type VerificationKind, type VerificationStatus } from "@waytara/supabase/partner-verify-rules";
+import { PARTNER_CHECK_LIMIT, PARTNER_KINDS, gstinFill, partnerMessage, type VerificationKind, type VerificationStatus } from "@waytara/supabase/partner-verify-rules";
 import { PARTNER_BUCKET, loadOnboarding } from "@/lib/partner-onboarding-server";
 
 /** What the partner is told about one of their checks: a plain line and whether it passed, never what the PAN or the bank holds about them. */
@@ -14,15 +14,23 @@ export interface PartnerCheckView {
   asksLeft: number;
   /** Whether the result is for what is saved now (false once they have changed the number or name since). */
   current: boolean;
+  /** For a GST check that found the registration: what it says about the business, which the partner may copy into their blank details (the GST register is public). */
+  fill?: { name: string; address: string; started: string; pin: string };
 }
 
-const view = (kind: VerificationKind, r: { status: VerificationStatus; code: string; detail?: Record<string, unknown>; input_hash?: string }, attempts: number, nowHash: string | null): PartnerCheckView => ({
-  kind,
-  status: r.status,
-  message: partnerMessage(kind, r),
-  asksLeft: Math.max(0, PARTNER_CHECK_LIMIT - attempts),
-  current: Boolean(nowHash) && r.input_hash === nowHash,
-});
+type HashKind = "pan" | "gstin" | "udyam" | "bank";
+
+const view = (kind: VerificationKind, r: { status: VerificationStatus; code: string; detail?: Record<string, unknown>; input_hash?: string }, attempts: number, nowHash: string | null): PartnerCheckView => {
+  const fill = kind === "gstin" && (r.status === "passed" || r.status === "review") ? gstinFill(r.detail) : null;
+  return {
+    kind,
+    status: r.status,
+    message: partnerMessage(kind, r),
+    asksLeft: Math.max(0, PARTNER_CHECK_LIMIT - attempts),
+    current: Boolean(nowHash) && r.input_hash === nowHash,
+    ...(fill ? { fill } : {}),
+  };
+};
 
 /** Whether automatic checks are set up, and the partner's stored results (as they may see them). */
 export async function partnerCheckViews(applicationId: string, partnerType: string | null): Promise<{ configured: boolean; checks: PartnerCheckView[] }> {
@@ -31,7 +39,7 @@ export async function partnerCheckViews(applicationId: string, partnerType: stri
   const { data } = await loadOnboarding(applicationId);
   const checks = PARTNER_KINDS.flatMap((k) => {
     const r = stored[`partner|${k}`];
-    return r ? [view(k, r, r.partner_attempts, checkInputHash(k as "pan" | "gstin" | "bank", partnerType, data))] : [];
+    return r ? [view(k, r, r.partner_attempts, checkInputHash(k as HashKind, partnerType, data))] : [];
   });
   return { configured, checks };
 }
@@ -44,7 +52,7 @@ export async function runForPartner(applicationId: string, partnerType: string |
   const stored = await loadResults(db, applicationId);
   const asked = results
     .filter((r) => PARTNER_KINDS.includes(r.kind))
-    .map((r) => view(r.kind, { ...r, input_hash: stored[`partner|${r.kind}`]?.input_hash }, stored[`partner|${r.kind}`]?.partner_attempts ?? 0, checkInputHash(r.kind as "pan" | "gstin" | "bank", partnerType, state.data)));
+    .map((r) => view(r.kind, { ...r, input_hash: stored[`partner|${r.kind}`]?.input_hash }, stored[`partner|${r.kind}`]?.partner_attempts ?? 0, checkInputHash(r.kind as HashKind, partnerType, state.data)));
   return { configured: cashfreeConfigured(), checks: (await partnerCheckViews(applicationId, partnerType)).checks, asked };
 }
 
