@@ -248,8 +248,14 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
     if (r.ok) setCovered(r.data.digilockerCovers ?? []);
   }, [base]);
   React.useEffect(() => {
-    void refreshCovered();
-  }, [step, refreshCovered]);
+    let live = true;
+    void call<{ digilockerCovers?: string[] }>(`${base}/verify`, "GET").then((r) => {
+      if (live && r.ok) setCovered(r.data.digilockerCovers ?? []);
+    });
+    return () => {
+      live = false;
+    };
+  }, [step, base]);
   React.useEffect(() => {
     let live = true;
     void call<{ configured: boolean; checks: CheckView[] }>(`${base}/verify`, "GET").then((r) => {
@@ -328,19 +334,27 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
     if (r.ok) setInvites(r.data.invites);
   }, [base]);
   React.useEffect(() => {
-    if (step === "team") void loadInvites();
-  }, [step, loadInvites]);
+    if (step !== "team") return;
+    let live = true;
+    void call<{ invites: CrewInviteState[] }>(`${base}/crew`, "GET").then((r) => {
+      if (live && r.ok) setInvites(r.data.invites);
+    });
+    return () => {
+      live = false;
+    };
+  }, [step, base]);
 
   // The bank and branch an IFSC belongs to are looked up as soon as the code is complete and filled in where the partner has typed nothing; they can always change them.
-  const [ifscNote, setIfscNote] = React.useState<{ ok: boolean; text: string } | null>(null);
+  // The note says which IFSC it is about, and is shown only while the box still holds that code (so no state needs clearing when the code is edited).
+  const [ifscNote, setIfscNote] = React.useState<{ ifsc: string; ok: boolean; text: string } | null>(null);
   const ifsc = data.bank.ifsc;
   React.useEffect(() => {
-    if (!isIfsc(ifsc)) return void setIfscNote(null);
+    if (!isIfsc(ifsc)) return;
     let live = true;
     void call<{ bank: string; branch: string; city: string }>(`/api/partner/ifsc/${ifsc}`, "GET").then((r) => {
       if (!live) return;
-      if (!r.ok) return setIfscNote({ ok: false, text: r.error });
-      setIfscNote({ ok: true, text: `${r.data.bank}${r.data.branch ? `, ${r.data.branch}` : ""}` });
+      if (!r.ok) return setIfscNote({ ifsc, ok: false, text: r.error });
+      setIfscNote({ ifsc, ok: true, text: `${r.data.bank}${r.data.branch ? `, ${r.data.branch}` : ""}` });
       const cur = latest.current.bank;
       if (!cur.bankName || !cur.branch) change({ ...latest.current, bank: { ...cur, bankName: cur.bankName || r.data.bank, branch: cur.branch || r.data.branch } });
     });
@@ -1019,7 +1033,7 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
               <div className={field}>
                 <Label htmlFor="ob-ifsc">IFSC</Label>
                 <Input id="ob-ifsc" value={data.bank.ifsc} onChange={(e) => bank("ifsc", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 11))} maxLength={11} placeholder="SBIN0001234" autoComplete="off" />
-                {ifscNote && (
+                {ifscNote && ifscNote.ifsc === ifsc && isIfsc(ifsc) && (
                   <p role="status" className={cn("text-xs", ifscNote.ok ? "text-emerald-700 dark:text-emerald-300" : "text-theme-muted")}>
                     {ifscNote.text}
                   </p>

@@ -37,7 +37,9 @@ export function DigilockerCard({ base, onVerified, fills = true, className }: { 
   const delivered = React.useRef<string | null>(null);
   // the latest handler, kept in a ref so that typing in the form does not restart the polling below
   const handler = React.useRef(onVerified);
-  handler.current = onVerified;
+  React.useEffect(() => {
+    handler.current = onVerified;
+  });
 
   const hand = React.useCallback((v: DigilockerPageView) => {
     if (v.state === "authenticated" && v.identity && delivered.current !== v.identity.name + v.identity.dob) {
