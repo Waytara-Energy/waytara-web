@@ -32,7 +32,17 @@ describe("panVerdict", () => {
     expect(panVerdict({ ...ok, name_match_result: "MODERATE_PARTIAL_MATCH", name_match_score: "60.00" })).toMatchObject({ status: "review", code: "name_partial" });
     expect(panVerdict({ ...ok, name_match_result: "NO_MATCH", name_match_score: "0" })).toMatchObject({ status: "failed", code: "name_mismatch" });
     expect(panVerdict({ ...ok, aadhaar_seeding_status: "R" })).toMatchObject({ status: "review", code: "unlinked" });
-    expect(panVerdict({ ...ok, type: "Company", name_match_result: undefined, aadhaar_seeding_status: "NA" })).toMatchObject({ status: "review", code: "name_missing" });
+    expect(panVerdict({ ...ok, type: "Company", name_provided: undefined, name_match_result: undefined, aadhaar_seeding_status: "NA" })).toMatchObject({ status: "review", code: "name_missing" });
+  });
+  it("compares the names itself when the service gives no match words (the sandbox leaves them out), and says so", () => {
+    const bare = { ...ok, name_match_result: undefined, name_match_score: undefined };
+    const same = panVerdict(bare);
+    expect(same).toMatchObject({ status: "passed", code: "ok" });
+    expect(same.summary).toContain("compared by us");
+    expect(same.detail).toMatchObject({ name_match_result: "DIRECT_MATCH", name_match_source: "ours" });
+    expect(panVerdict({ ...bare, name_provided: "DOE JOHN" }).status).toBe("passed");
+    expect(panVerdict({ ...bare, name_provided: "Raja Kumar" })).toMatchObject({ status: "failed", code: "name_mismatch" });
+    expect(panVerdict(ok).detail).toMatchObject({ name_match_source: "service" });
   });
 });
 
@@ -69,6 +79,14 @@ describe("bankVerdict", () => {
   it("asks for a look at a partial holder match and fails a different holder", () => {
     expect(bankVerdict({ ...ok, name_match_result: "POOR_PARTIAL_MATCH", name_match_score: "38.00" }, {}).status).toBe("review");
     expect(bankVerdict({ ...ok, name_match_result: "NO_MATCH" }, {})).toMatchObject({ status: "failed", code: "name_mismatch" });
+  });
+  it("compares the holder itself when the service gives no match words (the sandbox sends a name and no score), and does not invent one without a given name", () => {
+    const bare = { account_status: "VALID", account_status_code: "ACCOUNT_IS_VALID", name_at_bank: "JOHN DOE", bank_name: "YES BANK", name_match_result: null, name_match_score: null };
+    const same = bankVerdict(bare, { holder: "John Doe" });
+    expect(same).toMatchObject({ status: "passed", code: "ok" });
+    expect(same.detail).toMatchObject({ name_match_source: "ours" });
+    expect(bankVerdict(bare, { holder: "Raja Kumar" })).toMatchObject({ status: "failed", code: "name_mismatch" });
+    expect(bankVerdict(bare, {})).toMatchObject({ status: "review", code: "name_missing" });
   });
 });
 
