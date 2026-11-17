@@ -2,11 +2,13 @@ import { Document, Page, StyleSheet, Text, View, renderToBuffer } from "@react-p
 import { fmtDate } from "@/lib/savings";
 import { formatSeconds, sessionStatusLabel } from "@/lib/ev-sessions";
 import { PdfLogo } from "./pdf-logo-image";
+import { NOTES_PAGE_PADDING, PdfNotes } from "./pdf-notes";
+import { evNotes } from "./report-notes";
 import { evChargingDays, evSummaryFigures, istStamp, type EvReport } from "./ev-report";
 import type { EvReportMode } from "./ev-filters";
 
 const styles = StyleSheet.create({
-  page: { padding: 38, paddingBottom: 56, fontSize: 9, fontFamily: "Helvetica", color: "#0F172A" },
+  page: { padding: 38, paddingBottom: NOTES_PAGE_PADDING, fontSize: 9, fontFamily: "Helvetica", color: "#0F172A" },
   header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16 },
   meta: { textAlign: "right", color: "#475569" },
   title: { fontSize: 15, fontWeight: 700, marginTop: 2 },
@@ -28,7 +30,6 @@ const styles = StyleSheet.create({
   cNum: { flex: 1.1, textAlign: "right" },
   cText: { flex: 1.5, paddingLeft: 8 },
   note: { color: "#64748B", fontSize: 8, marginTop: 4 },
-  footer: { position: "absolute", bottom: 24, left: 38, right: 38, fontSize: 7.5, color: "#94A3B8" },
 });
 
 const TITLE: Record<EvReportMode, string> = { sessions: "EV charging report", daily: "EV charging report, day by day", statement: "EV charging statement" };
@@ -180,9 +181,7 @@ function ReportDocument({ report, mode }: { report: EvReport; mode: EvReportMode
           </>
         )}
 
-        <Text style={styles.footer} fixed>
-          Figures come from the charger&apos;s own meter and the sessions it reported, and are estimates. Test sessions are left out. Times are IST.
-        </Text>
+        <PdfNotes notes={evNotes()} margin={38} />
       </Page>
     </Document>
   );

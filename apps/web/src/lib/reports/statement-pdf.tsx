@@ -1,5 +1,7 @@
 import { Document, Page, Text, View, StyleSheet, renderToBuffer } from "@react-pdf/renderer";
 import { PdfLogo } from "./pdf-logo-image";
+import { NOTES_PAGE_PADDING, PdfNotes } from "./pdf-notes";
+import { inverterNotes } from "./report-notes";
 import { PdfGaps } from "./gaps-pdf";
 import { dayGapLines, dayGapsSummary } from "@/lib/data-gaps";
 import { fmtDate } from "@/lib/savings";
@@ -7,7 +9,7 @@ import { pctChange } from "./period-math";
 import type { StatementData } from "./statement-data";
 
 const styles = StyleSheet.create({
-  page: { padding: 40, paddingBottom: 60, fontSize: 10, fontFamily: "Helvetica", color: "#0F172A" },
+  page: { padding: 40, paddingBottom: NOTES_PAGE_PADDING, fontSize: 10, fontFamily: "Helvetica", color: "#0F172A" },
   header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
   brand: { fontSize: 18, fontWeight: 700, color: "#16A34A" },
   meta: { textAlign: "right", color: "#475569" },
@@ -28,7 +30,6 @@ const styles = StyleSheet.create({
   cName: { flex: 3 },
   cNum: { flex: 2, textAlign: "right" },
   note: { color: "#64748B", fontSize: 8, marginTop: 4 },
-  footer: { position: "absolute", bottom: 28, left: 40, right: 40, fontSize: 7.5, color: "#94A3B8" },
 });
 
 const kwh = (n: number | null | undefined) => (n === null || n === undefined ? "-" : `${n.toFixed(n >= 100 ? 0 : 1)} kWh`);
@@ -42,11 +43,7 @@ const change = (cur: number, prev: number) => {
 const dayShort = (d: string) => new Date(`${d}T00:00:00Z`).toLocaleDateString("en-IN", { day: "numeric", month: "short", timeZone: "UTC" });
 
 function Footer({ s }: { s: StatementData }) {
-  return (
-    <Text style={styles.footer} fixed>
-      Figures come from the inverter&apos;s own counters, not the electricity board&apos;s meter, and are estimates. Tariff: {s.tariffNote}. CO2: {s.co2Note}. Times are IST.
-    </Text>
-  );
+  return <PdfNotes notes={inverterNotes({ tariffNote: s.tariffNote, co2Note: s.co2Note })} margin={40} />;
 }
 
 function Statement({ s }: { s: StatementData }) {

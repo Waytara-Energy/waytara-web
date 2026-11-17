@@ -2,6 +2,8 @@ import { Document, Line, Page, Polyline, Rect, StyleSheet, Svg, Text, View, rend
 import { fmtDate } from "@/lib/savings";
 import { formatValue, unitGroups, type CustomReport, type ReportSeries } from "./custom-report";
 import { PdfLogo } from "./pdf-logo-image";
+import { NOTES_PAGE_PADDING, PdfNotes } from "./pdf-notes";
+import { inverterNotes } from "./report-notes";
 import { PdfGaps } from "./gaps-pdf";
 import { dayGapLines, dayGapsSummary } from "@/lib/data-gaps";
 import { resolveKind, type ChartStyle } from "@/lib/chart-style";
@@ -9,7 +11,7 @@ import { resolveKind, type ChartStyle } from "@/lib/chart-style";
 const PALETTE = ["#16A34A", "#3B82F6", "#F59E0B", "#8B5CF6", "#0D9488", "#EF4444"];
 
 const styles = StyleSheet.create({
-  page: { padding: 38, paddingBottom: 56, fontSize: 9, fontFamily: "Helvetica", color: "#0F172A" },
+  page: { padding: 38, paddingBottom: NOTES_PAGE_PADDING, fontSize: 9, fontFamily: "Helvetica", color: "#0F172A" },
   header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16 },
   meta: { textAlign: "right", color: "#475569" },
   title: { fontSize: 15, fontWeight: 700, marginTop: 2 },
@@ -28,7 +30,6 @@ const styles = StyleSheet.create({
   legendItem: { flexDirection: "row", alignItems: "center", gap: 4 },
   swatch: { width: 8, height: 8, borderRadius: 2 },
   note: { color: "#64748B", fontSize: 8, marginTop: 4 },
-  footer: { position: "absolute", bottom: 24, left: 38, right: 38, fontSize: 7.5, color: "#94A3B8" },
 });
 
 const colorOf = (report: CustomReport, s: ReportSeries) => PALETTE[report.series.indexOf(s) % PALETTE.length];
@@ -97,11 +98,7 @@ function Chart({ report, series, unit, style }: { report: CustomReport; series: 
 }
 
 function Footer({ report }: { report: CustomReport }) {
-  return (
-    <Text style={styles.footer} fixed>
-      Figures come from the inverter&apos;s own counters, not the electricity board&apos;s meter, and are estimates. {report.tariffNote ? `Tariff: ${report.tariffNote}. ` : ""}CO2: {report.co2Note}. Times are IST.
-    </Text>
-  );
+  return <PdfNotes notes={inverterNotes({ tariffNote: report.tariffNote, co2Note: report.co2Note })} margin={38} />;
 }
 
 function ReportDocument({ report, style }: { report: CustomReport; style: ChartStyle }) {
