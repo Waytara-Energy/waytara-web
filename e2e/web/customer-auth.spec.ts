@@ -21,10 +21,18 @@ test.describe("customer app sign-in", () => {
     await expect(page.getByText(/application error|something went wrong/i)).toHaveCount(0);
   });
 
-  test("a staff account is refused by the customer app", async ({ page }) => {
-    await signIn(page, ACCOUNTS.admin.email, ACCOUNTS.admin.password);
+  // An employee works in the admin app and has no customer dashboard, so the customer app turns them away. (An ADMIN account is allowed in on purpose, since 25 Oct:
+  // admins can own a site and use the customer app too, which the next test covers.)
+  test("an employee account is refused by the customer app", async ({ page }) => {
+    await signIn(page, ACCOUNTS.employee.email, ACCOUNTS.employee.password);
     await expect(page).toHaveURL(/\/login/);
     await expect(page.getByText(/customer accounts only/i)).toBeVisible();
+  });
+
+  test("an admin account may use the customer app too", async ({ page }) => {
+    await signIn(page, ACCOUNTS.admin.email, ACCOUNTS.admin.password);
+    await expect(page).toHaveURL(/\/dashboard/);
+    await expect(page.getByText(/customer accounts only/i)).toHaveCount(0);
   });
 
   test("a signed-in customer keeps a session across a reload", async ({ page }) => {

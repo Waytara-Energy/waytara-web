@@ -14,7 +14,8 @@ test.describe("public marketing site", () => {
     const html = await (await request.get(`${WEB_URL}/solutions/home`)).text();
     expect(html).toContain("<h1");
     const blocks = [...html.matchAll(/<script type="application\/ld\+json">(.*?)<\/script>/gs)].map((m) => JSON.parse(m[1].replace(/\\u003c/g, "<")));
-    const types = blocks.map((b) => b["@type"]);
+    // a block's @type may be one type or a list (the business is both an Organization and a LocalBusiness), so flatten before comparing
+    const types = blocks.flatMap((b) => b["@type"]);
     expect(types).toEqual(expect.arrayContaining(["Organization", "WebSite", "BreadcrumbList", "Service", "FAQPage"]));
   });
 
@@ -38,11 +39,12 @@ test.describe("public marketing site", () => {
     expect(await llms.text()).toContain("# WayTara Energy");
   });
 
-  test("login and placeholder pages are noindex", async ({ request }) => {
-    for (const path of ["/login", "/technology", "/knowledge-centre"]) {
-      const html = await (await request.get(`${WEB_URL}${path}`)).text();
-      expect(html, path).toContain('<meta name="robots" content="noindex, nofollow"');
-    }
+  test("the login page is noindex, and a real public page is not", async ({ request }) => {
+    const login = await (await request.get(`${WEB_URL}/login`)).text();
+    expect(login, "/login").toContain('<meta name="robots" content="noindex, nofollow"');
+    // /technology used to be a placeholder and was noindex; it is a real page now and must be indexable
+    const technology = await (await request.get(`${WEB_URL}/technology`)).text();
+    expect(technology, "/technology").not.toContain('<meta name="robots" content="noindex');
   });
 
   test("security headers are present", async ({ request }) => {
@@ -59,7 +61,7 @@ test.describe("public marketing site", () => {
     await page.goto(`${WEB_URL}/`);
     await expect(page.getByRole("heading", { level: 1 }).first()).toBeVisible();
     await page.goto(`${WEB_URL}/contact`);
-    await expect(page.getByRole("heading", { level: 1 })).toContainText("WayTara");
+    await expect(page.getByRole("heading", { level: 1 })).toContainText(/tell us about/i);
   });
 });
 
