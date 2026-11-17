@@ -39,8 +39,8 @@ export interface Question {
   kind: "single" | "multi" | "text";
   options?: readonly Choice[];
   required: boolean;
-  /** Asked only when another answer of the same form has this value. */
-  showIf?: { key: string; equals: string };
+  /** Asked only when another answer of the same form has this value (`equals`), or has been given and is any other (`notEquals`). */
+  showIf?: { key: string; equals?: string; notEquals?: string };
   placeholder?: string;
 }
 
@@ -53,6 +53,70 @@ const YES_NO: readonly Choice[] = [
   { id: "yes", label: "Yes" },
   { id: "no", label: "No" },
 ];
+/** What kind of business a contractor, solar or EV partner is: the legal form drives the registration papers asked for in onboarding. */
+const ENTITY: Question = {
+  key: "entity",
+  label: "What kind of business is it?",
+  kind: "single",
+  options: [
+    { id: "individual", label: "Individual (no registered business)" },
+    { id: "proprietorship", label: "Proprietorship" },
+    { id: "partnership", label: "Partnership" },
+    { id: "llp", label: "LLP" },
+    { id: "private_limited", label: "Private limited company" },
+  ],
+  required: true,
+};
+/** Hidden for an individual with no registered business. */
+const BUSINESS_NAME = (label: string): Question => ({ key: "business", label, kind: "text", required: true, showIf: { key: "entity", notEquals: "individual" } });
+const ROLE: Question = {
+  key: "role",
+  label: "Your role",
+  kind: "single",
+  options: [
+    { id: "proprietor", label: "Proprietor" },
+    { id: "managing_partner", label: "Managing partner" },
+    { id: "director", label: "Director" },
+    { id: "authorised_manager", label: "Authorised manager" },
+    { id: "freelancer", label: "Individual freelancer" },
+  ],
+  required: true,
+};
+const TEAM: Question = {
+  key: "team",
+  label: "How many people work with you?",
+  kind: "single",
+  options: [
+    { id: "solo", label: "Only me" },
+    { id: "2_5", label: "2 to 5" },
+    { id: "6_15", label: "6 to 15" },
+    { id: "over_15", label: "More than 15" },
+  ],
+  required: true,
+  showIf: { key: "entity", notEquals: "individual" },
+};
+const RADIUS: Question = {
+  key: "radius",
+  label: "How far will you travel for work?",
+  kind: "single",
+  options: [
+    { id: "city", label: "My own city only" },
+    { id: "50km", label: "Up to 50 km" },
+    { id: "150km", label: "Up to 150 km" },
+    { id: "state", label: "Anywhere in Tamil Nadu" },
+  ],
+  required: true,
+};
+
+/** The one thing a visitor confirms before sending, by kind of partner: what the screening call and onboarding will ask them for. */
+export const PARTNER_PRECHECK: Record<PartnerTypeId, string> = {
+  contractor: "I understand that WayTara works only with licensed electrical contractors, and that I will be asked to show my licence and my supervisor's certificate after the screening call.",
+  solar: "I understand that electrical work on WayTara projects must be done under a valid electrical contractor licence (mine, or a licensed contractor's I work with), and that I will be asked to show it after the screening call.",
+  ev: "I understand that electrical work on WayTara projects must be done under a valid electrical contractor licence (mine, or a licensed contractor's I work with), and that I will be asked to show it after the screening call.",
+  technician: "I understand that I will be asked for my wireman permit or my ITI or diploma certificate, and for a police verification certificate, after the screening call.",
+  survey: "I understand that site surveys need a smartphone and measuring tools, and that I will be asked for a police verification certificate and my qualification after the screening call.",
+};
+
 const EXPERIENCE: readonly Choice[] = [
   { id: "under_2", label: "Below 2 years" },
   { id: "2_5", label: "2 to 5 years" },
@@ -63,7 +127,9 @@ const EXPERIENCE: readonly Choice[] = [
 /** The questions after the contact details and the district, for each kind of partner. */
 export const PARTNER_QUESTIONS: Record<PartnerTypeId, readonly Question[]> = {
   contractor: [
-    { key: "business", label: "Business or company name", kind: "text", required: true },
+    ENTITY,
+    BUSINESS_NAME("Business or company name"),
+    ROLE,
     { key: "tnelb", label: "Do you currently hold a TNELB electrical contractor licence?", kind: "single", options: YES_NO_NOT_SURE, required: true },
     {
       key: "tnelb_grade",
@@ -92,9 +158,13 @@ export const PARTNER_QUESTIONS: Record<PartnerTypeId, readonly Question[]> = {
       ],
       required: true,
     },
+    TEAM,
+    RADIUS,
   ],
   solar: [
-    { key: "business", label: "Business or team name", kind: "text", required: true },
+    ENTITY,
+    BUSINESS_NAME("Business or team name"),
+    ROLE,
     {
       key: "services",
       label: "What installations do you handle?",
@@ -110,9 +180,13 @@ export const PARTNER_QUESTIONS: Record<PartnerTypeId, readonly Question[]> = {
     { key: "experience", label: "Years of experience", kind: "single", options: EXPERIENCE, required: true },
     { key: "installed_before", label: "Have you completed solar installations before?", kind: "single", options: YES_NO, required: true },
     { key: "licensed_contractor", label: "Is the electrical work done through an appropriately licensed contractor?", kind: "single", options: YES_NO_NOT_SURE, required: true },
+    TEAM,
+    RADIUS,
   ],
   ev: [
-    { key: "business", label: "Business or team name", kind: "text", required: true },
+    ENTITY,
+    BUSINESS_NAME("Business or team name"),
+    ROLE,
     {
       key: "services",
       label: "Which services do you offer?",
@@ -130,6 +204,8 @@ export const PARTNER_QUESTIONS: Record<PartnerTypeId, readonly Question[]> = {
     { key: "experience", label: "Years of experience", kind: "single", options: EXPERIENCE, required: true },
     { key: "installed_before", label: "Have you installed EV chargers before?", kind: "single", options: YES_NO, required: true },
     { key: "licensed_contractor", label: "Where it is required, is the electrical work done through an appropriately licensed contractor?", kind: "single", options: YES_NO_NOT_SURE, required: true },
+    TEAM,
+    RADIUS,
   ],
   technician: [
     {
@@ -172,6 +248,7 @@ export const PARTNER_QUESTIONS: Record<PartnerTypeId, readonly Question[]> = {
       required: true,
     },
     { key: "available", label: "Are you available for project-based assignments?", kind: "single", options: YES_NO, required: true },
+    RADIUS,
   ],
   survey: [
     {
@@ -200,6 +277,7 @@ export const PARTNER_QUESTIONS: Record<PartnerTypeId, readonly Question[]> = {
       ],
       required: true,
     },
+    RADIUS,
   ],
 };
 
@@ -215,7 +293,10 @@ export const PARTNER_SERVICE_LABEL: Record<string, string> = {
 
 /** Whether a question is asked, given the answers so far. */
 export function isAsked(q: Question, answers: Record<string, string | string[] | undefined>): boolean {
-  return !q.showIf || answers[q.showIf.key] === q.showIf.equals;
+  if (!q.showIf) return true;
+  const v = answers[q.showIf.key];
+  if (q.showIf.equals !== undefined) return v === q.showIf.equals;
+  return typeof v === "string" && v !== "" && v !== q.showIf.notEquals;
 }
 
 export type RawAnswers = Record<string, unknown>;

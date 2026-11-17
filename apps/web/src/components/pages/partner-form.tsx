@@ -12,7 +12,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { cn } from "@/lib/utils";
 import { FormPart } from "./form-part";
-import { PARTNER_QUESTIONS, PARTNER_TYPES, TN_DISTRICTS, checkPartnerAnswers, isAsked, isPartnerType, type PartnerTypeId, type Question } from "@/lib/partner-network";
+import { PARTNER_PRECHECK, PARTNER_QUESTIONS, PARTNER_TYPES, TN_DISTRICTS, checkPartnerAnswers, isAsked, isPartnerType, type PartnerTypeId, type Question } from "@/lib/partner-network";
 
 const DISTRICT_OPTIONS: MultiSelectOption[] = TN_DISTRICTS.map((d) => ({ value: d, label: d }));
 type Answers = Record<string, string | string[]>;
@@ -79,6 +79,8 @@ export function PartnerForm() {
   const [error, setError] = React.useState("");
   const [reference, setReference] = React.useState("");
   const [agreed, setAgreed] = React.useState(false);
+  const [precheck, setPrecheck] = React.useState(false);
+  const [whatsappSame, setWhatsappSame] = React.useState(true);
 
   const typeRef = React.useRef<PartnerTypeId | null>(null);
   const choose = React.useCallback((next: PartnerTypeId) => {
@@ -130,6 +132,11 @@ export function PartnerForm() {
       setError("Choose the district you mainly work in.");
       return;
     }
+    if (!precheck) {
+      setStatus("error");
+      setError("Please tick the box about the documents you will be asked for.");
+      return;
+    }
     if (!agreed) {
       setStatus("error");
       setError("Please tick the box to agree before you send your application.");
@@ -154,12 +161,14 @@ export function PartnerForm() {
           contactName: get("contactName"),
           phone: get("phone"),
           email: get("email"),
+          whatsapp: whatsappSame ? "" : get("whatsapp"),
           district,
           otherDistricts: others,
           answers,
           message: get("message"),
           website_url: get("website_url"),
           consent: true,
+          precheck: true,
         }),
       });
       const json = (await res.json().catch(() => null)) as { success?: boolean; error?: string; data?: { reference?: string } } | null;
@@ -241,6 +250,18 @@ export function PartnerForm() {
                 <Label htmlFor="pf-email">E-mail</Label>
                 <Input id="pf-email" name="email" type="email" required autoComplete="email" />
               </div>
+              <div className={cn("flex items-start gap-3 sm:col-span-2")}>
+                <Checkbox id="pf-wa-same" checked={whatsappSame} onCheckedChange={(v) => setWhatsappSame(v === true)} className="mt-0.5" />
+                <Label htmlFor="pf-wa-same" className="block text-sm font-normal leading-relaxed text-theme-secondary">
+                  My WhatsApp number is the same as my mobile number
+                </Label>
+              </div>
+              {!whatsappSame && (
+                <div className={cn(field, "sm:col-span-2")}>
+                  <Label htmlFor="pf-whatsapp">WhatsApp number</Label>
+                  <Input id="pf-whatsapp" name="whatsapp" type="tel" required minLength={6} autoComplete="tel" />
+                </div>
+              )}
             </div>
           </FormPart>
 
@@ -315,6 +336,12 @@ export function PartnerForm() {
 
       {type && (
         <div className="mt-2 space-y-6 border-t border-theme-border pt-8">
+          <div className="flex items-start gap-3">
+            <Checkbox id="pf-precheck" checked={precheck} onCheckedChange={(v) => setPrecheck(v === true)} className="mt-0.5" />
+            <Label htmlFor="pf-precheck" className="block text-sm font-normal leading-relaxed text-theme-secondary">
+              {PARTNER_PRECHECK[type]}
+            </Label>
+          </div>
           <div className="flex items-start gap-3">
             <Checkbox id="pf-agree" checked={agreed} onCheckedChange={(v) => setAgreed(v === true)} className="mt-0.5" />
             <Label htmlFor="pf-agree" className="block text-sm font-normal leading-relaxed text-theme-secondary">

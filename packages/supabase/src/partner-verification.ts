@@ -57,6 +57,19 @@ export interface ScreeningItem {
 
 const LICENSED = "Electrical work must be done by a licensed contractor under a certified supervisor.";
 
+const GST_ITEM: ScreeningItem = {
+  key: "s_gst",
+  label: "GST and business registration",
+  hint: "You asked whether they are registered for GST (note the number if so) and what kind of business it is. A business below the GST limit is fine: tick this once you have asked and noted the answer.",
+  required: true,
+};
+const PVC_ITEM: ScreeningItem = {
+  key: "s_pvc",
+  label: "Police verification",
+  hint: "They hold a police verification certificate, or are ready to get one before they start. We ask for it from people who work alone at customers' homes and sites.",
+  required: true,
+};
+
 /**
  * What the admin confirms on the screening call, by kind of partner. The first two are what the rest of the flow stands on: the onboarding link and its code go to the
  * e-mail address, and the call proves the phone number.
@@ -64,32 +77,49 @@ const LICENSED = "Electrical work must be done by a licensed contractor under a 
 export function screeningChecklist(partnerType: string | null): ScreeningItem[] {
   const common: ScreeningItem[] = [
     { key: "s_phone", label: "Phone number", hint: "You reached them on the number they gave.", required: true },
-    { key: "s_email", label: "E-mail address", hint: "They confirmed the address. The onboarding link and its code go only there.", required: true },
-    { key: "s_person", label: "Who they are", hint: "The person and the business are who the application says, and this person can sign for it.", required: true },
+    { key: "s_email", label: "E-mail address", hint: "They confirmed the address, letter by letter. The onboarding link and its code go only there, and the code proves the address is theirs.", required: true },
+    { key: "s_person", label: "Who they are", hint: "The person and the business are who the application says, and this person can sign for it (owner, partner, director or an authorised manager).", required: true },
     { key: "s_area", label: "Where they work", hint: "The districts they cover, and how far they travel.", required: true },
     { key: "s_work", label: "Work and experience", hint: "What they do, how long, the size of their team and their past work match their answers.", required: true },
   ];
   const byType: Record<string, ScreeningItem[]> = {
     contractor: [
       { key: "s_licence", label: "Contractor licence", hint: `They hold a current TNELB electrical contractor licence; note the grade and number. ${LICENSED}`, required: true },
-      { key: "s_gst", label: "GST and business registration", hint: "Whether they are registered for GST, and what kind of business it is.", required: false },
+      { key: "s_supervisor", label: "Licensed supervisor", hint: "A full-time electrical supervisor with a current competency certificate works for them; note the name. Electrical work needs one on site.", required: true },
+      GST_ITEM,
     ],
     solar: [
       { key: "s_licence", label: "Licensed electrical work", hint: `They hold a contractor licence, or work through a licensed contractor (note who). ${LICENSED}`, required: true },
       { key: "s_subsidy", label: "Rooftop solar vendor registration", hint: "Whether they are a registered vendor on the national portal (needed for subsidised home systems under PM Surya Ghar).", required: false },
-      { key: "s_gst", label: "GST and business registration", hint: "Whether they are registered for GST, and what kind of business it is.", required: false },
+      { key: "s_ppe", label: "Safety gear and rooftop safety", hint: "Their crews have safety gear (harness, helmet, insulated gloves and footwear) and are trained to work at height.", required: true },
+      GST_ITEM,
     ],
     ev: [
       { key: "s_licence", label: "Licensed electrical work", hint: `They hold a contractor licence, or work through a licensed contractor (note who). ${LICENSED}`, required: true },
-      { key: "s_gst", label: "GST and business registration", hint: "Whether they are registered for GST, and what kind of business it is.", required: false },
+      { key: "s_completion", label: "Completion certificate", hint: "They can issue the electrical completion and test certificate that the electricity board's forms ask for after a charger is installed, through their licence or their licensed contractor.", required: true },
+      { key: "s_ocpp", label: "Charger commissioning", hint: "They have commissioned chargers and connected them to a charging system (OCPP) before; note the makes.", required: true },
+      GST_ITEM,
     ],
-    technician: [{ key: "s_licence", label: "Competency or trade certificate", hint: "They hold a wireman or supervisor competency certificate, or an ITI, diploma or degree; note which.", required: true }],
-    survey: [{ key: "s_tools", label: "Tools and rooftop safety", hint: "They have a smartphone and measuring tools, and can work safely on a rooftop.", required: true }],
+    technician: [
+      { key: "s_licence", label: "Competency or trade certificate", hint: "They hold a wireman or supervisor competency certificate, or an ITI, diploma or degree; note which.", required: true },
+      PVC_ITEM,
+      { key: "s_tools", label: "Tools and transport", hint: "They have their own hand tools and a way to reach sites.", required: true },
+    ],
+    survey: [
+      { key: "s_skills", label: "Drawings and measuring", hint: "They can read a simple electrical single-line diagram and take rooftop and site measurements; ask them to describe a survey they did.", required: true },
+      PVC_ITEM,
+      { key: "s_tools", label: "Smartphone, tools and rooftop safety", hint: "They have a smartphone with a camera and GPS, basic measuring tools, and can work safely on a rooftop.", required: true },
+    ],
   };
   return [
     ...common,
     ...(byType[partnerType ?? ""] ?? []),
-    { key: "s_documents", label: "Documents explained", hint: "You told them what onboarding asks for: photo ID, PAN, bank proof, licences and certificates, each team member's ID and certificate, and photos of their work.", required: true },
+    {
+      key: "s_documents",
+      label: "Documents explained",
+      hint: "You told them what onboarding asks for: photo ID and a live selfie, PAN, bank proof, licences and certificates with their numbers and expiry dates, each team member's ID and certificate, police verification where it applies, and photos of their work. Also that they will read and accept the partner agreement at the end.",
+      required: true,
+    },
   ];
 }
 

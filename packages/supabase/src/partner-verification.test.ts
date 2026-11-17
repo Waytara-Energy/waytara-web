@@ -17,6 +17,19 @@ describe("screening", () => {
     expect(screeningChecklist("survey").some((i) => i.key === "s_licence")).toBe(false);
     expect(screeningChecklist("survey").some((i) => i.key === "s_tools")).toBe(true);
   });
+  it("adds the gate checks of each kind: a supervisor for a contractor, completion and commissioning for EV, safety gear for solar, police verification for the two who work alone", () => {
+    const req = (type: string) => screeningChecklist(type).filter((i) => i.required).map((i) => i.key);
+    expect(req("contractor")).toEqual(expect.arrayContaining(["s_licence", "s_supervisor", "s_gst"]));
+    expect(req("solar")).toEqual(expect.arrayContaining(["s_licence", "s_ppe", "s_gst"]));
+    expect(req("ev")).toEqual(expect.arrayContaining(["s_licence", "s_completion", "s_ocpp", "s_gst"]));
+    expect(req("technician")).toEqual(expect.arrayContaining(["s_licence", "s_pvc", "s_tools"]));
+    expect(req("survey")).toEqual(expect.arrayContaining(["s_skills", "s_pvc", "s_tools"]));
+    expect(screeningChecklist("solar").find((i) => i.key === "s_subsidy")?.required).toBe(false);
+    for (const type of ["contractor", "solar", "ev", "technician", "survey"]) {
+      const keys = screeningChecklist(type).map((i) => i.key);
+      expect(new Set(keys).size).toBe(keys.length);
+    }
+  });
   it("is done only when every required item is ticked; an optional one never holds it up", () => {
     expect(screeningGaps("solar", {})).toContain("Phone number");
     expect(screeningGaps("solar", screened("solar"))).toEqual([]);

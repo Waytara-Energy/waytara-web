@@ -4,7 +4,7 @@ import { createClient } from "@waytara/supabase/server";
 import { allowRequest, clientIp } from "@/lib/rate-limit";
 import { sendMail } from "@/lib/send-mail";
 import { buildPartnerAckMail, buildPartnerAdminMail } from "@/lib/partner-mail";
-import { PARTNER_REFERENCE_CODE, PARTNER_TYPE_IDS, TN_DISTRICTS, checkPartnerAnswers, makePartnerReference } from "@/lib/partner-network";
+import { PARTNER_PRECHECK, PARTNER_REFERENCE_CODE, PARTNER_TYPE_IDS, TN_DISTRICTS, checkPartnerAnswers, makePartnerReference } from "@/lib/partner-network";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
 
 const blank = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : v);
@@ -18,6 +18,8 @@ const partnerSchema = z.object({
   contactName: z.string().trim().min(2, "Your name is required").max(200),
   phone: z.string().trim().min(6, "A mobile number is required").max(32),
   email: z.string().trim().email("A valid e-mail is required").max(320),
+  // Only sent when it is not the mobile number.
+  whatsapp: z.preprocess(blank, z.string().trim().min(6, "Check the WhatsApp number").max(32).optional()),
   district,
   otherDistricts: z.array(district).max(40).default([]),
   answers: z.record(z.string(), z.unknown()),
@@ -26,6 +28,8 @@ const partnerSchema = z.object({
   website_url: z.string().optional(),
   // The applicant ticked the terms, privacy and partner-agreement box.
   consent: z.literal(true, { message: "Please agree to the terms to send your application" }),
+  // The applicant ticked the sentence of their kind about the licences and certificates they will be asked for.
+  precheck: z.literal(true, { message: "Please tick the box about the documents you will be asked for" }),
 });
 
 // Per client IP, plus a global ceiling, the same way as the enquiry form (Postgres-backed limiter).
@@ -63,7 +67,13 @@ export async function POST(req: NextRequest) {
 
     const checked = checkPartnerAnswers(d.type, d.answers);
     if (!checked.ok) return NextResponse.json({ success: false, error: checked.error }, { status: 400 });
-    const { qa, services, byKey } = checked.value;
+    const { services, byKey } = checked.value;
+    // the questions, then what was given beside them: a WhatsApp number that is not the mobile, and the sentence they agreed to
+    const qa = [
+      ...checked.value.qa,
+      ...(d.whatsapp && d.whatsapp.replace(/\D/g, "") !== d.phone.replace(/\D/g, "") ? [{ q: "WhatsApp number", a: d.whatsapp }] : []),
+      { q: "Confirmed when applying", a: PARTNER_PRECHECK[d.type] },
+    ];
 
     const others = d.otherDistricts.filter((x, i, all) => x !== d.district && all.indexOf(x) === i);
     // What the old list view shows at a glance: a contractor's licence, or a technician's competency certificate.
