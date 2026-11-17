@@ -25,6 +25,7 @@ import { DashboardCommandMenu } from "./dashboard-command-menu";
 import { DashboardUserMenu } from "./dashboard-user-menu";
 import { SidebarDeviceRow, isDevicePage } from "./sidebar-device-row";
 import type { ChargerSidebarInfo } from "@/lib/sidebar-device-info";
+import { firstPageHref } from "@waytara/supabase/team";
 import { visibleNavItems } from "./nav-config";
 import { useDeviceState } from "./use-device-state";
 
@@ -66,11 +67,14 @@ function DeviceStatusDot({ deviceId, sync }: { deviceId: string; sync: DeviceSyn
 // devices as a labelled list with a status dot each, and the account at the bottom.
 export function DashboardSidebar({
   features = {},
+  teamPages = null,
   devices = [],
   selectedDeviceId = null,
   account,
 }: {
   features?: Record<string, boolean>;
+  /** Only for a team member: the pages they were given (everything else, Support and Application Settings included, is hidden). */
+  teamPages?: readonly string[] | null;
   devices?: SidebarDevice[];
   /** The device the pages show (the page's ?device=, else the one last picked). */
   selectedDeviceId?: string | null;
@@ -78,7 +82,10 @@ export function DashboardSidebar({
 }) {
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const navItems = visibleNavItems(features).filter((i) => i.href !== "/dashboard/devices");
+  const navItems = visibleNavItems(features, teamPages).filter((i) => i.href !== "/dashboard/devices");
+  // a member without the Devices page opens a device on the first page they do have
+  const hasDevicesPage = !teamPages || teamPages.includes("devices");
+  const deviceHref = hasDevicesPage ? "/dashboard/devices" : firstPageHref(teamPages);
   const { isMobile, setOpenMobile, setOpen } = useSidebar();
   const openDevice = searchParams.get("device");
   const shownDevice = devices.some((d) => d.id === openDevice) ? openDevice : devices.some((d) => d.id === selectedDeviceId) ? selectedDeviceId : (devices[0]?.id ?? null);
@@ -102,7 +109,7 @@ export function DashboardSidebar({
 
       <SidebarContent className="gap-0 pb-2">
         <SidebarGroup className="pb-1 pt-0">
-          <DashboardCommandMenu features={features} variant="sidebar" />
+          <DashboardCommandMenu features={features} teamPages={teamPages} variant="sidebar" />
         </SidebarGroup>
 
         <SidebarGroup>
@@ -123,21 +130,25 @@ export function DashboardSidebar({
         </SidebarGroup>
 
         <SidebarGroup className="pt-1">
-          <SidebarGroupLabel asChild>
-            <HoverPrefetchLink href="/dashboard/devices" onClick={handleNavClick} className="hover:text-sidebar-foreground">
-              Devices
-            </HoverPrefetchLink>
-          </SidebarGroupLabel>
+          {hasDevicesPage ? (
+            <SidebarGroupLabel asChild>
+              <HoverPrefetchLink href="/dashboard/devices" onClick={handleNavClick} className="hover:text-sidebar-foreground">
+                Devices
+              </HoverPrefetchLink>
+            </SidebarGroupLabel>
+          ) : (
+            <SidebarGroupLabel>Devices</SidebarGroupLabel>
+          )}
           <SidebarGroupContent>
             <SidebarMenu>
               {devices.length === 0 && <li className="px-2 py-1.5 text-xs text-sidebar-foreground/60">No devices yet</li>}
               {devices.map((d) =>
                 d.kind ? (
-                  <SidebarDeviceRow key={d.id} device={{ id: d.id, name: d.name, kind: d.kind, charger: d.charger }} selected={isDevicePage(pathname) && d.id === shownDevice} onNavigate={handleNavClick} />
+                  <SidebarDeviceRow key={d.id} device={{ id: d.id, name: d.name, kind: d.kind, charger: d.charger }} selected={isDevicePage(pathname) && d.id === shownDevice} onNavigate={handleNavClick} openHref={deviceHref} />
                 ) : (
                 <SidebarMenuItem key={d.id}>
-                  <SidebarMenuButton asChild isActive={pathname === "/dashboard/devices" && openDevice === d.id}>
-                    <HoverPrefetchLink href={`/dashboard/devices?device=${d.id}`} onClick={handleNavClick}>
+                  <SidebarMenuButton asChild isActive={pathname === deviceHref && openDevice === d.id}>
+                    <HoverPrefetchLink href={`${deviceHref}?device=${d.id}`} onClick={handleNavClick}>
                       <span className="truncate text-[clamp(12.5px,0.85vw,13.5px)]">{d.name}</span>
                       <DeviceStatusDot deviceId={d.id} sync={d.sync} />
                     </HoverPrefetchLink>
@@ -153,7 +164,7 @@ export function DashboardSidebar({
       <SidebarFooter className="relative px-2 pb-3 pt-1">
         {/* The list fades out above the account row instead of being cut by a line. */}
         <div className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-gradient-to-t from-sidebar to-transparent" />
-        <DashboardUserMenu fullName={account.fullName} email={account.email} avatarUrl={account.avatarUrl} planName={account.planName} />
+        <DashboardUserMenu fullName={account.fullName} email={account.email} avatarUrl={account.avatarUrl} planName={account.planName} member={!!teamPages} />
       </SidebarFooter>
     </Sidebar>
   );

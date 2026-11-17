@@ -1,4 +1,7 @@
+import { redirect } from "next/navigation";
 import { createClient } from "@waytara/supabase/server";
+import { firstPageHref } from "@waytara/supabase/team";
+import { getTeamAccess, loadTeam } from "@/lib/team-server";
 import { requireCustomer } from "@waytara/supabase/auth";
 import { SettingsBoard } from "@/components/dashboard/settings/settings-board";
 import type { SignedInDevice } from "@/components/dashboard/devices-setting";
@@ -30,8 +33,11 @@ const serverNow = () => Date.now();
 // staying signed in, activity, devices) and Privacy & data. The page reads everything it needs together; the board shows one tab at a time.
 export default async function SettingsPage() {
   const profile = await requireCustomer();
+  // Application Settings belong to the account's owner: a team member is sent to the first page they were given
+  const access = await getTeamAccess();
+  if (access.kind === "member") redirect(firstPageHref(access.pages));
   const supabase = await createClient();
-  const [site, allSites] = await Promise.all([getSelectedSite(), getCustomerSites()]);
+  const [site, allSites, team] = await Promise.all([getSelectedSite(), getCustomerSites(), loadTeam(profile.id)]);
   const [{ data: row }, { data: customer }, { data: subscription }, { data: sessionRows }, unitValues, { data: ruleRows }, { data: alertRows }, { data: eventRows }, factors, { data: paymentRows }] = await Promise.all([
     supabase.from("profiles").select("full_name, phone, email, avatar_url, created_at, notification_preferences, ui_preferences, security_preferences").eq("id", profile.id).maybeSingle(),
     supabase.from("customers").select("status, address, billing_address, billing_email, gstin, plan_started_at, plan:plans(name, price_monthly)").eq("id", profile.id).maybeSingle(),
@@ -122,6 +128,15 @@ export default async function SettingsPage() {
       dashboard={{ startPage: parseStartPage(row?.ui_preferences), sites: allSites.map((s) => ({ id: s.id, name: s.name, devices: s.devices.length, address: s.address ? addressLine(parseAddress(s.address)) || null : null })), selectedSiteId: site?.id ?? null, overview: overviewProps, car: parseCarProfile(row?.ui_preferences) }}
       notifications={{ initial: prefs, pausedUntil: pausedIso, email }}
       alerts={{ rules, sites: siteList, recent, emailOn: prefs.rule_alerts, paused: paused !== null, now }}
+      team={{
+        members: team,
+        // only devices on sites this account owns can be shared
+        sites: allSites
+          .filter((s) => s.ownerId === profile.id)
+          .map((s) => ({ id: s.id, name: s.name, devices: s.devices.map((d) => ({ id: d.id, name: deviceDisplayId(d), kind: d.deviceType?.name ?? "Device" })) }))
+          .filter((s) => s.devices.length > 0),
+        now,
+      }}
       billing={{ plan, payments, summary: summarisePayments(payments), addresses: addressesProps }}
       security={{ policy, devices, now, email, events }}
       privacy={{

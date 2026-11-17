@@ -18,6 +18,7 @@
     "./partner-cashfree": "./src/partner-cashfree.ts",
     "./partner-verification-run": "./src/partner-verification-run.ts",
     "./partner-digilocker": "./src/partner-digilocker.ts",
+    "./team": "./src/team.ts",
     "./middleware": "./src/middleware.ts",
     "./auth": "./src/auth.ts",
     "./roles": "./src/roles.ts",

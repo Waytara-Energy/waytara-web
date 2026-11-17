@@ -2,6 +2,8 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createMiddlewareClient } from "@waytara/supabase/middleware";
 import { profileForUser } from "@waytara/supabase/auth";
 import { isCustomerRole } from "@waytara/supabase/roles";
+import { firstPageHref, pageOfPath } from "@waytara/supabase/team";
+import { OWNER_ACCESS, loadTeamAccess, teamAccessHeader } from "@/lib/team-access";
 import { needsSecondFactor } from "@/lib/mfa";
 import { logTiming, startStopwatch } from "@/lib/server-timing";
 
@@ -27,12 +29,14 @@ export async function proxy(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser();
   watch.mark("auth");
-  const [lookup, onboardingResult] = user
+  const [lookup, onboardingResult, teamAccess] = user
     ? await Promise.all([
         profileForUser(supabase, user.id),
         supabase.from("customer_onboarding").select("current_stage").eq("customer_id", user.id).maybeSingle(),
+        // a team member's pages (an owner: everything). Asked together with the rest as if for a customer; anyone else is turned away below before it is used.
+        loadTeamAccess(supabase, user.id, "customer").catch(() => OWNER_ACCESS),
       ])
-    : [null, null];
+    : [null, null, null];
   watch.mark("profile+onboarding");
   const profile = lookup?.status === "ok" ? lookup.profile : null;
 
@@ -93,6 +97,26 @@ export async function proxy(request: NextRequest) {
     return NextResponse.redirect(url);
   }
 
+  // A team member sees only the pages the owner gave them (the devices are held back by the database itself). Billing, Support, Application Settings and the account's
+  // own data are never shared. Sent to the first page they have, or, for a download or data request, refused.
+  const access = teamAccess ?? OWNER_ACCESS;
+  if (access.kind === "member") {
+    const path = request.nextUrl.pathname;
+    if (path.startsWith("/api/")) {
+      if (!(path.startsWith("/api/reports/") && access.pages.includes("reports"))) {
+        return NextResponse.json({ success: false, error: "This is not part of the access you were given." }, { status: 403 });
+      }
+    } else {
+      const page = pageOfPath(path);
+      if (page === null || page === "owner" || !access.pages.includes(page)) {
+        const url = request.nextUrl.clone();
+        url.pathname = firstPageHref(access.pages);
+        url.search = "";
+        return NextResponse.redirect(url);
+      }
+    }
+  }
+
   // Navigation-latency fix: everything above just paid for a real network
   // round trip to Supabase (auth.getUser() + a profiles row) plus a second
   // one for customer_onboarding — and every /dashboard/* page independently
@@ -114,6 +138,7 @@ export async function proxy(request: NextRequest) {
   requestHeaders.set("x-waytara-profile-avatar", encodeURIComponent(profile.avatar_url ?? ""));
   requestHeaders.set("x-waytara-profile-role", profile.role);
   requestHeaders.set("x-waytara-onboarded", isOnboarded ? "1" : "0");
+  requestHeaders.set("x-waytara-team", teamAccessHeader(access));
 
   const finalResponse = NextResponse.next({ request: { headers: requestHeaders } });
   // How long the gate itself took, shown in the browser's Network > Timing, and logged when it was slow.

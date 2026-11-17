@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { navFeatures, visibleNavItems } from "./nav-config";
+import { allReachableNavItems, navFeatures, visibleNavItems } from "./nav-config";
 
 const inverter = { deviceType: { category: "solar_inverter" } };
 const charger = { deviceType: { category: "ev_charger" } };
@@ -28,6 +28,25 @@ describe("the menu's charging pages", () => {
 
   it("tolerate a device with no type", () => {
     expect(navFeatures(undefined, [{ deviceType: null }, {}]).ev_sessions).toBe(false);
+  });
+});
+
+describe("a team member's menu", () => {
+  const all = { monitoring: true, performance: true, reports: true };
+  it("shows only the pages they were given", () => {
+    expect(visibleNavItems(all, ["overview", "reports"]).map((i) => i.label)).toEqual(["Overview", "Reports"]);
+  });
+  it("still follows the plan: a page the plan lacks stays hidden even if it was given", () => {
+    expect(visibleNavItems({ monitoring: false }, ["overview", "monitoring"]).map((i) => i.label)).toEqual(["Overview"]);
+  });
+  it("shows nothing extra to an owner (no pages given means everything)", () => {
+    expect(visibleNavItems(all).length).toBe(visibleNavItems(all, null).length);
+    expect(visibleNavItems(all).map((i) => i.label)).toContain("Devices");
+  });
+  it("has no Support or Application Settings in its reach", () => {
+    const reach = allReachableNavItems(all, ["overview"]).map((i) => i.label);
+    expect(reach).toEqual(["Overview"]);
+    expect(allReachableNavItems(all).map((i) => i.label)).toContain("Application Settings");
   });
 });
 

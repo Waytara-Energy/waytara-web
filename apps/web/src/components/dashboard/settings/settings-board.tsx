@@ -1,7 +1,7 @@
 "use client";
 
 import type { ComponentProps } from "react";
-import { Bell, BellRing, CreditCard, Gauge, LayoutDashboard, LockKeyhole, Palette, Ruler, ShieldCheck, User, type LucideIcon } from "lucide-react";
+import { Bell, BellRing, CreditCard, Gauge, LayoutDashboard, LockKeyhole, Palette, Ruler, ShieldCheck, User, Users, type LucideIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import type { SettingsTab } from "@/lib/account-health";
 import { cn } from "@/lib/utils";
@@ -17,6 +17,7 @@ import { ProfileSection } from "./profile-section";
 import { SecuritySection } from "./security-section";
 import { SettingsHero, type HeroProps } from "./settings-hero";
 import { SettingsNavProvider } from "./settings-nav";
+import { TeamSection, type TeamProps } from "./team-section";
 import { UnitsSection } from "./units-section";
 
 // Each tab has its own colour, the way the tabs of Monitoring, Performance and Maintenance do: the line under the open tab.
@@ -28,6 +29,7 @@ const TABS: { id: SettingsTab; label: string; icon: LucideIcon; active: string }
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard, active: "data-[state=active]:border-amber-500 data-[state=active]:text-amber-600 dark:data-[state=active]:text-amber-400" },
   { id: "notifications", label: "Notifications", icon: Bell, active: "data-[state=active]:border-rose-500 data-[state=active]:text-rose-600 dark:data-[state=active]:text-rose-400" },
   { id: "alerts", label: "Alerts", icon: BellRing, active: "data-[state=active]:border-orange-500 data-[state=active]:text-orange-600 dark:data-[state=active]:text-orange-400" },
+  { id: "team", label: "Team", icon: Users, active: "data-[state=active]:border-teal-500 data-[state=active]:text-teal-600 dark:data-[state=active]:text-teal-400" },
   { id: "billing", label: "Billing", icon: CreditCard, active: "data-[state=active]:border-emerald-500 data-[state=active]:text-emerald-600 dark:data-[state=active]:text-emerald-400" },
   { id: "security", label: "Security", icon: ShieldCheck, active: "data-[state=active]:border-indigo-500 data-[state=active]:text-indigo-600 dark:data-[state=active]:text-indigo-400" },
   { id: "privacy", label: "Privacy & data", icon: LockKeyhole, active: "data-[state=active]:border-slate-500 data-[state=active]:text-slate-700 dark:data-[state=active]:text-slate-300" },
@@ -43,6 +45,7 @@ export interface SettingsBoardProps {
   dashboard: DashboardProps;
   notifications: ComponentProps<typeof NotificationsSection>;
   alerts: AlertsProps;
+  team: TeamProps;
   billing: BillingProps;
   security: ComponentProps<typeof SecuritySection>;
   privacy: ComponentProps<typeof PrivacySection>;
@@ -61,6 +64,7 @@ export function SettingsBoard(props: SettingsBoardProps) {
     notifications: account.pausedUntil ? { dot: "amber" } : undefined,
     billing: props.billing.summary.pending > 0 ? { dot: "amber" } : undefined,
     alerts: { count: alerts.rules.filter((r) => r.enabled).length },
+    team: props.team.members.length > 0 ? { count: props.team.members.length } : undefined,
   };
 
   return (
@@ -91,6 +95,7 @@ export function SettingsBoard(props: SettingsBoardProps) {
             {tab === "dashboard" && <DashboardSection {...props.dashboard} />}
             {tab === "notifications" && <NotificationsSection {...props.notifications} />}
             {tab === "alerts" && <AlertsSection {...props.alerts} />}
+            {tab === "team" && <TeamSection {...props.team} />}
             {tab === "billing" && <BillingSection {...props.billing} />}
             {tab === "security" && <SecuritySection {...props.security} />}
             {tab === "privacy" && <PrivacySection {...props.privacy} />}

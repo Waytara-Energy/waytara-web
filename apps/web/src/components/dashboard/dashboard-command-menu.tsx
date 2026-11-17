@@ -24,11 +24,11 @@ const ACCOUNT_GROUP_ITEMS = SECONDARY_NAV_ITEMS;
 // reach). Also surfaces the account-menu pages (Support, Billing, Settings)
 // — none of them have a sidebar row, but they're still reachable, so
 // power-users can still jump straight there.
-export function DashboardCommandMenu({ features = {}, variant = "header" }: { features?: Record<string, boolean>; variant?: "header" | "sidebar" }) {
+export function DashboardCommandMenu({ features = {}, teamPages = null, variant = "header" }: { features?: Record<string, boolean>; teamPages?: readonly string[] | null; variant?: "header" | "sidebar" }) {
   const [open, setOpen] = React.useState(false);
   const router = useRouter();
   const { isMobile, setOpen: setSidebarOpen, setOpenMobile } = useSidebar();
-  const navItems = visibleNavItems(features);
+  const navItems = visibleNavItems(features, teamPages);
 
   React.useEffect(() => {
     function onKeyDown(event: KeyboardEvent) {
@@ -80,14 +80,16 @@ export function DashboardCommandMenu({ features = {}, variant = "header" }: { fe
               </CommandItem>
             ))}
           </CommandGroup>
-          <CommandGroup heading="Account">
-            {ACCOUNT_GROUP_ITEMS.map(({ href, label, icon: Icon }) => (
-              <CommandItem key={href} value={label} onSelect={() => go(href)}>
-                <Icon />
-                {label}
-              </CommandItem>
-            ))}
-          </CommandGroup>
+          {!teamPages && (
+            <CommandGroup heading="Account">
+              {ACCOUNT_GROUP_ITEMS.map(({ href, label, icon: Icon }) => (
+                <CommandItem key={href} value={label} onSelect={() => go(href)}>
+                  <Icon />
+                  {label}
+                </CommandItem>
+              ))}
+            </CommandGroup>
+          )}
         </CommandList>
       </CommandDialog>
     </>

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@waytara/supabase/server";
 import { requireCustomer } from "@waytara/supabase/auth";
 import { getCustomerSites, type CustomerDevice } from "@/lib/selected-site";
+import { getTeamAccess } from "@/lib/team-server";
 import { getSettingFields } from "@/lib/instrument-settings-catalog";
 import { hhmmToTime, parseBool, sameValue } from "@/lib/setting-values";
 import type { SiteAddress } from "@/lib/site-catalog";
@@ -38,8 +39,18 @@ export interface SiteSaveInput {
   address: { line1: string; city: string; state: string; pincode: string };
 }
 
+// A team member may change a device's settings only if the owner gave them "operate" on it (the database refuses the write otherwise; this says why in plain words).
+async function requireOperate(deviceId: string) {
+  if ((await getTeamAccess()).kind !== "member") return;
+  const supabase = await createClient();
+  const { data } = await supabase.rpc("can_operate_equipment", { p_equipment_id: deviceId });
+  if (data !== true) throw new Error("You can see this device but not change its settings. Ask the account owner for operate access.");
+}
+
 export async function saveSite(deviceId: string, input: SiteSaveInput): Promise<void> {
   await requireCustomer();
+  // the site's name, address and map belong to the owner
+  if ((await getTeamAccess()).kind === "member") throw new Error("Only the account owner can change the site details.");
 
   const sites = await getCustomerSites();
   const site = sites.find((s) => s.devices.some((d) => d.id === deviceId));
@@ -91,6 +102,7 @@ export async function saveSite(deviceId: string, input: SiteSaveInput): Promise<
 
 export async function updateDeviceSetting(deviceId: string, settingKey: string, settingValue: string): Promise<void> {
   const profile = await requireCustomer();
+  await requireOperate(deviceId);
 
   const device = await resolveOwnDevice(deviceId);
   if (!device) throw new Error("No device selected.");
@@ -175,6 +187,7 @@ function validateSettingValue(
 
 export async function updateInstrumentSetting(deviceId: string, key: string, value: string): Promise<void> {
   const profile = await requireCustomer();
+  await requireOperate(deviceId);
 
   const device = await resolveOwnDevice(deviceId);
   if (!device) throw new Error("No device selected.");

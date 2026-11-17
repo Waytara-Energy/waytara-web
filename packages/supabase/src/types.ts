@@ -5266,6 +5266,152 @@ export type Database = {
           },
         ]
       }
+      team_login_codes: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          expires_at: string
+          last_sent_at: string
+          member_id: string
+          proof_expires_at: string | null
+          proof_hash: string | null
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          last_sent_at?: string
+          member_id: string
+          proof_expires_at?: string | null
+          proof_hash?: string | null
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          last_sent_at?: string
+          member_id?: string
+          proof_expires_at?: string | null
+          proof_hash?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_login_codes_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_member_devices: {
+        Row: {
+          equipment_id: string
+          level: string
+          member_id: string
+        }
+        Insert: {
+          equipment_id: string
+          level?: string
+          member_id: string
+        }
+        Update: {
+          equipment_id?: string
+          level?: string
+          member_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_member_devices_equipment_id_fkey"
+            columns: ["equipment_id"]
+            isOneToOne: false
+            referencedRelation: "equipment"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_member_devices_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "team_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      team_members: {
+        Row: {
+          access_expires_at: string | null
+          access_token_hash: string | null
+          accepted_at: string | null
+          can_schedule: boolean
+          created_at: string
+          email: string
+          full_name: string | null
+          id: string
+          invited_at: string
+          last_sent_at: string | null
+          owner_id: string
+          pages: string[]
+          role: string
+          status: string
+          updated_at: string
+          user_id: string | null
+        }
+        Insert: {
+          access_expires_at?: string | null
+          access_token_hash?: string | null
+          accepted_at?: string | null
+          can_schedule?: boolean
+          created_at?: string
+          email: string
+          full_name?: string | null
+          id?: string
+          invited_at?: string
+          last_sent_at?: string | null
+          owner_id: string
+          pages?: string[]
+          role?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Update: {
+          access_expires_at?: string | null
+          access_token_hash?: string | null
+          accepted_at?: string | null
+          can_schedule?: boolean
+          created_at?: string
+          email?: string
+          full_name?: string | null
+          id?: string
+          invited_at?: string
+          last_sent_at?: string | null
+          owner_id?: string
+          pages?: string[]
+          role?: string
+          status?: string
+          updated_at?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "team_members_owner_id_fkey"
+            columns: ["owner_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "team_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       test_sessions: {
         Row: {
           data_purged: boolean
@@ -6007,6 +6153,20 @@ export type Database = {
         }
         Returns: undefined
       }
+      can_operate_equipment: { Args: { p_equipment_id: string }; Returns: boolean }
+      my_team_equipment_ids: { Args: never; Returns: string[] }
+      my_team_plan: {
+        Args: never
+        Returns: {
+          features: Json
+          owner_id: string
+          plan_name: string
+          tariff_rate_per_kwh: number
+        }[]
+      }
+      my_team_site_ids: { Args: never; Returns: string[] }
+      team_can_schedule: { Args: { p_owner: string }; Returns: boolean }
+      team_has_page: { Args: { p_owner: string; p_page: string }; Returns: boolean }
       my_assigned_equipment_ids: { Args: never; Returns: string[] }
       my_assigned_site_ids: { Args: never; Returns: string[] }
       my_sessions: {

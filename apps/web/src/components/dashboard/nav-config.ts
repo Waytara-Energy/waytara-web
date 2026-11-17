@@ -10,6 +10,7 @@ import {
   MapPin,
   type LucideIcon,
 } from "lucide-react";
+import type { TeamPage } from "@waytara/supabase/team";
 
 export interface NavItem {
   href: string;
@@ -17,6 +18,8 @@ export interface NavItem {
   icon: LucideIcon;
   /** Only shown when `features[featureKey]` is true — Advance-tier pages. */
   featureKey?: string;
+  /** The team page this belongs to: a team member only sees the items of the pages they were given (see @waytara/supabase/team). */
+  pageKey?: TeamPage;
 }
 
 // Single source of truth for dashboard navigation. One ordered list (not a
@@ -32,18 +35,18 @@ export interface NavItem {
 // Details are always visible; the settings-editing section within it still
 // checks `features.instrument_settings` on the page itself.
 export const NAV_ITEMS: NavItem[] = [
-  { href: "/dashboard", label: "Overview", icon: LayoutDashboard },
-  { href: "/dashboard/monitoring", label: "Monitoring", icon: Activity, featureKey: "monitoring" },
+  { href: "/dashboard", label: "Overview", icon: LayoutDashboard, pageKey: "overview" },
+  { href: "/dashboard/monitoring", label: "Monitoring", icon: Activity, featureKey: "monitoring", pageKey: "monitoring" },
   // Analytics was previously its own sidebar entry/page — merged into
   // Performance's single page (its own features.analytics gate now checked
   // inline there, not as a second nav item/redirect-gated route).
-  { href: "/dashboard/performance", label: "Performance", icon: TrendingUp, featureKey: "performance" },
-  { href: "/dashboard/reports", label: "Reports", icon: FileDown, featureKey: "reports" },
+  { href: "/dashboard/performance", label: "Performance", icon: TrendingUp, featureKey: "performance", pageKey: "performance" },
+  { href: "/dashboard/reports", label: "Reports", icon: FileDown, featureKey: "reports", pageKey: "reports" },
   // A charger's sessions live on Monitoring (today), Performance and Reports (periods); the old Charging sessions menu entry is gone.
-  { href: "/dashboard/maintenance", label: "Maintenance", icon: Wrench },
+  { href: "/dashboard/maintenance", label: "Maintenance", icon: Wrench, pageKey: "maintenance" },
   // The site's map, kind and address: it was a tab of Devices. Not gated by the plan, like Devices itself.
-  { href: "/dashboard/site", label: "Site", icon: MapPin },
-  { href: "/dashboard/devices", label: "Devices", icon: Cpu },
+  { href: "/dashboard/site", label: "Site", icon: MapPin, pageKey: "site" },
+  { href: "/dashboard/devices", label: "Devices", icon: Cpu, pageKey: "devices" },
 ];
 
 // Rendered by the avatar popup — still real pages with their own URLs, so
@@ -66,13 +69,13 @@ export function navFeatures(
   return { ...(planFeatures ?? {}), ev_sessions: devices.some((d) => d.deviceType?.category === "ev_charger") };
 }
 
-/** Sidebar + command palette's primary list. */
-export function visibleNavItems(features: Record<string, boolean>): NavItem[] {
-  return NAV_ITEMS.filter((item) => !item.featureKey || features[item.featureKey]);
+/** Sidebar + command palette's primary list. `teamPages` is only given for a team member: they see just the pages they were given (an owner passes nothing). */
+export function visibleNavItems(features: Record<string, boolean>, teamPages?: readonly string[] | null): NavItem[] {
+  return NAV_ITEMS.filter((item) => (!item.featureKey || features[item.featureKey]) && (!teamPages || (item.pageKey !== undefined && teamPages.includes(item.pageKey))));
 }
 
 /** Command palette's full reach — primary items plus every account-menu
- *  page — none of which are feature-gated, so nothing extra to filter. */
-export function allReachableNavItems(features: Record<string, boolean>): NavItem[] {
-  return [...visibleNavItems(features), ...SECONDARY_NAV_ITEMS];
+ *  page. A team member has no account-menu pages (Support and Application Settings stay with the owner). */
+export function allReachableNavItems(features: Record<string, boolean>, teamPages?: readonly string[] | null): NavItem[] {
+  return [...visibleNavItems(features, teamPages), ...(teamPages ? [] : SECONDARY_NAV_ITEMS)];
 }

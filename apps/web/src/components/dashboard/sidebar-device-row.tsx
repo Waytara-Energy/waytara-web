@@ -51,7 +51,7 @@ function stamp(ms: number, now: number) {
  *  - at the right end of that line a small Go live button (hidden for now: SHOW_GO_LIVE).
  * Nothing here has a tooltip. What it shows follows the live channel; a charger's sessions come from the server and are read again whenever the page is.
  */
-export function SidebarDeviceRow({ device, selected, onNavigate }: { device: SidebarControlDevice; selected: boolean; onNavigate: () => void }) {
+export function SidebarDeviceRow({ device, selected, onNavigate, openHref = "/dashboard/devices" }: { device: SidebarControlDevice; selected: boolean; onNavigate: () => void; openHref?: string }) {
   const { controls, states, clock } = useDeviceHub();
   const router = useRouter();
   const pathname = usePathname();
@@ -92,7 +92,7 @@ export function SidebarDeviceRow({ device, selected, onNavigate }: { device: Sid
         params.set("device", device.id);
         router.push(`${pathname}?${params.toString()}`);
       } else {
-        router.push(`/dashboard/devices?device=${device.id}`);
+        router.push(`${openHref}?device=${device.id}`);
       }
     });
   }

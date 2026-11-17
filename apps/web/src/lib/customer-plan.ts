@@ -32,7 +32,13 @@ export const getCustomerPlan = cache(async (): Promise<CustomerPlan | null> => {
     .eq("id", profile.id)
     .maybeSingle();
 
-  if (!data) return null;
+  if (!data) {
+    // A team member has no plan of their own: they get the plan (and the tariff) of the account that invited them, which decides which features their pages have.
+    const { data: shared } = await supabase.rpc("my_team_plan");
+    const row = shared?.[0];
+    if (!row) return null;
+    return { planName: row.plan_name ?? null, features: (row.features as Record<string, boolean>) ?? {}, tariffRatePerKwh: Number(row.tariff_rate_per_kwh ?? 8) };
+  }
 
   return {
     planName: data.plan?.name ?? null,

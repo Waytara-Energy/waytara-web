@@ -29,6 +29,7 @@ import { SubmitButton } from "@/components/ui/submit-button";
 import { deviceDisplayId, getCustomerSites, resolveSelectedSite, SELECTED_DEVICE_COOKIE, SELECTED_SITE_COOKIE } from "@/lib/selected-site";
 import { getLastSyncInfo } from "@/lib/device-sync";
 import { getCustomerPlan } from "@/lib/customer-plan";
+import { getTeamAccess } from "@/lib/team-server";
 import { getRequestProfile, isRequestOnboarded } from "@/lib/request-profile";
 import { fetchActiveFaultCodes, fetchCustomerAlerts } from "@/lib/device-overview";
 import { logout } from "./actions";
@@ -79,7 +80,9 @@ export default async function DashboardLayout({
   // guaranteed to be that page alone — this only decides whether the real
   // dashboard's sidebar nav shows around it. Neither this nor the plan
   // lookup below depends on the other, so they run together too.
-  const [customerPlan, isOnboarded] = await Promise.all([getCustomerPlan(), isRequestOnboarded()]);
+  const [customerPlan, isOnboarded, teamAccess] = await Promise.all([getCustomerPlan(), isRequestOnboarded(), getTeamAccess()]);
+  // a team member sees only the pages they were given; an owner sees everything
+  const teamPages = teamAccess.kind === "member" ? teamAccess.pages : null;
   watch.mark("plan+onboarded");
 
   if (!isOnboarded) {
@@ -186,6 +189,7 @@ export default async function DashboardLayout({
         <SidebarBrandToggle floating />
         <DashboardSidebar
           features={features}
+          teamPages={teamPages}
           devices={sidebarDevices}
           selectedDeviceId={cookieStore.get(SELECTED_DEVICE_COOKIE)?.value ?? null}
           account={{ fullName: profile?.full_name ?? null, email: profile?.email ?? null, avatarUrl: profile?.avatar_url ?? null, planName: customerPlan?.planName ?? null }}

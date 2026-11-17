@@ -17,6 +17,8 @@ export { deviceDisplayId, type CustomerDevice };
 
 export interface CustomerSite {
   id: string;
+  /** The account that owns the site (a team member sees sites that belong to someone else). */
+  ownerId?: string | null;
   name: string;
   propertyType: string;
   powerSourceCategory: string;
@@ -42,7 +44,7 @@ export const getCustomerSites = cache(async function getCustomerSites(): Promise
   const { data } = await supabase
     .from("sites")
     .select(
-      "id, name, property_type, power_source_category, power_package, latitude, longitude, address, equipment(id, label, serial_number, device_status, parent_id, created_at, installed_at, warranty_start_date, warranty_end_date, service_id, device_type:equipment_inventory(id, category, name, manufacturer, brand, model, model_number))"
+      "id, customer_id, name, property_type, power_source_category, power_package, latitude, longitude, address, equipment(id, label, serial_number, device_status, parent_id, created_at, installed_at, warranty_start_date, warranty_end_date, service_id, device_type:equipment_inventory(id, category, name, manufacturer, brand, model, model_number))"
     )
     // A site hidden from the customer (hidden_at set by staff) is left out here and so everywhere: the site list, the device
     // icons, and every page's scoping. Nothing is deleted.
@@ -51,6 +53,7 @@ export const getCustomerSites = cache(async function getCustomerSites(): Promise
 
   return (data ?? []).map((s) => ({
     id: s.id,
+    ownerId: s.customer_id,
     name: s.name,
     propertyType: s.property_type,
     powerSourceCategory: s.power_source_category,

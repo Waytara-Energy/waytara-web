@@ -31,11 +31,14 @@ export function DashboardUserMenu({
   email,
   avatarUrl: savedAvatar,
   planName,
+  member = false,
 }: {
   fullName: string | null;
   email: string | null;
   avatarUrl: string | null;
   planName?: string | null;
+  /** A team member: no Support and no Application Settings (those stay with the account's owner), so the account row is not a link. */
+  member?: boolean;
 }) {
   const { isMobile, setOpenMobile, setOpen: setSidebarOpen, open: sidebarOpen, openMobile } = useSidebar();
   const pathname = usePathname();
@@ -90,14 +93,16 @@ export function DashboardUserMenu({
             </Collapsible>
           </SidebarMenuItem>
         )}
-        <SidebarMenuItem>
-          <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/support")}>
-            <Link href="/dashboard/support" onClick={handleNavigate}>
-              <LifeBuoy className={ICON} />
-              <span className={LABEL}>Support</span>
-            </Link>
-          </SidebarMenuButton>
-        </SidebarMenuItem>
+        {!member && (
+          <SidebarMenuItem>
+            <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/support")}>
+              <Link href="/dashboard/support" onClick={handleNavigate}>
+                <LifeBuoy className={ICON} />
+                <span className={LABEL}>Support</span>
+              </Link>
+            </SidebarMenuButton>
+          </SidebarMenuItem>
+        )}
         <SidebarMenuItem>
           <SidebarMenuButton asChild>
             <Link href="/" onClick={handleNavigate}>
@@ -114,23 +119,36 @@ export function DashboardUserMenu({
         </SidebarMenuItem>
       </SidebarMenu>
 
-      <Link
-        href="/dashboard/settings"
-        onClick={handleNavigate}
-        aria-label="Application Settings"
-        aria-current={inSettings ? "page" : undefined}
-        className={cn("flex w-full items-center gap-2.5 rounded-lg p-2 text-left outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring", inSettings && "bg-sidebar-accent")}
-      >
-        <Avatar className="h-8 w-8 shrink-0 border-0">
-          {avatarUrl && <AvatarImage src={avatarUrl} alt={fullName ?? "Account"} />}
-          <AvatarFallback className="text-xs">{initials(fullName, email)}</AvatarFallback>
-        </Avatar>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-medium leading-tight text-sidebar-foreground">{fullName ?? "Your account"}</span>
-          <span className="block truncate text-xs leading-tight text-sidebar-foreground/60">{planName ?? email}</span>
-        </span>
-        <ChevronRight className="size-4 shrink-0 text-sidebar-foreground/60" />
-      </Link>
+      {member ? (
+        <div className="flex w-full items-center gap-2.5 rounded-lg p-2">
+          <Avatar className="h-8 w-8 shrink-0 border-0">
+            {avatarUrl && <AvatarImage src={avatarUrl} alt={fullName ?? "Account"} />}
+            <AvatarFallback className="text-xs">{initials(fullName, email)}</AvatarFallback>
+          </Avatar>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium leading-tight text-sidebar-foreground">{fullName ?? "Your account"}</span>
+            <span className="block truncate text-xs leading-tight text-sidebar-foreground/60">Team member</span>
+          </span>
+        </div>
+      ) : (
+        <Link
+          href="/dashboard/settings"
+          onClick={handleNavigate}
+          aria-label="Application Settings"
+          aria-current={inSettings ? "page" : undefined}
+          className={cn("flex w-full items-center gap-2.5 rounded-lg p-2 text-left outline-none transition-colors hover:bg-sidebar-accent focus-visible:ring-2 focus-visible:ring-sidebar-ring", inSettings && "bg-sidebar-accent")}
+        >
+          <Avatar className="h-8 w-8 shrink-0 border-0">
+            {avatarUrl && <AvatarImage src={avatarUrl} alt={fullName ?? "Account"} />}
+            <AvatarFallback className="text-xs">{initials(fullName, email)}</AvatarFallback>
+          </Avatar>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-medium leading-tight text-sidebar-foreground">{fullName ?? "Your account"}</span>
+            <span className="block truncate text-xs leading-tight text-sidebar-foreground/60">{planName ?? email}</span>
+          </span>
+          <ChevronRight className="size-4 shrink-0 text-sidebar-foreground/60" />
+        </Link>
+      )}
     </div>
   );
 }

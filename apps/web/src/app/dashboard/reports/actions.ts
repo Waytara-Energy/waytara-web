@@ -3,6 +3,7 @@
 import { createClient } from "@waytara/supabase/server";
 import { getRequestProfile } from "@/lib/request-profile";
 import { getCustomerPlan } from "@/lib/customer-plan";
+import { getTeamAccess } from "@/lib/team-server";
 import { parseEmails } from "@/lib/reports/recipients";
 import { reportFormSchema } from "@/lib/reports/saved-report";
 import { nextRunAt, type Schedule } from "@/lib/reports/schedule";
@@ -12,12 +13,18 @@ const MAX_REPORTS = 20;
 
 export type ActionResult = { ok: true; id?: string; message?: string } | { ok: false; error: string; /** The attempt was recorded as a run (so the dashboard shows it live); no further message is needed. */ recorded?: boolean };
 
+const NOT_ALLOWED = "Your access does not include managing scheduled reports. Ask the account owner.";
+
 async function context() {
   const profile = await getRequestProfile();
   if (!profile) return null;
   const plan = await getCustomerPlan();
   if (!plan?.features?.reports) return null;
-  return { profile, supabase: await createClient() };
+  // A team member may manage scheduled reports only if the owner switched that on (the database checks it too); the reports then belong to the owner's account.
+  const access = await getTeamAccess();
+  const member = access.kind === "member";
+  if (member && !access.canSchedule) return { profile, supabase: await createClient(), ownerId: null as string | null, member, allowed: false };
+  return { profile, supabase: await createClient(), ownerId: member ? (access.ownerIds[0] ?? null) : profile.id, member, allowed: true };
 }
 
 const SELECT = "id, customer_id, equipment_id, name, params, schedule_kind, schedule_time, schedule_dow, schedule_dom, send_to_me, recipients, enabled";
@@ -26,9 +33,15 @@ const SELECT = "id, customer_id, equipment_id, name, params, schedule_kind, sche
 export async function saveReportAction(input: unknown, id: string | null, deviceId: string | null): Promise<ActionResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Reports are not available on your plan." };
+  if (!ctx.allowed || !ctx.ownerId) return { ok: false, error: NOT_ALLOWED };
   const parsed = reportFormSchema.safeParse(input);
   if (!parsed.success) return { ok: false, error: parsed.error.issues[0]?.message ?? "Check the report's settings." };
   const v = parsed.data;
+  if (ctx.member) {
+    // a member's report covers one device they were given, and is e-mailed only to the addresses typed (never to the owner's own address)
+    if (!deviceId) return { ok: false, error: "Choose the device this report is for." };
+    if (v.sendToMe || v.recipients.length === 0) return { ok: false, error: "Add the e-mail addresses this report should be sent to." };
+  }
 
   const schedule: Schedule = { kind: v.schedule.kind, time: v.schedule.time, dow: v.schedule.dow, dom: v.schedule.dom };
   const next = v.enabled ? nextRunAt(schedule, new Date()) : null;
@@ -53,7 +66,7 @@ export async function saveReportAction(input: unknown, id: string | null, device
   }
   const { count } = await ctx.supabase.from("customer_reports").select("id", { count: "exact", head: true });
   if ((count ?? 0) >= MAX_REPORTS) return { ok: false, error: `You can keep up to ${MAX_REPORTS} reports. Delete one to add another.` };
-  const { data, error } = await ctx.supabase.from("customer_reports").insert({ ...row, customer_id: ctx.profile.id }).select("id").single();
+  const { data, error } = await ctx.supabase.from("customer_reports").insert({ ...row, customer_id: ctx.ownerId }).select("id").single();
   if (error || !data) return { ok: false, error: "The report could not be saved." };
   return { ok: true, id: data.id };
 }
@@ -61,6 +74,7 @@ export async function saveReportAction(input: unknown, id: string | null, device
 export async function deleteReportAction(id: string): Promise<ActionResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Reports are not available on your plan." };
+  if (!ctx.allowed) return { ok: false, error: NOT_ALLOWED };
   const { error } = await ctx.supabase.from("customer_reports").delete().eq("id", id);
   return error ? { ok: false, error: "The report could not be deleted." } : { ok: true };
 }
@@ -69,6 +83,7 @@ export async function deleteReportAction(id: string): Promise<ActionResult> {
 export async function setReportEnabledAction(id: string, enabled: boolean): Promise<ActionResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Reports are not available on your plan." };
+  if (!ctx.allowed) return { ok: false, error: NOT_ALLOWED };
   const { data: row } = await ctx.supabase.from("customer_reports").select(SELECT).eq("id", id).maybeSingle();
   if (!row) return { ok: false, error: "That report no longer exists." };
   const next = enabled && row.schedule_kind !== "none" ? nextRunAt({ kind: row.schedule_kind as Schedule["kind"], time: row.schedule_time.slice(0, 5), dow: row.schedule_dow, dom: row.schedule_dom }, new Date()) : null;
@@ -80,6 +95,8 @@ export async function setReportEnabledAction(id: string, enabled: boolean): Prom
 export async function sendReportNowAction(id: string, emailsText: string): Promise<ActionResult> {
   const ctx = await context();
   if (!ctx) return { ok: false, error: "Reports are not available on your plan." };
+  // sending a report to typed addresses is part of managing them: a view-only member cannot e-mail the system's figures to anyone
+  if (!ctx.allowed) return { ok: false, error: NOT_ALLOWED };
   const { data: row } = await ctx.supabase.from("customer_reports").select(SELECT).eq("id", id).maybeSingle();
   if (!row) return { ok: false, error: "That report no longer exists." };
 

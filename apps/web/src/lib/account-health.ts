@@ -1,7 +1,7 @@
 // The two checklists on the Account tab of Application Settings: how complete the profile is, and how well the account is protected. Pure, so the
 // rules are tested.
 
-export type SettingsTab = "account" | "profile" | "appearance" | "units" | "dashboard" | "notifications" | "alerts" | "billing" | "security" | "privacy";
+export type SettingsTab = "account" | "profile" | "appearance" | "units" | "dashboard" | "notifications" | "alerts" | "team" | "billing" | "security" | "privacy";
 
 export interface HealthInput {
   hasPhoto: boolean;
