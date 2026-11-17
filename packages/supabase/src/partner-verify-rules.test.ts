@@ -34,14 +34,13 @@ describe("panVerdict", () => {
     expect(panVerdict({ ...ok, aadhaar_seeding_status: "R" })).toMatchObject({ status: "review", code: "unlinked" });
     expect(panVerdict({ ...ok, type: "Company", name_provided: undefined, name_match_result: undefined, aadhaar_seeding_status: "NA" })).toMatchObject({ status: "review", code: "name_missing" });
   });
-  it("compares the names itself when the service gives no match words (the sandbox leaves them out), and says so", () => {
+  it("never compares names itself: with no match words from Cashfree it asks for a look, and a match that came from Cashfree's Name Match service says so", () => {
     const bare = { ...ok, name_match_result: undefined, name_match_score: undefined };
-    const same = panVerdict(bare);
-    expect(same).toMatchObject({ status: "passed", code: "ok" });
-    expect(same.summary).toContain("compared by us");
-    expect(same.detail).toMatchObject({ name_match_result: "DIRECT_MATCH", name_match_source: "ours" });
-    expect(panVerdict({ ...bare, name_provided: "DOE JOHN" }).status).toBe("passed");
-    expect(panVerdict({ ...bare, name_provided: "Raja Kumar" })).toMatchObject({ status: "failed", code: "name_mismatch" });
+    expect(panVerdict(bare)).toMatchObject({ status: "review", code: "name_missing" });
+    const viaService = panVerdict({ ...bare, name_match_result: "DIRECT_MATCH", name_match_score: 1, name_match_via: "name_match" });
+    expect(viaService).toMatchObject({ status: "passed", code: "ok" });
+    expect(viaService.summary).toContain("by Cashfree Name Match");
+    expect(viaService.detail).toMatchObject({ name_match_source: "name_match_service" });
     expect(panVerdict(ok).detail).toMatchObject({ name_match_source: "service" });
   });
 });
@@ -80,13 +79,12 @@ describe("bankVerdict", () => {
     expect(bankVerdict({ ...ok, name_match_result: "POOR_PARTIAL_MATCH", name_match_score: "38.00" }, {}).status).toBe("review");
     expect(bankVerdict({ ...ok, name_match_result: "NO_MATCH" }, {})).toMatchObject({ status: "failed", code: "name_mismatch" });
   });
-  it("compares the holder itself when the service gives no match words (the sandbox sends a name and no score), and does not invent one without a given name", () => {
+  it("never compares the holder itself: with no match words it asks for a look, and a match from Cashfree's Name Match service says so", () => {
     const bare = { account_status: "VALID", account_status_code: "ACCOUNT_IS_VALID", name_at_bank: "JOHN DOE", bank_name: "YES BANK", name_match_result: null, name_match_score: null };
-    const same = bankVerdict(bare, { holder: "John Doe" });
-    expect(same).toMatchObject({ status: "passed", code: "ok" });
-    expect(same.detail).toMatchObject({ name_match_source: "ours" });
-    expect(bankVerdict(bare, { holder: "Raja Kumar" })).toMatchObject({ status: "failed", code: "name_mismatch" });
-    expect(bankVerdict(bare, {})).toMatchObject({ status: "review", code: "name_missing" });
+    expect(bankVerdict(bare, { holder: "John Doe" })).toMatchObject({ status: "review", code: "name_missing" });
+    const viaService = bankVerdict({ ...bare, name_match_result: "NO_MATCH", name_match_score: 0, name_match_via: "name_match" }, { holder: "Raja Kumar" });
+    expect(viaService).toMatchObject({ status: "failed", code: "name_mismatch" });
+    expect(viaService.detail).toMatchObject({ name_match_source: "name_match_service" });
   });
 });
 

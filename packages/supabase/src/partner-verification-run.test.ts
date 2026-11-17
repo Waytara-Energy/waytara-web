@@ -199,6 +199,35 @@ describe("PAN, GST and bank", () => {
     answers["/bank-account/sync"] = { status: 422, body: { type: "validation_error", code: "fraud_account", message: "fraud" } };
     expect(await run(answers["/bank-account/sync"], "bank")).toMatchObject({ status: "failed", summary: expect.stringContaining("fraud") });
   });
+
+  it("asks Cashfree's Name Match when a PAN or bank answer carries no match of its own (the sandbox), and does nothing of the kind when it does", async () => {
+    // with the match words in the answer: no extra call
+    const withWords = base();
+    await runChecks({ ...withWords.input, kinds: ["pan", "bank"] });
+    expect(calls.map((c) => c.path)).toEqual(["/pan", "/bank-account/sync"]);
+
+    // without them: one Name Match call each, with the name given and the name found, and its answer is used and labelled
+    calls = [];
+    answers["/pan"] = { body: { valid: true, pan: "ABCPV1234D", registered_name: "PRIYA RAMAN", name_provided: "Priya Raman", pan_status: "VALID", aadhaar_seeding_status: "Y", reference_id: 1 } };
+    answers["/bank-account/sync"] = { body: { account_status: "VALID", account_status_code: "ACCOUNT_IS_VALID", name_at_bank: "PRIYA RAMAN", bank_name: "YES BANK", name_match_result: null, name_match_score: null, reference_id: 2 } };
+    answers["/name-match"] = { body: { score: 0.93, reason: "GOOD_PARTIAL_MATCH", reference_id: 5 } };
+    const bare = base();
+    const out = await runChecks({ ...bare.input, kinds: ["pan", "bank"] });
+    expect(calls.map((c) => c.path)).toEqual(["/pan", "/name-match", "/bank-account/sync", "/name-match"]);
+    expect(calls[1].body).toMatchObject({ name_1: "Priya Raman", name_2: "PRIYA RAMAN" });
+    expect(out.map((r) => r.status)).toEqual(["passed", "passed"]);
+    expect(out[0].summary).toContain("by Cashfree Name Match");
+    expect(bare.f.table.get("partner|bank")?.detail).toMatchObject({ name_match_result: "GOOD_PARTIAL_MATCH", name_match_source: "name_match_service" });
+
+    // an invalid PAN is not compared; a failing Name Match leaves the result as "needs a look"
+    calls = [];
+    answers["/pan"] = { body: { valid: false, message: "Invalid PAN", reference_id: 3 } };
+    expect((await runChecks({ ...base().input, kinds: ["pan"], force: true }))[0].status).toBe("failed");
+    expect(calls.map((c) => c.path)).toEqual(["/pan"]);
+    answers["/pan"] = { body: { valid: true, pan: "ABCPV1234D", registered_name: "PRIYA RAMAN", name_provided: "Priya Raman", pan_status: "VALID", aadhaar_seeding_status: "Y", reference_id: 1 } };
+    answers["/name-match"] = { status: 500, body: { code: "internal" } };
+    expect((await runChecks({ ...base().input, kinds: ["pan"], force: true }))[0]).toMatchObject({ status: "review", code: "name_missing" });
+  });
 });
 
 describe("the names against each other", () => {

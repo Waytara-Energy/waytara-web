@@ -90,16 +90,14 @@ const pct = (n: unknown): string => {
 };
 
 /**
- * Cashfree's own match words and score are sometimes missing from an answer (the sandbox leaves them out) even though both names are there. Then our own comparison of the
- * two names stands in, and the detail says so. Nothing is invented when either name is missing.
+ * The name match of a PAN or bank answer is always Cashfree's: either it came with the answer, or (when the answer left it out, as the sandbox does and as an account
+ * without the name-match feature may) the runner asked Cashfree's own Name Match service and put its answer in `name_match_via`. We never compare names ourselves here.
  */
-function matchOf(given: string | null | undefined, found: string | null | undefined, own: { result?: MatchResult | null; score?: string | number | null }): { result: MatchResult | null; score: string | number | null; source: "service" | "ours" | null } {
-  if (own.result) return { result: own.result, score: own.score ?? null, source: "service" };
-  if (!given?.trim() || !found?.trim()) return { result: null, score: null, source: null };
-  const s = nameSimilarity(given, found);
-  const result: MatchResult = s >= 1 ? "DIRECT_MATCH" : s >= 0.66 ? "GOOD_PARTIAL_MATCH" : s >= 0.34 ? "MODERATE_PARTIAL_MATCH" : s > 0 ? "POOR_PARTIAL_MATCH" : "NO_MATCH";
-  return { result, score: Math.round(s * 100), source: "ours" };
+function matchOf(own: { result?: MatchResult | null; score?: string | number | null; via?: string | null }): { result: MatchResult | null; score: string | number | null; source: "service" | "name_match_service" | null } {
+  if (!own.result) return { result: null, score: null, source: null };
+  return { result: own.result, score: own.score ?? null, source: own.via === "name_match" ? "name_match_service" : "service" };
 }
+const viaWords = (source: string | null) => (source === "name_match_service" ? ", by Cashfree Name Match" : "");
 
 // ---- PAN ----
 
@@ -113,20 +111,22 @@ export interface PanAnswer {
   name_provided?: string | null;
   name_match_result?: MatchResult | null;
   name_match_score?: string | number | null;
+  /** Set by the runner to "name_match" when the match words below came from Cashfree's Name Match service instead of from this answer. */
+  name_match_via?: "name_match" | null;
   pan_status?: string | null;
   aadhaar_seeding_status?: string | null;
   message?: string;
 }
 
 export function panVerdict(a: PanAnswer): Verdict {
-  const m = matchOf(a.name_provided, a.registered_name, { result: a.name_match_result, score: a.name_match_score });
+  const m = matchOf({ result: a.name_match_result, score: a.name_match_score, via: a.name_match_via });
   const detail = { type: a.type ?? null, registered_name: a.registered_name ?? null, name_provided: a.name_provided ?? null, name_match_result: m.result, name_match_score: m.score, name_match_source: m.source, pan_status: a.pan_status ?? null, aadhaar_seeding_status: a.aadhaar_seeding_status ?? null };
   if (a.valid !== true) return { status: "failed", code: "invalid", summary: "The Income Tax Department has no valid PAN with this number.", detail };
   if (a.pan_status && a.pan_status !== "VALID") return { status: "failed", code: "inactive", summary: `The PAN exists but its status is ${a.pan_status.toLowerCase()}.`, detail };
   const unlinked = a.aadhaar_seeding_status === "R" ? " It is not linked to Aadhaar, so it may be inoperative and tax may be deducted at a higher rate." : "";
   const r = m.result;
-  if (strongMatch(r)) return { status: unlinked ? "review" : "passed", code: unlinked ? "unlinked" : "ok", summary: `PAN is valid and the name matches (${matchWords(r)}, ${pct(m.score)}${m.source === "ours" ? ", compared by us" : ""}). Registered as ${a.registered_name ?? "unknown"}.${unlinked}`, detail };
-  if (weakMatch(r)) return { status: "review", code: "name_partial", summary: `PAN is valid, but the name is only ${matchWords(r)} (${pct(m.score)}${m.source === "ours" ? ", compared by us" : ""}). Registered as ${a.registered_name ?? "unknown"}; given ${a.name_provided ?? "none"}.${unlinked}`, detail };
+  if (strongMatch(r)) return { status: unlinked ? "review" : "passed", code: unlinked ? "unlinked" : "ok", summary: `PAN is valid and the name matches (${matchWords(r)}, ${pct(m.score)}${viaWords(m.source)}). Registered as ${a.registered_name ?? "unknown"}.${unlinked}`, detail };
+  if (weakMatch(r)) return { status: "review", code: "name_partial", summary: `PAN is valid, but the name is only ${matchWords(r)} (${pct(m.score)}${viaWords(m.source)}). Registered as ${a.registered_name ?? "unknown"}; given ${a.name_provided ?? "none"}.${unlinked}`, detail };
   if (r === "NO_MATCH") return { status: "failed", code: "name_mismatch", summary: `PAN is valid but registered to a different name: ${a.registered_name ?? "unknown"}; given ${a.name_provided ?? "none"}.`, detail };
   return { status: "review", code: "name_missing", summary: `PAN is valid. No name was compared. Registered as ${a.registered_name ?? "unknown"}.${unlinked}`, detail };
 }
@@ -178,6 +178,8 @@ export interface BankAnswer {
   branch?: string | null;
   name_match_result?: MatchResult | null;
   name_match_score?: string | number | null;
+  /** Set by the runner to "name_match" when the match words came from Cashfree's Name Match service instead of from this answer. */
+  name_match_via?: "name_match" | null;
 }
 
 const BANK_REASON: Record<string, string> = {
@@ -189,12 +191,12 @@ const BANK_REASON: Record<string, string> = {
 };
 
 export function bankVerdict(a: BankAnswer, ctx: { holder?: string }): Verdict {
-  const m = matchOf(ctx.holder, a.name_at_bank, { result: a.name_match_result, score: a.name_match_score });
+  const m = matchOf({ result: a.name_match_result, score: a.name_match_score, via: a.name_match_via });
   const detail = { name_at_bank: a.name_at_bank ?? null, bank_name: a.bank_name ?? null, branch: a.branch ?? null, name_match_result: m.result, name_match_score: m.score, name_match_source: m.source, account_status_code: a.account_status_code ?? null };
   if (a.account_status !== "VALID") return { status: "failed", code: "invalid", summary: BANK_REASON[a.account_status_code ?? ""] ?? "The bank could not confirm this account.", detail };
   const r = m.result;
   const at = a.name_at_bank ?? "unknown";
-  const by = m.source === "ours" ? ", compared by us" : "";
+  const by = viaWords(m.source);
   if (strongMatch(r)) return { status: "passed", code: "ok", summary: `Account found at ${a.bank_name ?? "the bank"} and the holder name matches (${matchWords(r)}, ${pct(m.score)}${by}). Name at bank: ${at}.`, detail };
   if (weakMatch(r)) return { status: "review", code: "name_partial", summary: `Account found, but the holder name is only ${matchWords(r)} (${pct(m.score)}${by}). Name at bank: ${at}; given ${ctx.holder ?? "none"}.`, detail };
   if (r === "NO_MATCH") return { status: "failed", code: "name_mismatch", summary: `Account found, but it is in a different name: ${at}; given ${ctx.holder ?? "none"}.`, detail };

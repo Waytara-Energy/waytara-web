@@ -81,6 +81,22 @@ interface Row {
 
 const sha = (v: unknown): string => createHash("sha256").update(JSON.stringify(v)).digest("hex");
 
+/**
+ * A PAN or bank answer should carry Cashfree's own name match. When it does not (the sandbox leaves it out, and an account without the name-match feature may get none), ask
+ * Cashfree's Name Match service to compare the name given with the name it found, and put that answer in. The match always stays Cashfree's, never ours. If that call fails too, the
+ * answer is returned as it was and the rules call it "needs a look".
+ */
+async function withNameMatch<T extends { name_match_result?: string | null; name_match_score?: string | number | null; name_match_via?: "name_match" | null }>(a: T, given: string | undefined, found: string | null | undefined): Promise<T> {
+  if (a.name_match_result || !given?.trim() || !found?.trim()) return a;
+  try {
+    const n = await compareNames(given, found);
+    if (!n.reason) return a;
+    return { ...a, name_match_result: n.reason, name_match_score: n.score ?? null, name_match_via: "name_match" };
+  } catch {
+    return a;
+  }
+}
+
 /** The name a PAN is checked against: the person's own for someone working alone, a proprietor or an individual, the business's for a firm or company. */
 export function panNameFor(partnerType: string | null, data: OnboardingData): string {
   const person = partnerType === "technician" || partnerType === "survey" || !["partnership", "llp", "company"].includes(data.business.kind);
@@ -191,7 +207,8 @@ export async function runChecks(input: RunInput): Promise<CheckResult[]> {
         await one("pan", "partner", {
           hash: checkInputHash("pan", input.partnerType, data)!,
           ask: async () => {
-            const a = await verifyPan({ pan, name: name || undefined });
+            const got = await verifyPan({ pan, name: name || undefined });
+            const a = got.valid === true ? await withNameMatch(got, name, got.registered_name) : got;
             return { ...panVerdict(a), ref: ref(a) };
           },
         });
@@ -213,7 +230,8 @@ export async function runChecks(input: RunInput): Promise<CheckResult[]> {
         await one("bank", "partner", {
           hash: checkInputHash("bank", input.partnerType, data)!,
           ask: async () => {
-            const a = await verifyBank({ account: b.accountNumber, ifsc: b.ifsc, name: b.holder });
+            const got = await verifyBank({ account: b.accountNumber, ifsc: b.ifsc, name: b.holder });
+            const a = got.account_status === "VALID" ? await withNameMatch(got, b.holder, got.name_at_bank) : got;
             return { ...bankVerdict(a, { holder: b.holder }), ref: ref(a) };
           },
         });
