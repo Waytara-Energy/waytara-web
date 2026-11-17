@@ -5342,9 +5342,9 @@ export type Database = {
       }
       team_members: {
         Row: {
+          accepted_at: string | null
           access_expires_at: string | null
           access_token_hash: string | null
-          accepted_at: string | null
           can_schedule: boolean
           created_at: string
           email: string
@@ -5360,9 +5360,9 @@ export type Database = {
           user_id: string | null
         }
         Insert: {
+          accepted_at?: string | null
           access_expires_at?: string | null
           access_token_hash?: string | null
-          accepted_at?: string | null
           can_schedule?: boolean
           created_at?: string
           email: string
@@ -5378,9 +5378,9 @@ export type Database = {
           user_id?: string | null
         }
         Update: {
+          accepted_at?: string | null
           access_expires_at?: string | null
           access_token_hash?: string | null
-          accepted_at?: string | null
           can_schedule?: boolean
           created_at?: string
           email?: string
@@ -5688,6 +5688,10 @@ export type Database = {
       can_access_site: { Args: { p_site: string }; Returns: boolean }
       can_access_site_as: {
         Args: { p_site: string; p_user: string }
+        Returns: boolean
+      }
+      can_operate_equipment: {
+        Args: { p_equipment_id: string }
         Returns: boolean
       }
       can_view_equipment: { Args: { p_equipment_id: string }; Returns: boolean }
@@ -6153,20 +6157,6 @@ export type Database = {
         }
         Returns: undefined
       }
-      can_operate_equipment: { Args: { p_equipment_id: string }; Returns: boolean }
-      my_team_equipment_ids: { Args: never; Returns: string[] }
-      my_team_plan: {
-        Args: never
-        Returns: {
-          features: Json
-          owner_id: string
-          plan_name: string
-          tariff_rate_per_kwh: number
-        }[]
-      }
-      my_team_site_ids: { Args: never; Returns: string[] }
-      team_can_schedule: { Args: { p_owner: string }; Returns: boolean }
-      team_has_page: { Args: { p_owner: string; p_page: string }; Returns: boolean }
       my_assigned_equipment_ids: { Args: never; Returns: string[] }
       my_assigned_site_ids: { Args: never; Returns: string[] }
       my_sessions: {
@@ -6180,6 +6170,17 @@ export type Database = {
           user_agent: string
         }[]
       }
+      my_team_equipment_ids: { Args: never; Returns: string[] }
+      my_team_plan: {
+        Args: never
+        Returns: {
+          features: Json
+          owner_id: string
+          plan_name: string
+          tariff_rate_per_kwh: number
+        }[]
+      }
+      my_team_site_ids: { Args: never; Returns: string[] }
       my_unit_by_hardware: {
         Args: { p_hardware_id: string }
         Returns: {
@@ -6313,6 +6314,30 @@ export type Database = {
       }
       support_take: { Args: { p_ticket: string }; Returns: undefined }
       sync_model_stock: { Args: { p_model: string }; Returns: undefined }
+      team_can_schedule: { Args: { p_owner: string }; Returns: boolean }
+      team_equipment_level: {
+        Args: { p_equipment: string; p_user: string }
+        Returns: string
+      }
+      team_grants: {
+        Args: { p_user: string }
+        Returns: {
+          can_schedule: boolean
+          equipment_id: string
+          level: string
+          member_id: string
+          owner_id: string
+          pages: string[]
+        }[]
+      }
+      team_has_page: {
+        Args: { p_owner: string; p_page: string }
+        Returns: boolean
+      }
+      team_reports_access: {
+        Args: { p_actor: string; p_equipment: string }
+        Returns: boolean
+      }
       telemetry_series: {
         Args: {
           p_equipment_id: string
