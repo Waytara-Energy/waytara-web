@@ -11,3 +11,10 @@ allowBuilds:
 overrides:
   source-map-js: ">=1.2.2"
   sharp: ">=0.35.5"
+# Advisories we have looked at and accepted for now (each one has a reason; remove it when the fix exists).
+# GHSA-fc5q-39xc-vjpf: picomatch <= 4.0.7 can be made to hang by a glob pattern such as +(*). There is NO fixed release yet (4.0.7 is the latest).
+# Only build tooling uses it (the Sentry bundler plugin, eslint, tinyglobby) with patterns we wrote ourselves, and no visitor's input ever reaches it,
+# so it cannot be triggered in production. Re-check when picomatch 4.0.8 or later is published.
+auditConfig:
+  ignoreGhsas:
+    - GHSA-fc5q-39xc-vjpf
