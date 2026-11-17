@@ -206,7 +206,9 @@ export function DocumentSlot({ store, kind, subject = "partner", label, hint, ne
             <input
               id={id}
               type="file"
-              accept={ACCEPT}
+              accept={kind === "selfie" ? "image/jpeg,image/png,image/webp" : ACCEPT}
+              // on a phone this opens the front camera straight away; on a computer it is the usual file picker
+              capture={kind === "selfie" ? "user" : undefined}
               className="peer sr-only"
               disabled={store.busy !== null || full}
               onChange={(e) => {
@@ -217,7 +219,7 @@ export function DocumentSlot({ store, kind, subject = "partner", label, hint, ne
             />
             <span className="inline-flex h-9 cursor-pointer items-center gap-2 rounded-md border border-theme-border px-3 text-sm font-medium text-theme-primary transition-colors hover:bg-theme-surface peer-focus-visible:ring-2 peer-focus-visible:ring-emerald-500 peer-disabled:cursor-not-allowed peer-disabled:opacity-50">
               {sending ? <Loader2 className="size-4 animate-spin" /> : mine.length > 0 ? <Plus className="size-4" /> : <Upload className="size-4" />}
-              {sending ? "Sending…" : mine.length > 0 ? "Add another" : "Add file"}
+              {sending ? "Sending…" : kind === "selfie" ? (mine.length > 0 ? "Take another" : "Take a selfie") : mine.length > 0 ? "Add another" : "Add file"}
             </span>
           </label>
         )}

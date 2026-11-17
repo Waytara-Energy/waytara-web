@@ -16,6 +16,7 @@ import {
   ACCOUNT_TYPES,
   BUSINESS_KINDS,
   CAPABILITIES,
+  CLIENT_TYPES,
   EQUIPMENT,
   LICENCE_EXPIRES,
   LICENCE_TYPES,
@@ -25,6 +26,7 @@ import {
   siteRoleOf,
   categorySubject,
   documentRequirements,
+  isIfsc,
   memberKey,
   memberRequirements,
   memberSubject,
@@ -36,6 +38,8 @@ import {
   type OnboardingDocument,
   type SectionId,
 } from "@waytara/supabase/partner-onboarding";
+import { AgreementCard } from "./agreement-card";
+import { CrewLink, type CrewInviteState } from "./crew-link";
 import { DocumentError, DocumentSlot, ExtraDocuments, useDocumentStore, type DocumentStore } from "./file-slots";
 
 const DISTRICT_OPTIONS: MultiSelectOption[] = TN_DISTRICTS.map((d) => ({ value: d, label: d }));
@@ -151,6 +155,9 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
   const [data, setData] = React.useState<OnboardingData>(initial);
   const [save, setSave] = React.useState<"idle" | "saving" | "saved" | "error">("idle");
   const [agreed, setAgreed] = React.useState(false);
+  const [safety, setSafety] = React.useState(false);
+  const [signed, setSigned] = React.useState(false);
+  const [invites, setInvites] = React.useState<CrewInviteState[]>([]);
   const [sending, setSending] = React.useState(false);
   const [sendError, setSendError] = React.useState("");
   const [sent, setSent] = React.useState(Boolean(submittedAt));
@@ -214,6 +221,35 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
   // a file for a newly typed team member needs that person saved first, so the server knows whose it is
   const store = useDocumentStore(base, initialDocuments, { before: saveNow });
 
+  // where each team member's own link stands, whenever the team is on screen
+  const loadInvites = React.useCallback(async () => {
+    const r = await call<{ invites: CrewInviteState[] }>(`${base}/crew`, "GET");
+    if (r.ok) setInvites(r.data.invites);
+  }, [base]);
+  React.useEffect(() => {
+    if (step === "team") void loadInvites();
+  }, [step, loadInvites]);
+
+  // The bank and branch an IFSC belongs to are looked up as soon as the code is complete and filled in where the partner has typed nothing; they can always change them.
+  const [ifscNote, setIfscNote] = React.useState<{ ok: boolean; text: string } | null>(null);
+  const ifsc = data.bank.ifsc;
+  React.useEffect(() => {
+    if (!isIfsc(ifsc)) return void setIfscNote(null);
+    let live = true;
+    void call<{ bank: string; branch: string; city: string }>(`/api/partner/ifsc/${ifsc}`, "GET").then((r) => {
+      if (!live) return;
+      if (!r.ok) return setIfscNote({ ok: false, text: r.error });
+      setIfscNote({ ok: true, text: `${r.data.bank}${r.data.branch ? `, ${r.data.branch}` : ""}` });
+      const cur = latest.current.bank;
+      if (!cur.bankName || !cur.branch) change({ ...latest.current, bank: { ...cur, bankName: cur.bankName || r.data.bank, branch: cur.branch || r.data.branch } });
+    });
+    return () => {
+      live = false;
+    };
+    // `change` is recreated on every render; the lookup runs only when the code itself changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ifsc]);
+
   // ---- what is still missing ----
   const gaps = onboardingGaps(partnerType, data, store.docs);
   const gapsOf = (s: StepId) => gaps.filter((g) => g.section === s);
@@ -223,12 +259,13 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
   async function send() {
     setSendError("");
     if (gaps.length > 0) return setSendError("A few things are still missing. They are listed above.");
-    if (!agreed) return setSendError("Please tick the box to confirm that what you sent is true.");
+    if (!signed) return setSendError("Please read and sign the partner agreement first.");
+    if (!agreed || !safety) return setSendError("Please tick both boxes: that what you sent is true, and that you will follow the safety rules.");
     setSending(true);
     try {
       // what is on the page is what is checked: wait for the last changes to be saved first
       if (!(await saveNow())) return setSendError("Your latest changes couldn't be saved yet. Please try again in a moment.");
-      const r = await call<null>(`${base}/submit`, "POST", { declaration: true });
+      const r = await call<null>(`${base}/submit`, "POST", { declaration: true, safety: true });
       if (r.ok) {
         setSent(true);
         window.scrollTo({ top: 0, behavior: "smooth" });
@@ -638,6 +675,7 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
                         </div>
                       </>
                     )}
+                    {m.name && <CrewLink base={base} memberId={memberKey(m, i)} name={m.name} email={m.email} phone={m.phone} invite={invites.find((x) => x.memberId === memberKey(m, i))} onSent={() => void loadInvites()} beforeSend={saveNow} />}
                     <div className="space-y-3 sm:col-span-2">
                       {m.name ? (
                         memberRequirements(m.needsLicence, m.siteRole).map((r) => (
@@ -685,12 +723,14 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
             <h2 id="ob-h-work" className="text-xl font-bold tracking-tight text-theme-primary">
               Past work and photos
             </h2>
-            <p className="mb-7 mt-2 text-sm leading-relaxed text-theme-secondary">Nothing here is required, but photos of finished work and a few projects we can ask about make verifying you much quicker.</p>
+            <p className="mb-7 mt-2 text-sm leading-relaxed text-theme-secondary">
+              {individual ? "Nothing here is required, but photos of finished work and a few projects we can ask about make verifying you much quicker." : "How many projects you have done, and at least one we can ask about. Photos of finished work make verifying you much quicker."}
+            </p>
             <div className="grid grid-cols-1 gap-x-5 gap-y-6 sm:grid-cols-2">
               <div className={field}>
                 <Label htmlFor="ob-installs">
-                  {partnerType === "survey" ? "Surveys completed so far" : "Installations completed so far"}
-                  <Optional />
+                  {partnerType === "survey" ? "Surveys completed so far" : "Projects completed so far"}
+                  {individual && <Optional />}
                 </Label>
                 <Input id="ob-installs" value={data.work.installs} onChange={(e) => set("work", { ...data.work, installs: e.target.value.replace(/\D/g, "").slice(0, 6) })} inputMode="numeric" maxLength={6} />
               </div>
@@ -726,7 +766,7 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
               items={data.work.projects}
               max={ONBOARDING_LIMITS.projects}
               addLabel="Add a project"
-              onAdd={() => set("work", { ...data.work, projects: [...data.work.projects, { title: "", place: "", size: "", year: "", note: "" }] })}
+              onAdd={() => set("work", { ...data.work, projects: [...data.work.projects, { title: "", place: "", size: "", year: "", note: "", clientType: "", specs: "" }] })}
               onRemove={(i) => set("work", { ...data.work, projects: data.work.projects.filter((_, j) => j !== i) })}
             >
               {(p, i) => {
@@ -736,6 +776,31 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
                     <div className={`${field} sm:col-span-2`}>
                       <Label htmlFor={`ob-p-title-${i}`}>What it was</Label>
                       <Input id={`ob-p-title-${i}`} value={p.title} onChange={(e) => up({ title: e.target.value })} maxLength={120} placeholder="5 kW rooftop solar for a home" />
+                    </div>
+                    <div className={field}>
+                      <Label htmlFor={`ob-p-client-${i}`}>
+                        Customer
+                        {individual && <Optional />}
+                      </Label>
+                      <Select value={p.clientType} onValueChange={(v) => up({ clientType: v })}>
+                        <SelectTrigger id={`ob-p-client-${i}`}>
+                          <SelectValue placeholder="Choose one" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {CLIENT_TYPES.map((c) => (
+                            <SelectItem key={c.id} value={c.id}>
+                              {c.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className={field}>
+                      <Label htmlFor={`ob-p-specs-${i}`}>
+                        What was installed
+                        <Optional />
+                      </Label>
+                      <Input id={`ob-p-specs-${i}`} value={p.specs} onChange={(e) => up({ specs: e.target.value })} maxLength={200} placeholder="12 panels, 5 kW inverter" />
                     </div>
                     <div className={field}>
                       <Label htmlFor={`ob-p-place-${i}`}>Where</Label>
@@ -806,6 +871,11 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
               <div className={field}>
                 <Label htmlFor="ob-ifsc">IFSC</Label>
                 <Input id="ob-ifsc" value={data.bank.ifsc} onChange={(e) => bank("ifsc", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 11))} maxLength={11} placeholder="SBIN0001234" autoComplete="off" />
+                {ifscNote && (
+                  <p role="status" className={cn("text-xs", ifscNote.ok ? "text-emerald-700 dark:text-emerald-300" : "text-theme-muted")}>
+                    {ifscNote.text}
+                  </p>
+                )}
               </div>
               <div className={field}>
                 <Label htmlFor="ob-atype">
@@ -870,10 +940,18 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
               {store.docs.length} file{store.docs.length === 1 ? "" : "s"} sent.
             </p>
 
+            <AgreementCard base={base} partnerType={partnerType} email={contact.email} onSigned={setSigned} />
+
             <div className="mt-8 flex items-start gap-3">
               <Checkbox id="ob-agree" checked={agreed} onCheckedChange={(v) => setAgreed(v === true)} className="mt-0.5" />
               <Label htmlFor="ob-agree" className="block max-w-xl text-sm font-normal leading-relaxed text-theme-secondary">
                 I confirm that what I have told you and the documents I have sent are true and are mine to send, that the people I listed agreed to my sending their documents, and that you may check all of it with the authorities that issued them.
+              </Label>
+            </div>
+            <div className="mt-4 flex items-start gap-3">
+              <Checkbox id="ob-safety" checked={safety} onCheckedChange={(v) => setSafety(v === true)} className="mt-0.5" />
+              <Label htmlFor="ob-safety" className="block max-w-xl text-sm font-normal leading-relaxed text-theme-secondary">
+                I will follow the electrical safety regulations, the standards of the electricity distribution company, and the rules on safety gear that apply to the work I do for WayTara.
               </Label>
             </div>
             {sendError && (
@@ -881,11 +959,11 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
                 {sendError}
               </p>
             )}
-            <Button type="button" onClick={() => void send()} disabled={sending || gaps.length > 0} className="mt-6">
+            <Button type="button" onClick={() => void send()} disabled={sending || gaps.length > 0 || !signed} className="mt-6">
               {sending && <Loader2 className="size-4 animate-spin" />}
               {sending ? "Sending…" : "Send for verification"}
             </Button>
-            {gaps.length > 0 && <p className="mt-2 text-xs text-theme-muted">You can send once the parts above are complete.</p>}
+            {(gaps.length > 0 || !signed) && <p className="mt-2 text-xs text-theme-muted">You can send once the parts above are complete{signed ? "" : " and the partner agreement is signed"}.</p>}
           </section>
         )}
 

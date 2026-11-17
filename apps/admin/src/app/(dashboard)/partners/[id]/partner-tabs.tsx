@@ -267,7 +267,24 @@ export function PersonalTab({ app, v, data, docs }: { app: AppView; v: Verificat
         </dl>
       </Section>
       <Section title="Identity documents">
-        <DocSlots appId={app.id} slots={slotsOf(app, data, "personal")} docs={docs} canAsk={canAsk(app)} restKinds={["identity", "photo", "police_verification", "driving_licence"]} />
+        <DocSlots appId={app.id} slots={slotsOf(app, data, "personal")} docs={docs} canAsk={canAsk(app)} restKinds={["identity", "selfie", "photo", "police_verification", "driving_licence"]} />
+      </Section>
+      <Section title="Partner agreement" description={v.agreements.length === 0 ? "Not signed yet. The partner signs it with an e-mail code on the last page of their onboarding, and cannot send the application before." : "Accepted with a code e-mailed to the address we confirmed. The fingerprint is of the exact text that was shown."}>
+        {v.agreements.length > 0 && (
+          <ul className="divide-y divide-border rounded-md border border-border text-sm">
+            {v.agreements.map((a) => (
+              <li key={a.version} className="space-y-0.5 px-3 py-2">
+                <p className="font-medium">
+                  Version {a.version} <span className="font-normal text-muted-foreground">· signed {new Date(a.signed_at).toLocaleString("en-IN", { day: "numeric", month: "short", year: "numeric", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" })}</span>
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {a.signer_name} · {a.signer_email}
+                  {a.signer_ip ? ` · from ${a.signer_ip}` : ""} · fingerprint <span className="font-mono">{a.text_hash.slice(0, 16)}</span>
+                </p>
+              </li>
+            ))}
+          </ul>
+        )}
       </Section>
       <Section title="Verification">
         <Check app={app} v={v} k="identity" />
@@ -347,6 +364,7 @@ export function TeamTab({ app, v, data, docs }: { app: AppView; v: VerificationD
                     {m.validUntil ? ` · valid until ${m.validUntil}` : ""}
                     {m.phone ? ` · ${m.phone}` : ""}
                     {m.email ? ` · ${m.email}` : ""}
+                    {v.invites[key] ? ` · their link: ${v.invites[key].expired ? "expired" : v.invites[key].status === "completed" ? "finished" : v.invites[key].status === "opened" ? "opened" : "sent, not opened"}` : ""}
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">

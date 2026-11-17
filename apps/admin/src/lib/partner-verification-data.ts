@@ -21,6 +21,10 @@ export interface VerificationData {
   /** The screening call's checklist: what is ticked, and the note on each. */
   screening: Partial<Record<string, CheckState>>;
   screeningRows: Partial<Record<string, CheckRow>>;
+  /** Every version of the Partner Agreement the partner accepted, newest first. */
+  agreements: { version: string; signed_at: string; signer_name: string; signer_email: string; signer_ip: string | null; text_hash: string }[];
+  /** The newest link sent to each team member, by member id. */
+  invites: Record<string, { status: string; sent_via: string; created_at: string; opened_at: string | null; completed_at: string | null; expired: boolean }>;
 }
 
 /**
@@ -28,10 +32,17 @@ export interface VerificationData {
  * partner entered), and what has been checked about each of them. Run as the signed-in admin, so the row-level rules apply.
  */
 export async function loadVerification(supabase: Supabase, applicationId: string): Promise<VerificationData> {
-  const [{ data: checks }, { data: onb }] = await Promise.all([
+  const [{ data: checks }, { data: onb }, { data: agreements }, { data: invs }] = await Promise.all([
     supabase.from("partner_item_checks").select("subject, key, state, note, checked_at").eq("application_id", applicationId),
     supabase.from("partner_onboarding").select("data").eq("application_id", applicationId).maybeSingle(),
+    supabase.from("partner_agreements").select("version, signed_at, signer_name, signer_email, signer_ip, text_hash").eq("application_id", applicationId).order("signed_at", { ascending: false }),
+    supabase.from("partner_crew_invites").select("member_id, status, sent_via, expires_at, created_at, opened_at, completed_at").eq("application_id", applicationId).neq("status", "revoked").order("created_at", { ascending: false }),
   ]);
+  const invites: VerificationData["invites"] = {};
+  for (const i of invs ?? []) {
+    if (invites[i.member_id]) continue;
+    invites[i.member_id] = { status: i.status, sent_via: i.sent_via, created_at: i.created_at, opened_at: i.opened_at, completed_at: i.completed_at, expired: new Date(i.expires_at).getTime() <= Date.now() && i.status !== "completed" };
+  }
   const onboarding = onb ? readOnboarding(onb.data) : null;
   const members: MemberRef[] = (onboarding?.team.members ?? []).map((m, i) => ({ key: memberKey(m, i), name: m.name, needsLicence: m.needsLicence }));
 
@@ -56,5 +67,5 @@ export async function loadVerification(supabase: Supabase, applicationId: string
       (memberRows[k] ??= {})[c.key] = row;
     }
   }
-  return { onboarding, states, rows, members, memberStates, memberRows, screening, screeningRows };
+  return { onboarding, states, rows, members, memberStates, memberRows, screening, screeningRows, agreements: agreements ?? [], invites };
 }

@@ -201,3 +201,39 @@ export function buildPartnerAckMail(contactName: string, reference: string): Mai
   });
   return { subject: `We received your WayTara partner application (${reference})`, text, html };
 }
+
+/** To a person on a partner's team: their employer asked them to add their own ID, selfie and certificates, from their phone. Only the link, how long it works, and who asked. */
+export function buildPartnerCrewInviteMail(a: { memberName: string; partnerName: string; business: string; link: string; days: number }): Mail {
+  const first = a.memberName.trim().split(/\s+/)[0] || "there";
+  const { html, text } = renderMail({
+    preheader: `${a.partnerName} asked you to add your documents.`,
+    title: "Add your documents",
+    greeting: `Hi ${first},`,
+    blocks: [
+      { type: "p", text: `${a.partnerName} of ${a.business} has listed you on their team for WayTara projects, and asked you to add your own documents: a photo ID, a selfie, and your certificates. It takes a few minutes on your phone.` },
+      { type: "p", text: `The link works for ${a.days} days and only for you. Please do not share it. Only the WayTara team sees what you send, and only to verify you.` },
+      { type: "note", text: "If you do not know this person or this business, ignore this e-mail and send nothing." },
+    ],
+    button: { label: "Add my documents", url: a.link },
+    why: "You get this e-mail because a WayTara partner entered your e-mail address as a member of their team.",
+    audience: "public",
+  });
+  return { subject: `${a.partnerName} asked you to add your documents`, text, html };
+}
+
+/** The code that signs the Partner Agreement. Short on purpose: what it is for, how long it lasts, and what to do if it was not them. */
+export function buildPartnerAgreementCodeMail(contactName: string, code: string): Mail {
+  const first = contactName.trim().split(/\s+/)[0] || "there";
+  const { html, text } = renderMail({
+    preheader: `Your code to sign the WayTara Partner Agreement is ${code}.`,
+    title: `Your signing code is ${code}`,
+    greeting: `Hi ${first},`,
+    blocks: [
+      { type: "p", text: "Type this code on the WayTara page to accept the Partner Agreement you have just read. It works for 10 minutes. We keep a record that you accepted it: the version, the time and the address it came from." },
+      { type: "p", text: "If you did not ask for this code, do not use it, and tell us by replying to this e-mail." },
+    ],
+    why: "You get this e-mail because you are completing your onboarding in the WayTara Partner Network.",
+    audience: "public",
+  });
+  return { subject: `${code} is your WayTara signing code`, text, html };
+}

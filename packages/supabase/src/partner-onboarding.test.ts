@@ -94,6 +94,7 @@ const filled = () => {
   d.person = { ...d.person, name: "Priya Raman", emergencyName: "Raman", emergencyPhone: "9876543210" };
   d.business = { ...d.business, name: "Sun Co", kind: "proprietorship", address: "12 Main Road", city: "Chennai", pin: "600001", pan: "ABCDE1234F", capabilities: ["lt_wiring"] };
   d.areas.districts = ["Chennai"];
+  d.work = { ...d.work, installs: "40", projects: [{ title: "5 kW rooftop solar", place: "Chennai", size: "5", year: "2025", note: "", clientType: "residential", specs: "12 panels" }] };
   d.licences = [
     { type: "contractor", grade: "EA", number: "EA/123", issuedOn: "2024-04-01", validUntil: "2099-03-31" },
     { type: "supervisor", grade: "", number: "S/55", issuedOn: "", validUntil: "2099-03-31" },
@@ -116,7 +117,7 @@ describe("documentRequirements", () => {
   });
   it("asks a technician for a competency or trade certificate, and a survey associate for no licence", () => {
     expect(documentRequirements("technician", filled()).find((r) => r.kind === "certificate")?.anyOf).toEqual(["certificate", "trade_certificate"]);
-    expect(required("survey")).toEqual(["identity", "police_verification", "pan", "bank_proof"]);
+    expect(required("survey")).toEqual(["identity", "selfie", "police_verification", "pan", "bank_proof"]);
   });
   it("makes the GST certificate required once a GST number is given, and the registration for a firm or company", () => {
     const d = filled();
@@ -136,6 +137,10 @@ describe("documentRequirements", () => {
     for (const type of ["technician", "survey"]) expect(required(type)).toContain("police_verification");
     for (const type of ["contractor", "solar", "ev"]) expect(documentRequirements(type, filled()).some((r) => r.kind === "police_verification")).toBe(false);
   });
+  it("asks everyone for a live selfie, and a team member only optionally", () => {
+    for (const type of ["contractor", "solar", "ev", "technician", "survey"]) expect(required(type)).toContain("selfie");
+    for (const role of ["", "supervisor", "wireman", "solar_installer", "ev_engineer", "surveyor", "helper"]) expect(memberRequirements(true, role).find((r) => r.kind === "selfie")?.need).toBe("optional");
+  });
   it("asks a company for an authorisation letter if the person is not the only owner", () => {
     const d = filled();
     d.business.kind = "company";
@@ -149,13 +154,13 @@ describe("documentRequirements", () => {
 
 describe("onboardingGaps", () => {
   it("has no gaps for a complete contractor", () => {
-    expect(onboardingGaps("contractor", filled(), docs("identity", "licence", "supervisor_permit", "address_proof", "pan", "bank_proof"), NOW)).toEqual([]);
+    expect(onboardingGaps("contractor", filled(), docs("identity", "selfie", "licence", "supervisor_permit", "address_proof", "pan", "bank_proof"), NOW)).toEqual([]);
   });
 
   it("lists what an empty onboarding still owes, part by part in the order of the pages", () => {
     const gaps = onboardingGaps("contractor", emptyOnboarding(), [], NOW);
     const sections = gaps.map((g) => g.section);
-    expect([...new Set(sections)]).toEqual(["personal", "business", "licences", "areas", "bank"]);
+    expect([...new Set(sections)]).toEqual(["personal", "business", "licences", "areas", "work", "bank"]);
     expect(gaps.some((g) => g.text.includes("Electrical contractor licence"))).toBe(true);
     expect(gaps.some((g) => g.text === "Your PAN")).toBe(true);
   });
@@ -163,7 +168,7 @@ describe("onboardingGaps", () => {
   it("takes a tie-up with a licensed contractor in place of a solar partner's own licence", () => {
     const d = filled();
     d.licences = [];
-    const base = ["identity", "address_proof", "pan", "bank_proof"];
+    const base = ["identity", "selfie", "address_proof", "pan", "bank_proof"];
     expect(onboardingGaps("solar", d, docs(...base), NOW).map((g) => g.section)).toEqual(["licences", "licences"]);
     expect(onboardingGaps("solar", d, docs(...base, "contractor_tieup"), NOW)).toEqual([]);
     expect(onboardingGaps("solar", d, docs(...base, "licence", "supervisor_permit"), NOW)).toEqual([]);
@@ -173,7 +178,7 @@ describe("onboardingGaps", () => {
     const d = filled();
     d.licences = [];
     d.business.kind = "";
-    const own = docs("identity", "police_verification", "pan", "bank_proof");
+    const own = docs("identity", "selfie", "police_verification", "pan", "bank_proof");
     expect(onboardingGaps("survey", d, own, NOW).map((g) => g.text)).toEqual(["Your police verification certificate, with its reference number and date"]);
     d.licences = [{ type: "pvc", grade: "", number: "PV/778", issuedOn: "2026-05-02", validUntil: "" }];
     expect(onboardingGaps("survey", d, own, NOW)).toEqual([]);
@@ -190,7 +195,7 @@ describe("onboardingGaps", () => {
     d.business.gstin = "33ABC";
     d.business.pan = "ABC";
     d.bank.ifsc = "SBIN";
-    const texts = onboardingGaps("contractor", d, docs("identity", "licence", "supervisor_permit", "address_proof", "pan", "bank_proof", "gst_certificate"), NOW).map((g) => g.text);
+    const texts = onboardingGaps("contractor", d, docs("identity", "selfie", "licence", "supervisor_permit", "address_proof", "pan", "bank_proof", "gst_certificate"), NOW).map((g) => g.text);
     expect(texts).toEqual(["The GST number does not look right (15 characters)", "Licence 1: the kind and the number", "Licence 1: a valid date", "The PAN does not look right (10 characters, like ABCDE1234F)", "The IFSC does not look right (11 characters, like SBIN0001234)"]);
   });
 
@@ -200,7 +205,7 @@ describe("onboardingGaps", () => {
       { ...member, id: "r1", name: "Ravi", role: "Supervisor", needsLicence: true },
       { ...member, id: "k1", name: "Kumar", role: "Helper", needsLicence: false },
     ];
-    const own = docs("identity", "licence", "supervisor_permit", "address_proof", "pan", "bank_proof");
+    const own = docs("identity", "selfie", "licence", "supervisor_permit", "address_proof", "pan", "bank_proof");
     expect(onboardingGaps("contractor", d, own, NOW).map((g) => g.text)).toEqual(["Ravi: the licence or certificate number", "Ravi: a photo ID", "Ravi: a copy of the licence or certificate", "Kumar: a photo ID"]);
     d.team.members[0].certificate = "C-1";
     const all = [...own, { kind: "identity", subject: "member:r1" }, { kind: "certificate", subject: "member:r1" }, { kind: "identity", subject: "member:k1" }];
@@ -214,36 +219,58 @@ describe("onboardingGaps", () => {
       { ...member, id: "s1", name: "Sita", siteRole: "solar_installer", needsLicence: true, certificate: "ITI-4" },
       { ...member, id: "k1", name: "Kumar", siteRole: "helper", needsLicence: false },
     ];
-    const own = docs("identity", "licence", "supervisor_permit", "address_proof", "pan", "bank_proof");
+    const own = docs("identity", "selfie", "licence", "supervisor_permit", "address_proof", "pan", "bank_proof");
     const texts = onboardingGaps("contractor", d, own, NOW).map((g) => g.text);
     expect(texts).toEqual(expect.arrayContaining(["Ravi: the date their permit is valid until", "Ravi: a photo ID", "Sita: a photo ID", "Sita: a copy of the licence or certificate", "Kumar: a photo ID"]));
     expect(texts.some((x) => x.startsWith("Kumar") && x.includes("certificate"))).toBe(false);
-    expect(memberRequirements(true, "helper").map((r) => r.kind)).toEqual(["identity", "police_verification"]);
+    expect(memberRequirements(true, "helper").map((r) => r.kind)).toEqual(["identity", "selfie", "police_verification"]);
     expect(memberRequirements(true, "solar_installer").find((r) => r.need === "required" && r.kind !== "identity")?.anyOf).toContain("trade_certificate");
-    expect(memberRequirements(true, "").map((r) => r.kind)).toEqual(["identity", "certificate", "training_certificate"]);
+    expect(memberRequirements(true, "").map((r) => r.kind)).toEqual(["identity", "selfie", "certificate", "training_certificate"]);
   });
 
   it("flags a licence that has run out, and one that needs a date and has none", () => {
     const d = filled();
     d.licences[0].validUntil = "2026-11-16";
     d.licences[1].validUntil = "";
-    const texts = onboardingGaps("contractor", d, docs("identity", "licence", "supervisor_permit", "address_proof", "pan", "bank_proof"), NOW).map((g) => g.text);
+    const texts = onboardingGaps("contractor", d, docs("identity", "selfie", "licence", "supervisor_permit", "address_proof", "pan", "bank_proof"), NOW).map((g) => g.text);
     expect(texts).toEqual(["Licence 1: it ran out on 2026-11-16. Send the renewed one, or its receipt if the renewal is under way", "Licence 2: the date it is valid until"]);
     d.licences[0].validUntil = "2026-11-17";
-    expect(onboardingGaps("contractor", d, docs("identity", "licence", "supervisor_permit", "address_proof", "pan", "bank_proof"), NOW).map((g) => g.text)).toEqual(["Licence 2: the date it is valid until"]);
+    expect(onboardingGaps("contractor", d, docs("identity", "selfie", "licence", "supervisor_permit", "address_proof", "pan", "bank_proof"), NOW).map((g) => g.text)).toEqual(["Licence 2: the date it is valid until"]);
   });
 
+  it("asks a business how many projects it has done and for one it can be asked about, but not someone working alone", () => {
+    const d = filled();
+    d.work = { ...d.work, installs: "", projects: [{ title: "Rooftop", place: "", size: "", year: "", note: "", clientType: "", specs: "" }] };
+    const all = docs("identity", "selfie", "licence", "supervisor_permit", "address_proof", "pan", "bank_proof");
+    expect(onboardingGaps("contractor", d, all, NOW).map((g) => g.text)).toEqual(["How many projects you have completed so far", "At least one past project: what it was, and whether it was residential, commercial or industrial"]);
+    d.work.projects[0].clientType = "commercial";
+    d.work.installs = "3";
+    expect(onboardingGaps("contractor", d, all, NOW)).toEqual([]);
+    const solo = filled();
+    solo.work = { ...solo.work, installs: "", projects: [] };
+    solo.licences = [{ type: "pvc", grade: "", number: "PV/1", issuedOn: "2026-01-01", validUntil: "" }, { type: "wireman", grade: "", number: "W/1", issuedOn: "", validUntil: "2099-01-01" }];
+    expect(onboardingGaps("technician", solo, docs("identity", "selfie", "certificate", "police_verification", "pan", "bank_proof"), NOW)).toEqual([]);
+  });
   it("asks for an emergency contact, a business's capabilities, and a current address only when it is not the same", () => {
     const d = filled();
     d.person.emergencyName = "";
     d.person.emergencyPhone = "12";
     d.business.capabilities = [];
     d.person.currentSame = false;
-    const all = docs("identity", "licence", "supervisor_permit", "address_proof", "pan", "bank_proof");
+    const all = docs("identity", "selfie", "licence", "supervisor_permit", "address_proof", "pan", "bank_proof");
     const texts = onboardingGaps("contractor", d, all, NOW).map((g) => g.text);
     expect(texts).toEqual(["The name of someone we can call in an emergency", "Their phone number (10 digits)", "Your current address", "The town or city of your current address", "The PIN code of your current address (six digits)", "At least one thing your business does"]);
     // a technician or surveyor is not a business: no capabilities
-    expect(onboardingGaps("technician", { ...d, person: { ...d.person, currentSame: true } }, docs("identity", "certificate", "police_verification", "pan", "bank_proof"), NOW).some((g) => g.text.includes("your business does"))).toBe(false);
+    expect(onboardingGaps("technician", { ...d, person: { ...d.person, currentSame: true } }, docs("identity", "selfie", "certificate", "police_verification", "pan", "bank_proof"), NOW).some((g) => g.text.includes("your business does"))).toBe(false);
+  });
+});
+
+describe("readOnboarding portfolio", () => {
+  it("keeps a project's customer type only when it is one of the three, and its specs cut to length", () => {
+    const d = readOnboarding({ work: { projects: [{ title: "A", clientType: "industrial", specs: "x".repeat(300) }, { title: "B", clientType: "government" }] } });
+    expect(d.work.projects[0].clientType).toBe("industrial");
+    expect(d.work.projects[0].specs).toHaveLength(200);
+    expect(d.work.projects[1].clientType).toBe("");
   });
 });
 

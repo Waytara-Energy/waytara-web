@@ -4,10 +4,11 @@ import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { onboardingGaps } from "@waytara/supabase/partner-onboarding";
 import { fail, openEditable } from "@/lib/partner-track-api";
 import { loadOnboarding } from "@/lib/partner-onboarding-server";
+import { signedAgreement } from "@/lib/partner-agreement-server";
 import { sendMail } from "@/lib/send-mail";
 import { buildPartnerSubmittedAckMail, buildPartnerSubmittedAdminMail } from "@/lib/partner-mail";
 
-const schema = z.object({ declaration: z.literal(true) });
+const schema = z.object({ declaration: z.literal(true), safety: z.literal(true) });
 
 function adminRecipients(): string[] {
   const raw = process.env.PARTNERS_NOTIFICATION_EMAIL || process.env.LEADS_NOTIFICATION_EMAIL || "hello@waytaraenergy.com";
@@ -28,11 +29,13 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     if (opened instanceof NextResponse) return opened;
     const { app } = opened;
 
-    if (!schema.safeParse(await req.json().catch(() => null)).success) return fail("Please tick the box to confirm that what you sent is true.", 400);
+    if (!schema.safeParse(await req.json().catch(() => null)).success) return fail("Please tick both boxes: that what you sent is true, and that you will follow the safety rules.", 400);
 
     const state = await loadOnboarding(app.id);
     const gaps = onboardingGaps(app.partnerType, state.data, state.documents);
     if (gaps.length > 0) return fail("A few things are still missing.", 400, { gaps });
+    // the partner agreement of the current version must have been accepted with the e-mail code before it can be sent
+    if (!(await signedAgreement(app.id))) return fail("Please read and sign the partner agreement first.", 400);
 
     const db = createServiceRoleClient();
     // Locked first, only if it is still open (so two quick clicks cannot send it twice).

@@ -1660,7 +1660,7 @@ export type Database = {
           },
         ]
       }
-      equipment_rollup_15m_p20261021: {
+      equipment_rollup_15m_p20261109: {
         Row: {
           bucket: string
           covered_s: number
@@ -1708,7 +1708,7 @@ export type Database = {
         }
         Relationships: []
       }
-      equipment_rollup_15m_p20261022: {
+      equipment_rollup_15m_p20261110: {
         Row: {
           bucket: string
           covered_s: number
@@ -1756,7 +1756,7 @@ export type Database = {
         }
         Relationships: []
       }
-      equipment_rollup_15m_p20261023: {
+      equipment_rollup_15m_p20261111: {
         Row: {
           bucket: string
           covered_s: number
@@ -1804,7 +1804,7 @@ export type Database = {
         }
         Relationships: []
       }
-      equipment_rollup_15m_p20261024: {
+      equipment_rollup_15m_p20261112: {
         Row: {
           bucket: string
           covered_s: number
@@ -1852,7 +1852,7 @@ export type Database = {
         }
         Relationships: []
       }
-      equipment_rollup_15m_p20261025: {
+      equipment_rollup_15m_p20261113: {
         Row: {
           bucket: string
           covered_s: number
@@ -1900,7 +1900,7 @@ export type Database = {
         }
         Relationships: []
       }
-      equipment_rollup_15m_p20261026: {
+      equipment_rollup_15m_p20261114: {
         Row: {
           bucket: string
           covered_s: number
@@ -1948,7 +1948,7 @@ export type Database = {
         }
         Relationships: []
       }
-      equipment_rollup_15m_p20261027: {
+      equipment_rollup_15m_p20261115: {
         Row: {
           bucket: string
           covered_s: number
@@ -1996,7 +1996,7 @@ export type Database = {
         }
         Relationships: []
       }
-      equipment_rollup_15m_p20261028: {
+      equipment_rollup_15m_p20261116: {
         Row: {
           bucket: string
           covered_s: number
@@ -2044,7 +2044,7 @@ export type Database = {
         }
         Relationships: []
       }
-      equipment_rollup_15m_p20261029: {
+      equipment_rollup_15m_p20261117: {
         Row: {
           bucket: string
           covered_s: number
@@ -2092,7 +2092,7 @@ export type Database = {
         }
         Relationships: []
       }
-      equipment_rollup_15m_p20261030: {
+      equipment_rollup_15m_p20261118: {
         Row: {
           bucket: string
           covered_s: number
@@ -2140,7 +2140,7 @@ export type Database = {
         }
         Relationships: []
       }
-      equipment_rollup_15m_p20261031: {
+      equipment_rollup_15m_p20261119: {
         Row: {
           bucket: string
           covered_s: number
@@ -2340,6 +2340,51 @@ export type Database = {
         Relationships: []
       }
       equipment_rollup_1h_p202611: {
+        Row: {
+          covered_s: number
+          equipment_id: string
+          hour: string
+          key_name: string
+          last_value: number | null
+          max_value: number | null
+          min_value: number | null
+          n_samples: number
+          neg_wsum: number | null
+          pos_wsum: number | null
+          updated_at: string
+          wsum: number
+        }
+        Insert: {
+          covered_s: number
+          equipment_id: string
+          hour: string
+          key_name: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          updated_at?: string
+          wsum: number
+        }
+        Update: {
+          covered_s?: number
+          equipment_id?: string
+          hour?: string
+          key_name?: string
+          last_value?: number | null
+          max_value?: number | null
+          min_value?: number | null
+          n_samples?: number
+          neg_wsum?: number | null
+          pos_wsum?: number | null
+          updated_at?: string
+          wsum?: number
+        }
+        Relationships: []
+      }
+      equipment_rollup_1h_p202612: {
         Row: {
           covered_s: number
           equipment_id: string
@@ -3291,29 +3336,84 @@ export type Database = {
           },
         ]
       }
-      password_change_codes: {
+      partner_agreement_codes: {
         Row: {
+          application_id: string
           attempts: number
           code_hash: string
           created_at: string
           expires_at: string
-          user_id: string
+          last_sent_at: string
         }
         Insert: {
+          application_id: string
           attempts?: number
           code_hash: string
           created_at?: string
           expires_at: string
-          user_id: string
+          last_sent_at?: string
         }
         Update: {
+          application_id?: string
           attempts?: number
           code_hash?: string
           created_at?: string
           expires_at?: string
-          user_id?: string
+          last_sent_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "partner_agreement_codes_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: true
+            referencedRelation: "partner_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_agreements: {
+        Row: {
+          application_id: string
+          id: string
+          signed_at: string
+          signer_agent: string | null
+          signer_email: string
+          signer_ip: string | null
+          signer_name: string
+          text_hash: string
+          version: string
+        }
+        Insert: {
+          application_id: string
+          id?: string
+          signed_at?: string
+          signer_agent?: string | null
+          signer_email: string
+          signer_ip?: string | null
+          signer_name: string
+          text_hash: string
+          version: string
+        }
+        Update: {
+          application_id?: string
+          id?: string
+          signed_at?: string
+          signer_agent?: string | null
+          signer_email?: string
+          signer_ip?: string | null
+          signer_name?: string
+          text_hash?: string
+          version?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_agreements_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "partner_applications"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       partner_applications: {
         Row: {
@@ -3322,8 +3422,8 @@ export type Database = {
           account_created_at: string | null
           admin_notes: string | null
           answers: Json
-          cities: string | null
           certifications: string | null
+          cities: string | null
           company_name: string
           contact_name: string
           created_at: string
@@ -3331,8 +3431,8 @@ export type Database = {
           declined_handling: string | null
           email: string
           id: string
-          listed_publicly: boolean
           installs_completed: string | null
+          listed_publicly: boolean
           message: string | null
           partner_type: string | null
           phone: string
@@ -3357,8 +3457,8 @@ export type Database = {
           account_created_at?: string | null
           admin_notes?: string | null
           answers?: Json
-          cities?: string | null
           certifications?: string | null
+          cities?: string | null
           company_name: string
           contact_name: string
           created_at?: string
@@ -3366,8 +3466,8 @@ export type Database = {
           declined_handling?: string | null
           email: string
           id?: string
-          listed_publicly?: boolean
           installs_completed?: string | null
+          listed_publicly?: boolean
           message?: string | null
           partner_type?: string | null
           phone: string
@@ -3392,8 +3492,8 @@ export type Database = {
           account_created_at?: string | null
           admin_notes?: string | null
           answers?: Json
-          cities?: string | null
           certifications?: string | null
+          cities?: string | null
           company_name?: string
           contact_name?: string
           created_at?: string
@@ -3401,8 +3501,8 @@ export type Database = {
           declined_handling?: string | null
           email?: string
           id?: string
-          listed_publicly?: boolean
           installs_completed?: string | null
+          listed_publicly?: boolean
           message?: string | null
           partner_type?: string | null
           phone?: string
@@ -3425,7 +3525,7 @@ export type Database = {
           {
             foreignKeyName: "partner_applications_profile_id_fkey"
             columns: ["profile_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -3476,6 +3576,53 @@ export type Database = {
             columns: ["checked_by"]
             isOneToOne: false
             referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      partner_crew_invites: {
+        Row: {
+          application_id: string
+          completed_at: string | null
+          created_at: string
+          expires_at: string
+          id: string
+          member_id: string
+          opened_at: string | null
+          sent_via: string
+          status: string
+          token_hash: string
+        }
+        Insert: {
+          application_id: string
+          completed_at?: string | null
+          created_at?: string
+          expires_at: string
+          id?: string
+          member_id: string
+          opened_at?: string | null
+          sent_via?: string
+          status?: string
+          token_hash: string
+        }
+        Update: {
+          application_id?: string
+          completed_at?: string | null
+          created_at?: string
+          expires_at?: string
+          id?: string
+          member_id?: string
+          opened_at?: string | null
+          sent_via?: string
+          status?: string
+          token_hash?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_crew_invites_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "partner_applications"
             referencedColumns: ["id"]
           },
         ]
@@ -3719,6 +3866,21 @@ export type Database = {
           },
         ]
       }
+      partner_reference_counters: {
+        Row: {
+          kind: string
+          last_number: number
+        }
+        Insert: {
+          kind: string
+          last_number?: number
+        }
+        Update: {
+          kind?: string
+          last_number?: number
+        }
+        Relationships: []
+      }
       partner_screening_calls: {
         Row: {
           application_id: string
@@ -3763,6 +3925,30 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      password_change_codes: {
+        Row: {
+          attempts: number
+          code_hash: string
+          created_at: string
+          expires_at: string
+          user_id: string
+        }
+        Insert: {
+          attempts?: number
+          code_hash: string
+          created_at?: string
+          expires_at: string
+          user_id: string
+        }
+        Update: {
+          attempts?: number
+          code_hash?: string
+          created_at?: string
+          expires_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       payments: {
         Row: {
@@ -5149,10 +5335,6 @@ export type Database = {
       }
     }
     Functions: {
-      list_authorized_partners: {
-        Args: Record<PropertyKey, never>
-        Returns: { name: string; partner_type: string; districts: string[] }[]
-      }
       _cancel_rotation: {
         Args: { p_reason: string; p_rotation: string }
         Returns: boolean
@@ -5324,7 +5506,6 @@ export type Database = {
       }
       ensure_rollup_1h_partition: { Args: { p_ts: string }; Returns: undefined }
       ensure_rollup_partitions: { Args: { p_now?: string }; Returns: undefined }
-      next_partner_reference: { Args: { p_kind: string; p_on?: string }; Returns: string }
       fleet_tick: { Args: { p_io?: boolean; p_now?: string }; Returns: Json }
       gw_active_keys: {
         Args: { p_equipment: string }
@@ -5699,6 +5880,14 @@ export type Database = {
       is_monitored_category: { Args: { p_category: string }; Returns: boolean }
       is_site_engineer_or_admin: { Args: never; Returns: boolean }
       is_staff: { Args: never; Returns: boolean }
+      list_authorized_partners: {
+        Args: never
+        Returns: {
+          districts: string[]
+          name: string
+          partner_type: string
+        }[]
+      }
       log_device_activity: {
         Args: {
           p_action: string
@@ -5731,6 +5920,10 @@ export type Database = {
           site_id: string
           site_name: string
         }[]
+      }
+      next_partner_reference: {
+        Args: { p_kind: string; p_on?: string }
+        Returns: string
       }
       offline_after_s: {
         Args: { p_heartbeat_s: number; p_interval_s: number }

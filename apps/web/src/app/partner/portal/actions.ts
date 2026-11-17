@@ -60,7 +60,16 @@ export async function savePartnerProfile(formData: FormData): Promise<void> {
       installs: field(formData, "installs").replace(/\D/g, ""),
       largest: field(formData, "largest").replace(/[^0-9.]/g, ""),
       summary: field(formData, "summary"),
-      projects: Array.from({ length: ONBOARDING_LIMITS.projects }, (_, i) => ({ title: field(formData, `project_title_${i}`), place: field(formData, `project_place_${i}`), size: field(formData, `project_size_${i}`).replace(/[^0-9.]/g, ""), year: field(formData, `project_year_${i}`).replace(/\D/g, ""), note: field(formData, `project_note_${i}`) })).filter((p) => p.title || p.place || p.size || p.year || p.note),
+      projects: Array.from({ length: ONBOARDING_LIMITS.projects }, (_, i) => ({
+        title: field(formData, `project_title_${i}`),
+        place: field(formData, `project_place_${i}`),
+        size: field(formData, `project_size_${i}`).replace(/[^0-9.]/g, ""),
+        year: field(formData, `project_year_${i}`).replace(/\D/g, ""),
+        note: field(formData, `project_note_${i}`),
+        // not on this form: kept from what is saved at the same place in the list, while it is still the same project
+        clientType: current.work.projects[i]?.title === field(formData, `project_title_${i}`) ? (current.work.projects[i]?.clientType ?? "") : "",
+        specs: current.work.projects[i]?.title === field(formData, `project_title_${i}`) ? (current.work.projects[i]?.specs ?? "") : "",
+      })).filter((p) => p.title || p.place || p.size || p.year || p.note),
     },
   }));
   if (next.areas.districts.length === 0) throw new Error("Choose at least one district you work in.");

@@ -8,6 +8,7 @@ export const DOCUMENT_KINDS = [
   // who they are
   { id: "identity", label: "Photo ID", hint: "PAN card, driving licence, voter ID, passport, or an Aadhaar copy with all but the last four digits hidden" },
   { id: "photo", label: "Photograph", hint: "A recent passport-size photo" },
+  { id: "selfie", label: "Live selfie", hint: "A clear photo of your face taken now, looking at the camera, in good light, with no hat or sunglasses" },
   { id: "pan", label: "PAN card", hint: "The PAN the payments will be made against" },
   { id: "police_verification", label: "Police verification certificate", hint: "A police verification (character) certificate issued by the police, with its reference number and date" },
   { id: "driving_licence", label: "Driving licence", hint: "If you drive to sites for work" },
@@ -238,6 +239,10 @@ export interface WorkProject {
   size: string;
   year: string;
   note: string;
+  /** residential, commercial or industrial */
+  clientType: string;
+  /** The system or job in a line: "5 kW on-grid, 12 panels" */
+  specs: string;
 }
 
 export interface WorkSection {
@@ -276,6 +281,12 @@ export interface OnboardingDocument {
   size: number;
   uploadedAt: string;
 }
+
+export const CLIENT_TYPES = [
+  { id: "residential", label: "Residential" },
+  { id: "commercial", label: "Commercial" },
+  { id: "industrial", label: "Industrial" },
+] as const;
 
 export const ONBOARDING_LIMITS = { licences: 10, members: 15, projects: 8, districts: 40 } as const;
 
@@ -370,7 +381,15 @@ export function readOnboarding(raw: unknown): OnboardingData {
       summary: str(w.summary, 1500),
       projects: arr(w.projects, ONBOARDING_LIMITS.projects).map((x) => {
         const o = obj(x);
-        return { title: str(o.title, 120), place: str(o.place, 120), size: str(o.size, 8), year: str(o.year, 4), note: str(o.note, 400) };
+        return {
+          title: str(o.title, 120),
+          place: str(o.place, 120),
+          size: str(o.size, 8),
+          year: str(o.year, 4),
+          note: str(o.note, 400),
+          clientType: CLIENT_TYPES.some((c) => c.id === o.clientType) ? str(o.clientType, 20) : "",
+          specs: str(o.specs, 200),
+        };
       }),
     },
     bank: {
@@ -433,7 +452,7 @@ const DEFAULT_CATEGORIES = [{ id: "work", label: "Work you have done", kind: "wo
 export const workCategories = (partnerType: string | null) => WORK_CATEGORIES[partnerType ?? ""] ?? DEFAULT_CATEGORIES;
 
 /** What a team member can have filed under them. */
-export const MEMBER_DOCUMENT_KINDS: readonly DocumentKind[] = ["identity", "certificate", "licence", "trade_certificate", "training_certificate", "police_verification", "driving_licence", "photo", "other"];
+export const MEMBER_DOCUMENT_KINDS: readonly DocumentKind[] = ["identity", "certificate", "licence", "trade_certificate", "training_certificate", "police_verification", "driving_licence", "photo", "selfie", "other"];
 const WORK_DOCUMENT_KINDS: readonly DocumentKind[] = ["work_photo", "survey_record", "completion_certificate"];
 
 /**
@@ -509,6 +528,7 @@ export function documentRequirements(partnerType: string | null, data: Onboardin
   const hasOffice = !individual && data.business.kind !== "individual";
   const list: DocRequirement[] = [
     req("identity", "personal", "required", "To know who we are dealing with. Aadhaar is never demanded: any government photo ID is accepted, and an Aadhaar copy must be masked.", { label: individual ? "Your photo ID" : "Photo ID of the person we deal with" }),
+    req("selfie", "personal", "required", "A photo taken now lets the team compare the face with the photo ID, and is used for the partner's badge and site pass."),
     req("photo", "personal", "optional", "For the partner's profile and site passes."),
   ];
   if (individual) {
@@ -571,6 +591,12 @@ export function documentRequirements(partnerType: string | null, data: Onboardin
  * installer's training, an EV engineer's diploma or permit, a surveyor's qualification. A person saved before roles existed is asked as before: any licence or certificate.
  */
 export function memberRequirements(needsLicence: boolean, siteRole = ""): { kind: DocumentKind; need: Need; label: string; hint: string; anyOf?: readonly DocumentKind[] }[] {
+  const list = memberRequirementsFor(needsLicence, siteRole);
+  // a live selfie is welcome for everyone (the person usually takes it on their own phone from the link their employer sends); the ID is what is required
+  return [...list.slice(0, 1), { kind: "selfie" as DocumentKind, need: "optional" as Need, label: "Live selfie", hint: DOCUMENT_KIND_HINT.selfie }, ...list.slice(1)];
+}
+
+function memberRequirementsFor(needsLicence: boolean, siteRole: string): { kind: DocumentKind; need: Need; label: string; hint: string; anyOf?: readonly DocumentKind[] }[] {
   const r = (kind: DocumentKind, need: Need, label: string, hint: string, anyOf?: readonly DocumentKind[]) => ({ kind, need, label, hint, ...(anyOf ? { anyOf } : {}) });
   const id = r("identity", "required", "Photo ID", DOCUMENT_KIND_HINT.identity);
   const training = r("training_certificate", "optional", "Training certificate", DOCUMENT_KIND_HINT.training_certificate);
@@ -666,6 +692,12 @@ export function onboardingGaps(partnerType: string | null, data: OnboardingData,
   }
 
   if (data.areas.districts.length === 0) add("areas", "At least one district you work in");
+
+  // a business shows what it has done: how many jobs, and at least one project we could ask about. Someone working alone may add theirs, but it is not required.
+  if (!individual) {
+    if (!data.work.installs) add("work", "How many projects you have completed so far");
+    if (!data.work.projects.some((p) => p.title && p.clientType)) add("work", "At least one past project: what it was, and whether it was residential, commercial or industrial");
+  }
 
   if (!isPan(data.business.pan)) add("bank", data.business.pan ? "The PAN does not look right (10 characters, like ABCDE1234F)" : "Your PAN");
   if (!data.bank.holder) add("bank", "The name on the bank account");
