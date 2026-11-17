@@ -6,7 +6,9 @@ import { PartnerTracker } from "@/components/partner/partner-tracker";
 import { OnboardingForm } from "@/components/partner/onboarding-form";
 import { PARTNER_TYPE_LABEL } from "@/lib/partner-network";
 import { findSessionRecord } from "@/lib/partner-track-server";
+import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { loadOnboarding } from "@/lib/partner-onboarding-server";
+import { readAnswers, seedOnboarding } from "@/lib/partner-onboarding-seed";
 
 export const dynamic = "force-dynamic";
 
@@ -24,8 +26,13 @@ export default async function PartnerPortalPage() {
 
   if (status === "onboarding") {
     const state = await loadOnboarding(record.id);
-    // their name is offered as the name on the photo ID until they type it themselves
-    const initial = state.data.person.name ? state.data : { ...state.data, person: { ...state.data.person, name: record.contactName } };
+    // Until something is saved, what they said when they applied is the starting point: their name as on the ID, the kind of business and its name, their role and
+    // their districts. After the first save, what they typed is what stands.
+    let initial = state.data;
+    if (!state.saved) {
+      const { data: applied } = await createServiceRoleClient().from("partner_applications").select("cities, answers").eq("id", record.id).maybeSingle();
+      initial = seedOnboarding(state.data, { partnerType, contactName: record.contactName, companyName: record.companyName, cities: applied?.cities ?? "", answers: readAnswers(applied?.answers) });
+    } else if (!state.data.person.name) initial = { ...state.data, person: { ...state.data.person, name: record.contactName } };
     if (state.submittedAt) {
       return (
         <PartnerTracker app={app} embedded>

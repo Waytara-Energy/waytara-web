@@ -15,9 +15,14 @@ import { cn } from "@/lib/utils";
 import {
   ACCOUNT_TYPES,
   BUSINESS_KINDS,
+  CAPABILITIES,
+  EQUIPMENT,
+  LICENCE_EXPIRES,
   LICENCE_TYPES,
   ONBOARDING_LIMITS,
   SECTIONS,
+  SITE_ROLES,
+  siteRoleOf,
   categorySubject,
   documentRequirements,
   memberKey,
@@ -83,6 +88,32 @@ function SubHeading({ children, hint }: { children: React.ReactNode; hint?: stri
     <div className="mb-4 mt-10 border-t border-theme-border pt-7">
       <h3 className="text-[15px] font-semibold text-theme-primary">{children}</h3>
       {hint && <p className="mt-1 max-w-xl text-sm leading-relaxed text-theme-muted">{hint}</p>}
+    </div>
+  );
+}
+
+/** Choices to switch on and off, as pills (the way the apply form does it). */
+function Pills({ label, options, value, onChange }: { label: string; options: readonly { id: string; label: string }[]; value: string[]; onChange: (v: string[]) => void }) {
+  return (
+    <div role="group" aria-label={label} className="flex flex-wrap gap-2.5">
+      {options.map((o) => {
+        const on = value.includes(o.id);
+        return (
+          <button
+            key={o.id}
+            type="button"
+            aria-pressed={on}
+            onClick={() => onChange(on ? value.filter((x) => x !== o.id) : [...value, o.id])}
+            className={cn(
+              "inline-flex min-h-10 items-center gap-2 rounded-full border px-4 py-1.5 text-left text-sm font-medium outline-none transition-colors focus-visible:ring-2 focus-visible:ring-emerald-500",
+              on ? "border-emerald-500/60 bg-emerald-500/10 text-theme-primary" : "border-theme-border text-theme-secondary hover:border-theme-muted hover:text-theme-primary",
+            )}
+          >
+            <span aria-hidden="true" className={cn("size-2 shrink-0 rounded-full transition-colors", on ? "bg-emerald-500" : "bg-theme-border")} />
+            {o.label}
+          </button>
+        );
+      })}
     </div>
   );
 }
@@ -176,6 +207,7 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
 
   const set = <K extends keyof OnboardingData>(key: K, value: OnboardingData[K]) => change({ ...data, [key]: value });
   const person = (k: keyof OnboardingData["person"], v: string) => set("person", { ...data.person, [k]: v });
+  const personPatch = (patch: Partial<OnboardingData["person"]>) => set("person", { ...data.person, ...patch });
   const biz = (k: keyof OnboardingData["business"], v: string) => set("business", { ...data.business, [k]: v });
   const bank = (k: keyof OnboardingData["bank"], v: string) => set("bank", { ...data.bank, [k]: v });
 
@@ -321,6 +353,36 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
                 <Input id="ob-email" value={contact.email} readOnly disabled />
               </div>
               <p className="text-xs text-theme-muted sm:col-span-2">The mobile number and e-mail address are the ones we confirmed with you. To change either, write to us under Support.</p>
+              <div className={field}>
+                <Label htmlFor="ob-em-name">Someone to call in an emergency</Label>
+                <Input id="ob-em-name" value={data.person.emergencyName} onChange={(e) => person("emergencyName", e.target.value)} maxLength={120} placeholder="Name, and how they are related to you" autoComplete="off" />
+              </div>
+              <div className={field}>
+                <Label htmlFor="ob-em-phone">Their phone number</Label>
+                <Input id="ob-em-phone" type="tel" value={data.person.emergencyPhone} onChange={(e) => person("emergencyPhone", e.target.value.replace(/[^0-9+ ]/g, "").slice(0, 32))} inputMode="tel" maxLength={32} autoComplete="off" />
+              </div>
+              <div className="flex items-start gap-3 sm:col-span-2">
+                <Checkbox id="ob-cur-same" checked={data.person.currentSame} onCheckedChange={(v) => personPatch({ currentSame: v === true })} className="mt-0.5" />
+                <Label htmlFor="ob-cur-same" className="block text-sm font-normal leading-relaxed text-theme-secondary">
+                  I live at the address given under {individual ? "Your work details" : "Business details"}
+                </Label>
+              </div>
+              {!data.person.currentSame && (
+                <>
+                  <div className={`${field} sm:col-span-2`}>
+                    <Label htmlFor="ob-cur-address">Your current address</Label>
+                    <Textarea id="ob-cur-address" value={data.person.currentAddress} onChange={(e) => person("currentAddress", e.target.value)} rows={2} maxLength={400} />
+                  </div>
+                  <div className={field}>
+                    <Label htmlFor="ob-cur-city">Town or city</Label>
+                    <Input id="ob-cur-city" value={data.person.currentCity} onChange={(e) => person("currentCity", e.target.value)} maxLength={100} />
+                  </div>
+                  <div className={field}>
+                    <Label htmlFor="ob-cur-pin">PIN code</Label>
+                    <Input id="ob-cur-pin" value={data.person.currentPin} onChange={(e) => person("currentPin", e.target.value.replace(/\D/g, "").slice(0, 6))} inputMode="numeric" maxLength={6} />
+                  </div>
+                </>
+              )}
             </div>
             <SubHeading hint="PDF, JPG, PNG or WebP, up to 10 MB each. Only the WayTara team sees your files, and only to verify you.">Documents</SubHeading>
             <Slots store={store} reqs={reqsOf("personal")} />
@@ -403,6 +465,14 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
                 </>
               )}
             </div>
+            {!individual && (
+              <>
+                <SubHeading hint="Choose everything your business does. We use it to match you to the right jobs.">What your business does</SubHeading>
+                <Pills label="What your business does" options={CAPABILITIES} value={data.business.capabilities} onChange={(v) => set("business", { ...data.business, capabilities: v })} />
+                <SubHeading hint="The test equipment you own. Optional, but it helps us place you on jobs that need it.">Test equipment you own</SubHeading>
+                <Pills label="Test equipment you own" options={EQUIPMENT} value={data.business.equipment} onChange={(v) => set("business", { ...data.business, equipment: v })} />
+              </>
+            )}
             <SubHeading hint="Send what applies to your business. The ones marked Required are needed before you can send.">Business documents</SubHeading>
             <Slots store={store} reqs={reqsOf("business")} extraKinds={["other"]} />
           </section>
@@ -419,7 +489,7 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
               items={data.licences}
               max={ONBOARDING_LIMITS.licences}
               addLabel="Add a licence or certificate"
-              onAdd={() => set("licences", [...data.licences, { type: "", grade: "", number: "", validUntil: "" }])}
+              onAdd={() => set("licences", [...data.licences, { type: "", grade: "", number: "", issuedOn: "", validUntil: "" }])}
               onRemove={(i) => set("licences", data.licences.filter((_, j) => j !== i))}
             >
               {(l, i) => {
@@ -442,7 +512,7 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
                       </Select>
                     </div>
                     <div className={field}>
-                      <Label htmlFor={`ob-l-num-${i}`}>Number</Label>
+                      <Label htmlFor={`ob-l-num-${i}`}>{l.type === "pvc" ? "Reference number" : "Number"}</Label>
                       <Input id={`ob-l-num-${i}`} value={l.number} onChange={(e) => up({ number: e.target.value })} maxLength={60} />
                     </div>
                     <div className={field}>
@@ -453,9 +523,16 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
                       <Input id={`ob-l-grade-${i}`} value={l.grade} onChange={(e) => up({ grade: e.target.value })} maxLength={60} />
                     </div>
                     <div className={field}>
+                      <Label htmlFor={`ob-l-issued-${i}`}>
+                        Issued on
+                        {l.type !== "pvc" && <Optional />}
+                      </Label>
+                      <Input id={`ob-l-issued-${i}`} type="date" value={l.issuedOn} onChange={(e) => up({ issuedOn: e.target.value })} />
+                    </div>
+                    <div className={field}>
                       <Label htmlFor={`ob-l-valid-${i}`}>
                         Valid until
-                        <Optional />
+                        {!LICENCE_EXPIRES.includes(l.type) && <Optional />}
                       </Label>
                       <Input id={`ob-l-valid-${i}`} type="date" value={l.validUntil} onChange={(e) => up({ validUntil: e.target.value })} />
                     </div>
@@ -498,7 +575,7 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
               items={data.team.members}
               max={ONBOARDING_LIMITS.members}
               addLabel="Add a person"
-              onAdd={() => set("team", { ...data.team, members: [...data.team.members, { id: crypto.randomUUID(), name: "", role: "", phone: "", certificate: "", needsLicence: true, addedAt: new Date().toISOString() }] })}
+              onAdd={() => set("team", { ...data.team, members: [...data.team.members, { id: crypto.randomUUID(), name: "", role: "", siteRole: "", phone: "", email: "", certificate: "", validUntil: "", needsLicence: true, addedAt: new Date().toISOString() }] })}
               onRemove={removeMember}
             >
               {(m, i) => {
@@ -512,27 +589,58 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
                       <Input id={`ob-m-name-${i}`} value={m.name} onChange={(e) => up({ name: e.target.value })} maxLength={120} />
                     </div>
                     <div className={field}>
-                      <Label htmlFor={`ob-m-role-${i}`}>
-                        Role
+                      <Label htmlFor={`ob-m-role-${i}`}>What they do on site</Label>
+                      <Select
+                        value={m.siteRole}
+                        onValueChange={(v) => {
+                          const r = siteRoleOf(v);
+                          if (r) up({ siteRole: r.id, role: r.label, needsLicence: r.needsLicence });
+                        }}
+                      >
+                        <SelectTrigger id={`ob-m-role-${i}`}>
+                          <SelectValue placeholder={m.role || "Choose a role"} />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {SITE_ROLES.map((r) => (
+                            <SelectItem key={r.id} value={r.id}>
+                              {r.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className={field}>
+                      <Label htmlFor={`ob-m-phone-${i}`}>
+                        Mobile number
                         <Optional />
                       </Label>
-                      <Input id={`ob-m-role-${i}`} value={m.role} onChange={(e) => up({ role: e.target.value })} maxLength={80} placeholder="Supervisor, electrician, helper" />
+                      <Input id={`ob-m-phone-${i}`} type="tel" value={m.phone} onChange={(e) => up({ phone: e.target.value.replace(/[^0-9+ ]/g, "").slice(0, 32) })} inputMode="tel" maxLength={32} />
                     </div>
-                    <div className="flex items-start gap-3 sm:col-span-2">
-                      <Checkbox id={`ob-m-needs-${i}`} checked={m.needsLicence} onCheckedChange={(v) => up({ needsLicence: v === true })} className="mt-0.5" />
-                      <Label htmlFor={`ob-m-needs-${i}`} className="block text-sm font-normal leading-relaxed text-theme-secondary">
-                        This person needs a licence or certificate to do their work (a supervisor or a wireman, for example).
+                    <div className={`${field} sm:col-span-2`}>
+                      <Label htmlFor={`ob-m-email-${i}`}>
+                        E-mail
+                        <Optional />
                       </Label>
+                      <Input id={`ob-m-email-${i}`} type="email" value={m.email} onChange={(e) => up({ email: e.target.value })} maxLength={200} />
                     </div>
                     {m.needsLicence && (
-                      <div className={`${field} sm:col-span-2`}>
-                        <Label htmlFor={`ob-m-cert-${i}`}>Licence or certificate number</Label>
-                        <Input id={`ob-m-cert-${i}`} value={m.certificate} onChange={(e) => up({ certificate: e.target.value })} maxLength={120} />
-                      </div>
+                      <>
+                        <div className={field}>
+                          <Label htmlFor={`ob-m-cert-${i}`}>{m.siteRole === "supervisor" ? "Permit number" : "Licence or certificate number"}</Label>
+                          <Input id={`ob-m-cert-${i}`} value={m.certificate} onChange={(e) => up({ certificate: e.target.value })} maxLength={120} />
+                        </div>
+                        <div className={field}>
+                          <Label htmlFor={`ob-m-valid-${i}`}>
+                            Valid until
+                            {m.siteRole !== "supervisor" && m.siteRole !== "wireman" && <Optional />}
+                          </Label>
+                          <Input id={`ob-m-valid-${i}`} type="date" value={m.validUntil} onChange={(e) => up({ validUntil: e.target.value })} />
+                        </div>
+                      </>
                     )}
                     <div className="space-y-3 sm:col-span-2">
                       {m.name ? (
-                        memberRequirements(m.needsLicence).map((r) => (
+                        memberRequirements(m.needsLicence, m.siteRole).map((r) => (
                           <DocumentSlot key={r.kind} store={store} kind={r.kind} subject={subject} label={r.label} hint={r.hint} need={r.need} satisfied={r.anyOf ? r.anyOf.some((k) => theirs.includes(k)) : undefined} />
                         ))
                       ) : (

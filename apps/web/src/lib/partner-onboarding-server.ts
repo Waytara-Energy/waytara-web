@@ -6,6 +6,8 @@ export const PARTNER_BUCKET = "partner-documents";
 
 export interface OnboardingState {
   data: OnboardingData;
+  /** Whether anything has been saved yet. Until it has, the page offers what the application said as a starting point. */
+  saved: boolean;
   submittedAt: string | null;
   documents: OnboardingDocument[];
 }
@@ -19,6 +21,7 @@ export async function loadOnboarding(applicationId: string): Promise<OnboardingS
   ]);
   return {
     data: readOnboarding(row.data?.data),
+    saved: Boolean(row.data),
     submittedAt: row.data?.submitted_at ?? null,
     documents: (docs.data ?? []).map((d) => ({ id: d.id, kind: d.kind, subject: d.subject, name: d.file_name, size: d.size_bytes, uploadedAt: d.uploaded_at })),
   };

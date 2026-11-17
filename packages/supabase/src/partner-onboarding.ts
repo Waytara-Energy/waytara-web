@@ -9,11 +9,15 @@ export const DOCUMENT_KINDS = [
   { id: "identity", label: "Photo ID", hint: "PAN card, driving licence, voter ID, passport, or an Aadhaar copy with all but the last four digits hidden" },
   { id: "photo", label: "Photograph", hint: "A recent passport-size photo" },
   { id: "pan", label: "PAN card", hint: "The PAN the payments will be made against" },
+  { id: "police_verification", label: "Police verification certificate", hint: "A police verification (character) certificate issued by the police, with its reference number and date" },
+  { id: "driving_licence", label: "Driving licence", hint: "If you drive to sites for work" },
   { id: "kyc", label: "Other KYC proof", hint: "An address proof or another government document" },
   // the business
   { id: "gst_certificate", label: "GST registration certificate", hint: "The certificate from the GST portal (Form GST REG-06)" },
   { id: "registration", label: "Business registration", hint: "Certificate of incorporation, partnership deed or LLP agreement" },
   { id: "udyam", label: "Udyam (MSME) certificate", hint: "If you have registered on the Udyam portal" },
+  { id: "address_proof", label: "Office address proof", hint: "A recent utility bill, property tax receipt or rent agreement for the address of the business" },
+  { id: "authorisation_letter", label: "Authorisation letter or board resolution", hint: "A letter or resolution signed by the owners or directors that allows this person to act for the business" },
   { id: "shop_establishment", label: "Shops and Establishments registration", hint: "The Tamil Nadu registration of your office or shop, if you have one" },
   { id: "pf_esi", label: "EPF and ESI registration", hint: "Your employer registration, if it applies to the number of people you employ" },
   { id: "labour_licence", label: "Contract labour licence", hint: "If you engage enough workers through contractors to need one" },
@@ -21,6 +25,7 @@ export const DOCUMENT_KINDS = [
   // licences and certificates
   { id: "licence", label: "Electrical contractor licence", hint: "The licence from the Tamil Nadu Electrical Licensing Board, all pages" },
   { id: "contractor_tieup", label: "Licensed contractor tie-up", hint: "A letter or agreement from the licensed contractor your electrical work is done through, with a copy of their licence" },
+  { id: "supervisor_permit", label: "Electrical supervisor permit", hint: "The competency certificate or permit of the licensed supervisor who works for you, with the permit number and validity" },
   { id: "certificate", label: "Competency certificate", hint: "Supervisor or wireman competency certificate" },
   { id: "trade_certificate", label: "Trade or education certificate", hint: "ITI or NCVT trade certificate, diploma or degree" },
   { id: "discom_registration", label: "Rooftop solar vendor registration", hint: "Your vendor registration on the national rooftop solar portal (PM Surya Ghar), approved by the distribution company" },
@@ -108,8 +113,42 @@ export const LICENCE_TYPES = [
   { id: "discom", label: "Rooftop solar vendor registration (PM Surya Ghar)" },
   { id: "empanelment", label: "Empanelment (for example with a distribution company or a government agency)" },
   { id: "training", label: "Training certificate (Suryamitra, manufacturer, safety)" },
+  { id: "pvc", label: "Police verification certificate" },
   { id: "other", label: "Other licence or registration" },
 ] as const;
+
+/** The kinds of licence that run out, so a "valid until" date is asked for (the others are lifelong, or show no date). */
+export const LICENCE_EXPIRES: readonly string[] = ["contractor", "supervisor", "wireman", "discom", "empanelment"];
+
+/** What the business does, and the test gear it owns: chosen from lists so the team can filter and match partners to jobs. */
+export const CAPABILITIES = [
+  { id: "lt_wiring", label: "LT wiring and panels" },
+  { id: "ht_panels", label: "HT panels and substations" },
+  { id: "on_grid_solar", label: "On-grid solar" },
+  { id: "hybrid_bess", label: "Hybrid solar with battery storage" },
+  { id: "ac_ev", label: "AC EV chargers" },
+  { id: "dc_ev", label: "DC fast chargers" },
+  { id: "earthing", label: "Earthing and lightning protection" },
+  { id: "net_metering", label: "Net-metering paperwork with the distribution company" },
+] as const;
+export const EQUIPMENT = [
+  { id: "clamp_meter", label: "Clamp meter" },
+  { id: "megger", label: "Megger (insulation tester)" },
+  { id: "earth_tester", label: "Earth resistance tester" },
+  { id: "irradiance_meter", label: "Solar irradiance meter" },
+  { id: "ocpp_kit", label: "Charger commissioning kit" },
+] as const;
+
+/** What a person on the team does on site. It decides the licence or certificate we ask them for. */
+export const SITE_ROLES = [
+  { id: "supervisor", label: "Licensed supervisor", needsLicence: true },
+  { id: "wireman", label: "Lead electrician or wireman", needsLicence: true },
+  { id: "solar_installer", label: "Solar installer", needsLicence: true },
+  { id: "ev_engineer", label: "EV commissioning engineer", needsLicence: true },
+  { id: "surveyor", label: "Site surveyor", needsLicence: true },
+  { id: "helper", label: "Helper or other", needsLicence: false },
+] as const;
+export const siteRoleOf = (id: string) => SITE_ROLES.find((r) => r.id === id);
 
 export const ACCOUNT_TYPES = [
   { id: "current", label: "Current" },
@@ -122,6 +161,14 @@ export interface PersonSection {
   /** What they are in the business: owner, partner, director, manager. */
   designation: string;
   altPhone: string;
+  /** Who we call if something happens on a site. */
+  emergencyName: string;
+  emergencyPhone: string;
+  /** Whether they live at the address under Business details; when not, the current address follows. */
+  currentSame: boolean;
+  currentAddress: string;
+  currentCity: string;
+  currentPin: string;
 }
 
 export interface BusinessSection {
@@ -137,6 +184,9 @@ export interface BusinessSection {
   /** The PAN payments are made against: the business's, or the person's own for an individual or a proprietor. */
   pan: string;
   udyam: string;
+  /** Ids from CAPABILITIES and EQUIPMENT. */
+  capabilities: string[];
+  equipment: string[];
 }
 
 export interface LicenceEntry {
@@ -144,6 +194,8 @@ export interface LicenceEntry {
   /** The class or grade, as printed on it. */
   grade: string;
   number: string;
+  /** yyyy-mm-dd, the date it was issued */
+  issuedOn: string;
   /** yyyy-mm-dd */
   validUntil: string;
 }
@@ -153,8 +205,13 @@ export interface TeamMember {
   id: string;
   name: string;
   role: string;
+  /** An id from SITE_ROLES: what they do on site, which decides what we ask of them. Empty for people saved before it existed. */
+  siteRole: string;
   phone: string;
+  email: string;
   certificate: string;
+  /** yyyy-mm-dd: when the licence or certificate runs out. */
+  validUntil: string;
   /** Whether this person needs a licence or certificate to do the work (default yes). Those who do must provide it and be verified. */
   needsLicence: boolean;
   /** When they were added (ISO). A person added after the partner was approved is verified before they count. */
@@ -224,8 +281,8 @@ export const ONBOARDING_LIMITS = { licences: 10, members: 15, projects: 8, distr
 
 export function emptyOnboarding(): OnboardingData {
   return {
-    person: { name: "", designation: "", altPhone: "" },
-    business: { name: "", kind: "", started: "", address: "", city: "", pin: "", website: "", gstin: "", pan: "", udyam: "" },
+    person: { name: "", designation: "", altPhone: "", emergencyName: "", emergencyPhone: "", currentSame: true, currentAddress: "", currentCity: "", currentPin: "" },
+    business: { name: "", kind: "", started: "", address: "", city: "", pin: "", website: "", gstin: "", pan: "", udyam: "", capabilities: [], equipment: [] },
     licences: [],
     team: { size: "", certified: "", members: [] },
     areas: { districts: [], capacity: "" },
@@ -237,6 +294,8 @@ export function emptyOnboarding(): OnboardingData {
 const str = (v: unknown, max: number): string => (typeof v === "string" ? v.trim().slice(0, max) : "");
 const arr = (v: unknown, max: number): unknown[] => (Array.isArray(v) ? v.slice(0, max) : []);
 const obj = (v: unknown): Record<string, unknown> => (v && typeof v === "object" && !Array.isArray(v) ? (v as Record<string, unknown>) : {});
+/** The ids of a list that are in the allowed set, once each, in the order of the set. */
+const pick = (v: unknown, allowed: readonly { id: string }[]): string[] => (Array.isArray(v) ? allowed.filter((a) => v.includes(a.id)).map((a) => a.id) : []);
 const upper = (v: unknown, max: number): string => str(v, max + 10).toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, max);
 
 /**
@@ -252,7 +311,17 @@ export function readOnboarding(raw: unknown): OnboardingData {
   const w = obj(r.work);
   const k = obj(r.bank);
   return {
-    person: { name: str(p.name, 200), designation: str(p.designation, 80), altPhone: str(p.altPhone, 32) },
+    person: {
+      name: str(p.name, 200),
+      designation: str(p.designation, 80),
+      altPhone: str(p.altPhone, 32),
+      emergencyName: str(p.emergencyName, 120),
+      emergencyPhone: str(p.emergencyPhone, 32),
+      currentSame: p.currentSame !== false,
+      currentAddress: str(p.currentAddress, 400),
+      currentCity: str(p.currentCity, 100),
+      currentPin: str(p.currentPin, 6),
+    },
     business: {
       name: str(b.name, 200),
       kind: str(b.kind, 40),
@@ -264,17 +333,31 @@ export function readOnboarding(raw: unknown): OnboardingData {
       gstin: upper(b.gstin, 15),
       pan: upper(b.pan, 10),
       udyam: str(b.udyam, 30).toUpperCase(),
+      capabilities: pick(b.capabilities, CAPABILITIES),
+      equipment: pick(b.equipment, EQUIPMENT),
     },
     licences: arr(r.licences, ONBOARDING_LIMITS.licences).map((x) => {
       const o = obj(x);
-      return { type: str(o.type, 40), grade: str(o.grade, 60), number: str(o.number, 60), validUntil: str(o.validUntil, 10) };
+      return { type: str(o.type, 40), grade: str(o.grade, 60), number: str(o.number, 60), issuedOn: str(o.issuedOn, 10), validUntil: str(o.validUntil, 10) };
     }),
     team: {
       size: str(t.size, 6),
       certified: str(t.certified, 6),
       members: arr(t.members, ONBOARDING_LIMITS.members).map((x) => {
         const o = obj(x);
-        return { id: str(o.id, 40).replace(/[^A-Za-z0-9_-]/g, ""), name: str(o.name, 120), role: str(o.role, 80), phone: str(o.phone, 32), certificate: str(o.certificate, 120), needsLicence: o.needsLicence !== false, addedAt: str(o.addedAt, 30) };
+        const siteRole = siteRoleOf(str(o.siteRole, 30)) ? str(o.siteRole, 30) : "";
+        return {
+          id: str(o.id, 40).replace(/[^A-Za-z0-9_-]/g, ""),
+          name: str(o.name, 120),
+          role: str(o.role, 80),
+          siteRole,
+          phone: str(o.phone, 32),
+          email: str(o.email, 200),
+          certificate: str(o.certificate, 120),
+          validUntil: str(o.validUntil, 10),
+          needsLicence: o.needsLicence !== false,
+          addedAt: str(o.addedAt, 30),
+        };
       }),
     },
     areas: {
@@ -350,7 +433,7 @@ const DEFAULT_CATEGORIES = [{ id: "work", label: "Work you have done", kind: "wo
 export const workCategories = (partnerType: string | null) => WORK_CATEGORIES[partnerType ?? ""] ?? DEFAULT_CATEGORIES;
 
 /** What a team member can have filed under them. */
-export const MEMBER_DOCUMENT_KINDS: readonly DocumentKind[] = ["identity", "certificate", "licence", "trade_certificate", "training_certificate", "photo", "other"];
+export const MEMBER_DOCUMENT_KINDS: readonly DocumentKind[] = ["identity", "certificate", "licence", "trade_certificate", "training_certificate", "police_verification", "driving_licence", "photo", "other"];
 const WORK_DOCUMENT_KINDS: readonly DocumentKind[] = ["work_photo", "survey_record", "completion_certificate"];
 
 /**
@@ -422,14 +505,24 @@ const PAYMENTS = "Needed to pay them and to deduct tax correctly: without a PAN,
 export function documentRequirements(partnerType: string | null, data: OnboardingData): DocRequirement[] {
   const individual = partnerType === "technician" || partnerType === "survey";
   const firm = REGISTERED_BUSINESS_KINDS.includes(data.business.kind);
+  // a business with an office to prove: not someone working on their own, and not an individual who said so
+  const hasOffice = !individual && data.business.kind !== "individual";
   const list: DocRequirement[] = [
     req("identity", "personal", "required", "To know who we are dealing with. Aadhaar is never demanded: any government photo ID is accepted, and an Aadhaar copy must be masked.", { label: individual ? "Your photo ID" : "Photo ID of the person we deal with" }),
     req("photo", "personal", "optional", "For the partner's profile and site passes."),
   ];
+  if (individual) {
+    list.push(
+      req("police_verification", "personal", "required", "People who work alone in customers' homes and premises are asked for a police verification certificate, for the customers' safety.", { hint: "A police verification certificate with its reference number and date. If you do not have one yet, apply at your local police station or on the state police portal and send it when it arrives." }),
+      req("driving_licence", "personal", "optional", "Shows they can travel to sites; for the team to plan assignments."),
+    );
+  }
 
   // the business
   if (data.business.gstin) list.push(req("gst_certificate", "business", "required", "They gave a GST number, so the certificate must match it. GST registration is compulsory above the turnover limit (Rs 20 lakh for services, Rs 40 lakh for goods)."));
   else if (!individual) list.push(req("gst_certificate", "business", "conditional", "GST registration is compulsory above the turnover limit (Rs 20 lakh for services, Rs 40 lakh for goods). Below it they may be unregistered.", { hint: "If you are registered for GST. Enter the number above and send the certificate." }));
+  if (hasOffice) list.push(req("address_proof", "business", "required", "Shows where the business works from: the address on the registration and the contract must be one that exists."));
+  if (firm) list.push(req("authorisation_letter", "business", "conditional", "A partnership, LLP or company is bound by its partners or directors: this shows the person we deal with may sign for it.", { hint: "If the person we deal with is not the only owner: a letter or board resolution that allows them to act for the business" }));
   if (firm) list.push(req("registration", "business", "required", "A partnership, LLP or company exists through this document; it shows who can sign for it."));
   else if (!individual) list.push(req("registration", "business", "optional", "Any registration in the business's name supports that it exists as described.", { hint: "Any registration in the business name, if you have one" }));
   if (!individual) {
@@ -447,10 +540,12 @@ export function documentRequirements(partnerType: string | null, data: Onboardin
   // licences and certificates, by kind of partner
   if (partnerType === "contractor") {
     list.push(req("licence", "licences", "required", LICENSED_WORK, { hint: "Your contractor licence from the Tamil Nadu Electrical Licensing Board, all pages, showing the grade and the validity" }));
+    list.push(req("supervisor_permit", "licences", "required", "A licensed contractor must employ an electrical supervisor with a competency certificate; the permit number and validity show it is current."));
     list.push(req("training_certificate", "licences", "optional", "Supports the skills they claim."));
   } else if (partnerType === "solar" || partnerType === "ev") {
     list.push(req("licence", "licences", "required", LICENSED_WORK, { hint: "Your own contractor licence. If the electrical work is done through another licensed contractor, send the tie-up below instead.", anyOf: ["licence", "contractor_tieup"] }));
     list.push(req("contractor_tieup", "licences", "conditional", LICENSED_WORK, { hint: "Only if you do not hold a contractor licence yourself: a letter or agreement from the licensed contractor, with a copy of their licence" }));
+    list.push(req("supervisor_permit", "licences", "required", LICENSED_WORK, { hint: "The permit of the licensed supervisor who works for you. If your electrical work is done through another contractor, their tie-up above covers this.", anyOf: ["supervisor_permit", "contractor_tieup"] }));
     if (partnerType === "solar") list.push(req("discom_registration", "licences", "conditional", "Only a vendor registered on the national portal and approved by the distribution company can install home systems under the PM Surya Ghar subsidy.", { hint: "If you install subsidised home systems: your vendor registration on the national rooftop solar portal" }));
     list.push(req("training_certificate", "licences", "optional", "Suryamitra or a manufacturer's training supports the skills they claim."));
   } else if (partnerType === "technician") {
@@ -471,13 +566,35 @@ export function documentRequirements(partnerType: string | null, data: Onboardin
   return list;
 }
 
-/** The documents asked for each person on the team: a photo ID always, and their licence or certificate when their work needs one. */
-export function memberRequirements(needsLicence: boolean): { kind: DocumentKind; need: Need; label: string; hint: string; anyOf?: readonly DocumentKind[] }[] {
-  return [
-    { kind: "identity", need: "required", label: "Photo ID", hint: DOCUMENT_KIND_HINT.identity },
-    ...(needsLicence ? [{ kind: "certificate" as DocumentKind, need: "required" as Need, label: "Licence or certificate", hint: "Their competency certificate or licence", anyOf: ["certificate", "licence", "trade_certificate"] as DocumentKind[] }] : []),
-    { kind: "training_certificate", need: "optional", label: "Training certificate", hint: DOCUMENT_KIND_HINT.training_certificate },
-  ];
+/**
+ * The documents asked for each person on the team: a photo ID always, then what their work on site needs (see SITE_ROLES): a supervisor's or wireman's permit, a solar
+ * installer's training, an EV engineer's diploma or permit, a surveyor's qualification. A person saved before roles existed is asked as before: any licence or certificate.
+ */
+export function memberRequirements(needsLicence: boolean, siteRole = ""): { kind: DocumentKind; need: Need; label: string; hint: string; anyOf?: readonly DocumentKind[] }[] {
+  const r = (kind: DocumentKind, need: Need, label: string, hint: string, anyOf?: readonly DocumentKind[]) => ({ kind, need, label, hint, ...(anyOf ? { anyOf } : {}) });
+  const id = r("identity", "required", "Photo ID", DOCUMENT_KIND_HINT.identity);
+  const training = r("training_certificate", "optional", "Training certificate", DOCUMENT_KIND_HINT.training_certificate);
+  const police = r("police_verification", "optional", "Police verification certificate", DOCUMENT_KIND_HINT.police_verification);
+  switch (siteRole) {
+    case "supervisor":
+      return [id, r("certificate", "required", "Supervisor competency certificate", "Their supervisor competency certificate or permit, showing the number and validity", ["certificate", "licence"]), police, training];
+    case "wireman":
+      return [id, r("certificate", "required", "Wireman permit", "Their wireman permit, showing the number and validity", ["certificate", "licence"]), r("trade_certificate", "optional", "ITI or diploma", "Their ITI or diploma certificate, if they have one"), police, training];
+    case "solar_installer":
+      return [id, r("trade_certificate", "required", "ITI or solar installer certificate", "Their ITI or a solar installer (Suryamitra or similar) certificate", ["trade_certificate", "certificate", "training_certificate"]), r("training_certificate", "optional", "Height safety training", "A certificate of working-at-height or safety training"), police];
+    case "ev_engineer":
+      return [id, r("certificate", "required", "Electrical diploma or wireman permit", "Their electrical diploma or wireman permit", ["certificate", "trade_certificate", "licence"]), r("training_certificate", "optional", "Charger maker's training", "A certificate from the charger manufacturer, if they have one"), police];
+    case "surveyor":
+      return [id, r("trade_certificate", "required", "Engineering or ITI qualification", "Their engineering degree, diploma or ITI certificate", ["trade_certificate", "certificate"]), r("driving_licence", "optional", "Driving licence", "If they drive to sites"), police];
+    case "helper":
+      return [id, police];
+    default:
+      return [
+        id,
+        ...(needsLicence ? [r("certificate", "required", "Licence or certificate", "Their competency certificate or licence", ["certificate", "licence", "trade_certificate"])] : []),
+        training,
+      ];
+  }
 }
 
 export interface DocRef {
@@ -496,13 +613,22 @@ export interface Gap {
  * business is, its registration where it has one, the licence or certificate of their kind of work, each team member's ID (and certificate where their work needs
  * one), the districts they cover, and the PAN and bank account with a proof of each. The rest is welcome but optional.
  */
-export function onboardingGaps(partnerType: string | null, data: OnboardingData, docs: readonly DocRef[]): Gap[] {
+export function onboardingGaps(partnerType: string | null, data: OnboardingData, docs: readonly DocRef[], now: Date = new Date()): Gap[] {
   const gaps: Gap[] = [];
+  // today in India (yyyy-mm-dd): a licence is run out from the day after the date on it
+  const today = new Date(now.getTime() + 5.5 * 3600_000).toISOString().slice(0, 10);
   const add = (section: SectionId, text: string) => gaps.push({ section, text });
   const mine = docs.filter((d) => d.subject === "partner").map((d) => d.kind);
   const individual = partnerType === "technician" || partnerType === "survey";
 
   if (!data.person.name) add("personal", "Your name as on your photo ID");
+  if (!data.person.emergencyName) add("personal", "The name of someone we can call in an emergency");
+  if (data.person.emergencyPhone.replace(/\D/g, "").length < 10) add("personal", "Their phone number (10 digits)");
+  if (!data.person.currentSame) {
+    if (!data.person.currentAddress) add("personal", "Your current address");
+    if (!data.person.currentCity) add("personal", "The town or city of your current address");
+    if (!/^[1-9][0-9]{5}$/.test(data.person.currentPin)) add("personal", "The PIN code of your current address (six digits)");
+  }
 
   if (!data.business.name) add("business", individual ? "The name you work under" : "Your business name");
   if (!individual && !data.business.kind) add("business", "The kind of business");
@@ -510,20 +636,31 @@ export function onboardingGaps(partnerType: string | null, data: OnboardingData,
   if (!data.business.city) add("business", "The town or city you work from");
   if (!/^[1-9][0-9]{5}$/.test(data.business.pin)) add("business", "The PIN code (six digits)");
   if (data.business.gstin && !isGstin(data.business.gstin)) add("business", "The GST number does not look right (15 characters)");
+  if (!individual && data.business.capabilities.length === 0) add("business", "At least one thing your business does");
 
   const needsLicence = partnerType === "contractor" || partnerType === "technician";
-  if (needsLicence && data.licences.length === 0) add("licences", "At least one licence or certificate, with its number");
+  if (needsLicence && data.licences.filter((l) => l.type !== "pvc").length === 0) add("licences", "At least one licence or certificate, with its number");
   for (const [i, l] of data.licences.entries()) {
     if (!l.type || !l.number) add("licences", `Licence ${i + 1}: the kind and the number`);
     if (l.validUntil && !isIsoDate(l.validUntil)) add("licences", `Licence ${i + 1}: a valid date`);
+    else if (!l.validUntil && LICENCE_EXPIRES.includes(l.type)) add("licences", `Licence ${i + 1}: the date it is valid until`);
+    else if (l.validUntil && l.validUntil < today) add("licences", `Licence ${i + 1}: it ran out on ${l.validUntil}. Send the renewed one, or its receipt if the renewal is under way`);
+    if (l.issuedOn && !isIsoDate(l.issuedOn)) add("licences", `Licence ${i + 1}: a valid date of issue`);
+    else if (l.type === "pvc" && !l.issuedOn) add("licences", `Licence ${i + 1}: the date it was issued`);
   }
+  // what each kind of work must list, beyond the copies: a contractor's supervisor, and the police verification of someone who works alone
+  if (partnerType === "contractor" && !data.licences.some((l) => l.type === "supervisor")) add("licences", "Your supervisor's permit, with its number and validity");
+  if (individual && !data.licences.some((l) => l.type === "pvc")) add("licences", "Your police verification certificate, with its reference number and date");
 
   for (const [i, m] of data.team.members.entries()) {
     const who = m.name || `Person ${i + 1}`;
     const theirs = docs.filter((d) => d.subject === memberSubject(memberKey(m, i))).map((d) => d.kind);
     if (!m.name) add("team", `Person ${i + 1}: their name`);
     if (m.needsLicence && !m.certificate) add("team", `${who}: the licence or certificate number`);
-    for (const r of memberRequirements(m.needsLicence)) {
+    if ((m.siteRole === "supervisor" || m.siteRole === "wireman") && !m.validUntil) add("team", `${who}: the date their permit is valid until`);
+    if (m.needsLicence && m.validUntil && !isIsoDate(m.validUntil)) add("team", `${who}: a valid date for when it runs out`);
+    else if (m.needsLicence && m.validUntil && m.validUntil < today) add("team", `${who}: the licence or certificate ran out on ${m.validUntil}. Send the renewed one`);
+    for (const r of memberRequirements(m.needsLicence, m.siteRole)) {
       if (r.need === "required" && !(r.anyOf ?? [r.kind]).some((k) => theirs.includes(k))) add("team", `${who}: ${r.kind === "identity" ? "a photo ID" : "a copy of the licence or certificate"}`);
     }
   }

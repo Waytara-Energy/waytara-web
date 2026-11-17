@@ -33,6 +33,9 @@ export async function savePartnerProfile(formData: FormData): Promise<void> {
     id: field(formData, `member_id_${i}`),
     // not on this form: kept from what is saved for the same person
     phone: current.team.members.find((m) => m.id && m.id === field(formData, `member_id_${i}`))?.phone ?? "",
+    email: current.team.members.find((m) => m.id && m.id === field(formData, `member_id_${i}`))?.email ?? "",
+    siteRole: current.team.members.find((m) => m.id && m.id === field(formData, `member_id_${i}`))?.siteRole ?? "",
+    validUntil: current.team.members.find((m) => m.id && m.id === field(formData, `member_id_${i}`))?.validUntil ?? "",
     name: field(formData, `member_name_${i}`),
     role: field(formData, `member_role_${i}`),
     certificate: field(formData, `member_cert_${i}`),
@@ -78,7 +81,9 @@ export async function savePartnerProfile(formData: FormData): Promise<void> {
 export async function saveLicences(formData: FormData): Promise<void> {
   const app = await partner({ approved: true });
   const { data: current } = await loadOnboarding(app.id);
-  const entries = Array.from({ length: ONBOARDING_LIMITS.licences }, (_, i) => ({ type: field(formData, `type_${i}`), grade: field(formData, `grade_${i}`), number: field(formData, `number_${i}`), validUntil: field(formData, `valid_${i}`) }));
+  // the date of issue is not on this form: kept from what is saved for the same licence
+  const issued = (type: string, number: string) => current.licences.find((c) => c.type === type && c.number.toLowerCase() === number.toLowerCase())?.issuedOn ?? "";
+  const entries = Array.from({ length: ONBOARDING_LIMITS.licences }, (_, i) => ({ type: field(formData, `type_${i}`), grade: field(formData, `grade_${i}`), number: field(formData, `number_${i}`), issuedOn: issued(field(formData, `type_${i}`), field(formData, `number_${i}`)), validUntil: field(formData, `valid_${i}`) }));
   const kept = entries.filter((l) => l.type || l.number || l.grade || l.validUntil);
   for (const [i, l] of kept.entries()) {
     if (!l.type || !l.number) throw new Error(`Licence ${i + 1}: choose the kind and give the number.`);

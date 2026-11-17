@@ -3,6 +3,8 @@ import { ActionForm } from "@waytara/ui/action-form";
 import {
   ACCOUNT_TYPES,
   BUSINESS_KINDS,
+  CAPABILITIES,
+  EQUIPMENT,
   LICENCE_TYPES,
   categorySubject,
   documentRequirements,
@@ -10,6 +12,7 @@ import {
   maskAccount,
   memberKey,
   memberRequirements,
+  siteRoleOf,
   workCategories,
   type OnboardingData,
   type SectionId,
@@ -253,6 +256,8 @@ export function PersonalTab({ app, v, data, docs }: { app: AppView; v: Verificat
             </a>
           </Fact>
           <Fact label="Another phone">{data?.person.altPhone}</Fact>
+          <Fact label="Emergency contact">{data?.person.emergencyName ? `${data.person.emergencyName}${data.person.emergencyPhone ? ` · ${data.person.emergencyPhone}` : ""}` : ""}</Fact>
+          <Fact label="Lives at">{data ? (data.person.currentSame ? "The address under Business details" : [data.person.currentAddress, data.person.currentCity, data.person.currentPin].filter(Boolean).join(", ")) : ""}</Fact>
           <Fact label="E-mail">
             <a href={`mailto:${app.email}`} className="break-all hover:underline">
               {app.email}
@@ -262,7 +267,7 @@ export function PersonalTab({ app, v, data, docs }: { app: AppView; v: Verificat
         </dl>
       </Section>
       <Section title="Identity documents">
-        <DocSlots appId={app.id} slots={slotsOf(app, data, "personal")} docs={docs} canAsk={canAsk(app)} restKinds={["identity", "photo"]} />
+        <DocSlots appId={app.id} slots={slotsOf(app, data, "personal")} docs={docs} canAsk={canAsk(app)} restKinds={["identity", "photo", "police_verification", "driving_licence"]} />
       </Section>
       <Section title="Verification">
         <Check app={app} v={v} k="identity" />
@@ -285,6 +290,12 @@ export function BusinessTab({ app, v, data, docs }: { app: AppView; v: Verificat
           <Fact label="Website">{b?.website}</Fact>
           <Fact label="Address" wide>
             {[b?.address, b?.city, b?.pin].filter(Boolean).join(", ")}
+          </Fact>
+          <Fact label="What the business does" wide>
+            {b?.capabilities.map((id) => CAPABILITIES.find((c) => c.id === id)?.label ?? id).join(", ")}
+          </Fact>
+          <Fact label="Test equipment owned" wide>
+            {b?.equipment.map((id) => EQUIPMENT.find((c) => c.id === id)?.label ?? id).join(", ")}
           </Fact>
           <Fact label="Districts">{data?.areas.districts.join(", ")}</Fact>
           <Fact label="Jobs a month">{data?.areas.capacity}</Fact>
@@ -331,8 +342,11 @@ export function TeamTab({ app, v, data, docs }: { app: AppView; v: VerificationD
                 <div>
                   <CardTitle className="text-sm">{m.name || `Team member ${i + 1}`}</CardTitle>
                   <CardDescription className="text-xs">
-                    {m.role || "No role given"} · {m.needsLicence ? "Needs a licence or certificate" : "No licence needed"}
+                    {siteRoleOf(m.siteRole)?.label ?? (m.role || "No role given")} · {m.needsLicence ? "Needs a licence or certificate" : "No licence needed"}
                     {m.certificate ? ` · No. ${m.certificate}` : ""}
+                    {m.validUntil ? ` · valid until ${m.validUntil}` : ""}
+                    {m.phone ? ` · ${m.phone}` : ""}
+                    {m.email ? ` · ${m.email}` : ""}
                   </CardDescription>
                 </div>
                 <div className="flex items-center gap-2">
@@ -342,7 +356,7 @@ export function TeamTab({ app, v, data, docs }: { app: AppView; v: VerificationD
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
-              <DocSlots appId={app.id} subject={memberSubject(key)} slots={memberRequirements(m.needsLicence).map((r) => ({ kind: r.kind, label: r.label, need: r.need, anyOf: r.anyOf }))} docs={docs} canAsk={canAsk(app)} restKinds="all" />
+              <DocSlots appId={app.id} subject={memberSubject(key)} slots={memberRequirements(m.needsLicence, m.siteRole).map((r) => ({ kind: r.kind, label: r.label, need: r.need, anyOf: r.anyOf }))} docs={docs} canAsk={canAsk(app)} restKinds="all" />
               {memberChecklist(m.needsLicence).map((c) => {
                 const def = MEMBER_CHECKS.find((x) => x.key === c.key)!;
                 return <VerifyRow key={c.key} appId={app.id} subject={memberSubject(key)} itemKey={c.key} label={def.label} hint={def.hint} state={v.memberStates[key]?.[c.key] ?? "pending"} note={v.memberRows[key]?.[c.key]?.note ?? null} checkedAt={v.memberRows[key]?.[c.key]?.checked_at ?? null} />;
@@ -370,6 +384,7 @@ export function LegalTab({ app, v, data, docs }: { app: AppView; v: Verification
                   <span>
                     {LICENCE_TYPES.find((t) => t.id === l.type)?.label.split(" (")[0] ?? "Licence"} · <span className="font-mono">{l.number || "no number"}</span>
                     {l.grade ? ` · class ${l.grade}` : ""}
+                    {l.issuedOn ? ` · issued ${l.issuedOn}` : ""}
                   </span>
                   <span className={s.state === "expired" ? "font-medium text-destructive" : s.state === "soon" ? "text-amber-600 dark:text-amber-400" : "text-muted-foreground"}>
                     {l.validUntil ? `${s.state === "expired" ? "Expired" : "Valid until"} ${l.validUntil}` : "No date given"}
@@ -381,7 +396,7 @@ export function LegalTab({ app, v, data, docs }: { app: AppView; v: Verification
         )}
       </Section>
       <Section title="Copies" description="What this kind of partner is asked for, and why.">
-        <DocSlots appId={app.id} slots={slotsOf(app, data, "licences")} docs={docs} canAsk={canAsk(app)} restKinds={["licence", "contractor_tieup", "certificate", "trade_certificate", "discom_registration", "training_certificate", "drone_certificate"]} />
+        <DocSlots appId={app.id} slots={slotsOf(app, data, "licences")} docs={docs} canAsk={canAsk(app)} restKinds={["licence", "supervisor_permit", "contractor_tieup", "certificate", "trade_certificate", "discom_registration", "training_certificate", "drone_certificate"]} />
       </Section>
       {checklistFor(app.partner_type).some((c) => c.key === "licence") && (
         <Section title="Verification" description="Check the licence with the authority that issued it.">

@@ -54,7 +54,7 @@ export function PortalDocuments({ partnerType, data, initialDocuments }: { partn
                   <span className="font-medium text-theme-primary">{m.name || `Person ${i + 1}`}</span>
                   {m.role ? ` · ${m.role}` : ""}
                 </p>
-                {memberRequirements(m.needsLicence).map((r) => (
+                {memberRequirements(m.needsLicence, m.siteRole).map((r) => (
                   <DocumentSlot key={r.kind} store={store} kind={r.kind} subject={subject} label={r.label} hint={r.hint} need={r.need} satisfied={r.anyOf ? r.anyOf.some((k) => theirs.includes(k)) : undefined} />
                 ))}
               </div>
