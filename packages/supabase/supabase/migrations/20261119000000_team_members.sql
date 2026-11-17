@@ -137,7 +137,8 @@ as $$
       select 1 from waytara.equipment d join waytara.sites s on s.id = d.site_id
       where d.id = p_equipment_id and s.customer_id = (select auth.uid())
     )
-    or waytara.team_equipment_level((select auth.uid()), p_equipment_id) = 'operate'
+    -- coalesce: a device they were not given has no level (null), and the answer must be a plain false, not null
+    or coalesce(waytara.team_equipment_level((select auth.uid()), p_equipment_id) = 'operate', false)
   );
 $$;
 revoke all on function waytara.can_operate_equipment(uuid) from public, anon;
