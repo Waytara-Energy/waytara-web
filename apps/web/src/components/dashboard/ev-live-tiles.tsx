@@ -62,29 +62,28 @@ export function EvLiveTiles({
     charging: charging && session !== null,
     now,
   });
-  const dash = "—";
   return (
     <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
       <Tile
         label="Power"
-        value={kw === null ? dash : u.format(kw, "kW", null, 1, false)}
-        unit={kw === null ? undefined : u.unit("kW")}
+        value={u.format(kw ?? 0, "kW", null, 1, false)}
+        unit={u.unit("kW")}
         bar={f.powerPct === null ? null : { pct: f.powerPct, color: FLOW.producing }}
         sub={charging ? (ratedKw ? `of ${u.format(ratedKw, "kW", null, 1)} rated` : undefined) : (lastCharge ?? "Not charging")}
       />
-      <Tile label="Current" value={a === null ? dash : a.toFixed(1)} unit={a === null ? undefined : "A"} sub={v === null ? undefined : `${v.toFixed(0)} V`} />
+      <Tile label="Current" value={(a ?? 0).toFixed(1)} unit="A" sub={v === null ? undefined : `${v.toFixed(0)} V`} />
       <Tile
         label="This charge"
-        value={f.sessionKwh === null ? dash : u.format(f.sessionKwh, "kWh", null, 1, false)}
-        unit={f.sessionKwh === null ? undefined : u.unit("kWh")}
+        value={u.format(f.sessionKwh ?? 0, "kWh", null, 1, false)}
+        unit={u.unit("kWh")}
         bar={f.progressPct === null ? null : { pct: f.progressPct, color: FLOW.consuming }}
         sub={f.progressPct !== null && session?.targetKwh ? `${Math.round(f.progressPct)}% of the ${session.targetKwh} kWh target` : charging ? "No target set" : undefined}
       />
-      <Tile label="Time" value={f.elapsedMin === null ? dash : minutesText(f.elapsedMin)} sub={f.remainingMin === null ? undefined : `about ${minutesText(f.remainingMin)} left`} />
+      <Tile label="Time" value={minutesText(f.elapsedMin ?? 0)} sub={f.remainingMin === null ? undefined : `about ${minutesText(f.remainingMin)} left`} />
       <Tile
         label="Powered by"
-        value={session?.solarPct == null || !charging ? dash : `${Math.round(session.solarPct)}`}
-        unit={session?.solarPct == null || !charging ? undefined : "% solar"}
+        value={`${session?.solarPct == null || !charging ? 0 : Math.round(session.solarPct)}`}
+        unit="% solar"
         split={charging && session?.shares ? session.shares.filter((x) => x.pct > 0) : null}
         sub={charging && !session?.shares ? "Shown when the charge ends" : undefined}
       />

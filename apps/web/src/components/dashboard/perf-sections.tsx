@@ -106,10 +106,10 @@ export function BatterySection({ deviceId, span, periodText, isToday, live, prof
           value={fmtPct(efficiency)}
           hint={efficiency === null ? "Shows once 5 kWh has been charged in the period" : isToday ? "Rough over one day: depends on the charge you started with" : `Lifetime ${fmtPct(lifetimeEfficiency)}`}
         />
-        <StatTile label={`Charge level · ${when}`} value={socLow === null || socHigh === null ? "—" : `${socLow.toFixed(0)}–${socHigh.toFixed(0)}%`} hint={isToday ? `Now ${fmtPct(live.battery_soc_pct)} · ${fmtNum(live.battery_voltage_v, 1)} V` : "Lowest to highest"} />
+        <StatTile label={`Charge level · ${when}`} value={`${(socLow ?? 0).toFixed(0)}–${(socHigh ?? 0).toFixed(0)}%`} hint={isToday ? `Now ${fmtPct(live.battery_soc_pct)} · ${fmtNum(live.battery_voltage_v, 1)} V` : "Lowest to highest"} />
         <StatTile
           label={`Hottest · ${when}`}
-          value={hottest === null ? "—" : u.format(hottest, "°C", null, 1)}
+          value={u.format(hottest ?? 0, "°C", null, 1)}
           hint={`Limit ${tempMax} °C`}
           tone={hottest !== null && hottest >= tempMax ? "warn" : "neutral"}
         />
@@ -182,7 +182,7 @@ export function BatterySection({ deviceId, span, periodText, isToday, live, prof
             <StatTile label="Charge current limit" value={`${fmtNum(live.bms_charge_current_limit_a, 0)} A`} />
             <StatTile label="Discharge current limit" value={`${fmtNum(live.bms_discharge_current_limit_a, 0)} A`} />
             <StatTile label="Charge voltage" value={`${fmtNum(live.bms_charge_voltage_v, 1)} V`} />
-            <StatTile label="BMS temperature" value={live.bms_temperature_c === null || live.bms_temperature_c === undefined ? "—" : u.format(live.bms_temperature_c, "°C", null, 1)} />
+            <StatTile label="BMS temperature" value={u.format(live.bms_temperature_c ?? 0, "°C", null, 1)} />
           </div>
         </Panel>
       )}
@@ -198,20 +198,20 @@ function HealthPanel({ profile, health }: { profile: BatteryProfile; health: Ret
   return (
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="Equivalent full cycles" value={health.efc === null ? "—" : health.efc.toFixed(health.efc >= 100 ? 0 : 1)} hint={`of ${profile.ratedCycleLife.toLocaleString("en-IN")} rated`} />
+        <StatTile label="Equivalent full cycles" value={health.efc === null ? "0.0" : health.efc.toFixed(health.efc >= 100 ? 0 : 1)} hint={`of ${profile.ratedCycleLife.toLocaleString("en-IN")} rated`} />
         <StatTile
           label="Estimated health"
-          value={soh === null ? "—" : `${soh.toFixed(0)}%`}
+          value={`${(soh ?? 0).toFixed(0)}%`}
           hint={health.sohSource === "measured" ? `Measured from ${health.samples} discharge${health.samples === 1 ? "" : "s"}` : health.sohSource === "usage" ? "From how much it has been used" : undefined}
           tone={soh !== null && soh < profile.endOfLifePct + 5 ? "warn" : soh !== null && soh >= 90 ? "good" : "neutral"}
         />
         <StatTile label="Usable capacity" value={health.measuredKwh === null ? `${profile.ratedCapacityKwh} kWh` : u.format(health.measuredKwh, "kWh", null, 1)} hint={health.measuredKwh === null ? "Rated (not yet measured)" : `of ${profile.ratedCapacityKwh} kWh rated`} />
-        <StatTile label="Life left at this pace" value={health.yearsLeft === null ? "—" : health.yearsLeft >= 100 ? "100+ years" : `${health.yearsLeft.toFixed(1)} years`} hint={health.cyclesPerDay === null ? "Needs a few days of use" : `${health.cyclesPerDay.toFixed(2)} cycles a day`} />
+        <StatTile label="Life left at this pace" value={health.yearsLeft === null ? "0.0 years" : health.yearsLeft >= 100 ? "100+ years" : `${health.yearsLeft.toFixed(1)} years`} hint={health.cyclesPerDay === null ? "Needs a few days of use" : `${health.cyclesPerDay.toFixed(2)} cycles a day`} />
       </div>
       <div className="space-y-1.5">
         <div className="flex items-center justify-between text-xs text-muted-foreground">
           <span>Rated life used</span>
-          <span className="tabular-nums">{used === null ? "—" : `${used.toFixed(used < 10 ? 1 : 0)}%`}</span>
+          <span className="tabular-nums">{used === null ? "0.0%" : `${used.toFixed(used < 10 ? 1 : 0)}%`}</span>
         </div>
         <div className="h-2 w-full overflow-hidden rounded-full bg-muted">
           <div className="h-full rounded-full bg-emerald-500" style={{ width: `${Math.min(100, used ?? 0)}%` }} />
@@ -268,15 +268,15 @@ export function InverterSection({ deviceId, span, periodText, isToday, live, pvK
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
         <StatTile label="AC output, lifetime" value={fmtKwhText(live[LIFETIME_KEYS.acOut])} hint={`${fmtKwhText(live[DAY_KEYS.acOut])} today`} />
         <StatTile label={`AC output · ${when}`} value={fmtKwhText(periodAc)} hint={acDaily.length > 1 ? `${(periodAc / acDaily.length).toFixed(1)} kWh a day on average` : undefined} />
-        <StatTile label={`Peak power · ${when}`} value={peak ? u.format(peakKw, "kW", null, 2) : "—"} hint={peak ? (period.minutes >= 1440 ? `On ${dateOf(peak.t)} (daily peak)` : `At ${whenText(peak.t, isToday, period.minutes)}`) : undefined} />
+        <StatTile label={`Peak power · ${when}`} value={u.format(peak ? Math.max(0, peakKw) : 0, "kW", null, 2)} hint={peak ? (period.minutes >= 1440 ? `On ${dateOf(peak.t)} (daily peak)` : `At ${whenText(peak.t, isToday, period.minutes)}`) : undefined} />
         <StatTile label={`Conversion efficiency · ${when}`} value={fmtPct(efficiency)} hint="AC out ÷ DC in (approximate)" tone={efficiency !== null && efficiency < 90 ? "warn" : "neutral"} />
         <StatTile
           label={`Hottest heat sink · ${when}`}
-          value={hottest === null ? "—" : u.format(hottest, "°C", null, 1)}
-          hint={`AC ${acHot === null ? "—" : acHot.toFixed(0)} · DC ${dcHot === null ? "—" : dcHot.toFixed(0)} · limit ${hotLimit} °C`}
+          value={u.format(hottest ?? 0, "°C", null, 1)}
+          hint={`AC ${(acHot ?? 0).toFixed(0)} · DC ${(dcHot ?? 0).toFixed(0)} · limit ${hotLimit} °C`}
           tone={hottest !== null && hottest >= hotLimit * 0.9 ? "warn" : "neutral"}
         />
-        <StatTile label={`Grid frequency · ${when}`} value={fLow === null || fHigh === null ? "—" : `${fLow.toFixed(2)}–${fHigh.toFixed(2)} Hz`} hint={fOut ? "Outside 50 ± 0.5 Hz" : "Stable"} tone={fOut ? "warn" : "neutral"} />
+        <StatTile label={`Grid frequency · ${when}`} value={`${(fLow ?? 0).toFixed(2)}–${(fHigh ?? 0).toFixed(2)} Hz`} hint={fOut ? "Outside 50 ± 0.5 Hz" : "Stable"} tone={fOut ? "warn" : "neutral"} />
       </div>
 
       <Panel chart title={`Inverter output · ${when}`} description={isToday ? "Power the inverter is delivering. The dashed line is yesterday." : "Power the inverter delivered (average of each point)."}>
@@ -381,9 +381,9 @@ export function LoadSection({ deviceId, span, periodText, isToday, live, extras 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
         <StatTile label="Consumed, lifetime" value={fmtKwhText(live[LIFETIME_KEYS.load])} hint={`${fmtKwhText(live[DAY_KEYS.load])} today`} />
         <StatTile label={`Consumed · ${when}`} value={fmtKwhText(periodLoad)} hint={highest && loadDaily.length > 1 ? `Highest day ${fmtKwhText(highest.value)} · ${dayLabel(highest.date)}` : undefined} />
-        <StatTile label={`Average power · ${when}`} value={avgKw === null ? "—" : u.format(avgKw, "kW", null, 2)} hint={loadDaily.length > 1 ? `${(periodLoad / loadDaily.length).toFixed(1)} kWh a day` : undefined} />
-        <StatTile label={`Peak power · ${when}`} value={peak ? u.format(peakKw, "kW", null, 2) : "—"} hint={peak ? (period.minutes >= 1440 ? `On ${dateOf(peak.t)} (daily peak)` : `At ${whenText(peak.t, isToday, period.minutes)}`) : undefined} />
-        <StatTile label={`Standby draw (2–4 AM) · ${when}`} value={standby === null ? "—" : u.format(standby, "W", null, 0)} hint={standby === null ? (isToday ? "Shows after 2 AM" : "Needs a period of 30 days or less") : "What always-on devices use"} />
+        <StatTile label={`Average power · ${when}`} value={u.format(Math.max(0, avgKw ?? 0), "kW", null, 2)} hint={loadDaily.length > 1 ? `${(periodLoad / loadDaily.length).toFixed(1)} kWh a day` : undefined} />
+        <StatTile label={`Peak power · ${when}`} value={u.format(peak ? Math.max(0, peakKw) : 0, "kW", null, 2)} hint={peak ? (period.minutes >= 1440 ? `On ${dateOf(peak.t)} (daily peak)` : `At ${whenText(peak.t, isToday, period.minutes)}`) : undefined} />
+        <StatTile label={`Standby draw (2–4 AM) · ${when}`} value={u.format(Math.max(0, standby ?? 0), "W", null, 0)} hint={standby === null ? (isToday ? "Shows after 2 AM" : "Needs a period of 30 days or less") : "What always-on devices use"} />
         <StatTile label={`Self-sufficiency · ${when}`} value={fmtPct(sufficiency)} hint="Share not taken from the grid" tone={sufficiency !== null && sufficiency >= 50 ? "good" : "neutral"} />
       </div>
 
@@ -488,7 +488,7 @@ export function GridSection({ deviceId, span, periodText, isToday, live, tariff,
         <StatTile label={`Bill avoided · ${when} (estimate)`} value={`₹${(notFromGrid * tariff).toLocaleString("en-IN", { maximumFractionDigits: 0 })}`} hint={`Energy not bought, at ₹${tariff.toFixed(2)}/kWh`} />
         <StatTile
           label={`Peak import · ${when}`}
-          value={peakImportW === null || peakImportW <= 0 ? "—" : u.format(peakImportW / 1000, "kW", null, 2)}
+          value={u.format(peakImportW === null || peakImportW <= 0 ? 0 : peakImportW / 1000, "kW", null, 2)}
           hint={`${peakExportW !== null && peakExportW < 0 ? `Peak export ${(-peakExportW / 1000).toFixed(2)} kW` : "No export"}${peakImport ? ` · import at ${period.minutes >= 1440 ? dateOf(peakImport.t) : whenText(peakImport.t, isToday, period.minutes)}` : ""}`}
         />
       </div>
@@ -553,8 +553,8 @@ export function GridSection({ deviceId, span, periodText, isToday, live, tariff,
       {isToday && (
         <Panel title="Energy meter (CT clamp)" description="What the clamp on your grid cable measures right now.">
           <div className="grid grid-cols-3 gap-3">
-            <StatTile label="Total power" value={live.grid_ct_total_power_w === null || live.grid_ct_total_power_w === undefined ? "—" : u.format(live.grid_ct_total_power_w / 1000, "kW", null, 2)} />
-            <StatTile label="Power L1" value={live.grid_ct_l1_power_w === null || live.grid_ct_l1_power_w === undefined ? "—" : u.format(live.grid_ct_l1_power_w, "W", null, 0)} />
+            <StatTile label="Total power" value={u.format(Math.abs(live.grid_ct_total_power_w ?? 0) / 1000, "kW", null, 2)} />
+            <StatTile label="Power L1" value={u.format(Math.abs(live.grid_ct_l1_power_w ?? 0), "W", null, 0)} />
             <StatTile label="Current L1" value={`${fmtNum(live.grid_ct_l1_current_a, 2)} A`} />
           </div>
         </Panel>

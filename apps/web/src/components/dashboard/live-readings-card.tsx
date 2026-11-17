@@ -39,9 +39,9 @@ function isPercentField(field: TemplateField): boolean {
 
 function statusText(field: TemplateField, raw: FieldValue, enumOptionsByRef?: Map<string, EnumOption[]>): string {
   if (field.valueKind === "enum" && field.enumRef && enumOptionsByRef) {
-    return lookupEnumLabel(enumOptionsByRef, field.enumRef, raw as string | number | null) ?? "—";
+    return lookupEnumLabel(enumOptionsByRef, field.enumRef, raw as string | number | null) ?? "Unknown";
   }
-  if (raw === null || raw === undefined) return "—";
+  if (raw === null || raw === undefined) return "No";
   return Number(raw) === 1 || raw === "true" ? "Yes" : "No";
 }
 

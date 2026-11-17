@@ -58,20 +58,23 @@ export async function MonitoringContent({
   supabase,
   device,
   charger,
-  focus,
+  focus: _focus,
+  openOnCharger = false,
 }: {
   supabase: SupabaseServerClient;
   /** The device the page is about: the site's inverter, or the one chosen when it is neither an inverter nor a charger. */
   device: CustomerDevice;
   /** The site's EV charger: with an inverter it is one more tab after Grid, without one it is the whole page. */
   charger: CustomerDevice | null;
-  /** The kind the person came from (a charger opens on the EV tab). */
+  /** The kind the choice pointed at (it decides which device the page is about). */
   focus: "solar" | "ev" | null;
+  /** Open on the charger's tab: only when the address names the charger (`?device=`), never because a charger was picked earlier. Main Hub is the default. */
+  openOnCharger?: boolean;
 }) {
   const category = device.deviceType?.category;
 
   if (category === "solar_inverter") {
-    return <SolarInverterMonitoring supabase={supabase} device={device} charger={charger} focus={focus} />;
+    return <SolarInverterMonitoring supabase={supabase} device={device} charger={charger} openOnCharger={openOnCharger} />;
   }
   if (category === "ev_charger") {
     return <EvChargerMonitoring supabase={supabase} device={device} />;
@@ -100,7 +103,7 @@ function sortSectionsByCategory(sections: CategorySection[], order: string[]): {
   });
 }
 
-async function SolarInverterMonitoring({ supabase, device, charger, focus }: { supabase: SupabaseServerClient; device: CustomerDevice; charger: CustomerDevice | null; focus: "solar" | "ev" | null }) {
+async function SolarInverterMonitoring({ supabase, device, charger, openOnCharger }: { supabase: SupabaseServerClient; device: CustomerDevice; charger: CustomerDevice | null; openOnCharger: boolean }) {
   // sections is this device's own real, DB-driven Monitoring field list - every group here is something this
   // specific installation's own equipment_metrics rows confirm exist.
   const sections = await fetchDashboardFields(supabase, device, "Monitoring");
@@ -140,7 +143,7 @@ async function SolarInverterMonitoring({ supabase, device, charger, focus }: { s
   return (
     <SolarMonitoringView
       ev={ev}
-      defaultTab={focus === "ev" ? "ev" : "hub"}
+      defaultTab={openOnCharger ? "ev" : "hub"}
       deviceId={device.id}
       initialValues={initialValues}
       liveKeys={liveKeys}

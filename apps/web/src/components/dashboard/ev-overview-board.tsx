@@ -214,9 +214,9 @@ export function EvOverviewBoard({
         shares={charging ? (open?.shares ?? null) : (last?.shares ?? null)}
         // the live readings, as tiles beside the car on a wide screen
         live={[
-          { label: "Power", value: powerKw !== null ? u.format(powerKw, "kW", "power_active_import_kw", 2) : "—" },
-          { label: "Current", value: n.current_import_l1_a !== null ? u.format(n.current_import_l1_a, "A", "current_import_l1_a", 1) : "—" },
-          { label: "Voltage", value: n.voltage_l1_n_v !== null ? `${Math.round(n.voltage_l1_n_v)} V` : "—" },
+          { label: "Power", value: u.format(powerKw ?? 0, "kW", "power_active_import_kw", 2) },
+          { label: "Current", value: u.format(n.current_import_l1_a ?? 0, "A", "current_import_l1_a", 1) },
+          { label: "Voltage", value: `${Math.round(n.voltage_l1_n_v ?? 0)} V` },
         ]}
       />
       <ChargerLog log={log} chargerId={chargerId} />

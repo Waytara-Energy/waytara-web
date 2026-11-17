@@ -12,7 +12,7 @@ import { getEvSessionDetail } from "@/app/dashboard/ev-session-detail-action";
 import { EvSessionDialog } from "./ev-session-dialog";
 
 const when = (ts: string) => new Date(ts).toLocaleTimeString("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
-const kwh = (v: number | null) => (v === null ? "—" : `${v.toFixed(v >= 10 ? 1 : 2)} kWh`);
+const kwh = (v: number | null) => `${(v ?? 0).toFixed((v ?? 0) >= 10 ? 1 : 2)} kWh`;
 
 /** Today's charging sessions of one charger: when, how long, energy, peak power and the solar share, newest first. A press on a row opens that one
  *  charge in full; the link leads to the longer history in Reports. */
@@ -58,8 +58,8 @@ export function EvTabSessions({ sessions, deviceId }: { sessions: TabSession[]; 
                     <TableCell className="tabular-nums">{s.ended_at ? f.duration : `${f.duration} so far`}</TableCell>
                     {/* a running charge's energy is the "This charge" tile above: not shown twice */}
                     <TableCell className="text-right tabular-nums">{s.ended_at ? kwh(f.energyKwh) : <span className="text-muted-foreground">in progress</span>}</TableCell>
-                    <TableCell className="text-right tabular-nums">{f.peakKw === null ? "—" : `${f.peakKw.toFixed(1)} kW`}</TableCell>
-                    <TableCell className="text-right tabular-nums">{f.solarPct === null ? "—" : `${Math.round(f.solarPct)}%`}</TableCell>
+                    <TableCell className="text-right tabular-nums">{`${(f.peakKw ?? 0).toFixed(1)} kW`}</TableCell>
+                    <TableCell className="text-right tabular-nums">{`${Math.round(f.solarPct ?? 0)}%`}</TableCell>
                     <TableCell>
                       <Badge variant={st.tone === "warn" ? "alert" : st.tone === "good" ? "default" : "secondary"}>{st.label}</Badge>
                     </TableCell>

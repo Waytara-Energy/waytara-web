@@ -2,8 +2,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import type { DeviceParameterReading } from "@/lib/device-catalog-data";
 
 function formatParameterValue(value: number | null, unit: string | null): string {
-  if (value === null) return "—";
-  const rounded = Number.isInteger(value) ? value.toLocaleString("en-IN") : value.toFixed(2);
+  const v = value ?? 0;
+  const rounded = Number.isInteger(v) ? v.toLocaleString("en-IN") : v.toFixed(2);
   return unit ? `${rounded} ${unit}` : rounded;
 }
 

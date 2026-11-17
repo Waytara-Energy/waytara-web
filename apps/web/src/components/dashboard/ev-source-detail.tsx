@@ -73,10 +73,10 @@ export function EvSourceDetail({ shares, total, charging = false, className }: {
                 <div className="min-w-0 leading-none">
                   {/* the same figures as the tiles: semibold, tabular */}
                   <p className="text-xl font-semibold tabular-nums text-foreground">
-                    {pct === null ? "—" : Math.round(pct)}
+                    {Math.round(pct ?? 0)}
                     <span className="ml-0.5 text-sm font-medium text-muted-foreground">%</span>
                   </p>
-                  <p className="mt-1 truncate text-[11px] tabular-nums text-muted-foreground">{kwh === null ? "—" : `${kwh.toFixed(2)} kWh`}</p>
+                  <p className="mt-1 truncate text-[11px] tabular-nums text-muted-foreground">{`${(kwh ?? 0).toFixed(2)} kWh`}</p>
                 </div>
               </div>
             </div>

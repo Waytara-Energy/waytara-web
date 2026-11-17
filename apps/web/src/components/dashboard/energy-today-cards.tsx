@@ -47,8 +47,11 @@ export function EnergyTodayCards({
 }) {
   // numbers in the unit the person chose for energy and power (Application Settings > Units), else as the inverter reports them
   const u = useUnits();
-  const kwhNumber = (v: number | null, key?: string) => (v === null ? "—" : u.format(v, "kWh", key, v >= 100 ? 0 : 1, false));
-  const fmtKwh = (v: number | null, key?: string) => (v === null || !Number.isFinite(v) ? "—" : u.format(v, "kWh", key, v >= 100 ? 0 : 1));
+  const kwhNumber = (v: number | null, key?: string) => u.format(v ?? 0, "kWh", key, (v ?? 0) >= 100 ? 0 : 1, false);
+  const fmtKwh = (v: number | null, key?: string) => {
+    const n = v === null || !Number.isFinite(v) ? 0 : v;
+    return u.format(n, "kWh", key, n >= 100 ? 0 : 1);
+  };
   const solarKeys = pvKeys.length > 0 ? pvKeys : ["inverter_output_power_w"];
   const counterKeys = [K.solar, K.load, K.charged, K.discharged, K.imported, K.exported];
   const powerKeys = [...solarKeys, "load_total_power_w", "battery_power_w", "grid_total_power_w"];
@@ -174,7 +177,7 @@ export function EnergyTodayCards({
     <TodayStatCard
       title="Self-powered"
       href={monitoring("grid")}
-      value={selfPowered === null ? "—" : selfPowered.toFixed(0)}
+      value={(selfPowered ?? 0).toFixed(0)}
       unit="%"
       trend={null}
       detail={n[K.load] !== null && imported !== null ? `${fmtKwh(imported)} bought from the grid of ${fmtKwh(n[K.load])} used` : "No readings yet"}

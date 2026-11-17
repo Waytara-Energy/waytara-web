@@ -15,7 +15,7 @@ import { RangeBar, LONG_PRESETS } from "./range-bar";
 import { RangeProvider, useRange } from "./range-context";
 
 const when = (ts: string) => new Date(ts).toLocaleString("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" });
-const kw = (v: number | null) => (v === null ? "—" : `${v.toFixed(1)} kW`);
+const kw = (v: number | null) => `${(v ?? 0).toFixed(1)} kW`;
 /** The newest sessions listed under the figures; the rest are on the Charging sessions page. */
 const LIST_LIMIT = 12;
 
@@ -66,11 +66,11 @@ export function EvPerformanceHeadline({ sessions, tariff, span, periodText: peri
         </span>
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-theme-muted">Energy delivered · {period}</p>
-          <p className="text-4xl font-semibold leading-tight tracking-tight text-theme-primary">{has ? kwh(stats.energyKwh) : "—"}</p>
+          <p className="text-4xl font-semibold leading-tight tracking-tight text-theme-primary">{kwh(has ? stats.energyKwh : 0)}</p>
         </div>
         <div className="hidden items-center gap-8 pl-6 md:flex">
-          <Figure label="Sessions" value={has ? String(stats.sessions) : "—"} />
-          <Figure label="Solar share" value={stats.solarSharePct === null ? "—" : `${stats.solarSharePct.toFixed(0)}%`} good={stats.solarSharePct !== null && stats.solarSharePct >= 50} />
+          <Figure label="Sessions" value={String(stats.sessions)} />
+          <Figure label="Solar share" value={`${(stats.solarSharePct ?? 0).toFixed(0)}%`} good={stats.solarSharePct !== null && stats.solarSharePct >= 50} />
         </div>
       </div>
       <RangeBar presets={LONG_PRESETS} />
@@ -100,8 +100,8 @@ export function EvPerformanceBody({ deviceId, sessions, loadDaily, tariff, span,
       )}
 
       <div className="grid grid-cols-[repeat(auto-fit,minmax(10.5rem,1fr))] gap-3">
-        <StatTile label={`Average session · ${period}`} value={stats.avgSessionKwh === null ? "—" : kwh(stats.avgSessionKwh)} hint="energy per charge" />
-        <StatTile label={`Charging time · ${period}`} value={has ? formatSeconds(stats.chargingSeconds) : "—"} hint="the car was drawing power" />
+        <StatTile label={`Average session · ${period}`} value={kwh(stats.avgSessionKwh ?? 0)} hint="energy per charge" />
+        <StatTile label={`Charging time · ${period}`} value={formatSeconds(has ? stats.chargingSeconds : 0)} hint="the car was drawing power" />
         <StatTile label={`Peak power · ${period}`} value={kw(stats.peakKw)} hint="the fastest moment" />
         <StatTile label={`Average power · ${period}`} value={kw(stats.avgKw)} hint="while charging" />
       </div>
@@ -163,9 +163,9 @@ export function EvPerformanceBody({ deviceId, sessions, loadDaily, tariff, span,
                 <TableRow key={r.id}>
                   <TableCell className="text-foreground">{when(r.startedAt)}</TableCell>
                   <TableCell className="text-muted-foreground">{formatSeconds(r.durationS)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-foreground">{r.energyKwh === null ? "—" : `${r.energyKwh.toFixed(1)} kWh`}</TableCell>
+                  <TableCell className="text-right tabular-nums text-foreground">{`${(r.energyKwh ?? 0).toFixed(1)} kWh`}</TableCell>
                   <TableCell className="text-right tabular-nums text-muted-foreground">{kw(r.peakKw)}</TableCell>
-                  <TableCell className="text-right tabular-nums text-muted-foreground">{r.solarSharePct === null ? "—" : `${r.solarSharePct.toFixed(0)}%`}</TableCell>
+                  <TableCell className="text-right tabular-nums text-muted-foreground">{`${(r.solarSharePct ?? 0).toFixed(0)}%`}</TableCell>
                   <TableCell className="text-muted-foreground">{sessionStatusLabel(r.status).label}</TableCell>
                 </TableRow>
               ))}

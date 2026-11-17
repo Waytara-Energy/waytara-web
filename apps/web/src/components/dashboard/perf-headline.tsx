@@ -21,7 +21,8 @@ const VISUALS: Record<HeadlineSection, { icon: LucideIcon; className: string }> 
   grid: { icon: Zap, className: "bg-violet-500/15 text-violet-600 dark:text-violet-400" },
 };
 
-const percent = (v: number | null) => (v === null ? "—" : `${v.toFixed(0)}%`);
+// A figure that is not there (yet) reads as 0, never as a dash.
+const percent = (v: number | null) => `${(v ?? 0).toFixed(0)}%`;
 
 interface Headline {
   label: string;
@@ -48,8 +49,8 @@ export function PerformanceHeadline({
 }) {
   // energy figures in the unit the person chose (Application Settings > Units)
   const u = useUnits();
-  const kwh = (v: number | null) => (v === null ? "—" : u.format(v, "kWh", null, 1));
-  const signedKwh = (v: number | null) => (v === null ? "—" : `${v >= 0 ? "+" : "−"}${u.format(Math.abs(v), "kWh", null, 1)}`);
+  const kwh = (v: number | null) => u.format(v ?? 0, "kWh", null, 1);
+  const signedKwh = (v: number | null) => `${(v ?? 0) >= 0 ? "+" : "−"}${u.format(Math.abs(v ?? 0), "kWh", null, 1)}`;
   const history = useDailyHistory(deviceId, Object.values(DAY_KEYS), span);
   const days = (key: string) => dailySeries(history.days, history.counter(key), live[key], history.today).map((p) => p.value);
   const ready = !history.error;
@@ -72,7 +73,7 @@ export function PerformanceHeadline({
           value: kwh(perDay(ac)),
           figures: [
             { label: "Best day", value: kwh(maxOf(ac)) },
-            { label: "Days with output", value: ac.length > 0 ? `${ac.filter((v) => v > 0.05).length} of ${ac.length}` : "—" },
+            { label: "Days with output", value: `${ac.filter((v) => v > 0.05).length} of ${ac.length}` },
           ],
         };
       case "solar": {
@@ -84,7 +85,7 @@ export function PerformanceHeadline({
           good: true,
           figures: [
             { label: "Solar vs home use", value: percent(pct(produced, used)) },
-            { label: "CO₂ avoided", value: pv.length > 0 ? `${co2AvoidedKg(produced).toFixed(1)} kg` : "—" },
+            { label: "CO₂ avoided", value: `${co2AvoidedKg(produced).toFixed(1)} kg` },
           ],
         };
       }
@@ -92,7 +93,7 @@ export function PerformanceHeadline({
         const net = sumOf(charged) - sumOf(discharged);
         return {
           label: `Net into the battery · ${periodText}`,
-          value: charged.length > 0 ? signedKwh(net) : "—",
+          value: signedKwh(charged.length > 0 ? net : 0),
           good: net > 0,
           figures: [
             { label: "Round trip", value: percent(roundTripPct(sumOf(charged), sumOf(discharged))) },
@@ -136,14 +137,14 @@ export function PerformanceHeadline({
         <div className="min-w-0">
           <p className="truncate text-sm font-medium text-theme-muted">{headline.label}</p>
           <p className={cn("text-4xl font-semibold leading-tight tracking-tight", ready && headline.good ? "text-emerald-600 dark:text-emerald-400" : "text-theme-primary")}>
-            {ready ? headline.value : "—"}
+            {headline.value}
           </p>
         </div>
         <div className="hidden items-center gap-8 pl-6 md:flex">
           {headline.figures.map((f) => (
             <div key={f.label}>
               <p className="text-sm font-medium text-theme-muted">{f.label}</p>
-              <p className="text-2xl font-semibold tracking-tight text-theme-primary">{ready ? f.value : "—"}</p>
+              <p className="text-2xl font-semibold tracking-tight text-theme-primary">{f.value}</p>
             </div>
           ))}
         </div>

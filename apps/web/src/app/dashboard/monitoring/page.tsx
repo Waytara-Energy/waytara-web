@@ -58,7 +58,7 @@ export default async function MonitoringPage({ searchParams }: { searchParams: P
         <>
           {/* Every number and chart inside MonitoringContent follows the device's live channel in place; there is
               no page refresh on new readings. */}
-          <MonitoringContent supabase={supabase} device={device} charger={solar ? ev : null} focus={focus} />
+          <MonitoringContent supabase={supabase} device={device} charger={solar ? ev : null} focus={focus} openOnCharger={focus === "ev" && !!deviceIdParam && chosen?.id === deviceIdParam} />
         </>
       )}
     </div>

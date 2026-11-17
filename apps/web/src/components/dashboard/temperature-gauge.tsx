@@ -43,7 +43,7 @@ export function TemperatureGauge({
               {Math.abs(delta).toFixed(1)}°
             </span>
           )}
-          {valueC === null ? "—" : u.format(valueC, "°C", null, 1)}
+          {u.format(valueC ?? 0, "°C", null, 1)}
         </span>
       </div>
       <div className="h-1.5 w-full overflow-hidden rounded-full bg-muted">

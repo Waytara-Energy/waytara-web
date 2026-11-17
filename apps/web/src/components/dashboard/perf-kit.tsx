@@ -12,13 +12,17 @@ import { LiveStatusCard } from "./live-status-card";
 import { PanelCaptionProvider } from "./panel-context";
 import { useSeriesUnit, useUnits } from "@/components/units-provider";
 
-export const fmtNum = (v: number | null | undefined, digits = 1) => (v === null || v === undefined || !Number.isFinite(v) ? "—" : v.toFixed(digits));
+// A figure that is not there (yet) reads as 0, never as a dash.
+export const fmtNum = (v: number | null | undefined, digits = 1) => (v === null || v === undefined || !Number.isFinite(v) ? 0 : v).toFixed(digits);
 /** The "12.3 kWh" text of the Performance tiles, in the energy unit the person chose (Application Settings > Units). */
 export function useKwhText(): (v: number | null | undefined) => string {
   const u = useUnits();
-  return (v) => (v === null || v === undefined || !Number.isFinite(v) ? "—" : u.format(v, "kWh", null, v >= 100 ? 0 : 1));
+  return (v) => {
+    const n = v === null || v === undefined || !Number.isFinite(v) ? 0 : v;
+    return u.format(n, "kWh", null, n >= 100 ? 0 : 1);
+  };
 }
-export const fmtPct = (v: number | null | undefined) => (v === null || v === undefined ? "—" : `${v.toFixed(0)}%`);
+export const fmtPct = (v: number | null | undefined) => `${(v === null || v === undefined || !Number.isFinite(v) ? 0 : v).toFixed(0)}%`;
 
 /** "Produced · today" -> title "Produced", subtitle "today"; "Produced, lifetime" the same; no separator -> no subtitle. */
 function splitLabel(label: string): [string, string] {

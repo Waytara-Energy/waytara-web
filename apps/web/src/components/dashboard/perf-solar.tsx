@@ -121,11 +121,11 @@ export function SolarSection({
         ) : (
           <StatTile label={`Best day · ${periodText}`} value={fmtKwhText(best?.value ?? null)} hint={best ? dayLabel(best.date) : undefined} tone="good" />
         )}
-        <StatTile label={`Peak power · ${when}`} value={peak ? u.format(peak.v, "kW", null, 2) : "—"} hint={peakText} />
+        <StatTile label={`Peak power · ${when}`} value={u.format(Math.max(0, peak?.v ?? 0), "kW", null, 2)} hint={peakText} />
         {kwp !== null ? (
           <StatTile
             label={`Yield · ${when}`}
-            value={isToday ? (perDay === null ? "—" : `${(perDay / kwp).toFixed(2)} kWh/kWp`) : yieldPerDay === null ? "—" : `${yieldPerDay.toFixed(2)} kWh/kWp a day`}
+            value={isToday ? (perDay === null ? "0.00 kWh/kWp" : `${(perDay / kwp).toFixed(2)} kWh/kWp`) : yieldPerDay === null ? "0.00 kWh/kWp a day" : `${yieldPerDay.toFixed(2)} kWh/kWp a day`}
             hint={`${kwp.toFixed(2)} kWp installed · 4–5 is a good day`}
           />
         ) : (
