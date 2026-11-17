@@ -1,5 +1,7 @@
 import type { createClient } from "@waytara/supabase/server";
 import { memberKey, readOnboarding, type OnboardingData } from "@waytara/supabase/partner-onboarding";
+import { cashfreeConfigured, cashfreeEnvironment } from "@waytara/supabase/partner-cashfree";
+import { loadResults } from "@waytara/supabase/partner-verification-run";
 import { SCREENING_SUBJECT, isCheckKey, isCheckState, isMemberCheckKey, type CheckKey, type CheckState, type MemberCheckKey, type MemberRef, type MemberStates } from "@waytara/supabase/partner-verification";
 
 type Supabase = Awaited<ReturnType<typeof createClient>>;
@@ -23,6 +25,10 @@ export interface VerificationData {
   screeningRows: Partial<Record<string, CheckRow>>;
   /** Every version of the Partner Agreement the partner accepted, newest first. */
   agreements: { version: string; signed_at: string; signer_name: string; signer_email: string; signer_ip: string | null; text_hash: string }[];
+  /** The automatic checks (Cashfree): the latest result of each, keyed "subject|kind"; whether they are set up on this server, and whether against the sandbox. */
+  checks: Awaited<ReturnType<typeof loadResults>>;
+  autoOn: boolean;
+  autoEnv: "production" | "sandbox";
   /** The newest link sent to each team member, by member id. */
   invites: Record<string, { status: string; sent_via: string; created_at: string; opened_at: string | null; completed_at: string | null; expired: boolean }>;
 }
@@ -32,11 +38,12 @@ export interface VerificationData {
  * partner entered), and what has been checked about each of them. Run as the signed-in admin, so the row-level rules apply.
  */
 export async function loadVerification(supabase: Supabase, applicationId: string): Promise<VerificationData> {
-  const [{ data: checks }, { data: onb }, { data: agreements }, { data: invs }] = await Promise.all([
+  const [{ data: checks }, { data: onb }, { data: agreements }, { data: invs }, autoChecks] = await Promise.all([
     supabase.from("partner_item_checks").select("subject, key, state, note, checked_at").eq("application_id", applicationId),
     supabase.from("partner_onboarding").select("data").eq("application_id", applicationId).maybeSingle(),
     supabase.from("partner_agreements").select("version, signed_at, signer_name, signer_email, signer_ip, text_hash").eq("application_id", applicationId).order("signed_at", { ascending: false }),
     supabase.from("partner_crew_invites").select("member_id, status, sent_via, expires_at, created_at, opened_at, completed_at").eq("application_id", applicationId).neq("status", "revoked").order("created_at", { ascending: false }),
+    loadResults(supabase, applicationId),
   ]);
   const invites: VerificationData["invites"] = {};
   for (const i of invs ?? []) {
@@ -67,5 +74,5 @@ export async function loadVerification(supabase: Supabase, applicationId: string
       (memberRows[k] ??= {})[c.key] = row;
     }
   }
-  return { onboarding, states, rows, members, memberStates, memberRows, screening, screeningRows, agreements: agreements ?? [], invites };
+  return { onboarding, states, rows, members, memberStates, memberRows, screening, screeningRows, agreements: agreements ?? [], invites, checks: autoChecks, autoOn: cashfreeConfigured(), autoEnv: cashfreeEnvironment() };
 }

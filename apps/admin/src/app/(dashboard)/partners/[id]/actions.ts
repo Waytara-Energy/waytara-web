@@ -8,6 +8,8 @@ import { getCurrentProfile, requireStaff } from "@waytara/supabase/auth";
 import { accessExpiry, newAccessToken } from "@waytara/supabase/partner-access";
 import { SCREENING_SUBJECT, approvalGaps, isCheckKey, isCheckState, isDeclineHandling, isMemberCheckKey, isSubject, screeningChecklist, screeningGaps } from "@waytara/supabase/partner-verification";
 import { readOnboarding } from "@waytara/supabase/partner-onboarding";
+import { runChecks } from "@waytara/supabase/partner-verification-run";
+import { VERIFICATION_KINDS, isVerificationKind } from "@waytara/supabase/partner-verify-rules";
 import { loadVerification } from "@/lib/partner-verification-data";
 import { sendPartnerClosedEmail, sendPartnerDeclineEmail } from "@/lib/send-partner-decline-email";
 import { sendPartnerLinkEmail } from "@/lib/send-partner-link-email";
@@ -173,6 +175,76 @@ export async function setPartnerItemCheck(id: string, subject: string, key: stri
   const { error } = await supabase
     .from("partner_item_checks")
     .upsert({ application_id: id, subject, key, state, note: note === "" ? null : note, checked_by: profile.id, checked_at: new Date().toISOString() }, { onConflict: "application_id,subject,key" });
+  if (error) throw new Error(error.message);
+  revalidatePath(`/partners/${id}`);
+}
+
+/**
+ * Asks Cashfree for the automatic checks of an application, as the signed-in admin (their rights apply to the database and to the stored files). `kinds` and `subjects` narrow
+ * it; `force` asks again even if nothing changed (an admin pressing "Run again"), otherwise only what is new or changed is asked, so nothing is paid for twice.
+ */
+async function runAutoChecks(id: string, opts: { kinds?: readonly (typeof VERIFICATION_KINDS)[number][]; subjects?: readonly string[]; force: boolean }): Promise<Awaited<ReturnType<typeof runChecks>>> {
+  const profile = await requireAdminProfile();
+  const supabase = await createClient();
+  const [{ data: app }, { data: onb }, { data: docs }] = await Promise.all([
+    supabase.from("partner_applications").select("partner_type").eq("id", id).single(),
+    supabase.from("partner_onboarding").select("data").eq("application_id", id).maybeSingle(),
+    supabase.from("partner_documents").select("id, kind, subject, file_name, storage_path, uploaded_at").eq("application_id", id),
+  ]);
+  if (!app || !onb) throw new Error("Nothing has been saved by the partner yet, so there is nothing to check.");
+  const results = await runChecks({
+    db: supabase,
+    applicationId: id,
+    partnerType: app.partner_type,
+    data: readOnboarding(onb.data),
+    docs: docs ?? [],
+    download: async (path) => {
+      const { data } = await supabase.storage.from("partner-documents").download(path);
+      return data ? Buffer.from(await data.arrayBuffer()) : null;
+    },
+    actor: { by: "admin", userId: profile.id },
+    force: opts.force,
+    kinds: opts.kinds,
+    subjects: opts.subjects,
+  });
+  revalidatePath(`/partners/${id}`);
+  return results;
+}
+
+/** "Run again" on one automatic check (for the partner, or for one team member's faces). Always asks, even if nothing changed. */
+export async function runPartnerAutoCheck(id: string, kind: string, subject: string): Promise<void> {
+  if (!isVerificationKind(kind) || !isSubject(subject) || subject === SCREENING_SUBJECT) throw new Error("That is not something that can be checked.");
+  const results = await runAutoChecks(id, { kinds: [kind], subjects: [subject], force: true });
+  // a single check that could not be answered says so, instead of "Checked."
+  const failed = results.find((r) => r.status === "error");
+  if (failed) throw new Error(failed.summary);
+}
+
+/** Asks for every automatic check that is new or whose details changed. Nothing is asked twice. */
+export async function runAllPartnerAutoChecks(id: string): Promise<void> {
+  await runAutoChecks(id, { force: false });
+}
+
+/** Which of the admin's own checks an automatic result can support, for the partner and for a team member. */
+const ACCEPTS: Record<string, { partner?: string; member?: string }> = { pan: { partner: "kyc" }, bank: { partner: "bank" }, face_match: { partner: "identity", member: "member_identity" } };
+
+/**
+ * One click to mark an item verified on the strength of a PASSED automatic check: the note records that it was confirmed by the service, with its own words. Only a passed
+ * result can be accepted (the server looks it up; nothing from the page is trusted), and a face match is not accepted while the selfie failed its live-face check.
+ */
+export async function acceptAutoCheck(id: string, kind: string, subject: string): Promise<void> {
+  const profile = await requireAdminProfile();
+  if (!isVerificationKind(kind) || !isSubject(subject) || subject === SCREENING_SUBJECT) throw new Error("That is not something that can be accepted.");
+  const key = ACCEPTS[kind]?.[subject === "partner" ? "partner" : "member"];
+  if (!key) throw new Error("That result cannot be accepted here. Check it yourself and set it below.");
+  const supabase = await createClient();
+  const { data: rows } = await supabase.from("partner_verifications").select("kind, status, summary").eq("application_id", id).eq("subject", subject).in("kind", [kind, "face_liveness"]);
+  const mine = rows?.find((r) => r.kind === kind);
+  if (mine?.status !== "passed") throw new Error("Only a passed check can be accepted.");
+  if (kind === "face_match" && rows?.find((r) => r.kind === "face_liveness")?.status === "failed") throw new Error("The selfie failed its live-face check. Ask for a new one.");
+  const { error } = await supabase
+    .from("partner_item_checks")
+    .upsert({ application_id: id, subject, key, state: "verified", note: `Confirmed by the automatic check: ${mine.summary}`.slice(0, 500), checked_by: profile.id, checked_at: new Date().toISOString() }, { onConflict: "application_id,subject,key" });
   if (error) throw new Error(error.message);
   revalidatePath(`/partners/${id}`);
 }

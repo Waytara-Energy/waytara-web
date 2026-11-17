@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DocActions } from "./doc-actions";
-import { setPartnerItemCheck } from "./actions";
+import { KIND_LABEL, STATUS_LABEL, type VerificationKind, type VerificationStatus } from "@waytara/supabase/partner-verify-rules";
+import { acceptAutoCheck, runAllPartnerAutoChecks, runPartnerAutoCheck, setPartnerItemCheck } from "./actions";
 
 export interface PartnerDoc {
   id: string;
@@ -29,6 +30,105 @@ export function StateBadge({ state }: { state: CheckState }) {
       <Icon className="size-3.5" aria-hidden="true" />
       {CHECK_STATE_LABEL[state]}
     </span>
+  );
+}
+
+const AUTO_TONE: Record<VerificationStatus, string> = {
+  passed: "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400",
+  review: "border-amber-500/40 bg-amber-500/10 text-amber-700 dark:text-amber-300",
+  failed: "border-destructive/40 bg-destructive/10 text-destructive",
+  error: "border-border text-muted-foreground",
+};
+
+/** Why a check might not have run yet: what it needs. */
+const NOT_RUN_WHY: Record<VerificationKind, string> = {
+  pan: "Runs when the partner has entered a PAN.",
+  gstin: "Runs when the partner has entered a GST number.",
+  bank: "Runs when the partner has entered the account number, the IFSC and the name on the account.",
+  name_match: "Runs once the PAN and the bank account have both been found, to compare the two names.",
+  face_match: "Runs when there is a selfie and a photo ID that is a JPEG or PNG picture (not a PDF).",
+  face_liveness: "Runs when there is a selfie that is a JPEG or PNG picture.",
+};
+
+export interface AutoResult {
+  status: VerificationStatus;
+  summary: string;
+  updated_at: string;
+}
+
+/**
+ * The automatic checks (Cashfree) of one partner or one team member: for each, what it found in one line, when, and a button to run it again. A passed result can be accepted
+ * with one click as the admin's own check (`accept` says which check it supports and where that stands); a result that needs a look or failed is never accepted this way.
+ * The checks are evidence, never the decision. `all` adds a button that asks for everything that is new or changed.
+ */
+export function AutoChecks({
+  appId,
+  subject,
+  kinds,
+  results,
+  on,
+  env,
+  accept,
+  all,
+}: {
+  appId: string;
+  subject: string;
+  kinds: readonly VerificationKind[];
+  results: Record<string, AutoResult | undefined>;
+  on: boolean;
+  env: "production" | "sandbox";
+  /** For a kind whose passed result can be accepted: the name of the check it supports and that check's state now. */
+  accept?: Partial<Record<VerificationKind, { label: string; state: CheckState }>>;
+  all?: boolean;
+}) {
+  if (!on) {
+    return <p className="rounded-lg border border-dashed border-border p-3 text-sm text-muted-foreground">Automatic checks are not set up on this server (the Cashfree keys are missing), so everything here is checked by hand.</p>;
+  }
+  return (
+    <div className="space-y-3">
+      {env === "sandbox" && <p className="text-xs text-amber-700 dark:text-amber-300">Test mode: these results come from Cashfree&apos;s sandbox, which knows only its own sample numbers. A real PAN or account will come back as not found until the live key is used.</p>}
+      {kinds.map((kind) => {
+        const r = results[`${subject}|${kind}`];
+        const acc = accept?.[kind];
+        return (
+          <div key={kind} className="rounded-lg border border-border p-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="min-w-0 flex-1 basis-64">
+                <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+                  {KIND_LABEL[kind]}
+                  {r ? <span className={cn("inline-flex rounded-full border px-2 py-0.5 text-xs font-medium", AUTO_TONE[r.status])}>{STATUS_LABEL[r.status]}</span> : <span className="inline-flex rounded-full border border-border px-2 py-0.5 text-xs font-medium text-muted-foreground">Not run yet</span>}
+                </p>
+                {!r && <p className="mt-1 text-xs text-muted-foreground">{NOT_RUN_WHY[kind]}</p>}
+                {r && <p className="mt-1 text-sm text-muted-foreground">{r.summary}</p>}
+                {r && <p className="mt-1 text-xs text-muted-foreground">Checked {when(r.updated_at)}.</p>}
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {r?.status === "passed" && acc && acc.state !== "verified" && (
+                  <ActionForm action={acceptAutoCheck.bind(null, appId, kind, subject)} loading="Saving…" success="Marked verified.">
+                    <Button type="submit" size="sm">
+                      Mark {acc.label} as verified
+                    </Button>
+                  </ActionForm>
+                )}
+                {r?.status === "passed" && acc && acc.state === "verified" && <span className="text-xs text-emerald-600 dark:text-emerald-400">{acc.label} is verified</span>}
+                <ActionForm action={runPartnerAutoCheck.bind(null, appId, kind, subject)} loading="Checking…" success="Checked.">
+                  <Button type="submit" size="sm" variant="outline">
+                    {r ? "Run again" : "Run"}
+                  </Button>
+                </ActionForm>
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      {all && (
+        <ActionForm action={runAllPartnerAutoChecks.bind(null, appId)} loading="Checking…" success="Done. Anything new or changed was checked.">
+          <Button type="submit" size="sm" variant="outline">
+            Run every automatic check that is new or changed
+          </Button>
+        </ActionForm>
+      )}
+    </div>
   );
 }
 

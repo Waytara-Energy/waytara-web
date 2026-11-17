@@ -30,7 +30,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { logScreeningCall } from "./actions";
 import { BankReveal } from "./bank-reveal";
-import { DocList, DocSlots, Fact, StateBadge, VerifyRow, type DocSlot, type PartnerDoc } from "./partner-ui";
+import { AutoChecks, DocList, DocSlots, Fact, StateBadge, VerifyRow, type DocSlot, type PartnerDoc } from "./partner-ui";
 import { ScreeningChecklist, type ScreeningSaved } from "./screening-checklist";
 
 export interface AppView {
@@ -286,6 +286,9 @@ export function PersonalTab({ app, v, data, docs }: { app: AppView; v: Verificat
           </ul>
         )}
       </Section>
+      <Section title="Automatic checks" description="The selfie against the photo on the ID, and whether the selfie is a live face. Evidence for your own check below, never the decision.">
+        <AutoChecks appId={app.id} subject="partner" kinds={["face_match", "face_liveness"]} results={v.checks} on={v.autoOn} env={v.autoEnv} accept={{ face_match: { label: "Identity", state: v.states.identity ?? "pending" } }} all />
+      </Section>
       <Section title="Verification">
         <Check app={app} v={v} k="identity" />
       </Section>
@@ -321,6 +324,11 @@ export function BusinessTab({ app, v, data, docs }: { app: AppView; v: Verificat
       <Section title="Business documents" description="What a business of this kind is asked for, and why.">
         <DocSlots appId={app.id} slots={slotsOf(app, data, "business")} docs={docs} canAsk={canAsk(app)} restKinds={["other"]} />
       </Section>
+      {data?.business.gstin && (
+        <Section title="Automatic check" description="Whether the GST number is active, whose it is, and that it is built on the PAN they gave. The registration document itself is still yours to look at.">
+          <AutoChecks appId={app.id} subject="partner" kinds={["gstin"]} results={v.checks} on={v.autoOn} env={v.autoEnv} />
+        </Section>
+      )}
       {checklistFor(app.partner_type).some((c) => c.key === "registration") && (
         <Section title="Verification">
           <Check app={app} v={v} k="registration" />
@@ -374,6 +382,7 @@ export function TeamTab({ app, v, data, docs }: { app: AppView; v: VerificationD
               </div>
             </CardHeader>
             <CardContent className="space-y-3">
+              <AutoChecks appId={app.id} subject={memberSubject(key)} kinds={["face_match", "face_liveness"]} results={v.checks} on={v.autoOn} env={v.autoEnv} accept={{ face_match: { label: "Identity", state: v.memberStates[key]?.member_identity ?? "pending" } }} />
               <DocSlots appId={app.id} subject={memberSubject(key)} slots={memberRequirements(m.needsLicence, m.siteRole).map((r) => ({ kind: r.kind, label: r.label, need: r.need, anyOf: r.anyOf }))} docs={docs} canAsk={canAsk(app)} restKinds="all" />
               {memberChecklist(m.needsLicence).map((c) => {
                 const def = MEMBER_CHECKS.find((x) => x.key === c.key)!;
@@ -437,6 +446,9 @@ export function KycTab({ app, v, data, docs }: { app: AppView; v: VerificationDa
       <Section title="KYC documents">
         <DocSlots appId={app.id} slots={slotsOf(app, data, "bank", ["pan", "kyc"])} docs={docs} canAsk={canAsk(app)} />
       </Section>
+      <Section title="Automatic check" description="Whether the PAN is valid and active, and the name it is registered to against the name we expect.">
+        <AutoChecks appId={app.id} subject="partner" kinds={["pan"]} results={v.checks} on={v.autoOn} env={v.autoEnv} accept={{ pan: { label: "PAN and KYC", state: v.states.kyc ?? "pending" } }} />
+      </Section>
       <Section title="Verification">
         <Check app={app} v={v} k="kyc" />
       </Section>
@@ -459,6 +471,9 @@ export function BankTab({ app, v, data, docs }: { app: AppView; v: VerificationD
       </Section>
       <Section title="Bank proof">
         <DocSlots appId={app.id} slots={slotsOf(app, data, "bank", ["bank_proof"])} docs={docs} canAsk={canAsk(app)} />
+      </Section>
+      <Section title="Automatic checks" description="Whether the bank confirms the account and whose name it is in, and whether that is the name registered to the PAN.">
+        <AutoChecks appId={app.id} subject="partner" kinds={["bank", "name_match"]} results={v.checks} on={v.autoOn} env={v.autoEnv} accept={{ bank: { label: "Bank account", state: v.states.bank ?? "pending" } }} />
       </Section>
       <Section title="Verification">
         <Check app={app} v={v} k="bank" />

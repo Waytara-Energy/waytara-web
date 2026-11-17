@@ -5,6 +5,7 @@ import { onboardingGaps } from "@waytara/supabase/partner-onboarding";
 import { fail, openEditable } from "@/lib/partner-track-api";
 import { loadOnboarding } from "@/lib/partner-onboarding-server";
 import { signedAgreement } from "@/lib/partner-agreement-server";
+import { runAllForSubmitted } from "@/lib/partner-verify-server";
 import { sendMail } from "@/lib/send-mail";
 import { buildPartnerSubmittedAckMail, buildPartnerSubmittedAdminMail } from "@/lib/partner-mail";
 
@@ -60,7 +61,8 @@ export async function POST(req: NextRequest, { params }: { params: Promise<{ tok
     const adminUrl = process.env.ADMIN_APP_URL || "https://admin.waytaraenergy.com";
     const reference = app.reference ?? "";
     const adminMail = buildPartnerSubmittedAdminMail({ id: app.id, reference, company_name: app.companyName, partner_type: app.partnerType ?? "", documents: state.documents.length }, adminUrl);
-    after(() => Promise.all([...adminRecipients().map((to) => sendMail(to, adminMail)), sendMail(app.email, buildPartnerSubmittedAckMail(app.contactName, reference))]));
+    // the e-mails, and the automatic checks (PAN, GST, bank, names, faces) so the team finds their results ready: both after the answer, neither able to fail it
+    after(() => Promise.all([...adminRecipients().map((to) => sendMail(to, adminMail)), sendMail(app.email, buildPartnerSubmittedAckMail(app.contactName, reference)), runAllForSubmitted(app.id, app.partnerType)]));
 
     return NextResponse.json({ success: true });
   } catch (error) {

@@ -26,7 +26,10 @@ import {
   siteRoleOf,
   categorySubject,
   documentRequirements,
+  isAccountNumber,
+  isGstin,
   isIfsc,
+  isPan,
   memberKey,
   memberRequirements,
   memberSubject,
@@ -40,6 +43,7 @@ import {
 } from "@waytara/supabase/partner-onboarding";
 import { AgreementCard } from "./agreement-card";
 import { CrewLink, type CrewInviteState } from "./crew-link";
+import { VerifyCheck, type CheckView } from "./verify-check";
 import { DocumentError, DocumentSlot, ExtraDocuments, useDocumentStore, type DocumentStore } from "./file-slots";
 
 const DISTRICT_OPTIONS: MultiSelectOption[] = TN_DISTRICTS.map((d) => ({ value: d, label: d }));
@@ -59,6 +63,11 @@ async function call<T>(url: string, method: string, body?: unknown): Promise<Rep
   } catch {
     return { ok: false, error: "We couldn't reach the server. Please check your connection and try again." };
   }
+}
+
+/** The same fingerprint as the one inside the form, for the data as first loaded. */
+function fpOf(kind: string, d: OnboardingData): string {
+  return kind === "pan" ? `${d.business.pan}|${d.business.kind}|${d.person.name}|${d.business.name}` : kind === "gstin" ? `${d.business.gstin}|${d.business.pan}|${d.business.name}` : `${d.bank.accountNumber}|${d.bank.ifsc}|${d.bank.holder}`;
 }
 
 /** A list of rows the applicant can add to and take from (licences, people, projects). */
@@ -220,6 +229,50 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
 
   // a file for a newly typed team member needs that person saved first, so the server knows whose it is
   const store = useDocumentStore(base, initialDocuments, { before: saveNow });
+
+  // The partner's own PAN, GST and bank checks: what they have found out so far, and whether checking is set up at all (when it is not, no button is shown).
+  const [checks, setChecks] = React.useState<CheckView[]>([]);
+  const [checksOn, setChecksOn] = React.useState(false);
+  const [checking, setChecking] = React.useState<string | null>(null);
+  const [checkError, setCheckError] = React.useState("");
+  // What each answer was about (the numbers and names at the time), so an answer is hidden as soon as any of them is changed: it would be for the old number.
+  const fingerprint = (kind: string) => fpOf(kind, data);
+  const [answeredFor, setAnsweredFor] = React.useState<Record<string, string>>({});
+  React.useEffect(() => {
+    let live = true;
+    void call<{ configured: boolean; checks: CheckView[] }>(`${base}/verify`, "GET").then((r) => {
+      if (live && r.ok) {
+        setChecksOn(r.data.configured);
+        setChecks(r.data.checks);
+        // an answer the server says is for what is saved is for what is on the page now
+        setAnsweredFor(Object.fromEntries(r.data.checks.filter((c) => c.current).map((c) => [c.kind, fpOf(c.kind, latest.current)])));
+      }
+    });
+    return () => {
+      live = false;
+    };
+  }, [base]);
+  async function askCheck(kind: "pan" | "gstin" | "bank") {
+    setChecking(kind);
+    setCheckError("");
+    // what is on the page is what is checked: the latest typing is saved first
+    if (!(await saveNow())) {
+      setChecking(null);
+      return setCheckError("Your latest changes couldn't be saved yet. Please try again in a moment.");
+    }
+    const r = await call<{ configured: boolean; checks: CheckView[]; asked: CheckView[] }>(`${base}/verify`, "POST", { kinds: [kind] });
+    setChecking(null);
+    if (!r.ok) return setCheckError(r.error);
+    setChecksOn(r.data.configured);
+    // what was just asked for is shown even when nothing was stored for it (the details were not all there)
+    const shownNow = r.data.asked.map((a) => ({ ...a, current: true }));
+    setAnsweredFor((f) => ({ ...f, [kind]: fingerprint(kind) }));
+    setChecks([...r.data.checks.filter((c) => !shownNow.some((a) => a.kind === c.kind)), ...shownNow]);
+  }
+  const checkOf = (kind: string) => {
+    const c = checks.find((x) => x.kind === kind);
+    return c ? { ...c, current: c.current && answeredFor[kind] === fingerprint(kind) } : undefined;
+  };
 
   // where each team member's own link stands, whenever the team is on screen
   const loadInvites = React.useCallback(async () => {
@@ -482,6 +535,7 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
                 </Label>
                 <Input id="ob-gstin" value={data.business.gstin} onChange={(e) => biz("gstin", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 15))} maxLength={15} placeholder="33ABCDE1234F1Z5" />
                 <p className="text-xs text-theme-muted">Leave it empty if you are not registered for GST.</p>
+                {checksOn && isGstin(data.business.gstin) && <VerifyCheck label="Check this GST number" view={checkOf("gstin")} ready={isGstin(data.business.gstin)} running={checking === "gstin"} onAsk={() => void askCheck("gstin")} className="pt-1" />}
               </div>
               {!individual && (
                 <>
@@ -844,6 +898,7 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
                 <Label htmlFor="ob-pan">PAN</Label>
                 <Input id="ob-pan" value={data.business.pan} onChange={(e) => biz("pan", e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, "").slice(0, 10))} maxLength={10} placeholder="ABCDE1234F" autoComplete="off" />
                 <p className="text-xs text-theme-muted">{individual ? "Your own PAN." : "The business's PAN, or your own for a proprietorship."}</p>
+                {checksOn && <VerifyCheck label="Check my PAN" view={checkOf("pan")} ready={isPan(data.business.pan)} running={checking === "pan"} onAsk={() => void askCheck("pan")} className="pt-1" />}
               </div>
             </div>
 
@@ -896,6 +951,17 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
                 </Select>
               </div>
             </div>
+            {checksOn && (
+              <div className="mt-6 max-w-xl space-y-2">
+                <VerifyCheck label="Check my bank account" view={checkOf("bank")} ready={isAccountNumber(data.bank.accountNumber) && isIfsc(data.bank.ifsc) && data.bank.holder.trim().length > 0} running={checking === "bank"} onAsk={() => void askCheck("bank")} />
+                <p className="text-xs leading-relaxed text-theme-muted">This asks the bank whether the account exists and whether the name on it matches the name you gave. Your bank may show a very small test credit. You do not have to do anything about it.</p>
+              </div>
+            )}
+            {checkError && (
+              <p role="alert" className="mt-3 text-sm text-red-600 dark:text-red-400">
+                {checkError}
+              </p>
+            )}
             <SubHeading hint="We never ask for your Aadhaar number. If you send an Aadhaar copy as an address proof, hide all but its last four digits.">Proofs</SubHeading>
             <Slots store={store} reqs={reqsOf("bank")} />
           </section>

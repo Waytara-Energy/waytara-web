@@ -3926,6 +3926,65 @@ export type Database = {
           },
         ]
       }
+      partner_verifications: {
+        Row: {
+          application_id: string
+          created_at: string
+          detail: Json
+          id: string
+          input_hash: string
+          kind: string
+          partner_attempts: number
+          provider: string
+          provider_ref: string | null
+          run_by: string | null
+          status: string
+          subject: string
+          summary: string
+          updated_at: string
+        }
+        Insert: {
+          application_id: string
+          created_at?: string
+          detail?: Json
+          id?: string
+          input_hash: string
+          kind: string
+          partner_attempts?: number
+          provider?: string
+          provider_ref?: string | null
+          run_by?: string | null
+          status: string
+          subject: string
+          summary?: string
+          updated_at?: string
+        }
+        Update: {
+          application_id?: string
+          created_at?: string
+          detail?: Json
+          id?: string
+          input_hash?: string
+          kind?: string
+          partner_attempts?: number
+          provider?: string
+          provider_ref?: string | null
+          run_by?: string | null
+          status?: string
+          subject?: string
+          summary?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "partner_verifications_application_id_fkey"
+            columns: ["application_id"]
+            isOneToOne: false
+            referencedRelation: "partner_applications"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       password_change_codes: {
         Row: {
           attempts: number
