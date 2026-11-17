@@ -39,7 +39,13 @@ update waytara.profiles
 set role = 'customer'
 where id = '7b3abc68-c970-49d7-86b9-5650e79da3e5';
 
--- 4. Add Manoj to site_members for Waytara Office (alongside Devaansh and Arun)
+-- 4. Add Manoj to site_members for Waytara Office (alongside Devaansh and Arun).
+-- Written as a select over the two rows, not a plain values list: in production both exist, so the effect is the same (and it was applied there long ago), but on an empty
+-- database (the local one that CI builds, which has no Waytara Office site and no such user) a values list breaks the foreign key and stops the whole replay.
 insert into waytara.site_members (site_id, user_id, role)
-values ('9a3947a4-b37e-471c-b97c-141acedaa96d', '7b3abc68-c970-49d7-86b9-5650e79da3e5', 'owner')
+select s.id, p.id, 'owner'
+from waytara.sites s
+cross join waytara.profiles p
+where s.id = '9a3947a4-b37e-471c-b97c-141acedaa96d'
+  and p.id = '7b3abc68-c970-49d7-86b9-5650e79da3e5'
 on conflict (site_id, user_id) do nothing;
