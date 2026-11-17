@@ -31,6 +31,8 @@ export interface VerificationData {
   autoEnv: "production" | "sandbox";
   /** The newest link sent to each team member, by member id. */
   invites: Record<string, { status: string; sent_via: string; created_at: string; opened_at: string | null; completed_at: string | null; expired: boolean }>;
+  /** What DigiLocker stated about a person who verified with it, by subject ("partner" or "member:<id>"): the name, date of birth, gender and address, and the last four Aadhaar digits. */
+  digilocker: Record<string, { status: string; identity: { name?: string; dob?: string; gender?: string; address?: string }; uid_last4: string | null; completed_at: string | null }>;
 }
 
 /**
@@ -38,13 +40,16 @@ export interface VerificationData {
  * partner entered), and what has been checked about each of them. Run as the signed-in admin, so the row-level rules apply.
  */
 export async function loadVerification(supabase: Supabase, applicationId: string): Promise<VerificationData> {
-  const [{ data: checks }, { data: onb }, { data: agreements }, { data: invs }, autoChecks] = await Promise.all([
+  const [{ data: checks }, { data: onb }, { data: agreements }, { data: invs }, autoChecks, { data: dls }] = await Promise.all([
     supabase.from("partner_item_checks").select("subject, key, state, note, checked_at").eq("application_id", applicationId),
     supabase.from("partner_onboarding").select("data").eq("application_id", applicationId).maybeSingle(),
     supabase.from("partner_agreements").select("version, signed_at, signer_name, signer_email, signer_ip, text_hash").eq("application_id", applicationId).order("signed_at", { ascending: false }),
     supabase.from("partner_crew_invites").select("member_id, status, sent_via, expires_at, created_at, opened_at, completed_at").eq("application_id", applicationId).neq("status", "revoked").order("created_at", { ascending: false }),
     loadResults(supabase, applicationId),
+    supabase.from("partner_digilocker").select("subject, status, identity, uid_last4, completed_at").eq("application_id", applicationId),
   ]);
+  const digilocker: VerificationData["digilocker"] = {};
+  for (const d of dls ?? []) digilocker[d.subject] = { status: d.status, identity: (d.identity ?? {}) as VerificationData["digilocker"][string]["identity"], uid_last4: d.uid_last4, completed_at: d.completed_at };
   const invites: VerificationData["invites"] = {};
   for (const i of invs ?? []) {
     if (invites[i.member_id]) continue;
@@ -74,5 +79,5 @@ export async function loadVerification(supabase: Supabase, applicationId: string
       (memberRows[k] ??= {})[c.key] = row;
     }
   }
-  return { onboarding, states, rows, members, memberStates, memberRows, screening, screeningRows, agreements: agreements ?? [], invites, checks: autoChecks, autoOn: cashfreeConfigured(), autoEnv: cashfreeEnvironment() };
+  return { onboarding, states, rows, members, memberStates, memberRows, screening, screeningRows, agreements: agreements ?? [], invites, digilocker, checks: autoChecks, autoOn: cashfreeConfigured(), autoEnv: cashfreeEnvironment() };
 }

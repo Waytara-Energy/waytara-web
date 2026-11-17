@@ -226,7 +226,7 @@ export async function runAllPartnerAutoChecks(id: string): Promise<void> {
 }
 
 /** Which of the admin's own checks an automatic result can support, for the partner and for a team member. */
-const ACCEPTS: Record<string, { partner?: string; member?: string }> = { pan: { partner: "kyc" }, bank: { partner: "bank" }, face_match: { partner: "identity", member: "member_identity" } };
+const ACCEPTS: Record<string, { partner?: string; member?: string }> = { pan: { partner: "kyc" }, bank: { partner: "bank" }, digilocker: { partner: "identity", member: "member_identity" }, face_match: { partner: "identity", member: "member_identity" } };
 
 /**
  * One click to mark an item verified on the strength of a PASSED automatic check: the note records that it was confirmed by the service, with its own words. Only a passed

@@ -45,6 +45,7 @@ const NOT_RUN_WHY: Record<VerificationKind, string> = {
   pan: "Runs when the partner has entered a PAN.",
   gstin: "Runs when the partner has entered a GST number.",
   udyam: "Runs when the partner has entered a Udyam number, like UDYAM-TN-02-0048192.",
+  digilocker: "Done by the person themselves, on their Personal details page, when they choose Verify with DigiLocker. It cannot be run from here: they must agree on DigiLocker's own page.",
   bank: "Runs when the partner has entered the account number, the IFSC and the name on the account.",
   name_match: "Runs once the PAN and the bank account have both been found, to compare the two names.",
   face_match: "Runs when there is a selfie and a photo ID that is a JPEG or PNG picture (not a PDF).",
@@ -120,11 +121,13 @@ export function AutoChecks({
                   </ActionForm>
                 )}
                 {r?.status === "passed" && acc && acc.state === "verified" && <span className="text-xs text-emerald-600 dark:text-emerald-400">{acc.label} is verified</span>}
-                <ActionForm action={runPartnerAutoCheck.bind(null, appId, kind, subject)} loading="Checking…" success="Checked.">
-                  <Button type="submit" size="sm" variant="outline">
-                    {r ? "Run again" : "Run"}
-                  </Button>
-                </ActionForm>
+                {kind !== "digilocker" && (
+                  <ActionForm action={runPartnerAutoCheck.bind(null, appId, kind, subject)} loading="Checking…" success="Checked.">
+                    <Button type="submit" size="sm" variant="outline">
+                      {r ? "Run again" : "Run"}
+                    </Button>
+                  </ActionForm>
+                )}
               </div>
             </div>
           </div>

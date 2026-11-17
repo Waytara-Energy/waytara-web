@@ -1,5 +1,5 @@
 import { constants, publicEncrypt, randomUUID } from "node:crypto";
-import type { FaceMatchAnswer, GstinAnswer, LivenessAnswer, NameMatchAnswer, PanAnswer, BankAnswer, UdyamAnswer } from "./partner-verify-rules";
+import type { AadhaarDocAnswer, DigilockerStatusAnswer, FaceMatchAnswer, GstinAnswer, LivenessAnswer, NameMatchAnswer, PanAnswer, BankAnswer, UdyamAnswer } from "./partner-verify-rules";
 
 // The one place that talks to Cashfree Secure ID (its Verification Suite). Server only: the keys are read from the environment and never leave it. Every call sends the
 // keys as x-client-id and x-client-secret; and, when a Cashfree "public key" is set up for two-factor authentication, a signature that proves the request is ours (the
@@ -59,6 +59,7 @@ export const cleanName = (s: string): string => s.replace(/[^A-Za-z0-9 .\-/&]+/g
 
 /** A fresh id for a call that needs one (Cashfree refuses an id it has seen): letters and digits, well under its 50-character limit. */
 const newId = (): string => `wt${randomUUID().replace(/-/g, "")}`;
+export const newVerificationId = newId;
 
 interface ApiError {
   type?: string;
@@ -102,6 +103,28 @@ async function call<T>(path: string, init: { json?: unknown; form?: FormData; ve
 export const verifyPan = (input: { pan: string; name?: string }): Promise<PanAnswer> => call<PanAnswer>("/pan", { json: { pan: input.pan, ...(input.name ? { name: cleanName(input.name) } : {}) }, version: "2022-10-26" });
 
 export const verifyGstin = (input: { gstin: string }): Promise<GstinAnswer> => call<GstinAnswer>("/gstin", { json: { GSTIN: input.gstin } });
+
+// ---- DigiLocker: the person agrees on DigiLocker's own page; we never see their Aadhaar number, password or OTP ----
+
+export interface DigilockerUrlAnswer {
+  verification_id?: string;
+  reference_id?: number | string;
+  url?: string;
+  status?: string;
+}
+
+/**
+ * Makes the link the person opens to agree (on DigiLocker's own page) to share their Aadhaar details with us. The link works for ten minutes. `redirectUrl` must be https:
+ * DigiLocker sends the person there afterwards; we do not rely on it (we ask for the status with `verificationId`).
+ */
+export const createDigilockerUrl = (input: { verificationId: string; redirectUrl: string; purpose?: string }): Promise<DigilockerUrlAnswer> =>
+  call<DigilockerUrlAnswer>("/digilocker", { json: { verification_id: input.verificationId, document_requested: ["AADHAAR"], redirect_url: input.redirectUrl, purpose: input.purpose ?? "Partner KYC", company_name: "WayTara Energy" } });
+
+/** Where the person is in the DigiLocker flow: PENDING, AUTHENTICATED, EXPIRED or CONSENT_DENIED. */
+export const digilockerStatus = (verificationId: string): Promise<DigilockerStatusAnswer> => call<DigilockerStatusAnswer>("/digilocker", { get: { verification_id: verificationId } });
+
+/** The Aadhaar details the person agreed to share (name, date of birth, gender, address, masked number and portrait). Only after the status is AUTHENTICATED. */
+export const digilockerAadhaar = (verificationId: string): Promise<AadhaarDocAnswer> => call<AadhaarDocAnswer>("/digilocker/document/AADHAAR", { get: { verification_id: verificationId } });
 
 /** Whether a Udyam (MSME) registration number exists and is not cancelled, and the enterprise it belongs to. */
 export const verifyUdyam = (input: { udyam: string }): Promise<UdyamAnswer> => call<UdyamAnswer>("/udyam", { json: { verification_id: newId(), udyam: input.udyam } });

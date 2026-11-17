@@ -45,6 +45,7 @@ import {
 import { AgreementCard } from "./agreement-card";
 import { CrewLink, type CrewInviteState } from "./crew-link";
 import { VerifyCheck, type CheckView } from "./verify-check";
+import { DigilockerCard } from "./digilocker-card";
 import { DocumentError, DocumentSlot, ExtraDocuments, useDocumentStore, type DocumentStore } from "./file-slots";
 
 const DISTRICT_OPTIONS: MultiSelectOption[] = TN_DISTRICTS.map((d) => ({ value: d, label: d }));
@@ -274,6 +275,16 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
     const c = checks.find((x) => x.kind === kind);
     return c ? { ...c, current: c.current && answeredFor[kind] === fingerprint(kind) } : undefined;
   };
+  // What DigiLocker states about the partner, put into the blank fields only (never over what they have typed). One update, so none of the fields overwrites another.
+  const fromDigilocker = (i: { name: string; dob: string; gender: string; address: string }) => {
+    const p = data.person;
+    personPatch({
+      ...(!p.name.trim() && i.name ? { name: i.name.slice(0, 200) } : {}),
+      ...(!p.dob && i.dob ? { dob: i.dob } : {}),
+      ...(!p.gender && i.gender ? { gender: i.gender } : {}),
+      ...(!p.permanentAddress.trim() && i.address ? { permanentAddress: i.address.slice(0, 400) } : {}),
+    });
+  };
   // What the GST register says about the business, offered for the blank fields only (never over what the partner has typed).
   const gstView = checkOf("gstin");
   const gstFill = (() => {
@@ -439,9 +450,43 @@ export function OnboardingForm({ token, partnerType, contact, initial, initialDo
             <p className="mb-7 mt-2 text-sm leading-relaxed text-theme-secondary">{individual ? "About you, as on your photo ID." : "The person we deal with for this business, as on their photo ID."}</p>
             {missing("personal")}
             <div className="grid grid-cols-1 gap-x-5 gap-y-6 sm:grid-cols-2">
+              {checksOn && <DigilockerCard base={base} onVerified={fromDigilocker} className="sm:col-span-2" />}
               <div className={`${field} sm:col-span-2`}>
                 <Label htmlFor="ob-pname">Full name, as on the photo ID</Label>
                 <Input id="ob-pname" value={data.person.name} onChange={(e) => person("name", e.target.value)} maxLength={200} autoComplete="name" />
+              </div>
+              <div className={field}>
+                <Label htmlFor="ob-dob">
+                  Date of birth
+                  <Optional />
+                </Label>
+                <Input id="ob-dob" type="date" value={data.person.dob} onChange={(e) => person("dob", e.target.value)} max={new Date().toISOString().slice(0, 10)} autoComplete="bday" />
+              </div>
+              <div className={field}>
+                <Label htmlFor="ob-gender">
+                  Gender
+                  <Optional />
+                </Label>
+                <Select value={data.person.gender} onValueChange={(v) => person("gender", v)}>
+                  <SelectTrigger id="ob-gender">
+                    <SelectValue placeholder="Choose one" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {["Male", "Female", "Other"].map((g) => (
+                      <SelectItem key={g} value={g}>
+                        {g}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className={`${field} sm:col-span-2`}>
+                <Label htmlFor="ob-perm">
+                  Permanent address
+                  <Optional />
+                </Label>
+                <Textarea id="ob-perm" value={data.person.permanentAddress} onChange={(e) => person("permanentAddress", e.target.value)} rows={2} maxLength={400} autoComplete="street-address" />
+                <p className="text-xs text-theme-muted">As on your ID. Filled in for you when you verify with DigiLocker.</p>
               </div>
               {!individual && (
                 <div className={field}>

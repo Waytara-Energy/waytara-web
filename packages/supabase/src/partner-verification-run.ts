@@ -118,10 +118,10 @@ export function checkInputHash(kind: "pan" | "gstin" | "udyam" | "bank", partner
 
 const IMAGE_TYPES: Record<string, string> = { jpg: "image/jpeg", jpeg: "image/jpeg", png: "image/png" };
 /** A file Cashfree's face services take: a JPEG or PNG, at most 5 MB. */
-const imageType = (name: string): string | null => IMAGE_TYPES[name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] ?? ""] ?? null;
+export const imageType = (name: string): string | null => IMAGE_TYPES[name.toLowerCase().match(/\.([a-z0-9]+)$/)?.[1] ?? ""] ?? null;
 const FIVE_MB = 5 * 1024 * 1024;
 
-const newest = (docs: readonly DocRow[], subject: string, kind: string, onlyImages = false): DocRow | null =>
+export const newest = (docs: readonly DocRow[], subject: string, kind: string, onlyImages = false): DocRow | null =>
   docs
     .filter((d) => d.subject === subject && d.kind === kind && (!onlyImages || imageType(d.file_name)))
     .sort((a, b) => b.uploaded_at.localeCompare(a.uploaded_at))[0] ?? null;
@@ -140,7 +140,7 @@ export async function runChecks(input: RunInput): Promise<CheckResult[]> {
   const keyOf = (subject: string, kind: string) => `${subject}|${kind}`;
 
   /** One check: skip it if it is not ready, unchanged or used up; otherwise ask, apply the rules, keep the result. */
-  async function one(kind: VerificationKind, subject: string, prepared: { why: string } | { hash: string; ask: () => Promise<Verdict & { ref?: string }> }) {
+  async function one(kind: VerificationKind, subject: string, prepared: { why: string } | { hash: string; ask: () => Promise<Verdict & { ref?: string }>; keep?: (existing: Row) => boolean }) {
     const existing = rows.get(keyOf(subject, kind));
     const asStored = (skipped: CheckResult["skipped"]): CheckResult | null =>
       existing ? { kind, subject, status: existing.status, code: String((existing.detail as { code?: unknown })?.code ?? ""), summary: existing.summary, detail: existing.detail, ran: false, skipped } : null;
@@ -149,6 +149,11 @@ export async function runChecks(input: RunInput): Promise<CheckResult[]> {
       return;
     }
     if (existing && existing.input_hash === prepared.hash && existing.status !== "error" && !input.force) {
+      results.push(asStored("unchanged")!);
+      return;
+    }
+    // a result that is better evidence than what would be asked now (a selfie already compared with DigiLocker's own photo) stands unless an admin forces it
+    if (existing && existing.status !== "error" && prepared.keep?.(existing) && !input.force) {
       results.push(asStored("unchanged")!);
       return;
     }
@@ -269,8 +274,9 @@ export async function runChecks(input: RunInput): Promise<CheckResult[]> {
         else if (!anyId) await one("face_match", subject, { why: "A photo ID is needed first." });
         else {
           const hash = sha({ selfie: selfie.id, id: (id ?? anyId).id });
-          if (!id) await one("face_match", subject, { hash, ask: async () => ({ status: "review", code: "pdf", summary: "The photo ID is not a JPEG or PNG picture (it may be a PDF), so the face could not be compared. Compare them by eye.", detail: {} }) });
-          else await one("face_match", subject, { hash, ask: () => faceCheck(input.download, selfie, id) });
+          const keep = (e: Row) => e.detail?.source === "digilocker" && e.detail?.selfie_id === selfie.id;
+          if (!id) await one("face_match", subject, { hash, keep, ask: async () => ({ status: "review", code: "pdf", summary: "The photo ID is not a JPEG or PNG picture (it may be a PDF), so the face could not be compared. Compare them by eye.", detail: {} }) });
+          else await one("face_match", subject, { hash, keep, ask: () => faceCheck(input.download, selfie, id) });
         }
       }
     } else if (kind === "face_liveness") {

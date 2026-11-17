@@ -170,6 +170,10 @@ export interface PersonSection {
   currentAddress: string;
   currentCity: string;
   currentPin: string;
+  /** Date of birth as YYYY-MM-DD, and gender and permanent address: filled from DigiLocker (which is the proof), or by hand. */
+  dob: string;
+  gender: string;
+  permanentAddress: string;
 }
 
 export interface BusinessSection {
@@ -292,7 +296,7 @@ export const ONBOARDING_LIMITS = { licences: 10, members: 15, projects: 8, distr
 
 export function emptyOnboarding(): OnboardingData {
   return {
-    person: { name: "", designation: "", altPhone: "", emergencyName: "", emergencyPhone: "", currentSame: true, currentAddress: "", currentCity: "", currentPin: "" },
+    person: { name: "", designation: "", altPhone: "", emergencyName: "", emergencyPhone: "", currentSame: true, currentAddress: "", currentCity: "", currentPin: "", dob: "", gender: "", permanentAddress: "" },
     business: { name: "", kind: "", started: "", address: "", city: "", pin: "", website: "", gstin: "", pan: "", udyam: "", capabilities: [], equipment: [] },
     licences: [],
     team: { size: "", certified: "", members: [] },
@@ -332,6 +336,9 @@ export function readOnboarding(raw: unknown): OnboardingData {
       currentAddress: str(p.currentAddress, 400),
       currentCity: str(p.currentCity, 100),
       currentPin: str(p.currentPin, 6),
+      dob: /^\d{4}-\d{2}-\d{2}$/.test(str(p.dob, 10)) ? str(p.dob, 10) : "",
+      gender: str(p.gender, 20),
+      permanentAddress: str(p.permanentAddress, 400),
     },
     business: {
       name: str(b.name, 200),

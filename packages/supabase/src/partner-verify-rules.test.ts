@@ -1,5 +1,41 @@
 import { describe, expect, it } from "vitest";
-import { bankVerdict, errorVerdict, faceMatchVerdict, gstinFill, gstinVerdict, livenessVerdict, nameMatchVerdict, nameSimilarity, normaliseName, panInGstin, panVerdict, partnerMessage, udyamVerdict } from "./partner-verify-rules";
+import { bankVerdict, digilockerIdentity, digilockerVerdict, errorVerdict, faceMatchVerdict, gstinFill, gstinVerdict, livenessVerdict, nameMatchVerdict, nameSimilarity, normaliseDob, normaliseName, panInGstin, panVerdict, partnerMessage, udyamVerdict } from "./partner-verify-rules";
+
+describe("DigiLocker identity", () => {
+  const doc = { status: "SUCCESS", uid: "xxxxxxxx5647", name: "John Doe", dob: "14-06-1988", gender: "M", photo_link: "BASE64PHOTO", split_address: { house: "Plot 42", street: "3rd Main Road", vtc: "Anna Nagar", dist: "Chennai", state: "Tamil Nadu", pincode: "600040", landmark: "", po: "Anna Nagar", subdist: "Chennai" } };
+  it("keeps the name, date of birth, gender, address and the last four digits, and nothing else (no number, no photo)", () => {
+    const id = digilockerIdentity(doc)!;
+    expect(id).toEqual({ name: "John Doe", dob: "1988-06-14", gender: "Male", address: "Plot 42, 3rd Main Road, Anna Nagar, Chennai, Tamil Nadu, 600040", pin: "600040", uid_last4: "5647" });
+    expect(JSON.stringify(id)).not.toMatch(/BASE64PHOTO|xxxxxxxx/i);
+  });
+  it("reads the date and gender in the shapes DigiLocker uses, and gives nothing when there is no name", () => {
+    expect(normaliseDob("14/06/1988")).toBe("1988-06-14");
+    expect(normaliseDob("1988-06-14")).toBe("1988-06-14");
+    expect(normaliseDob("June 1988")).toBe("");
+    expect(digilockerIdentity({ ...doc, gender: "F" })?.gender).toBe("Female");
+    expect(digilockerIdentity({ ...doc, gender: "T" })?.gender).toBe("Other");
+    expect(digilockerIdentity({ ...doc, uid: "12" })?.uid_last4).toBe("");
+    expect(digilockerIdentity({ ...doc, name: "  " })).toBeNull();
+  });
+  it("passes an adult whose typed name matches by Cashfree's Name Match, asks for a look when it differs or was not compared, and fails someone under 18", () => {
+    const id = digilockerIdentity(doc)!;
+    const now = new Date("2026-11-17T00:00:00Z");
+    expect(digilockerVerdict(id, { typedName: "John Doe", nameMatch: { result: "DIRECT_MATCH", score: 1 }, now })).toMatchObject({ status: "passed", code: "ok" });
+    expect(digilockerVerdict(id, { typedName: "Raja Kumar", nameMatch: { result: "NO_MATCH", score: 0 }, now })).toMatchObject({ status: "review", code: "name_differs" });
+    expect(digilockerVerdict(id, { typedName: "John Doe", nameMatch: null, now })).toMatchObject({ status: "review", code: "name_missing" });
+    expect(digilockerVerdict(id, { now })).toMatchObject({ status: "passed", code: "ok" });
+    expect(digilockerVerdict({ ...id, dob: "2010-01-01" }, { typedName: "John Doe", nameMatch: { result: "DIRECT_MATCH" }, now })).toMatchObject({ status: "failed", code: "under_age" });
+    // the stored detail never carries the name, date of birth or address
+    expect(JSON.stringify(digilockerVerdict(id, { typedName: "John Doe", nameMatch: { result: "DIRECT_MATCH" }, now }).detail)).not.toMatch(/John|1988|Plot/);
+  });
+  it("says in plain words what happened, and compares the selfie with DigiLocker's photo in its own words", () => {
+    expect(partnerMessage("digilocker", { status: "passed", code: "ok" })).toContain("verified with DigiLocker");
+    expect(partnerMessage("digilocker", { status: "review", code: "name_differs" })).toContain("not a close match");
+    expect(partnerMessage("digilocker", { status: "failed", code: "under_age" })).toContain("under 18");
+    expect(faceMatchVerdict({ face_match_result: "YES", face_match_score: 0.9 }, "DigiLocker photo").summary).toContain("DigiLocker photo");
+    expect(faceMatchVerdict({ face_match_result: "NO", face_match_score: 0.1 }, "DigiLocker photo").summary).toContain("photo in DigiLocker");
+  });
+});
 
 describe("Udyam", () => {
   const ok = { status: "SUCCESS", enterprise_name: "SUN ELECTRICALS", enterprise_type: "Micro", classification_year: "2024-25", date_of_udyam_registration: "2021-03-04", split_address: { district: "KANPUR NAGAR", state: "UTTAR PRADESH", pincode: "208001" } };

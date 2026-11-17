@@ -249,6 +249,9 @@ export function PersonalTab({ app, v, data, docs }: { app: AppView; v: Verificat
       <Section title="Personal details" description={notYet(data)}>
         <dl className="grid gap-4 sm:grid-cols-2">
           <Fact label="Name on the photo ID">{data?.person.name || app.contact_name}</Fact>
+          <Fact label="Date of birth">{data?.person.dob}</Fact>
+          <Fact label="Gender">{data?.person.gender}</Fact>
+          <Fact label="Permanent address">{data?.person.permanentAddress}</Fact>
           <Fact label="Role in the business">{data?.person.designation}</Fact>
           <Fact label="Phone">
             <a href={`tel:${app.phone}`} className="hover:underline">
@@ -286,8 +289,19 @@ export function PersonalTab({ app, v, data, docs }: { app: AppView; v: Verificat
           </ul>
         )}
       </Section>
-      <Section title="Automatic checks" description="The selfie against the photo on the ID, and whether the selfie is a live face. Evidence for your own check below, never the decision.">
-        <AutoChecks appId={app.id} subject="partner" kinds={["face_match", "face_liveness"]} results={v.checks} on={v.autoOn} env={v.autoEnv} accept={{ face_match: { label: "Identity", state: v.states.identity ?? "pending" } }} all />
+      {v.digilocker.partner?.status === "authenticated" && (
+        <Section title="Verified through DigiLocker" description="What DigiLocker itself states about them, put there by the person on DigiLocker's own page. We keep only this, never the Aadhaar number (just its last four digits) or the photo. Compare it with what they typed above.">
+          <dl className="grid gap-4 sm:grid-cols-2">
+            <Fact label="Name on DigiLocker">{v.digilocker.partner.identity.name}</Fact>
+            <Fact label="Aadhaar ending">{v.digilocker.partner.uid_last4}</Fact>
+            <Fact label="Date of birth">{v.digilocker.partner.identity.dob}</Fact>
+            <Fact label="Gender">{v.digilocker.partner.identity.gender}</Fact>
+            <Fact label="Address on DigiLocker">{v.digilocker.partner.identity.address}</Fact>
+          </dl>
+        </Section>
+      )}
+      <Section title="Automatic checks" description="DigiLocker, if they used it; the selfie against the photo (DigiLocker's, or the ID they sent); and whether the selfie is a live face. Evidence for your own check below, never the decision.">
+        <AutoChecks appId={app.id} subject="partner" kinds={["digilocker", "face_match", "face_liveness"]} results={v.checks} on={v.autoOn} env={v.autoEnv} accept={{ digilocker: { label: "Identity", state: v.states.identity ?? "pending" }, face_match: { label: "Identity", state: v.states.identity ?? "pending" } }} all />
       </Section>
       <Section title="Verification">
         <Check app={app} v={v} k="identity" />

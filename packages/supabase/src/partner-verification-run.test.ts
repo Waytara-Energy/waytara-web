@@ -275,6 +275,25 @@ describe("faces", () => {
     return d;
   };
 
+  it("leaves a face match that was made against DigiLocker's own photo alone (it is better evidence), unless an admin forces it or the selfie was replaced", async () => {
+    const mine = base({ docs: [docs[0], docs[1]] });
+    mine.f.table.set("partner|face_match", { subject: "partner", kind: "face_match", status: "passed", summary: "The selfie and the DigiLocker photo show the same face (95%).", detail: { source: "digilocker", selfie_id: "s1", code: "ok" }, input_hash: "d".repeat(64), partner_attempts: 0 });
+    const kept = await runChecks({ ...mine.input, kinds: ["face_match"] });
+    expect(kept[0]).toMatchObject({ status: "passed", skipped: "unchanged", ran: false });
+    expect(calls.filter((c) => c.path === "/face-match")).toHaveLength(0);
+
+    // forced by an admin: asked again, against the ID
+    await runChecks({ ...mine.input, kinds: ["face_match"], force: true });
+    expect(calls.filter((c) => c.path === "/face-match")).toHaveLength(1);
+
+    // a new selfie since: the DigiLocker comparison is of the old one, so it is asked again
+    calls = [];
+    const newer = base({ docs: [doc("s9", "selfie", "partner", "new.jpg", "2026-11-18T10:00:00Z"), docs[1]] });
+    newer.f.table.set("partner|face_match", { subject: "partner", kind: "face_match", status: "passed", summary: "x", detail: { source: "digilocker", selfie_id: "s1", code: "ok" }, input_hash: "d".repeat(64), partner_attempts: 0 });
+    await runChecks({ ...newer.input, kinds: ["face_match"] });
+    expect(calls.filter((c) => c.path === "/face-match")).toHaveLength(1);
+  });
+
   it("compares the selfie with the photo ID, and checks the selfie is live, for the partner and each team member", async () => {
     const { input, f } = base({ docs, data: withTeam() });
     const r = await runChecks({ ...input, kinds: ["face_match", "face_liveness"] });

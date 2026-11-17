@@ -4,7 +4,7 @@
 // The checks are an aid to the admin, never the decision: a passed check is evidence the admin accepts with one click, a "review" is a question for a person, and
 // nothing here approves anyone.
 
-export const VERIFICATION_KINDS = ["pan", "gstin", "udyam", "bank", "name_match", "face_match", "face_liveness"] as const;
+export const VERIFICATION_KINDS = ["pan", "gstin", "udyam", "bank", "name_match", "digilocker", "face_match", "face_liveness"] as const;
 export type VerificationKind = (typeof VERIFICATION_KINDS)[number];
 export type VerificationStatus = "passed" | "review" | "failed" | "error";
 
@@ -16,6 +16,7 @@ export const KIND_LABEL: Record<VerificationKind, string> = {
   udyam: "Udyam (MSME) registration",
   bank: "Bank account",
   name_match: "PAN name against the bank account name",
+  digilocker: "Identity through DigiLocker",
   face_match: "Selfie against the photo ID",
   face_liveness: "Selfie is a live face",
 };
@@ -288,12 +289,96 @@ export interface FaceMatchAnswer {
   face_match_score?: number | null;
 }
 
-export function faceMatchVerdict(a: FaceMatchAnswer): Verdict {
+/** `against` names what the selfie was compared with: the photo ID the partner sent (the default) or the portrait DigiLocker holds. */
+export function faceMatchVerdict(a: FaceMatchAnswer, against: "photo ID" | "DigiLocker photo" = "photo ID"): Verdict {
   const detail = { status: a.status ?? null, result: a.face_match_result ?? null, score: a.face_match_score ?? null };
   if (a.status === "MULTIPLE_FACE_DETECTED") return { status: "review", code: "multiple", summary: "More than one face was found in a photo, so the faces could not be compared. Compare them by eye.", detail };
-  if (a.face_match_result === "YES") return { status: "passed", code: "ok", summary: `The selfie and the photo ID show the same face (${pct(a.face_match_score)}).`, detail };
-  if (typeof a.face_match_score === "number" && a.face_match_score >= 0.5) return { status: "review", code: "close", summary: `The selfie and the photo ID may show the same face, but not clearly enough (${pct(a.face_match_score)}). Compare them by eye.`, detail };
-  return { status: "failed", code: "no_match", summary: `The selfie does not look like the photo on the ID (${pct(a.face_match_score)}).`, detail };
+  if (a.face_match_result === "YES") return { status: "passed", code: "ok", summary: `The selfie and the ${against} show the same face (${pct(a.face_match_score)}).`, detail };
+  if (typeof a.face_match_score === "number" && a.face_match_score >= 0.5) return { status: "review", code: "close", summary: `The selfie and the ${against} may show the same face, but not clearly enough (${pct(a.face_match_score)}). Compare them by eye.`, detail };
+  return { status: "failed", code: "no_match", summary: `The selfie does not look like the ${against === "photo ID" ? "photo on the ID" : "photo in DigiLocker"} (${pct(a.face_match_score)}).`, detail };
+}
+
+// ---- DigiLocker (identity from the government's own wallet) ----
+
+export interface DigilockerStatusAnswer {
+  status?: string | null;
+  verification_id?: string;
+  reference_id?: number | string;
+  user_details?: { name?: string | null; dob?: string | null; gender?: string | null; eaadhaar?: string | null } | null;
+  document_consent_validity?: string | null;
+}
+
+export interface AadhaarDocAnswer {
+  status?: string | null;
+  /** Cashfree answers 202 with code "validation_pending" while DigiLocker is still preparing the document. */
+  code?: string | null;
+  reference_id?: number | string;
+  uid?: string | null;
+  name?: string | null;
+  dob?: string | null;
+  gender?: string | null;
+  /** The portrait, as base64 (or a link). Used once for the face match and never stored. */
+  photo_link?: string | null;
+  split_address?: { house?: string | null; street?: string | null; landmark?: string | null; vtc?: string | null; po?: string | null; subdist?: string | null; dist?: string | null; state?: string | null; pincode?: string | null } | null;
+}
+
+/** What DigiLocker states about the person that we keep: never the Aadhaar number (only its last four digits), never the photo. */
+export interface DigilockerIdentity {
+  name: string;
+  /** YYYY-MM-DD */
+  dob: string;
+  gender: "Male" | "Female" | "Other" | "";
+  address: string;
+  pin: string;
+  uid_last4: string;
+}
+
+/** DD-MM-YYYY, DD/MM/YYYY or YYYY-MM-DD, as YYYY-MM-DD ("" when it is none of these). */
+export function normaliseDob(raw: string | null | undefined): string {
+  const s = (raw ?? "").trim();
+  const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (iso) return s;
+  const dmy = s.match(/^(\d{2})[-/.](\d{2})[-/.](\d{4})$/);
+  return dmy ? `${dmy[3]}-${dmy[2]}-${dmy[1]}` : "";
+}
+
+const ageOn = (dob: string, now: Date): number | null => {
+  const m = dob.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!m) return null;
+  const y = Number(m[1]);
+  const had = now.getUTCMonth() + 1 > Number(m[2]) || (now.getUTCMonth() + 1 === Number(m[2]) && now.getUTCDate() >= Number(m[3]));
+  return now.getUTCFullYear() - y - (had ? 0 : 1);
+};
+
+/** Reads DigiLocker's Aadhaar answer, keeping only the stated name, date of birth, gender, address and the last four digits. Null when it holds no name. */
+export function digilockerIdentity(a: AadhaarDocAnswer): DigilockerIdentity | null {
+  const name = (a.name ?? "").trim();
+  if (!name) return null;
+  const sa = a.split_address ?? {};
+  const parts = [sa.house, sa.street, sa.landmark, sa.vtc, sa.po, sa.subdist, sa.dist, sa.state, sa.pincode].map((p) => (p ?? "").trim()).filter(Boolean);
+  const seen = new Set<string>();
+  const address = parts.filter((p) => (seen.has(p.toLowerCase()) ? false : (seen.add(p.toLowerCase()), true))).join(", ");
+  const g = (a.gender ?? "").trim().toUpperCase();
+  const gender = g === "M" || g === "MALE" ? "Male" : g === "F" || g === "FEMALE" ? "Female" : g ? "Other" : "";
+  // the number comes masked ("xxxxxxxx5647"); only its last four digits are ever kept
+  const digits = (a.uid ?? "").replace(/\D/g, "");
+  return { name, dob: normaliseDob(a.dob), gender, address: address.slice(0, 400), pin: /^\d{6}$/.test(sa.pincode ?? "") ? (sa.pincode as string) : "", uid_last4: digits.length >= 4 ? digits.slice(-4) : "" };
+}
+
+/**
+ * The verdict on a DigiLocker identity: passed when the person is an adult and the name they typed matches the name DigiLocker states (as judged by Cashfree's Name Match,
+ * passed in as `nameMatch`); needs a look when it differs or could not be compared; failed when the date of birth makes them under 18.
+ */
+export function digilockerVerdict(id: DigilockerIdentity, ctx: { typedName?: string; nameMatch?: { result?: MatchResult | null; score?: string | number | null } | null; now?: Date }): Verdict {
+  const age = ageOn(id.dob, ctx.now ?? new Date());
+  const r = ctx.nameMatch?.result ?? null;
+  const detail = { uid_last4: id.uid_last4 || null, name_match_result: r, name_match_score: ctx.nameMatch?.score ?? null, adult: age === null ? null : age >= 18 };
+  const who = `${id.name}${id.dob ? `, born ${id.dob}` : ""}${id.uid_last4 ? `, Aadhaar ending ${id.uid_last4}` : ""}`;
+  if (age !== null && age < 18) return { status: "failed", code: "under_age", summary: `Verified through DigiLocker as ${who}, but the date of birth makes them under 18.`, detail };
+  if (!ctx.typedName?.trim()) return { status: "passed", code: "ok", summary: `Verified through DigiLocker as ${who}. No name had been typed to compare.`, detail };
+  if (strongMatch(r)) return { status: "passed", code: "ok", summary: `Verified through DigiLocker as ${who}. The name given (${ctx.typedName}) matches (${matchWords(r)}).`, detail };
+  if (r) return { status: "review", code: "name_differs", summary: `Verified through DigiLocker as ${who}, but the name given (${ctx.typedName}) is ${matchWords(r)}.`, detail };
+  return { status: "review", code: "name_missing", summary: `Verified through DigiLocker as ${who}. The name given (${ctx.typedName}) could not be compared.`, detail };
 }
 
 export interface LivenessAnswer {
@@ -356,6 +441,11 @@ export function partnerMessage(kind: VerificationKind, v: Pick<Verdict, "status"
       if (v.code === "pan_mismatch") return "This GST number belongs to a different PAN from the one you gave. Please check both.";
       if (v.code === "inactive") return "That GST registration is not active. Please check it, or contact us.";
       return "No GST registration was found for that number. Please check it, or leave it empty if you are not registered.";
+    case "digilocker":
+      if (v.status === "passed") return "You are verified with DigiLocker. Your date of birth and address are filled in from it.";
+      if (v.code === "name_differs" || v.code === "name_missing") return "You are verified with DigiLocker, but the name on it is not a close match to the name you typed. Please check the name. Our team will also look at it.";
+      if (v.code === "under_age") return "DigiLocker shows a date of birth that makes you under 18. Please contact us.";
+      return "We could not verify you with DigiLocker. Please try again, or contact us.";
     case "udyam": {
       const enterprise = typeof v.detail?.enterprise_name === "string" ? v.detail.enterprise_name : "";
       if (v.status === "passed") return `Udyam registration found${enterprise ? `: ${enterprise}` : ""}.`;
