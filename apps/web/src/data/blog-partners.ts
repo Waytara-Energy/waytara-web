@@ -580,7 +580,7 @@ export const partnerDocuments: Guide = {
   inShort: [
     "Nothing is asked for in the first form: no licence, no ID, no documents.",
     "At onboarding we ask for business details, licences, certificates, your team and some past work.",
-    "We never ask for a full Aadhaar number, an OTP or biometric details. Where an identity proof is needed, we ask for a masked copy.",
+    "You can prove who you are with DigiLocker instead of sending a photo ID. We never see or keep a full Aadhaar number, and we compare your selfie with your DigiLocker photo or photo ID.",
     "Documents are used only to verify you. They are not shown to customers or other partners, and they are not sold or used for advertising.",
     "You can ask to see, correct or delete what we hold, and you can withdraw at any time.",
   ],
@@ -620,13 +620,14 @@ export const partnerDocuments: Guide = {
             { label: "The contractor licence, and the certificates of your supervisor and wiremen", cells: ["To check them with the issuing authority and to match you to work your licence covers"] },
             { label: "The people who would do the work, and the districts you cover", cells: ["To know who is responsible on a project, and where we can send work"] },
             { label: "Photographs or references from past projects", cells: ["To see the kind of work you have done"] },
-            { label: "An identity proof, usually for an individual", cells: ["To confirm that you are who you say you are"] },
+            { label: "Your identity: verify with DigiLocker, or send a photo ID", cells: ["To confirm that you are who you say you are"] },
+            { label: "A live selfie", cells: ["To check that the person in it is the person we verify, by comparing the face with your DigiLocker photo or photo ID"] },
           ],
         },
         {
           type: "note",
           title: "Identity proof and Aadhaar",
-          body: "Where an identity proof is needed, we ask for a masked Aadhaar copy, with all but the last four digits hidden. We never ask for the full number, an OTP or biometric details. If you prefer, another proof of identity can be used.",
+          body: "You can verify with DigiLocker, the Government of India's document wallet: you agree on its own page, and we keep only the name, date of birth, gender and address it states and the last four digits of your Aadhaar number. We never see or keep the full number, your OTP or your password. If you do not use DigiLocker, or it does not match, you send a photo ID instead (for an Aadhaar copy, with all but the last four digits hidden). We also compare your live selfie with your DigiLocker photo or photo ID, using our verification provider.",
         },
       ],
     },
@@ -671,7 +672,7 @@ export const partnerDocuments: Guide = {
   faqs: [
     {
       question: "Why do you not collect the full Aadhaar number?",
-      answer: "Because we do not need it. A masked copy is enough to confirm who you are, and it keeps a sensitive number out of our records.",
+      answer: "Because we do not need it. DigiLocker confirms who you are without the number ever reaching us (we keep only its last four digits), and a masked copy does the same if you send a photo ID instead. It keeps a sensitive number out of our records.",
     },
     {
       question: "Who at WayTara can open my documents?",

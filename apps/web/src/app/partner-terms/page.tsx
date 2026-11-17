@@ -39,9 +39,12 @@ const sections: LegalSection[] = [
       <LegalClauses
         section={n}
         items={[
-          "The first form asks for no documents. If you are shortlisted we invite you, by a personal link, to give your business details, licences, certificates, team and past work.",
+          "The first form asks for no documents. If we take your application forward, after a call with you, we invite you by a personal link to give your business details, licences, certificates, bank account, team and past work.",
           "We check what you give us. We ask for the licence or certificate itself, with its number and validity, because choosing a grade on a form is not proof.",
-          "We do not ask for a full Aadhaar number, an OTP or biometric details. Where an identity proof is needed we ask for a masked copy, and another proof of identity can be used instead.",
+          "You can prove who you are by verifying with DigiLocker, the Government of India's document wallet. You agree on DigiLocker's own page, and you never give us your Aadhaar number, your Aadhaar OTP or your DigiLocker password. We keep only the name, date of birth, gender and address it states and the last four digits of your Aadhaar number, never the full number or the photograph. If DigiLocker verifies you and the name matches the one you gave, we do not need a photo ID from you.",
+          "If you do not use DigiLocker, or it does not match, you send a photo ID instead: any government photo ID, and for an Aadhaar copy one with all but the last four digits hidden. We never ask you to type or send a full Aadhaar number.",
+          "We also ask for a live selfie, and we compare its face with your DigiLocker photograph or your photo ID and check that it shows a live face. We check your PAN, GST number, Udyam number and bank account against the official sources. For this we use a verification provider, and the numbers, names and photographs needed for each check are sent to it. A check is evidence for our team, and our team decides.",
+          "The same applies to each person you list on your team, through a private link you send them. You must have their agreement before you give us their details.",
           "Approval covers only the scope of work we have verified. It does not authorise every electrical or installation activity.",
           "You must send us a new document when one expires or changes, and tell us at once if a licence or certificate lapses or is suspended.",
         ]}
@@ -135,7 +138,7 @@ const sections: LegalSection[] = [
       <LegalClauses
         section={n}
         items={[
-          "How we handle what you give us, including documents and identity proofs, is set out in our Privacy Policy. In short: documents are kept private, only the authorised staff who verify partners can open them, and we do not show them to customers or other partners, or share them with anyone outside WayTara, except where the law requires it.",
+          "How we handle what you give us, including documents, DigiLocker details, selfies and the results of checks, is set out in our Privacy Policy. In short: documents are kept private, only the authorised staff who verify partners can open them, and we do not show them to customers or other partners, or share them with anyone outside WayTara, except where the law requires it.",
           "You can ask to see, correct or delete your information, as the Privacy Policy explains.",
         ]}
       />
@@ -202,11 +205,11 @@ export default function PartnerTermsPage() {
       title="Partner"
       accent="Terms."
       intro="What you and WayTara agree to when you apply to the Partner Network, written to be read before you apply."
-      lastUpdated="16 November 2026"
+      lastUpdated="17 November 2026"
       inShort={[
         "Applying is free, and it is not a job and not a promise of work, income or territory.",
-        "We ask for documents only if you are shortlisted, and we check licences and certificates with the issuing authority.",
-        "We never ask for a full Aadhaar number. Documents stay private and are not shared, except where the law requires it.",
+        "We ask for documents only if we take your application forward, and we check licences, certificates and numbers with the official sources.",
+        "You can verify with DigiLocker instead of sending a photo ID. We never see or keep a full Aadhaar number, and we compare your selfie with your DigiLocker photo or photo ID. Documents stay private and are not shared, except where the law requires it.",
         "You must hold the licences the work needs, and you cannot use someone else's.",
         "A partnership exists only when we sign a written partner agreement, before any work.",
       ]}

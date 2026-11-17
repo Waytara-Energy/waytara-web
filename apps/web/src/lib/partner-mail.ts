@@ -210,7 +210,7 @@ export function buildPartnerCrewInviteMail(a: { memberName: string; partnerName:
     title: "Add your documents",
     greeting: `Hi ${first},`,
     blocks: [
-      { type: "p", text: `${a.partnerName} of ${a.business} has listed you on their team for WayTara projects, and asked you to add your own documents: a photo ID, a selfie, and your certificates. It takes a few minutes on your phone.` },
+      { type: "p", text: `${a.partnerName} of ${a.business} has listed you on their team for WayTara projects, and asked you to add your own documents: your certificates and a selfie, and either a photo ID or a quick verification with DigiLocker. It takes a few minutes on your phone.` },
       { type: "p", text: `The link works for ${a.days} days and only for you. Please do not share it. Only the WayTara team sees what you send, and only to verify you.` },
       { type: "note", text: "If you do not know this person or this business, ignore this e-mail and send nothing." },
     ],
