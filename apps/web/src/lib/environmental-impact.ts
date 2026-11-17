@@ -14,7 +14,7 @@ const GRID_CO2_FACTOR_KG_PER_KWH = EMISSION_FACTOR.kgPerKwh;
 
 // A mature tree absorbs roughly this much CO2 per year — the commonly
 // cited EPA-derived figure most solar CO2 calculators converge on.
-const CO2_KG_PER_TREE_PER_YEAR = 21;
+export const CO2_KG_PER_TREE_PER_YEAR = 21;
 
 export function co2AvoidedKg(energyKwh: number): number {
   return energyKwh * GRID_CO2_FACTOR_KG_PER_KWH;

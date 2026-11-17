@@ -1,5 +1,7 @@
 # Reports, subsidies, credits and tax: research for the customer Reports module
 
+**Build status (18 Nov 2026):** built: the monthly statement, day-by-day energy, month-by-month bills, saved and scheduled reports, EV reports, and the **carbon and sustainability pack** (item 15, part of 16 and 19: CO2 avoided, a location-based Scope 2 estimate and an MRV-ready CSV; see D244 in WEBSITE_PROGRESS.md). Everything else in section 6 is still to build.
+
 Researched 9 Oct 2026 for WayTara (customers in Tamil Nadu: homes, housing societies, businesses, industries, EV charging).
 This is **research to design from, not legal or tax advice.** Each fact carries a confidence tag:
 

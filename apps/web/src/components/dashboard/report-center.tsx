@@ -15,8 +15,10 @@ import { PARAMETER_BY_ID, PARAM_CATEGORIES, parametersOf } from "@/lib/reports/p
 import { defaultChoice, resolveChoice, type PeriodChoice } from "@/lib/reports/period-choice";
 import { monthsWithData } from "@/lib/reports/period-math";
 import { buildStatement } from "@/lib/reports/statement-data";
+import { buildCarbonPack, carbonPeriods } from "@/lib/reports/carbon-data";
 import type { ReportsBase } from "@/lib/reports/gather";
 import { CadencePanel } from "./cadence-panel";
+import { CarbonView } from "./carbon-view";
 import { CustomReportView } from "./custom-report-view";
 import { ALL_DAY, FilterChips, MultiPicker, TimeOfDayFilter, isAllDay, windowIsValid, type DayWindow, type PickGroup } from "./report-filters";
 import { ReportPeriodPicker } from "./report-period-picker";
@@ -24,11 +26,12 @@ import { SeriesReportView, type SeriesReportResponse } from "./series-report-vie
 import { StatementView } from "./statement-view";
 import { useDownloadPending } from "./use-download-pending";
 
-type Mode = "readings" | "totals" | "statement" | "cadence";
+type Mode = "readings" | "totals" | "statement" | "carbon" | "cadence";
 const MODES: { id: Mode; label: string }[] = [
   { id: "readings", label: "Readings" },
   { id: "totals", label: "Daily totals" },
   { id: "statement", label: "Monthly statement" },
+  { id: "carbon", label: "Carbon pack" },
   { id: "cadence", label: "Cadence data" },
 ];
 
@@ -60,6 +63,10 @@ export function ReportCenter({ base, available }: { base: ReportsBase; available
   const [reading, setReading] = React.useState<"avg" | "last">("avg");
   const [view, setView] = React.useState<"graph" | "table">("graph");
   const [month, setMonth] = React.useState(months[0] ?? today.slice(0, 7));
+  // the carbon pack is for a financial year (April to March) or all the history on file; it opens on the latest year
+  const carbonOptions = React.useMemo(() => carbonPeriods(base.days, today), [base.days, today]);
+  const [carbonPick, setCarbonPick] = React.useState("");
+  const carbonId = carbonOptions.some((o) => o.id === carbonPick) ? carbonPick : (carbonOptions[0]?.id ?? "");
   const [csvPending, triggerCsv] = useDownloadPending();
   const [pdfPending, triggerPdf] = useDownloadPending();
 
@@ -133,12 +140,14 @@ export function ReportCenter({ base, available }: { base: ReportsBase; available
     return buildCustomReport(base, def, today);
   }, [mode, base, totals, totalsName, start, end, today]);
   const statement = React.useMemo(() => (mode === "statement" ? buildStatement(base, month) : null), [base, mode, month]);
+  const carbon = React.useMemo(() => (mode === "carbon" && carbonId ? buildCarbonPack(base, carbonId) : null), [base, mode, carbonId]);
 
   // --- the one pair of downloads
-  const ready = mode === "readings" ? isSeries && !!seriesData?.hasData : mode === "statement" ? (statement?.current.days ?? 0) > 0 : (custom?.buckets.length ?? 0) > 0;
+  const ready = mode === "readings" ? isSeries && !!seriesData?.hasData : mode === "statement" ? (statement?.current.days ?? 0) > 0 : mode === "carbon" ? (carbon?.totals.days ?? 0) > 0 : (custom?.buckets.length ?? 0) > 0;
   const href = (format: "csv" | "pdf") => {
     if (mode === "readings") return `/api/reports/day.${format}?${query}`;
     if (mode === "statement") return `/api/reports/statement.${format}?month=${month}${device}`;
+    if (mode === "carbon") return `/api/reports/carbon.${format}?period=${carbonId}${device}`;
     return `/api/reports/custom?format=${format}&series=${totals.join(",")}&from=${start}&to=${end}&name=${encodeURIComponent(totalsName)}${device}`;
   };
 
@@ -148,15 +157,18 @@ export function ReportCenter({ base, available }: { base: ReportsBase; available
       ? !sameIds(readings, defaultReadings) || !isAllDay(win) || interval !== DEFAULT_REPORT_BUCKET_MINUTES || choice.mode !== "day" || choice.date !== today
       : mode === "totals"
         ? !sameIds(totals, DEFAULT_TOTALS) || choice.mode !== "day" || choice.date !== today
-        : month !== (months[0] ?? today.slice(0, 7));
+        : mode === "carbon"
+          ? carbonId !== (carbonOptions[0]?.id ?? "")
+          : month !== (months[0] ?? today.slice(0, 7));
   const reset = () => {
     if (mode === "readings") {
       setReadings(defaultReadings);
       setWin(ALL_DAY);
       setInterval_(DEFAULT_REPORT_BUCKET_MINUTES);
     } else if (mode === "totals") setTotals(DEFAULT_TOTALS);
+    else if (mode === "carbon") setCarbonPick(carbonOptions[0]?.id ?? "");
     else setMonth(months[0] ?? today.slice(0, 7));
-    if (mode !== "statement") setChoice(defaultChoice(today));
+    if (mode === "readings" || mode === "totals") setChoice(defaultChoice(today));
   };
 
   const label = "text-xs font-medium text-muted-foreground";
@@ -212,7 +224,7 @@ export function ReportCenter({ base, available }: { base: ReportsBase; available
       </div>
 
       <div className="rounded-xl border border-border bg-card p-3 sm:p-4">
-        {mode !== "statement" && (
+        {(mode === "readings" || mode === "totals") && (
           <>
             <div className="space-y-2">
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -247,7 +259,23 @@ export function ReportCenter({ base, available }: { base: ReportsBase; available
         )}
 
         <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
-          {mode === "statement" ? (
+          {mode === "carbon" ? (
+            <div className="space-y-1">
+              <span className={label}>Period</span>
+              <Select value={carbonId} onValueChange={setCarbonPick}>
+                <SelectTrigger className="h-9 w-[220px]">
+                  <SelectValue placeholder="No readings yet" />
+                </SelectTrigger>
+                <SelectContent>
+                  {carbonOptions.map((o) => (
+                    <SelectItem key={o.id} value={o.id}>
+                      {o.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          ) : mode === "statement" ? (
             <div className="space-y-1">
               <span className={label}>Month</span>
               <Select value={month} onValueChange={setMonth}>
@@ -329,6 +357,8 @@ export function ReportCenter({ base, available }: { base: ReportsBase; available
         )
       ) : mode === "statement" ? (
         statement && <StatementView s={statement} view={view} />
+      ) : mode === "carbon" ? (
+        carbon ? <CarbonView pack={carbon} view={view} /> : <EmptyPick text="The carbon report needs some days of readings from the inverter. It will be here once there are." />
       ) : custom ? (
         <CustomReportView report={custom} view={view} />
       ) : (
