@@ -36,7 +36,7 @@ export default async function SettingsPage() {
   const member = access.kind === "member";
   const supabase = await createClient();
   const [site, allSites, team, ownerNames] = await Promise.all([getSelectedSite(), getCustomerSites(), member ? Promise.resolve([]) : loadTeam(profile.id), member ? ownerNamesOf(access.ownerIds) : Promise.resolve([])]);
-  const [{ data: row }, { data: customer }, { data: subscription }, { data: sessionRows }, unitValues, { data: ruleRows }, { data: alertRows }, { data: eventRows }, factors, { data: paymentRows }] = await Promise.all([
+  const [{ data: row }, { data: customer }, { data: subscription }, { data: sessionRows }, unitValues, { data: ruleRows }, { data: alertRows }, { data: eventRows }, factors, { data: paymentRows }, { data: authData }] = await Promise.all([
     supabase.from("profiles").select("full_name, phone, email, avatar_url, created_at, notification_preferences, ui_preferences, security_preferences").eq("id", profile.id).maybeSingle(),
     supabase.from("customers").select("status, address, billing_address, billing_email, gstin, plan_started_at, plan:plans(name, price_monthly)").eq("id", profile.id).maybeSingle(),
     supabase.from("subscriptions").select("status, current_period_start, current_period_end").eq("customer_id", profile.id).order("created_at", { ascending: false }).limit(1).maybeSingle(),
@@ -50,7 +50,10 @@ export default async function SettingsPage() {
     supabase.auth.mfa.listFactors(),
     // the payments of the Billing tab (RLS scopes them to this customer; the limit keeps a very old account from an unbounded read)
     supabase.from("payments").select("id, payment_type, amount, status, method, paid_at, created_at").order("created_at", { ascending: false }).limit(500),
+    // the sign-in account's own creation date: "Member since" falls back to it, so it is never blank
+    supabase.auth.getUser(),
   ]);
+  const memberSince = row?.created_at ?? authData.user?.created_at ?? null;
 
   // what the account holds, as counts (RLS keeps every one of them to this customer's own rows)
   const count = (table: "sites" | "equipment" | "alert_rules" | "support_tickets" | "account_events") => supabase.from(table).select("id", { count: "exact", head: true });
@@ -119,9 +122,9 @@ export default async function SettingsPage() {
     <>
       {!member && <RealtimeRefresh table="payments" event="UPDATE" filter={`customer_id=eq.${profile.id}`} />}
       <SettingsBoard
-      hero={{ name, email, avatarUrl: row?.avatar_url ?? null, completeness: profileCompleteness(health).percent, planName: member ? `Team member${ownerNames.length > 0 ? ` of ${ownerNames.join(", ")}` : ""}` : (customer?.plan?.name ?? null), member, memberSince: row?.created_at ?? null, sites: allSites.length, devices: deviceCount }}
+      hero={{ name, email, avatarUrl: row?.avatar_url ?? null, completeness: profileCompleteness(health).percent, planName: member ? `Team member${ownerNames.length > 0 ? ` of ${ownerNames.join(", ")}` : ""}` : (customer?.plan?.name ?? null), member, memberSince, sites: allSites.length, devices: deviceCount }}
       account={{ health, events, plan, pausedUntil: pausedIso, now }}
-      profile={{ userId: profile.id, fullName: name, phone: row?.phone ?? "", email, avatarUrl: row?.avatar_url ?? null, memberSince: row?.created_at ?? null }}
+      profile={{ userId: profile.id, fullName: name, phone: row?.phone ?? "", email, avatarUrl: row?.avatar_url ?? null, memberSince }}
       appearance={{ initial: parseAppearance(row?.ui_preferences) }}
       units={{ initial: parseUnitPrefs(row?.ui_preferences), values: unitValues }}
       dashboard={{ startPage: parseStartPage(row?.ui_preferences), startOptions: member ? START_PAGES.filter((p) => p.id !== "support" && access.pages.some((x) => x === p.id)).map((p) => p.id) : undefined, sites: allSites.map((s) => ({ id: s.id, name: s.name, devices: s.devices.length, address: s.address ? addressLine(parseAddress(s.address)) || null : null })), selectedSiteId: site?.id ?? null, overview: overviewProps, car: parseCarProfile(row?.ui_preferences) }}
