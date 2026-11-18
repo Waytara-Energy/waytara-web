@@ -300,14 +300,20 @@ create policy support_attachments_read on waytara.support_attachments for select
     )
   );
 
+-- does this site belong to this account? Asked by the alert rule rule below, whose check must not depend on which sites the asker happens to see (a super user sees only the
+-- sites that hold a device, and a site with none is still the owner's).
+create or replace function waytara.site_belongs_to(p_site uuid, p_owner uuid)
+returns boolean
+language sql stable security definer set search_path = waytara, pg_temp
+as $$ select exists (select 1 from waytara.sites s where s.id = p_site and s.customer_id = p_owner) $$;
+revoke all on function waytara.site_belongs_to(uuid, uuid) from public, anon;
+grant execute on function waytara.site_belongs_to(uuid, uuid) to authenticated, service_role;
+
 -- alert rules: a super user manages the owner's, for the owner's own sites only
 drop policy if exists alert_rules_super_all on waytara.alert_rules;
 create policy alert_rules_super_all on waytara.alert_rules for all to authenticated
   using (waytara.is_super_of(customer_id))
-  with check (
-    waytara.is_super_of(customer_id)
-    and (site_id is null or exists (select 1 from waytara.sites s where s.id = alert_rules.site_id and s.customer_id = alert_rules.customer_id))
-  );
+  with check (waytara.is_super_of(customer_id) and (site_id is null or waytara.site_belongs_to(site_id, customer_id)));
 
 -- Rollback: drop policy alert_rules_super_all; restore the three read policies and the eight support functions from the migrations that created them
--- (20261023* support v2); drop function is_super_of(uuid), is_super_of_as(uuid, uuid).
+-- (20261023* support v2); drop function is_super_of(uuid), is_super_of_as(uuid, uuid), site_belongs_to(uuid, uuid).

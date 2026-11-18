@@ -46,7 +46,8 @@ select pg_temp.as_user('5a000000-0000-0000-0000-0000000000f4');
 select is((select count(*)::int from waytara.support_tickets where id = current_setting('test.t1')::uuid), 1, 'a super user sees the owner''s ticket');
 select is((select count(*)::int from waytara.support_messages where ticket_id = current_setting('test.t1')::uuid), 1, 'and its messages');
 select lives_ok($$select waytara.support_send_message(current_setting('test.t1')::uuid, 'I will check it today.', false)$$, 'a super user answers it');
-select is((select sender_role || '/' || sender_id::text from waytara.support_messages where ticket_id = current_setting('test.t1')::uuid order by created_at desc, id limit 1), 'customer/5a000000-0000-0000-0000-0000000000f4', 'as the customer''s side, under their own name');
+-- (every message of one transaction has the same time, so the message is found by who wrote it, not by being the latest)
+select is((select sender_role from waytara.support_messages where ticket_id = current_setting('test.t1')::uuid and sender_id = '5a000000-0000-0000-0000-0000000000f4'), 'customer', 'as the customer''s side, under their own name');
 select set_config('test.t2', (waytara.support_create_ticket('51000000-0000-0000-0000-0000000000f4', null, 'other', 'Opened by the super user', 'Hello team.') ->> 'ticket_id'), true);
 select is((select customer_id from waytara.support_tickets where id = current_setting('test.t2')::uuid), 'c1000000-0000-0000-0000-0000000000f4'::uuid, 'a ticket a super user opens belongs to the owner');
 select throws_ok($$select waytara.support_create_ticket('52000000-0000-0000-0000-0000000000f4', null, 'other', 'Not theirs', 'x')$$, '42501', null, 'but not on another customer''s site');
