@@ -5,19 +5,21 @@ begin;
 create extension if not exists pgtap with schema extensions;
 set search_path = extensions, public, waytara;
 
-select plan(39);
+select plan(43);
 
 insert into auth.users (id, instance_id, aud, role, email) values
   ('c1000000-0000-0000-0000-0000000000c1', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'owner@team.local'),
   ('c2000000-0000-0000-0000-0000000000c2', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'other@team.local'),
   ('a1000000-0000-0000-0000-0000000000a1', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'm1@team.local'),
   ('a2000000-0000-0000-0000-0000000000a2', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'm2@team.local'),
+  ('a3000000-0000-0000-0000-0000000000a3', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'm3@team.local'),
   ('50000000-0000-0000-0000-0000000000a0', '00000000-0000-0000-0000-000000000000', 'authenticated', 'authenticated', 'svc@team.local');
 insert into waytara.profiles (id, email, role, full_name) values
   ('c1000000-0000-0000-0000-0000000000c1', 'owner@team.local', 'customer', 'Owner'),
   ('c2000000-0000-0000-0000-0000000000c2', 'other@team.local', 'customer', 'Other'),
   ('a1000000-0000-0000-0000-0000000000a1', 'm1@team.local', 'customer', 'Member One'),
-  ('a2000000-0000-0000-0000-0000000000a2', 'm2@team.local', 'customer', 'Member Two');
+  ('a2000000-0000-0000-0000-0000000000a2', 'm2@team.local', 'customer', 'Member Two'),
+  ('a3000000-0000-0000-0000-0000000000a3', 'm3@team.local', 'customer', 'Super User');
 insert into waytara.customers (id) values ('c1000000-0000-0000-0000-0000000000c1'), ('c2000000-0000-0000-0000-0000000000c2');
 insert into waytara.gateway_service_users (user_id, label) values ('50000000-0000-0000-0000-0000000000a0', 'test backend');
 
@@ -49,7 +51,8 @@ update waytara.customers set plan_id = (select id from waytara.plans order by pr
 -- Member Two: suspended (read on I1). A third invitation is still waiting for its person.
 insert into waytara.team_members (id, owner_id, user_id, email, role, pages, can_schedule, status, accepted_at) values
   ('7e000000-0000-0000-0000-000000000001', 'c1000000-0000-0000-0000-0000000000c1', 'a1000000-0000-0000-0000-0000000000a1', 'm1@team.local', 'manager', array['overview', 'reports'], true, 'active', now()),
-  ('7e000000-0000-0000-0000-000000000002', 'c1000000-0000-0000-0000-0000000000c1', 'a2000000-0000-0000-0000-0000000000a2', 'm2@team.local', 'viewer', array['overview'], false, 'suspended', now());
+  ('7e000000-0000-0000-0000-000000000002', 'c1000000-0000-0000-0000-0000000000c1', 'a2000000-0000-0000-0000-0000000000a2', 'm2@team.local', 'viewer', array['overview'], false, 'suspended', now()),
+  ('7e000000-0000-0000-0000-000000000004', 'c1000000-0000-0000-0000-0000000000c1', 'a3000000-0000-0000-0000-0000000000a3', 'm3@team.local', 'super', array['overview', 'monitoring', 'performance', 'reports', 'maintenance', 'site', 'devices'], true, 'active', now());
 insert into waytara.team_members (id, owner_id, email, role, pages, status) values
   ('7e000000-0000-0000-0000-000000000003', 'c1000000-0000-0000-0000-0000000000c1', 'new@team.local', 'viewer', array['overview'], 'invited');
 insert into waytara.team_member_devices (member_id, equipment_id, level) values
@@ -103,6 +106,16 @@ select ok(not waytara.can_view_equipment('e1000000-0000-0000-0000-000000000001')
 select throws_ok($$insert into waytara.customer_reports (customer_id, name, params) values ('c1000000-0000-0000-0000-0000000000c1', 'Weekly', '{}'::jsonb)$$, '42501', null, 'and cannot schedule anything');
 reset role;
 
+-- ---- a super user: every device of the owner, none of them listed -------------------------------------------------------------------------------------
+
+set local role authenticated;
+select set_config('request.jwt.claims', '{"sub":"a3000000-0000-0000-0000-0000000000a3","role":"authenticated"}', true);
+select is((select count(*)::int from waytara.equipment), 5, 'a super user sees every device of the owner (and the panels under the inverter), though none is listed for them');
+select is((select count(*)::int from waytara.equipment where id = 'ec000000-0000-0000-0000-000000000002'), 0, 'but not another customer''s device');
+select ok(waytara.can_operate_equipment('ec000000-0000-0000-0000-00000000001b') and waytara.can_operate_equipment('e1000000-0000-0000-0000-00000000001b'), 'and may operate every one, even those a manager is only allowed to read');
+select ok(waytara.team_can_schedule('c1000000-0000-0000-0000-0000000000c1') and waytara.team_has_page('c1000000-0000-0000-0000-0000000000c1', 'devices'), 'with every page and the scheduled reports');
+reset role;
+
 -- ---- another customer, and the owner ---------------------------------------------------------------------------------------------------------------
 
 set local role authenticated;
@@ -113,7 +126,7 @@ reset role;
 
 set local role authenticated;
 select set_config('request.jwt.claims', '{"sub":"c1000000-0000-0000-0000-0000000000c1","role":"authenticated"}', true);
-select is((select count(*)::int from waytara.team_members), 3, 'the owner sees all their invitations');
+select is((select count(*)::int from waytara.team_members), 4, 'the owner sees all their invitations, the super user included');
 select is((select count(*)::int from waytara.team_member_devices), 4, 'and every device given');
 reset role;
 

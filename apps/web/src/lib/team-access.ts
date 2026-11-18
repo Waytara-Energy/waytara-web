@@ -8,11 +8,13 @@ export interface TeamAccess {
   kind: "owner" | "member";
   pages: readonly TeamPage[];
   canSchedule: boolean;
-  /** For a member: the accounts that invited them. */
+  /** For a member: the accounts that invited them (the ones that made them a super user first). */
   ownerIds: readonly string[];
+  /** A super user: everything the owner has in the dashboard, and the Team tab (see migration 20261119020000). */
+  superUser: boolean;
 }
 
-export const OWNER_ACCESS: TeamAccess = { kind: "owner", pages: TEAM_PAGE_KEYS, canSchedule: true, ownerIds: [] };
+export const OWNER_ACCESS: TeamAccess = { kind: "owner", pages: TEAM_PAGE_KEYS, canSchedule: true, ownerIds: [], superUser: false };
 
 /**
  * Who this is, in team terms. A person whose invitation was accepted (and who is not suspended) and who has no account of their own is a MEMBER; everyone else is an
@@ -20,26 +22,29 @@ export const OWNER_ACCESS: TeamAccess = { kind: "owner", pages: TEAM_PAGE_KEYS, 
  */
 export async function loadTeamAccess(supabase: TypedSupabaseClient, userId: string, role: string): Promise<TeamAccess> {
   if (role !== "customer") return OWNER_ACCESS;
-  const { data: rows } = await supabase.from("team_members").select("owner_id, pages, can_schedule").eq("user_id", userId).eq("status", "active");
+  const { data: rows } = await supabase.from("team_members").select("owner_id, pages, can_schedule, role").eq("user_id", userId).eq("status", "active");
   if (!rows || rows.length === 0) return OWNER_ACCESS;
   // someone who also has a customer account of their own keeps the full dashboard for it
   const { data: own } = await supabase.from("customers").select("id").eq("id", userId).maybeSingle();
   if (own) return OWNER_ACCESS;
-  const pages = TEAM_PAGE_KEYS.filter((k) => rows.some((r) => (r.pages ?? []).includes(k)));
-  return { kind: "member", pages, canSchedule: rows.some((r) => r.can_schedule), ownerIds: rows.map((r) => r.owner_id) };
+  // a super user (of any of the accounts they belong to) has every page and the schedules, and their super accounts come first
+  const superUser = rows.some((r) => r.role === "super");
+  const ordered = [...rows].sort((a, b) => Number(b.role === "super") - Number(a.role === "super"));
+  const pages = superUser ? TEAM_PAGE_KEYS : TEAM_PAGE_KEYS.filter((k) => rows.some((r) => (r.pages ?? []).includes(k)));
+  return { kind: "member", pages, canSchedule: superUser || rows.some((r) => r.can_schedule), ownerIds: ordered.map((r) => r.owner_id), superUser };
 }
 
 /** The value the proxy forwards to the pages (so a page does not ask the database again). ASCII only, as a header must be. */
-export const teamAccessHeader = (a: TeamAccess): string => (a.kind === "owner" ? "owner" : JSON.stringify({ p: a.pages, s: a.canSchedule, o: a.ownerIds }));
+export const teamAccessHeader = (a: TeamAccess): string => (a.kind === "owner" ? "owner" : JSON.stringify({ p: a.pages, s: a.canSchedule, o: a.ownerIds, u: a.superUser }));
 
 /** Reads that value back; anything that is not exactly what the proxy writes is null (the caller then asks the database). */
 export function parseTeamAccessHeader(value: string | null): TeamAccess | null {
   if (value === "owner") return OWNER_ACCESS;
   if (!value) return null;
   try {
-    const v = JSON.parse(value) as { p?: unknown; s?: unknown; o?: unknown };
+    const v = JSON.parse(value) as { p?: unknown; s?: unknown; o?: unknown; u?: unknown };
     if (!Array.isArray(v.p) || !Array.isArray(v.o)) return null;
-    return { kind: "member", pages: TEAM_PAGE_KEYS.filter((k) => (v.p as unknown[]).includes(k) && isTeamPage(k)), canSchedule: v.s === true, ownerIds: v.o.filter((x): x is string => typeof x === "string") };
+    return { kind: "member", pages: TEAM_PAGE_KEYS.filter((k) => (v.p as unknown[]).includes(k) && isTeamPage(k)), canSchedule: v.s === true, ownerIds: v.o.filter((x): x is string => typeof x === "string"), superUser: v.u === true };
   } catch {
     return null;
   }

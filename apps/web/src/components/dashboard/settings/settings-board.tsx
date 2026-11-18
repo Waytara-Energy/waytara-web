@@ -3,7 +3,7 @@
 import type { ComponentProps } from "react";
 import { Bell, BellRing, CreditCard, Gauge, LayoutDashboard, LockKeyhole, Palette, Ruler, ShieldCheck, User, Users, type LucideIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { MEMBER_SETTINGS_TABS } from "@waytara/supabase/team";
+import { MEMBER_SETTINGS_TABS, SUPER_SETTINGS_TABS } from "@waytara/supabase/team";
 import type { SettingsTab } from "@/lib/account-health";
 import { cn } from "@/lib/utils";
 import { useHashTab } from "../use-hash-tab";
@@ -37,6 +37,7 @@ const TABS: { id: SettingsTab; label: string; icon: LucideIcon; active: string }
 ];
 const IDS = TABS.map((t) => t.id);
 const MEMBER_IDS: SettingsTab[] = [...MEMBER_SETTINGS_TABS];
+const SUPER_IDS: SettingsTab[] = [...SUPER_SETTINGS_TABS];
 
 export interface SettingsBoardProps {
   hero: HeroProps;
@@ -59,8 +60,9 @@ export interface SettingsBoardProps {
 export function SettingsBoard(props: SettingsBoardProps) {
   // A team member has five tabs, their own profile and how the dashboard looks and behaves for them, and opens on Profile; the account's other tabs are the owner's.
   const member = props.hero.member === true;
-  const [tab, open] = useHashTab(member ? MEMBER_IDS : IDS, member ? "profile" : "account");
-  const shownTabs = member ? TABS.filter((t) => MEMBER_IDS.includes(t.id)) : TABS;
+  const memberIds = props.hero.superUser === true ? SUPER_IDS : MEMBER_IDS;
+  const [tab, open] = useHashTab(member ? memberIds : IDS, member ? "profile" : "account");
+  const shownTabs = member ? TABS.filter((t) => memberIds.includes(t.id)) : TABS;
   const { account, alerts } = props;
 
   const signs: Partial<Record<SettingsTab, { dot?: "amber" | "rose"; count?: number }>> = {

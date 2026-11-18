@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MEMBER_SETTINGS_TABS, ROLE_PRESETS, TEAM_PAGES, TEAM_PAGE_KEYS, accessSummary, checkAccess, checkInvite, firstPageHref, isMemberSettingsPath, maskEmail, pageOfPath, roleLabel } from "./team";
+import { MEMBER_SETTINGS_TABS, SUPER_SETTINGS_TABS, isTeamRole, ROLE_PRESETS, TEAM_PAGES, TEAM_PAGE_KEYS, accessSummary, checkAccess, checkInvite, firstPageHref, isMemberSettingsPath, maskEmail, pageOfPath, roleLabel } from "./team";
 
 const D1 = "d1000000-0000-4000-8000-000000000001";
 const D2 = "d2000000-0000-4000-8000-000000000002";
@@ -85,6 +85,32 @@ describe("how access reads", () => {
   it("masks an address", () => {
     expect(maskEmail("asha.rao@example.com")).toBe("a******@example.com".replace("******", "*".repeat(6)));
     expect(maskEmail("ab@x.in")).toBe("a**@x.in");
+  });
+});
+
+describe("the Super user role", () => {
+  it("is a preset with everything", () => {
+    expect(ROLE_PRESETS.super).toMatchObject({ level: "operate", canSchedule: true });
+    expect(ROLE_PRESETS.super.pages).toEqual(TEAM_PAGE_KEYS);
+    expect(isTeamRole("super")).toBe(true);
+  });
+  it("needs no device list and no page list: it gets every page, the schedules, and no devices are stored (the database gives them all)", () => {
+    const r = checkAccess({ role: "super", fullName: " Asha ", pages: [], devices: [] }, new Set());
+    expect(r).toEqual({ ok: true, value: { fullName: "Asha", role: "super", pages: [...TEAM_PAGE_KEYS], canSchedule: true, devices: [] } });
+  });
+  it("ignores whatever pages or devices are sent with it", () => {
+    const r = checkAccess({ role: "super", pages: ["overview"], canSchedule: false, devices: [{ equipmentId: D1, level: "read" }] }, new Set([D1]));
+    expect(r.ok && r.value.devices).toEqual([]);
+    expect(r.ok && r.value.pages).toEqual([...TEAM_PAGE_KEYS]);
+  });
+  it("is still a valid invitation, and any other role still needs a device and a page", () => {
+    expect(checkInvite({ email: "A@Example.com", role: "super" }, { ownEmail: "o@example.com", owned: new Set() }).ok).toBe(true);
+    expect(checkAccess({ role: "manager", pages: ["overview"], devices: [] }, new Set()).ok).toBe(false);
+  });
+  it("reads as a super user in a list, and may manage the team in Settings", () => {
+    expect(roleLabel("super")).toBe("Super user");
+    expect(accessSummary({ role: "super", pages: [], canSchedule: true, devices: [] })).toBe("Super user · everything, like the owner");
+    expect([...SUPER_SETTINGS_TABS]).toEqual([...MEMBER_SETTINGS_TABS, "team"]);
   });
 });
 

@@ -20,6 +20,7 @@ export interface TeamAccessSummary {
 
 /** What the person gets, as a small table: "Role / Operator", "Devices / 2 (you operate 1)", "Pages / 5". */
 export function accessFacts(a: TeamAccessSummary): [string, string][] {
+  if (a.role === "super") return [["Role", roleLabel(a.role)], ["Access", "Everything, like the owner"]];
   const devices = `${a.deviceCount}${a.operateCount > 0 ? (a.operateCount === a.deviceCount ? " (you can operate " + (a.deviceCount === 1 ? "it" : "them") + ")" : ` (you can operate ${a.operateCount})`) : " (view only)"}`;
   const rows: [string, string][] = [
     ["Role", roleLabel(a.role)],

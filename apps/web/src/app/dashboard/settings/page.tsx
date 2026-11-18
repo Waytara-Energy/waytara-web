@@ -1,4 +1,5 @@
 import { createClient } from "@waytara/supabase/server";
+import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { getTeamAccess, loadTeam, ownerNamesOf } from "@/lib/team-server";
 import { requireCustomer } from "@waytara/supabase/auth";
 import { SettingsBoard } from "@/components/dashboard/settings/settings-board";
@@ -34,8 +35,16 @@ export default async function SettingsPage() {
   // A team member opens the same page with only their own settings (profile, look, units, dashboard, security); the account's notifications, alerts, billing and team stay with the owner
   const access = await getTeamAccess();
   const member = access.kind === "member";
+  // a super user also manages the team, for the owner who made them one (read with the server's key: the database only shows a member their own row)
+  const superUser = member && access.superUser;
+  const teamOwnerId = superUser ? (access.ownerIds[0] ?? profile.id) : profile.id;
   const supabase = await createClient();
-  const [site, allSites, team, ownerNames] = await Promise.all([getSelectedSite(), getCustomerSites(), member ? Promise.resolve([]) : loadTeam(profile.id), member ? ownerNamesOf(access.ownerIds) : Promise.resolve([])]);
+  const [site, allSites, team, ownerNames] = await Promise.all([
+    getSelectedSite(),
+    getCustomerSites(),
+    superUser ? loadTeam(teamOwnerId, createServiceRoleClient() as unknown as Awaited<ReturnType<typeof createClient>>) : member ? Promise.resolve([]) : loadTeam(profile.id),
+    member ? ownerNamesOf(access.ownerIds) : Promise.resolve([]),
+  ]);
   const [{ data: row }, { data: customer }, { data: subscription }, { data: sessionRows }, unitValues, { data: ruleRows }, { data: alertRows }, { data: eventRows }, factors, { data: paymentRows }, { data: authData }] = await Promise.all([
     supabase.from("profiles").select("full_name, phone, email, avatar_url, created_at, notification_preferences, ui_preferences, security_preferences").eq("id", profile.id).maybeSingle(),
     supabase.from("customers").select("status, address, billing_address, billing_email, gstin, plan_started_at, plan:plans(name, price_monthly)").eq("id", profile.id).maybeSingle(),
@@ -122,7 +131,7 @@ export default async function SettingsPage() {
     <>
       {!member && <RealtimeRefresh table="payments" event="UPDATE" filter={`customer_id=eq.${profile.id}`} />}
       <SettingsBoard
-      hero={{ name, email, avatarUrl: row?.avatar_url ?? null, completeness: profileCompleteness(health).percent, planName: member ? `Team member${ownerNames.length > 0 ? ` of ${ownerNames.join(", ")}` : ""}` : (customer?.plan?.name ?? null), member, memberSince, sites: allSites.length, devices: deviceCount }}
+      hero={{ name, email, avatarUrl: row?.avatar_url ?? null, completeness: profileCompleteness(health).percent, planName: member ? `${superUser ? "Super user" : "Team member"}${ownerNames.length > 0 ? ` of ${ownerNames.join(", ")}` : ""}` : (customer?.plan?.name ?? null), member, superUser, memberSince, sites: allSites.length, devices: deviceCount }}
       account={{ health, events, plan, pausedUntil: pausedIso, now }}
       profile={{ userId: profile.id, fullName: name, phone: row?.phone ?? "", email, avatarUrl: row?.avatar_url ?? null, memberSince }}
       appearance={{ initial: parseAppearance(row?.ui_preferences) }}
@@ -131,10 +140,11 @@ export default async function SettingsPage() {
       notifications={{ initial: prefs, pausedUntil: pausedIso, email }}
       alerts={{ rules, sites: siteList, recent, emailOn: prefs.rule_alerts, paused: paused !== null, now }}
       team={{
+        viewerIsSuper: superUser,
         members: team,
         // only devices on sites this account owns can be shared
         sites: allSites
-          .filter((s) => s.ownerId === profile.id)
+          .filter((s) => s.ownerId === teamOwnerId)
           .map((s) => ({ id: s.id, name: s.name, devices: s.devices.map((d) => ({ id: d.id, name: deviceDisplayId(d), kind: d.deviceType?.name ?? "Device" })) }))
           .filter((s) => s.devices.length > 0),
         now,

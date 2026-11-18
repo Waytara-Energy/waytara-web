@@ -90,9 +90,10 @@ export interface TeamMemberView {
   devices: { equipmentId: string; level: DeviceLevel }[];
 }
 
-/** The owner's team, newest first, as the Settings tab lists it (the owner's own session reads it: the database only returns their rows). */
-export async function loadTeam(ownerId: string): Promise<TeamMemberView[]> {
-  const supabase = await createClient();
+/** The owner's team, newest first, as the Settings tab lists it (the owner's own session reads it: the database only returns their rows). A super user is not the owner, so
+ *  for them it is read with the server's key (`client`), for the owner who made them one only. */
+export async function loadTeam(ownerId: string, client?: Awaited<ReturnType<typeof createClient>>): Promise<TeamMemberView[]> {
+  const supabase = client ?? (await createClient());
   const { data: members } = await supabase
     .from("team_members")
     .select("id, email, full_name, role, pages, can_schedule, status, access_expires_at, invited_at, last_sent_at, accepted_at")

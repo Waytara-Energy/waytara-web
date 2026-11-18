@@ -29,6 +29,8 @@ export interface TeamSite {
   devices: TeamDevice[];
 }
 export interface TeamProps {
+  /** The person looking is a super user, not the owner: they can manage the team, but only the owner can change or remove a super user. */
+  viewerIsSuper?: boolean;
   members: TeamMemberView[];
   /** only the owner's own sites: the devices that can be shared */
   sites: TeamSite[];
@@ -64,7 +66,7 @@ const STATUS: Record<TeamMemberView["status"], { label: string; tone: "emerald" 
 };
 
 /** Settings > Team: the people the owner has invited to see their system, what each may see (pages), and for each device whether they may only look or also operate it. */
-export function TeamSection({ members, sites, now }: TeamProps) {
+export function TeamSection({ members, sites, now, viewerIsSuper = false }: TeamProps) {
   const router = useRouter();
   const [editing, setEditing] = React.useState<{ member: TeamMemberView | null } | null>(null);
   const [busyId, setBusyId] = React.useState<string | null>(null);
@@ -133,6 +135,9 @@ export function TeamSection({ members, sites, now }: TeamProps) {
                       </p>
                     )}
                   </div>
+                  {viewerIsSuper && m.role === "super" ? (
+                    <span className="text-xs text-muted-foreground">Owner only</span>
+                  ) : (
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button type="button" variant="ghost" size="icon" aria-label={`Actions for ${m.fullName || m.email}`} disabled={busyId === m.id}>
@@ -164,6 +169,7 @@ export function TeamSection({ members, sites, now }: TeamProps) {
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
+                  )}
                 </li>
               );
             })}
@@ -180,7 +186,7 @@ export function TeamSection({ members, sites, now }: TeamProps) {
         ))}
       </div>
 
-      {editing && <MemberDialog member={editing.member} sites={sites} onClose={() => setEditing(null)} onDone={() => { setEditing(null); router.refresh(); }} />}
+      {editing && <MemberDialog member={editing.member} sites={sites} viewerIsSuper={viewerIsSuper} onClose={() => setEditing(null)} onDone={() => { setEditing(null); router.refresh(); }} />}
 
       <Dialog open={!!confirmRemove} onOpenChange={(o) => !o && setConfirmRemove(null)}>
         <DialogContent className="sm:max-w-md">
@@ -215,7 +221,7 @@ export function TeamSection({ members, sites, now }: TeamProps) {
 }
 
 /** Invite (member === null) or change the access of one person: e-mail and name, a ready-made role that fills in the rest, then pages, schedules and each device's level. */
-function MemberDialog({ member, sites, onClose, onDone }: { member: TeamMemberView | null; sites: TeamSite[]; onClose: () => void; onDone: () => void }) {
+function MemberDialog({ member, sites, viewerIsSuper, onClose, onDone }: { member: TeamMemberView | null; sites: TeamSite[]; viewerIsSuper: boolean; onClose: () => void; onDone: () => void }) {
   const isNew = member === null;
   const [draft, setDraft] = React.useState<Draft>(() =>
     member
@@ -286,7 +292,7 @@ function MemberDialog({ member, sites, onClose, onDone }: { member: TeamMemberVi
 
           <div className="space-y-2">
             <p className="text-sm font-medium text-foreground">Role</p>
-            <div className="grid gap-2 sm:grid-cols-4">
+            <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
               {PRESET_KEYS.map((k) => (
                 <button
                   key={k}
@@ -305,6 +311,12 @@ function MemberDialog({ member, sites, onClose, onDone }: { member: TeamMemberVi
             <p className="text-xs text-muted-foreground">{draft.role === "custom" ? "You changed the access by hand." : ROLE_PRESETS[draft.role as Exclude<TeamRole, "custom">]?.description}</p>
           </div>
 
+          {draft.role === "super" ? (
+            <p className="rounded-xl border border-amber-500/40 bg-amber-500/10 px-3 py-3 text-sm text-foreground">
+              A super user has everything, like you: every page, every device (new ones too) to operate, scheduled reports, and managing the team. {viewerIsSuper ? "Only the owner can change or remove a super user." : "Only you can change or remove a super user."} Billing, support tickets and alert rules stay with the account owner.
+            </p>
+          ) : (
+            <>
           <div className="space-y-2">
             <p className="text-sm font-medium text-foreground">Devices ({count} chosen)</p>
             <div className="space-y-3">
@@ -371,6 +383,9 @@ function MemberDialog({ member, sites, onClose, onDone }: { member: TeamMemberVi
             </div>
             <Switch checked={draft.canSchedule} disabled={!draft.pages.includes("reports")} onCheckedChange={(v) => edit({ canSchedule: v })} aria-label="Manage scheduled reports" />
           </div>
+
+            </>
+          )}
 
           {error && (
             <p role="alert" className="text-sm text-destructive">

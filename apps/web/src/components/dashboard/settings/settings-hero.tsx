@@ -19,6 +19,8 @@ export interface HeroProps {
   planName: string | null;
   /** A team member (not the account's owner): "Get support" is the owner's, so it is left out. */
   member?: boolean;
+  /** A super user (a member the owner gave everything): the Team tab is theirs too. */
+  superUser?: boolean;
   memberSince: string | null;
   sites: number;
   devices: number;

@@ -24,8 +24,8 @@ export const isTeamPage = (v: unknown): v is TeamPage => typeof v === "string" &
 export type DeviceLevel = "read" | "operate";
 export const isDeviceLevel = (v: unknown): v is DeviceLevel => v === "read" || v === "operate";
 
-export type TeamRole = "viewer" | "operator" | "manager" | "custom";
-export const TEAM_ROLES: readonly TeamRole[] = ["viewer", "operator", "manager", "custom"];
+export type TeamRole = "viewer" | "operator" | "manager" | "super" | "custom";
+export const TEAM_ROLES: readonly TeamRole[] = ["viewer", "operator", "manager", "super", "custom"];
 export const isTeamRole = (v: unknown): v is TeamRole => typeof v === "string" && (TEAM_ROLES as readonly string[]).includes(v);
 
 export interface RolePreset {
@@ -56,6 +56,13 @@ export const ROLE_PRESETS: Record<Exclude<TeamRole, "custom">, RolePreset> = {
   manager: {
     label: "Manager",
     description: "Operates the devices and also manages scheduled reports.",
+    pages: ["overview", "monitoring", "performance", "reports", "maintenance", "site", "devices"],
+    level: "operate",
+    canSchedule: true,
+  },
+  super: {
+    label: "Super user",
+    description: "Everything, like the owner: every page, every device (new ones too) to operate, scheduled reports, and managing the team.",
     pages: ["overview", "monitoring", "performance", "reports", "maintenance", "site", "devices"],
     level: "operate",
     canSchedule: true,
@@ -96,6 +103,9 @@ export function checkAccess(input: unknown, owned: ReadonlySet<string>): Checked
   const o = (input && typeof input === "object" ? input : {}) as Record<string, unknown>;
   const fullName = typeof o.fullName === "string" ? o.fullName.trim().replace(/\s+/g, " ").slice(0, 120) : "";
   const role = isTeamRole(o.role) ? o.role : "custom";
+
+  // A super user has everything: every page, the scheduled reports, and every device of the owner (the database gives those, new ones too), so none is listed.
+  if (role === "super") return { ok: true, value: { fullName: fullName || null, role, pages: [...TEAM_PAGE_KEYS], canSchedule: true, devices: [] } };
 
   const pagesRaw = Array.isArray(o.pages) ? o.pages : [];
   if (pagesRaw.some((p) => !isTeamPage(p))) return { ok: false, error: "One of the pages chosen is not one that can be shared." };
@@ -169,6 +179,8 @@ export function pageOfPath(pathname: string): TeamPage | "owner" | null {
  * billing, team and data stay with the owner.
  */
 export const MEMBER_SETTINGS_TABS = ["profile", "appearance", "units", "dashboard", "security"] as const;
+/** A super user also manages the team (the owner's other tabs, billing, alerts and notifications, are tied to the owner's own sign-in). */
+export const SUPER_SETTINGS_TABS = [...MEMBER_SETTINGS_TABS, "team"] as const;
 export type MemberSettingsTab = (typeof MEMBER_SETTINGS_TABS)[number];
 
 /** Application Settings itself (and nothing under it, such as the old device-settings page) is open to a team member. */
@@ -184,6 +196,7 @@ export function firstPageHref(pages: readonly string[]): string {
 
 /** What a member's access is, in words for a list: "Viewer · 2 devices · 5 pages". */
 export function accessSummary(a: { role: string; pages: readonly string[]; canSchedule: boolean; devices: readonly { level: DeviceLevel }[] }): string {
+  if (a.role === "super") return "Super user · everything, like the owner";
   const operate = a.devices.filter((d) => d.level === "operate").length;
   const parts = [
     roleLabel(a.role),
