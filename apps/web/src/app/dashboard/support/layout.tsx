@@ -3,6 +3,7 @@ import { cookies } from "next/headers";
 import { createClient } from "@waytara/supabase/server";
 import { getRequestProfile } from "@/lib/request-profile";
 import { deviceDisplayId, getCustomerSites, resolveSelectedSite, SELECTED_SITE_COOKIE } from "@/lib/selected-site";
+import { getTeamAccess } from "@/lib/team-server";
 import { NewSupportTicketDialog } from "@/components/dashboard/new-support-ticket-dialog";
 import { SupportInbox, type InboxTicket } from "@/components/dashboard/support-inbox";
 import { SupportShell } from "@/components/dashboard/support-shell";
@@ -26,7 +27,7 @@ export default function SupportLayout({ children }: { children: React.ReactNode 
 }
 
 async function Inbox() {
-  const [profile, sites, cookieStore] = await Promise.all([getRequestProfile(), getCustomerSites(), cookies()]);
+  const [profile, sites, cookieStore, access] = await Promise.all([getRequestProfile(), getCustomerSites(), cookies(), getTeamAccess()]);
   const supabase = await createClient();
   const selected = resolveSelectedSite(sites, cookieStore.get(SELECTED_SITE_COOKIE)?.value);
 
@@ -44,7 +45,8 @@ async function Inbox() {
   return (
     <SupportInbox
       tickets={tickets}
-      customerId={profile?.id ?? ""}
+      // a super user's inbox is the owner's: the live updates follow the owner's tickets
+      customerId={(access.kind === "member" && access.superUser ? access.ownerIds[0] : profile?.id) ?? ""}
       action={<Suspense fallback={null}><NewSupportTicketDialog fromLink sites={sites.map((s) => ({ id: s.id, name: s.name, devices: s.devices.map((d) => ({ id: d.id, name: deviceDisplayId(d) })) }))} defaultSiteId={selected?.id ?? sites[0]?.id ?? null} /></Suspense>}
     />
   );

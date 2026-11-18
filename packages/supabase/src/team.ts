@@ -179,8 +179,14 @@ export function pageOfPath(pathname: string): TeamPage | "owner" | null {
  * billing, team and data stay with the owner.
  */
 export const MEMBER_SETTINGS_TABS = ["profile", "appearance", "units", "dashboard", "security"] as const;
-/** A super user also manages the team (the owner's other tabs, billing, alerts and notifications, are tied to the owner's own sign-in). */
-export const SUPER_SETTINGS_TABS = [...MEMBER_SETTINGS_TABS, "team"] as const;
+/** A super user also manages the team and the owner's alert rules (billing and the account's notifications stay with the owner). */
+export const SUPER_SETTINGS_TABS = [...MEMBER_SETTINGS_TABS, "team", "alerts"] as const;
+
+/** Support (the ticket list and a ticket) is open to a super user, for the owner's tickets. */
+export function isSupportPath(pathname: string): boolean {
+  const p = pathname.replace(/[?#].*$/, "").replace(/\/+$/, "") || "/";
+  return p === "/dashboard/support" || p.startsWith("/dashboard/support/");
+}
 export type MemberSettingsTab = (typeof MEMBER_SETTINGS_TABS)[number];
 
 /** Application Settings itself (and nothing under it, such as the old device-settings page) is open to a team member. */

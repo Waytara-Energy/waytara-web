@@ -75,7 +75,7 @@ export function visibleNavItems(features: Record<string, boolean>, teamPages?: r
 }
 
 /** Command palette's full reach — primary items plus every account-menu
- *  page. A team member reaches their own Application Settings but not Support (which stays with the owner). */
-export function allReachableNavItems(features: Record<string, boolean>, teamPages?: readonly string[] | null): NavItem[] {
-  return [...visibleNavItems(features, teamPages), ...(teamPages ? SECONDARY_NAV_ITEMS.filter((i) => i.href === "/dashboard/settings") : SECONDARY_NAV_ITEMS)];
+ *  page. A team member reaches their own Application Settings but not Support (which stays with the owner); a super user reaches Support too. */
+export function allReachableNavItems(features: Record<string, boolean>, teamPages?: readonly string[] | null, superUser = false): NavItem[] {
+  return [...visibleNavItems(features, teamPages), ...(teamPages && !superUser ? SECONDARY_NAV_ITEMS.filter((i) => i.href === "/dashboard/settings") : SECONDARY_NAV_ITEMS)];
 }

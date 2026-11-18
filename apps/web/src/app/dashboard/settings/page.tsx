@@ -138,7 +138,8 @@ export default async function SettingsPage() {
       units={{ initial: parseUnitPrefs(row?.ui_preferences), values: unitValues }}
       dashboard={{ startPage: parseStartPage(row?.ui_preferences), startOptions: member ? START_PAGES.filter((p) => p.id !== "support" && access.pages.some((x) => x === p.id)).map((p) => p.id) : undefined, sites: allSites.map((s) => ({ id: s.id, name: s.name, devices: s.devices.length, address: s.address ? addressLine(parseAddress(s.address)) || null : null })), selectedSiteId: site?.id ?? null, overview: overviewProps, car: parseCarProfile(row?.ui_preferences) }}
       notifications={{ initial: prefs, pausedUntil: pausedIso, email }}
-      alerts={{ rules, sites: siteList, recent, emailOn: prefs.rule_alerts, paused: paused !== null, now }}
+      // a member's own e-mail and pause choices are not what an alert rule uses (the owner is told), so the banner about them and the test button are left out for a super user
+      alerts={{ rules, sites: siteList, recent, emailOn: member || prefs.rule_alerts, paused: !member && paused !== null, now, canTest: !member }}
       team={{
         viewerIsSuper: superUser,
         members: team,

@@ -32,13 +32,15 @@ export function DashboardUserMenu({
   avatarUrl: savedAvatar,
   planName,
   member = false,
+  superUser = false,
 }: {
   fullName: string | null;
   email: string | null;
   avatarUrl: string | null;
   planName?: string | null;
-  /** A team member: no Support (it stays with the account's owner). Their account row still opens their own settings. */
+  /** A team member: no Support (it stays with the account's owner) unless they are a super user. Their account row still opens their own settings. */
   member?: boolean;
+  superUser?: boolean;
 }) {
   const { isMobile, setOpenMobile, setOpen: setSidebarOpen, open: sidebarOpen, openMobile } = useSidebar();
   const pathname = usePathname();
@@ -93,7 +95,7 @@ export function DashboardUserMenu({
             </Collapsible>
           </SidebarMenuItem>
         )}
-        {!member && (
+        {(!member || superUser) && (
           <SidebarMenuItem>
             <SidebarMenuButton asChild isActive={pathname.startsWith("/dashboard/support")}>
               <Link href="/dashboard/support" onClick={handleNavigate}>
@@ -132,7 +134,7 @@ export function DashboardUserMenu({
         </Avatar>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-medium leading-tight text-sidebar-foreground">{fullName ?? "Your account"}</span>
-          <span className="block truncate text-xs leading-tight text-sidebar-foreground/60">{member ? "Team member" : (planName ?? email)}</span>
+          <span className="block truncate text-xs leading-tight text-sidebar-foreground/60">{member ? (superUser ? "Super user" : "Team member") : (planName ?? email)}</span>
         </span>
         <ChevronRight className="size-4 shrink-0 text-sidebar-foreground/60" />
       </Link>

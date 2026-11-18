@@ -68,6 +68,7 @@ function DeviceStatusDot({ deviceId, sync }: { deviceId: string; sync: DeviceSyn
 export function DashboardSidebar({
   features = {},
   teamPages = null,
+  teamSuper = false,
   devices = [],
   selectedDeviceId = null,
   account,
@@ -75,6 +76,8 @@ export function DashboardSidebar({
   features?: Record<string, boolean>;
   /** Only for a team member: the pages they were given (everything else, Support and Application Settings included, is hidden). */
   teamPages?: readonly string[] | null;
+  /** The team member is a super user (Support is theirs too). */
+  teamSuper?: boolean;
   devices?: SidebarDevice[];
   /** The device the pages show (the page's ?device=, else the one last picked). */
   selectedDeviceId?: string | null;
@@ -109,7 +112,7 @@ export function DashboardSidebar({
 
       <SidebarContent className="gap-0 pb-2">
         <SidebarGroup className="pb-1 pt-0">
-          <DashboardCommandMenu features={features} teamPages={teamPages} variant="sidebar" />
+          <DashboardCommandMenu features={features} teamPages={teamPages} superUser={teamSuper} variant="sidebar" />
         </SidebarGroup>
 
         <SidebarGroup>
@@ -164,7 +167,7 @@ export function DashboardSidebar({
       <SidebarFooter className="relative px-2 pb-3 pt-1">
         {/* The list fades out above the account row instead of being cut by a line. */}
         <div className="pointer-events-none absolute inset-x-0 -top-6 h-6 bg-gradient-to-t from-sidebar to-transparent" />
-        <DashboardUserMenu fullName={account.fullName} email={account.email} avatarUrl={account.avatarUrl} planName={account.planName} member={!!teamPages} />
+        <DashboardUserMenu fullName={account.fullName} email={account.email} avatarUrl={account.avatarUrl} planName={account.planName} member={!!teamPages} superUser={teamSuper} />
       </SidebarFooter>
     </Sidebar>
   );

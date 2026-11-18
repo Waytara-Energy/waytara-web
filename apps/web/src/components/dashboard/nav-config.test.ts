@@ -49,6 +49,9 @@ describe("a team member's menu", () => {
     expect(reach).not.toContain("Support");
     expect(allReachableNavItems(all).map((i) => i.label)).toEqual(expect.arrayContaining(["Support", "Application Settings"]));
   });
+  it("lets a super user reach Support as well", () => {
+    expect(allReachableNavItems(all, ["overview"], true).map((i) => i.label)).toEqual(["Overview", "Support", "Application Settings"]);
+  });
 });
 
 describe("the menu order", () => {

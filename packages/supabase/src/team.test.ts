@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { MEMBER_SETTINGS_TABS, SUPER_SETTINGS_TABS, isTeamRole, ROLE_PRESETS, TEAM_PAGES, TEAM_PAGE_KEYS, accessSummary, checkAccess, checkInvite, firstPageHref, isMemberSettingsPath, maskEmail, pageOfPath, roleLabel } from "./team";
+import { MEMBER_SETTINGS_TABS, SUPER_SETTINGS_TABS, isSupportPath, isTeamRole, ROLE_PRESETS, TEAM_PAGES, TEAM_PAGE_KEYS, accessSummary, checkAccess, checkInvite, firstPageHref, isMemberSettingsPath, maskEmail, pageOfPath, roleLabel } from "./team";
 
 const D1 = "d1000000-0000-4000-8000-000000000001";
 const D2 = "d2000000-0000-4000-8000-000000000002";
@@ -110,7 +110,17 @@ describe("the Super user role", () => {
   it("reads as a super user in a list, and may manage the team in Settings", () => {
     expect(roleLabel("super")).toBe("Super user");
     expect(accessSummary({ role: "super", pages: [], canSchedule: true, devices: [] })).toBe("Super user · everything, like the owner");
-    expect([...SUPER_SETTINGS_TABS]).toEqual([...MEMBER_SETTINGS_TABS, "team"]);
+    expect([...SUPER_SETTINGS_TABS]).toEqual([...MEMBER_SETTINGS_TABS, "team", "alerts"]);
+  });
+});
+
+describe("what a super user may open besides the dashboard", () => {
+  it("opens Support, the list and a ticket, but not another page that merely starts the same", () => {
+    expect(isSupportPath("/dashboard/support")).toBe(true);
+    expect(isSupportPath("/dashboard/support/")).toBe(true);
+    expect(isSupportPath("/dashboard/support/3f9a1c00-0000-0000-0000-000000000000?x=1")).toBe(true);
+    expect(isSupportPath("/dashboard/supporter")).toBe(false);
+    expect(isSupportPath("/dashboard/settings")).toBe(false);
   });
 });
 

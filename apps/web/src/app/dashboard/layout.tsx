@@ -190,6 +190,7 @@ export default async function DashboardLayout({
         <DashboardSidebar
           features={features}
           teamPages={teamPages}
+          teamSuper={teamAccess.kind === "member" && teamAccess.superUser}
           devices={sidebarDevices}
           selectedDeviceId={cookieStore.get(SELECTED_DEVICE_COOKIE)?.value ?? null}
           account={{ fullName: profile?.full_name ?? null, email: profile?.email ?? null, avatarUrl: profile?.avatar_url ?? null, planName: customerPlan?.planName ?? null }}

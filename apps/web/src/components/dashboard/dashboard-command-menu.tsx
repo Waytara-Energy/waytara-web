@@ -24,7 +24,7 @@ const ACCOUNT_GROUP_ITEMS = SECONDARY_NAV_ITEMS;
 // reach). Also surfaces the account-menu pages (Support, Billing, Settings)
 // — none of them have a sidebar row, but they're still reachable, so
 // power-users can still jump straight there.
-export function DashboardCommandMenu({ features = {}, teamPages = null, variant = "header" }: { features?: Record<string, boolean>; teamPages?: readonly string[] | null; variant?: "header" | "sidebar" }) {
+export function DashboardCommandMenu({ features = {}, teamPages = null, superUser = false, variant = "header" }: { features?: Record<string, boolean>; teamPages?: readonly string[] | null; superUser?: boolean; variant?: "header" | "sidebar" }) {
   const [open, setOpen] = React.useState(false);
   const router = useRouter();
   const { isMobile, setOpen: setSidebarOpen, setOpenMobile } = useSidebar();
@@ -82,7 +82,7 @@ export function DashboardCommandMenu({ features = {}, teamPages = null, variant 
           </CommandGroup>
           <CommandGroup heading="Account">
             {/* a team member can open their own settings but not Support */}
-            {ACCOUNT_GROUP_ITEMS.filter((i) => !teamPages || i.href === "/dashboard/settings").map(({ href, label, icon: Icon }) => (
+            {ACCOUNT_GROUP_ITEMS.filter((i) => !teamPages || superUser || i.href === "/dashboard/settings").map(({ href, label, icon: Icon }) => (
               <CommandItem key={href} value={label} onSelect={() => go(href)}>
                 <Icon />
                 {label}

@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@waytara/supabase/server";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { getCurrentProfile, requireCustomer } from "@waytara/supabase/auth";
-import { requireAccountOwner } from "@/lib/team-guard";
+import { requireAccountOwner, requireOwnerOrSuper } from "@/lib/team-guard";
 import type { Json } from "@waytara/supabase/types";
 import { EMAIL_PATTERN, MAX_ATTEMPTS, CODE_TTL_MS, buildEmailChangedMail, buildEmailCodeMail, buildPasswordCodeMail, canResend, codeExpired, codeMatches, generateCode, hashCode, normaliseEmail, secondsUntilResend } from "@/lib/email-otp";
 import { GSTIN, addressProblems, addressToJson, normaliseGstin, type Address } from "@/lib/address";
@@ -398,7 +398,8 @@ export interface AlertInput {
 /** Saves one alert: a change to a ready-made one (switch, limit, channels, cooldown) or one of the customer's own (made or edited). */
 export async function saveAlertRule(input: AlertInput): Promise<void> {
   const profile = await requireCustomer();
-  await requireAccountOwner();
+  // the owner works on their own rules; a super user on the owner's (an ordinary member is refused)
+  const accountId = await requireOwnerOrSuper(profile.id);
   const preset = input.presetId ? presetOf(input.presetId) : null;
   if (input.presetId && !preset) throw new Error("That alert does not exist.");
   const metric = preset ? preset.metric : input.metric;
@@ -415,16 +416,16 @@ export async function saveAlertRule(input: AlertInput): Promise<void> {
   const values = { metric, op, threshold: input.threshold, notify_email: input.email, notify_app: input.app, cooldown_minutes: input.cooldownMinutes, enabled: input.enabled };
 
   if (preset) {
-    const { data: existing } = await supabase.from("alert_rules").select("id").eq("customer_id", profile.id).eq("preset_id", preset.id).maybeSingle();
+    const { data: existing } = await supabase.from("alert_rules").select("id").eq("customer_id", accountId).eq("preset_id", preset.id).maybeSingle();
     const { error } = existing
       ? await supabase.from("alert_rules").update(values).eq("id", existing.id)
-      : await supabase.from("alert_rules").insert({ ...values, customer_id: profile.id, preset_id: preset.id, name: null, site_id: null });
+      : await supabase.from("alert_rules").insert({ ...values, customer_id: accountId, preset_id: preset.id, name: null, site_id: null });
     if (error) throw new Error(error.message);
   } else if (input.id) {
-    const { error } = await supabase.from("alert_rules").update({ ...values, name: name || null, site_id: input.siteId }).eq("id", input.id).eq("customer_id", profile.id);
+    const { error } = await supabase.from("alert_rules").update({ ...values, name: name || null, site_id: input.siteId }).eq("id", input.id).eq("customer_id", accountId);
     if (error) throw new Error(error.message);
   } else {
-    const { error } = await supabase.from("alert_rules").insert({ ...values, customer_id: profile.id, preset_id: null, name: name || null, site_id: input.siteId });
+    const { error } = await supabase.from("alert_rules").insert({ ...values, customer_id: accountId, preset_id: null, name: name || null, site_id: input.siteId });
     if (error) throw new Error(error.code === "54000" ? "That is the most alerts you can have. Delete one first." : error.message);
   }
   revalidatePath(SETTINGS);
@@ -433,9 +434,10 @@ export async function saveAlertRule(input: AlertInput): Promise<void> {
 /** Deletes one of the customer's own alerts, or puts a ready-made alert back as WayTara set it up. */
 export async function deleteAlertRule(id: string): Promise<void> {
   const profile = await requireCustomer();
-  await requireAccountOwner();
+  // the owner works on their own rules; a super user on the owner's (an ordinary member is refused)
+  const accountId = await requireOwnerOrSuper(profile.id);
   const supabase = await createClient();
-  const { error } = await supabase.from("alert_rules").delete().eq("id", id).eq("customer_id", profile.id);
+  const { error } = await supabase.from("alert_rules").delete().eq("id", id).eq("customer_id", accountId);
   if (error) throw new Error(error.message);
   revalidatePath(SETTINGS);
 }

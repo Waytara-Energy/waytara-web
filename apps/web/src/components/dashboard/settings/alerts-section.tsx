@@ -31,6 +31,8 @@ export interface AlertsProps {
   emailOn: boolean;
   paused: boolean;
   now: number;
+  /** The test alert is the account owner's (a super user manages the rules but does not send tests). */
+  canTest?: boolean;
 }
 
 function Tile({ label, value, hint, tone }: { label: string; value: string; hint?: string; tone: "emerald" | "amber" | "sky" }) {
@@ -45,7 +47,7 @@ function Tile({ label, value, hint, tone }: { label: string; value: string; hint
 }
 
 /** Settings > Alerts: how many alerts are on, what has gone off lately, a test, and the alerts themselves (smart alerts and the person's own). */
-export function AlertsSection({ rules, sites, recent, emailOn, paused, now }: AlertsProps) {
+export function AlertsSection({ rules, sites, recent, emailOn, paused, now, canTest = true }: AlertsProps) {
   const router = useRouter();
   const { go } = useSettingsNav();
   const [busy, setBusy] = React.useState(false);
@@ -91,6 +93,7 @@ export function AlertsSection({ rules, sites, recent, emailOn, paused, now }: Al
           <AlertsManager rules={rules} sites={sites} />
         </div>
         <div className="space-y-5 xl:sticky xl:top-3">
+          {canTest && (
           <SettingsCard
             title="Try it"
             description="See what an alert looks like before a real one goes off."
@@ -106,6 +109,7 @@ export function AlertsSection({ rules, sites, recent, emailOn, paused, now }: Al
           >
             <p className="text-sm text-muted-foreground">Puts a sample alert in your bell and sends the e-mail for it, so you know both reach you.</p>
           </SettingsCard>
+          )}
 
           <SettingsCard title="Recent alerts" description="The last ones that went off for your devices." icon={History} tone="sky">
             {recent.length === 0 ? (
