@@ -8,6 +8,7 @@ import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { CONNECTION_LABEL, type ConnectionStatus } from "@/lib/device-state";
 import { clearedCookie, dismissalCookie, dismissedAtFromCookies, msUntilReshow, noticeCookieName, OFFLINE_NOTICE_REPEAT_MS } from "@/lib/offline-notice";
 import { useDeviceState } from "./use-device-state";
+import { storedStatus } from "./status-settle";
 
 const TOAST_ID = "device-connection";
 
@@ -17,13 +18,18 @@ const CAUSE: Record<Exclude<ConnectionStatus, "online">, string> = {
   connection_lost: "The monitoring unit is online but the inverter is not answering it.",
 };
 
-/** On every dashboard page (it is mounted in the layout): while the device is offline or the unit has lost it, a toast sits at the top of the window (on a phone, the usual notification
- *  across the top) saying the page shows the last readings, with a button that opens Maintenance's health tab. It has a
+/** On every dashboard page (it is mounted in the layout): when a device that was working goes offline, or the unit loses it, a toast sits at the top of the window (on a phone, the usual notification
+ *  across the top) saying the page shows the last readings, with a button that opens Maintenance's health tab. It is only for a CHANGE to inactive (the status shown is already steadied, see
+ *  status-settle.ts: nothing inactive is shown from a half-loaded page, or for a blip): a device that was already inactive when the page was opened is shown by its dot, not announced. It has a
  *  Dismiss button (it never closes by itself); the dismissal is kept in a cookie. If the device is still offline 3 hours later it comes
  *  back, and so on every 3 hours until the problem is resolved (the device reports again, which also clears the cookie). */
 export function ConnectionNotice({ deviceId, sync }: { deviceId: string; sync: DeviceSyncInit }) {
   const { status } = useDeviceState(deviceId, sync);
   const router = useRouter();
+  // Was it working? Known from the last visit (null = never seen, which counts as news); it becomes true whenever the device is seen online. A device that was already inactive
+  // when the page opened gets no toast: only a change to inactive does.
+  const [before] = React.useState(() => storedStatus(deviceId));
+  const worked = React.useRef(before !== "offline" && before !== "connection_lost");
   // On the Maintenance page itself there is nothing to investigate (it is the place Investigate leads to), so the toast stays away.
   const onMaintenance = usePathname().startsWith("/dashboard/maintenance");
 
@@ -37,10 +43,12 @@ export function ConnectionNotice({ deviceId, sync }: { deviceId: string; sync: D
     }
 
     if (status === "online") {
+      worked.current = true;
       document.cookie = clearedCookie(deviceId); // resolved: the next outage is shown straight away
       toast.dismiss(TOAST_ID);
       return;
     }
+    if (!worked.current) return; // already inactive when the page opened: not a change, so no toast
 
     const schedule = (ms: number) => {
       if (timer) clearTimeout(timer);

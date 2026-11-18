@@ -1,7 +1,5 @@
-import { redirect } from "next/navigation";
 import { createClient } from "@waytara/supabase/server";
-import { firstPageHref } from "@waytara/supabase/team";
-import { getTeamAccess, loadTeam } from "@/lib/team-server";
+import { getTeamAccess, loadTeam, ownerNamesOf } from "@/lib/team-server";
 import { requireCustomer } from "@waytara/supabase/auth";
 import { SettingsBoard } from "@/components/dashboard/settings/settings-board";
 import type { SignedInDevice } from "@/components/dashboard/devices-setting";
@@ -21,7 +19,7 @@ import { periodProgress, summarisePayments, type PaymentRow } from "@/lib/billin
 import { RealtimeRefresh } from "@/components/dashboard/realtime-refresh";
 import { deviceDisplayId, getCustomerSites, getSelectedSite } from "@/lib/selected-site";
 import { parseSessionPolicy } from "@/lib/session-policy";
-import { parseStartPage } from "@/lib/start-page";
+import { START_PAGES, parseStartPage } from "@/lib/start-page";
 import { fetchUnitFields } from "@/lib/unit-fields";
 import { parseUnitPrefs } from "@/lib/unit-prefs";
 
@@ -33,11 +31,11 @@ const serverNow = () => Date.now();
 // staying signed in, activity, devices) and Privacy & data. The page reads everything it needs together; the board shows one tab at a time.
 export default async function SettingsPage() {
   const profile = await requireCustomer();
-  // Application Settings belong to the account's owner: a team member is sent to the first page they were given
+  // A team member opens the same page with only their own settings (profile, look, units, dashboard, security); the account's notifications, alerts, billing and team stay with the owner
   const access = await getTeamAccess();
-  if (access.kind === "member") redirect(firstPageHref(access.pages));
+  const member = access.kind === "member";
   const supabase = await createClient();
-  const [site, allSites, team] = await Promise.all([getSelectedSite(), getCustomerSites(), loadTeam(profile.id)]);
+  const [site, allSites, team, ownerNames] = await Promise.all([getSelectedSite(), getCustomerSites(), member ? Promise.resolve([]) : loadTeam(profile.id), member ? ownerNamesOf(access.ownerIds) : Promise.resolve([])]);
   const [{ data: row }, { data: customer }, { data: subscription }, { data: sessionRows }, unitValues, { data: ruleRows }, { data: alertRows }, { data: eventRows }, factors, { data: paymentRows }] = await Promise.all([
     supabase.from("profiles").select("full_name, phone, email, avatar_url, created_at, notification_preferences, ui_preferences, security_preferences").eq("id", profile.id).maybeSingle(),
     supabase.from("customers").select("status, address, billing_address, billing_email, gstin, plan_started_at, plan:plans(name, price_monthly)").eq("id", profile.id).maybeSingle(),
@@ -88,8 +86,9 @@ export default async function SettingsPage() {
     hasPhoto: !!row?.avatar_url,
     hasName: name.trim().length > 0,
     hasPhone: !!row?.phone,
-    hasAddress: !isEmptyAddress(address),
-    hasBillingDetails: !!(billing && !isEmptyAddress(billing)) || !!customer?.billing_email || !!customer?.gstin,
+    // a member has no address or billing details to give: only the photo, name and phone count for them
+    hasAddress: member || !isEmptyAddress(address),
+    hasBillingDetails: member || !!(billing && !isEmptyAddress(billing)) || !!customer?.billing_email || !!customer?.gstin,
     twoFactor: (factors.data?.totp ?? []).length > 0,
     signInAlerts: prefs.auth_signin,
     idleSignOut: policy.idleMinutes !== null,
@@ -118,14 +117,14 @@ export default async function SettingsPage() {
 
   return (
     <>
-      <RealtimeRefresh table="payments" event="UPDATE" filter={`customer_id=eq.${profile.id}`} />
+      {!member && <RealtimeRefresh table="payments" event="UPDATE" filter={`customer_id=eq.${profile.id}`} />}
       <SettingsBoard
-      hero={{ name, email, avatarUrl: row?.avatar_url ?? null, completeness: profileCompleteness(health).percent, planName: customer?.plan?.name ?? null, memberSince: row?.created_at ?? null, sites: allSites.length, devices: deviceCount }}
+      hero={{ name, email, avatarUrl: row?.avatar_url ?? null, completeness: profileCompleteness(health).percent, planName: member ? `Team member${ownerNames.length > 0 ? ` of ${ownerNames.join(", ")}` : ""}` : (customer?.plan?.name ?? null), member, memberSince: row?.created_at ?? null, sites: allSites.length, devices: deviceCount }}
       account={{ health, events, plan, pausedUntil: pausedIso, now }}
       profile={{ userId: profile.id, fullName: name, phone: row?.phone ?? "", email, avatarUrl: row?.avatar_url ?? null, memberSince: row?.created_at ?? null }}
       appearance={{ initial: parseAppearance(row?.ui_preferences) }}
       units={{ initial: parseUnitPrefs(row?.ui_preferences), values: unitValues }}
-      dashboard={{ startPage: parseStartPage(row?.ui_preferences), sites: allSites.map((s) => ({ id: s.id, name: s.name, devices: s.devices.length, address: s.address ? addressLine(parseAddress(s.address)) || null : null })), selectedSiteId: site?.id ?? null, overview: overviewProps, car: parseCarProfile(row?.ui_preferences) }}
+      dashboard={{ startPage: parseStartPage(row?.ui_preferences), startOptions: member ? START_PAGES.filter((p) => p.id !== "support" && access.pages.some((x) => x === p.id)).map((p) => p.id) : undefined, sites: allSites.map((s) => ({ id: s.id, name: s.name, devices: s.devices.length, address: s.address ? addressLine(parseAddress(s.address)) || null : null })), selectedSiteId: site?.id ?? null, overview: overviewProps, car: parseCarProfile(row?.ui_preferences) }}
       notifications={{ initial: prefs, pausedUntil: pausedIso, email }}
       alerts={{ rules, sites: siteList, recent, emailOn: prefs.rule_alerts, paused: paused !== null, now }}
       team={{

@@ -14,6 +14,8 @@ import { needsSecondFactor } from "@/lib/mfa";
 import { sendMail } from "@/lib/send-mail";
 import { START_PAGES, parseStartPage, startPath, type StartPageId } from "@/lib/start-page";
 import { selectSite } from "@/app/dashboard/actions";
+import { requireAccountOwner } from "@/lib/team-guard";
+import { getTeamAccess } from "@/lib/team-server";
 
 const SETTINGS = "/dashboard/settings";
 const asJson = (v: unknown): Json => v as Json;
@@ -29,6 +31,7 @@ const PAUSES = [60, 480, 1440, 10_080];
 /** Pauses the e-mails for a while (security e-mails still arrive), or ends the pause (`null`). */
 export async function pauseNotifications(minutes: number | null): Promise<void> {
   const profile = await requireCustomer();
+  await requireAccountOwner();
   if (minutes !== null && !PAUSES.includes(minutes)) throw new Error("Choose one of the lengths offered.");
   const supabase = await createClient();
   const { data } = await supabase.from("profiles").select("notification_preferences").eq("id", profile.id).maybeSingle();
@@ -53,6 +56,7 @@ async function claimTest(profileId: string): Promise<void> {
 /** Sends a short test e-mail to the person's address, so they can see that e-mails arrive. */
 export async function sendTestEmail(): Promise<{ to: string }> {
   const profile = await requireCustomer();
+  await requireAccountOwner();
   if (!profile.email) throw new Error("There is no e-mail address on your account.");
   await claimTest(profile.id);
   const first = (profile.full_name ?? "").trim().split(/\s+/)[0];
@@ -75,6 +79,7 @@ export async function sendTestEmail(): Promise<{ to: string }> {
 /** Raises a sample alert: one in the bell and one e-mail, so the person sees what their alerts look like. */
 export async function sendTestAlert(): Promise<void> {
   const profile = await requireCustomer();
+  await requireAccountOwner();
   await claimTest(profile.id);
   const supabase = await createClient();
   const { data: devices } = await supabase.from("equipment").select("id, site:sites(name)").is("parent_id", null).limit(1);
@@ -122,6 +127,8 @@ export async function saveAppearance(prefs: AppearancePrefs): Promise<void> {
 export async function saveStartPage(id: StartPageId): Promise<void> {
   const profile = await requireCustomer();
   if (!START_PAGES.some((p) => p.id === id)) throw new Error("Choose one of the pages offered.");
+  const access = await getTeamAccess();
+  if (access.kind === "member" && (id === "support" || !access.pages.some((p) => p === id))) throw new Error("Choose one of the pages you can open.");
   await mergeUiPreferences(profile.id, { start_page: id });
 }
 

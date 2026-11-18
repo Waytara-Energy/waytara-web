@@ -17,6 +17,8 @@ export interface HeroProps {
   /** how complete the profile is, 0 to 100 (the ring around the picture) */
   completeness: number;
   planName: string | null;
+  /** A team member (not the account's owner): "Get support" is the owner's, so it is left out. */
+  member?: boolean;
   memberSince: string | null;
   sites: number;
   devices: number;
@@ -40,7 +42,7 @@ function Chip({ icon: Icon, children }: { icon: typeof Cpu; children: React.Reac
 
 /** The top of Application Settings: who this is, how complete the profile is (the ring), the plan, since when, how many sites and devices, and the
  *  two things people look for first: support and signing out. It stays above the tabs, so the page always says whose settings these are. */
-export function SettingsHero({ name: savedName, email, avatarUrl: savedAvatar, completeness, planName, memberSince, sites, devices }: HeroProps) {
+export function SettingsHero({ name: savedName, email, avatarUrl: savedAvatar, completeness, planName, member = false, memberSince, sites, devices }: HeroProps) {
   const { go } = useSettingsNav();
   // a picture or name saved a moment ago shows at once
   const live = useLiveProfile({ fullName: savedName, avatarUrl: savedAvatar });
@@ -86,12 +88,14 @@ export function SettingsHero({ name: savedName, email, avatarUrl: savedAvatar, c
         </div>
 
         <div className="flex shrink-0 flex-wrap items-center gap-2">
-          <Button asChild variant="outline" size="sm" className="bg-background/70 backdrop-blur">
-            <Link href="/dashboard/support">
-              <LifeBuoy className="size-3.5" />
-              Get support
-            </Link>
-          </Button>
+          {!member && (
+            <Button asChild variant="outline" size="sm" className="bg-background/70 backdrop-blur">
+              <Link href="/dashboard/support">
+                <LifeBuoy className="size-3.5" />
+                Get support
+              </Link>
+            </Button>
+          )}
           <form action={logout}>
             <SubmitButton variant="outline" size="sm" className="bg-background/70 backdrop-blur" pendingText="Signing out…"><LogOut className="size-3.5" />
               Sign out</SubmitButton>

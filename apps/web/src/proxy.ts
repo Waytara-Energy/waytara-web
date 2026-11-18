@@ -2,7 +2,7 @@ import { NextResponse, type NextRequest } from "next/server";
 import { createMiddlewareClient } from "@waytara/supabase/middleware";
 import { profileForUser } from "@waytara/supabase/auth";
 import { isCustomerRole } from "@waytara/supabase/roles";
-import { firstPageHref, pageOfPath } from "@waytara/supabase/team";
+import { firstPageHref, isMemberSettingsPath, pageOfPath } from "@waytara/supabase/team";
 import { OWNER_ACCESS, loadTeamAccess, teamAccessHeader } from "@/lib/team-access";
 import { needsSecondFactor } from "@/lib/mfa";
 import { logTiming, startStopwatch } from "@/lib/server-timing";
@@ -108,7 +108,8 @@ export async function proxy(request: NextRequest) {
       }
     } else {
       const page = pageOfPath(path);
-      if (page === null || page === "owner" || !access.pages.includes(page)) {
+      // Application Settings is open to a member (their own profile and look; the account's notifications, alerts and billing are held back there and in the actions)
+      if (!isMemberSettingsPath(path) && (page === null || page === "owner" || !access.pages.includes(page))) {
         const url = request.nextUrl.clone();
         url.pathname = firstPageHref(access.pages);
         url.search = "";

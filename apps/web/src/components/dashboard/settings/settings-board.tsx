@@ -3,6 +3,7 @@
 import type { ComponentProps } from "react";
 import { Bell, BellRing, CreditCard, Gauge, LayoutDashboard, LockKeyhole, Palette, Ruler, ShieldCheck, User, Users, type LucideIcon } from "lucide-react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { MEMBER_SETTINGS_TABS } from "@waytara/supabase/team";
 import type { SettingsTab } from "@/lib/account-health";
 import { cn } from "@/lib/utils";
 import { useHashTab } from "../use-hash-tab";
@@ -35,6 +36,7 @@ const TABS: { id: SettingsTab; label: string; icon: LucideIcon; active: string }
   { id: "privacy", label: "Privacy & data", icon: LockKeyhole, active: "data-[state=active]:border-slate-500 data-[state=active]:text-slate-700 dark:data-[state=active]:text-slate-300" },
 ];
 const IDS = TABS.map((t) => t.id);
+const MEMBER_IDS: SettingsTab[] = [...MEMBER_SETTINGS_TABS];
 
 export interface SettingsBoardProps {
   hero: HeroProps;
@@ -55,7 +57,10 @@ export interface SettingsBoardProps {
  *  sign: a dot where something is worth doing (an incomplete profile, two-factor sign-in not set up, notifications paused), or a count. The open tab
  *  is kept in the address (#security) so a reload or a shared link opens the same one. */
 export function SettingsBoard(props: SettingsBoardProps) {
-  const [tab, open] = useHashTab(IDS, "account");
+  // A team member has five tabs, their own profile and how the dashboard looks and behaves for them, and opens on Profile; the account's other tabs are the owner's.
+  const member = props.hero.member === true;
+  const [tab, open] = useHashTab(member ? MEMBER_IDS : IDS, member ? "profile" : "account");
+  const shownTabs = member ? TABS.filter((t) => MEMBER_IDS.includes(t.id)) : TABS;
   const { account, alerts } = props;
 
   const signs: Partial<Record<SettingsTab, { dot?: "amber" | "rose"; count?: number }>> = {
@@ -74,7 +79,7 @@ export function SettingsBoard(props: SettingsBoardProps) {
 
         <Tabs value={tab} onValueChange={(v) => open(v as SettingsTab)}>
           <TabsList variant="line" className="w-full flex-nowrap justify-start overflow-x-auto">
-            {TABS.map((t) => {
+            {shownTabs.map((t) => {
               const sign = signs[t.id];
               return (
                 <TabsTrigger key={t.id} value={t.id} variant="line" className={t.active}>

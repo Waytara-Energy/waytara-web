@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ROLE_PRESETS, TEAM_PAGES, TEAM_PAGE_KEYS, accessSummary, checkAccess, checkInvite, firstPageHref, maskEmail, pageOfPath, roleLabel } from "./team";
+import { MEMBER_SETTINGS_TABS, ROLE_PRESETS, TEAM_PAGES, TEAM_PAGE_KEYS, accessSummary, checkAccess, checkInvite, firstPageHref, isMemberSettingsPath, maskEmail, pageOfPath, roleLabel } from "./team";
 
 const D1 = "d1000000-0000-4000-8000-000000000001";
 const D2 = "d2000000-0000-4000-8000-000000000002";
@@ -85,5 +85,23 @@ describe("how access reads", () => {
   it("masks an address", () => {
     expect(maskEmail("asha.rao@example.com")).toBe("a******@example.com".replace("******", "*".repeat(6)));
     expect(maskEmail("ab@x.in")).toBe("a**@x.in");
+  });
+});
+
+describe("what a team member may open in Application Settings", () => {
+  it("is the member's own profile and how the dashboard looks and behaves for them, not the account's notifications, alerts, billing or team", () => {
+    expect([...MEMBER_SETTINGS_TABS]).toEqual(["profile", "appearance", "units", "dashboard", "security"]);
+    for (const owner of ["account", "notifications", "alerts", "team", "billing", "privacy"]) expect((MEMBER_SETTINGS_TABS as readonly string[]).includes(owner)).toBe(false);
+  });
+  it("opens Application Settings itself, whatever follows the path, and nothing under it", () => {
+    expect(isMemberSettingsPath("/dashboard/settings")).toBe(true);
+    expect(isMemberSettingsPath("/dashboard/settings/")).toBe(true);
+    expect(isMemberSettingsPath("/dashboard/settings?x=1#security")).toBe(true);
+    expect(isMemberSettingsPath("/dashboard/settings/instruments")).toBe(false);
+    expect(isMemberSettingsPath("/dashboard/support")).toBe(false);
+    expect(isMemberSettingsPath("/dashboard")).toBe(false);
+  });
+  it("leaves the page rules as they were: Settings is still the owner's page for the pages a member is given", () => {
+    expect(pageOfPath("/dashboard/settings")).toBe("owner");
   });
 });

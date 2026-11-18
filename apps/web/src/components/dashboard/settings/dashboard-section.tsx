@@ -22,6 +22,8 @@ export interface DashboardSite {
 
 export interface DashboardProps {
   startPage: StartPageId;
+  /** The start pages on offer (a team member's own pages); all of them when left out. */
+  startOptions?: StartPageId[];
   sites: DashboardSite[];
   selectedSiteId: string | null;
   overview: ComponentProps<typeof OverviewSection>;
@@ -30,7 +32,7 @@ export interface DashboardProps {
 }
 
 /** Settings > Dashboard: where the dashboard opens, which site it shows, and (below) what the Overview shows: four cards and a background. */
-export function DashboardSection({ startPage, sites, selectedSiteId, overview, car }: DashboardProps) {
+export function DashboardSection({ startPage, startOptions, sites, selectedSiteId, overview, car }: DashboardProps) {
   const router = useRouter();
   const [start, setStart] = React.useState<StartPageId>(startPage);
   const [site, setSite] = React.useState<string | null>(selectedSiteId);
@@ -56,7 +58,7 @@ export function DashboardSection({ startPage, sites, selectedSiteId, overview, c
         left={
         <SettingsCard title="Start page" description="The page the dashboard opens on when you sign in." icon={Rocket} tone="amber">
           <div role="radiogroup" aria-label="Start page" className="grid gap-2 sm:grid-cols-2">
-            {START_PAGES.map((p) => {
+            {START_PAGES.filter((p) => !startOptions || startOptions.includes(p.id)).map((p) => {
               const on = start === p.id;
               return (
                 <button

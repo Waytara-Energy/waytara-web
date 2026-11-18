@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@waytara/supabase/server";
 import { createServiceRoleClient } from "@waytara/supabase/service-role";
 import { getCurrentProfile, requireCustomer } from "@waytara/supabase/auth";
+import { requireAccountOwner } from "@/lib/team-guard";
 import type { Json } from "@waytara/supabase/types";
 import { EMAIL_PATTERN, MAX_ATTEMPTS, CODE_TTL_MS, buildEmailChangedMail, buildEmailCodeMail, buildPasswordCodeMail, canResend, codeExpired, codeMatches, generateCode, hashCode, normaliseEmail, secondsUntilResend } from "@/lib/email-otp";
 import { GSTIN, addressProblems, addressToJson, normaliseGstin, type Address } from "@/lib/address";
@@ -147,6 +148,7 @@ export type NotificationPrefs = Record<NotificationKey, boolean>;
 
 export async function saveNotifications(prefs: NotificationPrefs): Promise<void> {
   const profile = await requireCustomer();
+  await requireAccountOwner();
   const supabase = await createClient();
   const { data: current } = await supabase.from("profiles").select("notification_preferences").eq("id", profile.id).maybeSingle();
   const values = Object.fromEntries(NOTIFICATION_KEYS.map((k) => [k, !!prefs[k]])) as NotificationPrefs;
@@ -167,6 +169,7 @@ export interface AddressesInput {
 
 export async function saveAddresses(input: AddressesInput): Promise<void> {
   const profile = await requireCustomer();
+  await requireAccountOwner();
   const problems = [...addressProblems(input.address, "Address"), ...(input.billing ? addressProblems(input.billing, "Billing address") : [])];
   const billingEmail = input.billingEmail.trim().toLowerCase();
   const gstin = normaliseGstin(input.gstin);
@@ -395,6 +398,7 @@ export interface AlertInput {
 /** Saves one alert: a change to a ready-made one (switch, limit, channels, cooldown) or one of the customer's own (made or edited). */
 export async function saveAlertRule(input: AlertInput): Promise<void> {
   const profile = await requireCustomer();
+  await requireAccountOwner();
   const preset = input.presetId ? presetOf(input.presetId) : null;
   if (input.presetId && !preset) throw new Error("That alert does not exist.");
   const metric = preset ? preset.metric : input.metric;
@@ -429,6 +433,7 @@ export async function saveAlertRule(input: AlertInput): Promise<void> {
 /** Deletes one of the customer's own alerts, or puts a ready-made alert back as WayTara set it up. */
 export async function deleteAlertRule(id: string): Promise<void> {
   const profile = await requireCustomer();
+  await requireAccountOwner();
   const supabase = await createClient();
   const { error } = await supabase.from("alert_rules").delete().eq("id", id).eq("customer_id", profile.id);
   if (error) throw new Error(error.message);

@@ -80,16 +80,15 @@ export function DashboardCommandMenu({ features = {}, teamPages = null, variant 
               </CommandItem>
             ))}
           </CommandGroup>
-          {!teamPages && (
-            <CommandGroup heading="Account">
-              {ACCOUNT_GROUP_ITEMS.map(({ href, label, icon: Icon }) => (
-                <CommandItem key={href} value={label} onSelect={() => go(href)}>
-                  <Icon />
-                  {label}
-                </CommandItem>
-              ))}
-            </CommandGroup>
-          )}
+          <CommandGroup heading="Account">
+            {/* a team member can open their own settings but not Support */}
+            {ACCOUNT_GROUP_ITEMS.filter((i) => !teamPages || i.href === "/dashboard/settings").map(({ href, label, icon: Icon }) => (
+              <CommandItem key={href} value={label} onSelect={() => go(href)}>
+                <Icon />
+                {label}
+              </CommandItem>
+            ))}
+          </CommandGroup>
         </CommandList>
       </CommandDialog>
     </>

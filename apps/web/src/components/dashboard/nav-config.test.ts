@@ -43,10 +43,11 @@ describe("a team member's menu", () => {
     expect(visibleNavItems(all).length).toBe(visibleNavItems(all, null).length);
     expect(visibleNavItems(all).map((i) => i.label)).toContain("Devices");
   });
-  it("has no Support or Application Settings in its reach", () => {
+  it("reaches its own Application Settings but not Support", () => {
     const reach = allReachableNavItems(all, ["overview"]).map((i) => i.label);
-    expect(reach).toEqual(["Overview"]);
-    expect(allReachableNavItems(all).map((i) => i.label)).toContain("Application Settings");
+    expect(reach).toEqual(["Overview", "Application Settings"]);
+    expect(reach).not.toContain("Support");
+    expect(allReachableNavItems(all).map((i) => i.label)).toEqual(expect.arrayContaining(["Support", "Application Settings"]));
   });
 });
 

@@ -6,6 +6,7 @@ import { computeDeviceState, type ConnectionStatus, type DeviceState } from "@/l
 import type { DeviceSyncInit } from "@/lib/device-sync-types";
 import { useTelemetryStore } from "@/lib/telemetry/react";
 import { GoLiveProvider, useGoLive } from "./go-live";
+import { markStatusReady, useSettledStates } from "./status-settle";
 import { LiveChannelKeeper, OverviewLiveBridge } from "./overview-live-bridge";
 
 /** An inverter or an EV charger of the selected site: what the device controls (in the sidebar) and the brand button's badge are built from. */
@@ -71,11 +72,31 @@ function useDeviceStates(devices: StatusDevice[]) {
         .join(";"),
     () => ""
   );
-  const states = React.useMemo(
+  const raw = React.useMemo(
     () => Object.fromEntries(devices.map((d) => [d.id, computeDeviceState(d.sync, store.getStatus(d.id), clock)])),
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [devices, store, clock, sig]
   );
+  // steadied: nothing inactive is shown until the page has loaded and re-read the status, and a working device is held as it was for a short grace period first
+  const states = useSettledStates(raw);
+  // The page has loaded and every device's status has been read again from the server: from now on a status that is not online may be shown.
+  const ids = devices.map((d) => d.id).join(",");
+  React.useEffect(() => {
+    let cancelled = false;
+    const done = () => {
+      if (!cancelled) markStatusReady();
+    };
+    const loaded = new Promise<void>((resolve) => {
+      if (document.readyState === "complete") resolve();
+      else window.addEventListener("load", () => resolve(), { once: true });
+    });
+    void Promise.allSettled([loaded, ...ids.split(",").filter(Boolean).map((id) => store.refreshHeartbeat(id))]).then(done);
+    const fallback = setTimeout(done, 8000);
+    return () => {
+      cancelled = true;
+      clearTimeout(fallback);
+    };
+  }, [ids, store]);
   return { states, clock, store };
 }
 

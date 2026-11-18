@@ -164,6 +164,18 @@ export function pageOfPath(pathname: string): TeamPage | "owner" | null {
   }
 }
 
+/**
+ * The tabs of Application Settings a team member may use: their own profile and how the dashboard looks and behaves for them. The account's notifications, alerts,
+ * billing, team and data stay with the owner.
+ */
+export const MEMBER_SETTINGS_TABS = ["profile", "appearance", "units", "dashboard", "security"] as const;
+export type MemberSettingsTab = (typeof MEMBER_SETTINGS_TABS)[number];
+
+/** Application Settings itself (and nothing under it, such as the old device-settings page) is open to a team member. */
+export function isMemberSettingsPath(pathname: string): boolean {
+  return (pathname.replace(/[?#].*$/, "").replace(/\/+$/, "") || "/") === "/dashboard/settings";
+}
+
 /** Where a member lands: the first of their pages, in the dashboard's own order. */
 export function firstPageHref(pages: readonly string[]): string {
   const first = TEAM_PAGES.find((p) => pages.includes(p.key));

@@ -67,6 +67,13 @@ export async function teamJoinLink(token: string): Promise<string> {
 
 export const teamSignInUrl = (): string => `${(process.env.NEXT_PUBLIC_SITE_URL || SITE.url).replace(/\/+$/, "")}/login`;
 
+/** The names of the accounts that invited a member, for the header of their settings. Read with the server's key (a member cannot read another profile) and only for the ids they belong to. */
+export async function ownerNamesOf(ownerIds: readonly string[]): Promise<string[]> {
+  if (ownerIds.length === 0) return [];
+  const { data } = await createServiceRoleClient().from("profiles").select("full_name").in("id", [...ownerIds]);
+  return (data ?? []).map((r) => r.full_name?.trim()).filter((n): n is string => !!n);
+}
+
 export interface TeamMemberView {
   id: string;
   email: string;

@@ -1,6 +1,7 @@
 "use server";
 
 import { requireCustomer } from "@waytara/supabase/auth";
+import { requireAccountOwner } from "@/lib/team-guard";
 import { renderMail } from "@waytara/ui/mail-layout";
 import { loadInvoice } from "@/lib/invoice-data";
 import { generateInvoicePdf } from "@/lib/invoice-pdf";
@@ -11,6 +12,7 @@ import type { InvoiceData } from "@/lib/invoice";
 /** One invoice for the in-app view (the same data the PDF is drawn from). */
 export async function getInvoice(paymentId: string): Promise<InvoiceData> {
   await requireCustomer();
+  await requireAccountOwner();
   const invoice = await loadInvoice(paymentId);
   if (!invoice) throw new Error("There is no invoice for this payment.");
   return invoice;
@@ -20,6 +22,7 @@ export async function getInvoice(paymentId: string): Promise<InvoiceData> {
 /** E-mails the invoice as a PDF to the billing e-mail (or the account's e-mail when there is none). */
 export async function emailInvoice(paymentId: string): Promise<{ sentTo: string }> {
   const profile = await requireCustomer();
+  await requireAccountOwner();
   const invoice = await loadInvoice(paymentId);
   if (!invoice) throw new Error("There is no invoice for this payment.");
   const to = invoice.buyer.billingEmail || profile.email;
