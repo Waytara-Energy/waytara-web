@@ -302,7 +302,7 @@ async function evMonitoring(supabase: SupabaseServerClient, device: CustomerDevi
     headline: {
       value: todayKwhText,
       label: "Delivered Today",
-      actions: <EvChargeControl chargerId={device.id} sessionOpen={!!running} transactionId={transactionId} connected={connected} compact className="w-56" />,
+      actions: <EvChargeControl chargerId={device.id} sessionOpen={!!running} transactionId={transactionId} connected={connected} compact className="w-56 max-sm:w-auto" />,
     },
     // One page, each figure once: the state, the live charge (power against the rating, current, this charge, time, what powers it), today's power
     // curve, today's charges (a press opens the one charge), then what else the charger reports.

@@ -110,7 +110,11 @@ export default async function DashboardOverviewPage({ searchParams }: { searchPa
   const backgroundUrl = overviewPrefs.background.kind === "image" ? supabase.storage.from("avatars").getPublicUrl(overviewPrefs.background.path).data.publicUrl : null;
   const background = backgroundCss(overviewPrefs.background, backgroundUrl, overviewPrefs.dim);
 
-  const deviceTabs: OverviewTab[] = slideData.flatMap((d): OverviewTab[] => {
+  // The order of the pages: the site's own Overview first, then the solar inverter(s), then the EV charger(s) (whatever order the devices were added in).
+  const deviceTabs: OverviewTab[] = slideData
+    .slice()
+    .sort((a, b) => (a?.kind === "charger" ? 1 : 0) - (b?.kind === "charger" ? 1 : 0))
+    .flatMap((d): OverviewTab[] => {
     if (!d) return [];
     if (d.kind === "inverter") {
       return [

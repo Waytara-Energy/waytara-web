@@ -3,6 +3,7 @@
 import * as React from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Play, Square } from "lucide-react";
+import { notify } from "@waytara/ui/notify";
 import { createClient } from "@waytara/supabase/client";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -160,12 +161,25 @@ export function EvChargeControl({
     void start(t.kwh);
   }
 
+  // On a phone the compact control is a round icon button (the words stay for screen readers and as a tooltip), and what it has to say comes as a toast: a
+  // narrow icon has no room for a line of text under it.
+  React.useEffect(() => {
+    if (!compact || typeof window === "undefined" || !window.matchMedia("(max-width: 639px)").matches) return;
+    if (error) notify.error(error);
+  }, [compact, error]);
+  React.useEffect(() => {
+    if (!compact || typeof window === "undefined" || !window.matchMedia("(max-width: 639px)").matches) return;
+    if (notice) notify.warning(notice);
+  }, [compact, notice]);
+  const iconOnPhone = compact ? "max-sm:size-11 max-sm:w-11 max-sm:px-0 max-sm:shadow-lg" : "";
+  const word = (s: string) => <span className={compact ? "max-sm:sr-only" : undefined}>{s}</span>;
+
   return (
     <div className={cn("space-y-2", className)}>
       {sessionOpen ? (
-        <Button type="button" variant="outline" size={compact ? "sm" : "lg"} className="w-full rounded-full" onClick={() => void stop()} disabled={busy === "stop"}>
+        <Button type="button" variant="outline" size={compact ? "sm" : "lg"} className={cn("w-full rounded-full max-sm:border-red-500/40 max-sm:text-red-500", iconOnPhone)} onClick={() => void stop()} disabled={busy === "stop"} aria-label="Stop charging" title="Stop charging">
           {busy === "stop" ? <Loader2 className="size-4 animate-spin" /> : <Square className="size-4" />}
-          {busy === "stop" ? "Stopping…" : "Stop charging"}
+          {word(busy === "stop" ? "Stopping…" : "Stop charging")}
         </Button>
       ) : (
         <>
@@ -182,20 +196,28 @@ export function EvChargeControl({
               />
             </label>
           ) : null}
-          <Button type="button" size={compact ? "sm" : "lg"} className="w-full rounded-full" onClick={() => startFromField()} disabled={pending || connected === false}>
-            {pending ? <Loader2 className="size-4 animate-spin" /> : <Play className="size-4" />}
-            {waiting ? "Starting…" : busy === "start" ? "Sending…" : "Start charging"}
+          <Button
+            type="button"
+            size={compact ? "sm" : "lg"}
+            className={cn("w-full rounded-full", iconOnPhone, compact && "max-sm:shadow-emerald-500/30")}
+            onClick={() => startFromField()}
+            disabled={pending || connected === false}
+            aria-label={connected === false ? "Start charging (the charger is not connected)" : "Start charging"}
+            title={connected === false ? "The charger is not connected right now" : "Start charging"}
+          >
+            {pending ? <Loader2 className="size-4 animate-spin max-sm:size-5" /> : <Play className="size-4 max-sm:size-5" />}
+            {word(waiting ? "Starting…" : busy === "start" ? "Sending…" : "Start charging")}
           </Button>
-          {connected === false ? <p className="text-center text-xs text-muted-foreground">The charger is not connected right now.</p> : null}
+          {connected === false ? <p className={cn("text-center text-xs text-muted-foreground", compact && "max-sm:hidden")}>The charger is not connected right now.</p> : null}
         </>
       )}
       {error ? (
-        <p role="alert" className="text-center text-xs text-destructive">
+        <p role="alert" className={cn("text-center text-xs text-destructive", compact && "max-sm:hidden")}>
           {error}
         </p>
       ) : null}
       {notice ? (
-        <p role="status" className="text-center text-xs text-amber-700 dark:text-amber-400">
+        <p role="status" className={cn("text-center text-xs text-amber-700 dark:text-amber-400", compact && "max-sm:hidden")}>
           {notice}
         </p>
       ) : null}
