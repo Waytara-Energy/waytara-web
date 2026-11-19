@@ -33,11 +33,11 @@ export const GUIDE_LINKS: NavDestination[] = [
   { label: "Partner licences explained", href: "/blog/licence-grades" },
   { label: "The WayTara gateway", href: "/blog/waytara-gateway" },
   { label: "Connect an EV charger", href: "/blog/connect-ev-charger-ocpp" },
-  { label: "Solar for your home", href: "/solar-for-home" },
-  { label: "On-grid, hybrid or off-grid", href: "/on-grid-hybrid-off-grid-solar" },
-  { label: "Solar subsidy and net metering", href: "/solar-subsidy" },
-  { label: "PM Surya Ghar scheme", href: "/pm-surya-ghar-muft-bijli-yojana" },
-  { label: "Reduce your electricity bill", href: "/reduce-electricity-bill-solar" },
+  { label: "Solar for your home", href: "/blog/solar-for-home" },
+  { label: "On-grid, hybrid or off-grid", href: "/blog/on-grid-hybrid-off-grid-solar" },
+  { label: "Solar subsidy and net metering", href: "/blog/solar-subsidy" },
+  { label: "PM Surya Ghar scheme", href: "/blog/pm-surya-ghar-muft-bijli-yojana" },
+  { label: "Reduce your electricity bill", href: "/blog/reduce-electricity-bill-solar" },
 ];
 
 export const SOLUTIONS_HUB: NavDestination = { label: "Solutions", href: "/solutions" };

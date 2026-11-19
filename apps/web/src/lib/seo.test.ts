@@ -104,7 +104,7 @@ describe("guides", () => {
       expect(g.answer.length).toBeGreaterThan(80);
       expect(g.inShort.length).toBeGreaterThanOrEqual(3);
       expect(g.faqs.length).toBeGreaterThanOrEqual(5);
-      expect(g.path).toBe(`/${g.slug}`);
+      expect(g.path).toBe(`/blog/${g.slug}`);
       for (const r of g.related) expect(GUIDES[r]).toBeDefined();
       // the title stays short enough to show in search results once the site name is added
       expect(g.metaTitle.length).toBeLessThanOrEqual(48);

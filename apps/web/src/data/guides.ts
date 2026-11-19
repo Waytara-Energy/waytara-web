@@ -68,7 +68,7 @@ const UPDATED_LABEL = "6 November 2026";
 
 const solarForHome: Guide = {
   slug: "solar-for-home",
-  path: "/solar-for-home",
+  path: "/blog/solar-for-home",
   metaTitle: "Solar for Your Home: Size, Cost and Steps",
   metaDescription:
     "How rooftop solar works for a home or villa: what size you need, what decides the cost, what is included, the steps from enquiry to switch-on, and how to start.",
@@ -228,7 +228,7 @@ const solarForHome: Guide = {
 
 const gridTypes: Guide = {
   slug: "on-grid-hybrid-off-grid-solar",
-  path: "/on-grid-hybrid-off-grid-solar",
+  path: "/blog/on-grid-hybrid-off-grid-solar",
   metaTitle: "On-Grid vs Hybrid vs Off-Grid Solar",
   metaDescription:
     "On-grid, hybrid and off-grid solar compared in plain words: what each one is, what happens in a power cut, whether it works with net metering and the subsidy, and how to choose for your home or business.",
@@ -361,7 +361,7 @@ const gridTypes: Guide = {
 
 const subsidy: Guide = {
   slug: "solar-subsidy",
-  path: "/solar-subsidy",
+  path: "/blog/solar-subsidy",
   metaTitle: "Solar Subsidy in India: PM Surya Ghar",
   metaDescription:
     "How the central PM Surya Ghar: Muft Bijli Yojana subsidy works for rooftop solar in India: how much per kW, who can apply, the steps, how net metering fits in, and what WayTara does and does not promise.",
@@ -526,7 +526,7 @@ const subsidy: Guide = {
 
 const bill: Guide = {
   slug: "reduce-electricity-bill-solar",
-  path: "/reduce-electricity-bill-solar",
+  path: "/blog/reduce-electricity-bill-solar",
   metaTitle: "Reduce Your Electricity Bill with Solar",
   metaDescription:
     "How solar, net metering and a battery reduce an electricity bill, why any free units matter, who saves the most, and how to work out whether solar makes sense for your home or business.",
@@ -662,7 +662,7 @@ const bill: Guide = {
 
 const scheme: Guide = {
   slug: "pm-surya-ghar-muft-bijli-yojana",
-  path: "/pm-surya-ghar-muft-bijli-yojana",
+  path: "/blog/pm-surya-ghar-muft-bijli-yojana",
   metaTitle: "PM Surya Ghar Muft Bijli Yojana: Explained",
   metaDescription:
     "What the PM Surya Ghar: Muft Bijli Yojana is, who can apply, the subsidy for homes and housing societies, what the 300 free units really mean, how to register on the national portal, and what to check first.",

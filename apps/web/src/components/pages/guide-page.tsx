@@ -14,9 +14,9 @@ const LINK = "font-semibold text-theme-highlight underline-offset-4 hover:underl
 
 /** Every guide links to the real pages it talks about: this puts the links in as the words appear, without writing links into the data. */
 const LINKED_PHRASES: { phrase: string; href: string }[] = [
-  { phrase: "on-grid, hybrid and off-grid solar", href: "/on-grid-hybrid-off-grid-solar" },
-  { phrase: "solar subsidy guide", href: "/solar-subsidy" },
-  { phrase: "how solar reduces your electricity bill", href: "/reduce-electricity-bill-solar" },
+  { phrase: "on-grid, hybrid and off-grid solar", href: "/blog/on-grid-hybrid-off-grid-solar" },
+  { phrase: "solar subsidy guide", href: "/blog/solar-subsidy" },
+  { phrase: "how solar reduces your electricity bill", href: "/blog/reduce-electricity-bill-solar" },
   { phrase: "energy planner", href: "/planner" },
   { phrase: "Warranty Policy", href: "/warranty" },
   { phrase: "Terms of Service", href: "/terms" },
