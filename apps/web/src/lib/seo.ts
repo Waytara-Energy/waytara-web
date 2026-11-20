@@ -11,8 +11,15 @@ interface PageMetaInput {
   noIndex?: boolean;
 }
 
+// The share picture (shown when a link is pasted into WhatsApp, LinkedIn or Facebook): the two image files in src/app. A page that sets its own
+// `openGraph` or `twitter` object replaces the ones from the root layout, and with them the picture that the image files add to the home page only,
+// so every page names the picture itself (the sizes are the files' real size).
+const SHARE_IMAGE_ALT =
+  "WayTara: your property's energy, built as one system. Solar, battery, EV charging and smart monitoring, shown with the WayTara dashboard.";
+const SHARE_IMAGE_SIZE = { width: 1200, height: 630 };
+
 /** Consistent per-page metadata: title, description, canonical, Open Graph and
- *  Twitter. Open Graph/Twitter images come from the root `opengraph-image`. */
+ *  Twitter, including the share picture. */
 export function pageMetadata({ title, description, path, noIndex }: PageMetaInput): Metadata {
   return {
     title,
@@ -25,8 +32,14 @@ export function pageMetadata({ title, description, path, noIndex }: PageMetaInpu
       siteName: SITE.name,
       type: "website",
       locale: SITE.locale,
+      images: [{ url: "/opengraph-image.png", ...SHARE_IMAGE_SIZE, alt: SHARE_IMAGE_ALT }],
     },
-    twitter: { card: "summary_large_image", title, description },
+    twitter: {
+      card: "summary_large_image",
+      title,
+      description,
+      images: [{ url: "/twitter-image.png", ...SHARE_IMAGE_SIZE, alt: SHARE_IMAGE_ALT }],
+    },
     ...(noIndex ? { robots: { index: false, follow: false } } : {}),
   };
 }

@@ -15,6 +15,17 @@ describe("pageMetadata", () => {
     expect(m.robots).toBeUndefined();
   });
 
+  it("names the share picture itself, because a page's own openGraph/twitter replaces the one from the root layout (WEB-236)", () => {
+    const m = pageMetadata({ title: "About", description: "d", path: "/about" });
+    const og = m.openGraph?.images as { url: string; width: number; height: number; alt: string }[];
+    const tw = m.twitter?.images as { url: string; width: number; height: number; alt: string }[];
+    expect(og).toHaveLength(1);
+    expect(og[0]).toMatchObject({ url: "/opengraph-image.png", width: 1200, height: 630 });
+    expect(og[0].alt.length).toBeGreaterThan(20);
+    expect(tw).toHaveLength(1);
+    expect(tw[0]).toMatchObject({ url: "/twitter-image.png", width: 1200, height: 630 });
+  });
+
   it("marks noIndex pages as noindex,nofollow", () => {
     const m = pageMetadata({ title: "x", description: "d", path: "/x", noIndex: true });
     expect(m.robots).toEqual({ index: false, follow: false });
