@@ -10,7 +10,7 @@ import { SegmentShell } from "./segment-shell";
 
 export const EV_FLEET_PATH = "/solutions/ev-fleet";
 export const EV_FLEET_DESCRIPTION =
-  "EV charging infrastructure for fleet depots and charging networks, with WayTara's own OCPP charge-point management software to monitor and manage compatible chargers.";
+  "EV charging infrastructure for fleet depots and networks, with WayTara's own OCPP charge-point management software to monitor and manage compatible chargers.";
 
 const PLAN_HREF = "/planner?start=charge&for=ev-fleet";
 const CPMS_HREF = "/technology#compatibility";

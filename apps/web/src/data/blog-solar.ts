@@ -13,9 +13,9 @@ const NREL = {
 export const antiIslanding: Guide = {
   slug: "why-solar-stops-in-a-power-cut",
   path: "/blog/why-solar-stops-in-a-power-cut",
-  metaTitle: "Why Grid-Connected Solar Stops in a Power Cut, and What the Rules Say",
+  metaTitle: "Why On-Grid Solar Stops in a Power Cut",
   metaDescription:
-    "Why an on-grid solar system switches off when the grid fails, what the CEA connectivity regulations require of it, how a system is connected and tested in India, and what you need to have power during a cut.",
+    "Why an on-grid solar system switches off when the grid fails, what the CEA connectivity rules require, and what you need to have power during a cut.",
   name: "Why solar stops in a power cut",
   eyebrow: "Solar systems",
   title: "Why your solar stops in a power cut,",
@@ -225,9 +225,9 @@ export const antiIslanding: Guide = {
 export const solarCare: Guide = {
   slug: "clean-and-maintain-rooftop-solar",
   path: "/blog/clean-and-maintain-rooftop-solar",
-  metaTitle: "Cleaning and Maintaining Rooftop Solar Panels: What the Research Says",
+  metaTitle: "Cleaning and Maintaining Solar Panels",
   metaDescription:
-    "How dirt affects solar output, how to clean panels safely, how to decide how often, what to inspect on the array, roof, inverter and battery, and a simple yearly routine, based on the NREL operation and maintenance guide.",
+    "How dirt affects solar output, how to clean panels safely and how often, what to inspect, and a yearly routine, based on the NREL maintenance guide.",
   name: "Cleaning and caring for rooftop solar",
   eyebrow: "Solar systems",
   title: "Cleaning and caring for",
@@ -404,7 +404,7 @@ export const solarMonitoring: Guide = {
   path: "/blog/good-solar-monitoring",
   metaTitle: "What Good Solar Monitoring Should Show You",
   metaDescription:
-    "The three questions monitoring should answer, what availability, performance ratio and performance index mean, what a good report contains, how often alerts should fire, and what to ask before you trust a dashboard.",
+    "The three questions monitoring should answer, what availability and performance ratio mean, what a good report contains, and how often alerts should fire.",
   name: "What good solar monitoring shows",
   eyebrow: "Solar systems",
   title: "What good solar monitoring",

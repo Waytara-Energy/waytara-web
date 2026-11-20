@@ -7,7 +7,7 @@ import { SegmentShell } from "./segment-shell";
 
 export const COMMERCIAL_PATH = "/solutions/commercial";
 export const COMMERCIAL_DESCRIPTION =
-  "Solar, battery storage, EV charging and energy management for offices, hospitals, hotels and retail, designed around your building's operating hours, energy demand and existing infrastructure.";
+  "Solar, battery storage, EV charging and energy management for offices, hospitals, hotels and retail, designed around your building's operating hours and demand.";
 
 const ASSESS_HREF = "/planner?start=build&for=commercial";
 const EMS_HREF = "/technology#compatibility";

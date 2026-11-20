@@ -24,9 +24,9 @@ const CEA_SAFETY = {
 export const modbusExplained: Guide = {
   slug: "modbus-rs485-explained",
   path: "/blog/modbus-rs485-explained",
-  metaTitle: "Modbus and RS-485 in Plain Words: How an Inverter Gets Read",
+  metaTitle: "Modbus and RS-485 in Plain Words",
   metaDescription:
-    "How Modbus works, what RS-485 wiring needs, what the specification says about addresses, speeds, cable length, termination and registers, and what to check when an inverter does not answer.",
+    "How Modbus works, what RS-485 wiring needs, addresses, speeds, cable length, termination and registers, and what to check when an inverter does not answer.",
   name: "Modbus and RS-485 explained",
   eyebrow: "Gateway and integration",
   title: "Modbus and RS-485 in plain words:",
@@ -218,9 +218,9 @@ export const modbusExplained: Guide = {
 export const homeEvCharger: Guide = {
   slug: "home-ev-charger-installation",
   path: "/blog/home-ev-charger-installation",
-  metaTitle: "Installing an EV Charger at Home: A Checklist from India's Safety Regulations",
+  metaTitle: "Installing an EV Charger at Home: Checklist",
   metaDescription:
-    "Who may install an EV charger, what the CEA safety regulations 2023 require of EV charging equipment and its circuit, what to ask your installer, and which records to keep.",
+    "Who may install an EV charger, what India's CEA safety regulations 2023 require, what to ask your installer, and which records to keep.",
   name: "Installing an EV charger at home",
   eyebrow: "EV charging",
   title: "Installing an EV charger at home:",

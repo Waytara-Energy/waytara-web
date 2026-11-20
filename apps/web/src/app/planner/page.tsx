@@ -7,7 +7,7 @@ import { breadcrumbJsonLd, pageMetadata } from "@/lib/seo";
 export const metadata = pageMetadata({
   title: "Solar, Battery & EV Energy Planner",
   description:
-    "Tell us what you want to achieve and get a preliminary energy blueprint for your property: new solar, storage and EV charging, connecting equipment you already have, or managing chargers.",
+    "Tell us what you want and get a preliminary energy blueprint: new solar, storage and EV charging, connecting existing equipment, or managing chargers.",
   path: "/planner",
 });
 

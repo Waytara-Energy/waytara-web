@@ -38,7 +38,7 @@ import { PageHero, PageShell } from "./page-shell";
 
 export const WHY_PATH = "/why-waytara";
 export const WHY_DESCRIPTION =
-  "What WayTara does: one team that designs, installs and connects solar, storage and EV charging as one system, with its own gateway and software, ready reports, secure accounts and proof you can check for yourself.";
+  "One team that designs, installs and connects solar, storage and EV charging as one system, with its own gateway, software and reports.";
 
 const REASONS = [
   { icon: Users, title: "One team", body: "The same people design, install, connect and support your system, so there is one place to ask when something needs attention." },

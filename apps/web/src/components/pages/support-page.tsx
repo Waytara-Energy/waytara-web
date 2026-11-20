@@ -9,7 +9,7 @@ import { SupportForm } from "./support-form";
 
 export const SUPPORT_PATH = "/support";
 export const SUPPORT_DESCRIPTION =
-  "Every way to get help from WayTara: raise a ticket in your dashboard, call or e-mail the team, tell us if you cannot sign in, or ask before you become a customer.";
+  "Every way to get help from WayTara: raise a ticket in your dashboard, call or e-mail the team, get sign-in help, or ask before you become a customer.";
 
 const HOURS = "Monday to Saturday, 8 AM to 8 PM IST";
 

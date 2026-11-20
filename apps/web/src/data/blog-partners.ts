@@ -26,9 +26,9 @@ const CEA_SAFETY = {
 export const licenceGrades: Guide = {
   slug: "licence-grades",
   path: "/blog/licence-grades",
-  metaTitle: "Electrical Contractor Licence Grades in Tamil Nadu: EB, ESB, EA, ESA",
+  metaTitle: "Contractor Licence Grades in Tamil Nadu",
   metaDescription:
-    "What the four Tamil Nadu electrical contractor licence grades cover, what the Board requires of each, what they cost, how the law ties work to a licence, and how WayTara checks a partner's licence.",
+    "What the four Tamil Nadu electrical contractor licence grades cover, what the Board requires of each, and how WayTara checks a partner's licence.",
   name: "Contractor licence grades",
   eyebrow: "Partners and licences",
   title: "Electrical contractor licence grades",
@@ -261,9 +261,9 @@ export const licenceGrades: Guide = {
 export const competencyCertificates: Guide = {
   slug: "competency-certificates",
   path: "/blog/competency-certificates",
-  metaTitle: "Wireman, Supervisor and Wireman Helper Certificates in Tamil Nadu",
+  metaTitle: "Wireman and Supervisor Certificates",
   metaDescription:
-    "The difference between a contractor licence and a competency certificate, what the Board asks of a Wireman, Wireman Helper or Supervisor applicant, what each costs, and how certificates tie a person to one contractor.",
+    "How a contractor licence differs from a competency certificate, what the Board asks of Wireman, Helper and Supervisor applicants, and what each costs.",
   name: "Wireman and Supervisor certificates",
   eyebrow: "Partners and licences",
   title: "Wireman and Supervisor certificates:",
@@ -412,9 +412,9 @@ export const competencyCertificates: Guide = {
 export const workingUnderContractor: Guide = {
   slug: "working-under-a-contractor",
   path: "/blog/working-under-a-contractor",
-  metaTitle: "Working Under a Licensed Contractor: Solar and EV Charging Teams",
+  metaTitle: "Working Under a Licensed Contractor",
   metaDescription:
-    "How a solar or EV charging team without its own contractor licence can work with WayTara through a licensed contractor, what the law and the Board's forms imply, how to set it up in writing, and the warning signs.",
+    "How a solar or EV charging team without its own licence can work with WayTara through a licensed contractor, how to set it up in writing, and warning signs.",
   name: "Working under a licensed contractor",
   eyebrow: "Partners and licences",
   title: "Working under a licensed contractor:",
@@ -568,9 +568,9 @@ export const workingUnderContractor: Guide = {
 export const partnerDocuments: Guide = {
   slug: "partner-documents-and-privacy",
   path: "/blog/partner-documents-and-privacy",
-  metaTitle: "Partner Documents: What WayTara Asks For and How It Is Protected",
+  metaTitle: "Partner Documents and How We Protect Them",
   metaDescription:
-    "The journey from application to approval, the documents a WayTara partner is asked for and why, why an Aadhaar number is never collected in full, who can open the documents, and your rights.",
+    "From application to approval: the documents a WayTara partner is asked for and why, why Aadhaar is never collected in full, who can open them, and your rights.",
   name: "Partner documents and privacy",
   eyebrow: "Partners and licences",
   title: "Partner documents:",

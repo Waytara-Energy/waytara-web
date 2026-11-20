@@ -14,9 +14,9 @@ const OCA_PAPER = {
 export const gateway: Guide = {
   slug: "waytara-gateway",
   path: "/blog/waytara-gateway",
-  metaTitle: "The WayTara Gateway: What It Connects, Reads and Does",
+  metaTitle: "The WayTara Gateway Explained",
   metaDescription:
-    "What the WayTara gateway is, how it reads an inverter, why it needs one Wi-Fi connection, what happens when the internet drops, how an installer sets one up, and what monitoring and control mean.",
+    "What the WayTara gateway is, how it reads an inverter, why it needs one Wi-Fi connection, what happens when the internet drops, and how it is set up.",
   name: "The WayTara gateway",
   eyebrow: "Gateway and integration",
   title: "The WayTara gateway:",
@@ -138,9 +138,9 @@ export const gateway: Guide = {
 export const existingSolar: Guide = {
   slug: "monitor-existing-solar",
   path: "/blog/monitor-existing-solar",
-  metaTitle: "Adding Monitoring to a Solar System You Already Have",
+  metaTitle: "Add Monitoring to Solar You Already Have",
   metaDescription:
-    "How to bring an existing inverter, battery or EV charger onto the WayTara platform without replacing it: what to check, what to send us, what installation involves, and what you should not expect.",
+    "How to bring an existing inverter, battery or EV charger onto WayTara without replacing it: what to check, what to send us, and what to expect.",
   name: "Monitoring an existing solar system",
   eyebrow: "Gateway and integration",
   title: "Adding monitoring to a solar system",
@@ -257,9 +257,9 @@ export const existingSolar: Guide = {
 export const evOcpp: Guide = {
   slug: "connect-ev-charger-ocpp",
   path: "/blog/connect-ev-charger-ocpp",
-  metaTitle: "Connecting an EV Charger to WayTara: What Happens, Step by Step",
+  metaTitle: "Connecting an EV Charger to WayTara",
   metaDescription:
-    "What happens when an OCPP 1.6J charger connects to WayTara: the connection, the first messages, sessions and meter readings, the commands the dashboard can send, and what the CEA connectivity regulations say about charging stations.",
+    "What happens when an OCPP 1.6J charger connects to WayTara: sessions, meter readings, the commands the dashboard can send, and the CEA connectivity rules.",
   name: "Connecting an EV charger (OCPP)",
   eyebrow: "EV charging",
   title: "Connecting an EV charger:",
@@ -361,9 +361,9 @@ export const evOcpp: Guide = {
 export const ocppVersions: Guide = {
   slug: "ocpp-1-6-or-2-0-1",
   path: "/blog/ocpp-1-6-or-2-0-1",
-  metaTitle: "OCPP 1.6J or 2.0.1: What the Version Means for Your EV Charger",
+  metaTitle: "OCPP 1.6J or 2.0.1 for Your EV Charger",
   metaDescription:
-    "What OCPP is, how version 1.6 and version 2.0.1 differ according to the Open Charge Alliance, why they are not compatible, what certification means, and what to ask about your charger.",
+    "What OCPP is, how versions 1.6 and 2.0.1 differ, why they are not compatible, what certification means, and what to ask about your charger.",
   name: "OCPP 1.6J or 2.0.1",
   eyebrow: "EV charging",
   title: "OCPP 1.6J or 2.0.1:",

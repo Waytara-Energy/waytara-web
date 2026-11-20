@@ -3,7 +3,7 @@ import { fetchListedPartners } from "@/lib/partner-directory-server";
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata = pageMetadata({
-  title: "Partner Network: Electrical, Solar & EV Charging Partners in Tamil Nadu",
+  title: "WayTara Partner Network, Tamil Nadu",
   description: PARTNER_DESCRIPTION,
   path: "/partner",
 });

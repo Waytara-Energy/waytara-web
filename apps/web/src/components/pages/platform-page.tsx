@@ -11,7 +11,7 @@ import { PageHero, PageShell } from "./page-shell";
 
 export const PLATFORM_PATH = "/technology";
 export const PLATFORM_DESCRIPTION =
-  "How WayTara connects solar inverters, batteries, meters and EV chargers to one platform: energy management for supported equipment and charge-point management for compatible OCPP chargers.";
+  "One platform for supported solar inverters, batteries, meters and compatible OCPP EV chargers: energy management and charge-point management.";
 
 const PARTS = [
   {

@@ -9,7 +9,7 @@ import { pageMetadata } from "@/lib/seo";
 export const metadata = pageMetadata({
   title: "WayTara Energy | Solar, Battery & EV Charging in One System",
   description:
-    "Rooftop solar, hybrid inverters, battery storage and EV charging for homes, villas, apartments and businesses in Chennai and across India, monitored and controlled in one WayTara dashboard.",
+    "Rooftop solar, hybrid inverters, battery storage and EV charging for homes and businesses in Chennai and across India, in one WayTara dashboard.",
   path: "/",
 });
 

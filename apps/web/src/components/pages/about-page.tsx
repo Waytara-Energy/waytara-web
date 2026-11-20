@@ -7,7 +7,7 @@ import { PageHero, PageShell } from "./page-shell";
 
 export const ABOUT_PATH = "/about";
 export const ABOUT_DESCRIPTION =
-  "WayTara designs and installs solar, battery storage and EV charging, builds the software and gateway that connect them, and supports the system afterwards. Based in Mylapore, Chennai.";
+  "WayTara designs and installs solar, battery storage and EV charging, builds the software that connects them, and supports it afterwards. Mylapore, Chennai.";
 
 /** About Us: who we are, the vision and the team (the existing Our Team section, moved here), and where to find us. */
 export function AboutPage() {

@@ -2,7 +2,7 @@ import { PLATFORM_DESCRIPTION, PlatformPage } from "@/components/pages/platform-
 import { pageMetadata } from "@/lib/seo";
 
 export const metadata = pageMetadata({
-  title: "Monitor and Control Solar, Battery & EV Charging",
+  title: "Solar, Battery & EV Charging Platform",
   description: PLATFORM_DESCRIPTION,
   path: "/technology",
 });

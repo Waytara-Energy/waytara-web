@@ -7,7 +7,7 @@ import { SegmentShell } from "./segment-shell";
 
 export const FACTORY_PATH = "/solutions/factory";
 export const FACTORY_DESCRIPTION =
-  "Industrial solar, battery storage and generator-integrated energy systems designed around your plant's operating requirements, with EMS for the equipment you already have.";
+  "Industrial solar, battery storage and generator-integrated energy systems built around your plant's needs, with EMS for the equipment you already have.";
 
 const ASSESS_HREF = "/planner?start=build&for=factory";
 const EMS_HREF = "/technology#compatibility";

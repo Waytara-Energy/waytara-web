@@ -303,7 +303,7 @@ const sections: LegalSection[] = [
 
 export const metadata = pageMetadata({
   title: "Privacy Policy",
-  description: "What WayTara collects, why, who else sees it, how long it is kept and what you can do about it.",
+  description: "What WayTara collects, why, who else sees it, how long it is kept and what you can do about it, including partner documents and device data.",
   path: "/privacy",
 });
 

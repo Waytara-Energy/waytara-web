@@ -193,7 +193,7 @@ const sections: LegalSection[] = [
 
 export const metadata = pageMetadata({
   title: "Partner Terms",
-  description: "The terms for applying to the WayTara Partner Network: verification, documents, licences and safety, work orders, customer information and the partner agreement.",
+  description: "The terms for applying to the WayTara Partner Network: verification, documents, licences and safety, work orders, customer information and the agreement.",
   path: "/partner-terms",
 });
 

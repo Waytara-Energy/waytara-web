@@ -13,7 +13,7 @@ import { PartnerMap } from "./partner-map";
 
 export const PARTNER_PATH = "/partner";
 export const PARTNER_DESCRIPTION =
-  "Join the WayTara Partner Network in Tamil Nadu: electrical contractors, solar installation teams, EV charging teams and field technicians. Project-based work with clear terms, on modern energy systems.";
+  "Join the WayTara Partner Network in Tamil Nadu: electrical contractors, solar and EV charging teams and field technicians. Project-based work, clear terms.";
 
 // The longer answers, on the blog.
 const BLOG_LINKS = [

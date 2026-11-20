@@ -15,10 +15,10 @@ export interface SegmentPageEntry {
 
 /** The six property types, one page each (docs/WEBSITE_PLAN.md section 7), keyed by a short name. The address of each page is its own `path`. */
 export const SEGMENT_PAGES: Record<string, SegmentPageEntry> = {
-  home: { Page: HomesPage, title: "Home & Villa Solar with Battery Backup & EV Charging", description: HOMES_DESCRIPTION, path: HOMES_PATH },
+  home: { Page: HomesPage, title: "Home & Villa Solar, Battery & EV Charging", description: HOMES_DESCRIPTION, path: HOMES_PATH },
   commercial: { Page: CommercialPage, title: "Commercial Solar, Storage & EV Charging", description: COMMERCIAL_DESCRIPTION, path: COMMERCIAL_PATH },
-  factory: { Page: FactoryPage, title: "Industrial Solar, Battery Storage & EMS", description: FACTORY_DESCRIPTION, path: FACTORY_PATH },
-  ev_fleet: { Page: EvFleetPage, title: "EV Fleet Charging Management (CPMS) with Solar", description: EV_FLEET_DESCRIPTION, path: EV_FLEET_PATH },
+  factory: { Page: FactoryPage, title: "Factory Solar, Battery & Energy Management", description: FACTORY_DESCRIPTION, path: FACTORY_PATH },
+  ev_fleet: { Page: EvFleetPage, title: "EV Fleet Charging: Charge Point Management", description: EV_FLEET_DESCRIPTION, path: EV_FLEET_PATH },
   it_park: { Page: ItParkPage, title: "Solar, Storage & EV Charging for IT Parks", description: IT_PARK_DESCRIPTION, path: IT_PARK_PATH },
   apartment: { Page: ApartmentsPage, title: "Solar & EV Charging for Apartments and RWAs", description: APARTMENTS_DESCRIPTION, path: APARTMENTS_PATH },
 };
