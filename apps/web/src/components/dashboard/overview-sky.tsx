@@ -2,8 +2,10 @@
 
 import * as React from "react";
 import { useTheme } from "next-themes";
-import { CloudShader } from "@/components/ui/cloud-shader";
+import { WeatherSky } from "@/components/ui/weather-sky";
 import { useHasMounted } from "@/hooks/use-has-mounted";
+import { useSiteWeather } from "@/hooks/use-site-weather";
+import { DASHBOARD_PALETTE, skyFromWeather, type SkyWeatherInput } from "@/lib/weather-sky";
 
 const HOST = '[data-slot="sidebar-inset"]';
 
@@ -11,6 +13,11 @@ const HOST = '[data-slot="sidebar-inset"]';
 // landing page's, because here the dashboard header sits right on it.
 const SKY_DAY = { top: "#5f9fd6", bottom: "#a9d2f0", cloud: "#fbf8f2" };
 const SKY_DUSK = { top: "#070d1f", bottom: "#1b2a4a", cloud: "#8d9bb8" };
+// The sky follows the weather at the selected site (its colours are mixed between these clear and overcast ends). The overcast ends are kept light by day, because the
+// dashboard header sits on the sky with dark text: a storm sky here is a pale grey, not a dark one. By night (the dark theme) it is the dusk sky.
+const SKY_PALETTE = DASHBOARD_PALETTE;
+// Until the weather is known (or when the site has no location, or the service cannot be reached): a fair day with some cloud and a light west wind.
+const FALLBACK_WEATHER: SkyWeatherInput = { condition: "partly", cloudPct: 45, windMs: 3, windFromDeg: 270 };
 // The page colours of the two themes (what the browser's bar goes back to once the sky has scrolled away).
 const PAGE = { light: "#FFFFFF", dark: "#0A0F0D" };
 
@@ -34,6 +41,9 @@ const there = `(1 - ${g})`;
 // anything is painted, so the day / dusk colours are chosen here in CSS and not by a script.
 const CSS = `
 @property ${SLIDE}{syntax:"<number>";inherits:true;initial-value:1}
+@property --overview-sky-top{syntax:"<color>";inherits:true;initial-value:${SKY_DAY.top}}
+@property --overview-sky-bottom{syntax:"<color>";inherits:true;initial-value:${SKY_DAY.bottom}}
+:root{transition:--overview-sky-top 2.4s ease-out,--overview-sky-bottom 2.4s ease-out}
 ${HOST}{transition:${SLIDE} .45s cubic-bezier(.4,0,.2,1)}
 :root{--overview-sky-top:${SKY_DAY.top};--overview-sky-bottom:${SKY_DAY.bottom}}
 .dark{--overview-sky-top:${SKY_DUSK.top};--overview-sky-bottom:${SKY_DUSK.bottom}}
@@ -59,12 +69,23 @@ ${HOST} > header::after{opacity:calc(${g} * 0.7)}
  * A background the person has chosen for the Overview (Application Settings) is painted over it (see OverviewBackdrop). It must be rendered where no ancestor
  * inside the content area is positioned, so that "the top" is the top of the window.
  */
-export function OverviewSky({ active = true }: { active?: boolean }) {
+export function OverviewSky({ active = true, siteId = null }: { active?: boolean; siteId?: string | null }) {
   const ref = React.useRef<HTMLDivElement>(null);
   const { resolvedTheme } = useTheme();
   const mounted = useHasMounted();
   const dark = mounted && resolvedTheme === "dark";
-  const sky = dark ? SKY_DUSK : SKY_DAY;
+  // The weather at the selected site (kept in this browser, asked for once a day: see use-site-weather).
+  const { weather } = useSiteWeather(siteId);
+  const skyParams = React.useMemo(() => {
+    const now = weather?.now;
+    const input: SkyWeatherInput = now
+      ? { condition: now.condition, cloudPct: now.cloudPct, windMs: now.windMs, windFromDeg: now.windFromDeg, rainMm: now.rainMm, humidityPct: now.humidityPct }
+      : FALLBACK_WEATHER;
+    // the dark theme is the dusk sky, whatever the time; the light theme is a day sky
+    return skyFromWeather({ ...input, night: dark }, SKY_PALETTE);
+  }, [weather, dark]);
+  const skyTop = skyParams.skyHigh;
+  const skyTopRef = React.useRef(skyTop);
   // The cloud drawing runs only while the sky is there: it is stopped half a second after the sky has faded, and started again at once.
   const [stopped, setStopped] = React.useState(false);
   React.useEffect(() => {
@@ -88,6 +109,25 @@ export function OverviewSky({ active = true }: { active?: boolean }) {
     };
   }, [active]);
 
+  // The sky's own colours (they follow the weather) are shared as the CSS variables the page already uses, set on <html> so the page behind, the sky's backing and
+  // the browser's bar all agree with what the drawing shows at the top. The variables ease between colours (see CSS), the drawing eases the same way.
+  React.useEffect(() => {
+    skyTopRef.current = skyTop;
+    const root = document.documentElement;
+    root.style.setProperty("--overview-sky-top", skyTop);
+    root.style.setProperty("--overview-sky-bottom", skyParams.skyLow);
+    if (!root.hasAttribute("data-overview-scrolled")) {
+      document.querySelectorAll<HTMLMetaElement>('meta[name="theme-color"]').forEach((t) => t.setAttribute("content", skyTop));
+    }
+  }, [skyTop, skyParams.skyLow]);
+  React.useEffect(() => {
+    const root = document.documentElement;
+    return () => {
+      root.style.removeProperty("--overview-sky-top");
+      root.style.removeProperty("--overview-sky-bottom");
+    };
+  }, []);
+
   // How far the sky is gone follows the scroll of the page's own scroll region, shared as a CSS variable (no React re-render per scroll event). The same
   // moment decides the browser's bar: the sky's top colour while the sky shows, the page colour once it has gone.
   React.useEffect(() => {
@@ -107,7 +147,7 @@ export function OverviewSky({ active = true }: { active?: boolean }) {
       if (now === scrolled) return;
       scrolled = now;
       root.toggleAttribute("data-overview-scrolled", now);
-      const colour = now ? (dark ? PAGE.dark : PAGE.light) : dark ? SKY_DUSK.top : SKY_DAY.top;
+      const colour = now ? (dark ? PAGE.dark : PAGE.light) : skyTopRef.current;
       tags.forEach((t) => t.setAttribute("content", colour));
     };
     const onScroll = () => {
@@ -143,7 +183,7 @@ export function OverviewSky({ active = true }: { active?: boolean }) {
           backgroundImage: "linear-gradient(to bottom, var(--overview-sky-top), var(--overview-sky-bottom))",
         }}
       >
-        {drawing && <CloudShader className="absolute inset-0 h-full min-h-0" skyTopColor={sky.top} skyBottomColor={sky.bottom} cloudColor={sky.cloud} maxPixelRatio={1} />}
+        {drawing && <WeatherSky className="absolute inset-0 h-full min-h-0" params={skyParams} quality="low" maxPixelRatio={1} />}
       </div>
     </>
   );

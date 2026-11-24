@@ -212,7 +212,7 @@ export default async function DashboardLayout({
         <SidebarInset className="isolate h-svh overflow-clip">
           {/* The cloud sky behind every page, pinned to the top of the window; it scrolls away over the first 160 px of any page, and the header floats over it
               (see OverviewSky). It must be a direct child of this container, where nothing is positioned. */}
-          <OverviewSky />
+          <OverviewSky siteId={selectedSite?.id ?? null} />
           <DashboardHeader
             sites={sites.map((s) => ({ id: s.id, name: s.name, deviceCount: s.devices.length }))}
             selectedSiteId={selectedSite?.id ?? null}

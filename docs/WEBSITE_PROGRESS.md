@@ -578,3 +578,4 @@ Time correction 2: the rows D9 to D15 carried start and end times I wrote withou
 | 2026-11-19 | 11:40 | D251: the five solar guides now live at /blog/<name> and the Guides page is gone; old addresses and /guides redirect permanently. Code and tests done, not deployed, not pushed. |
 | 2026-11-20 | 12:40 | D252: 28 page titles and descriptions shortened to Google's limits; 23 new SEO cards and 16 rewritten on the Jira board. Code and tests done, not deployed, not pushed. |
 | 2026-11-20 | 12:55 | D253: share picture fixed on every page (Jira WEB-236): pageMetadata now names the picture itself; checked on the local site, test added. Not deployed, not pushed. |
+| 2026-11-25 | 00:10 | D254: the dashboard sky now follows the weather at the selected site (new WeatherSky: cloud cover, wind, rain, snow, fog, mist, thunder; Apple Weather look for cloudy and partly cloudy). Tests 19 new, whole suite 1118 passing. Not checked on the real signed-in dashboard or a phone. |
